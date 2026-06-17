@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+/* Tokens exactos del diseño Presta Ya. Tailwind v4 genera utilidades
+   a partir de estas variables (bg-azul, text-tinta, etc.). */
+@theme {
+  --color-azul: #1e47c8; /* azul rey primario */
+  --color-azul-osc: #13308c; /* azul oscuro */
+  --color-azul-claro: #2453dc; /* azul gradiente claro */
+  --color-fondo: #eaeef7; /* fondo de página */
+  --color-app: #f6f8fd; /* fondo de la tarjeta/app */
+  --color-verde: #1fa971; /* pagado */
+  --color-ambar: #e8a317; /* pendiente / abono */
+  --color-rojo: #d64545; /* atrasado */
+  --color-tinta: #0f1b3d; /* texto principal */
+  --color-gris: #6b7494; /* texto secundario */
+
+  --font-sans: "Inter", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: #eaeef7;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Accesibilidad ──────────────────────────────────────────────────────
+   Escala de texto (A+) por zoom del contenido, y alto contraste oscureciendo
+   el texto secundario. Las preferencias las fija AccesibilidadControl en
+   <html data-font> / <html data-contraste>. */
+html[data-font="1"] #app-zoom {
+  zoom: 1.12;
+}
+html[data-font="2"] #app-zoom {
+  zoom: 1.25;
+}
+html[data-contraste="1"] {
+  --color-gris: #3a445f;
+}
+
+/* ── Efecto "brillo" que barre el banner (llamativo, sutil) ───────────── */
+.py-shine::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 55%;
+  height: 100%;
+  background: linear-gradient(
+    100deg,
+    transparent,
+    rgba(255, 255, 255, 0.22),
+    transparent
+  );
+  transform: translateX(-130%) skewX(-18deg);
+  animation: py-shine 3.6s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes py-shine {
+  0%,
+  18% {
+    transform: translateX(-130%) skewX(-18deg);
+  }
+  55%,
+  100% {
+    transform: translateX(260%) skewX(-18deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .py-shine::after {
+    animation: none;
+    display: none;
+  }
+}

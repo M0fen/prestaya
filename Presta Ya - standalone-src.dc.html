@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<template id="__bundler_thumbnail" data-bg-color="#13308C">
+  <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1200" height="800" fill="#13308C"/>
+    <rect x="430" y="250" width="120" height="120" rx="34" fill="#2453DC"/>
+    <text x="490" y="345" font-family="Inter, sans-serif" font-size="78" font-weight="900" fill="#FFFFFF" text-anchor="middle">P</text>
+    <text x="600" y="500" font-family="Inter, sans-serif" font-size="60" font-weight="800" fill="#FFFFFF" text-anchor="middle">Presta Ya</text>
+    <rect x="500" y="540" width="200" height="14" rx="7" fill="rgba(255,255,255,0.25)"/>
+    <rect x="500" y="540" width="80" height="14" rx="7" fill="#1FA971"/>
+  </svg>
+</template>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body { background: #EAEEF7; font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    @keyframes pyFade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  </style>
+</helmet>
+
+<div style="min-height:100vh;background:#EAEEF7;display:flex;justify-content:center;padding:0;font-family:'Inter',system-ui,sans-serif;color:#0F1B3D;">
+  <div style="width:100%;max-width:440px;background:#F6F8FD;min-height:100vh;padding:20px 18px 40px;display:flex;flex-direction:column;gap:18px;box-shadow:0 0 60px rgba(15,27,61,0.08);">
+
+    <!-- 1 · ENCABEZADO -->
+    <header style="display:flex;align-items:center;justify-content:space-between;padding-top:6px;">
+      <div style="display:flex;align-items:center;gap:11px;">
+        <div style="width:42px;height:42px;border-radius:13px;background:linear-gradient(145deg,#1E47C8,#13308C);display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px rgba(30,71,200,0.32);">
+          <span style="color:#fff;font-weight:900;font-size:20px;letter-spacing:-0.02em;">P</span>
+        </div>
+        <div style="display:flex;flex-direction:column;line-height:1.1;">
+          <span style="font-weight:800;font-size:17px;letter-spacing:-0.02em;color:#0F1B3D;">Presta Ya</span>
+          <span style="font-size:11px;font-weight:600;color:#6B7494;letter-spacing:0.01em;">Tu crédito diario</span>
+        </div>
+      </div>
+      <div style="width:42px;height:42px;border-radius:50%;background:#E7ECF9;border:1px solid #DCE3F4;display:flex;align-items:center;justify-content:center;">
+        <span style="color:#1E47C8;font-weight:800;font-size:17px;">{{ inicial }}</span>
+      </div>
+    </header>
+
+    <div style="display:flex;flex-direction:column;gap:2px;margin-top:-4px;">
+      <span style="font-size:14px;font-weight:500;color:#6B7494;">Hola,</span>
+      <h1 style="margin:0;font-size:25px;font-weight:800;letter-spacing:-0.03em;color:#0F1B3D;">{{ nombre }}</h1>
+      <span style="font-size:13.5px;font-weight:500;color:#6B7494;margin-top:2px;">Este es el estado de tu crédito.</span>
+    </div>
+
+    <!-- 2 · TARJETA RESUMEN PRINCIPAL -->
+    <section style="position:relative;overflow:hidden;border-radius:24px;padding:24px 22px 22px;background:linear-gradient(150deg,#2453DC 0%,#1E47C8 45%,#13308C 100%);box-shadow:0 16px 34px rgba(19,48,140,0.34);color:#fff;">
+      <div style="position:absolute;top:-60px;right:-50px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,0.07);"></div>
+      <div style="position:absolute;bottom:-90px;left:-40px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,0.05);"></div>
+
+      <div style="position:relative;display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:12.5px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:rgba(255,255,255,0.78);">Saldo pendiente</span>
+        <div style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.16);padding:6px 11px 6px 9px;border-radius:999px;backdrop-filter:blur(4px);">
+          <span style="{{ estadoDotStyle }}"></span>
+          <span style="font-size:12px;font-weight:700;color:#fff;">{{ estadoGeneral }}</span>
+        </div>
+      </div>
+
+      <div style="position:relative;display:flex;align-items:flex-end;gap:9px;margin-top:8px;">
+        <span style="font-size:42px;font-weight:800;letter-spacing:-0.035em;line-height:1;font-variant-numeric:tabular-nums;">{{ falta }}</span>
+        <span style="font-size:14px;font-weight:500;color:rgba(255,255,255,0.72);margin-bottom:5px;">de {{ totalAPagar }}</span>
+      </div>
+
+      <div style="position:relative;margin-top:20px;height:12px;border-radius:999px;background:rgba(255,255,255,0.20);overflow:hidden;">
+        <div style="{{ barFillStyle }}"></div>
+      </div>
+
+      <div style="position:relative;display:flex;align-items:center;justify-content:space-between;margin-top:11px;">
+        <div style="display:flex;flex-direction:column;line-height:1.25;">
+          <span style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.66);text-transform:uppercase;letter-spacing:0.03em;">Pagado</span>
+          <span style="font-size:15.5px;font-weight:700;font-variant-numeric:tabular-nums;">{{ totalPagado }}</span>
+        </div>
+        <div style="text-align:center;">
+          <span style="font-size:23px;font-weight:800;color:#fff;font-variant-numeric:tabular-nums;">{{ progresoTexto }}</span>
+        </div>
+        <div style="display:flex;flex-direction:column;line-height:1.25;text-align:right;">
+          <span style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.66);text-transform:uppercase;letter-spacing:0.03em;">Te falta</span>
+          <span style="font-size:15.5px;font-weight:700;font-variant-numeric:tabular-nums;">{{ falta }}</span>
+        </div>
+      </div>
+
+      <div style="position:relative;margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.16);display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:12.5px;font-weight:500;color:rgba(255,255,255,0.78);">Préstamo de <strong style="font-weight:700;color:#fff;">{{ montoPrestado }}</strong></span>
+        <span style="font-size:12.5px;font-weight:600;color:rgba(255,255,255,0.78);">Día {{ diaActual }} de {{ totalDias }}</span>
+      </div>
+    </section>
+
+    <!-- 3 · PRÓXIMA CUOTA -->
+    <section style="border-radius:20px;padding:18px 20px;background:linear-gradient(135deg,#EEF3FF,#E6EDFF);border:1px solid #D9E2FB;display:flex;align-items:center;justify-content:space-between;gap:14px;">
+      <div style="display:flex;flex-direction:column;gap:5px;">
+        <span style="font-size:11.5px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#1E47C8;">Próxima cuota</span>
+        <span style="font-size:32px;font-weight:800;letter-spacing:-0.03em;line-height:1;color:#0F1B3D;font-variant-numeric:tabular-nums;">{{ cuotaDiaria }}</span>
+        <span style="font-size:13px;font-weight:500;color:#6B7494;text-transform:capitalize;">{{ proxFechaLarga }}</span>
+      </div>
+      <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:6px;background:#fff;border:1px solid #DCE3F4;border-radius:16px;padding:12px 16px;min-width:84px;box-shadow:0 4px 12px rgba(30,71,200,0.10);">
+        <span style="font-size:11px;font-weight:600;color:#6B7494;text-transform:uppercase;letter-spacing:0.03em;">A pagar</span>
+        <span style="font-size:15px;font-weight:800;color:#1E47C8;">{{ proxRelativo }}</span>
+      </div>
+    </section>
+
+    <!-- 4 · CARTÓN DIGITAL -->
+    <section style="border-radius:22px;padding:20px 18px;background:#fff;border:1px solid #ECEFF8;box-shadow:0 1px 3px rgba(15,27,61,0.05),0 10px 26px rgba(15,27,61,0.04);">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:4px;">
+        <div style="display:flex;flex-direction:column;gap:2px;">
+          <span style="font-size:11.5px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#6B7494;">Tu cartón</span>
+          <h2 style="margin:0;font-size:18px;font-weight:800;letter-spacing:-0.02em;color:#0F1B3D;">Pago día por día</h2>
+        </div>
+        <span style="font-size:12.5px;font-weight:700;color:#1E47C8;background:#EEF3FF;padding:5px 10px;border-radius:999px;">Día {{ diaActual }}/{{ totalDias }}</span>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:16px;">
+        <sc-for list="{{ dias }}" as="box" hint-placeholder-count="30">
+          <div style="{{ box.style }}">
+            <span style="font-size:17px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;">{{ box.dia }}</span>
+            <sc-if value="{{ box.esHoy }}" hint-placeholder-val="{{ false }}">
+              <span style="font-size:7.5px;font-weight:900;letter-spacing:0.08em;line-height:1;margin-top:2px;color:rgba(255,255,255,0.92);">HOY</span>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+
+      <!-- leyenda -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px 14px;margin-top:18px;padding-top:16px;border-top:1px solid #EEF1F8;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="width:14px;height:14px;border-radius:5px;background:#1FA971;display:block;flex-shrink:0;"></span>
+          <span style="font-size:12.5px;font-weight:600;color:#3A445F;">Pagado</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="width:14px;height:14px;border-radius:5px;background:#E8A317;display:block;flex-shrink:0;"></span>
+          <span style="font-size:12.5px;font-weight:600;color:#3A445F;">Pendiente / abono</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="width:14px;height:14px;border-radius:5px;background:#D64545;display:block;flex-shrink:0;"></span>
+          <span style="font-size:12.5px;font-weight:600;color:#3A445F;">No pagado</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="width:14px;height:14px;border-radius:5px;background:#EEF1F8;border:1px solid #E4E8F4;display:block;flex-shrink:0;"></span>
+          <span style="font-size:12.5px;font-weight:600;color:#3A445F;">Próximo</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5 · ESPACIO JUEGOS / PROMOCIONES -->
+    <section style="border-radius:22px;padding:7px;background:linear-gradient(135deg,#13308C,#1E47C8);box-shadow:0 12px 28px rgba(19,48,140,0.22);">
+      <div style="border-radius:17px;border:1.5px dashed rgba(255,255,255,0.40);padding:24px 20px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;background:repeating-linear-gradient(135deg,rgba(255,255,255,0.05) 0 10px,transparent 10px 20px);">
+        <span style="font-size:11px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.72);">Promoción del mes</span>
+        <span style="font-size:19px;font-weight:800;letter-spacing:-0.02em;color:#fff;">Tu juego o premio, aquí</span>
+        <span style="font-size:12.5px;font-weight:500;color:rgba(255,255,255,0.66);max-width:240px;line-height:1.45;">Pronto encontrarás aquí sorpresas y beneficios por estar al día con tus pagos.</span>
+        <span style="margin-top:6px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;font-weight:600;letter-spacing:0.02em;color:rgba(255,255,255,0.50);background:rgba(255,255,255,0.08);padding:4px 10px;border-radius:6px;">espacio reservado</span>
+      </div>
+    </section>
+
+    <!-- 6 · HISTORIAL DE PAGOS -->
+    <section style="display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;padding:0 2px;">
+        <div style="display:flex;flex-direction:column;gap:2px;">
+          <span style="font-size:11.5px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#6B7494;">Historial</span>
+          <h2 style="margin:0;font-size:18px;font-weight:800;letter-spacing:-0.02em;color:#0F1B3D;">Pagos realizados</h2>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <sc-for list="{{ historial }}" as="pago" hint-placeholder-count="6">
+          <div style="display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid #ECEFF8;border-radius:15px;padding:13px 15px;box-shadow:0 1px 2px rgba(15,27,61,0.04);">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div style="width:38px;height:38px;border-radius:11px;background:#F2F5FC;border:1px solid #EAEEF8;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;flex-shrink:0;">
+                <span style="font-size:9px;font-weight:700;color:#8A93AD;text-transform:uppercase;letter-spacing:0.02em;">Día</span>
+                <span style="font-size:15px;font-weight:800;color:#0F1B3D;font-variant-numeric:tabular-nums;">{{ pago.dia }}</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:3px;">
+                <span style="font-size:15px;font-weight:700;color:#0F1B3D;font-variant-numeric:tabular-nums;">{{ pago.monto }}</span>
+                <span style="font-size:12px;font-weight:500;color:#6B7494;text-transform:capitalize;">{{ pago.fecha }}</span>
+              </div>
+            </div>
+            <span style="{{ pago.chipStyle }}">{{ pago.estadoLabel }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <!-- 7 · PIE -->
+    <footer style="margin-top:6px;display:flex;flex-direction:column;gap:14px;">
+      <div style="display:flex;align-items:center;justify-content:center;gap:8px;background:#EEF3FF;border:1px solid #DCE6FB;border-radius:13px;padding:11px 14px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;">
+          <circle cx="12" cy="12" r="10" fill="#1E47C8"></circle>
+          <path d="M8 12.5l2.5 2.5L16 9.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path>
+        </svg>
+        <span style="font-size:12.5px;font-weight:600;color:#1E47C8;">Conexión segura y privada · solo lectura</span>
+      </div>
+
+      <div style="text-align:center;display:flex;flex-direction:column;gap:5px;padding:4px 8px;">
+        <span style="font-size:14px;font-weight:800;color:#0F1B3D;letter-spacing:-0.01em;">{{ negocio.nombre }}</span>
+        <span style="font-size:12.5px;font-weight:500;color:#6B7494;">{{ negocio.direccion }}</span>
+        <span style="font-size:12.5px;font-weight:500;color:#6B7494;">Tel. {{ negocio.telefono }}</span>
+        <span style="font-size:12px;font-weight:500;color:#8A93AD;">{{ negocio.horario }}</span>
+      </div>
+
+      <span style="text-align:center;font-size:11px;font-weight:500;color:#AEB6CC;line-height:1.5;padding:0 16px;">Esta es una pantalla informativa de tu estado de cuenta. Para cualquier gestión, comunícate directamente con tu oficina.</span>
+    </footer>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+// Modelo de datos del préstamo (estructura lista para mapear a una base de datos real).
+const LOAN = {
+  cliente: { nombre: "María Fernanda", inicial: "M" },
+  negocio: {
+    nombre: "Presta Ya",
+    direccion: "Cra. 12 # 45 - 30, Bogotá",
+    telefono: "(601) 742 0098",
+    horario: "Lunes a sábado, 8:00 a. m. – 6:00 p. m.",
+  },
+  credito: {
+    montoPrestado: 500000,
+    cuotaDiaria: 20000,
+    totalDias: 30,
+    fechaInicio: "2026-06-03",
+    fechaHoy: "2026-06-14",
+  },
+  pagos: [
+    { dia: 1,  fecha: "2026-06-03", monto: 20000 },
+    { dia: 2,  fecha: "2026-06-04", monto: 20000 },
+    { dia: 3,  fecha: "2026-06-05", monto: 20000 },
+    { dia: 4,  fecha: "2026-06-06", monto: 20000 },
+    { dia: 5,  fecha: "2026-06-07", monto: 20000 },
+    { dia: 6,  fecha: "2026-06-08", monto: 20000 },
+    { dia: 7,  fecha: "2026-06-09", monto: 20000 },
+    { dia: 8,  fecha: "2026-06-10", monto: 20000 },
+    { dia: 9,  fecha: "2026-06-11", monto: 20000 },
+    { dia: 10, fecha: "2026-06-12", monto: 20000 },
+    { dia: 12, fecha: "2026-06-14", monto: 10000 },
+  ],
+};
+
+class Component extends DCLogic {
+  state = { loan: LOAN };
+
+  renderVals() {
+    const loan = this.state.loan;
+    if (!loan) return {};
+
+    const COP = (n) => '$' + Math.round(n).toLocaleString('es-CO');
+    const pd = (s) => { const p = s.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); };
+    const diasSemana = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+    const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+    const mesCorto = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+    const c = loan.credito;
+    const totalAPagar = c.cuotaDiaria * c.totalDias;
+    const start = pd(c.fechaInicio);
+    const hoy = pd(c.fechaHoy);
+
+    const pagosPorDia = {};
+    loan.pagos.forEach(p => { pagosPorDia[p.dia] = (pagosPorDia[p.dia] || 0) + p.monto; });
+
+    const COLORS = {
+      pagado:    { bg: '#1FA971', text: '#FFFFFF' },
+      pendiente: { bg: '#E8A317', text: '#FFFFFF' },
+      atrasado:  { bg: '#D64545', text: '#FFFFFF' },
+      futuro:    { bg: '#EEF1F8', text: '#9AA3BC' },
+    };
+    const LABELS = { pagado: 'Pagado', pendiente: 'Abono parcial', atrasado: 'No pagado', futuro: 'Próximo' };
+
+    const dias = [];
+    let totalPagado = 0, diaActual = 0;
+
+    for (let i = 0; i < c.totalDias; i++) {
+      const fecha = new Date(start); fecha.setDate(start.getDate() + i);
+      const pagado = pagosPorDia[i + 1] || 0;
+      totalPagado += pagado;
+
+      const esFuturo = fecha.getTime() > hoy.getTime();
+      const esHoy = fecha.getTime() === hoy.getTime();
+      if (esHoy) diaActual = i + 1;
+
+      let estado;
+      if (esFuturo) estado = 'futuro';
+      else if (pagado >= c.cuotaDiaria) estado = 'pagado';
+      else if (pagado > 0) estado = 'pendiente';
+      else if (esHoy) estado = 'pendiente';
+      else estado = 'atrasado';
+
+      const col = COLORS[estado];
+      dias.push({
+        dia: i + 1,
+        estado,
+        esHoy,
+        montoPagado: pagado,
+        montoTexto: COP(pagado),
+        fechaHist: fecha.getDate() + ' de ' + meses[fecha.getMonth()],
+        estadoLabel: LABELS[estado],
+        style: {
+          aspectRatio: '1 / 1', borderRadius: '14px', display: 'flex',
+          flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          background: col.bg, color: col.text, fontVariantNumeric: 'tabular-nums',
+          position: 'relative',
+          border: estado === 'futuro' ? '1px solid #E4E8F4' : 'none',
+          boxShadow: esHoy
+            ? '0 0 0 3px #FFFFFF, 0 0 0 6px ' + col.bg
+            : (estado === 'futuro' ? 'none' : '0 1px 2px rgba(15,27,61,0.07)'),
+        },
+        chipStyle: {
+          fontSize: '11.5px', fontWeight: '700', padding: '5px 11px',
+          borderRadius: '999px', whiteSpace: 'nowrap',
+          background: estado === 'pagado' ? '#E7F6EF' : '#FBF1DC',
+          color: estado === 'pagado' ? '#157A50' : '#9A6A0E',
+        },
+      });
+    }
+
+    const falta = Math.max(0, totalAPagar - totalPagado);
+    const progresoPct = Math.round((totalPagado / totalAPagar) * 100);
+
+    const hayPendiente = dias.some(d => d.estado === 'atrasado' || d.estado === 'pendiente');
+    const estadoGeneral = hayPendiente ? 'Tienes pagos pendientes' : 'Estás al día';
+    const estadoDot = hayPendiente ? '#FFC24B' : '#34E0A1';
+
+    const prox = dias.find(d => d.estado === 'futuro');
+    let proxFechaLarga = '', proxRelativo = '';
+    if (prox) {
+      const f = new Date(start); f.setDate(start.getDate() + (prox.dia - 1));
+      proxFechaLarga = diasSemana[f.getDay()] + ', ' + f.getDate() + ' de ' + meses[f.getMonth()];
+      const diff = Math.round((f.getTime() - hoy.getTime()) / 86400000);
+      proxRelativo = diff <= 0 ? 'Hoy' : (diff === 1 ? 'Mañana' : 'En ' + diff + ' días');
+    }
+
+    const historial = dias.filter(d => d.montoPagado > 0).reverse().map(d => ({
+      dia: d.dia,
+      fecha: d.fechaHist,
+      monto: d.montoTexto,
+      estadoLabel: d.estadoLabel,
+      chipStyle: d.chipStyle,
+    }));
+
+    return {
+      nombre: loan.cliente.nombre,
+      inicial: loan.cliente.inicial,
+      negocio: loan.negocio,
+      montoPrestado: COP(c.montoPrestado),
+      totalAPagar: COP(totalAPagar),
+      totalPagado: COP(totalPagado),
+      falta: COP(falta),
+      progresoTexto: progresoPct + '%',
+      cuotaDiaria: COP(c.cuotaDiaria),
+      totalDias: c.totalDias,
+      diaActual,
+      estadoGeneral,
+      estadoDotStyle: { width: '8px', height: '8px', borderRadius: '50%', display: 'block', flexShrink: 0, background: estadoDot },
+      barFillStyle: { width: progresoPct + '%', height: '100%', borderRadius: '999px', background: 'linear-gradient(90deg,#34E0A1,#1FA971)' },
+      proxFechaLarga,
+      proxRelativo,
+      dias,
+      historial,
+    };
+  }
+}
+</script>
+</body>
+</html>

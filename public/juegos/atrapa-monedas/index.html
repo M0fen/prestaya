@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Atrapa tus monedas — Presta Ya</title>
+<style>
+  /* ── Juego autocontenido. Sin dependencias ni red: carga instantánea. ── */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(160deg, #2453DC 0%, #1E47C8 50%, #13308C 100%);
+    color: #fff; user-select: none; -webkit-user-select: none;
+    touch-action: none; /* el dedo controla la canasta, no hace scroll */
+  }
+  #wrap { position: relative; width: 100%; height: 100%; }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  /* HUD */
+  #hud {
+    position: absolute; inset: 0; pointer-events: none;
+    display: flex; flex-direction: column; padding: 12px 14px;
+  }
+  #top { display: flex; align-items: center; justify-content: space-between; }
+  .pill {
+    background: rgba(255,255,255,0.16); backdrop-filter: blur(4px);
+    border-radius: 999px; padding: 5px 12px; font-size: 13px; font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+  #barOut {
+    margin-top: 10px; height: 8px; border-radius: 999px;
+    background: rgba(255,255,255,0.2); overflow: hidden;
+  }
+  #barIn {
+    height: 100%; width: 0%; border-radius: 999px;
+    background: linear-gradient(90deg, #FFD86B, #E8A317);
+    transition: width 0.18s ease;
+  }
+  #hint {
+    position: absolute; left: 0; right: 0; bottom: 14px; text-align: center;
+    font-size: 12.5px; font-weight: 600; color: rgba(255,255,255,0.8);
+  }
+
+  /* Overlay de premio */
+  #win {
+    position: absolute; inset: 0; display: none;
+    flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; text-align: center; padding: 24px;
+    background: rgba(15,27,61,0.55); backdrop-filter: blur(6px);
+  }
+  #win.show { display: flex; }
+  #win h2 { font-size: 24px; font-weight: 900; letter-spacing: -0.02em; }
+  #win p { font-size: 14px; font-weight: 500; color: rgba(255,255,255,0.85); max-width: 260px; line-height: 1.45; }
+  #replay {
+    margin-top: 6px; background: #fff; color: #13308C; border: none;
+    border-radius: 999px; padding: 11px 22px; font-size: 14px; font-weight: 800;
+    font-family: inherit; cursor: pointer;
+  }
+  #replay:active { transform: scale(0.97); }
+  @media (prefers-reduced-motion: reduce) { #barIn { transition: none; } }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c"></canvas>
+  <div id="hud">
+    <div id="top">
+      <span class="pill" id="score">🪙 0 / 12</span>
+      <span class="pill" id="best">Mejor: 0</span>
+    </div>
+    <div id="barOut"><div id="barIn"></div></div>
+  </div>
+  <div id="hint">Mueve la canasta con el dedo para atrapar las monedas</div>
+  <div id="win">
+    <h2>¡Premio desbloqueado! 🎉</h2>
+    <p>Atrapaste todas tus monedas. ¡Así de bien vas con tus pagos!</p>
+    <button id="replay">Jugar otra vez</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var GOAL = 12;
+  var reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  var canvas = document.getElementById("c");
+  var ctx = canvas.getContext("2d", { alpha: false });
+  var elScore = document.getElementById("score");
+  var elBest = document.getElementById("best");
+  var elBar = document.getElementById("barIn");
+  var elWin = document.getElementById("win");
+  var elHint = document.getElementById("hint");
+
+  var W = 0, H = 0, dpr = 1;
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2); // limita coste en pantallas densas
+    var r = canvas.getBoundingClientRect();
+    W = r.width; H = r.height;
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    basket.y = H - 46;
+    basket.x = Math.min(Math.max(basket.x, basket.w / 2), W - basket.w / 2);
+  }
+
+  // ── Estado ──
+  var basket = { x: 0, y: 0, w: 84, h: 22 };
+  var coins = [];        // monedas que caen
+  var parts = [];        // partículas (capadas)
+  var score = 0;
+  var best = 0;
+  try { best = parseInt(localStorage.getItem("py_best") || "0", 10) || 0; } catch (e) {}
+  var won = false;
+  var spawnTimer = 0;
+  var spawnEvery = 0.82;  // segundos entre monedas
+  var last = 0;
+  var running = true;
+
+  elBest.textContent = "Mejor: " + best;
+
+  // ── Control por puntero (mouse + touch unificados) ──
+  function pointTo(clientX) {
+    var r = canvas.getBoundingClientRect();
+    var x = clientX - r.left;
+    basket.x = Math.min(Math.max(x, basket.w / 2), W - basket.w / 2);
+  }
+  canvas.addEventListener("pointerdown", function (e) { pointTo(e.clientX); });
+  canvas.addEventListener("pointermove", function (e) { if (e.buttons || e.pressure) pointTo(e.clientX); });
+  // En móvil basta con arrastrar; también seguimos el dedo sin presión:
+  canvas.addEventListener("touchmove", function (e) {
+    if (e.touches[0]) { pointTo(e.touches[0].clientX); e.preventDefault(); }
+  }, { passive: false });
+
+  function spawn() {
+    var r = 15;
+    coins.push({
+      x: r + Math.random() * (W - 2 * r),
+      y: -r,
+      r: r,
+      vy: (reduce ? 95 : 135) + Math.random() * (reduce ? 30 : 75),
+      spin: Math.random() * Math.PI
+    });
+  }
+
+  function burst(x, y) {
+    var n = reduce ? 5 : 12;
+    for (var i = 0; i < n; i++) {
+      var a = Math.random() * Math.PI * 2, s = 40 + Math.random() * 120;
+      parts.push({ x: x, y: y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 40, life: 0.6 });
+    }
+    if (parts.length > 90) parts.splice(0, parts.length - 90);
+  }
+
+  function setScore(v) {
+    score = v;
+    elScore.textContent = "🪙 " + score + " / " + GOAL;
+    elBar.style.width = Math.min(100, (score / GOAL) * 100) + "%";
+  }
+
+  function win() {
+    won = true;
+    if (score > best) {
+      best = score;
+      try { localStorage.setItem("py_best", String(best)); } catch (e) {}
+      elBest.textContent = "Mejor: " + best;
+    }
+    elWin.classList.add("show");
+    elHint.style.display = "none";
+    // Avisar al contenedor (Presta Ya) para el loop de recompensa.
+    try {
+      parent.postMessage({ source: "presta-ya-game", game: "atrapa-monedas", event: "win", score: score }, "*");
+    } catch (e) {}
+  }
+
+  function reset() {
+    coins.length = 0; parts.length = 0; won = false;
+    elWin.classList.remove("show");
+    elHint.style.display = "";
+    setScore(0);
+  }
+  document.getElementById("replay").addEventListener("click", reset);
+
+  // ── Dibujo ──
+  function drawCoin(c) {
+    ctx.save();
+    ctx.translate(c.x, c.y);
+    ctx.beginPath(); ctx.arc(0, 0, c.r, 0, Math.PI * 2);
+    ctx.fillStyle = "#F2B53A"; ctx.fill();
+    ctx.lineWidth = 3; ctx.strokeStyle = "#E8A317"; ctx.stroke();
+    ctx.fillStyle = "#9A6A0E"; ctx.font = "bold 16px Inter, system-ui, sans-serif";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("$", 0, 1);
+    ctx.restore();
+  }
+  function drawBasket() {
+    var x = basket.x - basket.w / 2, y = basket.y, w = basket.w, h = basket.h, rd = 11;
+    ctx.fillStyle = "#FFFFFF";
+    ctx.beginPath();
+    ctx.moveTo(x + rd, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rd);
+    ctx.arcTo(x + w, y + h, x, y + h, rd);
+    ctx.arcTo(x, y + h, x, y, rd);
+    ctx.arcTo(x, y, x + w, y, rd);
+    ctx.closePath(); ctx.fill();
+    // boca de la canasta
+    ctx.fillStyle = "#1E47C8";
+    ctx.fillRect(x + 6, y - 4, w - 12, 6);
+  }
+
+  // ── Bucle principal con delta-time ──
+  function frame(t) {
+    if (!running) return;
+    if (!last) last = t;
+    var dt = Math.min((t - last) / 1000, 0.05); // cap para evitar saltos
+    last = t;
+
+    if (!won) {
+      spawnTimer += dt;
+      if (spawnTimer >= spawnEvery && coins.length < 6) { spawnTimer = 0; spawn(); }
+    }
+
+    // fondo
+    ctx.fillStyle = "#173a9e";
+    ctx.fillRect(0, 0, W, H);
+
+    // monedas
+    for (var i = coins.length - 1; i >= 0; i--) {
+      var c = coins[i];
+      c.y += c.vy * dt;
+      // ¿atrapada?
+      if (c.y + c.r >= basket.y && c.y - c.r <= basket.y + basket.h &&
+          Math.abs(c.x - basket.x) <= basket.w / 2) {
+        coins.splice(i, 1);
+        burst(c.x, basket.y);
+        if (!won) { setScore(score + 1); if (score >= GOAL) win(); }
+        continue;
+      }
+      if (c.y - c.r > H) { coins.splice(i, 1); continue; } // se fue (sin castigo)
+      drawCoin(c);
+    }
+
+    // partículas
+    for (var j = parts.length - 1; j >= 0; j--) {
+      var p = parts[j];
+      p.life -= dt; if (p.life <= 0) { parts.splice(j, 1); continue; }
+      p.vy += 320 * dt; p.x += p.vx * dt; p.y += p.vy * dt;
+      ctx.globalAlpha = Math.max(0, p.life / 0.6);
+      ctx.fillStyle = "#FFD86B";
+      ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+      ctx.globalAlpha = 1;
+    }
+
+    drawBasket();
+    requestAnimationFrame(frame);
+  }
+
+  // Pausa cuando la pestaña no está visible (ahorra batería/CPU).
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) { running = false; }
+    else if (!running) { running = true; last = 0; requestAnimationFrame(frame); }
+  });
+
+  window.addEventListener("resize", resize);
+  resize();
+  setScore(0);
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

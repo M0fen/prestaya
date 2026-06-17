@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Penales del Mundial 2026 — Presta Ya</title>
+<style>
+  /* ── Juego autocontenido. Sin red ni dependencias: carga instantánea. ── */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: #0b1f5c; color: #fff; user-select: none; -webkit-user-select: none;
+    touch-action: none;
+  }
+  #wrap { position: relative; width: 100%; height: 100%; }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  #hud { position: absolute; inset: 0; pointer-events: none; padding: 10px 12px; display: flex; flex-direction: column; }
+  #top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .pill {
+    background: rgba(255,255,255,0.16); backdrop-filter: blur(4px);
+    border-radius: 999px; padding: 5px 11px; font-size: 12.5px; font-weight: 800;
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  #marcador { display: flex; gap: 5px; margin-top: 8px; }
+  .gol, .fallo, .pend { width: 13px; height: 13px; border-radius: 50%; }
+  .gol { background: #34E0A1; }
+  .fallo { background: #E0625E; }
+  .pend { background: rgba(255,255,255,0.25); }
+  #hint {
+    position: absolute; left: 0; right: 0; bottom: 12px; text-align: center;
+    font-size: 13px; font-weight: 700; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  }
+  #flash {
+    position: absolute; left: 0; right: 0; top: 38%; text-align: center;
+    font-size: 30px; font-weight: 900; letter-spacing: -0.02em; opacity: 0;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.5); transition: opacity 0.15s;
+  }
+  #flash.show { opacity: 1; }
+
+  #fin {
+    position: absolute; inset: 0; display: none; flex-direction: column;
+    align-items: center; justify-content: center; gap: 8px; text-align: center;
+    padding: 24px; background: rgba(11,31,92,0.72); backdrop-filter: blur(6px);
+  }
+  #fin.show { display: flex; }
+  #fin h2 { font-size: 23px; font-weight: 900; letter-spacing: -0.02em; }
+  #fin p { font-size: 13.5px; font-weight: 500; color: rgba(255,255,255,0.85); max-width: 270px; line-height: 1.45; }
+  #replay {
+    margin-top: 6px; background: #fff; color: #13308C; border: none;
+    border-radius: 999px; padding: 11px 22px; font-size: 14px; font-weight: 800;
+    font-family: inherit; cursor: pointer;
+  }
+  #replay:active { transform: scale(0.97); }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c"></canvas>
+  <div id="hud">
+    <div id="top">
+      <span class="pill">⚽ Mundial 2026</span>
+      <span class="pill" id="ronda">Penal 1/5</span>
+      <span class="pill" id="best">Mejor: 0</span>
+    </div>
+    <div id="marcador"></div>
+  </div>
+  <div id="flash"></div>
+  <div id="hint">Tocá para fijar la puntería</div>
+  <div id="fin">
+    <h2 id="finTitulo">¡Clasificaste! 🎉</h2>
+    <p id="finTexto"></p>
+    <button id="replay">Jugar otra vez</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var TOTAL = 5;        // penales por tanda
+  var META = 4;         // goles para "clasificar" (premio)
+  var reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  var canvas = document.getElementById("c");
+  var ctx = canvas.getContext("2d", { alpha: false });
+  var elRonda = document.getElementById("ronda");
+  var elBest = document.getElementById("best");
+  var elMarcador = document.getElementById("marcador");
+  var elHint = document.getElementById("hint");
+  var elFlash = document.getElementById("flash");
+  var elFin = document.getElementById("fin");
+  var elFinTitulo = document.getElementById("finTitulo");
+  var elFinTexto = document.getElementById("finTexto");
+
+  var W = 0, H = 0, dpr = 1;
+  // Geometría del arco (se recalcula en resize).
+  var goal = { x: 0, y: 0, w: 0, h: 0 };
+  var spot = { x: 0, y: 0 };
+
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var r = canvas.getBoundingClientRect();
+    W = r.width; H = r.height;
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    goal.w = Math.min(W * 0.72, 360);
+    goal.h = goal.w * 0.34;
+    goal.x = (W - goal.w) / 2;
+    goal.y = H * 0.14;
+    spot.x = W / 2;
+    spot.y = H * 0.88;
+  }
+
+  // ── Estado del juego ──
+  var fase = "aim";     // aim | power | shoot | result | fin
+  var penal = 0;        // 0..TOTAL-1
+  var goles = 0;
+  var racha = 0;
+  var resultados = [];  // 'gol' | 'fallo'
+  var best = 0;
+  try { best = parseInt(localStorage.getItem("py_penales_best") || "0", 10) || 0; } catch (e) {}
+
+  var t = 0;            // reloj para oscilaciones
+  var target = { x: 0, y: 0, frac: 0 };  // punto de puntería fijado
+  var power = 0;        // potencia fijada 0..1
+  var shotT = 0;        // progreso del disparo 0..1
+  var outcome = null;   // 'gol' | 'atajado' | 'fuera'
+  var ball = { x: 0, y: 0, r: 11 };
+  var keeper = { x: 0, dir: 0, t: 0 }; // dir: -1 izq, 0 centro, 1 der
+  var keeperReach = 0;
+
+  elBest.textContent = "Mejor: " + best;
+
+  function nivel() { return penal; } // 0..4: el arquero mejora cada penal
+
+  function pintarMarcador() {
+    var html = "";
+    for (var i = 0; i < TOTAL; i++) {
+      if (i < resultados.length) html += '<span class="' + (resultados[i] === "gol" ? "gol" : "fallo") + '"></span>';
+      else html += '<span class="pend"></span>';
+    }
+    elMarcador.innerHTML = html;
+    elRonda.textContent = "Penal " + Math.min(penal + 1, TOTAL) + "/" + TOTAL;
+  }
+
+  function flash(txt, color) {
+    elFlash.textContent = txt;
+    elFlash.style.color = color;
+    elFlash.classList.add("show");
+    setTimeout(function () { elFlash.classList.remove("show"); }, 900);
+  }
+
+  // ── Disparo: resuelve el resultado y prepara la animación ──
+  function disparar() {
+    // Altura del remate: combinación de puntería alta + potencia → puede irse por arriba.
+    var alturaFrac = target.frac;                 // 0 (abajo) .. 1 (arriba del arco)
+    var seVaArriba = alturaFrac + (power - 0.55) * 0.7 > 1.12;
+    var debil = power < 0.22;
+
+    // Lado real del remate respecto al centro del arco.
+    var centro = goal.x + goal.w / 2;
+    var dx = target.x - centro;
+    var ladoReal = Math.abs(dx) < goal.w * 0.13 ? 0 : (dx < 0 ? -1 : 1);
+
+    // IA del arquero: lee mejor a mayor nivel; su alcance también crece.
+    var pLee = 0.22 + nivel() * 0.13;             // prob. de adivinar el lado correcto
+    var adivina = Math.random() < pLee;
+    var guess;
+    if (adivina) guess = ladoReal;
+    else {
+      // se tira a un lado equivocado (o se queda si el remate fue al centro)
+      var opciones = [-1, 0, 1].filter(function (o) { return o !== ladoReal; });
+      guess = opciones[(Math.random() * opciones.length) | 0];
+    }
+    keeper.dir = guess;
+    keeperReach = goal.w * (0.16 + nivel() * 0.022);
+
+    // Posición final de las manos del arquero según su elección.
+    var kx = centro + guess * goal.w * 0.30;
+
+    if (seVaArriba) outcome = "fuera";
+    else if (debil) outcome = "atajado";          // remate flojo: presa fácil
+    else if (guess === ladoReal && Math.abs(target.x - kx) <= keeperReach) outcome = "atajado";
+    else outcome = "gol";
+
+    fase = "shoot";
+    shotT = 0;
+    keeper.t = 0;
+    elHint.textContent = "";
+  }
+
+  function terminarDisparo() {
+    resultados.push(outcome === "gol" ? "gol" : "fallo");
+    if (outcome === "gol") { goles++; racha++; flash("¡GOOOL!", "#34E0A1"); }
+    else { racha = 0; flash(outcome === "atajado" ? "¡Atajó!" : "¡Afuera!", "#E0625E"); }
+    pintarMarcador();
+    penal++;
+    if (penal >= TOTAL) { setTimeout(finTanda, 950); fase = "result"; }
+    else { fase = "result"; elHint.textContent = "Tocá para el siguiente penal"; }
+  }
+
+  function finTanda() {
+    fase = "fin";
+    var clasifico = goles >= META;
+    if (goles > best) {
+      best = goles;
+      try { localStorage.setItem("py_penales_best", String(best)); } catch (e) {}
+      elBest.textContent = "Mejor: " + best;
+    }
+    elFinTitulo.textContent = clasifico ? "¡Clasificaste! 🎉" : "Casi… 😅";
+    elFinTexto.textContent = clasifico
+      ? "Metiste " + goles + " de " + TOTAL + ". ¡Sos figura! Igual que cuando estás al día con tus pagos."
+      : "Metiste " + goles + " de " + TOTAL + ". Necesitás " + META + " para clasificar. ¡Probá de nuevo!";
+    elFin.classList.add("show");
+    if (clasifico) {
+      try { parent.postMessage({ source: "presta-ya-game", game: "penales-mundial", event: "win", score: goles }, "*"); } catch (e) {}
+    }
+  }
+
+  function reset() {
+    penal = 0; goles = 0; racha = 0; resultados = [];
+    fase = "aim"; elFin.classList.remove("show");
+    elHint.textContent = "Tocá para fijar la puntería";
+    pintarMarcador();
+  }
+  document.getElementById("replay").addEventListener("click", reset);
+
+  // ── Entrada: un toque avanza la fase actual ──
+  function tap() {
+    if (fase === "aim") {
+      // Fija la puntería en la posición actual del retículo.
+      var p = reticulo();
+      target.x = p.x; target.y = p.y; target.frac = p.frac;
+      fase = "power";
+      elHint.textContent = "Tocá para fijar la potencia";
+    } else if (fase === "power") {
+      power = medidor();
+      ball.x = spot.x; ball.y = spot.y;
+      disparar();
+    } else if (fase === "result") {
+      fase = "aim";
+      elHint.textContent = "Tocá para fijar la puntería";
+    }
+  }
+  canvas.addEventListener("pointerdown", function () { tap(); });
+
+  // Posición del retículo oscilante (fase AIM).
+  function reticulo() {
+    var x = goal.x + goal.w * (0.5 + 0.46 * Math.sin(t * 2.3));
+    var fy = 0.5 + 0.42 * Math.sin(t * 1.7 + 1); // 0..1 dentro del arco (frac de altura)
+    var y = goal.y + (1 - fy) * goal.h * 0.86 + goal.h * 0.07;
+    return { x: x, y: y, frac: fy };
+  }
+  // Potencia oscilante (fase POWER), onda triangular 0..1.
+  function medidor() {
+    var s = (t * 0.9) % 1;
+    return s < 0.5 ? s * 2 : (1 - s) * 2;
+  }
+
+  // ── Dibujo ──
+  function fondo() {
+    // Cielo de estadio nocturno.
+    var g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, "#0b1f5c"); g.addColorStop(1, "#13308C");
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    // Tribuna (puntos de público).
+    ctx.fillStyle = "rgba(255,255,255,0.08)";
+    for (var i = 0; i < 60; i++) {
+      var px = (i * 37) % W, py = (i * 53) % (H * 0.12) + 4;
+      ctx.fillRect(px, py, 3, 3);
+    }
+    // Césped.
+    var gg = ctx.createLinearGradient(0, H * 0.5, 0, H);
+    gg.addColorStop(0, "#1f9d57"); gg.addColorStop(1, "#16823f");
+    ctx.fillStyle = gg; ctx.fillRect(0, H * 0.5, W, H * 0.5);
+    // Punto de penal.
+    ctx.fillStyle = "rgba(255,255,255,0.85)";
+    ctx.beginPath(); ctx.arc(spot.x, spot.y - 6, 3, 0, 7); ctx.fill();
+  }
+
+  function dibujarArco() {
+    var x = goal.x, y = goal.y, w = goal.w, h = goal.h;
+    // Red.
+    ctx.strokeStyle = "rgba(255,255,255,0.28)"; ctx.lineWidth = 1;
+    for (var i = 0; i <= 10; i++) {
+      var gx = x + (w * i) / 10;
+      ctx.beginPath(); ctx.moveTo(gx, y); ctx.lineTo(gx, y + h); ctx.stroke();
+    }
+    for (var j = 0; j <= 5; j++) {
+      var gy = y + (h * j) / 5;
+      ctx.beginPath(); ctx.moveTo(x, gy); ctx.lineTo(x + w, gy); ctx.stroke();
+    }
+    // Postes y travesaño.
+    ctx.strokeStyle = "#fff"; ctx.lineWidth = 5; ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.moveTo(x - 2, y + h); ctx.lineTo(x - 2, y);
+    ctx.lineTo(x + w + 2, y); ctx.lineTo(x + w + 2, y + h);
+    ctx.stroke();
+  }
+
+  function dibujarArquero(kx) {
+    var ky = goal.y + goal.h - 10;
+    // Cuerpo (camiseta roja rival).
+    ctx.fillStyle = "#E0625E";
+    ctx.beginPath(); ctx.ellipse(kx, ky, 13, 20, 0, 0, 7); ctx.fill();
+    // Cabeza.
+    ctx.fillStyle = "#F3C8A0";
+    ctx.beginPath(); ctx.arc(kx, ky - 24, 8, 0, 7); ctx.fill();
+    // Brazos (guantes).
+    ctx.strokeStyle = "#FFD86B"; ctx.lineWidth = 6; ctx.lineCap = "round";
+    var span = 16 + (fase === "shoot" ? Math.abs(keeper.dir) * 10 : 0);
+    ctx.beginPath();
+    ctx.moveTo(kx - span, ky - 14); ctx.lineTo(kx + span, ky - 14); ctx.stroke();
+  }
+
+  function dibujarReticulo() {
+    var p = reticulo();
+    ctx.strokeStyle = "rgba(255,255,255,0.95)"; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 13, 0, 7); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(p.x - 19, p.y); ctx.lineTo(p.x + 19, p.y);
+    ctx.moveTo(p.x, p.y - 19); ctx.lineTo(p.x, p.y + 19); ctx.stroke();
+  }
+
+  function dibujarMedidor() {
+    var v = medidor();
+    var bx = W - 26, by = goal.y, bh = goal.h + H * 0.18, bw = 12;
+    ctx.fillStyle = "rgba(255,255,255,0.2)";
+    ctx.fillRect(bx, by, bw, bh);
+    // Zona "dulce".
+    ctx.fillStyle = "rgba(52,224,161,0.35)";
+    ctx.fillRect(bx, by + bh * (1 - 0.78), bw, bh * 0.5);
+    // Relleno.
+    var col = v > 0.82 ? "#E0625E" : v < 0.22 ? "#E8A317" : "#34E0A1";
+    ctx.fillStyle = col;
+    ctx.fillRect(bx, by + bh * (1 - v), bw, bh * v);
+    ctx.strokeStyle = "rgba(255,255,255,0.5)"; ctx.lineWidth = 1.5;
+    ctx.strokeRect(bx, by, bw, bh);
+  }
+
+  function dibujarPelota(x, y, r) {
+    ctx.fillStyle = "#fff";
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+    ctx.fillStyle = "#5AA0E0"; // toque celeste (la pelota de la celeste)
+    ctx.beginPath(); ctx.arc(x, y, r * 0.42, 0, 7); ctx.fill();
+  }
+
+  // ── Bucle principal ──
+  var last = 0, running = true;
+  function frame(ts) {
+    if (!running) return;
+    if (!last) last = ts;
+    var dt = Math.min((ts - last) / 1000, 0.05); last = ts;
+    t += dt;
+
+    fondo();
+    dibujarArco();
+
+    var centro = goal.x + goal.w / 2;
+    var kx0 = centro;
+
+    if (fase === "aim") {
+      dibujarArquero(kx0);
+      dibujarReticulo();
+      dibujarPelota(spot.x, spot.y, ball.r);
+    } else if (fase === "power") {
+      dibujarArquero(kx0);
+      // Marca de puntería fijada.
+      ctx.strokeStyle = "#FFD86B"; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(target.x, target.y, 11, 0, 7); ctx.stroke();
+      dibujarMedidor();
+      dibujarPelota(spot.x, spot.y, ball.r);
+    } else if (fase === "shoot") {
+      // Avance del disparo.
+      shotT += dt / (reduce ? 0.5 : 0.62);
+      if (shotT >= 1) shotT = 1;
+      keeper.t = Math.min(1, shotT * 1.15);
+
+      // Trayectoria con arco.
+      var ex = target.x, ey = target.y;
+      if (outcome === "fuera") ey = goal.y - goal.h * 0.35;      // por encima del travesaño
+      var bx = spot.x + (ex - spot.x) * shotT;
+      var by = spot.y + (ey - spot.y) * shotT - Math.sin(Math.PI * shotT) * goal.h * 0.5 * power;
+
+      // Arquero se tira hacia su elección.
+      var kxFinal = centro + keeper.dir * goal.w * 0.30;
+      var ease = keeper.t * (2 - keeper.t);
+      var kx = kx0 + (kxFinal - kx0) * ease;
+      var ky = goal.y + goal.h - 10 - (keeper.dir !== 0 ? Math.sin(Math.PI * keeper.t) * 14 : 0);
+
+      // Si la ataja, la pelota se frena en las manos.
+      if (outcome === "atajado" && shotT > 0.82) { bx = kx; by = ky - 14; }
+
+      dibujarArquero(kx);
+      dibujarPelota(bx, by, ball.r);
+
+      if (shotT >= 1) terminarDisparo();
+    } else if (fase === "result" || fase === "fin") {
+      var kxF = centro + keeper.dir * goal.w * 0.30;
+      dibujarArquero(kxF);
+      if (outcome === "gol") dibujarPelota(target.x, target.y, ball.r);
+    }
+
+    requestAnimationFrame(frame);
+  }
+
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) running = false;
+    else if (!running) { running = true; last = 0; requestAnimationFrame(frame); }
+  });
+
+  window.addEventListener("resize", resize);
+  resize();
+  pintarMarcador();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
