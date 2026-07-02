@@ -96,24 +96,40 @@ export function construirVistaCliente(params: {
   pagos: Pago[];
   negocio: Negocio;
   hoy: Date;
+  /** Nombre del cobrador por usuarios.id (para mostrar "quién cobró"). */
+  nombresCobrador?: Record<string, string>;
 }): VistaCredito {
-  const { cliente, prestamo, pagos, negocio, hoy } = params;
+  const { cliente, prestamo, pagos, negocio, hoy, nombresCobrador = {} } = params;
 
   const r = calcularEstadosCarton(prestamo, pagos, hoy);
-
-  // Casillas del cartón con su estilo.
-  const dias: DiaCarton[] = r.dias.map((d) => ({
-    dia: d.dia,
-    estado: d.estado,
-    esHoy: d.esHoy,
-    style: celdaStyle(d.estado, d.esHoy),
-  }));
 
   // Pagos individuales por día, para el comprobante (recibo).
   const pagosPorDia: Record<number, typeof pagos> = {};
   for (const p of pagos) {
     (pagosPorDia[p.dia_credito] ??= []).push(p);
   }
+  const recibosDia = (dia: number) =>
+    (pagosPorDia[dia] ?? [])
+      .slice()
+      .sort((a, b) => a.registrado_en.localeCompare(b.registrado_en))
+      .map((p) => ({
+        hora: horaDe(p.registrado_en),
+        monto: UYU(p.monto),
+        quien: p.registrado_por ? (nombresCobrador[p.registrado_por] ?? null) : null,
+      }));
+
+  // Casillas del cartón con su estilo + datos para el detalle al tocar.
+  const dias: DiaCarton[] = r.dias.map((d) => ({
+    dia: d.dia,
+    estado: d.estado,
+    esHoy: d.esHoy,
+    style: celdaStyle(d.estado, d.esHoy),
+    fechaLarga: fechaLargaDe(d.fecha),
+    montoPagado: d.montoPagado > 0 ? UYU(d.montoPagado) : "",
+    esHito: d.dia % 5 === 0 || d.dia === prestamo.total_dias,
+    esMeta: d.dia === prestamo.total_dias,
+    pagos: recibosDia(d.dia),
+  }));
 
   // Historial: días con pago, del más reciente al más antiguo.
   const historial: HistorialItem[] = r.dias
@@ -126,11 +142,8 @@ export function construirVistaCliente(params: {
       monto: UYU(d.montoPagado),
       estadoLabel: LABELS[d.estado],
       chipStyle: chipStyle(d.estado),
-      // Recibos: cada pago del día, ordenados por hora.
-      pagos: (pagosPorDia[d.dia] ?? [])
-        .slice()
-        .sort((a, b) => a.registrado_en.localeCompare(b.registrado_en))
-        .map((p) => ({ hora: horaDe(p.registrado_en), monto: UYU(p.monto) })),
+      // Recibos: cada pago del día (hora, monto y quién cobró).
+      pagos: recibosDia(d.dia),
     }));
 
   // Próxima cuota: fecha larga y texto relativo.

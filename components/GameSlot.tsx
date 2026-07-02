@@ -11,10 +11,9 @@
 //  · Reemplazable cada mes: el juego sale de lib/juegos (JUEGO_ACTUAL).
 // ─────────────────────────────────────────────────────────────────────────
 import { useEffect, useRef, useState } from "react";
-import { JUEGO_ACTUAL } from "@/lib/juegos";
+import { JUEGO_ACTUAL, type Juego } from "@/lib/juegos";
 
-export function GameSlot() {
-  const juego = JUEGO_ACTUAL;
+export function GameSlot({ juego = JUEGO_ACTUAL }: { juego?: Juego }) {
   const [jugando, setJugando] = useState(false);
   const [premio, setPremio] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);

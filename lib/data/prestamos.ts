@@ -14,6 +14,8 @@ function mapPrestamo(r: Record<string, unknown>): Prestamo {
     monto_prestado: Number(r.monto_prestado),
     cuota_diaria: Number(r.cuota_diaria),
     total_dias: Number(r.total_dias),
+    // Defensivo: si 0011 aún no corrió, la columna viene undefined → 'diario'.
+    frecuencia: (r.frecuencia as Prestamo["frecuencia"]) ?? "diario",
     fecha_inicio: r.fecha_inicio as string,
     estado: r.estado as Prestamo["estado"],
     creado_por: (r.creado_por as string | null) ?? null,
@@ -55,6 +57,22 @@ export async function contarCreditosPagados(
 
   if (error) throw error;
   return count ?? 0;
+}
+
+/** Todos los préstamos de un cliente (cualquier estado), del más nuevo al más
+ *  viejo. Base del scoring crediticio (lib/scoring.ts). */
+export async function getPrestamosDeCliente(
+  db: SupabaseClient,
+  clienteId: string,
+): Promise<Prestamo[]> {
+  const { data, error } = await db
+    .from("prestamos")
+    .select("*")
+    .eq("cliente_id", clienteId)
+    .order("fecha_inicio", { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []).map(mapPrestamo);
 }
 
 /** Busca un préstamo por su id. */

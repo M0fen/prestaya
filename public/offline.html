@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Sin conexión — Presta Ya</title>
+    <style>
+      * { margin: 0; box-sizing: border-box; }
+      html, body { height: 100%; }
+      body {
+        font-family: Inter, system-ui, -apple-system, sans-serif;
+        background: #eaeef7;
+        color: #0f1b3d;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        text-align: center;
+      }
+      .tarjeta {
+        max-width: 380px;
+        width: 100%;
+        background: #fff;
+        border-radius: 24px;
+        padding: 36px 28px;
+        box-shadow: 0 16px 34px rgba(19, 48, 140, 0.12);
+      }
+      .logo {
+        width: 64px; height: 64px;
+        margin: 0 auto 18px;
+        border-radius: 18px;
+        background: linear-gradient(150deg, #2453dc, #13308c);
+        display: grid; place-items: center;
+        color: #fff; font-weight: 900; font-size: 34px;
+      }
+      h1 { font-size: 21px; font-weight: 800; letter-spacing: -0.02em; }
+      p { margin-top: 10px; font-size: 15px; line-height: 1.5; color: #6b7494; }
+      button {
+        margin-top: 22px;
+        width: 100%;
+        padding: 14px;
+        border: 0;
+        border-radius: 14px;
+        background: linear-gradient(90deg, #2453dc, #1e47c8);
+        color: #fff;
+        font-size: 16px; font-weight: 700;
+        font-family: inherit;
+        cursor: pointer;
+      }
+      button:active { transform: translateY(1px); }
+      .nota { margin-top: 14px; font-size: 12.5px; color: #9aa3bc; }
+    </style>
+  </head>
+  <body>
+    <div class="tarjeta">
+      <div class="logo">P</div>
+      <h1>Sin conexión</h1>
+      <p>No pudimos conectarnos. Revisá tu internet y volvé a intentar; tus datos te esperan.</p>
+      <button onclick="location.reload()">Reintentar</button>
+      <p class="nota">Presta Ya</p>
+    </div>
+    <script>
+      // Reintenta solo cuando vuelve la conexión.
+      window.addEventListener("online", () => location.reload());
+    </script>
+  </body>
+</html>

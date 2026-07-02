@@ -1,29 +1,30 @@
 import type { MetadataRoute } from "next";
 
-// Manifest PWA: permite "agregar a inicio" y abrir como app (standalone).
+// ─────────────────────────────────────────────────────────────────────────
+//  Web App Manifest (PWA). Next lo sirve en /manifest.webmanifest y lo enlaza
+//  solo. Hace la app INSTALABLE: ícono en el inicio del teléfono, splash y
+//  arranque en pantalla completa (standalone). Pensado para adultos mayores
+//  (abren el ícono, no buscan el link) y para el cobrador en la calle.
+//  Los íconos PNG se generan con scripts/gen-iconos-pwa.mjs.
+// ─────────────────────────────────────────────────────────────────────────
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Presta Ya — Tu crédito diario",
     short_name: "Presta Ya",
-    description: "Estado de cuenta de tu crédito de cobro diario.",
+    description: "Tu crédito de cobro diario, siempre a mano.",
     start_url: "/",
+    scope: "/",
     display: "standalone",
+    orientation: "portrait",
     background_color: "#EAEEF7",
     theme_color: "#13308C",
-    lang: "es",
+    lang: "es-UY",
+    dir: "ltr",
+    categories: ["finance"],
     icons: [
-      {
-        src: "/icon.svg",
-        sizes: "any",
-        type: "image/svg+xml",
-        purpose: "any",
-      },
-      {
-        src: "/icon.svg",
-        sizes: "any",
-        type: "image/svg+xml",
-        purpose: "maskable",
-      },
+      { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/icons/maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
   };
 }

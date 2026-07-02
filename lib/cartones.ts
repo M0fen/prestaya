@@ -8,7 +8,7 @@
 //
 //  ⚠️ MANEJA DINERO: no cambiar el orden de evaluación de estados sin tests.
 // ─────────────────────────────────────────────────────────────────────────
-import type { Pago, Prestamo } from "@/types/db";
+import type { FrecuenciaPrestamo, Pago, Prestamo } from "@/types/db";
 import type { DiaEstado, EstadoDia, ResultadoCarton } from "@/types/cartones";
 import { aMedianoche, parseFecha, toIso } from "./format";
 
@@ -16,7 +16,35 @@ import { aMedianoche, parseFecha, toIso } from "./format";
 type PrestamoCalc = Pick<
   Prestamo,
   "cuota_diaria" | "total_dias" | "fecha_inicio"
->;
+> & { frecuencia?: FrecuenciaPrestamo };
+
+/** Días entre cuotas para las frecuencias de paso fijo. */
+const PASO_DIAS: Record<Exclude<FrecuenciaPrestamo, "mensual">, number> = {
+  diario: 1,
+  semanal: 7,
+  quincenal: 15,
+};
+
+/**
+ * Fecha de la cuota número `i` (0-based) contando desde `inicio`, según la
+ * frecuencia. Diario/semanal/quincenal avanzan por días fijos; mensual avanza
+ * por meses calendario (con guarda para fin de mes: 31-ene + 1 mes → 28/29-feb).
+ */
+export function fechaDeCuota(
+  inicio: Date,
+  i: number,
+  frecuencia: FrecuenciaPrestamo = "diario",
+): Date {
+  const f = new Date(inicio);
+  if (frecuencia === "mensual") {
+    f.setMonth(inicio.getMonth() + i);
+    // Si el día "se pasó" (p. ej. 31 → mes sin 31), caemos al último día real.
+    if (f.getDate() !== inicio.getDate()) f.setDate(0);
+    return f;
+  }
+  f.setDate(inicio.getDate() + i * PASO_DIAS[frecuencia]);
+  return f;
+}
 
 /** Campos del pago que el cálculo necesita (ya filtrados: solo vigentes). */
 type PagoCalc = Pick<Pago, "dia_credito" | "monto">;
@@ -37,8 +65,9 @@ export function calcularEstadosCarton(
 ): ResultadoCarton {
   const cuota = prestamo.cuota_diaria;
   const totalDias = prestamo.total_dias;
+  const frecuencia = prestamo.frecuencia ?? "diario";
 
-  // Total a pagar = cuota fija × días. El interés ya va dentro de la cuota.
+  // Total a pagar = cuota fija × cantidad de cuotas. El interés ya va en la cuota.
   const totalAPagar = cuota * totalDias;
   const start = parseFecha(prestamo.fecha_inicio);
   // Comparamos por día: descartamos la hora de "hoy" para que `new Date()`
@@ -56,9 +85,8 @@ export function calcularEstadosCarton(
   let diaActual = 0;
 
   for (let i = 0; i < totalDias; i++) {
-    // Fecha calendario de este día del crédito.
-    const fecha = new Date(start);
-    fecha.setDate(start.getDate() + i);
+    // Fecha calendario de esta cuota (según la frecuencia del crédito).
+    const fecha = fechaDeCuota(start, i, frecuencia);
 
     const pagado = pagosPorDia[i + 1] || 0;
     totalPagado += pagado;
@@ -91,7 +119,9 @@ export function calcularEstadosCarton(
 
   // Lo que falta nunca es negativo (si pagó de más, falta = 0).
   const falta = Math.max(0, totalAPagar - totalPagado);
-  const progresoPct = Math.round((totalPagado / totalAPagar) * 100);
+  // Guardia: si el total fuera 0 (préstamo inválido) evitamos NaN/Infinity.
+  const progresoPct =
+    totalAPagar > 0 ? Math.round((totalPagado / totalAPagar) * 100) : 0;
 
   // Monto para ponerse al día HOY: lo que falta en cada día ya vencido o de
   // hoy (excluye los futuros, que aún no se deben). Al cubrirlo, queda al día.
@@ -102,10 +132,8 @@ export function calcularEstadosCarton(
     }
   }
 
-  // Fecha del último día del crédito (finalización).
-  const fin = new Date(start);
-  fin.setDate(start.getDate() + (totalDias - 1));
-  const fechaFin = toIso(fin);
+  // Fecha de la última cuota del crédito (finalización).
+  const fechaFin = toIso(fechaDeCuota(start, totalDias - 1, frecuencia));
 
   // Cualquier día atrasado o pendiente rompe el "al día".
   const hayPendiente = dias.some(

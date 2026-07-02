@@ -38,6 +38,13 @@ export interface Cliente {
   calificacion: Calificacion;
   notas: string | null;
   activo: boolean;
+  /** "oficina" (alta de gestor) u "censo" (relevado en calle por el cobrador). */
+  origen: "oficina" | "censo";
+  /** Usuario que dio de alta al cliente (cobrador o gestor). */
+  creado_por: string | null;
+  /** Ubicación capturada al censar (casa del cliente). */
+  gps_lat: number | null;
+  gps_lng: number | null;
   creado_en: string;
   actualizado_en: string;
 }
@@ -48,15 +55,21 @@ export type EstadoPrestamo =
   | "cancelado"
   | "incobrable";
 
+/** Frecuencia de las cuotas. "diario" es el caso histórico (cobro diario). */
+export type FrecuenciaPrestamo = "diario" | "semanal" | "quincenal" | "mensual";
+
 export interface Prestamo {
   id: string;
   cliente_id: string;
   cobrador_id: string | null;
   /** Capital entregado (UYU). number ya parseado desde numeric. */
   monto_prestado: number;
-  /** Cuota fija diaria (UYU). number ya parseado desde numeric. */
+  /** Cuota fija por período (UYU). number ya parseado desde numeric. */
   cuota_diaria: number;
+  /** Cantidad de cuotas del crédito (histórico: "días"). */
   total_dias: number;
+  /** Frecuencia de las cuotas (diario/semanal/quincenal/mensual). */
+  frecuencia: FrecuenciaPrestamo;
   /** Fecha de inicio "YYYY-MM-DD". */
   fecha_inicio: string;
   estado: EstadoPrestamo;
@@ -150,6 +163,37 @@ export interface Reporte {
   atendido_en: string | null;
 }
 
+// ── Chat interno y notas (comunicación de la operación, ver 0007) ─────────
+
+/** Ámbito de un mensaje: hilo general del equipo o hilo de un cobrador. */
+export type AmbitoMensaje = "general" | "cobrador";
+
+export interface Mensaje {
+  id: string;
+  ambito: AmbitoMensaje;
+  /** Cobrador dueño del hilo (null en el general). */
+  cobrador_id: string | null;
+  autor_id: string;
+  cuerpo: string;
+  creado_en: string;
+}
+
+export interface NotaCliente {
+  id: string;
+  cliente_id: string;
+  autor_id: string;
+  cuerpo: string;
+  creado_en: string;
+}
+
+export interface NotaPersonal {
+  id: string;
+  usuario_id: string;
+  cuerpo: string;
+  creado_en: string;
+  actualizado_en: string;
+}
+
 // ── Tipos de entrada para escrituras (sin columnas autogeneradas) ─────────
 
 /** Datos necesarios para registrar un pago nuevo. */
@@ -160,6 +204,10 @@ export interface NuevoPago {
   registrado_por?: string | null;
   gps_lat?: number | null;
   gps_lng?: number | null;
+  /** Hora real del cobro (ISO). Para cobros offline sincronizados después. */
+  registrado_en?: string | null;
+  /** Id de la operación offline (dedupe exactly-once, índice único, ver 0006). */
+  op_id?: string | null;
 }
 
 /** Datos para crear un reporte de discrepancia del cliente. */

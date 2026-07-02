@@ -2,8 +2,8 @@
 // Cubren: estados de día, totales, próxima cuota, regla de oro de HOY,
 // suma de abonos y la normalización de "hoy" con hora.
 import { describe, expect, it } from "vitest";
-import { calcularEstadosCarton } from "./cartones";
-import { parseFecha } from "./format";
+import { calcularEstadosCarton, fechaDeCuota } from "./cartones";
+import { parseFecha, toIso } from "./format";
 import type { Pago, Prestamo } from "@/types/db";
 
 /** Préstamo base de prueba: 30 días, cuota 20.000, inicia 2026-06-03. */
@@ -130,5 +130,54 @@ describe("calcularEstadosCarton — al día (sin pendientes)", () => {
     expect(r.hayPendiente).toBe(false);
     expect(r.falta).toBe(0);
     expect(r.montoParaAlDia).toBe(0);
+  });
+});
+
+describe("calcularEstadosCarton — modalidades (frecuencia)", () => {
+  it("fechaDeCuota respeta el paso de cada frecuencia", () => {
+    const inicio = parseFecha("2026-06-03");
+    expect(toIso(fechaDeCuota(inicio, 2, "diario"))).toBe("2026-06-05");
+    expect(toIso(fechaDeCuota(inicio, 2, "semanal"))).toBe("2026-06-17");
+    expect(toIso(fechaDeCuota(inicio, 2, "quincenal"))).toBe("2026-07-03");
+    expect(toIso(fechaDeCuota(inicio, 1, "mensual"))).toBe("2026-07-03");
+  });
+
+  it("mensual con inicio 31: cae al último día real de cada mes", () => {
+    const inicio = parseFecha("2026-01-31");
+    expect(toIso(fechaDeCuota(inicio, 1, "mensual"))).toBe("2026-02-28"); // feb no tiene 31
+    expect(toIso(fechaDeCuota(inicio, 2, "mensual"))).toBe("2026-03-31");
+  });
+
+  it("crédito SEMANAL: las cuotas caen cada 7 días y el estado es correcto", () => {
+    const prestamo = {
+      cuota_diaria: 5000,
+      total_dias: 4,
+      fecha_inicio: "2026-06-03",
+      frecuencia: "semanal" as const,
+    };
+    // Hoy = fecha de la 3ª cuota (jun-17). Pagó las cuotas 1 y 2.
+    const pagos = [
+      { dia_credito: 1, monto: 5000 },
+      { dia_credito: 2, monto: 5000 },
+    ];
+    const r = calcularEstadosCarton(prestamo, pagos, parseFecha("2026-06-17"));
+
+    expect(r.dias[0].fecha).toBe("2026-06-03");
+    expect(r.dias[1].fecha).toBe("2026-06-10");
+    expect(r.dias[2].fecha).toBe("2026-06-17");
+    expect(r.dias[3].fecha).toBe("2026-06-24");
+    expect(r.dias[0].estado).toBe("pagado");
+    expect(r.dias[2].esHoy).toBe(true);
+    expect(r.diaActual).toBe(3);
+    expect(r.fechaFin).toBe("2026-06-24");
+    expect(r.proxima?.diasRestantes).toBe(7);
+  });
+
+  it("diario y semanal difieren: el mismo día i cae en fechas distintas", () => {
+    const base = { cuota_diaria: 1000, total_dias: 5, fecha_inicio: "2026-06-03" };
+    const diario = calcularEstadosCarton({ ...base, frecuencia: "diario" }, [], parseFecha("2026-06-03"));
+    const semanal = calcularEstadosCarton({ ...base, frecuencia: "semanal" }, [], parseFecha("2026-06-03"));
+    expect(diario.dias[4].fecha).toBe("2026-06-07"); // +4 días
+    expect(semanal.dias[4].fecha).toBe("2026-07-01"); // +4 semanas
   });
 });

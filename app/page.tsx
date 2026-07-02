@@ -8,8 +8,19 @@ import {
 } from "@/lib/mock/loanData";
 import { NEGOCIO } from "@/lib/negocio";
 import { construirVistaCliente } from "@/lib/vistaCliente";
+import { calcularJuegoCliente } from "@/lib/juegoCliente";
+import { AJUSTES_JUEGO_DEFAULT, juegoArcadeDe } from "@/lib/juegoAjustes";
+import { evaluarRecompensas, type Recompensa } from "@/lib/recompensas";
 import { VistaClienteScreen } from "@/components/VistaClienteScreen";
 import type { Anuncio } from "@/types/db";
+
+// Recompensas de ejemplo para el demo (en prod vienen de Supabase / 0018).
+const recompensasDemo: Recompensa[] = [
+  { id: "r1", titulo: "Primera semana", premio: "Vas de fiar 🌱", hitoTipo: "racha", hitoValor: 7 },
+  { id: "r2", titulo: "Racha de 15", premio: "Descuento en tu próximo crédito", hitoTipo: "racha", hitoValor: 15 },
+  { id: "r3", titulo: "Mes sin atrasos", premio: "Entrás al sorteo del mes", hitoTipo: "mes_al_dia", hitoValor: 0 },
+  { id: "r4", titulo: "Crédito al 100%", premio: "Mejor tasa en tu renovación", hitoTipo: "credito_completo", hitoValor: 0 },
+];
 
 // Anuncios de ejemplo para el demo (en producción vienen de Supabase).
 // Muestran cómo el admin carga eventos y avisos para sus clientes.
@@ -74,12 +85,25 @@ export default function Home() {
     negocio: NEGOCIO,
     hoy: HOY_DEMO,
   });
+  const ajustes = AJUSTES_JUEGO_DEFAULT;
+  const juego = calcularJuegoCliente(prestamoMock, pagosMock, HOY_DEMO, {
+    metaRacha: ajustes.metaRacha,
+  });
 
   return (
     <VistaClienteScreen
       v={v}
       anuncios={anunciosDemo}
       reputacion={{ calificacion: clienteMock.calificacion, creditosPagados: 2 }}
+      juego={juego}
+      juegoAjustes={{
+        mensajeBienvenida: ajustes.mensajeBienvenida,
+        premioMeta: ajustes.premioMeta,
+        mostrarMisiones: ajustes.mostrarMisiones,
+      }}
+      juegoArcade={juegoArcadeDe(ajustes)}
+      recompensas={evaluarRecompensas(recompensasDemo, juego)}
+      temporada={{ nombre: "Mundial 2026", emoji: "⚽", meta: 90, premio: "Sorteo de una camiseta" }}
     />
   );
 }

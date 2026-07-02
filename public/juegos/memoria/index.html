@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Memoria Celeste</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: linear-gradient(180deg, #0f1b3d, #13308c);
+    color: #fff; display: flex; flex-direction: column; align-items: center;
+    justify-content: flex-start; padding: 14px; user-select: none; overflow: hidden;
+  }
+  .top { width: 100%; max-width: 340px; display: flex; justify-content: space-between;
+    align-items: center; margin-bottom: 12px; }
+  .title { font-size: 15px; font-weight: 800; letter-spacing: .02em; }
+  .stat { font-size: 12px; font-weight: 700; color: rgba(255,255,255,.7); }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+    width: 100%; max-width: 340px; }
+  .card { position: relative; aspect-ratio: 1; border-radius: 12px; cursor: pointer;
+    transform-style: preserve-3d; transition: transform .35s; }
+  .card.flip { transform: rotateY(180deg); }
+  .face { position: absolute; inset: 0; border-radius: 12px; display: flex;
+    align-items: center; justify-content: center; backface-visibility: hidden;
+    -webkit-backface-visibility: hidden; }
+  .back { background: linear-gradient(135deg, #2453dc, #1e47c8);
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,.14); font-size: 22px; color: rgba(255,255,255,.5); }
+  .front { background: #fff; transform: rotateY(180deg); font-size: 30px; }
+  .card.done .front { background: #d7f3e6; }
+  .msg { margin-top: 16px; text-align: center; min-height: 44px; }
+  .msg b { font-size: 16px; }
+  .btn { margin-top: 8px; border: 0; border-radius: 999px; padding: 10px 22px;
+    font-size: 14px; font-weight: 800; background: #fff; color: #13308c; cursor: pointer; }
+  .win .front { animation: pop .5s ease; }
+  @keyframes pop { 0% { transform: rotateY(180deg) scale(1);} 50%{ transform: rotateY(180deg) scale(1.15);} 100%{ transform: rotateY(180deg) scale(1);} }
+  @media (prefers-reduced-motion: reduce){ .card{ transition:none;} .win .front{ animation:none;} }
+</style>
+</head>
+<body>
+  <div class="top">
+    <span class="title">🧠 Memoria Celeste</span>
+    <span class="stat" id="stat">Movimientos: 0</span>
+  </div>
+  <div class="grid" id="grid" aria-label="Tablero de memoria"></div>
+  <div class="msg" id="msg">Encontrá las 6 parejas.</div>
+
+<script>
+(function () {
+  var SIMBOLOS = ["⚽","🏆","💙","🌟","🎯","🎁"];
+  var grid = document.getElementById("grid");
+  var statEl = document.getElementById("stat");
+  var msgEl = document.getElementById("msg");
+  var cartas = [], primera = null, bloqueo = false, movimientos = 0, encontradas = 0, gano = false;
+
+  function mezclar(a){ for (var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+
+  function armar(){
+    grid.innerHTML=""; cartas=[]; primera=null; bloqueo=false; movimientos=0; encontradas=0; gano=false;
+    statEl.textContent="Movimientos: 0"; msgEl.innerHTML="Encontrá las 6 parejas.";
+    var mazo = mezclar(SIMBOLOS.concat(SIMBOLOS));
+    mazo.forEach(function(sim){
+      var c=document.createElement("div"); c.className="card";
+      c.innerHTML='<div class="face back">?</div><div class="face front">'+sim+'</div>';
+      c.dataset.sim=sim;
+      c.addEventListener("click", function(){ girar(c); });
+      grid.appendChild(c); cartas.push(c);
+    });
+  }
+
+  function girar(c){
+    if (bloqueo || gano || c.classList.contains("flip") || c.classList.contains("done")) return;
+    c.classList.add("flip");
+    if (!primera){ primera = c; return; }
+    movimientos++; statEl.textContent = "Movimientos: " + movimientos;
+    if (primera.dataset.sim === c.dataset.sim){
+      primera.classList.add("done","win"); c.classList.add("done","win");
+      primera=null; encontradas++;
+      if (encontradas === SIMBOLOS.length) ganar();
+    } else {
+      bloqueo=true; var a=primera, b=c; primera=null;
+      setTimeout(function(){ a.classList.remove("flip"); b.classList.remove("flip"); bloqueo=false; }, 750);
+    }
+  }
+
+  function ganar(){
+    gano=true;
+    msgEl.innerHTML="<b>🎉 ¡Ganaste en "+movimientos+" movimientos!</b><br><button class='btn' id='again'>Jugar de nuevo</button>";
+    document.getElementById("again").addEventListener("click", armar);
+    try { window.parent.postMessage({ source: "presta-ya-game", event: "win" }, "*"); } catch (e) {}
+  }
+
+  armar();
+})();
+</script>
+</body>
+</html>

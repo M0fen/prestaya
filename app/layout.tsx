@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AccesibilidadControl } from "@/components/AccesibilidadControl";
+import { RegistrarSW } from "@/components/pwa/RegistrarSW";
+import { InstalarApp } from "@/components/pwa/InstalarApp";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -13,7 +15,11 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Presta Ya — Tu crédito diario",
   description: "Estado de cuenta de tu crédito de cobro diario.",
-  icons: { icon: "/icon.svg", apple: "/icon.svg" },
+  applicationName: "Presta Ya",
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icons/apple-180.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -38,6 +44,9 @@ export default function RootLayout({
         {/* #app-zoom: objetivo del escalado de texto (accesibilidad). */}
         <div id="app-zoom">{children}</div>
         <AccesibilidadControl />
+        {/* PWA: instalable + offline elegante (ver public/sw.js). */}
+        <RegistrarSW />
+        <InstalarApp />
       </body>
     </html>
   );

@@ -72,12 +72,22 @@ export interface Negocio {
   horario: string;
 }
 
-/** Una casilla del cartón, lista para pintar. */
+/** Una casilla del cartón, lista para pintar (con datos para el detalle al tocar). */
 export interface DiaCarton {
   dia: number;
   estado: EstadoDia;
   esHoy: boolean;
   style: CSSProperties;
+  /** Fecha larga del día, p. ej. "sábado, 14 de junio". */
+  fechaLarga: string;
+  /** Monto abonado ese día, formateado ("" si no hubo pago). */
+  montoPagado: string;
+  /** Hito visual: múltiplos de 5 y el último día (meta). */
+  esHito: boolean;
+  /** Es el último día del crédito (bandera de meta). */
+  esMeta: boolean;
+  /** Recibos del día (hora + monto), para el detalle al tocar la casilla. */
+  pagos: ReciboPago[];
 }
 
 /** Un pago individual dentro del comprobante de un día. */
@@ -86,6 +96,8 @@ export interface ReciboPago {
   hora: string;
   /** Monto formateado en pesos. */
   monto: string;
+  /** Quién registró el cobro (nombre del cobrador), o null si no consta. */
+  quien?: string | null;
 }
 
 /** Un ítem del historial de pagos, listo para pintar. */

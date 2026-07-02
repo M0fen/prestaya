@@ -27,6 +27,10 @@ export const clienteMock: Cliente = {
   calificacion: "bueno",
   notas: null,
   activo: true,
+  origen: "oficina",
+  creado_por: null,
+  gps_lat: null,
+  gps_lng: null,
   creado_en: "2026-06-03T00:00:00Z",
   actualizado_en: "2026-06-03T00:00:00Z",
 };
@@ -38,6 +42,7 @@ export const prestamoMock: Prestamo = {
   monto_prestado: 25000, // capital entregado (UYU)
   cuota_diaria: 1000, // cuota fija diaria (UYU)
   total_dias: 30, // total a pagar 30.000 (interés 5.000)
+  frecuencia: "diario",
   fecha_inicio: "2026-06-03",
   estado: "activo",
   creado_por: null,

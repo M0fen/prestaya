@@ -6,6 +6,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import { useEffect, useRef, useState } from "react";
 import type { Anuncio, TemaAnuncio } from "@/types/db";
+import { hrefSeguro } from "@/lib/seguridad";
 
 const TEMA_BG: Record<TemaAnuncio, string> = {
   azul: "linear-gradient(135deg,#2453DC,#13308C)",
@@ -84,7 +85,9 @@ export function BannerCarrusel({ anuncios }: { anuncios: Anuncio[] }) {
 }
 
 function Slide({ anuncio }: { anuncio: Anuncio }) {
-  const tieneCta = Boolean(anuncio.cta_texto && anuncio.cta_url);
+  // Defensa en profundidad: nunca llevamos un cta_url no confiable a un href.
+  const hrefCta = hrefSeguro(anuncio.cta_url);
+  const tieneCta = Boolean(anuncio.cta_texto && hrefCta);
   return (
     <div className="w-full flex-shrink-0 px-[7px]" style={{ minWidth: "100%" }}>
       <div
@@ -117,7 +120,7 @@ function Slide({ anuncio }: { anuncio: Anuncio }) {
             )}
             {tieneCta && (
               <a
-                href={anuncio.cta_url!}
+                href={hrefCta!}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-2 inline-flex w-fit items-center gap-1.5 rounded-full bg-white px-3.5 py-1.5 text-[12.5px] font-bold text-tinta transition-opacity hover:opacity-90"

@@ -60,6 +60,8 @@ export async function registrarPago(
       registrado_por: pago.registrado_por ?? null,
       gps_lat: pago.gps_lat ?? null,
       gps_lng: pago.gps_lng ?? null,
+      ...(pago.registrado_en ? { registrado_en: pago.registrado_en } : {}),
+      ...(pago.op_id ? { op_id: pago.op_id } : {}),
     })
     .select()
     .single();

@@ -31,6 +31,13 @@ export const JUEGOS: Record<string, Juego> = {
     ruta: "/juegos/atrapa-monedas/index.html",
     alto: 440,
   },
+  memoria: {
+    id: "memoria",
+    titulo: "Memoria Celeste 🧠",
+    descripcion: "Encontrá las 6 parejas en la menor cantidad de movimientos.",
+    ruta: "/juegos/memoria/index.html",
+    alto: 460,
+  },
 };
 
 /** Juego que se muestra este mes (Mundial 2026). */

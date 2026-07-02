@@ -3,8 +3,10 @@
 // Pensado para adultos mayores. Aplica las preferencias en <html> (data-attrs)
 // y las recuerda en localStorage. No depende del resto de la app.
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 export function AccesibilidadControl() {
+  const pathname = usePathname();
   const [font, setFont] = useState(0); // 0 = normal, 1 = grande, 2 = más grande
   const [contraste, setContraste] = useState(false);
 
@@ -33,6 +35,14 @@ export function AccesibilidadControl() {
       /* noop */
     }
   }, [contraste]);
+
+  // Superficies internas no usan este control de la vista de cliente.
+  if (
+    pathname?.startsWith("/admin") ||
+    pathname?.startsWith("/cobrador") ||
+    pathname?.startsWith("/ingresar")
+  )
+    return null;
 
   return (
     <div className="fixed right-3 bottom-3 z-50 flex items-center gap-1.5">

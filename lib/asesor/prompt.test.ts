@@ -1,0 +1,66 @@
+// Test del prompt del asesor + el volcado del resumen a texto. Puro (sin red).
+import { describe, it, expect } from "vitest";
+import { construirSystemPrompt } from "./prompt";
+import { resumenComoTexto, type ResumenFinanciero } from "@/lib/data/asesor";
+
+const RESUMEN: ResumenFinanciero = {
+  fecha: "2026-07-02T12:00:00Z",
+  cartera: {
+    capitalColocado: 500000,
+    carteraPorCobrar: 390000,
+    creditosActivos: 1,
+    clientesActivos: 1,
+    creditosFinalizados: 0,
+    incobrables: 0,
+  },
+  recaudacion: { hoy: 0, mes: 12000 },
+  mora: {
+    monto: 320000,
+    morosos: 1,
+    moraPct: 0.82,
+    tramos: [
+      { tramo: "1–7 días", creditos: 0, monto: 0 },
+      { tramo: "8–15 días", creditos: 0, monto: 0 },
+      { tramo: "16+ días", creditos: 1, monto: 320000 },
+    ],
+    criticos: 1,
+    topRiesgo: [
+      {
+        nombre: "María Fernanda",
+        riesgo: 90,
+        nivel: "critico",
+        deudaVencida: 320000,
+        diasSinPagar: 11,
+        cobrador: "Diego",
+      },
+    ],
+  },
+  cobradores: {
+    ranking: [
+      { nombre: "Diego", recaudado: 0, esperado: 20000, progresoPct: 0, anomalias: 0 },
+    ],
+    alertas: [],
+  },
+};
+
+describe("resumenComoTexto", () => {
+  it("incluye los números clave del negocio", () => {
+    const t = resumenComoTexto(RESUMEN);
+    expect(t).toContain("Capital colocado");
+    expect(t).toContain("$500.000");
+    expect(t).toContain("82%"); // mora
+    expect(t).toContain("María Fernanda");
+    expect(t).toContain("Diego");
+  });
+});
+
+describe("construirSystemPrompt", () => {
+  it("define el rol e inyecta el resumen", () => {
+    const sp = construirSystemPrompt(resumenComoTexto(RESUMEN));
+    expect(sp).toContain("Presta Ya");
+    expect(sp).toContain("FOTO DE LA OPERACIÓN");
+    expect(sp).toContain("$500.000");
+    // Reglas clave presentes.
+    expect(sp.toLowerCase()).toContain("no inventes");
+  });
+});
