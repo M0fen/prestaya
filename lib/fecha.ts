@@ -31,6 +31,17 @@ export function inicioDiaUYIso(base: Date = new Date()): string {
   return new Date(s.getTime() + UY_OFFSET_MIN * 60000).toISOString();
 }
 
+/** Fecha calendario de Uruguay como "YYYY-MM-DD" (coincide con `fecha_uy` de la
+ *  bitácora). TZ-independiente. */
+export function fechaISOUY(base: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(base); // "2026-07-02"
+}
+
 /** Ciclo mensual de Uruguay como "YYYY-MM" (para el tope de redención de
  *  estrellas por mes calendario). TZ-independiente (usa Intl con TZ explícita). */
 export function cicloUY(base: Date = new Date()): string {

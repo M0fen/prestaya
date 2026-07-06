@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getUsuarioActual } from "@/lib/auth";
 import { registrarGastoRutaDb } from "@/lib/data/gastos";
+import { registrarBitacora } from "@/lib/data/bitacora";
 
 type Resultado = { ok: true } | { ok: false; error: string };
 
@@ -25,11 +26,20 @@ export async function agregarGastoRuta(input: {
 
   try {
     const db = await createSupabaseServer();
+    const categoria = (input.categoria ?? "").trim().slice(0, 40) || "Gasto de ruta";
     await registrarGastoRutaDb(db, {
       cobradorId: usuario.id,
       monto,
-      categoria: (input.categoria ?? "").trim().slice(0, 40) || "Gasto de ruta",
+      categoria,
       descripcion: (input.descripcion ?? "").trim().slice(0, 160) || null,
+    });
+    await registrarBitacora(db, {
+      actorId: usuario.id,
+      actorNombre: usuario.nombre,
+      rol: usuario.rol,
+      accion: "gasto",
+      monto,
+      detalle: categoria,
     });
     revalidatePath("/cobrador");
     return { ok: true };

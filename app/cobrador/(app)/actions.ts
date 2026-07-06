@@ -19,6 +19,7 @@ import {
 import { getPrestamoActivoPorCliente } from "@/lib/data/prestamos";
 import { getPagosDePrestamo, registrarPago } from "@/lib/data/pagos";
 import { crearVisita } from "@/lib/data/visitas";
+import { registrarBitacora } from "@/lib/data/bitacora";
 import { calcularEstadosCarton } from "@/lib/cartones";
 import { evaluarZona } from "@/lib/geo";
 import { hoyUY } from "@/lib/fecha";
@@ -77,6 +78,19 @@ export async function relevarCliente(input: {
       activo: true,
     });
     if (errAsig) throw errAsig;
+
+    // Bitácora de campo (best-effort): alta de cliente en calle, con GPS.
+    await registrarBitacora(db, {
+      actorId: usuario.id,
+      actorNombre: usuario.nombre,
+      rol: usuario.rol,
+      accion: "censo",
+      clienteId: cliente.id,
+      detalle: nombre,
+      gpsLat: gps_lat,
+      gpsLng: gps_lng,
+      gpsDenegado: gps_lat == null || gps_lng == null,
+    });
 
     revalidatePath("/cobrador");
     return { ok: true, id: cliente.id };
@@ -143,6 +157,22 @@ export async function registrarPagoCobrador(input: {
       if (!esDuplicado(e)) throw e;
     }
 
+    // Bitácora de campo (best-effort): quién cobró, a quién, cuánto, dónde.
+    await registrarBitacora(db, {
+      actorId: usuario.id,
+      actorNombre: usuario.nombre,
+      rol: usuario.rol,
+      accion: "cobro",
+      clienteId: cliente.id,
+      prestamoId: prestamo.id,
+      monto,
+      gpsLat: gps_lat,
+      gpsLng: gps_lng,
+      gpsDenegado: gps_lat == null || gps_lng == null,
+      enZona: zona ? zona.enZona : null,
+      deviceTs: input.registradoEn ?? null,
+    });
+
     revalidatePath("/cobrador");
     revalidatePath(`/cobrador/cliente/${cliente.id}`);
     return { ok: true, dia, monto, enZona: zona ? zona.enZona : null };
@@ -178,14 +208,16 @@ export async function registrarNoPagoCobrador(input: {
     if (!prestamo) return { ok: false, error: "El cliente no tiene crédito activo." };
 
     const m = MOTIVOS_NOPAGO.find((x) => x.id === input.motivo) ?? MOTIVOS_NOPAGO[0];
+    const gps_lat = numeroValido(input.gpsLat);
+    const gps_lng = numeroValido(input.gpsLng);
     try {
       await crearVisita(db, {
         prestamo_id: prestamo.id,
         cobrador_id: usuario.id,
         resultado: m.resultado,
         motivo: m.label,
-        gps_lat: numeroValido(input.gpsLat),
-        gps_lng: numeroValido(input.gpsLng),
+        gps_lat,
+        gps_lng,
         registrado_en: input.registradoEn ?? null,
         op_id: input.opId ?? null,
       });
@@ -194,12 +226,51 @@ export async function registrarNoPagoCobrador(input: {
       if (!esDuplicado(e)) throw e;
     }
 
+    // Bitácora de campo (best-effort).
+    await registrarBitacora(db, {
+      actorId: usuario.id,
+      actorNombre: usuario.nombre,
+      rol: usuario.rol,
+      accion: "no_pago",
+      clienteId: input.clienteId,
+      prestamoId: prestamo.id,
+      detalle: m.label,
+      gpsLat: gps_lat,
+      gpsLng: gps_lng,
+      gpsDenegado: gps_lat == null || gps_lng == null,
+      deviceTs: input.registradoEn ?? null,
+    });
+
     revalidatePath("/cobrador");
     revalidatePath(`/cobrador/cliente/${input.clienteId}`);
     return { ok: true };
   } catch {
     return { ok: false, error: "No pudimos registrar. Probá de nuevo." };
   }
+}
+
+// ── Ver ficha (beacon de bitácora) ────────────────────────────────────────────
+// Registra que el cobrador ABRIÓ la ficha de un cliente, con GPS. Prueba que
+// estuvo físicamente ahí (o no) antes de cobrar. Best-effort, solo cobradores.
+export async function registrarVerFicha(input: {
+  clienteId: string;
+  gpsLat?: number | null;
+  gpsLng?: number | null;
+  gpsDenegado?: boolean;
+}): Promise<void> {
+  const usuario = await getUsuarioActual();
+  if (!usuario || !usuario.activo || usuario.rol !== "cobrador") return;
+  const db = await createSupabaseServer();
+  await registrarBitacora(db, {
+    actorId: usuario.id,
+    actorNombre: usuario.nombre,
+    rol: usuario.rol,
+    accion: "ver_ficha",
+    clienteId: input.clienteId,
+    gpsLat: numeroValido(input.gpsLat),
+    gpsLng: numeroValido(input.gpsLng),
+    gpsDenegado: Boolean(input.gpsDenegado) || numeroValido(input.gpsLat) == null,
+  });
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

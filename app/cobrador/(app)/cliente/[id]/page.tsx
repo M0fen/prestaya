@@ -13,6 +13,7 @@ import { hoyUY } from "@/lib/fecha";
 import type { EstadoDia } from "@/types/cartones";
 import { UYU } from "@/lib/format";
 import { RegistroCobro } from "@/components/cobrador/RegistroCobro";
+import { BeaconFicha } from "@/components/cobrador/BeaconFicha";
 import { NotasCliente } from "@/components/notas/NotasCliente";
 
 export const dynamic = "force-dynamic";
@@ -42,6 +43,8 @@ export default async function DetalleClientePage({
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Bitácora: registra que el cobrador abrió esta ficha, con GPS. */}
+      {!esGestor(usuario.rol) && <BeaconFicha clienteId={id} />}
       <Link href="/cobrador" className="text-[13px] font-semibold text-gris">
         ← Ruta
       </Link>

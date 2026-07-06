@@ -10,6 +10,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { getUsuarioActual } from "@/lib/auth";
 import { getEstadoJornada, crearRendicionDb } from "@/lib/data/rendicion";
 import { registrarAuditoria } from "@/lib/data/auditoria";
+import { registrarBitacora } from "@/lib/data/bitacora";
 import { calcularRendicion, type EstadoRendicion } from "@/lib/rendicion";
 import { UYU } from "@/lib/format";
 
@@ -60,6 +61,14 @@ export async function cerrarJornada(input: {
       accion: "Cerró jornada",
       entidad: "rendicion",
       detalle: `Entregó ${UYU(entregado)} · ${est}${diferencia !== 0 ? ` ${UYU(Math.abs(diferencia))}` : ""}`,
+    });
+    await registrarBitacora(db, {
+      actorId: usuario.id,
+      actorNombre: usuario.nombre,
+      rol: usuario.rol,
+      accion: "cierre_jornada",
+      monto: entregado,
+      detalle: `${est} · entregó ${UYU(entregado)}`,
     });
     return { ok: true, estado: est, diferencia, esperado };
   } catch (e) {

@@ -1,18 +1,19 @@
 "use client";
-// Raspadita PROFESIONAL — canvas propio (sin librería). Se rasca con el dedo:
-// una capa plateada con textura se borra con `destination-out` al mover el
-// puntero; al llegar al ~60% raspado, se revela sola con un pop.
+// Raspadita PROFESIONAL — canvas propio (sin librería). Una lámina metálica
+// (tipo scratch-off real) que se BORRA raspando con el dedo: `destination-out`
+// al mover el puntero. Cuesta raspar (pincel chico, umbral alto), vibra un
+// poquito al raspar (feel táctil) y recién al ~65% se revela sola con un pop.
 //
 // ⚠️ El PREMIO lo decide y registra el SERVIDOR (jugarRaspadita) al PRIMER
-// raspado; el canvas solo revela un resultado ya definido. Las probabilidades
-// nunca viajan al cliente. Sin dinero real (beneficio simbólico o "nada").
+// raspado; el canvas solo revela un resultado ya definido. Sin token = modo
+// demo (premio de muestra local). Sin dinero real (beneficio simbólico o "nada").
 import { useCallback, useEffect, useRef, useState } from "react";
 import { jugarRaspadita } from "@/app/c/[token]/actions";
 
 type Premio = { label: string; tipo: "beneficio" | "nada" };
 
-const UMBRAL_REVELAR = 0.6; // hay que raspar el 60% (no se abre de un toque)
-const RADIO_PINCEL = 22; // yema del dedo
+const UMBRAL_REVELAR = 0.65; // hay que raspar el 65% (no se abre de un toque)
+const RADIO_PINCEL = 15; // yema del dedo, chico → cuesta más raspar
 
 // Premios de MUESTRA para la vista demo (sin token): solo para "sentir" el
 // raspado. No escriben nada en el servidor; el juego real usa jugarRaspadita.
@@ -34,7 +35,7 @@ export function RaspaditaCanvas({
   const [error, setError] = useState("");
   const [soporta, setSoporta] = useState(true);
   const [jugadasLocal, setJugadasLocal] = useState(0);
-  const [ronda, setRonda] = useState(0); // sube al "Raspar otra" → repinta el cover
+  const [ronda, setRonda] = useState(0);
 
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -42,18 +43,23 @@ export function RaspaditaCanvas({
   const iniciado = useRef(false);
   const movs = useRef(0);
   const alcanzoUmbral = useRef(false);
+  const ultimoPunto = useRef<{ x: number; y: number } | null>(null);
 
   const restantes = disponibles - jugadasLocal;
 
-  // ── Dibuja la cobertura plateada con textura ─────────────────────────────
-  const pintarCobertura = useCallback(() => {
+  // ── Dibuja la LÁMINA metálica (scratch-off) con textura ──────────────────
+  const pintarCobertura = useCallback((intentos = 0) => {
     const canvas = canvasRef.current;
     const wrap = wrapRef.current;
     if (!canvas || !wrap) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const w = wrap.clientWidth;
     const h = wrap.clientHeight;
-    if (w === 0 || h === 0) return;
+    if ((w === 0 || h === 0) && intentos < 10) {
+      // El layout aún no midió: reintentar el próximo frame (evita lámina vacía).
+      requestAnimationFrame(() => pintarCobertura(intentos + 1));
+      return;
+    }
     canvas.width = Math.round(w * dpr);
     canvas.height = Math.round(h * dpr);
     canvas.style.width = `${w}px`;
@@ -64,49 +70,77 @@ export function RaspaditaCanvas({
       return;
     }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    // Base metálica.
+    ctx.globalCompositeOperation = "source-over";
+
+    // 1) Base metálica (gris plateado con degradé diagonal).
     const g = ctx.createLinearGradient(0, 0, w, h);
-    g.addColorStop(0, "#C2C8D2");
-    g.addColorStop(0.45, "#E7EBF1");
-    g.addColorStop(0.55, "#D3D8E1");
-    g.addColorStop(1, "#AEB5C2");
+    g.addColorStop(0, "#9BA1AD");
+    g.addColorStop(0.35, "#C9CED7");
+    g.addColorStop(0.5, "#EBEEF3");
+    g.addColorStop(0.65, "#C4C9D3");
+    g.addColorStop(1, "#969CA8");
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, w, h);
-    // Brillo diagonal.
-    const sheen = ctx.createLinearGradient(0, 0, w, h);
-    sheen.addColorStop(0, "rgba(255,255,255,0)");
-    sheen.addColorStop(0.5, "rgba(255,255,255,0.4)");
-    sheen.addColorStop(0.6, "rgba(255,255,255,0)");
-    ctx.fillStyle = sheen;
+
+    // 2) "Metal cepillado": líneas diagonales finas semitransparentes.
+    ctx.save();
+    ctx.globalAlpha = 0.5;
+    ctx.lineWidth = 1;
+    for (let x = -h; x < w; x += 3) {
+      ctx.strokeStyle = (x / 3) % 2 === 0 ? "rgba(255,255,255,0.22)" : "rgba(90,98,115,0.14)";
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x + h, h);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // 3) Brillo radial (reflejo arriba-izquierda).
+    const sh = ctx.createRadialGradient(w * 0.3, h * 0.2, 0, w * 0.3, h * 0.2, w * 0.7);
+    sh.addColorStop(0, "rgba(255,255,255,0.35)");
+    sh.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = sh;
     ctx.fillRect(0, 0, w, h);
-    // Grano/ruido tenue.
-    ctx.globalAlpha = 0.06;
-    const puntos = Math.floor((w * h) / 90);
+
+    // 4) Grano/ruido (partículas del material).
+    ctx.globalAlpha = 0.08;
+    const puntos = Math.floor((w * h) / 60);
     for (let i = 0; i < puntos; i++) {
       ctx.fillStyle = Math.random() > 0.5 ? "#000" : "#fff";
       ctx.fillRect(Math.random() * w, Math.random() * h, 1, 1);
     }
     ctx.globalAlpha = 1;
-    // Pista.
-    ctx.fillStyle = "rgba(88,98,120,0.6)";
-    ctx.font = "600 13px Inter, system-ui, sans-serif";
+
+    // 5) Marca "RASPÁ AQUÍ".
+    ctx.fillStyle = "rgba(70,78,96,0.55)";
+    ctx.font = "800 14px Inter, system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("✦ Raspá aquí ✦", w / 2, h / 2);
+    ctx.fillText("🪙  RASPÁ AQUÍ", w / 2, h / 2);
+
     movs.current = 0;
     alcanzoUmbral.current = false;
+    ultimoPunto.current = null;
   }, []);
 
-  // Pinta el cover al montar y en cada RONDA nueva (no al traer el premio: si
-  // dependiera de jugadasLocal, repintaría encima de lo que el cliente ya raspó).
   useEffect(() => {
     pintarCobertura();
-    // Repintar en resize SOLO si no se está raspando en ese momento.
     const onResize = () => {
       if (!revelado && !dibujando.current) pintarCobertura();
     };
     window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    // ResizeObserver: repinta cuando el contenedor recibe su tamaño real.
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined" && wrapRef.current) {
+      ro = new ResizeObserver(() => {
+        if (!revelado && !dibujando.current) pintarCobertura();
+      });
+      ro.observe(wrapRef.current);
+    }
+    return () => {
+      window.removeEventListener("resize", onResize);
+      ro?.disconnect();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ronda]);
 
@@ -117,16 +151,18 @@ export function RaspaditaCanvas({
     const ctx = canvas?.getContext("2d");
     if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
     setRevelado(true);
+    try {
+      navigator.vibrate?.(30);
+    } catch {
+      /* noop */
+    }
   }, [revelado]);
 
-  // Si se llegó al umbral pero el premio aún no había llegado, revelar al llegar.
   useEffect(() => {
     if (premio && alcanzoUmbral.current && !revelado) revelar();
   }, [premio, revelado, revelar]);
 
   // ── Decide el premio en el PRIMER raspado ────────────────────────────────
-  // Con token: lo decide y registra el SERVIDOR (jugarRaspadita). Sin token
-  // (vista demo): premio de muestra local, sin escribir nada.
   const iniciar = useCallback(async () => {
     if (iniciado.current) return;
     iniciado.current = true;
@@ -144,26 +180,42 @@ export function RaspaditaCanvas({
     }
   }, [token]);
 
-  // ── Borrado táctil ───────────────────────────────────────────────────────
+  // ── Borrado táctil (raspado) ─────────────────────────────────────────────
   const posicion = (e: React.PointerEvent) => {
     const rect = canvasRef.current!.getBoundingClientRect();
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
+
+  // Borra un círculo (con leve jitter, borde algo duro para sentir el material).
+  const borrarPunto = (ctx: CanvasRenderingContext2D, x: number, y: number) => {
+    const r = RADIO_PINCEL + (Math.random() * 3 - 1.5);
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+    grad.addColorStop(0, "rgba(0,0,0,1)");
+    grad.addColorStop(0.85, "rgba(0,0,0,1)");
+    grad.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
   };
 
   const borrar = (x: number, y: number) => {
     const ctx = canvasRef.current?.getContext("2d");
     if (!ctx) return;
     ctx.globalCompositeOperation = "destination-out";
-    const grad = ctx.createRadialGradient(x, y, 0, x, y, RADIO_PINCEL);
-    grad.addColorStop(0, "rgba(0,0,0,1)");
-    grad.addColorStop(0.7, "rgba(0,0,0,1)");
-    grad.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    // Leve irregularidad para que no sea un círculo perfecto.
-    ctx.arc(x, y, RADIO_PINCEL + (Math.random() * 3 - 1.5), 0, Math.PI * 2);
-    ctx.fill();
+    // Interpola entre el último punto y el actual → traza continua sin huecos.
+    const prev = ultimoPunto.current;
+    if (prev) {
+      const dist = Math.hypot(x - prev.x, y - prev.y);
+      const pasos = Math.max(1, Math.floor(dist / (RADIO_PINCEL / 2)));
+      for (let i = 1; i <= pasos; i++) {
+        borrarPunto(ctx, prev.x + ((x - prev.x) * i) / pasos, prev.y + ((y - prev.y) * i) / pasos);
+      }
+    } else {
+      borrarPunto(ctx, x, y);
+    }
     ctx.globalCompositeOperation = "source-over";
+    ultimoPunto.current = { x, y };
   };
 
   const medirPct = (): number => {
@@ -173,8 +225,7 @@ export function RaspaditaCanvas({
     const img = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
     let transp = 0;
     let tot = 0;
-    // Muestreo cada 20 píxeles (barato para gama baja).
-    for (let i = 3; i < img.length; i += 4 * 20) {
+    for (let i = 3; i < img.length; i += 4 * 16) {
       tot++;
       if (img[i] < 128) transp++;
     }
@@ -185,6 +236,7 @@ export function RaspaditaCanvas({
     if (revelado || error) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     dibujando.current = true;
+    ultimoPunto.current = null;
     if (!iniciado.current) void iniciar();
     const { x, y } = posicion(e);
     borrar(x, y);
@@ -195,7 +247,15 @@ export function RaspaditaCanvas({
     const { x, y } = posicion(e);
     borrar(x, y);
     movs.current += 1;
-    if (movs.current % 6 === 0) {
+    // Vibración corta y espaciada → "se siente" la raspada sin marear.
+    if (movs.current % 4 === 0) {
+      try {
+        navigator.vibrate?.(6);
+      } catch {
+        /* noop */
+      }
+    }
+    if (movs.current % 8 === 0) {
       const pct = medirPct();
       if (pct >= UMBRAL_REVELAR) {
         alcanzoUmbral.current = true;
@@ -206,6 +266,7 @@ export function RaspaditaCanvas({
 
   const onUp = () => {
     dibujando.current = false;
+    ultimoPunto.current = null;
   };
 
   const otra = () => {
@@ -215,11 +276,9 @@ export function RaspaditaCanvas({
     iniciado.current = false;
     alcanzoUmbral.current = false;
     movs.current = 0;
-    setRonda((r) => r + 1); // el useEffect([ronda]) repinta el cover nuevo
+    setRonda((r) => r + 1);
   };
 
-  // Jugable mientras queden raspaditas. Con token juega de verdad; sin token
-  // (vista demo) juega en modo muestra. Si se acaban, se muestra el aliento.
   const jugable = restantes > 0;
 
   return (
@@ -231,10 +290,10 @@ export function RaspaditaCanvas({
         </span>
       </div>
 
-      {/* Zona de raspado: premio debajo, canvas encima */}
+      {/* Zona de raspado: premio debajo, lámina encima */}
       <div
         ref={wrapRef}
-        className="relative h-[128px] w-full overflow-hidden rounded-[14px] bg-white/12 select-none"
+        className="relative h-[150px] w-full overflow-hidden rounded-[14px] bg-white/12 select-none"
       >
         {/* Premio (debajo) — legible siempre */}
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 px-3 text-center">
@@ -242,20 +301,20 @@ export function RaspaditaCanvas({
             <span className="text-[13px] font-semibold text-[#FFD9D9]">{error}</span>
           ) : premio ? (
             <div className={revelado ? "py-carita flex flex-col items-center gap-1" : "flex flex-col items-center gap-1"}>
-              <span className="text-[30px]">{premio.tipo === "beneficio" ? "🎉" : "🍀"}</span>
-              <span className="text-[15px] font-extrabold">{premio.label}</span>
+              <span className="text-[32px]">{premio.tipo === "beneficio" ? "🎉" : "🍀"}</span>
+              <span className="text-[16px] font-extrabold">{premio.label}</span>
               {premio.tipo === "beneficio" && (
                 <span className="text-[11px] font-medium text-white/80">Mostralo en la oficina para usarlo.</span>
               )}
             </div>
           ) : (
             <span className="text-[12.5px] font-medium text-white/70">
-              {jugable ? "Tu premio está acá abajo…" : "¡Con tu próximo pago desbloqueás otra! 🌟"}
+              {jugable ? "Raspá con el dedo para descubrir tu premio" : "¡Con tu próximo pago desbloqueás otra! 🌟"}
             </span>
           )}
         </div>
 
-        {/* Canvas de la cobertura (encima). Fallback: botón si no hay canvas. */}
+        {/* Lámina metálica (encima). Fallback: botón si no hay canvas. */}
         {soporta && jugable && !revelado && (
           <canvas
             key={ronda}
@@ -264,6 +323,7 @@ export function RaspaditaCanvas({
             onPointerMove={onMove}
             onPointerUp={onUp}
             onPointerLeave={onUp}
+            onPointerCancel={onUp}
             className="absolute inset-0 cursor-pointer"
             style={{ touchAction: "none", WebkitTapHighlightColor: "transparent" }}
             aria-label="Raspá para descubrir tu premio"
