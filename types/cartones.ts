@@ -64,6 +64,20 @@ export interface ResultadoCarton {
 
 // ── Tipos de PRESENTACIÓN (vista del cliente) ─────────────────────────────
 
+/** Etiquetas de la unidad de la cuota según la frecuencia del crédito. Así el
+ *  cliente ve "Pago semana a semana" / "Semana 3 de 10" en un crédito semanal,
+ *  no "día" (el cálculo del cartón ya respeta la frecuencia). */
+export interface UnidadFrecuencia {
+  /** "día" / "semana" / "quincena" / "mes". */
+  singular: string;
+  /** "días" / "semanas" / … */
+  plural: string;
+  /** "día por día" / "semana a semana" / … (para el título del cartón). */
+  cada: string;
+  /** "Día" / "Semana" / … (para "Semana 5"). */
+  ord: string;
+}
+
 /** Datos de contacto del negocio prestamista (config fija, pie de página). */
 export interface Negocio {
   nombre: string;
@@ -129,6 +143,8 @@ export interface VistaCredito {
   cuotaDiaria: string;
   totalDias: number;
   diaActual: number;
+  /** Etiquetas de la unidad según la frecuencia (día/semana/quincena/mes). */
+  unidad: UnidadFrecuencia;
   estadoGeneral: string;
   estadoDotStyle: CSSProperties;
   barFillStyle: CSSProperties;

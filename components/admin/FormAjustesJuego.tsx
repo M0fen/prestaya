@@ -40,7 +40,7 @@ export function FormAjustesJuego({
       {/* Encendido */}
       <Toggle
         label="Zona de juego encendida"
-        sub="Si la apagás, los clientes no ven mascota, misiones ni el arcade."
+        sub="Si la apagás, los clientes no ven la zona de juego, misiones ni el arcade."
         valor={a.activo}
         onChange={(v) => set("activo", v)}
       />
@@ -161,6 +161,42 @@ export function FormAjustesJuego({
             </div>
           )}
         </div>
+      </div>
+
+      {/* Config del cliente que aplica SIEMPRE (aunque la zona de juego esté
+          apagada): estrellas y caritas se muestran igual. */}
+      <div className="flex flex-col gap-3 rounded-[12px] border border-[#EEF1F8] bg-[#F7F9FD] p-3">
+        <span className="text-[12px] font-extrabold text-tinta">Vista del cliente</span>
+        <label className="flex flex-col gap-1">
+          <span className="text-[11.5px] font-bold text-tinta">Ciclo del canje de estrellas</span>
+          <span className="text-[11px] font-medium text-gris">
+            Cada cuánto se reinicia el tope de 5 estrellas por canje.
+          </span>
+          <select
+            value={a.estrellasCiclo}
+            onChange={(e) => set("estrellasCiclo", e.target.value as AjustesJuego["estrellasCiclo"])}
+            className="mt-1 w-56 rounded-[10px] border border-[#DCE3F4] bg-white px-3 py-2 text-[14px] outline-none focus:border-azul"
+          >
+            <option value="mes">Por mes calendario</option>
+            <option value="credito">Por crédito</option>
+          </select>
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-[11.5px] font-bold text-tinta">
+            Umbral de la carita roja (días de atraso)
+          </span>
+          <span className="text-[11px] font-medium text-gris">
+            Con esta cantidad de cuotas vencidas, la carita del cliente pasa de naranja a roja.
+          </span>
+          <input
+            type="number"
+            min={1}
+            max={60}
+            value={a.umbralCaritas}
+            onChange={(e) => set("umbralCaritas", Number(e.target.value))}
+            className="mt-1 w-28 rounded-[10px] border border-[#DCE3F4] px-3 py-2 text-[14px] outline-none focus:border-azul"
+          />
+        </label>
       </div>
 
       <div className="flex items-center gap-3">

@@ -10,7 +10,7 @@ export interface NivelJuego {
   nombre: string;
   umbral: number;
   color: string;
-  etapa: number; // crecimiento de la mascota (0→4)
+  etapa: number; // etapa de crecimiento del nivel (0→4)
 }
 
 export const NIVELES: NivelJuego[] = [

@@ -3,7 +3,8 @@
 //  Devuelve el anuncio vigente de mayor prioridad para el segmento dado.
 // ─────────────────────────────────────────────────────────────────────────
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Anuncio, SegmentoAnuncio } from "@/types/db";
+import type { Anuncio, SegmentoAnuncio, TemaAnuncio } from "@/types/db";
+import { tablaFaltante } from "@/lib/data/errores";
 
 /** Convierte una fila cruda en un Anuncio tipado. */
 function mapAnuncio(r: Record<string, unknown>): Anuncio {
@@ -54,4 +55,85 @@ export async function getAnunciosActivos(
 
   if (error) throw error;
   return (data ?? []).map(mapAnuncio);
+}
+
+// ── Administración de anuncios (gestor) ────────────────────────────────────
+
+/** Todos los anuncios (activos e inactivos) para el panel. Vacío si falta 0003. */
+export async function getAnunciosAdmin(db: SupabaseClient): Promise<Anuncio[]> {
+  try {
+    const { data, error } = await db
+      .from("anuncios")
+      .select("*")
+      .order("prioridad", { ascending: false })
+      .order("creado_en", { ascending: false });
+    if (error) throw error;
+    return (data ?? []).map(mapAnuncio);
+  } catch (e) {
+    if (tablaFaltante(e)) return [];
+    throw e;
+  }
+}
+
+/** Campos editables de un anuncio (desde el panel). */
+export interface AnuncioInput {
+  titulo: string;
+  cuerpo: string | null;
+  ctaTexto: string | null;
+  ctaUrl: string | null;
+  imagenUrl: string | null;
+  tema: TemaAnuncio;
+  prioridad: number;
+  activo: boolean;
+  segmento: SegmentoAnuncio;
+  fechaInicio: string | null; // ISO o null (= ahora)
+  fechaFin: string | null; // ISO o null (= sin vencimiento)
+}
+
+function aFila(input: AnuncioInput): Record<string, unknown> {
+  return {
+    titulo: input.titulo,
+    cuerpo: input.cuerpo,
+    cta_texto: input.ctaTexto,
+    cta_url: input.ctaUrl,
+    imagen_url: input.imagenUrl,
+    tema: input.tema,
+    prioridad: input.prioridad,
+    activo: input.activo,
+    segmento: input.segmento,
+    ...(input.fechaInicio ? { fecha_inicio: input.fechaInicio } : {}),
+    fecha_fin: input.fechaFin,
+  };
+}
+
+export async function crearAnuncioDb(
+  db: SupabaseClient,
+  input: AnuncioInput,
+  creadoPor: string,
+): Promise<void> {
+  const { error } = await db.from("anuncios").insert({ ...aFila(input), creado_por: creadoPor });
+  if (error) throw error;
+}
+
+export async function actualizarAnuncioDb(
+  db: SupabaseClient,
+  id: string,
+  input: AnuncioInput,
+): Promise<void> {
+  const { error } = await db.from("anuncios").update(aFila(input)).eq("id", id);
+  if (error) throw error;
+}
+
+export async function setAnuncioActivoDb(
+  db: SupabaseClient,
+  id: string,
+  activo: boolean,
+): Promise<void> {
+  const { error } = await db.from("anuncios").update({ activo }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function borrarAnuncioDb(db: SupabaseClient, id: string): Promise<void> {
+  const { error } = await db.from("anuncios").delete().eq("id", id);
+  if (error) throw error;
 }

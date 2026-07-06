@@ -15,6 +15,7 @@ type Props = Pick<
   | "diaActual"
   | "totalDias"
   | "fechaFinLarga"
+  | "unidad"
 >;
 
 export function ResumenCard({
@@ -29,6 +30,7 @@ export function ResumenCard({
   diaActual,
   totalDias,
   fechaFinLarga,
+  unidad,
 }: Props) {
   return (
     <section className="relative overflow-hidden rounded-[24px] bg-[linear-gradient(150deg,#2453DC_0%,#1E47C8_45%,#13308C_100%)] px-[22px] pt-6 pb-[22px] text-white shadow-[0_16px_34px_rgba(19,48,140,0.34)]">
@@ -89,7 +91,7 @@ export function ResumenCard({
           <strong className="font-bold text-white">{montoPrestado}</strong>
         </span>
         <span className="text-[12.5px] font-semibold text-white/[0.78]">
-          Día {diaActual} de {totalDias}
+          {unidad.ord} {diaActual} de {totalDias}
         </span>
       </div>
 

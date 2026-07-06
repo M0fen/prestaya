@@ -16,8 +16,11 @@ import {
 import { getPagosDePrestamo } from "@/lib/data/pagos";
 import { getAnunciosActivos } from "@/lib/data/anuncios";
 import { getAjustesJuego } from "@/lib/data/juegoConfig";
-import { getMascota } from "@/lib/data/mascota";
 import { getRecompensasActivas } from "@/lib/data/recompensas";
+import { getSaldoEstrellas } from "@/lib/data/estrellas";
+import { claveCiclo } from "@/lib/estrellas";
+import { getEstadoRaspaCliente, getQuinielaAbierta, getParticipacionCliente } from "@/lib/data/promos";
+import { cicloUY } from "@/lib/fecha";
 import { juegoArcadeDe } from "@/lib/juegoAjustes";
 import { construirVistaCliente } from "@/lib/vistaCliente";
 import { calcularJuegoCliente } from "@/lib/juegoCliente";
@@ -52,6 +55,39 @@ export default async function VistaPorToken({
   // 3) Pagos vigentes + cálculo + render. "hoy" = fecha real del servidor.
   const pagos = await getPagosDePrestamo(db, prestamo.id);
 
+  // Config del cliente definida por el admin (ciclo de estrellas, umbral caritas).
+  const ajustes = await getAjustesJuego(db);
+
+  // Estrellas: recompensa real (resiliente a que 0020 no exista). El ciclo del
+  // tope lo define el admin: por mes o por crédito.
+  const cicloEstrellas = claveCiclo(ajustes.estrellasCiclo, {
+    cicloMes: cicloUY(),
+    prestamoId: prestamo.id,
+  });
+  const estrellas = await getSaldoEstrellas(db, cliente.id, cicloEstrellas);
+
+  // Juegos promocionales (resiliente a que 0021 no exista).
+  const [raspa, quiniela] = await Promise.all([
+    getEstadoRaspaCliente(db, cliente.id),
+    getQuinielaAbierta(db),
+  ]);
+  const participacionNumero = quiniela
+    ? await getParticipacionCliente(db, quiniela.id, cliente.id)
+    : null;
+  const promo = {
+    raspaDisponibles: raspa.disponibles,
+    quiniela: quiniela
+      ? {
+          id: quiniela.id,
+          titulo: quiniela.titulo,
+          premioTexto: quiniela.premioTexto,
+          rangoMin: quiniela.rangoMin,
+          rangoMax: quiniela.rangoMax,
+        }
+      : null,
+    participacionNumero,
+  };
+
   // Nombres de los cobradores que registraron pagos (para mostrar "quién cobró").
   const cobradorIds = [
     ...new Set(pagos.map((p) => p.registrado_por).filter((x): x is string => !!x)),
@@ -71,14 +107,11 @@ export default async function VistaPorToken({
     nombresCobrador,
   });
 
-  // Zona de juego según la config del admin (resiliente a que 0009 no exista).
-  const ajustes = await getAjustesJuego(db);
+  // Zona de juego según la config del admin (ajustes ya leídos arriba).
   const juego = ajustes.activo
     ? calcularJuegoCliente(prestamo, pagos, hoyUY(), { metaRacha: ajustes.metaRacha })
     : null;
   const juegoArcade = ajustes.activo ? juegoArcadeDe(ajustes) : null;
-  // Mascota (tamagotchi): estado guardado (resiliente a que 0012 no exista).
-  const mascota = ajustes.activo ? await getMascota(db, cliente.id) : null;
 
   // Recompensas evaluadas contra el juego (resiliente a que 0018 no exista).
   const recompensas =
@@ -125,7 +158,9 @@ export default async function VistaPorToken({
       token={token}
       reputacion={reputacion}
       juego={juego}
-      mascotaInicial={mascota}
+      estrellas={estrellas}
+      promo={promo}
+      umbralCaritas={ajustes.umbralCaritas}
       juegoAjustes={{
         mensajeBienvenida: ajustes.mensajeBienvenida,
         premioMeta: ajustes.premioMeta,

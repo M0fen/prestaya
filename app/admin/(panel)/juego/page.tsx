@@ -36,7 +36,7 @@ export default async function JuegoPage() {
       <div className="flex flex-col gap-0.5">
         <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">Zona de juego</h1>
         <span className="text-[13px] font-medium text-gris">
-          Controlá lo que ven tus clientes: mascota, recompensas, temporada y el juego del mes.
+          Controlá lo que ven tus clientes: recompensas, temporada y el juego del mes.
         </span>
       </div>
 

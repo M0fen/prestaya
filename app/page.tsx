@@ -11,6 +11,8 @@ import { construirVistaCliente } from "@/lib/vistaCliente";
 import { calcularJuegoCliente } from "@/lib/juegoCliente";
 import { AJUSTES_JUEGO_DEFAULT, juegoArcadeDe } from "@/lib/juegoAjustes";
 import { evaluarRecompensas, type Recompensa } from "@/lib/recompensas";
+import { calcularEstrellas } from "@/lib/estrellas";
+import { cicloUY } from "@/lib/fecha";
 import { VistaClienteScreen } from "@/components/VistaClienteScreen";
 import type { Anuncio } from "@/types/db";
 
@@ -89,6 +91,12 @@ export default function Home() {
   const juego = calcularJuegoCliente(prestamoMock, pagosMock, HOY_DEMO, {
     metaRacha: ajustes.metaRacha,
   });
+  // Estrellas demo: 1 fragmento por pago vigente del mock.
+  const estrellas = calcularEstrellas({
+    pagosVigentes: pagosMock.length,
+    redenciones: [],
+    cicloActual: cicloUY(HOY_DEMO),
+  });
 
   return (
     <VistaClienteScreen
@@ -96,6 +104,15 @@ export default function Home() {
       anuncios={anunciosDemo}
       reputacion={{ calificacion: clienteMock.calificacion, creditosPagados: 2 }}
       juego={juego}
+      estrellas={estrellas}
+      promo={{
+        raspaDisponibles: 1,
+        quiniela: {
+          id: "demo", titulo: "Quiniela de julio", premioTexto: "1 día de gracia",
+          rangoMin: 0, rangoMax: 99,
+        },
+        participacionNumero: null,
+      }}
       juegoAjustes={{
         mensajeBienvenida: ajustes.mensajeBienvenida,
         premioMeta: ajustes.premioMeta,

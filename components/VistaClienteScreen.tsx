@@ -6,9 +6,11 @@ import type { Anuncio, Calificacion } from "@/types/db";
 import type { JuegoCliente as Juego } from "@/lib/juegoCliente";
 import type { Juego as JuegoArcade } from "@/lib/juegos";
 import type { AjustesJuegoVista } from "@/components/JuegoCliente";
-import type { EstadoMascota } from "@/lib/mascota";
 import type { RecompensaEvaluada } from "@/lib/recompensas";
-import { MascotaTamagotchi } from "@/components/mascota/MascotaTamagotchi";
+import type { SaldoEstrellas } from "@/lib/estrellas";
+import { LineaComportamiento } from "@/components/comportamiento/LineaComportamiento";
+import { EstrellasCliente } from "@/components/estrellas/EstrellasCliente";
+import { PromoCliente, type PromoData } from "@/components/promos/PromoCliente";
 import { CofreRecompensas } from "@/components/gaming/CofreRecompensas";
 import { TemporadaBanner } from "@/components/gaming/TemporadaBanner";
 import { Header } from "@/components/Header";
@@ -34,7 +36,9 @@ export function VistaClienteScreen({
   token = null,
   reputacion = null,
   juego = null,
-  mascotaInicial = null,
+  estrellas = null,
+  promo = null,
+  umbralCaritas,
   juegoAjustes,
   juegoArcade = null,
   recompensas = [],
@@ -48,8 +52,12 @@ export function VistaClienteScreen({
   reputacion?: { calificacion: Calificacion; creditosPagados: number } | null;
   /** Estado de juego (nivel/racha/misiones). Si es null, no se muestra la zona. */
   juego?: Juego | null;
-  /** Estado guardado de la mascota (o null: usa localStorage/defaults). */
-  mascotaInicial?: EstadoMascota | null;
+  /** Saldo de estrellas (recompensa real). Si es null, no se muestra. */
+  estrellas?: SaldoEstrellas | null;
+  /** Juegos promocionales (raspadita + quiniela). Si es null, no se muestran. */
+  promo?: PromoData | null;
+  /** Umbral de días de atraso para la carita roja (lo define el admin). */
+  umbralCaritas?: number;
   /** Config de presentación del juego (mensajes/premio/misiones). */
   juegoAjustes?: AjustesJuegoVista;
   /** Juego arcade elegido por el admin. Si es null, no se muestra el slot. */
@@ -59,7 +67,6 @@ export function VistaClienteScreen({
   /** Temporada/evento del mes (si el admin lo encendió). */
   temporada?: { nombre: string; emoji: string; meta: number; premio: string } | null;
 }) {
-  const alDia = juego?.estadoRacha === "al_dia";
   return (
     <div className="flex min-h-screen justify-center bg-fondo text-tinta">
       <div className="flex w-full max-w-[440px] flex-col gap-[18px] bg-app px-[18px] pt-5 pb-10 shadow-[0_0_60px_rgba(15,27,61,0.08)]">
@@ -85,16 +92,15 @@ export function VistaClienteScreen({
           />
         )}
 
-        {/* Mascota tamagotchi: elegir, acariciar, peinar, jugar (tono amable).
-            Crece con los pagos reales (etapa del nivel) y festeja si va al día. */}
-        {juego && (
-          <MascotaTamagotchi
-            token={token}
-            inicial={mascotaInicial}
-            etapa={juego.nivel.etapa}
-            alDia={alDia}
-          />
-        )}
+        {/* Línea de comportamiento: caritas del avance del crédito (derivada del
+            cartón). Reemplaza a la mascota; se lee de un vistazo, tono amable. */}
+        <LineaComportamiento dias={v.dias} umbral={umbralCaritas} />
+
+        {/* Estrellas: recompensa real por pagar (5 pagos = 1 estrella). */}
+        {estrellas && <EstrellasCliente saldo={estrellas} token={token} />}
+
+        {/* Juegos promocionales (raspadita + quiniela). Sin dinero real. */}
+        {promo && <PromoCliente promo={promo} token={token} />}
 
         {/* Juego: nivel + racha + misiones + logros (augmenta, tono amable). */}
         {juego && <JuegoCliente juego={juego} ajustes={juegoAjustes} />}
@@ -120,6 +126,7 @@ export function VistaClienteScreen({
           diaActual={v.diaActual}
           totalDias={v.totalDias}
           fechaFinLarga={v.fechaFinLarga}
+          unidad={v.unidad}
         />
 
         {/* Cuánto pagar hoy para quedar al día. Solo si hace falta. */}
@@ -138,6 +145,7 @@ export function VistaClienteScreen({
           dias={v.dias}
           diaActual={v.diaActual}
           totalDias={v.totalDias}
+          unidad={v.unidad}
         />
 
         {/* Espacio de juegos: slot aislado. Solo si el admin lo dejó activo. */}

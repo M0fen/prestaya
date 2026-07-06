@@ -9,8 +9,32 @@ import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getClientePorToken } from "@/lib/data/clientes";
 import { getPrestamoActivoPorCliente } from "@/lib/data/prestamos";
 import { crearReporte, contarReportesRecientes } from "@/lib/data/reportes";
-import { upsertMascota } from "@/lib/data/mascota";
-import { tablaFaltante } from "@/lib/data/errores";
+import { getSaldoEstrellas, crearSolicitudRedencion } from "@/lib/data/estrellas";
+import { validarRedencion, claveCiclo } from "@/lib/estrellas";
+import { getAjustesJuego } from "@/lib/data/juegoConfig";
+import { cicloUY, hoyUY } from "@/lib/fecha";
+import { getPagosDePrestamo } from "@/lib/data/pagos";
+import { calcularEstadosCarton } from "@/lib/cartones";
+import {
+  getEstadoRaspaCliente,
+  registrarJugadaRaspa,
+  getQuinielaAbierta,
+  getParticipacionCliente,
+  participarQuinielaDb,
+} from "@/lib/data/promos";
+import { elegirPremio } from "@/lib/raspadita";
+import { numeroValido } from "@/lib/quiniela";
+
+/** Azar del SERVIDOR (no del cliente) para decidir premios. Uniforme en [0,1). */
+function azarServidor(): number {
+  try {
+    const a = new Uint32Array(1);
+    globalThis.crypto.getRandomValues(a);
+    return a[0] / 2 ** 32;
+  } catch {
+    return Math.random();
+  }
+}
 
 export type ResultadoReporte = { ok: true } | { ok: false; error: string };
 
@@ -69,33 +93,121 @@ export async function reportarFaltaPago(input: {
   }
 }
 
-// ── Guardar el estado de la MASCOTA (tamagotchi) ───────────────────────────
-// Único write extra de la vista de cliente. Valida el token en el servidor y
-// persiste con service_role. Best-effort: si la tabla 0012 aún no existe (o
-// hay error), devuelve ok:false y el cliente sigue con su localStorage.
-export async function guardarMascota(input: {
+// ── Solicitar CANJE de estrellas ───────────────────────────────────────────
+// El cliente pide canjear N estrellas desde su vista por token. Queda
+// 'pendiente' hasta que el admin la apruebe. Se valida el token y el saldo en
+// el servidor (service_role). Tope de 5 por ciclo (mes) — ver lib/estrellas.
+export async function solicitarRedencion(input: {
   token: string;
-  especie: string;
-  nombre: string;
-  accesorio: string;
-  carino: number;
-  ultimaInteraccion: string | null;
-}): Promise<{ ok: boolean }> {
+  cantidad: number;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     const db = createSupabaseAdmin();
     const cliente = await getClientePorToken(db, input.token);
-    if (!cliente) return { ok: false };
+    if (!cliente) return { ok: false, error: "Enlace no válido." };
 
-    await upsertMascota(db, cliente.id, {
-      especie: input.especie,
-      nombre: input.nombre,
-      accesorio: input.accesorio,
-      carino: input.carino,
-      ultimaInteraccion: input.ultimaInteraccion,
+    // El ciclo del tope lo define el admin (mes o crédito): mismo cálculo que
+    // usa la vista al mostrar el saldo, para que coincidan.
+    const [ajustes, prestamo] = await Promise.all([
+      getAjustesJuego(db),
+      getPrestamoActivoPorCliente(db, cliente.id),
+    ]);
+    const ciclo = claveCiclo(ajustes.estrellasCiclo, {
+      cicloMes: cicloUY(),
+      prestamoId: prestamo?.id ?? null,
+    });
+    const saldo = await getSaldoEstrellas(db, cliente.id, ciclo);
+    const v = validarRedencion(saldo, input.cantidad);
+    if (!v.ok) return v;
+
+    await crearSolicitudRedencion(db, {
+      clienteId: cliente.id,
+      estrellas: Math.round(input.cantidad),
+      ciclo,
     });
     return { ok: true };
-  } catch (e) {
-    if (tablaFaltante(e)) return { ok: false };
-    return { ok: false };
+  } catch {
+    return { ok: false, error: "No pudimos registrar tu solicitud. Probá más tarde." };
+  }
+}
+
+// ── Raspadita (PROMOCIONAL, sin dinero) ────────────────────────────────────
+// El cliente juega una raspadita que desbloqueó al pagar. El premio (un
+// BENEFICIO simbólico o "nada") lo decide el SERVIDOR con azar del servidor y se
+// registra. No hay dinero real (ver lib/raspadita.ts / migración 0021).
+export type ResultadoRaspa =
+  | { ok: true; label: string; tipo: "beneficio" | "nada" }
+  | { ok: false; error: string };
+
+export async function jugarRaspadita(input: { token: string }): Promise<ResultadoRaspa> {
+  try {
+    const db = createSupabaseAdmin();
+    const cliente = await getClientePorToken(db, input.token);
+    if (!cliente) return { ok: false, error: "Enlace no válido." };
+
+    const estado = await getEstadoRaspaCliente(db, cliente.id);
+    if (estado.disponibles <= 0)
+      return { ok: false, error: "No tenés raspaditas por ahora. ¡Con tu próximo pago desbloqueás otra!" };
+
+    const premio = elegirPremio(estado.premios, azarServidor());
+    if (!premio) return { ok: false, error: "El juego no está disponible ahora." };
+
+    await registrarJugadaRaspa(db, {
+      clienteId: cliente.id,
+      premioId: premio.id,
+      premioLabel: premio.label,
+      premioTipo: premio.tipo,
+    });
+    return { ok: true, label: premio.label, tipo: premio.tipo };
+  } catch {
+    return { ok: false, error: "No pudimos jugar la raspadita. Probá más tarde." };
+  }
+}
+
+// ── Quiniela (PROMOCIONAL, sin dinero) ─────────────────────────────────────
+// El cliente elige un número por estar AL DÍA. El premio es un BENEFICIO
+// simbólico; el sorteo lo carga el admin. Sin apuesta ni pago en efectivo.
+export async function participarQuiniela(input: {
+  token: string;
+  numero: number;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const db = createSupabaseAdmin();
+    const cliente = await getClientePorToken(db, input.token);
+    if (!cliente) return { ok: false, error: "Enlace no válido." };
+
+    const quiniela = await getQuinielaAbierta(db);
+    if (!quiniela) return { ok: false, error: "No hay una quiniela abierta ahora." };
+
+    // Entrada por estar AL DÍA (no se apuesta dinero).
+    const prestamo = await getPrestamoActivoPorCliente(db, cliente.id);
+    if (!prestamo) return { ok: false, error: "Necesitás un crédito activo para participar." };
+    const pagos = await getPagosDePrestamo(db, prestamo.id);
+    const carton = calcularEstadosCarton(prestamo, pagos, hoyUY());
+    if (carton.dias.some((d) => d.estado === "atrasado"))
+      return { ok: false, error: "Ponete al día y participás. ¡Te esperamos! 💙" };
+
+    if (!numeroValido(input.numero, { min: quiniela.rangoMin, max: quiniela.rangoMax }))
+      return { ok: false, error: `Elegí un número entre ${quiniela.rangoMin} y ${quiniela.rangoMax}.` };
+
+    const yaTiene = await getParticipacionCliente(db, quiniela.id, cliente.id);
+    if (yaTiene != null) return { ok: false, error: `Ya participaste con el número ${yaTiene}.` };
+
+    try {
+      await participarQuinielaDb(db, {
+        quinielaId: quiniela.id,
+        clienteId: cliente.id,
+        numero: Math.round(input.numero),
+      });
+    } catch (e) {
+      // Carrera: dos envíos casi simultáneos → el índice único (quiniela,cliente)
+      // rechaza el segundo (23505). Mensaje amable en vez de error genérico.
+      if ((e as { code?: string } | null)?.code === "23505")
+        return { ok: false, error: "Ya estás participando en esta quiniela." };
+      throw e;
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "No pudimos registrar tu número. Probá más tarde." };
   }
 }

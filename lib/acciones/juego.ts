@@ -33,6 +33,8 @@ export async function guardarAjustesJuego(input: AjustesJuego): Promise<Resultad
     temporadaEmoji: (input.temporadaEmoji ?? "").trim().slice(0, 4) || "🏆",
     temporadaMeta: Math.max(1, Math.min(100, Math.round(Number(input.temporadaMeta) || 90))),
     temporadaPremio: (input.temporadaPremio ?? "").trim().slice(0, 120),
+    estrellasCiclo: input.estrellasCiclo === "credito" ? "credito" : "mes",
+    umbralCaritas: Math.max(1, Math.min(60, Math.round(Number(input.umbralCaritas) || 3))),
   };
 
   try {

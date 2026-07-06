@@ -11,10 +11,20 @@ import type {
   EstadoDia,
   HistorialItem,
   Negocio,
+  UnidadFrecuencia,
   VistaCredito,
 } from "@/types/cartones";
+import type { FrecuenciaPrestamo } from "@/types/db";
 import { calcularEstadosCarton } from "./cartones";
 import { UYU, diasSemana, horaDe, meses, parseFecha } from "./format";
+
+// Etiquetas de la unidad por frecuencia (el cálculo del cartón ya la respeta).
+const UNIDADES: Record<FrecuenciaPrestamo, UnidadFrecuencia> = {
+  diario: { singular: "día", plural: "días", cada: "día por día", ord: "Día" },
+  semanal: { singular: "semana", plural: "semanas", cada: "semana a semana", ord: "Semana" },
+  quincenal: { singular: "quincena", plural: "quincenas", cada: "quincena a quincena", ord: "Quincena" },
+  mensual: { singular: "mes", plural: "meses", cada: "mes a mes", ord: "Mes" },
+};
 
 // Colores de fondo/texto por estado. Tono AMABLE para la vista de cliente:
 // el día vencido sin pago usa un rojo suave (#E06A6A), no el rojo de alarma.
@@ -195,6 +205,7 @@ export function construirVistaCliente(params: {
     cuotaDiaria: UYU(prestamo.cuota_diaria),
     totalDias: prestamo.total_dias,
     diaActual: r.diaActual,
+    unidad: UNIDADES[prestamo.frecuencia] ?? UNIDADES.diario,
     estadoGeneral,
     estadoDotStyle: {
       width: "8px",

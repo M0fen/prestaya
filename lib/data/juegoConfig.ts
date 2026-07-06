@@ -26,6 +26,10 @@ export async function getAjustesJuego(db: SupabaseClient): Promise<AjustesJuego>
       temporadaEmoji: (data.temporada_emoji as string) ?? AJUSTES_JUEGO_DEFAULT.temporadaEmoji,
       temporadaMeta: Number(data.temporada_meta ?? AJUSTES_JUEGO_DEFAULT.temporadaMeta),
       temporadaPremio: (data.temporada_premio as string) ?? AJUSTES_JUEGO_DEFAULT.temporadaPremio,
+      // Config del cliente (columnas de 0022; si aún no existen, caen al default).
+      estrellasCiclo:
+        (data.estrellas_ciclo as AjustesJuego["estrellasCiclo"]) ?? AJUSTES_JUEGO_DEFAULT.estrellasCiclo,
+      umbralCaritas: Number(data.umbral_caritas ?? AJUSTES_JUEGO_DEFAULT.umbralCaritas),
     };
   } catch (e) {
     if (tablaFaltante(e)) return AJUSTES_JUEGO_DEFAULT;
@@ -54,13 +58,22 @@ export async function actualizarAjustesJuego(
     temporada_meta: a.temporadaMeta,
     temporada_premio: a.temporadaPremio,
   };
-  const { error } = await db.from("ajustes_juego").upsert(conTemporada);
+  const conConfig = {
+    ...conTemporada,
+    estrellas_ciclo: a.estrellasCiclo,
+    umbral_caritas: a.umbralCaritas,
+  };
+  // Escalera de compatibilidad: intentá guardar TODO; si faltan columnas de una
+  // migración, reintentá con menos (sin perder lo que sí existe).
+  let { error } = await db.from("ajustes_juego").upsert(conConfig);
   if (!error) return;
-  // Si 0018 aún no corrió, guardá al menos lo básico (sin romper el control).
   if (columnaFaltante(error)) {
-    const { error: e2 } = await db.from("ajustes_juego").upsert(base);
-    if (e2) throw e2;
-    return;
+    ({ error } = await db.from("ajustes_juego").upsert(conTemporada)); // sin 0022
+    if (!error) return;
+  }
+  if (columnaFaltante(error)) {
+    ({ error } = await db.from("ajustes_juego").upsert(base)); // sin 0018 ni 0022
+    if (!error) return;
   }
   throw error;
 }

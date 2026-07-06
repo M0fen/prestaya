@@ -4,12 +4,18 @@
 // 5 días y bandera de meta, y DETALLE al tocar una casilla (fecha, monto,
 // recibos). Todo con CSS liviano; las animaciones se anulan con reduce-motion.
 import { useState } from "react";
-import type { DiaCarton, EstadoDia } from "@/types/cartones";
+import type { DiaCarton, EstadoDia, UnidadFrecuencia } from "@/types/cartones";
+
+const UNIDAD_DEFECTO: UnidadFrecuencia = {
+  singular: "día", plural: "días", cada: "día por día", ord: "Día",
+};
 
 type Props = {
   dias: DiaCarton[];
   diaActual: number;
   totalDias: number;
+  /** Unidad según la frecuencia del crédito (día/semana/quincena/mes). */
+  unidad?: UnidadFrecuencia;
 };
 
 const V: Record<EstadoDia, { bg: string; fg: string; label: string }> = {
@@ -19,7 +25,7 @@ const V: Record<EstadoDia, { bg: string; fg: string; label: string }> = {
   futuro: { bg: "#EEF1F8", fg: "#9AA3BC", label: "Próximo" },
 };
 
-export function CartonDigital({ dias, diaActual, totalDias }: Props) {
+export function CartonDigital({ dias, diaActual, totalDias, unidad = UNIDAD_DEFECTO }: Props) {
   const [sel, setSel] = useState<number | null>(null);
   const diaSel = sel != null ? dias.find((d) => d.dia === sel) ?? null : null;
 
@@ -34,16 +40,16 @@ export function CartonDigital({ dias, diaActual, totalDias }: Props) {
             Tu cartón
           </span>
           <h2 className="m-0 text-[18px] font-extrabold tracking-[-0.02em] text-tinta">
-            Pago día por día
+            Pago {unidad.cada}
           </h2>
         </div>
         <span className="rounded-full bg-[#EEF3FF] px-2.5 py-[5px] text-[12.5px] font-bold text-azul">
-          Día {diaActual}/{totalDias}
+          {unidad.ord} {diaActual}/{totalDias}
         </span>
       </div>
 
       <p className="mt-1 text-[11.5px] font-medium text-gris">
-        Tocá un día para ver el detalle.
+        Tocá una casilla para ver el detalle.
       </p>
 
       <div className="mt-3 grid grid-cols-6 gap-2">
@@ -58,7 +64,7 @@ export function CartonDigital({ dias, diaActual, totalDias }: Props) {
               type="button"
               onClick={() => setSel(activo ? null : box.dia)}
               aria-pressed={activo}
-              aria-label={`Día ${box.dia}: ${c.label}${box.montoPagado ? `, ${box.montoPagado}` : ""}`}
+              aria-label={`${unidad.ord} ${box.dia}: ${c.label}${box.montoPagado ? `, ${box.montoPagado}` : ""}`}
               className="relative flex aspect-square flex-col items-center justify-center rounded-[14px] outline-none transition-transform active:scale-95 focus-visible:ring-2 focus-visible:ring-azul"
               style={{
                 background: c.bg,
@@ -123,7 +129,7 @@ export function CartonDigital({ dias, diaActual, totalDias }: Props) {
           <div className="flex flex-col gap-2 rounded-[14px] bg-[#F7F9FD] p-3.5">
             <div className="flex items-center justify-between">
               <span className="text-[13.5px] font-extrabold text-tinta">
-                Día {diaSel.dia} · <span className="font-semibold text-gris">{diaSel.fechaLarga}</span>
+                {unidad.ord} {diaSel.dia} · <span className="font-semibold text-gris">{diaSel.fechaLarga}</span>
               </span>
               <button
                 type="button"

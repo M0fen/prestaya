@@ -5,6 +5,11 @@ import { notFound } from "next/navigation";
 import { requireGestor } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getFichaCliente } from "@/lib/data/ficha";
+import { getSaldoEstrellas } from "@/lib/data/estrellas";
+import { getAjustesJuego } from "@/lib/data/juegoConfig";
+import { getPrestamoActivoPorCliente } from "@/lib/data/prestamos";
+import { claveCiclo } from "@/lib/estrellas";
+import { cicloUY } from "@/lib/fecha";
 import { NotasCliente } from "@/components/notas/NotasCliente";
 import { UYU, meses, horaDe } from "@/lib/format";
 import type { EstadoDia } from "@/types/cartones";
@@ -51,6 +56,17 @@ export default async function FichaClientePage({
   const { cliente, score, activo, creditos, pagos, notas } = ficha;
   const banda = BANDA[cliente.calificacion] ?? BANDA.nuevo;
   const bandaScore = BANDA[score.banda as Calificacion] ?? BANDA.nuevo;
+
+  // Saldo de estrellas del cliente (respeta el ciclo definido por el admin).
+  const [ajustes, prestamoAct] = await Promise.all([
+    getAjustesJuego(db),
+    getPrestamoActivoPorCliente(db, id),
+  ]);
+  const estrellas = await getSaldoEstrellas(
+    db,
+    id,
+    claveCiclo(ajustes.estrellasCiclo, { cicloMes: cicloUY(), prestamoId: prestamoAct?.id ?? null }),
+  );
 
   return (
     <div className="mx-auto flex max-w-[820px] flex-col gap-5">
@@ -104,6 +120,32 @@ export default async function FichaClientePage({
             </span>
           ))}
         </div>
+      </section>
+
+      {/* Estrellas del cliente (recompensa real) */}
+      <section className="rounded-[16px] border border-[#F0E2A8] bg-[linear-gradient(180deg,#FFFDF5,#FFF8E6)] p-4">
+        <div className="flex items-center gap-2">
+          <span className="text-[18px]" aria-hidden="true">⭐</span>
+          <span className="text-[13px] font-bold text-[#8A6D1E]">Estrellas</span>
+          <span className="ml-auto text-[11px] font-medium text-[#A98B3E]">
+            ciclo: {ajustes.estrellasCiclo === "mes" ? "mensual" : "por crédito"}
+          </span>
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-2.5 md:grid-cols-4">
+          <EstrellaKpi label="Disponibles" valor={estrellas.disponibles} fuerte />
+          <EstrellaKpi label="Ganadas (total)" valor={estrellas.estrellasGanadas} />
+          <EstrellaKpi label="Redimidas" valor={estrellas.estrellasRedimidas} />
+          <EstrellaKpi
+            label="Pendientes"
+            valor={estrellas.estrellasPendientes}
+            acento={estrellas.estrellasPendientes > 0 ? "#C79A1E" : undefined}
+          />
+        </div>
+        <p className="mt-2 text-[11.5px] font-medium text-[#A98B3E]">
+          Progreso a la próxima: {estrellas.progresoFragmento}/5 pagos · puede canjear ahora:{" "}
+          {estrellas.redimiblesCiclo}
+          {estrellas.estrellasPendientes > 0 ? " · tiene un canje esperando aprobación" : ""}
+        </p>
       </section>
 
       {/* Crédito activo + cartón */}
@@ -212,6 +254,30 @@ export default async function FichaClientePage({
 
       {/* Notas del equipo */}
       <NotasCliente clienteId={cliente.id} notas={notas} yoId={usuario.id} puedeGestionar />
+    </div>
+  );
+}
+
+function EstrellaKpi({
+  label,
+  valor,
+  acento,
+  fuerte,
+}: {
+  label: string;
+  valor: number;
+  acento?: string;
+  fuerte?: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-0.5 rounded-[12px] bg-white/70 p-3">
+      <span className="text-[11px] font-semibold text-[#A98B3E]">{label}</span>
+      <span
+        className="text-[18px] font-black tabular-nums"
+        style={{ color: acento ?? (fuerte ? "#C79A1E" : "#8A6D1E") }}
+      >
+        {valor}
+      </span>
     </div>
   );
 }

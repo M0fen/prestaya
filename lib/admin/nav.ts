@@ -24,7 +24,9 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/admin/cobranza", label: "Cobranza", icon: "🛡️", roles: ["admin", "supervisor"], alias: ["mapa", "geo", "cobros"] },
   { href: "/admin/valor", label: "Valor", icon: "💎", roles: ["admin", "supervisor"], alias: ["roi", "rentabilidad"] },
   { href: "/admin/renovaciones", label: "Renovaciones", icon: "🔄", roles: ["admin", "supervisor"], alias: ["renovar", "recredito"] },
-  { href: "/admin/juego", label: "Zona de juego", icon: "🎮", roles: ["admin", "supervisor"], alias: ["gaming", "mascota", "recompensas", "temporada"] },
+  { href: "/admin/juego", label: "Zona de juego", icon: "🎮", roles: ["admin", "supervisor"], alias: ["gaming", "recompensas", "temporada", "caritas"] },
+  { href: "/admin/estrellas", label: "Estrellas", icon: "⭐", roles: ["admin", "supervisor"], alias: ["canjes", "redenciones", "premios"] },
+  { href: "/admin/promos", label: "Juegos y sorteos", icon: "🎟️", roles: ["admin", "supervisor"], alias: ["raspadita", "quiniela", "sorteo", "promocion"] },
   { href: "/admin/mora", label: "Mora", icon: "⏰", roles: ["admin", "supervisor"], alias: ["atrasos", "morosos", "riesgo", "recargo"] },
   { href: "/admin/clientes", label: "Clientes", icon: "👤", roles: ["admin", "supervisor"], alias: ["deudores", "cartera"] },
   { href: "/admin/creditos", label: "Créditos", icon: "📄", pronto: true },
@@ -32,7 +34,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/admin/comisiones", label: "Comisiones", icon: "📊", roles: ["admin", "supervisor"], alias: ["liquidacion", "cobradores"] },
   { href: "/admin/auditoria", label: "Auditoría", icon: "🧾", roles: ["admin", "supervisor"], alias: ["log", "registro", "acciones"] },
   { href: "/admin/reportes", label: "Reportes", icon: "📨", roles: ["admin", "supervisor"], pronto: true },
-  { href: "/admin/anuncios", label: "Anuncios", icon: "📣", roles: ["admin", "supervisor"], pronto: true },
+  { href: "/admin/anuncios", label: "Anuncios", icon: "📣", roles: ["admin", "supervisor"], alias: ["publicidad", "campanas", "banner", "temporada"] },
   { href: "/admin/equipo", label: "Equipo", icon: "🧑‍🤝‍🧑", roles: ["admin"], pronto: true },
 ];
 

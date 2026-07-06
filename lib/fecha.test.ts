@@ -16,6 +16,27 @@ describe("hoyUY", () => {
     expect(d.getMonth()).toBe(6); // julio
     expect(d.getDate()).toBe(1);
   });
+
+  // Borde EXACTO de medianoche en Uruguay (UTC−3 → 03:00 UTC).
+  it("un segundo ANTES de medianoche UY (02:59:59Z = 23:59:59 UY) es el día anterior", () => {
+    const d = hoyUY(new Date("2026-07-01T02:59:59Z")); // UY = 2026-06-30 23:59:59
+    expect(d.getFullYear()).toBe(2026);
+    expect(d.getMonth()).toBe(5); // junio
+    expect(d.getDate()).toBe(30);
+  });
+
+  it("justo en medianoche UY (03:00:00Z = 00:00:00 UY) ya es el día nuevo", () => {
+    const d = hoyUY(new Date("2026-07-01T03:00:00Z")); // UY = 2026-07-01 00:00:00
+    expect(d.getMonth()).toBe(6); // julio
+    expect(d.getDate()).toBe(1);
+  });
+
+  // No depende de la TZ del runtime: mismo instante, mismo resultado.
+  it("es TZ-independiente: 03:00:00Z siempre da 2026-07-01 (no el reloj local)", () => {
+    const d = hoyUY(new Date(Date.UTC(2026, 6, 1, 3, 0, 0)));
+    expect(d.getDate()).toBe(1);
+    expect(d.getMonth()).toBe(6);
+  });
 });
 
 describe("cortes de día/mes en UY (ISO en UTC)", () => {
