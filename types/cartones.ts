@@ -125,6 +125,13 @@ export interface HistorialItem {
   monto: string;
   estadoLabel: string;
   chipStyle: CSSProperties;
+  /** % de la cuota del día que cubrió lo pagado (0..100, tope 100). */
+  pctCuota: number;
+  /** true si cubrió la cuota completa; false si fue abono parcial. */
+  completa: boolean;
+  /** Descuento aplicado a ese día (texto), o null si no hubo. Hoy siempre null:
+   *  el modelo de pagos no registra descuentos (solo existe el recargo por mora). */
+  descuento: string | null;
   /** Pagos individuales del día (comprobante). */
   pagos: ReciboPago[];
 }

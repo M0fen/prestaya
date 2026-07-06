@@ -14,6 +14,14 @@ type Premio = { label: string; tipo: "beneficio" | "nada" };
 const UMBRAL_REVELAR = 0.6; // hay que raspar el 60% (no se abre de un toque)
 const RADIO_PINCEL = 22; // yema del dedo
 
+// Premios de MUESTRA para la vista demo (sin token): solo para "sentir" el
+// raspado. No escriben nada en el servidor; el juego real usa jugarRaspadita.
+const DEMO_PREMIOS: Premio[] = [
+  { label: "¡Seguí participando!", tipo: "nada" },
+  { label: "5% en tu próxima cuota", tipo: "beneficio" },
+  { label: "1 día de gracia", tipo: "beneficio" },
+];
+
 export function RaspaditaCanvas({
   token,
   disponibles,
@@ -116,10 +124,17 @@ export function RaspaditaCanvas({
     if (premio && alcanzoUmbral.current && !revelado) revelar();
   }, [premio, revelado, revelar]);
 
-  // ── Pide el premio al servidor en el PRIMER raspado ──────────────────────
+  // ── Decide el premio en el PRIMER raspado ────────────────────────────────
+  // Con token: lo decide y registra el SERVIDOR (jugarRaspadita). Sin token
+  // (vista demo): premio de muestra local, sin escribir nada.
   const iniciar = useCallback(async () => {
-    if (iniciado.current || !token) return;
+    if (iniciado.current) return;
     iniciado.current = true;
+    if (!token) {
+      setPremio(DEMO_PREMIOS[Math.floor(Math.random() * DEMO_PREMIOS.length)]);
+      setJugadasLocal((n) => n + 1);
+      return;
+    }
     const r = await jugarRaspadita({ token });
     if (r.ok) {
       setPremio({ label: r.label, tipo: r.tipo });
@@ -203,8 +218,9 @@ export function RaspaditaCanvas({
     setRonda((r) => r + 1); // el useEffect([ronda]) repinta el cover nuevo
   };
 
-  // ── Sin token (demo): estado deshabilitado ───────────────────────────────
-  const jugable = Boolean(token) && restantes > 0;
+  // Jugable mientras queden raspaditas. Con token juega de verdad; sin token
+  // (vista demo) juega en modo muestra. Si se acaban, se muestra el aliento.
+  const jugable = restantes > 0;
 
   return (
     <div className="overflow-hidden rounded-[18px] border border-[#E7DCF7] bg-[linear-gradient(135deg,#7B4DE0,#5B2FC0)] p-4 text-white">
@@ -234,7 +250,7 @@ export function RaspaditaCanvas({
             </div>
           ) : (
             <span className="text-[12.5px] font-medium text-white/70">
-              {jugable ? "Tu premio está acá abajo…" : "Disponible en tu app"}
+              {jugable ? "Tu premio está acá abajo…" : "¡Con tu próximo pago desbloqueás otra! 🌟"}
             </span>
           )}
         </div>

@@ -16,7 +16,6 @@ import { TemporadaBanner } from "@/components/gaming/TemporadaBanner";
 import { Header } from "@/components/Header";
 import { Saludo } from "@/components/Saludo";
 import { Reputacion } from "@/components/Reputacion";
-import { JuegoCliente } from "@/components/JuegoCliente";
 import { CreditoCompletado } from "@/components/CreditoCompletado";
 import { Aliento } from "@/components/Aliento";
 import { ResumenCard } from "@/components/ResumenCard";
@@ -39,7 +38,6 @@ export function VistaClienteScreen({
   estrellas = null,
   promo = null,
   umbralCaritas,
-  juegoAjustes,
   juegoArcade = null,
   recompensas = [],
   temporada = null,
@@ -73,6 +71,13 @@ export function VistaClienteScreen({
         <Header inicial={v.inicial} />
         <Saludo nombre={v.nombre} />
 
+        {/* Mensaje de aliento arriba (framing positivo, ancla de identidad). */}
+        <Aliento
+          alDia={v.alDia}
+          mensaje={v.mensajeAliento}
+          mejorRacha={v.mejorRacha}
+        />
+
         {reputacion && (
           <Reputacion
             calificacion={reputacion.calificacion}
@@ -82,8 +87,10 @@ export function VistaClienteScreen({
 
         {v.creditoCompletado && <CreditoCompletado />}
 
+        {/* ── Zona principal: temporada → cómo venís → cartón → estrellas ── */}
+
         {/* Temporada/evento del mes (si el admin lo encendió). */}
-        {juego && temporada && (
+        {temporada && (
           <TemporadaBanner
             nombre={temporada.nombre}
             emoji={temporada.emoji}
@@ -92,27 +99,21 @@ export function VistaClienteScreen({
           />
         )}
 
-        {/* Línea de comportamiento: caritas del avance del crédito (derivada del
-            cartón). Reemplaza a la mascota; se lee de un vistazo, tono amable. */}
+        {/* Cómo venís (caritas, derivadas del cartón; se lee de un vistazo). */}
         <LineaComportamiento dias={v.dias} umbral={umbralCaritas} />
+
+        {/* Cartón completo, bien arriba. */}
+        <CartonDigital
+          dias={v.dias}
+          diaActual={v.diaActual}
+          totalDias={v.totalDias}
+          unidad={v.unidad}
+        />
 
         {/* Estrellas: recompensa real por pagar (5 pagos = 1 estrella). */}
         {estrellas && <EstrellasCliente saldo={estrellas} token={token} />}
 
-        {/* Juegos promocionales (raspadita + quiniela). Sin dinero real. */}
-        {promo && <PromoCliente promo={promo} token={token} />}
-
-        {/* Juego: nivel + racha + misiones + logros (augmenta, tono amable). */}
-        {juego && <JuegoCliente juego={juego} ajustes={juegoAjustes} />}
-
-        {/* Cofre de recompensas (premios reales por hitos de pago). */}
-        {juego && <CofreRecompensas recompensas={recompensas} />}
-
-        <Aliento
-          alDia={v.alDia}
-          mensaje={v.mensajeAliento}
-          mejorRacha={v.mejorRacha}
-        />
+        {/* ── Zona financiera: saldo → cuánto falta → próxima → historial ── */}
 
         <ResumenCard
           estadoGeneral={v.estadoGeneral}
@@ -132,26 +133,28 @@ export function VistaClienteScreen({
         {/* Cuánto pagar hoy para quedar al día. Solo si hace falta. */}
         {v.necesitaPonerseAlDia && <PonerseAlDia monto={v.montoParaAlDia} />}
 
-        {/* Carrusel de anuncios (admin/supervisor). Si no hay, no ocupa espacio. */}
-        <BannerCarrusel anuncios={anuncios} />
-
         <ProximaCuota
           cuotaDiaria={v.cuotaDiaria}
           proxFechaLarga={v.proxFechaLarga}
           proxRelativo={v.proxRelativo}
         />
 
-        <CartonDigital
-          dias={v.dias}
-          diaActual={v.diaActual}
-          totalDias={v.totalDias}
-          unidad={v.unidad}
-        />
+        {/* Historial de pagos (con % de la cuota cubierto + descuento). */}
+        <Historial historial={v.historial} />
+
+        {/* ── Extras (juegos, recompensas, arcade, anuncios) ── */}
+
+        {/* Juegos promocionales (raspadita + quiniela). Sin dinero real. */}
+        {promo && <PromoCliente promo={promo} token={token} />}
+
+        {/* Cofre de recompensas (premios reales por hitos de pago). */}
+        {juego && <CofreRecompensas recompensas={recompensas} />}
 
         {/* Espacio de juegos: slot aislado. Solo si el admin lo dejó activo. */}
         {juegoArcade && <GameSlot juego={juegoArcade} />}
 
-        <Historial historial={v.historial} />
+        {/* Carrusel de anuncios (admin/supervisor). Si no hay, no ocupa espacio. */}
+        <BannerCarrusel anuncios={anuncios} />
 
         {/* Reporte de discrepancia + recordatorio: solo con token (vista real). */}
         {token && <ReportarDiscrepancia token={token} />}

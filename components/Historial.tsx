@@ -56,6 +56,15 @@ export function Historial({ historial }: { historial: HistorialItem[] }) {
                     <span className="text-[12px] font-medium text-gris capitalize">
                       {pago.fecha}
                     </span>
+                    {/* % de la cuota que cubrió ese pago */}
+                    <span
+                      className="text-[11px] font-semibold"
+                      style={{ color: pago.completa ? "#157A50" : "#9A6A0E" }}
+                    >
+                      {pago.completa
+                        ? "Cuota completa (100%)"
+                        : `Abono parcial · ${pago.pctCuota}% de la cuota`}
+                    </span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -84,6 +93,7 @@ export function Historial({ historial }: { historial: HistorialItem[] }) {
                       >
                         <span className="font-medium text-gris">
                           Pago a las {r.hora} h
+                          {r.quien ? ` · ${r.quien}` : ""}
                         </span>
                         <span className="font-bold text-tinta tabular-nums">
                           {r.monto}
@@ -91,6 +101,24 @@ export function Historial({ historial }: { historial: HistorialItem[] }) {
                       </li>
                     ))}
                   </ul>
+
+                  {/* Resumen del día: cuánto de la cuota cubrió + descuento */}
+                  <div className="mt-2.5 flex flex-col gap-1 border-t border-[#EEF1F8] pt-2.5">
+                    <div className="flex items-center justify-between text-[12px]">
+                      <span className="font-medium text-gris">Cubrió de la cuota</span>
+                      <span
+                        className="font-bold tabular-nums"
+                        style={{ color: pago.completa ? "#157A50" : "#9A6A0E" }}
+                      >
+                        {pago.pctCuota}%{pago.completa ? " · completa" : " · parcial"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-[12px]">
+                      <span className="font-medium text-gris">Descuento aplicado</span>
+                      <span className="font-bold text-tinta">{pago.descuento ?? "No"}</span>
+                    </div>
+                  </div>
+
                   <p className="mt-2.5 text-[11px] leading-[1.4] font-medium text-[#9AA3BC]">
                     Registrado por la oficina. Si algún pago tuyo no figura,
                     usá el botón de abajo para avisarnos.

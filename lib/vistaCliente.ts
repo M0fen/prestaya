@@ -152,6 +152,14 @@ export function construirVistaCliente(params: {
       monto: UYU(d.montoPagado),
       estadoLabel: LABELS[d.estado],
       chipStyle: chipStyle(d.estado),
+      // % de la cuota del día que cubrió lo pagado (tope 100).
+      pctCuota:
+        prestamo.cuota_diaria > 0
+          ? Math.min(100, Math.round((d.montoPagado / prestamo.cuota_diaria) * 100))
+          : 0,
+      completa: d.montoPagado >= prestamo.cuota_diaria,
+      // No hay descuentos en el modelo de pagos (solo recargo por mora).
+      descuento: null,
       // Recibos: cada pago del día (hora, monto y quién cobró).
       pagos: recibosDia(d.dia),
     }));
