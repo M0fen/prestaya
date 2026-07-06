@@ -3,10 +3,10 @@
 //  del negocio, la inyecta como contexto y transmite la respuesta de DeepSeek
 //  token a token. La API key vive SOLO acá (servidor).
 //
-//  Dos modos:
-//   · rápido   → deepseek-chat + herramienta buscar_cliente (function calling).
-//     Si el modelo pide la herramienta, la ejecutamos contra la base y seguimos.
-//   · profundo → deepseek-reasoner (razonamiento) para preguntas estratégicas.
+//  Dos modos (modelos V4; deepseek-chat/reasoner se deprecaron 2026-07-24):
+//   · rápido   → deepseek-v4-flash + herramientas (function calling). Si pide una
+//     herramienta, la ejecutamos contra la base y seguimos.
+//   · profundo → deepseek-v4-pro (más capaz) para preguntas estratégicas (sin tools).
 // ─────────────────────────────────────────────────────────────────────────
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getUsuarioActual, esGestor } from "@/lib/auth";

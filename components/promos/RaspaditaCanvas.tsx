@@ -26,6 +26,7 @@ export function RaspaditaCanvas({
   const [error, setError] = useState("");
   const [soporta, setSoporta] = useState(true);
   const [jugadasLocal, setJugadasLocal] = useState(0);
+  const [ronda, setRonda] = useState(0); // sube al "Raspar otra" → repinta el cover
 
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -88,13 +89,18 @@ export function RaspaditaCanvas({
     alcanzoUmbral.current = false;
   }, []);
 
+  // Pinta el cover al montar y en cada RONDA nueva (no al traer el premio: si
+  // dependiera de jugadasLocal, repintaría encima de lo que el cliente ya raspó).
   useEffect(() => {
     pintarCobertura();
-    const onResize = () => !revelado && pintarCobertura();
+    // Repintar en resize SOLO si no se está raspando en ese momento.
+    const onResize = () => {
+      if (!revelado && !dibujando.current) pintarCobertura();
+    };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jugadasLocal]);
+  }, [ronda]);
 
   // ── Revelado ─────────────────────────────────────────────────────────────
   const revelar = useCallback(() => {
@@ -192,7 +198,9 @@ export function RaspaditaCanvas({
     setRevelado(false);
     setError("");
     iniciado.current = false;
-    requestAnimationFrame(pintarCobertura);
+    alcanzoUmbral.current = false;
+    movs.current = 0;
+    setRonda((r) => r + 1); // el useEffect([ronda]) repinta el cover nuevo
   };
 
   // ── Sin token (demo): estado deshabilitado ───────────────────────────────
@@ -234,6 +242,7 @@ export function RaspaditaCanvas({
         {/* Canvas de la cobertura (encima). Fallback: botón si no hay canvas. */}
         {soporta && jugable && !revelado && (
           <canvas
+            key={ronda}
             ref={canvasRef}
             onPointerDown={onDown}
             onPointerMove={onMove}
