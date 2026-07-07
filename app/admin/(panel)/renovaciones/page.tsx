@@ -2,12 +2,14 @@
 // completar/completado + la recomendación del scoring (acción y monto). El alta
 // del nuevo crédito la confirma la oficina; acá está la decisión, servida.
 import Link from "next/link";
-import { requireGestor } from "@/lib/auth";
+import { requireGestor, esAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getCandidatosRenovacion } from "@/lib/data/renovaciones";
+import { getSolicitudesPendientes } from "@/lib/data/solicitudesRenovacion";
 import type { BandaScore, AccionRenovacion } from "@/types/scoring";
 import { UYU } from "@/lib/format";
 import { FormRenovacion } from "@/components/admin/FormRenovacion";
+import { SolicitudesRenovacion } from "@/components/admin/SolicitudesRenovacion";
 
 export const dynamic = "force-dynamic";
 
@@ -27,9 +29,13 @@ const ACCION: Record<AccionRenovacion, { label: string; bg: string; fg: string }
 };
 
 export default async function RenovacionesPage() {
-  await requireGestor();
+  const usuario = await requireGestor();
   const db = await createSupabaseServer();
-  const candidatos = await getCandidatosRenovacion(db);
+  const [candidatos, solicitudes] = await Promise.all([
+    getCandidatosRenovacion(db),
+    getSolicitudesPendientes(db),
+  ]);
+  const esAdminV = esAdmin(usuario.rol);
 
   return (
     <div className="flex flex-col gap-5">
@@ -43,6 +49,9 @@ export default async function RenovacionesPage() {
         </span>
       </div>
 
+      {/* Solicitudes pendientes: el admin aprueba/rechaza; el supervisor las ve. */}
+      <SolicitudesRenovacion solicitudes={solicitudes} esAdmin={esAdminV} />
+
       {candidatos.length === 0 && (
         <p className="rounded-[14px] bg-white px-4 py-6 text-center text-[13px] font-medium text-gris">
           Nadie está cerca de completar su crédito todavía. Aparecerán acá al
@@ -51,7 +60,7 @@ export default async function RenovacionesPage() {
       )}
 
       <div className="flex flex-col gap-3">
-        {candidatos.map(({ cliente, progresoPct, completo, cuotasFaltantes, score, prestamoAnterior }) => {
+        {candidatos.map(({ cliente, progresoPct, completo, cuotasFaltantes, score, prestamoAnterior, moroso }) => {
           const banda = BANDA[score.banda];
           const accion = ACCION[score.recomendacion.accion];
           return (
@@ -74,12 +83,19 @@ export default async function RenovacionesPage() {
                     {completo ? "Crédito completado ✓" : `A ${cuotasFaltantes} cuota${cuotasFaltantes === 1 ? "" : "s"} de terminar`}
                   </span>
                 </div>
-                <span
-                  className="rounded-full px-2.5 py-1 text-[11px] font-bold"
-                  style={{ background: banda.bg, color: banda.fg }}
-                >
-                  {banda.label} · {score.puntaje}
-                </span>
+                <div className="flex flex-shrink-0 flex-col items-end gap-1">
+                  {moroso && (
+                    <span className="rounded-full bg-[#FBE4E2] px-2.5 py-1 text-[11px] font-bold text-[#C0392B]">
+                      ⛔ Moroso
+                    </span>
+                  )}
+                  <span
+                    className="rounded-full px-2.5 py-1 text-[11px] font-bold"
+                    style={{ background: banda.bg, color: banda.fg }}
+                  >
+                    {banda.label} · {score.puntaje}
+                  </span>
+                </div>
               </div>
 
               {/* Progreso del crédito actual */}
@@ -120,6 +136,8 @@ export default async function RenovacionesPage() {
                   clienteNombre={cliente.nombre}
                   anterior={prestamoAnterior}
                   montoSugerido={score.recomendacion.montoSugerido}
+                  esAdmin={esAdminV}
+                  moroso={moroso}
                 />
               ) : (
                 <p className="mt-3 text-center text-[11.5px] font-medium text-[#AEB6CC]">
@@ -132,8 +150,9 @@ export default async function RenovacionesPage() {
       </div>
 
       <p className="text-[11px] leading-[1.5] font-medium text-[#AEB6CC]">
-        El puntaje sale del comportamiento de pago propio del cliente (interno,
-        no se le muestra). El alta del nuevo crédito la confirma la oficina.
+        El puntaje sale del comportamiento de pago propio del cliente (interno, no se le
+        muestra). El supervisor puede <b>solicitar</b> la renovación; el <b>administrador</b> la
+        aprueba y crea el crédito.
       </p>
     </div>
   );

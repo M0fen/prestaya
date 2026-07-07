@@ -8,7 +8,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { UYU } from "@/lib/format";
 import { calcularCuotaRenovacion } from "@/lib/renovacion";
-import { renovarCredito } from "@/app/admin/(panel)/renovaciones/actions";
+import { renovarCredito, solicitarRenovacion } from "@/app/admin/(panel)/renovaciones/actions";
 import type { PrestamoAnterior } from "@/lib/data/renovaciones";
 import type { FrecuenciaPrestamo } from "@/types/db";
 
@@ -24,11 +24,17 @@ export function FormRenovacion({
   clienteNombre,
   anterior,
   montoSugerido,
+  esAdmin = true,
+  moroso = false,
 }: {
   clienteId: string;
   clienteNombre: string;
   anterior: PrestamoAnterior;
   montoSugerido: number | null;
+  /** Admin: da de alta directo. Supervisor (false): crea una solicitud a aprobar. */
+  esAdmin?: boolean;
+  /** Cliente marcado como moroso → aviso antes de renovar. */
+  moroso?: boolean;
 }) {
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
@@ -58,13 +64,14 @@ export function FormRenovacion({
   const enviar = async () => {
     setOcupado(true);
     setError(null);
-    const res = await renovarCredito({
+    const payload = {
       clienteId,
       prestamoAnteriorId: anterior.id,
       monto: montoNum,
       totalDias: diasNum,
       frecuencia,
-    });
+    };
+    const res = esAdmin ? await renovarCredito(payload) : await solicitarRenovacion(payload);
     setOcupado(false);
     if (res.ok) {
       setHecho(true);
@@ -78,7 +85,9 @@ export function FormRenovacion({
   if (hecho) {
     return (
       <div className="mt-3 rounded-[12px] bg-[#E4F5EC] px-4 py-3 text-[13px] font-bold text-[#157A50]">
-        ✓ Renovación dada de alta. El nuevo crédito ya está activo.
+        {esAdmin
+          ? "✓ Renovación dada de alta. El nuevo crédito ya está activo."
+          : "✓ Solicitud enviada. El administrador la va a aprobar."}
       </div>
     );
   }
@@ -91,7 +100,7 @@ export function FormRenovacion({
         className="mt-3 w-full rounded-full bg-[#1FA971] px-4 py-2.5 text-[13px] font-bold text-white active:scale-[0.99]"
         style={{ transition: "transform .1s" }}
       >
-        Renovar crédito →
+        {esAdmin ? "Renovar crédito →" : "Solicitar renovación →"}
       </button>
     );
   }
@@ -101,6 +110,12 @@ export function FormRenovacion({
       <span className="text-[12px] font-bold text-tinta">
         Nuevo crédito para {clienteNombre}
       </span>
+
+      {moroso && (
+        <p className="rounded-[10px] bg-[#FBE4E2] px-3 py-2 text-[12px] font-bold text-[#C0392B]">
+          ⛔ Cliente marcado como MOROSO. Revisá bien antes de {esAdmin ? "renovar" : "solicitar"}.
+        </p>
+      )}
 
       <div className="grid grid-cols-2 gap-2.5">
         <label className="flex flex-col gap-1">
@@ -191,7 +206,7 @@ export function FormRenovacion({
             disabled={!valido || ocupado}
             className="flex-1 rounded-full bg-[#2453DC] px-4 py-2.5 text-[13px] font-bold text-white disabled:opacity-40"
           >
-            Revisar y dar de alta
+            {esAdmin ? "Revisar y dar de alta" : "Revisar y solicitar"}
           </button>
         ) : (
           <button
@@ -200,13 +215,19 @@ export function FormRenovacion({
             disabled={ocupado}
             className="flex-1 rounded-full bg-[#1FA971] px-4 py-2.5 text-[13px] font-extrabold text-white disabled:opacity-60"
           >
-            {ocupado ? "Creando…" : `Confirmar alta · ${UYU(montoNum)}`}
+            {ocupado
+              ? esAdmin
+                ? "Creando…"
+                : "Enviando…"
+              : `${esAdmin ? "Confirmar alta" : "Enviar solicitud"} · ${UYU(montoNum)}`}
           </button>
         )}
       </div>
       {confirmar && !ocupado && (
         <p className="text-[11px] font-medium text-[#AEB6CC]">
-          Esto finaliza el crédito actual (saldado) y crea uno nuevo activo.
+          {esAdmin
+            ? "Esto finaliza el crédito actual (saldado) y crea uno nuevo activo."
+            : "Queda pendiente hasta que el administrador la apruebe."}
         </p>
       )}
     </div>

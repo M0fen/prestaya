@@ -34,6 +34,8 @@ export interface CandidatoRenovacion {
   cuotasFaltantes: number;
   score: ResultadoScore;
   prestamoAnterior: PrestamoAnterior;
+  /** Marcado como moroso (aviso al renovar). false si falta la 0027. */
+  moroso: boolean;
 }
 
 /**
@@ -87,6 +89,7 @@ export async function getCandidatosRenovacion(
       completo: r.falta === 0,
       cuotasFaltantes: Math.max(0, prestamo.total_dias - cuotasCubiertas),
       score,
+      moroso: false,
       prestamoAnterior: {
         id: prestamo.id,
         monto: prestamo.monto_prestado,
@@ -96,6 +99,14 @@ export async function getCandidatosRenovacion(
         cobradorId: prestamo.cobrador_id,
       },
     });
+  }
+
+  // Marca de moroso de cada candidato (aviso al renovar). Degrada si falta 0027.
+  const ids = candidatos.map((c) => c.cliente.id);
+  if (ids.length > 0) {
+    const { data } = await db.from("clientes").select("id, moroso").in("id", ids);
+    const marca = new Map((data ?? []).map((r) => [r.id as string, Boolean(r.moroso)]));
+    for (const c of candidatos) c.moroso = marca.get(c.cliente.id) ?? false;
   }
 
   return candidatos.sort((a, b) => b.progresoPct - a.progresoPct);
