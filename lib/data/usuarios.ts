@@ -14,6 +14,7 @@ function mapUsuario(r: Record<string, unknown>): Usuario {
     rol: r.rol as Usuario["rol"],
     activo: r.activo as boolean,
     auth_user_id: (r.auth_user_id as string | null) ?? null,
+    zona_id: (r.zona_id as string | null) ?? null,
     creado_en: r.creado_en as string,
     actualizado_en: r.actualizado_en as string,
   };

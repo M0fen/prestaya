@@ -16,8 +16,33 @@ export interface Usuario {
   rol: Rol;
   activo: boolean;
   auth_user_id: string | null;
+  /** Zona del cobrador (una sola). null en admin/supervisor y cobradores sin zona. */
+  zona_id: string | null;
   creado_en: string;
   actualizado_en: string;
+}
+
+// ── Zonas (Fase A — territorio de cobro, ver 0030) ────────────────────────
+
+/** Barrio / sector / ruta madre. El cobrador pertenece a una; el supervisor
+ *  cubre varias; el cliente/préstamo DERIVA su zona del cobrador asignado. */
+export interface Zona {
+  id: string;
+  nombre: string;
+  color: string | null;
+  descripcion: string | null;
+  activo: boolean;
+  creado_por: string | null;
+  creado_en: string;
+  actualizado_en: string;
+}
+
+/** Vínculo supervisor ↔ zona (un supervisor cubre varias). */
+export interface SupervisorZona {
+  supervisor_id: string;
+  zona_id: string;
+  asignado_por: string | null;
+  asignado_en: string;
 }
 
 export type Calificacion =

@@ -38,6 +38,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/admin/auditoria", label: "Auditoría", icon: "🧾", roles: ["admin", "supervisor"], alias: ["log", "registro", "acciones"] },
   { href: "/admin/reportes", label: "Reportes", icon: "📨", roles: ["admin", "supervisor"], alias: ["exportar", "csv", "excel", "descargar", "estado de cuenta", "pdf", "respaldo", "backup"] },
   { href: "/admin/anuncios", label: "Anuncios", icon: "📣", roles: ["admin", "supervisor"], alias: ["publicidad", "campanas", "banner", "temporada"] },
+  { href: "/admin/zonas", label: "Zonas", icon: "🗺️", roles: ["admin"], alias: ["territorio", "barrio", "ruta", "sector", "cobradores", "supervisor"] },
   { href: "/admin/equipo", label: "Equipo", icon: "🧑‍🤝‍🧑", roles: ["admin"], alias: ["permisos", "roles", "supervisora", "esposa", "usuarios"] },
 ];
 

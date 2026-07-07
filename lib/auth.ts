@@ -7,6 +7,8 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getUsuarioPorAuthId } from "@/lib/data/usuarios";
+import { getZonasDeSupervisor } from "@/lib/data/zonas";
+import { actorDesde, type Actor } from "@/lib/permisos";
 import type { Rol, Usuario } from "@/types/db";
 
 /** Usuario interno logueado, o null si no hay sesión / no es del sistema. */
@@ -39,6 +41,18 @@ export async function requireAdmin(): Promise<Usuario> {
   const u = await requireUsuario();
   if (!esAdmin(u.rol)) redirect("/admin");
   return u;
+}
+
+/**
+ * Actor de permisos por ZONA del usuario actual (rol + zonas). Trae las zonas
+ * que supervisa (solo relevante para el supervisor). Devuelve null sin sesión.
+ * Es el puente entre la sesión y el núcleo puro `lib/permisos.ts`.
+ */
+export async function getActorActual(): Promise<Actor | null> {
+  const u = await getUsuarioActual();
+  if (!u || !u.activo) return null;
+  const zonas = u.rol === "supervisor" ? await getZonasDeSupervisor(await createSupabaseServer(), u.id) : [];
+  return actorDesde(u, zonas);
 }
 
 export const esGestor = (rol: Rol): boolean =>
