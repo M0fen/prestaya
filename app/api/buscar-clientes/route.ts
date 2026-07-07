@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getUsuarioActual, esGestor } from "@/lib/auth";
 import { buscarClientesAdmin } from "@/lib/data/clientes";
+import { busquedaQuery } from "@/lib/validacion/esquemas";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,8 +18,10 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, clientes: [] }, { status: 403 });
   }
 
-  const q = new URL(req.url).searchParams.get("q")?.trim() ?? "";
-  if (q.length < 2) return NextResponse.json({ ok: true, clientes: [] });
+  // Validación del término: 2..80 chars. Malformado → sin resultados (no 500).
+  const parsed = busquedaQuery.safeParse(new URL(req.url).searchParams.get("q") ?? "");
+  if (!parsed.success) return NextResponse.json({ ok: true, clientes: [] });
+  const q = parsed.data;
 
   try {
     const db = await createSupabaseServer();

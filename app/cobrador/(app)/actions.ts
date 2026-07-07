@@ -23,6 +23,7 @@ import { registrarBitacora } from "@/lib/data/bitacora";
 import { calcularEstadosCarton } from "@/lib/cartones";
 import { evaluarZona } from "@/lib/geo";
 import { hoyUY } from "@/lib/fecha";
+import { validar, cobroSchema, noPagoSchema } from "@/lib/validacion/esquemas";
 
 // ── Censo ────────────────────────────────────────────────────────────────────
 export type ResultadoCenso =
@@ -112,6 +113,8 @@ export async function registrarPagoCobrador(input: {
   registradoEn?: string | null;
   opId?: string | null;
 }): Promise<ResultadoCobro> {
+  // Validación en el borde: rechaza input malformado antes de tocar la base.
+  if (!validar(cobroSchema, input).ok) return { ok: false, error: "Datos del cobro inválidos." };
   try {
     const usuario = await getUsuarioActual();
     if (!usuario || !usuario.activo) return { ok: false, error: "Sesión no válida." };
@@ -199,6 +202,7 @@ export async function registrarNoPagoCobrador(input: {
   registradoEn?: string | null;
   opId?: string | null;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!validar(noPagoSchema, input).ok) return { ok: false, error: "Datos inválidos." };
   try {
     const usuario = await getUsuarioActual();
     if (!usuario || !usuario.activo) return { ok: false, error: "Sesión no válida." };

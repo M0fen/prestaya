@@ -24,6 +24,7 @@ import {
 } from "@/lib/data/promos";
 import { elegirPremio } from "@/lib/raspadita";
 import { numeroValido } from "@/lib/quiniela";
+import { tokenValido } from "@/lib/validacion/esquemas";
 
 /** Azar del SERVIDOR (no del cliente) para decidir premios. Uniforme en [0,1). */
 function azarServidor(): number {
@@ -45,6 +46,8 @@ export async function reportarFaltaPago(input: {
   comentario?: string | null;
 }): Promise<ResultadoReporte> {
   try {
+    // Forma del token (barato, antes de tocar la base).
+    if (!tokenValido(input.token)) return { ok: false, error: "Enlace no válido." };
     const db = createSupabaseAdmin();
 
     // 1) Validar token → cliente (no revelamos nada si no existe).
@@ -102,6 +105,7 @@ export async function solicitarRedencion(input: {
   cantidad: number;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
+    if (!tokenValido(input.token)) return { ok: false, error: "Enlace no válido." };
     const db = createSupabaseAdmin();
     const cliente = await getClientePorToken(db, input.token);
     if (!cliente) return { ok: false, error: "Enlace no válido." };
@@ -141,6 +145,7 @@ export type ResultadoRaspa =
 
 export async function jugarRaspadita(input: { token: string }): Promise<ResultadoRaspa> {
   try {
+    if (!tokenValido(input.token)) return { ok: false, error: "Enlace no válido." };
     const db = createSupabaseAdmin();
     const cliente = await getClientePorToken(db, input.token);
     if (!cliente) return { ok: false, error: "Enlace no válido." };
@@ -172,6 +177,7 @@ export async function participarQuiniela(input: {
   numero: number;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
+    if (!tokenValido(input.token)) return { ok: false, error: "Enlace no válido." };
     const db = createSupabaseAdmin();
     const cliente = await getClientePorToken(db, input.token);
     if (!cliente) return { ok: false, error: "Enlace no válido." };

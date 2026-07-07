@@ -5,6 +5,7 @@
 //  (web-push necesita Node). Degrada solito si faltan claves VAPID o la 0026.
 // ─────────────────────────────────────────────────────────────────────────
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
+import { cronAutorizado } from "@/lib/seguridad/cron";
 import { getResumenPeriodo } from "@/lib/data/periodo";
 import { getRendicionesDia } from "@/lib/data/rendicion";
 import { getTableroMora } from "@/lib/data/mora";
@@ -16,10 +17,15 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET(req: Request): Promise<Response> {
-  // Solo Vercel Cron (o quien tenga el secreto). Si no hay secreto configurado,
-  // dejamos pasar (útil en dev); en prod SIEMPRE conviene fijar CRON_SECRET.
-  const secreto = process.env.CRON_SECRET;
-  if (secreto && req.headers.get("authorization") !== `Bearer ${secreto}`) {
+  // Solo Vercel Cron (o quien tenga el secreto). FALLA CERRADO en producción:
+  // si en prod no hay CRON_SECRET configurado, se niega (nunca abre por descuido).
+  if (
+    !cronAutorizado(
+      req.headers.get("authorization"),
+      process.env.CRON_SECRET,
+      process.env.NODE_ENV === "production",
+    )
+  ) {
     return new Response("No autorizado", { status: 401 });
   }
   if (!pushConfigurado()) {

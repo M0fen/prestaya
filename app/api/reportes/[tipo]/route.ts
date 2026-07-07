@@ -14,6 +14,7 @@ import { getResumenCaja, type PeriodoCaja } from "@/lib/data/caja";
 import { getTableroMora } from "@/lib/data/mora";
 import { getComisionesPeriodo } from "@/lib/data/comisiones";
 import { normalizarPeriodo } from "@/lib/data/periodo";
+import { reporteTipo as reporteTipoSchema } from "@/lib/validacion/esquemas";
 import type { NivelRiesgo } from "@/types/alerta";
 
 export const dynamic = "force-dynamic";
@@ -71,6 +72,10 @@ export async function GET(
   }
 
   const { tipo } = await ctx.params;
+  // Solo tipos conocidos; cualquier otra cosa se corta acá (400).
+  if (!reporteTipoSchema.safeParse(tipo).success) {
+    return new Response("Reporte no encontrado", { status: 400 });
+  }
   const url = new URL(req.url);
   const db = await createSupabaseServer();
   const fecha = fechaHoyUY();
