@@ -19,6 +19,7 @@ export type NavItem = {
 
 export const NAV_ITEMS: NavItem[] = [
   { href: "/admin", label: "Dashboard", icon: "▣", alias: ["inicio", "tablero", "resumen"] },
+  { href: "/admin/cierre", label: "Cierre del día", icon: "🌅", roles: ["admin", "supervisor"], alias: ["cierre", "jornada", "operacion", "en vivo", "meta", "proyeccion", "hoy"] },
   { href: "/admin/chat", label: "Chat", icon: "💬", alias: ["mensajes"] },
   { href: "/admin/notas", label: "Notas", icon: "📝" },
   { href: "/admin/cobranza", label: "Cobranza", icon: "🛡️", roles: ["admin", "supervisor"], alias: ["mapa", "geo", "cobros"] },
