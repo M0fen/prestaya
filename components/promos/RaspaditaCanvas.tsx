@@ -1,8 +1,10 @@
 "use client";
 // Raspadita PROFESIONAL — canvas propio (sin librería). Una lámina metálica
 // (tipo scratch-off real) que se BORRA raspando con el dedo: `destination-out`
-// al mover el puntero. Cuesta raspar (pincel chico, umbral alto), vibra un
-// poquito al raspar (feel táctil) y recién al ~65% se revela sola con un pop.
+// al mover el puntero. Cada pasada quita solo una FRACCIÓN de la lámina
+// (hay que pasar el dedo VARIAS veces por el mismo lugar, como una raspadita
+// real), vibra un poquito al raspar (feel táctil) y recién al ~60% raspado se
+// revela sola con un pop.
 //
 // ⚠️ El PREMIO lo decide y registra el SERVIDOR (jugarRaspadita) al PRIMER
 // raspado; el canvas solo revela un resultado ya definido. Sin token = modo
@@ -14,7 +16,12 @@ type Premio = { label: string; tipo: "beneficio" | "nada" };
 
 const UMBRAL_REVELAR = 0.6; // hay que raspar el 60% del área
 const RADIO_PINCEL = 15; // yema del dedo, chico → cuesta más raspar
-const MIN_RASCADO_PX = 1200; // distancia mínima a raspar (mover el dedo de un lado a otro)
+const MIN_RASCADO_PX = 1500; // distancia mínima a raspar (mover el dedo de un lado a otro)
+// Opacidad que quita CADA pasada: baja a propósito → una pasada apenas aclara,
+// hay que volver a pasar por el mismo lugar ~2-3 veces para descubrir. Con
+// destination-out, cada pasada deja alpha × (1-ALPHA_RASPADO): 0.33 ≈ 2 pasadas
+// para cruzar el umbral de "raspado". Así se siente y cuesta como el material real.
+const ALPHA_RASPADO = 0.33;
 
 // Premios de MUESTRA para la vista demo (sin token): solo para "sentir" el
 // raspado. No escriben nada en el servidor; el juego real usa jugarRaspadita.
@@ -46,6 +53,11 @@ export function RaspaditaCanvas({
   const alcanzoUmbral = useRef(false);
   const ultimoPunto = useRef<{ x: number; y: number } | null>(null);
   const rascadoPx = useRef(0); // distancia total raspada (barrera anti "un toque")
+  // ¿La lámina se pintó de verdad? Si NO (canvas transparente), medirPct daría
+  // 100% y revelaría al toque. Esta bandera evita ese falso positivo (era la
+  // causa del "se revela con un toque" en el link real, más pesado que la demo).
+  const coberturaPintada = useRef(false);
+  const consumido = useRef(false); // la ronda ya descontó su jugada (una sola vez)
 
   const restantes = disponibles - jugadasLocal;
 
@@ -62,6 +74,7 @@ export function RaspaditaCanvas({
       requestAnimationFrame(() => pintarCobertura(intentos + 1));
       return;
     }
+    coberturaPintada.current = false; // se reactiva al terminar de pintar
     canvas.width = Math.round(w * dpr);
     canvas.height = Math.round(h * dpr);
     canvas.style.width = `${w}px`;
@@ -120,6 +133,8 @@ export function RaspaditaCanvas({
     ctx.textBaseline = "middle";
     ctx.fillText("🪙  RASPÁ AQUÍ", w / 2, h / 2);
 
+    // La lámina quedó pintada y opaca: ahora sí medirPct es fiable.
+    coberturaPintada.current = true;
     movs.current = 0;
     rascadoPx.current = 0;
     alcanzoUmbral.current = false;
@@ -164,6 +179,13 @@ export function RaspaditaCanvas({
     const ctx = canvas?.getContext("2d");
     if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
     setRevelado(true);
+    // Recién ACÁ se consume la jugada (no al primer toque). Así la lámina nunca
+    // se desmonta a mitad de raspado por quedarnos sin disponibles. El ref
+    // garantiza un solo descuento por ronda (inmune al batching de estado).
+    if (!consumido.current) {
+      consumido.current = true;
+      setJugadasLocal((n) => n + 1);
+    }
     try {
       navigator.vibrate?.(30);
     } catch {
@@ -180,14 +202,13 @@ export function RaspaditaCanvas({
     if (iniciado.current) return;
     iniciado.current = true;
     if (!token) {
+      // Demo (sin token): premio de muestra local, sin escribir en el servidor.
       setPremio(DEMO_PREMIOS[Math.floor(Math.random() * DEMO_PREMIOS.length)]);
-      setJugadasLocal((n) => n + 1);
       return;
     }
     const r = await jugarRaspadita({ token });
     if (r.ok) {
       setPremio({ label: r.label, tipo: r.tipo });
-      setJugadasLocal((n) => n + 1);
     } else {
       setError(r.error);
     }
@@ -199,40 +220,43 @@ export function RaspaditaCanvas({
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   };
 
-  // Borra un círculo (con leve jitter, borde algo duro para sentir el material).
-  const borrarPunto = (ctx: CanvasRenderingContext2D, x: number, y: number) => {
-    const r = RADIO_PINCEL + (Math.random() * 3 - 1.5);
-    const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
-    grad.addColorStop(0, "rgba(0,0,0,1)");
-    grad.addColorStop(0.85, "rgba(0,0,0,1)");
-    grad.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
-  };
-
+  // Borra raspando. Clave: cada pasada quita solo ALPHA_RASPADO de la lámina.
+  // Se dibuja el segmento como UN trazo (línea con punta redonda), no apilando
+  // círculos: así una sola pasada no la limpia; hay que volver a pasar por el
+  // mismo lugar varias veces para descubrir el premio (como el material real).
   const borrar = (x: number, y: number) => {
     const ctx = canvasRef.current?.getContext("2d");
     if (!ctx) return;
     ctx.globalCompositeOperation = "destination-out";
-    // Interpola entre el último punto y el actual → traza continua sin huecos.
     const prev = ultimoPunto.current;
     if (prev) {
       const dist = Math.hypot(x - prev.x, y - prev.y);
-      rascadoPx.current += dist; // acumula cuánto se raspó (barrera de revelado)
-      const pasos = Math.max(1, Math.floor(dist / (RADIO_PINCEL / 2)));
-      for (let i = 1; i <= pasos; i++) {
-        borrarPunto(ctx, prev.x + ((x - prev.x) * i) / pasos, prev.y + ((y - prev.y) * i) / pasos);
-      }
+      rascadoPx.current += dist; // acumula cuánto se raspó (barrera anti "un toque")
+      ctx.strokeStyle = `rgba(0,0,0,${ALPHA_RASPADO})`;
+      ctx.lineWidth = RADIO_PINCEL * 2;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      ctx.moveTo(prev.x, prev.y);
+      ctx.lineTo(x, y);
+      ctx.stroke();
     } else {
-      borrarPunto(ctx, x, y);
+      // Primer contacto: un disco tenue (misma opacidad parcial).
+      ctx.globalAlpha = ALPHA_RASPADO;
+      ctx.fillStyle = "#000";
+      ctx.beginPath();
+      ctx.arc(x, y, RADIO_PINCEL, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
     }
     ctx.globalCompositeOperation = "source-over";
     ultimoPunto.current = { x, y };
   };
 
   const medirPct = (): number => {
+    // Si la lámina aún no se pintó, NO medimos (evita el 100% falso → revelado
+    // al toque). Recién con la cobertura pintada el porcentaje es real.
+    if (!coberturaPintada.current) return 0;
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return 0;
@@ -251,6 +275,9 @@ export function RaspaditaCanvas({
     e.currentTarget.setPointerCapture(e.pointerId);
     dibujando.current = true;
     ultimoPunto.current = null;
+    // Si por timing la lámina aún no se pintó, la pintamos AHORA (síncrono)
+    // antes de raspar: nunca se raspa sobre un canvas transparente.
+    if (!coberturaPintada.current) pintarCobertura();
     if (!iniciado.current) void iniciar();
     const { x, y } = posicion(e);
     borrar(x, y);
@@ -291,6 +318,7 @@ export function RaspaditaCanvas({
     setError("");
     iniciado.current = false;
     alcanzoUmbral.current = false;
+    consumido.current = false;
     movs.current = 0;
     setRonda((r) => r + 1);
   };
@@ -352,7 +380,7 @@ export function RaspaditaCanvas({
             type="button"
             onClick={() => {
               void iniciar();
-              setTimeout(() => setRevelado(true), 250);
+              setTimeout(() => revelar(), 250);
             }}
             className="absolute inset-0 flex items-center justify-center bg-white/15 text-[14px] font-extrabold text-white"
           >
