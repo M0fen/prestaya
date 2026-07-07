@@ -2,6 +2,7 @@
 // Solo gestores. Las descargas van por /api/reportes/<tipo> (protegido por rol).
 import Link from "next/link";
 import { requireGestor } from "@/lib/auth";
+import { RespaldoTotal } from "@/components/admin/RespaldoTotal";
 
 export const dynamic = "force-dynamic";
 
@@ -115,6 +116,25 @@ export default async function ReportesPage() {
           >
             Ir a clientes →
           </Link>
+        </div>
+      </div>
+
+      {/* Respaldo total */}
+      <div className="flex flex-col gap-3 rounded-[16px] border border-[#D6DEF5] bg-[#F7F9FF] p-4">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[12px] bg-[#0F1B3D] text-[18px]">
+            🗄️
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[15px] font-extrabold text-tinta">Respaldo completo</span>
+            <span className="text-[12.5px] font-medium text-gris">
+              Descargá TODO de un click: padrón de clientes, cartera, el <b>libro de pagos completo</b>,
+              caja del mes, mora y comisiones. Tu copia de seguridad, cuando quieras.
+            </span>
+          </div>
+        </div>
+        <div>
+          <RespaldoTotal />
         </div>
       </div>
 

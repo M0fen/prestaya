@@ -33,6 +33,14 @@ export async function requireGestor(): Promise<Usuario> {
   return u;
 }
 
+/** Exige rol ADMIN (el dueño). Para acciones sensibles que el supervisor no
+ *  puede hacer (política de mora, comisiones, y a futuro anular pagos). */
+export async function requireAdmin(): Promise<Usuario> {
+  const u = await requireUsuario();
+  if (!esAdmin(u.rol)) redirect("/admin");
+  return u;
+}
+
 export const esGestor = (rol: Rol): boolean =>
   rol === "admin" || rol === "supervisor";
 

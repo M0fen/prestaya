@@ -7,7 +7,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { getUsuarioActual, esGestor } from "@/lib/auth";
+import { getUsuarioActual, esAdmin } from "@/lib/auth";
 import { setComisionPctDb } from "@/lib/data/comisiones";
 import { registrarMovimientoCaja } from "@/lib/data/caja";
 import { registrarAuditoria } from "@/lib/data/auditoria";
@@ -16,7 +16,8 @@ type Resultado = { ok: true } | { ok: false; error: string };
 
 export async function setComisionPct(cobradorId: string, pct: number): Promise<Resultado> {
   const u = await getUsuarioActual();
-  if (!u || !u.activo || !esGestor(u.rol)) return { ok: false, error: "No tenés permisos." };
+  if (!u || !u.activo || !esAdmin(u.rol))
+    return { ok: false, error: "Solo el administrador puede fijar comisiones." };
   if (!cobradorId) return { ok: false, error: "Cobrador inválido." };
   // Acota [0,100] con 2 decimales.
   const p = Math.max(0, Math.min(100, Math.round((Number(pct) || 0) * 100) / 100));
@@ -46,7 +47,8 @@ export async function liquidarComision(input: {
   periodo: string;
 }): Promise<Resultado> {
   const u = await getUsuarioActual();
-  if (!u || !u.activo || !esGestor(u.rol)) return { ok: false, error: "No tenés permisos." };
+  if (!u || !u.activo || !esAdmin(u.rol))
+    return { ok: false, error: "Solo el administrador puede liquidar comisiones." };
   const monto = Math.round(Number(input.monto) || 0);
   if (!(monto > 0)) return { ok: false, error: "La comisión es cero." };
 

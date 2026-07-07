@@ -9,6 +9,7 @@ import { getUsuarioActual, esGestor } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { filasACsv, conBom, type CeldaCsv } from "@/lib/reportes/csv";
 import { getCarteraExport } from "@/lib/data/cartera";
+import { getClientesExport, getPagosExport } from "@/lib/data/exportacion";
 import { getResumenCaja, type PeriodoCaja } from "@/lib/data/caja";
 import { getTableroMora } from "@/lib/data/mora";
 import { getComisionesPeriodo } from "@/lib/data/comisiones";
@@ -131,6 +132,28 @@ export async function GET(
       `presta-ya_comisiones_${periodo}_${fecha}.csv`,
       ["Cobrador", "Cobros", "Recaudado", "Comisión %", "Comisión $"],
       r.filas.map((f) => [f.nombre, f.cobros, f.recaudado, f.pct, f.comision]),
+    );
+  }
+
+  if (tipo === "clientes") {
+    const filas = await getClientesExport(db);
+    return csvResponse(
+      `presta-ya_clientes_${fecha}.csv`,
+      ["Cliente", "Documento", "Teléfono", "Dirección", "Calificación", "Estado", "Origen", "Alta"],
+      filas.map((f) => [
+        f.nombre, f.documento, f.telefono, f.direccion, f.calificacion, f.estado, f.origen, f.alta,
+      ]),
+    );
+  }
+
+  if (tipo === "pagos") {
+    const filas = await getPagosExport(db);
+    return csvResponse(
+      `presta-ya_pagos_${fecha}.csv`,
+      ["Fecha y hora", "Cliente", "Documento", "Día", "Monto", "Anulado", "Cobrador"],
+      filas.map((f) => [
+        fechaHoraUY(f.fechaIso), f.cliente, f.documento, f.dia, f.monto, f.anulado ? "sí" : "no", f.cobrador,
+      ]),
     );
   }
 

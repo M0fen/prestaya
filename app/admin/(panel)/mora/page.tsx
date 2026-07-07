@@ -2,7 +2,7 @@
 // se están yendo a mora, ANTES del castigo. Todo derivado del comportamiento de
 // pago (lib/alerta.ts). Ordenados por urgencia, con contacto directo para actuar.
 import Link from "next/link";
-import { requireGestor } from "@/lib/auth";
+import { requireGestor, esAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getTableroMora } from "@/lib/data/mora";
 import type { NivelRiesgo, TendenciaMora } from "@/types/alerta";
@@ -33,7 +33,7 @@ function waLink(telefono: string): string {
 }
 
 export default async function MoraPage() {
-  await requireGestor();
+  const usuario = await requireGestor();
   const db = await createSupabaseServer();
   const { resumen, config, enRiesgo } = await getTableroMora(db);
   const conMora = config.modo !== "off";
@@ -50,8 +50,8 @@ export default async function MoraPage() {
         </span>
       </div>
 
-      {/* Política de mora (recargo por atraso, configurable) */}
-      <FormPoliticaMora config={config} />
+      {/* Política de mora (recargo por atraso, configurable). Solo el admin la edita. */}
+      <FormPoliticaMora config={config} puedeEditar={esAdmin(usuario.rol)} />
 
       {conMora && resumen.recargoTotal > 0 && (
         <div className="flex items-center justify-between rounded-[12px] bg-[#FDF3E2] px-4 py-2.5">

@@ -5,7 +5,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { getUsuarioActual, esGestor } from "@/lib/auth";
+import { getUsuarioActual, esAdmin } from "@/lib/auth";
 import { setConfigMora } from "@/lib/data/moraConfig";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { describirMora, type ConfigMora, type ModoMora } from "@/lib/moraCargo";
@@ -20,7 +20,8 @@ export async function guardarConfigMora(input: {
   topePct: number;
 }): Promise<Resultado> {
   const u = await getUsuarioActual();
-  if (!u || !u.activo || !esGestor(u.rol)) return { ok: false, error: "No tenés permisos." };
+  if (!u || !u.activo || !esAdmin(u.rol))
+    return { ok: false, error: "Solo el administrador puede cambiar la política de mora." };
 
   const modo = (MODOS.includes(input.modo as ModoMora) ? input.modo : "off") as ModoMora;
   const cfg: ConfigMora = {

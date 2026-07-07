@@ -12,7 +12,14 @@ const MODOS: { id: ModoMora; label: string; hint: string }[] = [
   { id: "pct", label: "% del vencido", hint: "Porcentaje de la deuda vencida" },
 ];
 
-export function FormPoliticaMora({ config }: { config: ConfigMora }) {
+export function FormPoliticaMora({
+  config,
+  puedeEditar = true,
+}: {
+  config: ConfigMora;
+  /** Solo el admin edita la política; el supervisor la ve en modo lectura. */
+  puedeEditar?: boolean;
+}) {
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
   const [modo, setModo] = useState<ModoMora>(config.modo);
@@ -22,6 +29,23 @@ export function FormPoliticaMora({ config }: { config: ConfigMora }) {
   const [okMsg, setOkMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pendiente, startTransition] = useTransition();
+
+  // Supervisor: solo lectura de la política vigente (sin poder cambiarla).
+  if (!puedeEditar) {
+    return (
+      <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-col">
+            <span className="text-[13.5px] font-extrabold text-tinta">Política de mora</span>
+            <span className="truncate text-[12px] font-medium text-gris">{describirMora(config)}</span>
+          </div>
+          <span className="flex-shrink-0 rounded-full bg-[#F1F3F9] px-3 py-1.5 text-[11.5px] font-bold text-[#8A93AD]">
+            Solo administrador
+          </span>
+        </div>
+      </section>
+    );
+  }
 
   const guardar = () => {
     setError(null); setOkMsg(null);

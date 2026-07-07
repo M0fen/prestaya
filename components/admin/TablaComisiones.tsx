@@ -12,9 +12,12 @@ import type { FilaComision } from "@/lib/data/comisiones";
 export function TablaComisiones({
   filas,
   etiqueta,
+  puedeGestionar = true,
 }: {
   filas: FilaComision[];
   etiqueta: string;
+  /** Solo el admin puede fijar tasas y liquidar. El supervisor mira. */
+  puedeGestionar?: boolean;
 }) {
   if (filas.length === 0) {
     return (
@@ -26,13 +29,21 @@ export function TablaComisiones({
   return (
     <div className="flex flex-col divide-y divide-[#EEF1F8] overflow-hidden rounded-[16px] border border-[#E6EAF4] bg-white">
       {filas.map((f) => (
-        <Fila key={f.cobradorId} f={f} etiqueta={etiqueta} />
+        <Fila key={f.cobradorId} f={f} etiqueta={etiqueta} puedeGestionar={puedeGestionar} />
       ))}
     </div>
   );
 }
 
-function Fila({ f, etiqueta }: { f: FilaComision; etiqueta: string }) {
+function Fila({
+  f,
+  etiqueta,
+  puedeGestionar,
+}: {
+  f: FilaComision;
+  etiqueta: string;
+  puedeGestionar: boolean;
+}) {
   const router = useRouter();
   const [pct, setPct] = useState(String(f.pct));
   const [error, setError] = useState<string | null>(null);
@@ -81,36 +92,43 @@ function Fila({ f, etiqueta }: { f: FilaComision; etiqueta: string }) {
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1 rounded-[11px] border border-[#DCE3F4] px-2.5 py-1.5">
-          <input
-            inputMode="decimal"
-            value={pct}
-            onChange={(e) => setPct(e.target.value.replace(/[^\d.]/g, ""))}
-            className="w-12 text-[14px] tabular-nums outline-none"
-            aria-label={`Comisión de ${f.nombre}`}
-          />
-          <span className="text-[13px] font-bold text-gris">%</span>
-        </div>
-        <button
-          type="button"
-          onClick={guardar}
-          disabled={pendiente || !cambiado}
-          className="rounded-full border border-[#DCE3F4] px-3 py-1.5 text-[12px] font-bold text-azul disabled:opacity-40"
-        >
-          Guardar
-        </button>
-        <button
-          type="button"
-          onClick={liquidar}
-          disabled={pendiente || comision <= 0}
-          className="ml-auto rounded-full bg-[#1FA971] px-3.5 py-1.5 text-[12px] font-extrabold text-white disabled:opacity-40"
-        >
-          {pendiente ? "…" : "Liquidar"}
-        </button>
-      </div>
-      {error && <span className="text-[11px] font-semibold text-[#C0392B]">{error}</span>}
-      {okMsg && <span className="text-[11px] font-semibold text-verde">{okMsg}</span>}
+      {puedeGestionar ? (
+        <>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 rounded-[11px] border border-[#DCE3F4] px-2.5 py-1.5">
+              <input
+                inputMode="decimal"
+                value={pct}
+                onChange={(e) => setPct(e.target.value.replace(/[^\d.]/g, ""))}
+                className="w-12 text-[14px] tabular-nums outline-none"
+                aria-label={`Comisión de ${f.nombre}`}
+              />
+              <span className="text-[13px] font-bold text-gris">%</span>
+            </div>
+            <button
+              type="button"
+              onClick={guardar}
+              disabled={pendiente || !cambiado}
+              className="rounded-full border border-[#DCE3F4] px-3 py-1.5 text-[12px] font-bold text-azul disabled:opacity-40"
+            >
+              Guardar
+            </button>
+            <button
+              type="button"
+              onClick={liquidar}
+              disabled={pendiente || comision <= 0}
+              className="ml-auto rounded-full bg-[#1FA971] px-3.5 py-1.5 text-[12px] font-extrabold text-white disabled:opacity-40"
+            >
+              {pendiente ? "…" : "Liquidar"}
+            </button>
+          </div>
+          {error && <span className="text-[11px] font-semibold text-[#C0392B]">{error}</span>}
+          {okMsg && <span className="text-[11px] font-semibold text-verde">{okMsg}</span>}
+        </>
+      ) : (
+        // Supervisor: solo lectura (tasa vigente, sin poder cambiar ni liquidar).
+        <span className="text-[11.5px] font-medium text-[#8A93AD]">Comisión: {f.pct}%</span>
+      )}
     </div>
   );
 }

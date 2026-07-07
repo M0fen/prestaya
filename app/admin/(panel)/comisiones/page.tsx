@@ -1,7 +1,7 @@
 // Comisiones por cobrador (gestor): tasa % sobre lo recaudado del período, con
 // liquidación (egreso en caja) y auditoría. Selector Día/Semana/Mes/Año.
 import Link from "next/link";
-import { requireGestor } from "@/lib/auth";
+import { requireGestor, esAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getComisionesPeriodo } from "@/lib/data/comisiones";
 import { normalizarPeriodo, PERIODOS } from "@/lib/data/periodo";
@@ -15,10 +15,11 @@ export default async function ComisionesPage({
 }: {
   searchParams: Promise<{ periodo?: string }>;
 }) {
-  await requireGestor();
+  const usuario = await requireGestor();
   const periodo = normalizarPeriodo((await searchParams).periodo);
   const db = await createSupabaseServer();
   const r = await getComisionesPeriodo(db, periodo);
+  const puedeGestionar = esAdmin(usuario.rol);
 
   return (
     <div className="mx-auto flex max-w-[720px] flex-col gap-5">
@@ -67,7 +68,13 @@ export default async function ComisionesPage({
         </div>
       </div>
 
-      <TablaComisiones filas={r.filas} etiqueta={r.etiqueta} />
+      <TablaComisiones filas={r.filas} etiqueta={r.etiqueta} puedeGestionar={puedeGestionar} />
+
+      {!puedeGestionar && (
+        <p className="rounded-[12px] bg-[#F4F6FB] px-3.5 py-2.5 text-[12px] font-medium text-gris">
+          Estás como supervisor: podés ver las comisiones, pero fijarlas y liquidarlas queda para el administrador.
+        </p>
+      )}
 
       <p className="text-[11px] leading-[1.5] font-medium text-[#AEB6CC]">
         Liquidar registra un egreso en la Caja (categoría “Comisión”) y queda en la auditoría. La
