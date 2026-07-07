@@ -120,7 +120,7 @@ export default function Home() {
       }}
       juegoArcade={juegoArcadeDe(ajustes)}
       recompensas={evaluarRecompensas(recompensasDemo, juego)}
-      temporada={{ nombre: "Mundial 2026", emoji: "⚽", meta: 90, premio: "Sorteo de una camiseta" }}
+      temporada={null}
     />
   );
 }

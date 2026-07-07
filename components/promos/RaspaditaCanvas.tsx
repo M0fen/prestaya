@@ -12,8 +12,9 @@ import { jugarRaspadita } from "@/app/c/[token]/actions";
 
 type Premio = { label: string; tipo: "beneficio" | "nada" };
 
-const UMBRAL_REVELAR = 0.65; // hay que raspar el 65% (no se abre de un toque)
+const UMBRAL_REVELAR = 0.6; // hay que raspar el 60% del área
 const RADIO_PINCEL = 15; // yema del dedo, chico → cuesta más raspar
+const MIN_RASCADO_PX = 1200; // distancia mínima a raspar (mover el dedo de un lado a otro)
 
 // Premios de MUESTRA para la vista demo (sin token): solo para "sentir" el
 // raspado. No escriben nada en el servidor; el juego real usa jugarRaspadita.
@@ -44,6 +45,7 @@ export function RaspaditaCanvas({
   const movs = useRef(0);
   const alcanzoUmbral = useRef(false);
   const ultimoPunto = useRef<{ x: number; y: number } | null>(null);
+  const rascadoPx = useRef(0); // distancia total raspada (barrera anti "un toque")
 
   const restantes = disponibles - jugadasLocal;
 
@@ -119,12 +121,23 @@ export function RaspaditaCanvas({
     ctx.fillText("🪙  RASPÁ AQUÍ", w / 2, h / 2);
 
     movs.current = 0;
+    rascadoPx.current = 0;
     alcanzoUmbral.current = false;
     ultimoPunto.current = null;
   }, []);
 
+  // Ref-callback: pinta la lámina EN CUANTO el canvas existe (al montar y en cada
+  // ronda por el key), sin depender del timing de los efectos → nunca queda
+  // transparente (que era lo que la hacía "revelarse al tocar").
+  const setCanvas = useCallback(
+    (node: HTMLCanvasElement | null) => {
+      canvasRef.current = node;
+      if (node) requestAnimationFrame(() => pintarCobertura());
+    },
+    [pintarCobertura],
+  );
+
   useEffect(() => {
-    pintarCobertura();
     const onResize = () => {
       if (!revelado && !dibujando.current) pintarCobertura();
     };
@@ -207,6 +220,7 @@ export function RaspaditaCanvas({
     const prev = ultimoPunto.current;
     if (prev) {
       const dist = Math.hypot(x - prev.x, y - prev.y);
+      rascadoPx.current += dist; // acumula cuánto se raspó (barrera de revelado)
       const pasos = Math.max(1, Math.floor(dist / (RADIO_PINCEL / 2)));
       for (let i = 1; i <= pasos; i++) {
         borrarPunto(ctx, prev.x + ((x - prev.x) * i) / pasos, prev.y + ((y - prev.y) * i) / pasos);
@@ -256,8 +270,10 @@ export function RaspaditaCanvas({
       }
     }
     if (movs.current % 8 === 0) {
+      // Se revela SOLO si raspó buena parte (pct) Y movió el dedo bastante
+      // (distancia). La barrera de distancia evita cualquier "revelado de un toque".
       const pct = medirPct();
-      if (pct >= UMBRAL_REVELAR) {
+      if (pct >= UMBRAL_REVELAR && rascadoPx.current >= MIN_RASCADO_PX) {
         alcanzoUmbral.current = true;
         if (premio) revelar();
       }
@@ -318,7 +334,7 @@ export function RaspaditaCanvas({
         {soporta && jugable && !revelado && (
           <canvas
             key={ronda}
-            ref={canvasRef}
+            ref={setCanvas}
             onPointerDown={onDown}
             onPointerMove={onMove}
             onPointerUp={onUp}

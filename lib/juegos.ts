@@ -16,14 +16,6 @@ export interface Juego {
 }
 
 export const JUEGOS: Record<string, Juego> = {
-  "penales-mundial": {
-    id: "penales-mundial",
-    titulo: "Penales del Mundial 2026 ⚽",
-    descripcion:
-      "Tirá por la celeste: apuntá, cargá potencia y vencé al arquero. Meté 4 de 5 y clasificá.",
-    ruta: "/juegos/penales-mundial/index.html",
-    alto: 470,
-  },
   "atrapa-monedas": {
     id: "atrapa-monedas",
     titulo: "Atrapa tus monedas",
@@ -40,5 +32,5 @@ export const JUEGOS: Record<string, Juego> = {
   },
 };
 
-/** Juego que se muestra este mes (Mundial 2026). */
-export const JUEGO_ACTUAL: Juego = JUEGOS["penales-mundial"];
+/** Juego que se muestra este mes. */
+export const JUEGO_ACTUAL: Juego = JUEGOS["atrapa-monedas"];

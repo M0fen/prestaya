@@ -11,7 +11,6 @@ import type { SaldoEstrellas } from "@/lib/estrellas";
 import { LineaComportamiento } from "@/components/comportamiento/LineaComportamiento";
 import { EstrellasCliente } from "@/components/estrellas/EstrellasCliente";
 import { PromoCliente, type PromoData } from "@/components/promos/PromoCliente";
-import { CofreRecompensas } from "@/components/gaming/CofreRecompensas";
 import { TemporadaBanner } from "@/components/gaming/TemporadaBanner";
 import { Header } from "@/components/Header";
 import { Saludo } from "@/components/Saludo";
@@ -34,12 +33,10 @@ export function VistaClienteScreen({
   anuncios = [],
   token = null,
   reputacion = null,
-  juego = null,
   estrellas = null,
   promo = null,
   umbralCaritas,
   juegoArcade = null,
-  recompensas = [],
   temporada = null,
 }: {
   v: VistaCredito;
@@ -99,6 +96,10 @@ export function VistaClienteScreen({
           />
         )}
 
+        {/* Banner de anuncios, justo debajo de la temporada. Si no hay temporada,
+            queda solo el banner. Si no hay anuncios, no ocupa espacio. */}
+        <BannerCarrusel anuncios={anuncios} />
+
         {/* Cómo venís (caritas, derivadas del cartón; se lee de un vistazo). */}
         <LineaComportamiento dias={v.dias} umbral={umbralCaritas} />
 
@@ -142,19 +143,13 @@ export function VistaClienteScreen({
         {/* Historial de pagos (con % de la cuota cubierto + descuento). */}
         <Historial historial={v.historial} />
 
-        {/* ── Extras (juegos, recompensas, arcade, anuncios) ── */}
+        {/* ── Extras (juegos promocionales + arcade) ── */}
 
         {/* Juegos promocionales (raspadita + quiniela). Sin dinero real. */}
         {promo && <PromoCliente promo={promo} token={token} />}
 
-        {/* Cofre de recompensas (premios reales por hitos de pago). */}
-        {juego && <CofreRecompensas recompensas={recompensas} />}
-
         {/* Espacio de juegos: slot aislado. Solo si el admin lo dejó activo. */}
         {juegoArcade && <GameSlot juego={juegoArcade} />}
-
-        {/* Carrusel de anuncios (admin/supervisor). Si no hay, no ocupa espacio. */}
-        <BannerCarrusel anuncios={anuncios} />
 
         {/* Reporte de discrepancia + recordatorio: solo con token (vista real). */}
         {token && <ReportarDiscrepancia token={token} />}

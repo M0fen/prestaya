@@ -50,9 +50,13 @@ function Quiniela({
   const yaJugo = miNumero != null || estado === "ok";
 
   const participar = async () => {
-    if (!token) return;
     setEstado("enviando");
     setError("");
+    if (!token) {
+      // Vista demo (sin token): confirma localmente, sin escribir nada.
+      setEstado("ok");
+      return;
+    }
     const r = await participarQuiniela({ token, numero });
     if (r.ok) setEstado("ok");
     else {
@@ -86,10 +90,10 @@ function Quiniela({
           <button
             type="button"
             onClick={participar}
-            disabled={!token || estado === "enviando"}
+            disabled={estado === "enviando"}
             className="flex-1 rounded-full bg-azul px-4 py-2.5 text-[14px] font-extrabold text-white active:scale-[0.98] disabled:opacity-60"
           >
-            {estado === "enviando" ? "Enviando…" : token ? "Elegir número" : "Disponible en tu app"}
+            {estado === "enviando" ? "Enviando…" : "Elegir número"}
           </button>
         </div>
       )}

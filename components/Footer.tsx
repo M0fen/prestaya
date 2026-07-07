@@ -30,12 +30,6 @@ export function Footer({ negocio }: { negocio: Negocio }) {
         <span className="text-[14px] font-extrabold tracking-[-0.01em] text-tinta">
           {negocio.nombre}
         </span>
-        <span className="text-[12.5px] font-medium text-gris">
-          {negocio.direccion}
-        </span>
-        <span className="text-[12.5px] font-medium text-gris">
-          Tel. {negocio.telefono}
-        </span>
         <span className="text-[12px] font-medium text-[#8A93AD]">
           {negocio.horario}
         </span>
