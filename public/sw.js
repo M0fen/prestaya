@@ -77,3 +77,39 @@ self.addEventListener("fetch", (event) => {
     );
   }
 });
+
+// ── Avisos PUSH (internos: admin/supervisor/cobrador) ──────────────────────
+// El servidor manda { titulo, cuerpo, url, tag }. Mostramos la notificación y,
+// al tocarla, enfocamos/abrimos la pantalla indicada.
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (_) {
+    data = {};
+  }
+  const titulo = data.titulo || "Presta Ya";
+  const opciones = {
+    body: data.cuerpo || "",
+    icon: "/icons/icon-192.png",
+    badge: "/icons/icon-192.png",
+    tag: data.tag || undefined,
+    data: { url: data.url || "/admin" },
+  };
+  event.waitUntil(self.registration.showNotification(titulo, opciones));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const destino = (event.notification.data && event.notification.data.url) || "/admin";
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clientes) => {
+        for (const c of clientes) {
+          if (c.url.includes(destino) && "focus" in c) return c.focus();
+        }
+        return self.clients.openWindow(destino);
+      }),
+  );
+});

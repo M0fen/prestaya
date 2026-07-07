@@ -14,6 +14,7 @@ import { getMetaMensual } from "@/lib/data/metaOperacion";
 import { hoyUY } from "@/lib/fecha";
 import { UYU, meses, diasSemana } from "@/lib/format";
 import { EditorMeta } from "@/components/admin/EditorMeta";
+import { ActivarAvisos } from "@/components/pwa/ActivarAvisos";
 
 export const dynamic = "force-dynamic";
 
@@ -48,9 +49,13 @@ export default async function CierrePage() {
 
   return (
     <div className="mx-auto flex max-w-[900px] flex-col gap-5">
-      <div className="flex flex-col gap-0.5">
-        <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">Cierre del día</h1>
-        <span className="text-[13px] font-medium text-gris capitalize">{fechaTitulo}</span>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-0.5">
+          <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">Cierre del día</h1>
+          <span className="text-[13px] font-medium text-gris capitalize">{fechaTitulo}</span>
+        </div>
+        {/* Avisos push en este dispositivo (cierre + alertas críticas). */}
+        <ActivarAvisos vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null} />
       </div>
 
       {/* Resumen del día */}
