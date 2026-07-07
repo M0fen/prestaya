@@ -2,11 +2,15 @@
 // crédito activo con cartón real, mora, historial de pagos y de créditos, notas.
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireGestor, esAdmin as esAdminRol } from "@/lib/auth";
+import { requireGestor, esAdmin as esAdminRol, getActorActual } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getFichaCliente } from "@/lib/data/ficha";
 import { getPendientesDePagos } from "@/lib/data/anulaciones";
+import { getCobradorDeCliente } from "@/lib/data/asignaciones";
+import { getEquipoConZona } from "@/lib/data/zonas";
+import { puedeReasignarCliente } from "@/lib/permisos";
 import { AnularPago } from "@/components/admin/AnularPago";
+import { ReasignarCliente, type CobradorOpcion } from "@/components/admin/ReasignarCliente";
 import { getSaldoEstrellas } from "@/lib/data/estrellas";
 import { getAjustesJuego } from "@/lib/data/juegoConfig";
 import { getPrestamoActivoPorCliente } from "@/lib/data/prestamos";
@@ -65,6 +69,22 @@ export default async function FichaClientePage({
   // Anulación de pagos (doble registro): qué pagos ya tienen solicitud pendiente.
   const puedeAnular = esAdminRol(usuario.rol);
   const pendientesAnulacion = await getPendientesDePagos(db, pagos.map((p) => p.id));
+
+  // Reasignación de cobrador (decisión 4). Candidatos según rol: admin = todos;
+  // supervisor = sus cobradores de la MISMA zona que el cobrador actual.
+  const [actor, cobradorActual, equipo] = await Promise.all([
+    getActorActual(),
+    getCobradorDeCliente(db, id),
+    getEquipoConZona(db),
+  ]);
+  const cobradores = equipo.filter((u) => u.rol === "cobrador" && u.activo);
+  const zonaActual = cobradorActual?.zonaId ?? null;
+  const puedeReasignar = actor ? puedeReasignarCliente(actor, zonaActual, zonaActual) : false;
+  const candidatos: CobradorOpcion[] = (
+    actor?.rol === "admin"
+      ? cobradores
+      : cobradores.filter((c) => c.zona_id != null && c.zona_id === zonaActual)
+  ).map((c) => ({ id: c.id, nombre: c.nombre }));
 
   // Saldo de estrellas del cliente (respeta el ciclo definido por el admin).
   const [ajustes, prestamoAct, morosidad, notasMora] = await Promise.all([
@@ -147,6 +167,15 @@ export default async function FichaClientePage({
           ))}
         </div>
       </section>
+
+      {/* Cobrador asignado + reasignación (según rol/zona) */}
+      <ReasignarCliente
+        clienteId={id}
+        actualId={cobradorActual?.cobradorId ?? null}
+        actualNombre={cobradorActual?.cobradorNombre ?? "Sin cobrador asignado"}
+        candidatos={candidatos}
+        puedeReasignar={puedeReasignar}
+      />
 
       {/* Evolución del score en el tiempo (derivada, mensual) */}
       <ScoreEvolucion serie={evolucion} />
