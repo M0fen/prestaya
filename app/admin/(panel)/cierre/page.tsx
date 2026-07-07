@@ -10,8 +10,10 @@ import { getResumenPeriodo } from "@/lib/data/periodo";
 import { getResumenCaja } from "@/lib/data/caja";
 import { getRendicionesDia } from "@/lib/data/rendicion";
 import { getTableroMora } from "@/lib/data/mora";
+import { getMetaMensual } from "@/lib/data/metaOperacion";
 import { hoyUY } from "@/lib/fecha";
 import { UYU, meses, diasSemana } from "@/lib/format";
+import { EditorMeta } from "@/components/admin/EditorMeta";
 
 export const dynamic = "force-dynamic";
 
@@ -19,12 +21,13 @@ export default async function CierrePage() {
   await requireGestor();
   const db = await createSupabaseServer();
 
-  const [dia, mes, caja, rend, mora] = await Promise.all([
+  const [dia, mes, caja, rend, mora, meta] = await Promise.all([
     getResumenPeriodo(db, "dia"),
     getResumenPeriodo(db, "mes"),
     getResumenCaja(db, "hoy"),
     getRendicionesDia(db),
     getTableroMora(db),
+    getMetaMensual(db),
   ]);
 
   const hoy = hoyUY();
@@ -34,6 +37,11 @@ export default async function CierrePage() {
   const diaDelMes = hoy.getDate();
   const diasEnMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
   const proyeccionMes = diaDelMes > 0 ? Math.round((mes.recaudado / diaDelMes) * diasEnMes) : mes.recaudado;
+
+  // Meta mensual (0 = sin fijar): avance real + si la proyección la alcanza.
+  const avancePct = meta > 0 ? Math.round((mes.recaudado / meta) * 100) : null;
+  const proyAlcanzaMeta = meta > 0 && proyeccionMes >= meta;
+  const brechaMeta = proyeccionMes - meta;
 
   const faltantes = rend.rendidas.filter((r) => r.diferencia < 0);
   const totalRecaudadoHoy = dia.recaudado;
@@ -115,9 +123,12 @@ export default async function CierrePage() {
         )}
       </section>
 
-      {/* Proyección del mes */}
+      {/* Proyección del mes + meta */}
       <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-4">
-        <span className="text-[15px] font-extrabold text-tinta">Proyección del mes</span>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-[15px] font-extrabold text-tinta">Proyección del mes</span>
+          <EditorMeta meta={meta} />
+        </div>
         <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
           <Kpi label={`Recaudado (${mes.etiqueta})`} valor={UYU(mes.recaudado)} />
           <Kpi
@@ -128,10 +139,38 @@ export default async function CierrePage() {
           <Kpi label="Ritmo diario" valor={UYU(Math.round(mes.recaudado / Math.max(1, diaDelMes)))} sub="promedio" />
           <Kpi label="Proyección fin de mes" valor={UYU(proyeccionMes)} sub={`día ${diaDelMes}/${diasEnMes}`} fuerte />
         </div>
-        <p className="mt-3 text-[11.5px] font-medium text-[#8A93AD]">
-          Proyección lineal: mantené el ritmo diario del mes hasta fin de mes. Es una estimación,
-          no un compromiso.
-        </p>
+
+        {meta > 0 ? (
+          <div className="mt-4 flex flex-col gap-1.5">
+            <div className="flex items-center justify-between gap-2 text-[12px] font-semibold">
+              <span className="text-gris">
+                Meta del mes: <b className="text-tinta tabular-nums">{UYU(meta)}</b>
+              </span>
+              <span className={proyAlcanzaMeta ? "text-verde" : "text-[#B9770E]"}>
+                {proyAlcanzaMeta
+                  ? `A este ritmo la superás por ${UYU(brechaMeta)} 🎯`
+                  : `A este ritmo te faltarían ${UYU(-brechaMeta)}`}
+              </span>
+            </div>
+            <div className="h-2.5 w-full overflow-hidden rounded-full bg-[#EEF1F8]">
+              <div
+                className="h-full rounded-full"
+                style={{
+                  width: `${Math.min(100, avancePct ?? 0)}%`,
+                  background: proyAlcanzaMeta ? "linear-gradient(90deg,#34E0A1,#1FA971)" : "#E8A317",
+                }}
+              />
+            </div>
+            <span className="text-[11px] font-medium text-gris tabular-nums">
+              Vas al {avancePct}% de la meta ({UYU(mes.recaudado)} de {UYU(meta)}).
+            </span>
+          </div>
+        ) : (
+          <p className="mt-3 text-[11.5px] font-medium text-[#8A93AD]">
+            Fijá una meta mensual para ver tu avance y si vas a llegar. Proyección lineal: mantené el
+            ritmo diario del mes. Es una estimación, no un compromiso.
+          </p>
+        )}
       </section>
     </div>
   );
