@@ -3,6 +3,8 @@
 // además en el servidor (requireAdmin / esAdmin en cada acción).
 import { requireAdmin, etiquetaRol } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { getZonas } from "@/lib/data/zonas";
+import { NuevoUsuario } from "@/components/admin/NuevoUsuario";
 import type { Rol } from "@/types/db";
 
 export const dynamic = "force-dynamic";
@@ -31,12 +33,18 @@ const PERMISOS: { accion: string; admin: Cel; supervisor: Cel; cobrador: Cel }[]
 export default async function EquipoPage() {
   await requireAdmin();
   const db = await createSupabaseServer();
-  const { data } = await db
-    .from("usuarios")
-    .select("id, nombre, rol, activo")
-    .order("rol")
-    .order("nombre");
-  const usuarios = (data ?? []) as { id: string; nombre: string; rol: Rol; activo: boolean }[];
+  const [{ data }, zonas] = await Promise.all([
+    // select("*") para no romper si aún no corrió 0034 (columna es_dev).
+    db.from("usuarios").select("*").order("rol").order("nombre"),
+    getZonas(db),
+  ]);
+  const usuarios = (data ?? []) as {
+    id: string;
+    nombre: string;
+    rol: Rol;
+    activo: boolean;
+    es_dev?: boolean;
+  }[];
 
   return (
     <div className="mx-auto flex max-w-[820px] flex-col gap-5">
@@ -46,6 +54,9 @@ export default async function EquipoPage() {
           Quién es quién y qué puede hacer cada uno. Las acciones sensibles quedan solo para vos (admin).
         </span>
       </div>
+
+      {/* Alta de usuarios */}
+      <NuevoUsuario zonas={zonas} />
 
       {/* Integrantes */}
       <section className="flex flex-col gap-2">
@@ -66,9 +77,13 @@ export default async function EquipoPage() {
                 )}
                 <span
                   className="flex-shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold"
-                  style={{ background: badge.bg, color: badge.fg }}
+                  style={
+                    u.es_dev
+                      ? { background: "#EDE7FB", color: "#6B3FD4" }
+                      : { background: badge.bg, color: badge.fg }
+                  }
                 >
-                  {etiquetaRol[u.rol]}
+                  {u.es_dev ? "Desarrollador" : etiquetaRol[u.rol]}
                 </span>
               </li>
             );

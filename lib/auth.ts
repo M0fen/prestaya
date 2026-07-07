@@ -43,6 +43,16 @@ export async function requireAdmin(): Promise<Usuario> {
   return u;
 }
 
+/** ¿Es desarrollador? (admin con la marca es_dev → herramientas extra). */
+export const esDev = (u: Pick<Usuario, "es_dev">): boolean => !!u.es_dev;
+
+/** Exige desarrollador; si no, vuelve al panel. Para la pantalla /admin/dev. */
+export async function requireDev(): Promise<Usuario> {
+  const u = await requireUsuario();
+  if (!esDev(u)) redirect("/admin");
+  return u;
+}
+
 /**
  * Actor de permisos por ZONA del usuario actual (rol + zonas). Trae las zonas
  * que supervisa (solo relevante para el supervisor). Devuelve null sin sesión.

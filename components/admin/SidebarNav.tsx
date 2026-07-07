@@ -7,9 +7,17 @@ import { usePathname } from "next/navigation";
 import type { Rol } from "@/types/db";
 import { navVisible } from "@/lib/admin/nav";
 
-export function SidebarNav({ rol, noLeidos = 0 }: { rol: Rol; noLeidos?: number }) {
+export function SidebarNav({
+  rol,
+  noLeidos = 0,
+  esDev = false,
+}: {
+  rol: Rol;
+  noLeidos?: number;
+  esDev?: boolean;
+}) {
   const pathname = usePathname();
-  const visibles = navVisible(rol);
+  const visibles = navVisible(rol, esDev);
 
   return (
     <nav className="flex gap-1 overflow-x-auto p-2 md:flex-col md:overflow-visible md:p-3">

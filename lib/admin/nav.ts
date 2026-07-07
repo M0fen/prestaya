@@ -13,6 +13,8 @@ export type NavItem = {
   roles?: Rol[];
   /** Deshabilitado (en el roadmap): se muestra pero no navega. */
   pronto?: boolean;
+  /** Solo visible para desarrolladores (es_dev). */
+  dev?: boolean;
   /** Sinónimos para la búsqueda del command palette. */
   alias?: string[];
 };
@@ -43,9 +45,13 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/admin/equipo", label: "Equipo", icon: "🧑‍🤝‍🧑", roles: ["admin"], alias: ["permisos", "roles", "supervisora", "esposa", "usuarios"] },
   { href: "/admin/tutorial", label: "Cómo se usa", icon: "🎓", alias: ["tutorial", "ayuda", "guia", "manual", "instrucciones", "aprender"] },
   { href: "/admin/seguridad", label: "Seguridad", icon: "🔐", alias: ["2fa", "dos pasos", "mfa", "totp", "contraseña", "verificacion"] },
+  { href: "/admin/dev", label: "Dev", icon: "🛠️", dev: true, alias: ["diagnostico", "salud", "sistema", "debug", "desarrollador", "estado"] },
 ];
 
-/** Ítems visibles para un rol dado. */
-export function navVisible(rol: Rol): NavItem[] {
-  return NAV_ITEMS.filter((i) => !i.roles || i.roles.includes(rol));
+/** Ítems visibles para un rol dado (y si es desarrollador, los ítems dev). */
+export function navVisible(rol: Rol, esDev = false): NavItem[] {
+  return NAV_ITEMS.filter((i) => {
+    if (i.dev) return esDev;
+    return !i.roles || i.roles.includes(rol);
+  });
 }

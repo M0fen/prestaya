@@ -15,6 +15,7 @@ function mapUsuario(r: Record<string, unknown>): Usuario {
     activo: r.activo as boolean,
     auth_user_id: (r.auth_user_id as string | null) ?? null,
     zona_id: (r.zona_id as string | null) ?? null,
+    es_dev: (r.es_dev as boolean | undefined) ?? false,
     creado_en: r.creado_en as string,
     actualizado_en: r.actualizado_en as string,
   };

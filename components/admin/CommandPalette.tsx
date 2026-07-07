@@ -18,7 +18,7 @@ const norm = (s: string) =>
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "");
 
-export function CommandPalette({ rol }: { rol: Rol }) {
+export function CommandPalette({ rol, esDev = false }: { rol: Rol; esDev?: boolean }) {
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
   const [q, setQ] = useState("");
@@ -29,8 +29,8 @@ export function CommandPalette({ rol }: { rol: Rol }) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const secciones = useMemo(
-    () => navVisible(rol).filter((i) => !i.pronto),
-    [rol],
+    () => navVisible(rol, esDev).filter((i) => !i.pronto),
+    [rol, esDev],
   );
 
   // Secciones que matchean el texto (por label o alias).

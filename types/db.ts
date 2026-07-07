@@ -18,6 +18,8 @@ export interface Usuario {
   auth_user_id: string | null;
   /** Zona del cobrador (una sola). null en admin/supervisor y cobradores sin zona. */
   zona_id: string | null;
+  /** Desarrollador: es un admin (poder total) + herramientas extra (ver 0034). */
+  es_dev: boolean;
   creado_en: string;
   actualizado_en: string;
 }

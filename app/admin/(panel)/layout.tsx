@@ -60,7 +60,7 @@ export default async function PanelLayout({
             </span>
           </div>
         </div>
-        <SidebarNav rol={usuario.rol} noLeidos={noLeidos} />
+        <SidebarNav rol={usuario.rol} noLeidos={noLeidos} esDev={usuario.es_dev} />
       </aside>
 
       {/* Contenido */}
@@ -75,7 +75,7 @@ export default async function PanelLayout({
             </span>
           </div>
           <div className="flex items-center gap-3">
-            <CommandPalette rol={usuario.rol} />
+            <CommandPalette rol={usuario.rol} esDev={usuario.es_dev} />
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#EEF3FF] text-[13px] font-extrabold text-azul">
               {iniciales}
             </div>
