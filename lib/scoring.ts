@@ -45,6 +45,30 @@ const UMBRAL_EXCELENTE = 800;
 const UMBRAL_BUENO = 650;
 const UMBRAL_REGULAR = 450;
 
+/** Config del modelo AJUSTABLE por el admin (pesos + umbrales de banda). */
+export interface ConfigScoring {
+  pesos: {
+    cumplimiento: number;
+    moraActual: number;
+    experiencia: number;
+    consistencia: number;
+    antiguedad: number;
+  };
+  umbrales: { excelente: number; bueno: number; regular: number };
+}
+
+/** Config por defecto = el modelo histórico (mismos números de siempre). */
+export const CONFIG_SCORING_DEFAULT: ConfigScoring = {
+  pesos: {
+    cumplimiento: PESOS.cumplimiento,
+    moraActual: PESOS.moraActual,
+    experiencia: PESOS.experiencia,
+    consistencia: PESOS.consistencia,
+    antiguedad: PESOS.antiguedad,
+  },
+  umbrales: { excelente: UMBRAL_EXCELENTE, bueno: UMBRAL_BUENO, regular: UMBRAL_REGULAR },
+};
+
 /** Penalizaciones por castigos graves. */
 const TECHO_SI_INCOBRABLE = 350; // un incobrable fuerza, como mucho, "riesgo"
 const PENAL_POR_CANCELADO = 60; // resta por cada crédito cancelado…
@@ -77,11 +101,10 @@ export interface EntradaScoring {
  * préstamos y pagos. Devuelve puntaje, banda, desglose explicable y una
  * recomendación de renovación con monto sugerido.
  */
-export function calcularScore({
-  prestamos,
-  pagosPorPrestamo,
-  hoy = new Date(),
-}: EntradaScoring): ResultadoScore {
+export function calcularScore(
+  { prestamos, pagosPorPrestamo, hoy = new Date() }: EntradaScoring,
+  config: ConfigScoring = CONFIG_SCORING_DEFAULT,
+): ResultadoScore {
   // Acumuladores sobre todo el historial.
   let sumExigible = 0; // $ que debió pagar a la fecha (sin contar futuros)
   let sumPagadoExigible = 0; // $ de lo exigible efectivamente cubierto
@@ -136,11 +159,11 @@ export function calcularScore({
 
   // ── Puntaje base (0..1000) ───────────────────────────────────────────────
   const aporte = {
-    cumplimiento: PESOS.cumplimiento * cumplimiento * 1000,
-    moraActual: PESOS.moraActual * moraActual * 1000,
-    experiencia: PESOS.experiencia * experiencia * 1000,
-    consistencia: PESOS.consistencia * consistencia * 1000,
-    antiguedad: PESOS.antiguedad * antiguedad * 1000,
+    cumplimiento: config.pesos.cumplimiento * cumplimiento * 1000,
+    moraActual: config.pesos.moraActual * moraActual * 1000,
+    experiencia: config.pesos.experiencia * experiencia * 1000,
+    consistencia: config.pesos.consistencia * consistencia * 1000,
+    antiguedad: config.pesos.antiguedad * antiguedad * 1000,
   };
   let puntaje =
     aporte.cumplimiento +
@@ -159,11 +182,11 @@ export function calcularScore({
   const datosSuficientes = sumDiasExigibles >= MIN_DIAS_EXIGIBLES;
   const banda: BandaScore = !datosSuficientes
     ? "nuevo"
-    : puntaje >= UMBRAL_EXCELENTE
+    : puntaje >= config.umbrales.excelente
       ? "excelente"
-      : puntaje >= UMBRAL_BUENO
+      : puntaje >= config.umbrales.bueno
         ? "bueno"
-        : puntaje >= UMBRAL_REGULAR
+        : puntaje >= config.umbrales.regular
           ? "regular"
           : "riesgo";
 
@@ -271,7 +294,7 @@ export interface PuntoEvolucion {
  */
 export function evolucionScore(
   { prestamos, pagosPorPrestamo, hoy = new Date() }: EntradaScoring,
-  opts?: { puntos?: number },
+  opts?: { puntos?: number; config?: ConfigScoring },
 ): PuntoEvolucion[] {
   if (prestamos.length === 0) return [];
   const maxPuntos = opts?.puntos ?? 12;
@@ -303,7 +326,10 @@ export function evolucionScore(
         (pago) => Date.parse(pago.registrado_en) <= corte,
       );
     }
-    const r = calcularScore({ prestamos: prestamosHasta, pagosPorPrestamo: pagosHasta, hoy: c });
+    const r = calcularScore(
+      { prestamos: prestamosHasta, pagosPorPrestamo: pagosHasta, hoy: c },
+      opts?.config ?? CONFIG_SCORING_DEFAULT,
+    );
     return { fecha: toIso(c), puntaje: r.puntaje, banda: r.banda };
   });
 }

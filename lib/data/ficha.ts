@@ -11,6 +11,7 @@ import type { ResultadoScore } from "@/types/scoring";
 import type { NotaClienteVista } from "./notas";
 import { getClientePorId } from "./clientes";
 import { getHistorialCrediticio } from "./scoring";
+import { getConfigScoring } from "./scoringConfig";
 import { getNotasCliente } from "./notas";
 import { calcularEstadosCarton } from "@/lib/cartones";
 import { calcularScore, evolucionScore, type PuntoEvolucion } from "@/lib/scoring";
@@ -62,9 +63,12 @@ export async function getFichaCliente(
   if (!cliente) return null;
 
   const hoyCal = hoyUY(hoy);
-  const historial = await getHistorialCrediticio(db, id);
-  const score = calcularScore({ ...historial, hoy: hoyCal });
-  const evolucion = evolucionScore({ ...historial, hoy: hoyCal });
+  const [historial, configScoring] = await Promise.all([
+    getHistorialCrediticio(db, id),
+    getConfigScoring(db),
+  ]);
+  const score = calcularScore({ ...historial, hoy: hoyCal }, configScoring);
+  const evolucion = evolucionScore({ ...historial, hoy: hoyCal }, { config: configScoring });
 
   // Crédito activo + cartón.
   const prestamoActivo = historial.prestamos.find((p) => p.estado === "activo") ?? null;
