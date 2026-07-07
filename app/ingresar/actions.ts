@@ -2,9 +2,11 @@
 // Login compartido del equipo (gestores y cobradores). Inicia sesión y redirige
 // según el rol: gestores al panel, cobradores a su app. No revela qué falló.
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getUsuarioPorAuthId } from "@/lib/data/usuarios";
 import { rutaHome } from "@/lib/auth";
+import { permitir, ipDesdeHeaders } from "@/lib/seguridad/rateLimit";
 
 export type EstadoLogin = { error: string | null };
 
@@ -15,6 +17,12 @@ export async function iniciarSesion(
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   if (!email || !password) return { error: "Completá correo y contraseña." };
+
+  // Anti-fuerza bruta: máx. 5 intentos por minuto por IP.
+  const ip = ipDesdeHeaders(await headers());
+  if (!(await permitir("login", ip))) {
+    return { error: "Demasiados intentos. Esperá un minuto y probá de nuevo." };
+  }
 
   const db = await createSupabaseServer();
   const { data, error } = await db.auth.signInWithPassword({ email, password });

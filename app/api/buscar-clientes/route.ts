@@ -8,6 +8,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { getUsuarioActual, esGestor } from "@/lib/auth";
 import { buscarClientesAdmin } from "@/lib/data/clientes";
 import { busquedaQuery } from "@/lib/validacion/esquemas";
+import { permitir } from "@/lib/seguridad/rateLimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,6 +17,11 @@ export async function GET(req: Request) {
   const usuario = await getUsuarioActual();
   if (!usuario || !usuario.activo || !esGestor(usuario.rol)) {
     return NextResponse.json({ ok: false, clientes: [] }, { status: 403 });
+  }
+
+  // Rate limit por usuario (anti-saturación).
+  if (!(await permitir("buscar", usuario.id))) {
+    return NextResponse.json({ ok: false, clientes: [], error: "Demasiadas búsquedas." }, { status: 429 });
   }
 
   // Validación del término: 2..80 chars. Malformado → sin resultados (no 500).

@@ -11,6 +11,7 @@ import { getEquipoConZona } from "@/lib/data/zonas";
 import { puedeReasignarCliente } from "@/lib/permisos";
 import { AnularPago } from "@/components/admin/AnularPago";
 import { ReasignarCliente, type CobradorOpcion } from "@/components/admin/ReasignarCliente";
+import { RotarToken } from "@/components/admin/RotarToken";
 import { getSaldoEstrellas } from "@/lib/data/estrellas";
 import { getAjustesJuego } from "@/lib/data/juegoConfig";
 import { getPrestamoActivoPorCliente } from "@/lib/data/prestamos";
@@ -176,6 +177,9 @@ export default async function FichaClientePage({
         candidatos={candidatos}
         puedeReasignar={puedeReasignar}
       />
+
+      {/* Link de acceso del cliente + regenerar (solo admin) */}
+      {puedeAnular && <RotarToken clienteId={id} token={cliente.token_acceso} />}
 
       {/* Evolución del score en el tiempo (derivada, mensual) */}
       <ScoreEvolucion serie={evolucion} />

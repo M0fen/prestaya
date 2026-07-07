@@ -15,6 +15,7 @@ import { getTableroMora } from "@/lib/data/mora";
 import { getComisionesPeriodo } from "@/lib/data/comisiones";
 import { normalizarPeriodo } from "@/lib/data/periodo";
 import { reporteTipo as reporteTipoSchema } from "@/lib/validacion/esquemas";
+import { permitir } from "@/lib/seguridad/rateLimit";
 import type { NivelRiesgo } from "@/types/alerta";
 
 export const dynamic = "force-dynamic";
@@ -69,6 +70,11 @@ export async function GET(
   const usuario = await getUsuarioActual();
   if (!usuario || !esGestor(usuario.rol)) {
     return new Response("No autorizado", { status: 403 });
+  }
+
+  // Rate limit por usuario (los reportes son consultas pesadas).
+  if (!(await permitir("reportes", usuario.id))) {
+    return new Response("Demasiadas descargas. Probá en un minuto.", { status: 429 });
   }
 
   const { tipo } = await ctx.params;

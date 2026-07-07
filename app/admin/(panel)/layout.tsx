@@ -1,10 +1,12 @@
 // Layout protegido del panel. Exige usuario interno activo (si no, al login),
 // arma la navegación según el rol y la barra superior con el usuario + salir.
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireUsuario, etiquetaRol, esGestor } from "@/lib/auth";
+import { requireUsuario, etiquetaRol, esGestor, esAdmin } from "@/lib/auth";
 import { SidebarNav } from "@/components/admin/SidebarNav";
 import { cerrarSesion } from "@/lib/auth-actions";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { estadoMfa } from "@/lib/seguridad/mfa";
 import { getTotalNoLeidos } from "@/lib/data/chat";
 import { AsesorFlotante } from "@/components/asesor/AsesorFlotante";
 import { CommandPalette } from "@/components/admin/CommandPalette";
@@ -24,6 +26,15 @@ export default async function PanelLayout({
   // por URL directa vuelve a su app (defensa en profundidad con el RLS).
   if (!esGestor(usuario.rol)) redirect("/cobrador");
   const db = await createSupabaseServer();
+
+  // 2FA "sticky": si el usuario YA activó 2FA pero la sesión sigue en aal1,
+  // exigimos el código antes de entrar. (Fail-open: si el subsistema MFA falla,
+  // estadoMfa devuelve false y no bloquea a nadie.)
+  const mfa = await estadoMfa(db);
+  if (mfa.stepUpPendiente) redirect("/mfa");
+  // Aviso (no bloqueante) para el admin que todavía no activó 2FA.
+  const falta2fa = esAdmin(usuario.rol) && !mfa.tieneFactor;
+
   const noLeidos = await getTotalNoLeidos(db, usuario);
   const iniciales = usuario.nombre
     .split(" ")
@@ -79,6 +90,14 @@ export default async function PanelLayout({
           </div>
         </header>
 
+        {falta2fa && (
+          <Link
+            href="/admin/seguridad"
+            className="print:hidden flex items-center gap-2 border-b border-[#F0E2A8] bg-[#FFF8E6] px-5 py-2.5 text-[12.5px] font-bold text-[#8A6D1E] hover:bg-[#FFF3D6]"
+          >
+            🔐 Activá la verificación en dos pasos para blindar tu cuenta de administrador →
+          </Link>
+        )}
         <main className="flex-1 p-5 md:p-7 print:p-0">{children}</main>
       </div>
 

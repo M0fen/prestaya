@@ -157,3 +157,16 @@ export async function getClientePorId(
   if (error) throw error;
   return data ? mapCliente(data) : null;
 }
+
+/**
+ * Rota el token de acceso de un cliente (Fase 6). El link anterior deja de
+ * funcionar al instante: getClientePorToken con el token viejo devolverá null.
+ */
+export async function setTokenCliente(
+  db: SupabaseClient,
+  clienteId: string,
+  token: string,
+): Promise<void> {
+  const { error } = await db.from("clientes").update({ token_acceso: token }).eq("id", clienteId);
+  if (error) throw error;
+}

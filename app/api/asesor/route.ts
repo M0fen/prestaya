@@ -10,6 +10,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getUsuarioActual, esGestor } from "@/lib/auth";
+import { permitir } from "@/lib/seguridad/rateLimit";
 import {
   getResumenFinanciero,
   resumenComoTexto,
@@ -148,6 +149,10 @@ export async function POST(req: Request): Promise<Response> {
   const usuario = await getUsuarioActual();
   if (!usuario || !usuario.activo || !esGestor(usuario.rol)) {
     return new Response("No autorizado.", { status: 401 });
+  }
+  // Rate limit por usuario: cada consulta al asesor cuesta dinero (DeepSeek).
+  if (!(await permitir("asesor", usuario.id))) {
+    return new Response("Estás yendo muy rápido. Esperá un momento y volvé a preguntar.", { status: 429 });
   }
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) {
