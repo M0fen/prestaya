@@ -25,6 +25,11 @@ export function distanciaMetros(a: Punto, b: Punto): number {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
+/** ¿Es una coordenada válida? OJO: 0 es válido (ecuador/Greenwich). No usar
+ *  `!coord`, porque `!0 === true` descartaría el 0 como si faltara el dato. */
+const esCoord = (v: number | null | undefined): v is number =>
+  v != null && Number.isFinite(v);
+
 /**
  * Evalúa la geo-cerca. Devuelve null si falta algún dato (no se puede evaluar).
  */
@@ -33,7 +38,9 @@ export function evaluarZona(
   casa: { lat: number | null; lng: number | null } | null,
   radio = RADIO_ZONA_M,
 ): { enZona: boolean; metros: number } | null {
-  if (!cobro?.lat || !cobro?.lng || !casa?.lat || !casa?.lng) return null;
+  if (!cobro || !casa) return null;
+  if (!esCoord(cobro.lat) || !esCoord(cobro.lng) || !esCoord(casa.lat) || !esCoord(casa.lng))
+    return null;
   const metros = distanciaMetros(
     { lat: cobro.lat, lng: cobro.lng },
     { lat: casa.lat, lng: casa.lng },
