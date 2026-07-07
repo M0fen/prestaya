@@ -18,6 +18,7 @@ import {
   puedeAnularPagoDirecto,
   puedeSolicitarAnulacion,
   puedeConfirmarAnulacion,
+  puedeVerZona,
 } from "@/lib/permisos";
 import {
   getZonaDePago,
@@ -142,6 +143,15 @@ export async function confirmarAnulacionAction(input: { solicitudId: string }): 
   if (!puedeConfirmarAnulacion(ctx.actor, sol.solicitadoPor ?? ""))
     return { ok: false, error: "La anulación la confirma otra persona, no quien la pidió." };
 
+  // Aislamiento de zona: además de ser otra persona, quien confirma debe tener
+  // autoridad sobre la zona del pago (admin o supervisor de esa zona). Evita que
+  // un supervisor confirme anulaciones de dinero de otra zona.
+  const zonaPago = await getZonaDePago(db, sol.pagoId);
+  const confirmadorAutorizado =
+    ctx.actor.rol === "admin" || (ctx.actor.rol === "supervisor" && puedeVerZona(ctx.actor, zonaPago));
+  if (!confirmadorAutorizado)
+    return { ok: false, error: "Solo el admin o un supervisor de esa zona puede confirmar." };
+
   const resumen = await getPagoResumen(db, sol.pagoId);
   if (!resumen) return { ok: false, error: "No se encontró el pago." };
   if (resumen.anulado) {
@@ -191,6 +201,16 @@ export async function rechazarAnulacionAction(input: {
   const sol = await getSolicitud(db, input.solicitudId);
   if (!sol) return { ok: false, error: "No se encontró la solicitud." };
   if (sol.estado !== "pendiente") return { ok: false, error: "Esa solicitud ya fue resuelta." };
+
+  // Puede rechazar: el admin, quien la pidió (cancela la suya) o un supervisor
+  // de la zona del pago. No un supervisor ajeno a esa zona.
+  const zonaPago = await getZonaDePago(db, sol.pagoId);
+  const puedeRechazar =
+    ctx.actor.rol === "admin" ||
+    sol.solicitadoPor === ctx.u.id ||
+    (ctx.actor.rol === "supervisor" && puedeVerZona(ctx.actor, zonaPago));
+  if (!puedeRechazar)
+    return { ok: false, error: "Solo el admin, quien la pidió o un supervisor de esa zona puede rechazar." };
 
   await db.from("solicitudes_anulacion").update({
     estado: "rechazada",

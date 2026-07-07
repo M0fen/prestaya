@@ -41,6 +41,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/admin/anuncios", label: "Anuncios", icon: "📣", roles: ["admin", "supervisor"], alias: ["publicidad", "campanas", "banner", "temporada"] },
   { href: "/admin/zonas", label: "Zonas", icon: "🗺️", roles: ["admin"], alias: ["territorio", "barrio", "ruta", "sector", "cobradores", "supervisor"] },
   { href: "/admin/equipo", label: "Equipo", icon: "🧑‍🤝‍🧑", roles: ["admin"], alias: ["permisos", "roles", "supervisora", "esposa", "usuarios"] },
+  { href: "/admin/tutorial", label: "Cómo se usa", icon: "🎓", alias: ["tutorial", "ayuda", "guia", "manual", "instrucciones", "aprender"] },
 ];
 
 /** Ítems visibles para un rol dado. */

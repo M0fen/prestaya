@@ -21,7 +21,10 @@ const PERMISOS: { accion: string; admin: Cel; supervisor: Cel; cobrador: Cel }[]
   { accion: "Configurar juego, anuncios y promos", admin: "si", supervisor: "si", cobrador: "no" },
   { accion: "Editar la política de mora", admin: "si", supervisor: "no", cobrador: "no" },
   { accion: "Fijar y liquidar comisiones", admin: "si", supervisor: "no", cobrador: "no" },
-  { accion: "Anular pagos (cuando se habilite)", admin: "si", supervisor: "no", cobrador: "no" },
+  { accion: "Gestionar zonas (crear, mover cobradores)", admin: "si", supervisor: "no", cobrador: "no" },
+  { accion: "Anular un pago directo", admin: "si", supervisor: "no", cobrador: "no" },
+  { accion: "Solicitar / confirmar anulación (doble registro)", admin: "si", supervisor: "si", cobrador: "no" },
+  { accion: "Reasignar cliente entre cobradores (misma zona)", admin: "si", supervisor: "si", cobrador: "no" },
   { accion: "Registrar cobros y visitas en ruta", admin: "no", supervisor: "no", cobrador: "campo" },
 ];
 
@@ -99,9 +102,11 @@ export default async function EquipoPage() {
           </table>
         </div>
         <p className="text-[11px] leading-[1.6] font-medium text-[#8A93AD]">
-          El supervisor (tu esposa) ve toda la operación pero no puede tocar mora, comisiones ni
-          anular pagos: eso queda protegido en el servidor, no solo escondido en la pantalla. Para
-          cambiar roles o dar de alta a alguien, avisame y lo hacemos.
+          El supervisor ve su(s) zona(s) y no puede tocar mora, comisiones ni anular pagos directo:
+          eso queda protegido en el servidor (RLS), no solo escondido en la pantalla. Sí puede
+          <b> solicitar</b> una anulación, que confirma una segunda persona (doble registro). Un
+          supervisor sin zonas asignadas ve todo hasta que le pongas la primera. Para cambiar roles o
+          dar de alta a alguien, avisame y lo hacemos.
         </p>
       </section>
     </div>

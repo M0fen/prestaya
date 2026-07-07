@@ -55,6 +55,13 @@ export default async function CobradorLayout({
             >
               📝
             </Link>
+            <Link
+              href="/cobrador/tutorial"
+              aria-label="Cómo se usa"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 text-[15px] hover:bg-white/10"
+            >
+              🎓
+            </Link>
             <form action={cerrarSesion}>
               <button
                 type="submit"

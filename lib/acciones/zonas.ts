@@ -49,7 +49,10 @@ export async function crearZonaAction(input: {
     });
     revalidatePath("/admin/zonas");
     return { ok: true };
-  } catch {
+  } catch (e) {
+    // 23505 = violación de índice único (ya existe una zona activa con ese nombre).
+    if ((e as { code?: string })?.code === "23505")
+      return { ok: false, error: "Ya existe una zona activa con ese nombre." };
     return { ok: false, error: SIN_MIGRACION };
   }
 }
