@@ -32,6 +32,15 @@
 
 ## 🟠 IMPORTANTE — para activar features ya construidas
 
+- [ ] **Correr migración `0034`** (rol Desarrollador) en el SQL Editor. Después:
+  ```bash
+  node --env-file=.env.local scripts/marcar-dev.mjs carlos@prestaya.uy
+  ```
+  (activa tu rol desarrollador sin cambiarte la contraseña).
+
+- [ ] **Cambiar las contraseñas temporales** del equipo (Mauricio / Carolina /
+  Carlos) al primer ingreso — te las pasé por chat, son provisorias.
+
 - [ ] **Notificaciones push (PWA)** — hoy NO están activas (faltan claves):
   1. Generar VAPID: `node scripts/gen-vapid.mjs`
   2. Cargar en **Vercel** (Production + Preview): `NEXT_PUBLIC_VAPID_PUBLIC_KEY`,
