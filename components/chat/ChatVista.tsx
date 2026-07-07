@@ -4,11 +4,25 @@
 // solo aparece para el admin.
 import Link from "next/link";
 import type { Canal, MensajeVista } from "@/lib/data/chat";
+import type { AmbitoMensaje } from "@/types/db";
 import { Composer } from "./Composer";
 import { MarcarLeido } from "./MarcarLeido";
 import { RealtimeChat } from "./RealtimeChat";
 import { ListaMensajes } from "./ListaMensajes";
 import { VaciarChat } from "./VaciarChat";
+
+const ICONO_CANAL: Record<AmbitoMensaje, string> = {
+  general: "👥",
+  supervisores: "🎖️",
+  zona: "🗺️",
+  cobrador: "💬",
+};
+const SUBTITULO_CANAL: Record<AmbitoMensaje, string> = {
+  general: "Canal del equipo",
+  supervisores: "Solo admin y supervisores",
+  zona: "Admin, supervisor y cobradores de la zona",
+  cobrador: "Hilo privado con la oficina",
+};
 
 export function ChatVista({
   basePath,
@@ -60,12 +74,12 @@ export function ChatVista({
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-2">
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#EEF3FF] text-[15px]">
-              {activo.ambito === "general" ? "👥" : "💬"}
+              {ICONO_CANAL[activo.ambito]}
             </span>
             <div className="flex flex-col leading-tight">
               <span className="text-[13.5px] font-extrabold text-tinta">{activo.titulo}</span>
               <span className="text-[11px] font-medium text-[#8A93AD]">
-                {activo.ambito === "general" ? "Canal del equipo" : "Hilo privado con la oficina"}
+                {SUBTITULO_CANAL[activo.ambito]}
               </span>
             </div>
           </div>
@@ -78,7 +92,9 @@ export function ChatVista({
 
       <Composer canal={activo?.key ?? "general"} />
       {activo && <MarcarLeido canal={activo.key} hayNoLeidos={hayNoLeidos} />}
-      {activo && <RealtimeChat ambito={activo.ambito} cobradorId={activo.cobradorId} />}
+      {activo && (
+        <RealtimeChat ambito={activo.ambito} cobradorId={activo.cobradorId} zonaId={activo.zonaId} />
+      )}
     </div>
   );
 }

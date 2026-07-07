@@ -14,9 +14,11 @@ const VENTANA_MS = 700; // máx. una recarga por esta ventana
 export function RealtimeChat({
   ambito,
   cobradorId,
+  zonaId = null,
 }: {
   ambito: AmbitoMensaje;
   cobradorId: string | null;
+  zonaId?: string | null;
 }) {
   const router = useRouter();
   const ultimoRefresh = useRef(0);
@@ -44,10 +46,14 @@ export function RealtimeChat({
     const filter =
       ambito === "cobrador" && cobradorId
         ? `cobrador_id=eq.${cobradorId}`
-        : "ambito=eq.general";
+        : ambito === "zona" && zonaId
+          ? `zona_id=eq.${zonaId}`
+          : ambito === "supervisores"
+            ? "ambito=eq.supervisores"
+            : "ambito=eq.general";
 
     const canal = supabase
-      .channel(`mensajes-${ambito}-${cobradorId ?? "gen"}`)
+      .channel(`mensajes-${ambito}-${cobradorId ?? zonaId ?? "gen"}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "mensajes", filter },
@@ -62,7 +68,7 @@ export function RealtimeChat({
       if (timer.current) clearTimeout(timer.current);
       void supabase.removeChannel(canal);
     };
-  }, [ambito, cobradorId, router]);
+  }, [ambito, cobradorId, zonaId, router]);
 
   return null;
 }

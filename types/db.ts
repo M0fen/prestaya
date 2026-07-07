@@ -190,14 +190,22 @@ export interface Reporte {
 
 // ── Chat interno y notas (comunicación de la operación, ver 0007) ─────────
 
-/** Ámbito de un mensaje: hilo general del equipo o hilo de un cobrador. */
-export type AmbitoMensaje = "general" | "cobrador";
+/**
+ * Ámbito de un mensaje / tipo de canal:
+ *  · 'general'      → hilo único del equipo (todos los internos).
+ *  · 'cobrador'     → hilo privado gestor ↔ un cobrador (cobrador_id).
+ *  · 'supervisores' → canal de mandos (admin + supervisores).
+ *  · 'zona'         → canal de una zona (admin + su supervisor + sus cobradores).
+ */
+export type AmbitoMensaje = "general" | "cobrador" | "supervisores" | "zona";
 
 export interface Mensaje {
   id: string;
   ambito: AmbitoMensaje;
-  /** Cobrador dueño del hilo (null en el general). */
+  /** Cobrador dueño del hilo (solo ambito 'cobrador'). */
   cobrador_id: string | null;
+  /** Zona del canal (solo ambito 'zona'). */
+  zona_id: string | null;
   autor_id: string;
   cuerpo: string;
   creado_en: string;

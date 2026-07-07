@@ -19,7 +19,7 @@ export default async function ChatAdminPage({
   const canales = await getCanales(db, usuario);
   const activo = canales.find((x) => x.key === c) ?? canales[0];
   const mensajes = activo
-    ? await getMensajesVista(db, activo.ambito, activo.cobradorId, usuario.id)
+    ? await getMensajesVista(db, activo.ambito, activo.cobradorId, activo.zonaId, usuario.id)
     : [];
 
   return (

@@ -10,6 +10,7 @@ import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getUsuarioActual, esGestor } from "@/lib/auth";
 import {
   CANAL_GENERAL,
+  CANAL_SUPERVISORES,
   enviarMensajeDb,
   marcarLeidoDb,
   canalCobrador,
@@ -20,12 +21,19 @@ import type { AmbitoMensaje } from "@/types/db";
 
 type Resultado = { ok: true } | { ok: false; error: string };
 
-/** Traduce una clave de canal ('general' | 'cob:<id>') a ámbito + cobradorId. */
-function parseCanal(key: string): { ambito: AmbitoMensaje; cobradorId: string | null } | null {
-  if (key === CANAL_GENERAL) return { ambito: "general", cobradorId: null };
+type CanalParseado = { ambito: AmbitoMensaje; cobradorId: string | null; zonaId: string | null };
+
+/** Traduce una clave de canal a ámbito + columnas (cobrador/zona). */
+function parseCanal(key: string): CanalParseado | null {
+  if (key === CANAL_GENERAL) return { ambito: "general", cobradorId: null, zonaId: null };
+  if (key === CANAL_SUPERVISORES) return { ambito: "supervisores", cobradorId: null, zonaId: null };
   if (key.startsWith("cob:")) {
     const id = key.slice(4);
-    return id ? { ambito: "cobrador", cobradorId: id } : null;
+    return id ? { ambito: "cobrador", cobradorId: id, zonaId: null } : null;
+  }
+  if (key.startsWith("zona:")) {
+    const id = key.slice(5);
+    return id ? { ambito: "zona", cobradorId: null, zonaId: id } : null;
   }
   return null;
 }
@@ -54,6 +62,7 @@ export async function enviarMensaje(input: {
     await enviarMensajeDb(db, {
       ambito: canal.ambito,
       cobradorId,
+      zonaId: canal.zonaId,
       autorId: usuario.id,
       cuerpo,
     });
@@ -76,7 +85,7 @@ export async function vaciarCanal(canal: string): Promise<Resultado> {
 
   try {
     const db = createSupabaseAdmin();
-    await borrarMensajesCanal(db, parsed.ambito, parsed.cobradorId);
+    await borrarMensajesCanal(db, parsed.ambito, parsed.cobradorId, parsed.zonaId);
     await registrarAuditoria(db, {
       actorId: usuario.id,
       actorNombre: usuario.nombre,
