@@ -35,6 +35,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/admin/caja", label: "Caja", icon: "💵", roles: ["admin", "supervisor"], alias: ["arqueo", "rendiciones", "movimientos"] },
   { href: "/admin/comisiones", label: "Comisiones", icon: "📊", roles: ["admin", "supervisor"], alias: ["liquidacion", "cobradores"] },
   { href: "/admin/campo", label: "Control de campo", icon: "🛰️", roles: ["admin", "supervisor"], alias: ["cobradores", "gps", "bitacora", "sospecha", "planchado", "malas mañas"] },
+  { href: "/admin/anulaciones", label: "Anulaciones", icon: "🚫", roles: ["admin", "supervisor"], alias: ["anular", "anulacion", "doble registro", "reversar", "pago"] },
   { href: "/admin/auditoria", label: "Auditoría", icon: "🧾", roles: ["admin", "supervisor"], alias: ["log", "registro", "acciones"] },
   { href: "/admin/reportes", label: "Reportes", icon: "📨", roles: ["admin", "supervisor"], alias: ["exportar", "csv", "excel", "descargar", "estado de cuenta", "pdf", "respaldo", "backup"] },
   { href: "/admin/anuncios", label: "Anuncios", icon: "📣", roles: ["admin", "supervisor"], alias: ["publicidad", "campanas", "banner", "temporada"] },

@@ -18,6 +18,7 @@ import { calcularScore, evolucionScore, type PuntoEvolucion } from "@/lib/scorin
 import { hoyUY } from "@/lib/fecha";
 
 export interface PagoFicha {
+  id: string;
   fecha: string;
   monto: number;
   dia: number;
@@ -110,6 +111,7 @@ export async function getFichaCliente(
     for (const u of data ?? []) nombres.set(u.id as string, u.nombre as string);
   }
   const pagos: PagoFicha[] = planos.slice(0, 100).map((p) => ({
+    id: p.id,
     fecha: p.registrado_en,
     monto: p.monto,
     dia: p.dia_credito,

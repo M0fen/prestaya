@@ -2,9 +2,11 @@
 // crédito activo con cartón real, mora, historial de pagos y de créditos, notas.
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireGestor } from "@/lib/auth";
+import { requireGestor, esAdmin as esAdminRol } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getFichaCliente } from "@/lib/data/ficha";
+import { getPendientesDePagos } from "@/lib/data/anulaciones";
+import { AnularPago } from "@/components/admin/AnularPago";
 import { getSaldoEstrellas } from "@/lib/data/estrellas";
 import { getAjustesJuego } from "@/lib/data/juegoConfig";
 import { getPrestamoActivoPorCliente } from "@/lib/data/prestamos";
@@ -59,6 +61,10 @@ export default async function FichaClientePage({
   const { cliente, score, evolucionScore: evolucion, activo, creditos, pagos, notas } = ficha;
   const banda = BANDA[cliente.calificacion] ?? BANDA.nuevo;
   const bandaScore = BANDA[score.banda as Calificacion] ?? BANDA.nuevo;
+
+  // Anulación de pagos (doble registro): qué pagos ya tienen solicitud pendiente.
+  const puedeAnular = esAdminRol(usuario.rol);
+  const pendientesAnulacion = await getPendientesDePagos(db, pagos.map((p) => p.id));
 
   // Saldo de estrellas del cliente (respeta el ciclo definido por el admin).
   const [ajustes, prestamoAct, morosidad, notasMora] = await Promise.all([
@@ -233,9 +239,9 @@ export default async function FichaClientePage({
           <p className="mt-2 text-[13px] font-medium text-gris">Todavía no hay pagos registrados.</p>
         ) : (
           <ul className="mt-2 flex flex-col divide-y divide-[#EEF1F8]">
-            {pagos.map((p, i) => (
-              <li key={i} className="flex items-center justify-between py-2">
-                <div className="flex flex-col">
+            {pagos.map((p) => (
+              <li key={p.id} className="flex items-center justify-between gap-3 py-2">
+                <div className="flex min-w-0 flex-col">
                   <span className="text-[13.5px] font-semibold text-tinta">
                     {fechaCorta(p.fecha)} · {horaDe(p.fecha)}
                   </span>
@@ -244,9 +250,16 @@ export default async function FichaClientePage({
                     {p.registradoPor ? ` · ${p.registradoPor}` : ""}
                   </span>
                 </div>
-                <span className="text-[14px] font-extrabold text-tinta tabular-nums">
-                  {UYU(p.monto)}
-                </span>
+                <div className="flex flex-shrink-0 items-center gap-3">
+                  <span className="text-[14px] font-extrabold text-tinta tabular-nums">
+                    {UYU(p.monto)}
+                  </span>
+                  <AnularPago
+                    pagoId={p.id}
+                    esAdmin={puedeAnular}
+                    pendiente={pendientesAnulacion.has(p.id)}
+                  />
+                </div>
               </li>
             ))}
           </ul>
