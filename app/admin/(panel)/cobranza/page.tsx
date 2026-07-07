@@ -3,7 +3,7 @@
 import { requireGestor } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getControlCobranza, type Severidad } from "@/lib/data/control";
-import { MapaCobros } from "@/components/admin/MapaCobros";
+import { MapaCobranza } from "@/components/admin/MapaCobranza";
 import { UYU } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -71,7 +71,7 @@ export default async function CobranzaPage() {
         {/* Mapa geográfico de cobros */}
         <section className="flex flex-col gap-2.5 rounded-[16px] border border-[#E6EAF4] bg-white p-5">
           <h2 className="text-[15px] font-extrabold text-tinta">Mapa de cobros de hoy</h2>
-          <MapaCobros puntos={mapaCobros} />
+          <MapaCobranza puntos={mapaCobros} />
         </section>
 
         {/* Ranking */}

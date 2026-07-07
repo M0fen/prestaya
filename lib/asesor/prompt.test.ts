@@ -1,6 +1,6 @@
 // Test del prompt del asesor + el volcado del resumen a texto. Puro (sin red).
 import { describe, it, expect } from "vitest";
-import { construirSystemPrompt } from "./prompt";
+import { construirSystemPrompt, herramientasPara } from "./prompt";
 import { resumenComoTexto, type ResumenFinanciero } from "@/lib/data/asesor";
 
 const RESUMEN: ResumenFinanciero = {
@@ -62,5 +62,24 @@ describe("construirSystemPrompt", () => {
     expect(sp).toContain("$500.000");
     // Reglas clave presentes.
     expect(sp.toLowerCase()).toContain("no inventes");
+  });
+
+  it("adapta el prompt según el rol de quien consulta", () => {
+    expect(construirSystemPrompt("x", "admin")).toContain("DUEÑO");
+    expect(construirSystemPrompt("x", "supervisor")).toContain("SUPERVISOR");
+  });
+});
+
+describe("herramientasPara (filtrado de contexto por rol)", () => {
+  it("el admin ve todas; el supervisor no ve proyeccion_caja", () => {
+    const admin = herramientasPara("admin").map((h) => h.function.name);
+    const sup = herramientasPara("supervisor").map((h) => h.function.name);
+    expect(admin).toContain("proyeccion_caja");
+    expect(sup).not.toContain("proyeccion_caja");
+    expect(sup).toHaveLength(admin.length - 1);
+    // La operación del día SÍ la ve el supervisor.
+    expect(sup).toContain("tablero_mora");
+    expect(sup).toContain("ranking_cobradores");
+    expect(sup).toContain("buscar_cliente");
   });
 });

@@ -27,9 +27,11 @@ import {
   TEMPERATURA_ASESOR,
   MAX_TOKENS_ASESOR,
   MAX_TOKENS_PROFUNDO,
-  HERRAMIENTAS,
+  herramientasPara,
+  esHerramientaPermitida,
 } from "@/lib/asesor/prompt";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Rol } from "@/types/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -121,7 +123,12 @@ async function ejecutarHerramienta(
   db: SupabaseClient,
   name: string,
   argsJson: string,
+  rol: Rol,
 ): Promise<string> {
+  // Defensa en profundidad: aunque al rol no se le ofrezca la herramienta,
+  // rechazamos por las dudas si igual la pidiera.
+  if (!esHerramientaPermitida(rol, name))
+    return "Esa información la maneja el administrador; no está disponible para tu rol.";
   let args: { nombre?: string; dias?: number } = {};
   try {
     args = JSON.parse(argsJson || "{}");
@@ -176,7 +183,7 @@ export async function POST(req: Request): Promise<Response> {
   let systemPrompt: string;
   try {
     const resumen = await getResumenFinanciero(db);
-    systemPrompt = construirSystemPrompt(resumenComoTexto(resumen));
+    systemPrompt = construirSystemPrompt(resumenComoTexto(resumen), usuario.rol);
   } catch {
     return new Response("No se pudo leer la información del negocio.", { status: 500 });
   }
@@ -196,7 +203,7 @@ export async function POST(req: Request): Promise<Response> {
                 messages,
                 temperature: TEMPERATURA_ASESOR,
                 max_tokens: MAX_TOKENS_ASESOR,
-                tools: HERRAMIENTAS,
+                tools: herramientasPara(usuario.rol),
                 tool_choice: "auto",
               };
 
@@ -214,7 +221,7 @@ export async function POST(req: Request): Promise<Response> {
               })),
             });
             for (const tc of toolCalls) {
-              const resultado = await ejecutarHerramienta(db, tc.name, tc.args);
+              const resultado = await ejecutarHerramienta(db, tc.name, tc.args, usuario.rol);
               messages.push({ role: "tool", tool_call_id: tc.id, content: resultado });
             }
             continue;

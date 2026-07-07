@@ -3,6 +3,7 @@
 //  de sistema que "personaliza" al modelo y le inyecta la foto real del negocio
 //  como contexto. Separado para poder testearlo y ajustarlo sin tocar la red.
 // ─────────────────────────────────────────────────────────────────────────
+import type { Rol } from "@/types/db";
 
 // DeepSeek deprecó `deepseek-chat` y `deepseek-reasoner` el 2026-07-24 (pasan a
 // ser modos de deepseek-v4-flash). Usamos los IDs vigentes (V4), base_url igual,
@@ -104,12 +105,35 @@ export const HERRAMIENTAS = [
   },
 ];
 
+/** Herramientas que ve el asesor según el ROL (filtrado de contexto por rol).
+ *  Las proyecciones de caja/tesorería quedan para el dueño (admin); el
+ *  supervisor tiene el resto (operación: clientes, ruta, mora, ranking, tendencia). */
+const HERRAMIENTAS_SOLO_ADMIN = new Set(["proyeccion_caja"]);
+
+export function herramientasPara(rol: Rol): typeof HERRAMIENTAS {
+  if (rol === "admin") return HERRAMIENTAS;
+  return HERRAMIENTAS.filter((h) => !HERRAMIENTAS_SOLO_ADMIN.has(h.function.name));
+}
+
+/** ¿El rol puede ejecutar esta herramienta? (defensa en el servidor). */
+export function esHerramientaPermitida(rol: Rol, name: string): boolean {
+  return rol === "admin" || !HERRAMIENTAS_SOLO_ADMIN.has(name);
+}
+
 /**
  * System prompt del asesor. `resumen` es el texto con los números reales de la
  * operación (ver lib/data/asesor.ts). El modelo debe aconsejar SOBRE esos datos.
+ * `rol` adapta el consejo a lo que esa persona puede realmente ejecutar.
  */
-export function construirSystemPrompt(resumen: string): string {
+export function construirSystemPrompt(resumen: string, rol: Rol = "admin"): string {
+  const quienConsulta =
+    rol === "admin"
+      ? "Te consulta el DUEÑO (administrador): decide y cambia todo — política de mora, comisiones, renovaciones y anulaciones."
+      : "Te consulta un SUPERVISOR: ve toda la operación, pero NO cambia la política de mora, ni fija/liquida comisiones, ni anula pagos (eso lo decide el dueño). Las proyecciones de caja/tesorería las maneja el dueño: si te las piden, sugerí consultarlas con el administrador. Adaptá tus recomendaciones a lo que esta persona SÍ puede ejecutar, sin proponerle acciones que no le corresponden.";
+
   return `Sos "Aureo", el asesor financiero senior de Presta Ya, una empresa de préstamos de cobro diario (giro/microcrédito) en Uruguay. Aconsejás al dueño y a los supervisores para que controlen mejor el negocio y tomen decisiones más inteligentes.
+
+QUIÉN TE CONSULTA: ${quienConsulta}
 
 TU MISIÓN: ayudar a cuidar el capital, bajar la mora, mejorar la cobranza, decidir renovaciones con criterio, detectar fugas de plata y hacer crecer la cartera de forma sana.
 
