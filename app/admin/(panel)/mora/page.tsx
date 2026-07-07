@@ -5,6 +5,7 @@ import Link from "next/link";
 import { requireGestor, esAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getTableroMora } from "@/lib/data/mora";
+import { getMorosos } from "@/lib/data/morosidad";
 import type { NivelRiesgo, TendenciaMora } from "@/types/alerta";
 import { UYU } from "@/lib/format";
 import { hrefSeguro } from "@/lib/seguridad";
@@ -35,7 +36,10 @@ function waLink(telefono: string): string {
 export default async function MoraPage() {
   const usuario = await requireGestor();
   const db = await createSupabaseServer();
-  const { resumen, config, enRiesgo } = await getTableroMora(db);
+  const [{ resumen, config, enRiesgo }, morosos] = await Promise.all([
+    getTableroMora(db),
+    getMorosos(db),
+  ]);
   const conMora = config.modo !== "off";
 
   return (
@@ -67,6 +71,46 @@ export default async function MoraPage() {
         <Kpi label="Medio" valor={resumen.medio} tono={NIVEL.medio} />
         <Kpi label="Deuda en riesgo" valor={UYU(resumen.deudaEnRiesgo)} tono={NIVEL.medio} money />
       </div>
+
+      {/* Morosos: lista negra (marcados) + castigos (incobrables). Persisten
+          entre créditos, a diferencia de la alerta temprana de arriba. */}
+      {morosos.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <span className="text-[12px] font-bold tracking-[0.03em] text-gris uppercase">
+            Morosos · lista negra y castigos ({morosos.length})
+          </span>
+          <ul className="flex flex-col divide-y divide-[#F6DAD4] overflow-hidden rounded-[16px] border border-[#F3C0B8] bg-white">
+            {morosos.map((m) => (
+              <li key={m.clienteId} className="flex items-center gap-3 px-3.5 py-3">
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <Link
+                    href={`/admin/clientes/${m.clienteId}`}
+                    className="truncate text-[14px] font-bold text-tinta hover:text-azul"
+                  >
+                    {m.nombre}
+                  </Link>
+                  <span className="truncate text-[12px] font-medium text-gris">
+                    {m.marcado ? (m.motivo ?? "Marcado como moroso") : "Con crédito incobrable"}
+                    {m.incobrables > 0 ? ` · ${m.incobrables} incobrable${m.incobrables === 1 ? "" : "s"}` : ""}
+                  </span>
+                </div>
+                <div className="flex flex-shrink-0 gap-1.5">
+                  {m.marcado && (
+                    <span className="rounded-full bg-[#FBE4E2] px-2.5 py-1 text-[11px] font-bold text-[#C0392B]">
+                      Lista negra
+                    </span>
+                  )}
+                  {m.incobrables > 0 && (
+                    <span className="rounded-full bg-[#FDECE0] px-2.5 py-1 text-[11px] font-bold text-[#C0562B]">
+                      Castigo
+                    </span>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {enRiesgo.length === 0 && (
         <p className="rounded-[14px] bg-white px-4 py-6 text-center text-[13px] font-medium text-gris">

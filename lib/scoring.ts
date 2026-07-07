@@ -19,7 +19,7 @@ import type {
   ResultadoScore,
 } from "@/types/scoring";
 import { calcularEstadosCarton } from "./cartones";
-import { parseFecha } from "./format";
+import { parseFecha, toIso } from "./format";
 
 // ── Parámetros del modelo (AJUSTABLES) ────────────────────────────────────
 /** Pesos de cada factor. Deben sumar 1. */
@@ -254,6 +254,58 @@ export function calcularScore({
       mesesComoCliente: Math.round(mesesComoCliente),
     },
   };
+}
+
+// ── Evolución del score en el tiempo ──────────────────────────────────────
+export interface PuntoEvolucion {
+  fecha: string;
+  puntaje: number;
+  banda: BandaScore;
+}
+
+/**
+ * Serie histórica del puntaje: recomputa el score a checkpoints MENSUALES,
+ * mirando SOLO los créditos ya iniciados y los pagos ya registrados a esa
+ * fecha. No guarda nada: es una derivación pura del mismo historial (mismo
+ * núcleo que `calcularScore`), así la evolución nunca "miente".
+ */
+export function evolucionScore(
+  { prestamos, pagosPorPrestamo, hoy = new Date() }: EntradaScoring,
+  opts?: { puntos?: number },
+): PuntoEvolucion[] {
+  if (prestamos.length === 0) return [];
+  const maxPuntos = opts?.puntos ?? 12;
+
+  // Checkpoints: fin de cada mes desde el primer crédito hasta hoy (hoy incluido).
+  const primer = new Date(Math.min(...prestamos.map((p) => parseFecha(p.fecha_inicio).getTime())));
+  const checks: Date[] = [];
+  let y = primer.getFullYear();
+  let m = primer.getMonth();
+  const finY = hoy.getFullYear();
+  const finM = hoy.getMonth();
+  while (y < finY || (y === finY && m <= finM)) {
+    const esMesActual = y === finY && m === finM;
+    // Fin de mes (día 0 del mes siguiente) o "hoy" si es el mes en curso.
+    checks.push(esMesActual ? new Date(finY, finM, hoy.getDate()) : new Date(y, m + 1, 0));
+    m += 1;
+    if (m > 11) {
+      m = 0;
+      y += 1;
+    }
+  }
+
+  return checks.slice(-maxPuntos).map((c) => {
+    const corte = new Date(c.getFullYear(), c.getMonth(), c.getDate(), 23, 59, 59).getTime();
+    const prestamosHasta = prestamos.filter((p) => parseFecha(p.fecha_inicio).getTime() <= corte);
+    const pagosHasta: Record<string, Pago[]> = {};
+    for (const p of prestamosHasta) {
+      pagosHasta[p.id] = (pagosPorPrestamo[p.id] ?? []).filter(
+        (pago) => Date.parse(pago.registrado_en) <= corte,
+      );
+    }
+    const r = calcularScore({ prestamos: prestamosHasta, pagosPorPrestamo: pagosHasta, hoy: c });
+    return { fecha: toIso(c), puntaje: r.puntaje, banda: r.banda };
+  });
 }
 
 /** Monto del préstamo más reciente (por fecha de inicio), o null si no hay. */

@@ -11,6 +11,9 @@ import { getPrestamoActivoPorCliente } from "@/lib/data/prestamos";
 import { claveCiclo } from "@/lib/estrellas";
 import { cicloUY } from "@/lib/fecha";
 import { NotasCliente } from "@/components/notas/NotasCliente";
+import { MorosidadCliente } from "@/components/admin/MorosidadCliente";
+import { ScoreEvolucion } from "@/components/admin/ScoreEvolucion";
+import { getMorosidadCliente, getNotasMora } from "@/lib/data/morosidad";
 import { UYU, meses, horaDe } from "@/lib/format";
 import type { EstadoDia } from "@/types/cartones";
 import type { Calificacion, Prestamo } from "@/types/db";
@@ -53,14 +56,16 @@ export default async function FichaClientePage({
   const ficha = await getFichaCliente(db, id);
   if (!ficha) notFound();
 
-  const { cliente, score, activo, creditos, pagos, notas } = ficha;
+  const { cliente, score, evolucionScore: evolucion, activo, creditos, pagos, notas } = ficha;
   const banda = BANDA[cliente.calificacion] ?? BANDA.nuevo;
   const bandaScore = BANDA[score.banda as Calificacion] ?? BANDA.nuevo;
 
   // Saldo de estrellas del cliente (respeta el ciclo definido por el admin).
-  const [ajustes, prestamoAct] = await Promise.all([
+  const [ajustes, prestamoAct, morosidad, notasMora] = await Promise.all([
     getAjustesJuego(db),
     getPrestamoActivoPorCliente(db, id),
+    getMorosidadCliente(db, id),
+    getNotasMora(db, id),
   ]);
   const estrellas = await getSaldoEstrellas(
     db,
@@ -96,12 +101,19 @@ export default async function FichaClientePage({
             {cliente.direccion ?? "Sin dirección"} · alta: {cliente.origen}
           </span>
         </div>
-        <span
-          className="flex-shrink-0 rounded-full px-3 py-1.5 text-[12px] font-bold"
-          style={{ background: banda.bg, color: banda.fg }}
-        >
-          {banda.label}
-        </span>
+        <div className="flex flex-shrink-0 flex-col items-end gap-1">
+          {morosidad.moroso && (
+            <span className="rounded-full bg-[#FBE4E2] px-3 py-1.5 text-[12px] font-bold text-[#C0392B]">
+              ⛔ Moroso
+            </span>
+          )}
+          <span
+            className="rounded-full px-3 py-1.5 text-[12px] font-bold"
+            style={{ background: banda.bg, color: banda.fg }}
+          >
+            {banda.label}
+          </span>
+        </div>
       </div>
 
       {/* Score interno */}
@@ -129,6 +141,12 @@ export default async function FichaClientePage({
           ))}
         </div>
       </section>
+
+      {/* Evolución del score en el tiempo (derivada, mensual) */}
+      <ScoreEvolucion serie={evolucion} />
+
+      {/* Morosidad: marca de lista negra + motivos/acuerdos de pago */}
+      <MorosidadCliente clienteId={id} inicial={morosidad} notas={notasMora} />
 
       {/* Estrellas del cliente (recompensa real) */}
       <section className="rounded-[16px] border border-[#F0E2A8] bg-[linear-gradient(180deg,#FFFDF5,#FFF8E6)] p-4">

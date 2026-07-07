@@ -13,7 +13,7 @@ import { getClientePorId } from "./clientes";
 import { getHistorialCrediticio } from "./scoring";
 import { getNotasCliente } from "./notas";
 import { calcularEstadosCarton } from "@/lib/cartones";
-import { calcularScore } from "@/lib/scoring";
+import { calcularScore, evolucionScore, type PuntoEvolucion } from "@/lib/scoring";
 import { hoyUY } from "@/lib/fecha";
 
 export interface PagoFicha {
@@ -45,6 +45,8 @@ export interface CreditoActivoFicha {
 export interface FichaCliente {
   cliente: Cliente;
   score: ResultadoScore;
+  /** Serie histórica del puntaje (derivada, mensual). */
+  evolucionScore: PuntoEvolucion[];
   activo: CreditoActivoFicha | null;
   creditos: CreditoFicha[];
   pagos: PagoFicha[];
@@ -62,6 +64,7 @@ export async function getFichaCliente(
   const hoyCal = hoyUY(hoy);
   const historial = await getHistorialCrediticio(db, id);
   const score = calcularScore({ ...historial, hoy: hoyCal });
+  const evolucion = evolucionScore({ ...historial, hoy: hoyCal });
 
   // Crédito activo + cartón.
   const prestamoActivo = historial.prestamos.find((p) => p.estado === "activo") ?? null;
@@ -111,5 +114,5 @@ export async function getFichaCliente(
 
   const notas = await getNotasCliente(db, id);
 
-  return { cliente, score, activo, creditos, pagos, notas };
+  return { cliente, score, evolucionScore: evolucion, activo, creditos, pagos, notas };
 }

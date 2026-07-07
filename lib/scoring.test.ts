@@ -2,7 +2,7 @@
 // escenarios reales: excelente, regular con mora, riesgo por incobrable
 // (techo) y nuevo por datos insuficientes.
 import { describe, expect, it } from "vitest";
-import { calcularScore, type EntradaScoring } from "./scoring";
+import { calcularScore, evolucionScore, type EntradaScoring } from "./scoring";
 import type { Pago, Prestamo } from "@/types/db";
 
 const HOY = new Date(2026, 5, 16); // 16 jun 2026 (local)
@@ -53,6 +53,32 @@ function correr(
   const entrada: EntradaScoring = { prestamos, pagosPorPrestamo: pagos, hoy: HOY };
   return calcularScore(entrada);
 }
+
+describe("evolucionScore", () => {
+  it("serie mensual desde el primer crédito hasta hoy; el último punto coincide con el score actual", () => {
+    const a = prestamo({ id: "a", estado: "activo", fecha_inicio: "2026-01-01", total_dias: 180 });
+    const pagos = { a: pagosDias("a", rango(120)) };
+    const serie = evolucionScore({ prestamos: [a], pagosPorPrestamo: pagos, hoy: HOY });
+    expect(serie.length).toBe(6); // ene, feb, mar, abr, may, jun
+    expect(serie[serie.length - 1].fecha).toBe("2026-06-16");
+    const full = calcularScore({ prestamos: [a], pagosPorPrestamo: pagos, hoy: HOY });
+    expect(serie[serie.length - 1].puntaje).toBe(full.puntaje);
+    expect(serie[serie.length - 1].banda).toBe(full.banda);
+  });
+
+  it("respeta el tope de puntos (últimos N meses)", () => {
+    const a = prestamo({ id: "a", estado: "finalizado", fecha_inicio: "2025-01-01", total_dias: 30 });
+    const serie = evolucionScore(
+      { prestamos: [a], pagosPorPrestamo: { a: pagosDias("a", rango(30)) }, hoy: HOY },
+      { puntos: 4 },
+    );
+    expect(serie.length).toBe(4);
+  });
+
+  it("cliente sin créditos → serie vacía", () => {
+    expect(evolucionScore({ prestamos: [], pagosPorPrestamo: {}, hoy: HOY })).toEqual([]);
+  });
+});
 
 describe("calcularScore", () => {
   it("excelente: 2 créditos pagados + activo al día → pre-aprobado", () => {
