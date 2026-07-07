@@ -32,6 +32,9 @@
     "@types/web-push": "^3.6.4",
     "tailwindcss": "^4.0.0",
     "typescript": "^5",
-    "vitest": "^2.1.8"
+    "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "postcss": ">=8.5.10"
   }
 }
