@@ -56,6 +56,7 @@ export async function getResumenCaja(
   db: SupabaseClient,
   periodo: PeriodoCaja = "hoy",
   hoy: Date = new Date(),
+  opts?: { limiteLibro?: number },
 ): Promise<ResumenCaja> {
   const desde = periodo === "mes" ? inicioMesUYIso(hoy) : inicioDiaUYIso(hoy);
 
@@ -183,7 +184,8 @@ export async function getResumenCaja(
     porCobrador: [...porCob.entries()]
       .map(([id, v]) => ({ nombre: nombreUsuario.get(id) ?? "Sin asignar", ...v }))
       .sort((a, b) => b.recaudado - a.recaudado),
-    libro: libro.slice(0, 150),
+    // El panel muestra las últimas 150; la exportación pide el libro completo.
+    libro: libro.slice(0, opts?.limiteLibro ?? 150),
   };
 }
 

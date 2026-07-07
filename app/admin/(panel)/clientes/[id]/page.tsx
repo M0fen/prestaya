@@ -70,9 +70,17 @@ export default async function FichaClientePage({
 
   return (
     <div className="mx-auto flex max-w-[820px] flex-col gap-5">
-      <Link href="/admin/clientes" className="text-[13px] font-semibold text-gris">
-        ← Clientes
-      </Link>
+      <div className="flex items-center justify-between gap-3">
+        <Link href="/admin/clientes" className="text-[13px] font-semibold text-gris">
+          ← Clientes
+        </Link>
+        <Link
+          href={`/admin/clientes/${id}/estado`}
+          className="inline-flex items-center gap-1.5 rounded-full border border-[#DCE3F4] px-3.5 py-1.5 text-[12.5px] font-bold text-azul hover:bg-[#F4F6FB]"
+        >
+          🧾 Estado de cuenta
+        </Link>
+      </div>
 
       {/* Encabezado */}
       <div className="flex items-center gap-3">

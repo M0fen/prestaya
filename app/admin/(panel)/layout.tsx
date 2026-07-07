@@ -35,7 +35,7 @@ export default async function PanelLayout({
   return (
     <div className="flex min-h-screen flex-col bg-[#F4F6FB] md:flex-row">
       {/* Barra lateral (desktop) / superior (mobile) */}
-      <aside className="flex flex-col bg-[#0F1B3D] md:min-h-screen md:w-60 md:flex-shrink-0">
+      <aside className="print:hidden flex flex-col bg-[#0F1B3D] md:min-h-screen md:w-60 md:flex-shrink-0">
         <div className="flex items-center gap-2.5 px-4 py-4">
           <div className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-[linear-gradient(135deg,#2453DC,#13308C)] text-[16px] font-black text-white">
             P
@@ -54,7 +54,7 @@ export default async function PanelLayout({
 
       {/* Contenido */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between gap-3 border-b border-[#E6EAF4] bg-white px-5 py-3">
+        <header className="print:hidden flex items-center justify-between gap-3 border-b border-[#E6EAF4] bg-white px-5 py-3">
           <div className="flex flex-col">
             <span className="text-[11px] font-semibold tracking-wide text-gris uppercase">
               {etiquetaRol[usuario.rol]}
@@ -79,15 +79,18 @@ export default async function PanelLayout({
           </div>
         </header>
 
-        <main className="flex-1 p-5 md:p-7">{children}</main>
+        <main className="flex-1 p-5 md:p-7 print:p-0">{children}</main>
       </div>
 
-      {/* Asesor financiero IA (flotante), solo para gestores. */}
-      {esGestor(usuario.rol) && <AsesorFlotante />}
+      {/* Flotantes (asesor + avisos): fuera del documento impreso. */}
+      <div className="print:hidden">
+        {/* Asesor financiero IA (flotante), solo para gestores. */}
+        {esGestor(usuario.rol) && <AsesorFlotante />}
 
-      {/* Avisos flotantes + notificaciones en vivo del chat. */}
-      <Toaster />
-      <NotificacionesRealtime yoId={usuario.id} />
+        {/* Avisos flotantes + notificaciones en vivo del chat. */}
+        <Toaster />
+        <NotificacionesRealtime yoId={usuario.id} />
+      </div>
     </div>
   );
 }
