@@ -21,7 +21,7 @@ export interface AjustesJuego {
   mostrarMisiones: boolean;
   /** Temporada/evento del mes encendido. */
   temporadaActiva: boolean;
-  /** Nombre del evento, p. ej. "Mundial 2026". */
+  /** Nombre del evento, p. ej. "Verano 2026". */
   temporadaNombre: string;
   /** Emoji del evento. */
   temporadaEmoji: string;

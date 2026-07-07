@@ -56,11 +56,11 @@ function anuncioDemo(
 const anunciosDemo: Anuncio[] = [
   anuncioDemo(
     "a1",
-    "¡Vamos al Mundial 2026! 🏆",
-    "Jugá la tanda de penales y, si estás al día, participás del sorteo del mes.",
+    "¡Sumá estrellas pagando! ⭐",
+    "Cada pago suma. Cada 5 pagos ganás una estrella para canjear beneficios.",
     "azul",
     30,
-    "Jugar penales",
+    "Ver beneficios",
   ),
   anuncioDemo(
     "a2",

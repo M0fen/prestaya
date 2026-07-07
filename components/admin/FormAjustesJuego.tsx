@@ -128,7 +128,7 @@ export function FormAjustesJuego({
                   <input
                     type="text" value={a.temporadaNombre} maxLength={40} disabled={!a.activo}
                     onChange={(e) => set("temporadaNombre", e.target.value)}
-                    placeholder="Mundial 2026"
+                    placeholder="Verano 2026"
                     className="rounded-[10px] border border-[#DCE3F4] px-3 py-2 text-[14px] outline-none focus:border-azul"
                   />
                 </label>
