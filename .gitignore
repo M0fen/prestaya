@@ -9,3 +9,7 @@ next-env.d.ts
 !.env*.example
 
 .vercel
+
+# Python bytecode de scripts de empalme
+__pycache__/
+*.pyc

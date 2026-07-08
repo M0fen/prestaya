@@ -1,7 +1,19 @@
 import { describe, it, expect } from "vitest";
-import { cronAutorizado } from "./cron";
+import { cronAutorizado, comparaSegura } from "./cron";
 
 const OK = "Bearer s3cr3t";
+
+describe("comparaSegura — comparación en tiempo constante", () => {
+  it("iguales → true", () => {
+    expect(comparaSegura("Bearer s3cr3t", "Bearer s3cr3t")).toBe(true);
+    expect(comparaSegura("", "")).toBe(true);
+  });
+  it("distintas (incluido distinto largo, que rompería timingSafeEqual crudo) → false", () => {
+    expect(comparaSegura("Bearer s3cr3t", "Bearer otro")).toBe(false);
+    expect(comparaSegura("a", "abc")).toBe(false);
+    expect(comparaSegura("Bearer s3cr3t", "")).toBe(false);
+  });
+});
 
 describe("cronAutorizado — fallar cerrado en producción", () => {
   it("PROD sin secreto configurado → NIEGA (cerrado)", () => {

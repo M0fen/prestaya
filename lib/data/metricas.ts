@@ -11,6 +11,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Pago, Prestamo } from "@/types/db";
 import { calcularEstadosCarton } from "@/lib/cartones";
 import { hoyUY, inicioDiaUYIso, inicioMesUYIso } from "@/lib/fecha";
+import { getActivosConPagos, pagosDeActivo } from "./activos";
 
 export interface TramoMora {
   /** Etiqueta del tramo, p. ej. "1–7 días". */
@@ -56,10 +57,12 @@ async function contar(
   return count ?? 0;
 }
 
-/** Calcula todas las métricas del dashboard. `hoy` = referencia del servidor. */
+/** Calcula todas las métricas del dashboard. `hoy` = referencia del servidor.
+ *  `activosPre`: créditos activos ya traídos (para compartir la RPC con mora). */
 export async function getDashboardMetricas(
   db: SupabaseClient,
   hoy: Date = new Date(),
+  activosPre?: import("./activos").ActivoConPagos[],
 ): Promise<DashboardMetricas> {
   // 1) Conteos baratos (head count).
   const [
@@ -78,34 +81,12 @@ export async function getDashboardMetricas(
     contar(db, "anuncios", (q) => q.eq("activo", true)),
   ]);
 
-  // 2) Créditos activos (para cartera y mora) + sus pagos vigentes.
-  const { data: activosRaw, error: errAct } = await db
-    .from("prestamos")
-    .select("id, monto_prestado, cuota_diaria, total_dias, frecuencia, fecha_inicio, estado")
-    .eq("estado", "activo");
-  if (errAct) throw errAct;
-  const activos = (activosRaw ?? []) as Pick<
-    Prestamo,
-    "id" | "monto_prestado" | "cuota_diaria" | "total_dias" | "frecuencia" | "fecha_inicio"
-  >[];
-
-  const ids = activos.map((p) => p.id);
-  const pagosPorPrestamo: Record<string, Pago[]> = {};
-  if (ids.length > 0) {
-    const { data: pagosRaw, error: errPag } = await db
-      .from("pagos")
-      .select("prestamo_id, dia_credito, monto")
-      .in("prestamo_id", ids)
-      .eq("anulado", false);
-    if (errPag) throw errPag;
-    for (const r of pagosRaw ?? []) {
-      const k = r.prestamo_id as string;
-      (pagosPorPrestamo[k] ??= []).push({
-        dia_credito: Number(r.dia_credito),
-        monto: Number(r.monto),
-      } as Pago);
-    }
-  }
+  // 2) Créditos activos + sus pagos. A ESCALA: una sola RPC que devuelve los
+  //    pagos YA AGRUPADOS por préstamo (≈2.661 filas, no ≈20k). El cartón se
+  //    sigue calculando en TS.
+  const activos = activosPre ?? (await getActivosConPagos(db));
+  const pagosPorPrestamo: Record<string, Pick<Pago, "dia_credito" | "monto">[]> = {};
+  for (const a of activos) pagosPorPrestamo[a.id] = pagosDeActivo(a);
 
   // 3) Cartera y mora: corremos el cartón de cada crédito activo.
   let capitalColocado = 0;
@@ -171,16 +152,14 @@ export async function getDashboardMetricas(
   };
 }
 
-/** Suma los pagos vigentes registrados desde un instante ISO. */
+/** Suma los pagos vigentes registrados desde un instante ISO.
+ *  A ESCALA: agrega en la base (RPC 0039), no trae las filas (que se truncarían
+ *  a 1000). Respeta RLS (no es SECURITY DEFINER). */
 async function sumarPagosDesde(
   db: SupabaseClient,
   desdeIso: string,
 ): Promise<number> {
-  const { data, error } = await db
-    .from("pagos")
-    .select("monto")
-    .eq("anulado", false)
-    .gte("registrado_en", desdeIso);
+  const { data, error } = await db.rpc("app_suma_pagos_desde", { desde: desdeIso });
   if (error) throw error;
-  return (data ?? []).reduce((s, r) => s + Number(r.monto), 0);
+  return Number(data ?? 0);
 }

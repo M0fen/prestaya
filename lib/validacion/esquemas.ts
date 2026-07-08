@@ -23,6 +23,8 @@ const opId = z.string().min(1).max(200);
 // ── Cobrador (input de la calle, muta dinero) ──────────────────────────────
 export const cobroSchema = z.object({
   clienteId: uuid,
+  // Crédito específico (si el cliente tiene varios activos). null = el principal.
+  prestamoId: uuid.nullish(),
   // Tope defensivo (100M) para descartar montos absurdos/overflow.
   monto: z.number().positive().max(100_000_000).nullish(),
   gpsLat: lat.nullish(),
@@ -33,6 +35,7 @@ export const cobroSchema = z.object({
 
 export const noPagoSchema = z.object({
   clienteId: uuid,
+  prestamoId: uuid.nullish(),
   motivo: z.enum(["no_estaba", "no_tenia", "se_nego", "reagendado"]),
   gpsLat: lat.nullish(),
   gpsLng: lng.nullish(),

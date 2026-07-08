@@ -38,6 +38,13 @@
   ```
   (activa tu rol desarrollador sin cambiarte la contraseña).
 
+- [x] **Migración `0035`** (RLS por zona — cerrar escrituras cruzadas) — **CORRIDA
+  ✓ (2026-07-07)**. Hallazgo de la auditoría senior: 0031 acotó por zona la lectura
+  y la edición, pero dejó los INSERT de `pagos`/`prestamos`/`visitas` en nivel
+  "cualquier gestor". Ya cerrado: un supervisor NO puede insertar sobre un cliente
+  de otra zona, ni por PostgREST directo.
+  - Verificación opcional: sección **§7** de `docs/pruebas-seguridad-zona.md`.
+
 - [ ] **Cambiar las contraseñas temporales** del equipo (Mauricio / Carolina /
   Carlos) al primer ingreso — te las pasé por chat, son provisorias.
 
@@ -86,8 +93,12 @@
 ---
 
 ### Estado del código (referencia)
-- Blindaje de seguridad: **7/7 fases** desplegadas · `npm audit` = 0 · 229 tests.
+- Blindaje de seguridad: **7/7 fases** + **auditoría senior** (6 fases) · `npm audit`
+  = 0 · **236 tests**.
+- Auditoría senior: validación en bordes (token .ics), cron con comparación en
+  tiempo constante, headers OK, **hallazgo RLS escrituras cruzadas → migración
+  0035** (pendiente de correr), fugas de error = limpio.
 - Zonas + roles + chat por grupos, tutorial in-app, anulaciones, reasignación:
   hecho y desplegado.
-- Migraciones corridas: hasta **0033**.
+- Migraciones corridas: hasta **0033** + **0035**. Pendiente de correr: **0034**.
 - URL pública del operador: `https://prestaya-blush.vercel.app`

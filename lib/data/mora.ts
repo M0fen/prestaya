@@ -10,6 +10,7 @@ import type { NivelRiesgo, ResultadoAlerta } from "@/types/alerta";
 import { calcularAlertaMora } from "@/lib/alerta";
 import { calcularRecargoMora, type ConfigMora } from "@/lib/moraCargo";
 import { getConfigMora } from "./moraConfig";
+import { getActivosConPagos, pagosDeActivo } from "./activos";
 import { hoyUY } from "@/lib/fecha";
 
 export interface ClienteEnRiesgo {
@@ -50,64 +51,27 @@ const num = (v: unknown): number => Number(v);
 export async function getTableroMora(
   db: SupabaseClient,
   hoy: Date = new Date(),
+  activosPre?: import("./activos").ActivoConPagos[],
 ): Promise<TableroMora> {
   const hoyCal = hoyUY(hoy);
   const config = await getConfigMora(db);
 
-  const { data: presRaw, error: presErr } = await db
-    .from("prestamos")
-    .select("id, cliente_id, cobrador_id, cuota_diaria, total_dias, frecuencia, fecha_inicio")
-    .eq("estado", "activo");
-  if (presErr) throw presErr;
+  // A ESCALA: una sola RPC trae los créditos activos con sus pagos AGRUPADOS
+  // (≈2.661 filas, no ≈20k) + nombre de cliente/cobrador. El cartón/alerta se
+  // sigue calculando en TS (tested, autoritativa).
+  const activos = activosPre ?? (await getActivosConPagos(db));
 
-  const prestamos = (presRaw ?? []) as unknown as Prestamo[];
   const vacio: TableroMora = {
     resumen: { activos: 0, critico: 0, alto: 0, medio: 0, sano: 0, deudaEnRiesgo: 0, recargoTotal: 0 },
     config,
     enRiesgo: [],
   };
-  if (prestamos.length === 0) return vacio;
-
-  const clienteIds = [...new Set(prestamos.map((p) => p.cliente_id))];
-  const prestamoIds = prestamos.map((p) => p.id);
-  const cobradorIds = [
-    ...new Set(prestamos.map((p) => p.cobrador_id).filter((x): x is string => !!x)),
-  ];
-
-  // Datos relacionados en batch (sin N+1).
-  const [cliRes, pagRes, cobRes] = await Promise.all([
-    db.from("clientes").select("id, nombre, telefono, direccion").in("id", clienteIds),
-    db.from("pagos").select("prestamo_id, dia_credito, monto").eq("anulado", false).in("prestamo_id", prestamoIds),
-    cobradorIds.length
-      ? db.from("usuarios").select("id, nombre").in("id", cobradorIds)
-      : Promise.resolve({ data: [], error: null }),
-  ]);
-  if (cliRes.error) throw cliRes.error;
-  if (pagRes.error) throw pagRes.error;
-  if (cobRes.error) throw cobRes.error;
-
-  const cliente = new Map<string, { nombre: string; telefono: string | null; direccion: string | null }>();
-  for (const c of cliRes.data ?? [])
-    cliente.set(c.id as string, {
-      nombre: c.nombre as string,
-      telefono: (c.telefono as string | null) ?? null,
-      direccion: (c.direccion as string | null) ?? null,
-    });
-
-  const cobrador = new Map<string, string>();
-  for (const c of cobRes.data ?? []) cobrador.set(c.id as string, c.nombre as string);
-
-  const pagosDe = new Map<string, Pick<Pago, "dia_credito" | "monto">[]>();
-  for (const p of pagRes.data ?? []) {
-    const arr = pagosDe.get(p.prestamo_id as string) ?? [];
-    arr.push({ dia_credito: num(p.dia_credito), monto: num(p.monto) });
-    pagosDe.set(p.prestamo_id as string, arr);
-  }
+  if (activos.length === 0) return vacio;
 
   const resumen = { activos: 0, critico: 0, alto: 0, medio: 0, sano: 0, deudaEnRiesgo: 0, recargoTotal: 0 };
   const enRiesgo: ClienteEnRiesgo[] = [];
 
-  for (const p of prestamos) {
+  for (const p of activos) {
     const alerta = calcularAlertaMora({
       prestamo: {
         cuota_diaria: num(p.cuota_diaria),
@@ -115,7 +79,7 @@ export async function getTableroMora(
         frecuencia: p.frecuencia ?? "diario",
         fecha_inicio: p.fecha_inicio,
       },
-      pagos: pagosDe.get(p.id) ?? [],
+      pagos: pagosDeActivo(p),
       hoy: hoyCal,
     });
 
@@ -132,13 +96,12 @@ export async function getTableroMora(
       config,
     );
     resumen.recargoTotal += recargoMora;
-    const cli = cliente.get(p.cliente_id);
     enRiesgo.push({
       clienteId: p.cliente_id,
-      nombre: cli?.nombre ?? "Cliente",
-      telefono: cli?.telefono ?? null,
-      direccion: cli?.direccion ?? null,
-      cobradorNombre: p.cobrador_id ? (cobrador.get(p.cobrador_id) ?? null) : null,
+      nombre: p.cliente_nombre ?? "Cliente",
+      telefono: p.cliente_telefono ?? null,
+      direccion: p.cliente_direccion ?? null,
+      cobradorNombre: p.cobrador_nombre ?? null,
       alerta,
       recargoMora,
     });

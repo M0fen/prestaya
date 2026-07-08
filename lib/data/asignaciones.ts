@@ -16,12 +16,17 @@ export async function getCobradorDeCliente(
   db: SupabaseClient,
   clienteId: string,
 ): Promise<CobradorDeCliente | null> {
-  const { data, error } = await db
+  // Desde 0038 un cliente puede tener VARIOS cobradores activos (créditos de
+  // distintos cobradores). Devolvemos el más reciente (no usar maybeSingle: con
+  // múltiples activos rompería). El detalle por crédito lo maneja cada superficie.
+  const { data: filas, error } = await db
     .from("asignaciones")
     .select("cobrador_id, usuarios(nombre, zona_id)")
     .eq("cliente_id", clienteId)
     .eq("activo", true)
-    .maybeSingle();
+    .order("asignado_en", { ascending: false })
+    .limit(1);
+  const data = filas && filas.length > 0 ? filas[0] : null;
   if (error || !data) return null;
   const d = data as {
     cobrador_id: string;

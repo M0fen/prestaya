@@ -16,8 +16,12 @@ import {
   getClientePorDocumento,
   getClientePorId,
 } from "@/lib/data/clientes";
-import { getPrestamoActivoPorCliente } from "@/lib/data/prestamos";
+import {
+  getPrestamoActivoPorCliente,
+  getPrestamosActivosPorCliente,
+} from "@/lib/data/prestamos";
 import { getPagosDePrestamo, registrarPago } from "@/lib/data/pagos";
+import type { Prestamo } from "@/types/db";
 import { crearVisita } from "@/lib/data/visitas";
 import { registrarBitacora } from "@/lib/data/bitacora";
 import { calcularEstadosCarton } from "@/lib/cartones";
@@ -107,6 +111,8 @@ export type ResultadoCobro =
 
 export async function registrarPagoCobrador(input: {
   clienteId: string;
+  /** Crédito específico si el cliente tiene varios activos. null = el principal. */
+  prestamoId?: string | null;
   monto?: number | null;
   gpsLat?: number | null;
   gpsLng?: number | null;
@@ -122,7 +128,7 @@ export async function registrarPagoCobrador(input: {
     const db = await createSupabaseServer();
     const cliente = await getClientePorId(db, input.clienteId);
     if (!cliente) return { ok: false, error: "Cliente no encontrado." };
-    const prestamo = await getPrestamoActivoPorCliente(db, cliente.id);
+    const prestamo = await resolverPrestamo(db, cliente.id, input.prestamoId);
     if (!prestamo) return { ok: false, error: "El cliente no tiene crédito activo." };
 
     // Imputar al primer día no cubierto (o al día de hoy).
@@ -196,6 +202,7 @@ export type MotivoNoPago = (typeof MOTIVOS_NOPAGO)[number]["id"];
 
 export async function registrarNoPagoCobrador(input: {
   clienteId: string;
+  prestamoId?: string | null;
   motivo: MotivoNoPago;
   gpsLat?: number | null;
   gpsLng?: number | null;
@@ -208,7 +215,7 @@ export async function registrarNoPagoCobrador(input: {
     if (!usuario || !usuario.activo) return { ok: false, error: "Sesión no válida." };
 
     const db = await createSupabaseServer();
-    const prestamo = await getPrestamoActivoPorCliente(db, input.clienteId);
+    const prestamo = await resolverPrestamo(db, input.clienteId, input.prestamoId);
     if (!prestamo) return { ok: false, error: "El cliente no tiene crédito activo." };
 
     const m = MOTIVOS_NOPAGO.find((x) => x.id === input.motivo) ?? MOTIVOS_NOPAGO[0];
@@ -278,6 +285,24 @@ export async function registrarVerFicha(input: {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+/**
+ * Resuelve a qué crédito se imputa la operación. Si el cliente tiene varios
+ * activos y el cobrador eligió uno (`prestamoId`), se valida que ese crédito
+ * sea REALMENTE un activo de ESE cliente (no de otro) y se usa; si no se eligió,
+ * se usa el principal. Nunca deja imputar a un crédito ajeno.
+ */
+async function resolverPrestamo(
+  db: Awaited<ReturnType<typeof createSupabaseServer>>,
+  clienteId: string,
+  prestamoId?: string | null,
+): Promise<Prestamo | null> {
+  if (prestamoId) {
+    const activos = await getPrestamosActivosPorCliente(db, clienteId);
+    return activos.find((p) => p.id === prestamoId) ?? null;
+  }
+  return getPrestamoActivoPorCliente(db, clienteId);
+}
+
 function limpiar(v: string | null | undefined): string | null {
   const t = (v ?? "").trim();
   return t === "" ? null : t;

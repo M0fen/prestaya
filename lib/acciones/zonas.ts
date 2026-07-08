@@ -68,9 +68,10 @@ export async function editarZonaAction(input: {
   try {
     const db = await createSupabaseServer();
     const patch: { nombre?: string; color?: string | null; descripcion?: string | null } = {};
-    if (input.nombre != null) patch.nombre = input.nombre.trim();
-    if (input.color !== undefined) patch.color = input.color;
-    if (input.descripcion !== undefined) patch.descripcion = input.descripcion;
+    // Cap defensivo de longitud (consistente con crearZonaAction): nada ilimitado a la base.
+    if (input.nombre != null) patch.nombre = input.nombre.trim().slice(0, 60);
+    if (input.color !== undefined) patch.color = input.color?.slice(0, 20) ?? null;
+    if (input.descripcion !== undefined) patch.descripcion = input.descripcion?.slice(0, 300) ?? null;
     await editarZona(db, input.id, patch);
     await registrarAuditoria(db, {
       actorId: u.id,

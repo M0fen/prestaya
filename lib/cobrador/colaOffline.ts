@@ -16,6 +16,9 @@ export interface OpCobro {
   tipo: OpTipo;
   clienteId: string;
   clienteNombre: string;
+  /** Crédito al que se imputa (si el cliente tiene varios activos). null = el
+   *  principal. Opcional para retro-compatibilidad con ops ya encoladas. */
+  prestamoId?: string | null;
   monto: number | null; // pago: monto o null (=cuota). no_pago: null
   motivo: string | null; // no_pago: id del motivo
   gpsLat: number | null;

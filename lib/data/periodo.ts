@@ -8,6 +8,7 @@
 //  verano) y tz-independiente del runtime: los límites se calculan con Date.UTC
 //  a las 03:00 UTC = medianoche de Uruguay.
 // ─────────────────────────────────────────────────────────────────────────
+import { traerTodo } from "./paginado";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { hoyUY } from "@/lib/fecha";
 import { toIso, meses, diasSemana } from "@/lib/format";
@@ -115,13 +116,17 @@ export async function getResumenPeriodo(
   const prevInicioMs = Date.parse(isoUY(prev));
   const prevFinMs = prevInicioMs + transcurrido;
 
-  // Una sola query cubre el período actual y el previo.
-  const { data: pagosRaw, error } = await db
-    .from("pagos")
-    .select("monto, registrado_en, registrado_por")
-    .eq("anulado", false)
-    .gte("registrado_en", isoUY(prev));
-  if (error) throw error;
+  // Cubre el período actual y el previo. A ESCALA se PAGINA (un "año" puede
+  // traer >100k pagos → se truncaría a 1000 y los totales saldrían mal).
+  const pagosRaw = await traerTodo<{ monto: number; registrado_en: string; registrado_por: string | null }>(
+    (d, h) =>
+      db
+        .from("pagos")
+        .select("monto, registrado_en, registrado_por")
+        .eq("anulado", false)
+        .gte("registrado_en", isoUY(prev))
+        .range(d, h),
+  );
 
   // Buckets de la serie interna del período actual.
   const horaActualUY = partesUY(hoy.toISOString()).h;
@@ -133,7 +138,7 @@ export async function getResumenPeriodo(
   // Acumulador por cobrador (solo período actual).
   const porCob = new Map<string, { recaudado: number; cobros: number }>();
 
-  for (const r of pagosRaw ?? []) {
+  for (const r of pagosRaw) {
     const ts = Date.parse(r.registrado_en as string);
     const monto = Number(r.monto);
     if (ts >= inicioMs && ts <= ahoraMs) {
@@ -171,8 +176,15 @@ export async function getResumenPeriodo(
   // Colocación y créditos del período (por fecha_inicio / finalizado_en).
   const desdeFecha = toIso(inicio);
   const hastaFecha = toIso(base);
-  const [colocRes, finRes] = await Promise.all([
-    db.from("prestamos").select("monto_prestado").gte("fecha_inicio", desdeFecha).lte("fecha_inicio", hastaFecha),
+  const [coloc, finRes] = await Promise.all([
+    traerTodo<{ monto_prestado: number }>((d, h) =>
+      db
+        .from("prestamos")
+        .select("monto_prestado")
+        .gte("fecha_inicio", desdeFecha)
+        .lte("fecha_inicio", hastaFecha)
+        .range(d, h),
+    ),
     db
       .from("prestamos")
       .select("*", { count: "exact", head: true })
@@ -180,9 +192,9 @@ export async function getResumenPeriodo(
       .gte("finalizado_en", isoUY(inicio))
       .lte("finalizado_en", new Date(ahoraMs).toISOString()),
   ]);
-  if (colocRes.error) throw colocRes.error;
-  const colocado = (colocRes.data ?? []).reduce((s, r) => s + Number(r.monto_prestado), 0);
-  const creditosNuevos = (colocRes.data ?? []).length;
+  if (finRes.error) throw finRes.error;
+  const colocado = coloc.reduce((s, r) => s + Number(r.monto_prestado), 0);
+  const creditosNuevos = coloc.length;
   const creditosFinalizados = finRes.count ?? 0;
 
   const variacionPct =

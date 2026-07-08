@@ -38,9 +38,12 @@ export function VistaClienteScreen({
   umbralCaritas,
   juegoArcade = null,
   temporada = null,
+  creditoSelector = null,
 }: {
   v: VistaCredito;
   anuncios?: Anuncio[];
+  /** Selector de crédito (si el cliente tiene varios activos). Se pinta arriba. */
+  creditoSelector?: React.ReactNode;
   /** Token del link: habilita el reporte de discrepancia (solo vista real). */
   token?: string | null;
   /** Reputación positiva del cliente (chips). */
@@ -67,6 +70,8 @@ export function VistaClienteScreen({
       <div className="flex w-full max-w-[440px] flex-col gap-[18px] bg-app px-[18px] pt-5 pb-10 shadow-[0_0_60px_rgba(15,27,61,0.08)]">
         <Header inicial={v.inicial} />
         <Saludo nombre={v.nombre} />
+
+        {creditoSelector}
 
         {/* Mensaje de aliento arriba (framing positivo, ancla de identidad). */}
         <Aliento

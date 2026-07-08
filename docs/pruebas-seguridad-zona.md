@@ -134,6 +134,33 @@ reset role;
 la **solicitud con doble registro** (Fase C), que ejecuta la anulación con
 `service_role` recién tras la confirmación de una segunda persona.
 
+## 7. ESCRITURA cruzada por zona: bloqueada (migración 0035)
+
+Verifica el hallazgo de la auditoría senior: un supervisor de la zona A **no
+puede INSERTAR** pagos/préstamos/visitas sobre clientes de la zona B, ni siquiera
+por PostgREST directo. Requiere haber corrido la **migración 0035**.
+
+```sql
+-- Como supervisor de la zona A, intentar registrar un pago sobre un préstamo de
+-- un cliente de la ZONA B → debe fallar por RLS (violates row-level security).
+select set_config('request.jwt.claims',
+  (select json_build_object('sub', auth_user_id)::text
+     from usuarios where id = :supervisor), true);
+set role authenticated;
+
+-- :prestamo_zona_b = un préstamo cuyo cliente deriva a la zona B.
+insert into pagos (prestamo_id, dia_credito, monto, registrado_por)
+values (:prestamo_zona_b, 1, 100, :supervisor);   -- ESPERADO: ERROR RLS (0 filas)
+
+reset role;
+```
+
+**Esperado:** error `new row violates row-level security policy for table
+"pagos"`. Repetir el mismo intento con un préstamo de la **zona A** debe
+funcionar (o fallar solo por otra validación, no por RLS). El admin puede en
+ambas zonas. Espejo en código: `puedeEscribirEnZona` (lib/permisos.ts) con sus
+tests de aislamiento.
+
 ---
 
 ### Limpieza (al terminar)

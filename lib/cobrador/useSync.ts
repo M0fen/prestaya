@@ -53,6 +53,7 @@ export function useSync(onSynced?: () => void) {
             op.tipo === "pago"
               ? await registrarPagoCobrador({
                   clienteId: op.clienteId,
+                  prestamoId: op.prestamoId ?? null,
                   monto: op.monto,
                   gpsLat: op.gpsLat,
                   gpsLng: op.gpsLng,
@@ -61,6 +62,7 @@ export function useSync(onSynced?: () => void) {
                 })
               : await registrarNoPagoCobrador({
                   clienteId: op.clienteId,
+                  prestamoId: op.prestamoId ?? null,
                   motivo: (op.motivo ?? "no_estaba") as MotivoNoPago,
                   gpsLat: op.gpsLat,
                   gpsLng: op.gpsLng,

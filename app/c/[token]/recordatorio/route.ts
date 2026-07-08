@@ -7,6 +7,7 @@ import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getClientePorToken } from "@/lib/data/clientes";
 import { getPrestamoActivoPorCliente } from "@/lib/data/prestamos";
 import { UYU, parseFecha, toIso } from "@/lib/format";
+import { tokenValido } from "@/lib/validacion/esquemas";
 
 /** "YYYY-MM-DD" → "YYYYMMDD" (formato de fecha ICS). */
 function icsDate(iso: string): string {
@@ -18,6 +19,9 @@ export async function GET(
   { params }: { params: Promise<{ token: string }> },
 ) {
   const { token } = await params;
+  // Defensa en el borde: rechazamos tokens con forma inválida antes de tocar la
+  // base (mismo guard que las Server Actions de esta ruta).
+  if (!tokenValido(token)) return new Response("No encontrado", { status: 404 });
   const db = createSupabaseAdmin();
 
   const cliente = await getClientePorToken(db, token);

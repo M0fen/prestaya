@@ -15,7 +15,7 @@ import { getPagosDePrestamo } from "./pagos";
 type Fila = Record<string, unknown>;
 
 /** Query-builder mínimo: filtra por los `.eq(col,val)` acumulados; termina en
- *  `.maybeSingle()` (uno) o `.order()` (lista). */
+ *  `.maybeSingle()` (uno), `.order()` (lista) o `.order().limit(n)` (top-n). */
 function fakeDb(tablas: Record<string, Fila[]>) {
   return {
     from(nombre: string) {
@@ -29,7 +29,15 @@ function fakeDb(tablas: Record<string, Fila[]>) {
           return builder;
         },
         maybeSingle: () => Promise.resolve({ data: aplica()[0] ?? null, error: null }),
-        order: () => Promise.resolve({ data: aplica(), error: null }),
+        // `.order()` es awaitable (lista completa) y además encadena `.limit(n)`.
+        order: () => {
+          const p = Promise.resolve({ data: aplica(), error: null }) as Promise<{
+            data: Fila[];
+            error: null;
+          }> & { limit?: (n: number) => Promise<{ data: Fila[]; error: null }> };
+          p.limit = (n: number) => Promise.resolve({ data: aplica().slice(0, n), error: null });
+          return p;
+        },
       };
       return builder;
     },

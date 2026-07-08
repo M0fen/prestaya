@@ -6,11 +6,12 @@
 //  cliente y devuelve ÚNICAMENTE los datos de ese cliente. El navegador nunca
 //  habla directo con Supabase.
 // ─────────────────────────────────────────────────────────────────────────
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getClientePorToken } from "@/lib/data/clientes";
 import {
-  getPrestamoActivoPorCliente,
+  getPrestamosActivosPorCliente,
   contarCreditosPagados,
 } from "@/lib/data/prestamos";
 import { getPagosDePrestamo } from "@/lib/data/pagos";
@@ -36,21 +37,53 @@ export const dynamic = "force-dynamic";
 
 export default async function VistaPorToken({
   params,
+  searchParams,
 }: {
   params: Promise<{ token: string }>;
+  searchParams: Promise<{ credito?: string }>;
 }) {
   const { token } = await params;
+  const { credito } = await searchParams;
   const db = createSupabaseAdmin();
 
   // 1) Validar el token → cliente. Si no existe, 404 (no revelamos nada).
   const cliente = await getClientePorToken(db, token);
   if (!cliente) notFound();
 
-  // 2) Préstamo activo del cliente. Puede no tener uno.
-  const prestamo = await getPrestamoActivoPorCliente(db, cliente.id);
+  // 2) Créditos activos del cliente (desde 0037 pueden ser varios). Se muestra
+  //    el elegido (?credito=) o el principal; con un selector si hay más de uno.
+  const activos = await getPrestamosActivosPorCliente(db, cliente.id);
+  const prestamo = activos.find((p) => p.id === credito) ?? activos[0] ?? null;
   if (!prestamo) {
     return <SinCreditoActivo nombre={cliente.nombre} negocio={NEGOCIO} />;
   }
+
+  // Selector de crédito (solo si tiene más de uno activo). Amable, legible.
+  const creditoSelector =
+    activos.length > 1 ? (
+      <div className="flex flex-col gap-1.5 rounded-[14px] bg-[#EEF3FF] px-3.5 py-3">
+        <span className="text-[12.5px] font-semibold text-[#1E47C8]">
+          Tenés {activos.length} créditos. Tocá para ver cada uno:
+        </span>
+        <div className="flex flex-wrap gap-1.5">
+          {activos.map((p, i) => {
+            const sel = p.id === prestamo.id;
+            return (
+              <Link
+                key={p.id}
+                href={`/c/${token}?credito=${p.id}`}
+                scroll={false}
+                className={`rounded-full px-3.5 py-1.5 text-[13px] font-bold ${
+                  sel ? "bg-[#1E47C8] text-white" : "bg-white text-[#1E47C8]"
+                }`}
+              >
+                Crédito {i + 1}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+    ) : null;
 
   // 3) Pagos vigentes + cálculo + render. "hoy" = fecha real del servidor.
   const pagos = await getPagosDePrestamo(db, prestamo.id);
@@ -156,6 +189,7 @@ export default async function VistaPorToken({
       v={v}
       anuncios={anuncios}
       token={token}
+      creditoSelector={creditoSelector}
       reputacion={reputacion}
       juego={juego}
       estrellas={estrellas}

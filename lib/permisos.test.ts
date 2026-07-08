@@ -10,6 +10,7 @@ import {
   puedeReasignarEntreZonas,
   puedeSolicitarAltaCobrador,
   puedeSolicitarAnulacion,
+  puedeEscribirEnZona,
   puedeVerCartera,
   puedeVerZona,
   type Actor,
@@ -160,6 +161,35 @@ describe("decisión 4 — reasignar clientes", () => {
     expect(puedeReasignarCliente(supervisorA, ZB, ZB)).toBe(false);
     // el cobrador nunca reasigna
     expect(puedeReasignarCliente(cobradorA, ZA, ZA)).toBe(false);
+  });
+});
+
+describe("aislamiento de ESCRITURA por zona (espejo RLS 0035)", () => {
+  it("admin escribe en cualquier zona, incluso sin zona (null)", () => {
+    expect(puedeEscribirEnZona(admin, ZA)).toBe(true);
+    expect(puedeEscribirEnZona(admin, ZB)).toBe(true);
+    expect(puedeEscribirEnZona(admin, null)).toBe(true);
+  });
+
+  it("supervisor de A escribe en A, NO en B (separación de deberes sobre dinero)", () => {
+    expect(puedeEscribirEnZona(supervisorA, ZA)).toBe(true);
+    expect(puedeEscribirEnZona(supervisorA, ZB)).toBe(false);
+  });
+
+  it("supervisor de A puede escribir sobre recurso sin zona (transición: cliente sin cobrador)", () => {
+    expect(puedeEscribirEnZona(supervisorA, null)).toBe(true);
+  });
+
+  it("supervisor sin zonas escribe en todas (transición), supervisor AB en A y B", () => {
+    expect(puedeEscribirEnZona(supervisorSinZonas, ZA)).toBe(true);
+    expect(puedeEscribirEnZona(supervisorSinZonas, ZB)).toBe(true);
+    expect(puedeEscribirEnZona(supervisorAB, ZA)).toBe(true);
+    expect(puedeEscribirEnZona(supervisorAB, ZB)).toBe(true);
+  });
+
+  it("el cobrador NO pasa por la regla de zona (su escritura va por asignación)", () => {
+    expect(puedeEscribirEnZona(cobradorA, ZA)).toBe(false);
+    expect(puedeEscribirEnZona(cobradorA, null)).toBe(false);
   });
 });
 

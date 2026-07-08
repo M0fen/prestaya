@@ -27,7 +27,10 @@ function mapPrestamo(r: Record<string, unknown>): Prestamo {
 
 /**
  * Devuelve el préstamo ACTIVO de un cliente (o null si no tiene).
- * La BD garantiza que haya como máximo uno activo por cliente.
+ * Desde 0037 un cliente puede tener VARIOS créditos activos. Esta función
+ * devuelve el "principal" (el más nuevo por fecha de inicio) para las vistas
+ * que muestran uno solo; usar `getPrestamosActivosPorCliente` para listarlos
+ * todos. Ya NO usa `.maybeSingle()` (rompería con múltiples activos).
  */
 export async function getPrestamoActivoPorCliente(
   db: SupabaseClient,
@@ -38,10 +41,30 @@ export async function getPrestamoActivoPorCliente(
     .select("*")
     .eq("cliente_id", clienteId)
     .eq("estado", "activo")
-    .maybeSingle();
+    .order("fecha_inicio", { ascending: false })
+    .limit(1);
 
   if (error) throw error;
-  return data ? mapPrestamo(data) : null;
+  return data && data.length > 0 ? mapPrestamo(data[0]) : null;
+}
+
+/**
+ * TODOS los créditos activos de un cliente (del más nuevo al más viejo).
+ * Desde 0037 pueden ser varios. Cada uno mantiene su propio cartón.
+ */
+export async function getPrestamosActivosPorCliente(
+  db: SupabaseClient,
+  clienteId: string,
+): Promise<Prestamo[]> {
+  const { data, error } = await db
+    .from("prestamos")
+    .select("*")
+    .eq("cliente_id", clienteId)
+    .eq("estado", "activo")
+    .order("fecha_inicio", { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []).map(mapPrestamo);
 }
 
 /** Cuenta los créditos ya finalizados (pagados) de un cliente. */

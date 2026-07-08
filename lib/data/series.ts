@@ -4,6 +4,7 @@
 //  N días, agrupada por el día calendario de Uruguay (no por UTC). Barato: una
 //  sola query + agregación en JS. Corre como el usuario logueado (RLS).
 // ─────────────────────────────────────────────────────────────────────────
+import { traerTodo } from "./paginado";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { hoyUY, inicioDiaUYIso } from "@/lib/fecha";
 import { toIso, diasSemana } from "@/lib/format";
@@ -77,19 +78,14 @@ export async function getSerieRecaudo(
     });
   }
 
-  const { data, error } = await db
-    .from("pagos")
-    .select("monto, registrado_en")
-    .eq("anulado", false)
-    .gte("registrado_en", desdeIso);
+  // A ESCALA: la suma por día la hace la base (RPC 0040), no se traen ~16k pagos.
+  const { data, error } = await db.rpc("app_serie_recaudo", { dias: N });
   if (error) throw error;
-
-  for (const r of data ?? []) {
-    const iso = diaUYde(r.registrado_en as string);
-    const b = buckets.get(iso);
-    if (!b) continue; // fuera de la ventana (borde del filtro)
-    b.recaudado += Number(r.monto);
-    b.cobros += 1;
+  for (const r of (data ?? []) as { dia: string; recaudado: number; cobros: number }[]) {
+    const b = buckets.get(r.dia); // dia = "YYYY-MM-DD" de Uruguay
+    if (!b) continue;
+    b.recaudado += Number(r.recaudado);
+    b.cobros += Number(r.cobros);
   }
 
   const arr = [...buckets.values()];

@@ -5,6 +5,7 @@
 //  resumen del período: ingresos, egresos, neto, desglose y libro cronológico.
 //  Corre como gestor (RLS). Degrada si 0010 aún no existe (los cobros igual salen).
 // ─────────────────────────────────────────────────────────────────────────
+import { traerTodo } from "./paginado";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { inicioDiaUYIso, inicioMesUYIso } from "@/lib/fecha";
 import { tablaFaltante } from "./errores";
@@ -60,14 +61,22 @@ export async function getResumenCaja(
 ): Promise<ResumenCaja> {
   const desde = periodo === "mes" ? inicioMesUYIso(hoy) : inicioDiaUYIso(hoy);
 
-  // 1) Cobros del período (ingreso principal).
-  const { data: pagosRaw, error: ePag } = await db
-    .from("pagos")
-    .select("monto, registrado_en, registrado_por, prestamo_id")
-    .eq("anulado", false)
-    .gte("registrado_en", desde);
-  if (ePag) throw ePag;
-  const pagos = pagosRaw ?? [];
+  // 1) Cobros del período (ingreso principal). A ESCALA: se PAGINA (el mes puede
+  //    ser >1000 pagos) y el nombre del cliente va EMBEBIDO (evita .in de miles).
+  const pagos = await traerTodo<{
+    monto: number;
+    registrado_en: string;
+    registrado_por: string | null;
+    prestamo_id: string;
+    prestamos: { clientes: { nombre: string } | null } | null;
+  }>((d, h) =>
+    db
+      .from("pagos")
+      .select("monto, registrado_en, registrado_por, prestamo_id, prestamos(clientes(nombre))")
+      .eq("anulado", false)
+      .gte("registrado_en", desde)
+      .range(d, h),
+  );
 
   // 2) Movimientos de caja (degrada a vacío si falta 0010).
   let movimientos: Record<string, unknown>[] = [];
@@ -95,22 +104,7 @@ export async function getResumenCaja(
     for (const u of data ?? []) nombreUsuario.set(u.id as string, u.nombre as string);
   }
 
-  const prestamoIds = [...new Set(pagos.map((p) => p.prestamo_id as string))];
-  const clienteDePrestamo = new Map<string, string>();
-  if (prestamoIds.length > 0) {
-    const { data: pres } = await db
-      .from("prestamos")
-      .select("id, cliente_id")
-      .in("id", prestamoIds);
-    const clienteIds = [...new Set((pres ?? []).map((p) => p.cliente_id as string))];
-    const nombreCliente = new Map<string, string>();
-    if (clienteIds.length > 0) {
-      const { data: clis } = await db.from("clientes").select("id, nombre").in("id", clienteIds);
-      for (const c of clis ?? []) nombreCliente.set(c.id as string, c.nombre as string);
-    }
-    for (const p of pres ?? [])
-      clienteDePrestamo.set(p.id as string, nombreCliente.get(p.cliente_id as string) ?? "cliente");
-  }
+  // (el nombre del cliente de cada cobro ya viene embebido en `pagos`)
 
   // 4) Agregados.
   let cobros = 0;
@@ -127,7 +121,7 @@ export async function getResumenCaja(
     libro.push({
       fechaIso: p.registrado_en as string,
       tipo: "cobro",
-      concepto: `Cobro · ${clienteDePrestamo.get(p.prestamo_id as string) ?? "cliente"}`,
+      concepto: `Cobro · ${p.prestamos?.clientes?.nombre ?? "cliente"}`,
       monto,
       signo: 1,
     });

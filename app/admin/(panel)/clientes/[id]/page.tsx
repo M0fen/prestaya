@@ -14,7 +14,6 @@ import { ReasignarCliente, type CobradorOpcion } from "@/components/admin/Reasig
 import { RotarToken } from "@/components/admin/RotarToken";
 import { getSaldoEstrellas } from "@/lib/data/estrellas";
 import { getAjustesJuego } from "@/lib/data/juegoConfig";
-import { getPrestamoActivoPorCliente } from "@/lib/data/prestamos";
 import { claveCiclo } from "@/lib/estrellas";
 import { cicloUY } from "@/lib/fecha";
 import { NotasCliente } from "@/components/notas/NotasCliente";
@@ -63,7 +62,7 @@ export default async function FichaClientePage({
   const ficha = await getFichaCliente(db, id);
   if (!ficha) notFound();
 
-  const { cliente, score, evolucionScore: evolucion, activo, creditos, pagos, notas } = ficha;
+  const { cliente, score, evolucionScore: evolucion, activos, creditos, pagos, notas } = ficha;
   const banda = BANDA[cliente.calificacion] ?? BANDA.nuevo;
   const bandaScore = BANDA[score.banda as Calificacion] ?? BANDA.nuevo;
 
@@ -88,16 +87,16 @@ export default async function FichaClientePage({
   ).map((c) => ({ id: c.id, nombre: c.nombre }));
 
   // Saldo de estrellas del cliente (respeta el ciclo definido por el admin).
-  const [ajustes, prestamoAct, morosidad, notasMora] = await Promise.all([
+  // Con varios créditos activos, el ciclo "por crédito" se ancla en el principal.
+  const [ajustes, morosidad, notasMora] = await Promise.all([
     getAjustesJuego(db),
-    getPrestamoActivoPorCliente(db, id),
     getMorosidadCliente(db, id),
     getNotasMora(db, id),
   ]);
   const estrellas = await getSaldoEstrellas(
     db,
     id,
-    claveCiclo(ajustes.estrellasCiclo, { cicloMes: cicloUY(), prestamoId: prestamoAct?.id ?? null }),
+    claveCiclo(ajustes.estrellasCiclo, { cicloMes: cicloUY(), prestamoId: activos[0]?.id ?? null }),
   );
 
   return (
@@ -213,55 +212,71 @@ export default async function FichaClientePage({
         </p>
       </section>
 
-      {/* Crédito activo + cartón */}
+      {/* Créditos activos + cartón (desde 0037 pueden ser VARIOS) */}
       <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-4">
-        <span className="text-[13px] font-bold text-tinta">Crédito activo</span>
-        {!activo ? (
+        <div className="flex items-center justify-between">
+          <span className="text-[13px] font-bold text-tinta">
+            {activos.length > 1 ? `Créditos activos (${activos.length})` : "Crédito activo"}
+          </span>
+        </div>
+        {activos.length === 0 ? (
           <p className="mt-2 text-[13px] font-medium text-gris">
             Sin crédito activo. El alta de créditos la hace la oficina.
           </p>
         ) : (
-          <>
-            <div className="mt-2 grid grid-cols-2 gap-2.5 md:grid-cols-4">
-              <Kpi label="Cuota diaria" valor={UYU(activo.cuota)} />
-              <Kpi label="Saldo" valor={UYU(activo.saldo)} />
-              <Kpi
-                label="Deuda vencida"
-                valor={UYU(activo.deudaVencida)}
-                acento={activo.deudaVencida > 0 ? "#C0392B" : undefined}
-              />
-              <Kpi
-                label="Días atraso"
-                valor={String(activo.diasAtraso)}
-                acento={activo.diasAtraso > 0 ? "#C0392B" : undefined}
-              />
-            </div>
-            <div className="mt-3 rounded-[14px] bg-[#F1E8D2] p-3">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-[11.5px] font-bold text-[#8A6D1E]">
-                  Cartón · {activo.pagados}/{activo.totalDias} días
-                </span>
-                <span className="text-[11px] font-medium text-[#a98b3e]">
-                  {activo.progresoPct}% pagado
-                </span>
-              </div>
-              <div className="grid grid-cols-10 gap-1.5">
-                {activo.dias.map((d) => (
-                  <div
-                    key={d.dia}
-                    className="flex aspect-square items-center justify-center rounded-[8px] text-[10px] font-bold"
-                    style={{
-                      background: COLOR[d.estado],
-                      color: d.estado === "futuro" ? "#B3A488" : "#fff",
-                      boxShadow: d.esHoy ? "0 0 0 2px #13308C" : "none",
-                    }}
-                  >
-                    {d.estado === "pagado" ? "✓" : d.dia}
+          <div className="mt-2 flex flex-col gap-4">
+            {activos.map((activo, idx) => (
+              <div
+                key={activo.id}
+                className={idx > 0 ? "border-t border-[#EEF1F8] pt-4" : ""}
+              >
+                {activos.length > 1 && (
+                  <span className="mb-2 inline-block rounded-full bg-[#EAF0FF] px-2.5 py-1 text-[11px] font-bold text-[#1E47C8]">
+                    Crédito {idx + 1} · desde {fechaCorta(activo.fechaInicio)}
+                  </span>
+                )}
+                <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
+                  <Kpi label="Cuota diaria" valor={UYU(activo.cuota)} />
+                  <Kpi label="Saldo" valor={UYU(activo.saldo)} />
+                  <Kpi
+                    label="Deuda vencida"
+                    valor={UYU(activo.deudaVencida)}
+                    acento={activo.deudaVencida > 0 ? "#C0392B" : undefined}
+                  />
+                  <Kpi
+                    label="Días atraso"
+                    valor={String(activo.diasAtraso)}
+                    acento={activo.diasAtraso > 0 ? "#C0392B" : undefined}
+                  />
+                </div>
+                <div className="mt-3 rounded-[14px] bg-[#F1E8D2] p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-[11.5px] font-bold text-[#8A6D1E]">
+                      Cartón · {activo.pagados}/{activo.totalDias} días
+                    </span>
+                    <span className="text-[11px] font-medium text-[#a98b3e]">
+                      {activo.progresoPct}% pagado
+                    </span>
                   </div>
-                ))}
+                  <div className="grid grid-cols-10 gap-1.5">
+                    {activo.dias.map((d) => (
+                      <div
+                        key={d.dia}
+                        className="flex aspect-square items-center justify-center rounded-[8px] text-[10px] font-bold"
+                        style={{
+                          background: COLOR[d.estado],
+                          color: d.estado === "futuro" ? "#B3A488" : "#fff",
+                          boxShadow: d.esHoy ? "0 0 0 2px #13308C" : "none",
+                        }}
+                      >
+                        {d.estado === "pagado" ? "✓" : d.dia}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
-          </>
+            ))}
+          </div>
         )}
       </section>
 

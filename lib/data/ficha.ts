@@ -34,6 +34,7 @@ export interface CreditoFicha {
   pagadoTotal: number;
 }
 export interface CreditoActivoFicha {
+  id: string;
   saldo: number;
   deudaVencida: number;
   diasAtraso: number;
@@ -43,13 +44,15 @@ export interface CreditoActivoFicha {
   proximaFecha: string | null;
   dias: DiaEstado[];
   cuota: number;
+  fechaInicio: string;
 }
 export interface FichaCliente {
   cliente: Cliente;
   score: ResultadoScore;
   /** Serie histórica del puntaje (derivada, mensual). */
   evolucionScore: PuntoEvolucion[];
-  activo: CreditoActivoFicha | null;
+  /** Créditos activos con su cartón. Desde 0037 pueden ser VARIOS. */
+  activos: CreditoActivoFicha[];
   creditos: CreditoFicha[];
   pagos: PagoFicha[];
   notas: NotaClienteVista[];
@@ -71,24 +74,27 @@ export async function getFichaCliente(
   const score = calcularScore({ ...historial, hoy: hoyCal }, configScoring);
   const evolucion = evolucionScore({ ...historial, hoy: hoyCal }, { config: configScoring });
 
-  // Crédito activo + cartón.
-  const prestamoActivo = historial.prestamos.find((p) => p.estado === "activo") ?? null;
-  let activo: CreditoActivoFicha | null = null;
-  if (prestamoActivo) {
-    const pagos = historial.pagosPorPrestamo[prestamoActivo.id] ?? [];
-    const r = calcularEstadosCarton(prestamoActivo, pagos, hoyCal);
-    activo = {
+  // Créditos activos + cartón de cada uno (desde 0037 pueden ser varios).
+  const prestamosActivos = historial.prestamos
+    .filter((p) => p.estado === "activo")
+    .sort((a, b) => (a.fecha_inicio < b.fecha_inicio ? 1 : -1));
+  const activos: CreditoActivoFicha[] = prestamosActivos.map((pr) => {
+    const pagos = historial.pagosPorPrestamo[pr.id] ?? [];
+    const r = calcularEstadosCarton(pr, pagos, hoyCal);
+    return {
+      id: pr.id,
       saldo: r.falta,
       deudaVencida: r.montoParaAlDia,
       diasAtraso: r.dias.filter((d) => d.estado === "atrasado").length,
       pagados: r.dias.filter((d) => d.estado === "pagado").length,
-      totalDias: prestamoActivo.total_dias,
+      totalDias: pr.total_dias,
       progresoPct: r.progresoPct,
       proximaFecha: r.proxima?.fecha ?? null,
       dias: r.dias,
-      cuota: prestamoActivo.cuota_diaria,
+      cuota: pr.cuota_diaria,
+      fechaInicio: pr.fecha_inicio,
     };
-  }
+  });
 
   // Historial de créditos (con lo pagado en cada uno).
   const creditos: CreditoFicha[] = historial.prestamos.map((p) => ({
@@ -120,5 +126,5 @@ export async function getFichaCliente(
 
   const notas = await getNotasCliente(db, id);
 
-  return { cliente, score, evolucionScore: evolucion, activo, creditos, pagos, notas };
+  return { cliente, score, evolucionScore: evolucion, activos, creditos, pagos, notas };
 }

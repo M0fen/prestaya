@@ -10,7 +10,8 @@ import { getDashboardMetricas } from "./metricas";
 import { getTableroMora } from "./mora";
 import { getControlCobranza } from "./control";
 import { getSerieRecaudo } from "./series";
-import { getPrestamoActivoPorCliente } from "./prestamos";
+import { getPrestamosActivosPorCliente } from "./prestamos";
+import { getActivosConPagos } from "./activos";
 import { getPagosDePrestamo } from "./pagos";
 import { getHistorialCrediticio } from "./scoring";
 import { getNotasCliente } from "./notas";
@@ -61,10 +62,13 @@ export async function getResumenFinanciero(
   db: SupabaseClient,
   hoy: Date = new Date(),
 ): Promise<ResumenFinanciero> {
+  // Se trae la cartera activa UNA vez y se comparte entre métricas y mora
+  // (ambas corren el cartón sobre los mismos créditos → media RPC menos).
+  const activos = await getActivosConPagos(db);
   const [dash, mora, control] = await Promise.all([
-    getDashboardMetricas(db, hoy),
-    getTableroMora(db, hoy),
-    getControlCobranza(db, hoy),
+    getDashboardMetricas(db, hoy, activos),
+    getTableroMora(db, hoy, activos),
+    getControlCobranza(db, hoy, activos),
   ]);
 
   const moraPct = dash.carteraPorCobrar > 0 ? dash.montoEnMora / dash.carteraPorCobrar : 0;
@@ -148,22 +152,25 @@ export async function buscarClientePerfil(
   L.push(`PERFIL DE CLIENTE: ${elegido.nombre}${otros}`);
   L.push(`- Documento: ${elegido.documento ?? "s/d"} · Tel: ${elegido.telefono ?? "s/d"} · Dir: ${elegido.direccion ?? "s/d"}`);
 
-  // Crédito activo + cartón.
-  const prestamo = await getPrestamoActivoPorCliente(db, clienteId);
-  if (!prestamo) {
+  // Créditos activos + cartón (desde 0037 pueden ser varios).
+  const activos = await getPrestamosActivosPorCliente(db, clienteId);
+  if (activos.length === 0) {
     L.push(`- Sin crédito activo.`);
   } else {
-    const pagos = await getPagosDePrestamo(db, prestamo.id);
-    const r = calcularEstadosCarton(prestamo, pagos, hoyCal);
-    const pagados = r.dias.filter((d) => d.estado === "pagado").length;
-    const atrasados = r.dias.filter((d) => d.estado === "atrasado").length;
-    L.push(
-      `- Crédito activo: cuota ${UYU(prestamo.cuota_diaria)} × ${prestamo.total_dias} días. Pagó ${pagados}/${prestamo.total_dias}.`,
-    );
-    L.push(
-      `- Saldo por cobrar: ${UYU(r.falta)}. Deuda vencida (para ponerse al día): ${UYU(r.montoParaAlDia)}. Días atrasados: ${atrasados}.`,
-    );
-    if (r.proxima) L.push(`- Próxima cuota: día ${r.proxima.dia} (${r.proxima.fecha}).`);
+    if (activos.length > 1) L.push(`- Tiene ${activos.length} créditos activos:`);
+    for (let i = 0; i < activos.length; i++) {
+      const prestamo = activos[i];
+      const pagos = await getPagosDePrestamo(db, prestamo.id);
+      const r = calcularEstadosCarton(prestamo, pagos, hoyCal);
+      const pagados = r.dias.filter((d) => d.estado === "pagado").length;
+      const atrasados = r.dias.filter((d) => d.estado === "atrasado").length;
+      const pref = activos.length > 1 ? `  · Crédito ${i + 1}:` : "- Crédito activo:";
+      L.push(
+        `${pref} cuota ${UYU(prestamo.cuota_diaria)} × ${prestamo.total_dias} días. Pagó ${pagados}/${prestamo.total_dias}. ` +
+          `Saldo ${UYU(r.falta)}, deuda vencida ${UYU(r.montoParaAlDia)}, días atrasados ${atrasados}.` +
+          (r.proxima ? ` Próxima: día ${r.proxima.dia} (${r.proxima.fecha}).` : ""),
+      );
+    }
   }
 
   // Score interno.

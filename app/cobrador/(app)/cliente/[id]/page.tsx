@@ -5,12 +5,13 @@ import { notFound } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { requireUsuario, esGestor } from "@/lib/auth";
 import { getClientePorId } from "@/lib/data/clientes";
-import { getPrestamoActivoPorCliente } from "@/lib/data/prestamos";
+import { getPrestamosActivosPorCliente } from "@/lib/data/prestamos";
 import { getPagosDePrestamo } from "@/lib/data/pagos";
 import { getNotasCliente } from "@/lib/data/notas";
 import { calcularEstadosCarton } from "@/lib/cartones";
 import { hoyUY } from "@/lib/fecha";
 import type { EstadoDia } from "@/types/cartones";
+import type { Prestamo } from "@/types/db";
 import { UYU } from "@/lib/format";
 import { RegistroCobro } from "@/components/cobrador/RegistroCobro";
 import { BeaconFicha } from "@/components/cobrador/BeaconFicha";
@@ -27,17 +28,23 @@ const COLOR: Record<EstadoDia, string> = {
 
 export default async function DetalleClientePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ credito?: string }>;
 }) {
   const { id } = await params;
+  const { credito } = await searchParams;
   const db = await createSupabaseServer();
   const usuario = await requireUsuario();
 
   const cliente = await getClientePorId(db, id);
   if (!cliente) notFound();
 
-  const prestamo = await getPrestamoActivoPorCliente(db, id);
+  // Un cliente puede tener VARIOS créditos activos (0037). El cobrador elige a
+  // cuál imputa; por defecto, el principal (el más nuevo).
+  const activos = await getPrestamosActivosPorCliente(db, id);
+  const prestamo = activos.find((p) => p.id === credito) ?? activos[0] ?? null;
   const notas = await getNotasCliente(db, id);
   const inicial = cliente.nombre.charAt(0).toUpperCase();
 
@@ -60,6 +67,34 @@ export default async function DetalleClientePage({
           </span>
         </div>
       </div>
+
+      {/* Selector de crédito: solo si el cliente tiene MÁS DE UNO activo. */}
+      {activos.length > 1 && prestamo && (
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[11.5px] font-bold text-gris">
+            {activos.length} créditos activos — elegí a cuál imputás:
+          </span>
+          <div className="flex flex-wrap gap-1.5">
+            {activos.map((p, i) => {
+              const activo = p.id === prestamo.id;
+              return (
+                <Link
+                  key={p.id}
+                  href={`/cobrador/cliente/${id}?credito=${p.id}`}
+                  scroll={false}
+                  className={`rounded-full px-3 py-1.5 text-[12px] font-bold ${
+                    activo
+                      ? "bg-[#1E47C8] text-white"
+                      : "border border-[#DCE3F4] bg-white text-[#6B7494]"
+                  }`}
+                >
+                  Crédito {i + 1} · {UYU(p.cuota_diaria)}/día
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {!prestamo ? (
         <p className="rounded-[14px] bg-white px-4 py-6 text-center text-[13px] font-medium text-gris">
@@ -96,7 +131,7 @@ async function Detalle({
   db: Awaited<ReturnType<typeof createSupabaseServer>>;
   clienteId: string;
   cliente: Awaited<ReturnType<typeof getClientePorId>>;
-  prestamo: NonNullable<Awaited<ReturnType<typeof getPrestamoActivoPorCliente>>>;
+  prestamo: Prestamo;
   cobradorNombre: string;
 }) {
   const pagos = await getPagosDePrestamo(db, prestamo.id);
@@ -141,6 +176,7 @@ async function Detalle({
 
       <RegistroCobro
         clienteId={clienteId}
+        prestamoId={prestamo.id}
         clienteNombre={cliente?.nombre ?? ""}
         clienteTelefono={cliente?.telefono ?? null}
         cobradorNombre={cobradorNombre}

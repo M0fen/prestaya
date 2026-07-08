@@ -40,17 +40,23 @@ function emisionUY(): string {
 
 export default async function EstadoCuentaPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ credito?: string }>;
 }) {
   const { id } = await params;
+  const { credito } = await searchParams;
   await requireGestor();
   const db = await createSupabaseServer();
   const ficha = await getFichaCliente(db, id);
   if (!ficha) notFound();
 
-  const { cliente, activo, creditos } = ficha;
-  const creditoActivo = creditos.find((c) => c.estado === "activo") ?? null;
+  const { cliente, activos, creditos } = ficha;
+  // Con varios créditos activos, el estado de cuenta es de UNO (por ?credito=,
+  // o el principal por defecto).
+  const activo = activos.find((a) => a.id === credito) ?? activos[0] ?? null;
+  const creditoActivo = activo ? (creditos.find((c) => c.id === activo.id) ?? null) : null;
   const totalAPagar = activo ? activo.cuota * activo.totalDias : 0;
   const pagado = activo ? totalAPagar - activo.saldo : 0;
 

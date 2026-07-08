@@ -152,6 +152,19 @@ export function puedeReasignarCliente(
   return mismaZona && puedeVerZona(actor, zonaOrigen);
 }
 
+/**
+ * ¿Puede ESCRIBIR (crear pago/préstamo/visita) sobre un recurso cuya zona
+ * derivada es `zonaRecurso`? Espejo EXACTO de las políticas INSERT de la RLS
+ * (migración 0035). Un gestor escribe si ve esa zona, o si el recurso aún no
+ * tiene zona (cliente sin cobrador → transición). Aislamiento: un supervisor de
+ * la Zona A NO puede escribir sobre un recurso de la Zona B. El cobrador no pasa
+ * por acá: su permiso de escritura va por asignación, no por zona.
+ */
+export function puedeEscribirEnZona(actor: Actor, zonaRecurso: string | null): boolean {
+  if (!esGestor(actor)) return false;
+  return zonaRecurso === null || puedeVerZona(actor, zonaRecurso);
+}
+
 /** ¿Ve la cartera / reportes agregados? Los gestores sí; el cobrador no. */
 export function puedeVerCartera(actor: Actor): boolean {
   return esGestor(actor);

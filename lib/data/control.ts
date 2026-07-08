@@ -7,6 +7,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { evaluarZona } from "@/lib/geo";
 import { inicioDiaUYIso } from "@/lib/fecha";
+import { traerTodo } from "./paginado";
+import { getActivosConPagos } from "./activos";
 
 /** Efectivo por cobrador que dispara alerta de rendición (hasta tener módulo de caja). */
 const LIMITE_FLOAT = 15000;
@@ -63,51 +65,60 @@ const num = (v: unknown): number | null => (v == null ? null : Number(v));
 export async function getControlCobranza(
   db: SupabaseClient,
   hoy: Date = new Date(),
+  activosPre?: import("./activos").ActivoConPagos[],
 ): Promise<ControlCobranza> {
   const desde = inicioDiaUYIso(hoy);
 
-  // Datos base.
-  const [cobRes, asigRes, presRes, cliRes] = await Promise.all([
-    db.from("usuarios").select("id, nombre").eq("rol", "cobrador").eq("activo", true),
-    db.from("asignaciones").select("cobrador_id, cliente_id").eq("activo", true),
-    db.from("prestamos").select("id, cliente_id, cuota_diaria").eq("estado", "activo"),
-    db.from("clientes").select("*"),
-  ]);
-  for (const r of [cobRes, asigRes, presRes, cliRes]) if (r.error) throw r.error;
+  // A ESCALA: los créditos activos (con cliente/gps/cobrador embebidos) vienen de
+  // la RPC `app_cartera_activa` (una fila por crédito). El cobrador de cada
+  // cliente sale del propio crédito (cobrador_id), sin traer asignaciones.
+  const cobRes = await db
+    .from("usuarios")
+    .select("id, nombre")
+    .eq("rol", "cobrador")
+    .eq("activo", true);
+  if (cobRes.error) throw cobRes.error;
+  const activos = activosPre ?? (await getActivosConPagos(db));
 
   const cobradores = (cobRes.data ?? []).map((c) => ({
     id: c.id as string,
     nombre: c.nombre as string,
   }));
   const cobradorDeCliente = new Map<string, string>();
-  for (const a of asigRes.data ?? [])
-    cobradorDeCliente.set(a.cliente_id as string, a.cobrador_id as string);
-
   const prestamoPorCliente = new Map<string, { id: string; cuota: number }>();
   const prestamoPorId = new Map<string, { clienteId: string; cuota: number }>();
-  for (const p of presRes.data ?? []) {
-    prestamoPorCliente.set(p.cliente_id as string, { id: p.id as string, cuota: Number(p.cuota_diaria) });
-    prestamoPorId.set(p.id as string, { clienteId: p.cliente_id as string, cuota: Number(p.cuota_diaria) });
-  }
   const cliente = new Map<string, { nombre: string; gps: Coord }>();
-  for (const c of cliRes.data ?? [])
-    cliente.set(c.id as string, {
-      nombre: c.nombre as string,
-      gps: { lat: num(c.gps_lat), lng: num(c.gps_lng) },
+  for (const p of activos) {
+    if (p.cobrador_id) cobradorDeCliente.set(p.cliente_id, p.cobrador_id);
+    prestamoPorCliente.set(p.cliente_id, { id: p.id, cuota: Number(p.cuota_diaria) });
+    prestamoPorId.set(p.id, { clienteId: p.cliente_id, cuota: Number(p.cuota_diaria) });
+    cliente.set(p.cliente_id, {
+      nombre: p.cliente_nombre ?? "",
+      gps: { lat: num(p.cliente_gps_lat), lng: num(p.cliente_gps_lng) },
     });
+  }
 
-  // Eventos de HOY.
-  const ids = [...prestamoPorId.keys()];
-  const [pagosRes, visRes] = await Promise.all([
-    ids.length
-      ? db.from("pagos").select("prestamo_id, monto, registrado_por, gps_lat, gps_lng").eq("anulado", false).gte("registrado_en", desde).in("prestamo_id", ids)
-      : Promise.resolve({ data: [], error: null }),
-    ids.length
-      ? db.from("visitas").select("prestamo_id, cobrador_id, resultado").gte("registrado_en", desde).in("prestamo_id", ids)
-      : Promise.resolve({ data: [], error: null }),
+  // Eventos de HOY (pagos + visitas de créditos activos), paginados y sin .in().
+  const [pagosRaw, visRaw] = await Promise.all([
+    traerTodo<{ prestamo_id: string; monto: number; registrado_por: string | null; gps_lat: number | null; gps_lng: number | null }>(
+      (d, h) =>
+        db
+          .from("pagos")
+          .select("prestamo_id, monto, registrado_por, gps_lat, gps_lng, prestamos!inner(estado)")
+          .eq("prestamos.estado", "activo")
+          .eq("anulado", false)
+          .gte("registrado_en", desde)
+          .range(d, h),
+    ),
+    traerTodo<{ prestamo_id: string; cobrador_id: string; resultado: string }>((d, h) =>
+      db
+        .from("visitas")
+        .select("prestamo_id, cobrador_id, resultado, prestamos!inner(estado)")
+        .eq("prestamos.estado", "activo")
+        .gte("registrado_en", desde)
+        .range(d, h),
+    ),
   ]);
-  if (pagosRes.error) throw pagosRes.error;
-  if (visRes.error) throw visRes.error;
 
   // Acumuladores por cobrador.
   const acc = new Map<string, { recaudado: number; esperado: number; cobrados: Set<string>; noPagos: number; anomalias: number; asignados: number }>();
@@ -131,7 +142,7 @@ export async function getControlCobranza(
   let recaudadoHoy = 0;
   let fueraZona = 0;
 
-  for (const p of pagosRes.data ?? []) {
+  for (const p of pagosRaw) {
     const monto = Number(p.monto);
     recaudadoHoy += monto;
     const loan = prestamoPorId.get(p.prestamo_id as string);
@@ -170,7 +181,7 @@ export async function getControlCobranza(
       });
   }
 
-  for (const v of visRes.data ?? []) {
+  for (const v of visRaw) {
     const res = v.resultado as string;
     const cobradorId = v.cobrador_id as string | null;
     if (cobradorId && res !== "pago" && res !== "abono") init(cobradorId).noPagos += 1;
@@ -211,7 +222,7 @@ export async function getControlCobranza(
   return {
     resumen: {
       recaudadoHoy,
-      cobrosHoy: (pagosRes.data ?? []).length,
+      cobrosHoy: (pagosRaw).length,
       fueraZona,
       cobradores: cobradores.length,
     },

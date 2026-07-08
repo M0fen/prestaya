@@ -43,6 +43,7 @@ function pedirGps(): Promise<{ lat: number | null; lng: number | null }> {
 
 export function RegistroCobro({
   clienteId,
+  prestamoId = null,
   clienteNombre,
   clienteTelefono = null,
   cobradorNombre,
@@ -51,6 +52,8 @@ export function RegistroCobro({
   tieneGps,
 }: {
   clienteId: string;
+  /** Crédito al que se imputa (si el cliente tiene varios activos). null = principal. */
+  prestamoId?: string | null;
   clienteNombre: string;
   clienteTelefono?: string | null;
   cobradorNombre: string;
@@ -80,6 +83,7 @@ export function RegistroCobro({
     encolar({
       tipo,
       clienteId,
+      prestamoId,
       clienteNombre,
       monto: extra.monto,
       motivo: extra.motivo,
