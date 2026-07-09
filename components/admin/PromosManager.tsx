@@ -369,7 +369,7 @@ function QuinielaFila({ q, resumen, onDone }: { q: Quiniela; resumen?: ResumenQu
         </div>
       ) : (
         <div className="rounded-[10px] bg-suave p-2.5">
-          <span className="text-[12.5px] font-bold text-tinta">Número ganador: {q.numeroGanador}</span>
+          <span className="text-[12.5px] font-bold text-tinta">Número ganador: {q.numeroGanador ?? "—"}</span>
           {resumen && resumen.ganadores.length > 0 ? (
             <p className="mt-1 text-[12px] font-medium text-[#157A50]">
               🏆 {resumen.ganadores.map((g) => g.nombre).join(", ")}

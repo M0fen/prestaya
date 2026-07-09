@@ -20,11 +20,13 @@ const ICONO: Record<string, string> = {
 };
 
 function horaUY(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—"; // sin hora legible (evita romper con "Invalid Date")
   return new Intl.DateTimeFormat("es-UY", {
     timeZone: "America/Montevideo",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(iso));
+  }).format(d);
 }
 
 export function ControlCampo({ resumen }: { resumen: ResumenCobradorDia[] }) {

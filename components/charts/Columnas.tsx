@@ -25,9 +25,17 @@ export function Columnas({
   colorHoy = "#1FA971",
   alto = 132,
 }: Props) {
+  if (datos.length === 0) {
+    return (
+      <p className="py-6 text-center text-[12.5px] font-medium text-[#AEB6CC]">
+        Sin datos aún.
+      </p>
+    );
+  }
   const max = Math.max(...datos.map((d) => d.valor), 1);
   // Muestra etiqueta en ~6 marcas para no amontonar en 14+ columnas.
-  const cada = Math.ceil(datos.length / 7);
+  // max(1, …) evita "i % 0" (NaN) si por algún motivo la lista quedara vacía.
+  const cada = Math.max(1, Math.ceil(datos.length / 7));
 
   return (
     <div className="flex flex-col gap-1.5">

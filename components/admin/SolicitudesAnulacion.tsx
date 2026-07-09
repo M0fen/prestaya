@@ -8,6 +8,13 @@ import { UYU } from "@/lib/format";
 import { confirmarAnulacionAction, rechazarAnulacionAction } from "@/lib/acciones/anulaciones";
 import type { SolicitudAnulacion } from "@/lib/data/anulaciones";
 
+// Fecha/hora legible con fallback: una fecha ilegible da "—" (no "Invalid Date").
+function fechaHora(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleString("es-UY");
+}
+
 export function SolicitudesAnulacion({
   solicitudes,
   yoId,
@@ -53,7 +60,7 @@ export function SolicitudesAnulacion({
                   {s.clienteNombre ?? "Cliente"} · {s.monto != null ? UYU(s.monto) : "—"}
                 </span>
                 <span className="text-[12px] font-medium text-gris">
-                  Pidió {s.solicitadoPorNombre ?? "—"} · {new Date(s.solicitadoEn).toLocaleString("es-UY")}
+                  Pidió {s.solicitadoPorNombre ?? "—"} · {fechaHora(s.solicitadoEn)}
                 </span>
               </div>
               <span className="flex-shrink-0 rounded-full bg-[#FDF3E2] px-2.5 py-0.5 text-[11px] font-bold text-[#B9770E]">
@@ -61,7 +68,7 @@ export function SolicitudesAnulacion({
               </span>
             </div>
             <p className="rounded-[10px] bg-suave px-3 py-2 text-[12.5px] font-medium text-tinta">
-              “{s.motivo}”
+              “{s.motivo?.trim() || "Sin motivo"}”
             </p>
             <div className="flex items-center justify-end gap-2">
               <button

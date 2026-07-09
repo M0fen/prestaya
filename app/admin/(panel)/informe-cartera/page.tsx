@@ -14,8 +14,10 @@ export const dynamic = "force-dynamic";
 // completo está el CSV. Renderizar los ~2.700 activos costaba segundos.
 const LIMITE_TABLA = 300;
 
-function fechaCorta(iso: string): string {
+function fechaCorta(iso: string | null | undefined): string {
+  if (!iso) return "—"; // fecha ausente → guion, no "Invalid Date"
   const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—"; // fecha inválida → guion
   return `${d.getDate()} ${meses[d.getMonth()].slice(0, 3)} ${String(d.getFullYear()).slice(2)}`;
 }
 
@@ -144,7 +146,7 @@ export default async function InformeCarteraPage({
                     </div>
                   </td>
                   <td className="px-2.5 py-2 text-right tabular-nums text-cuerpo">{UYU(f.venta)}</td>
-                  <td className="px-2.5 py-2 text-right tabular-nums text-gris">{f.interesPct.toFixed(1)}%</td>
+                  <td className="px-2.5 py-2 text-right tabular-nums text-gris">{Number.isFinite(f.interesPct) ? f.interesPct.toFixed(1) : "0"}%</td>
                   <td className="px-2.5 py-2 text-right tabular-nums text-cuerpo">{UYU(f.total)}</td>
                   <td className="px-2.5 py-2 text-right tabular-nums font-semibold text-tinta">{UYU(f.saldoPte)}</td>
                   <td className="px-2.5 py-2 text-right tabular-nums text-[#157A50]">{UYU(f.abonos)}</td>

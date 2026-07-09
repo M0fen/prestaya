@@ -429,6 +429,13 @@ function LiquidacionDiaria({ liq }: { liq: LiquidacionDia }) {
             </tr>
           </thead>
           <tbody>
+            {liq.filas.length === 0 && (
+              <tr>
+                <td colSpan={8} className="px-3 py-8 text-center text-[13px] font-medium text-gris">
+                  Sin cobradores con actividad hoy.
+                </td>
+              </tr>
+            )}
             {liq.filas.map((f) => (
               <tr key={f.cobradorId} className="border-b border-[#F4F6FB] last:border-0">
                 <td className="px-3 py-2.5 font-semibold text-tinta">{f.nombre}</td>

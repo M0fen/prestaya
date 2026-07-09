@@ -344,6 +344,9 @@ export default async function FichaClientePage({
       {/* Historial de créditos */}
       <section className="rounded-[16px] border border-borde bg-tarjeta p-4">
         <span className="text-[13px] font-bold text-tinta">Créditos</span>
+        {creditos.length === 0 ? (
+          <p className="mt-2 text-[13px] font-medium text-gris">Todavía no hay créditos.</p>
+        ) : (
         <ul className="mt-2 flex flex-col gap-2">
           {creditos.map((c) => (
             <li
@@ -359,11 +362,12 @@ export default async function FichaClientePage({
                 </span>
               </div>
               <span className="rounded-full bg-tarjeta px-2.5 py-1 text-[11px] font-bold text-gris">
-                {ESTADO_CREDITO[c.estado]}
+                {ESTADO_CREDITO[c.estado] ?? "—"}
               </span>
             </li>
           ))}
         </ul>
+        )}
       </section>
 
       {/* Notas del equipo */}

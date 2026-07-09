@@ -108,7 +108,9 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
 
       {ordenados.map((it, idx) => {
         const chip = CHIP[it.estadoHoy];
-        const inicial = it.nombre.charAt(0).toUpperCase();
+        // Fallback de inicial: un cliente sin nombre no debe romper toda la
+        // lista de la ruta (charAt sobre null/undefined tira). "—" si no hay.
+        const inicial = (it.nombre ?? "").trim().charAt(0).toUpperCase() || "—";
         const mostrarPaso = porCercania && origen && !cerrado(it.estadoHoy);
         return (
           <Link

@@ -14,6 +14,8 @@ const ETIQUETA_ROL: Record<Rol, string> = {
 
 function fechaHora(iso: string | null): string {
   if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—"; // fecha ilegible → sin dato (no "Invalid Date")
   return new Intl.DateTimeFormat("es-UY", {
     timeZone: "America/Montevideo",
     day: "2-digit",
@@ -22,7 +24,7 @@ function fechaHora(iso: string | null): string {
     hour: "2-digit",
     minute: "2-digit",
     hourCycle: "h23",
-  }).format(new Date(iso));
+  }).format(d);
 }
 
 export function DetalleVendedor({ m, onClose }: { m: MiembroEquipo; onClose: () => void }) {
@@ -41,7 +43,7 @@ export function DetalleVendedor({ m, onClose }: { m: MiembroEquipo; onClose: () 
         {/* Cabecera */}
         <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[14px] bg-[#2453DC] text-[18px] font-black text-white">
-            {m.nombre.charAt(0).toUpperCase()}
+            {(m.nombre || "?").charAt(0).toUpperCase()}
           </div>
           <div className="flex min-w-0 flex-1 flex-col">
             <span className="truncate text-[16px] font-extrabold text-tinta">{m.nombre}</span>

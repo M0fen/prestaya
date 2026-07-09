@@ -7,6 +7,8 @@ import { meses } from "@/lib/format";
 
 function etiquetaMes(iso: string): string {
   const d = new Date(iso + "T00:00:00");
+  // Fecha ilegible → "—": sin esto, meses[NaN] es undefined y .slice() rompe.
+  if (isNaN(d.getTime())) return "—";
   return `${meses[d.getMonth()].slice(0, 3)} ${String(d.getFullYear()).slice(2)}`;
 }
 

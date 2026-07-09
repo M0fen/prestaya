@@ -14,12 +14,14 @@ const TIPO_LABEL: Record<TipoNotaMora, { label: string; bg: string; fg: string }
 };
 
 function fecha(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—"; // fecha ilegible → "—" (evita "Invalid Date")
   return new Intl.DateTimeFormat("es-UY", {
     timeZone: "America/Montevideo",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
-  }).format(new Date(iso));
+  }).format(d);
 }
 
 export function MorosidadCliente({

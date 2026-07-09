@@ -8,12 +8,14 @@ import { DetalleVendedor } from "./DetalleVendedor";
 
 function fechaCorta(iso: string | null): string {
   if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—"; // fecha ilegible → "—" (evita "Invalid Date")
   return new Intl.DateTimeFormat("es-UY", {
     timeZone: "America/Montevideo",
     day: "2-digit",
     month: "2-digit",
     year: "2-digit",
-  }).format(new Date(iso));
+  }).format(d);
 }
 
 export function EquipoTabla({ miembros }: { miembros: MiembroEquipo[] }) {

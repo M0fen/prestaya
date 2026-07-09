@@ -36,7 +36,7 @@ export function AureoInsights({ insights }: { insights: Insight[] }) {
 
       <div className="grid gap-2.5 md:grid-cols-2">
         {insights.map((i) => {
-          const c = ESTILO[i.tono];
+          const c = ESTILO[i.tono] ?? ESTILO.neutro; // tono inesperado → estilo neutro (no rompe)
           return (
             <div
               key={i.id}

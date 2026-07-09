@@ -13,8 +13,10 @@ export const dynamic = "force-dynamic";
 const esYmd = (v: string | undefined): string | null =>
   v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
 
-function fechaHora(iso: string): string {
+function fechaHora(iso: string | null | undefined): string {
+  if (!iso) return "—"; // fecha ausente → guion, no "Invalid Date"
   const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—"; // fecha inválida → guion
   return `${d.getDate()} ${meses[d.getMonth()].slice(0, 3)} ${horaDe(iso)}`;
 }
 

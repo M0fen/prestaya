@@ -12,6 +12,8 @@ const input =
 const CONCEPTOS = ["Comisión", "Sueldo", "Adelanto", "Viáticos", "Otro"];
 
 function fechaLarga(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—"; // fecha ilegible → "—" (evita "Invalid Date")
   return new Intl.DateTimeFormat("es-UY", {
     timeZone: "America/Montevideo",
     day: "2-digit",
@@ -20,7 +22,7 @@ function fechaLarga(iso: string): string {
     hour: "2-digit",
     minute: "2-digit",
     hourCycle: "h23",
-  }).format(new Date(iso));
+  }).format(d);
 }
 
 export function RecibosManager({

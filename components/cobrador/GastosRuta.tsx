@@ -106,7 +106,7 @@ export function GastosRuta({ gastos }: { gastos: GastosCobradorHoy }) {
                       {g.categoria ?? "Gasto"}
                       {g.descripcion ? <span className="font-normal text-gris"> · {g.descripcion}</span> : ""}
                     </span>
-                    <span className="text-[11px] font-medium text-[#8A93AD]">{horaDe(g.registradoEn)}</span>
+                    <span className="text-[11px] font-medium text-[#8A93AD]">{g.registradoEn ? horaDe(g.registradoEn) : "—"}</span>
                   </div>
                   <span className="flex-shrink-0 text-[13.5px] font-extrabold tabular-nums text-[#C0392B]">
                     −{UYU(g.monto)}

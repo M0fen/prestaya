@@ -46,7 +46,9 @@ export default async function DetalleClientePage({
   const activos = await getPrestamosActivosPorCliente(db, id);
   const prestamo = activos.find((p) => p.id === credito) ?? activos[0] ?? null;
   const notas = await getNotasCliente(db, id);
-  const inicial = cliente.nombre.charAt(0).toUpperCase();
+  // Inicial del avatar con fallback: un cliente importado sin nombre no debe
+  // tumbar la ficha (charAt sobre null/undefined tira). "—" si no hay letra.
+  const inicial = (cliente.nombre ?? "").trim().charAt(0).toUpperCase() || "—";
 
   return (
     <div className="flex flex-col gap-4">

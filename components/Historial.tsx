@@ -33,6 +33,12 @@ export function Historial({ historial }: { historial: HistorialItem[] }) {
         </span>
       </div>
 
+      {historial.length === 0 && (
+        <p className="rounded-[15px] border border-dashed border-[#ECEFF8] bg-white px-4 py-6 text-center text-[13px] font-medium text-gris">
+          Todavía no hay pagos registrados.
+        </p>
+      )}
+
       <div className="relative">
       <div
         className="flex flex-col gap-2"
