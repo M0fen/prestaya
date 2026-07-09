@@ -3,7 +3,7 @@
 // beneficios simbólicos del préstamo, NUNCA dinero (ver migración 0021).
 import { requireGestor } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { getPremiosRaspa, getQuinielasAdmin, getParticipaciones } from "@/lib/data/promos";
+import { getPremiosRaspa, getSegmentosRaspa, getQuinielasAdmin, getParticipaciones } from "@/lib/data/promos";
 import { ganadores as calcularGanadores } from "@/lib/quiniela";
 import { PromosManager, type ResumenQuiniela } from "@/components/admin/PromosManager";
 
@@ -12,8 +12,9 @@ export const dynamic = "force-dynamic";
 export default async function PromosPage() {
   await requireGestor();
   const db = await createSupabaseServer();
-  const [premios, quinielas] = await Promise.all([
+  const [premios, segmentos, quinielas] = await Promise.all([
     getPremiosRaspa(db, false),
+    getSegmentosRaspa(db, false),
     getQuinielasAdmin(db),
   ]);
 
@@ -43,7 +44,7 @@ export default async function PromosPage() {
         </span>
       </div>
 
-      <PromosManager premios={premios} quinielas={quinielas} resumen={resumen} />
+      <PromosManager premios={premios} segmentos={segmentos} quinielas={quinielas} resumen={resumen} />
 
       <p className="text-[11px] leading-[1.5] font-medium text-[#AEB6CC]">
         Marco legal: en Uruguay el juego de azar por dinero lo regula el Estado. Estas funciones son

@@ -3,32 +3,108 @@
 //  si 0021 no corrió, degrada a vacío. Promocional: sin dinero real (ver 0021).
 // ─────────────────────────────────────────────────────────────────────────
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { tablaFaltante } from "@/lib/data/errores";
+import { tablaFaltante, columnaFaltante } from "@/lib/data/errores";
 import { contarPagosVigentesCliente } from "@/lib/data/estrellas";
-import { raspaditasDisponibles, type PremioRaspa } from "@/lib/raspadita";
+import { raspaditasDisponibles, type PremioRaspa, type SegmentoRaspa } from "@/lib/raspadita";
 
-// ── Raspaditas ─────────────────────────────────────────────────────────────
+// ── Raspaditas: premios ────────────────────────────────────────────────────
 
 export async function getPremiosRaspa(
   db: SupabaseClient,
   soloActivos = false,
 ): Promise<PremioRaspa[]> {
+  const map = (r: Record<string, unknown>): PremioRaspa => ({
+    id: r.id as string,
+    label: r.label as string,
+    tipo: r.tipo as PremioRaspa["tipo"],
+    peso: Number(r.peso),
+    activo: r.activo as boolean,
+    segmentoId: (r.segmento_id as string | null | undefined) ?? null,
+  });
   try {
-    let q = db.from("raspadita_premios").select("id, label, tipo, peso, activo").order("orden");
+    let q = db.from("raspadita_premios").select("id, label, tipo, peso, activo, segmento_id").order("orden");
     if (soloActivos) q = q.eq("activo", true);
     const { data, error } = await q;
     if (error) throw error;
-    return (data ?? []).map((r) => ({
-      id: (r as { id: string }).id,
-      label: (r as { label: string }).label,
-      tipo: (r as { tipo: PremioRaspa["tipo"] }).tipo,
-      peso: Number((r as { peso: number }).peso),
-      activo: (r as { activo: boolean }).activo,
-    }));
+    return (data ?? []).map((r) => map(r as Record<string, unknown>));
+  } catch (e) {
+    // Defensivo: si 0042 aún no agregó segmento_id, reintentar sin esa columna.
+    if (columnaFaltante(e)) {
+      let q = db.from("raspadita_premios").select("id, label, tipo, peso, activo").order("orden");
+      if (soloActivos) q = q.eq("activo", true);
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data ?? []).map((r) => map(r as Record<string, unknown>));
+    }
+    if (tablaFaltante(e)) return [];
+    throw e;
+  }
+}
+
+// ── Raspaditas: TRAMOS de scoring (0042) ────────────────────────────────────
+
+function mapSegmento(r: Record<string, unknown>): SegmentoRaspa {
+  return {
+    id: r.id as string,
+    nombre: r.nombre as string,
+    scoreMin: Number(r.score_min),
+    scoreMax: Number(r.score_max),
+    probGanar: Number(r.prob_ganar),
+    esDefault: (r.es_default as boolean) ?? false,
+    activo: (r.activo as boolean) ?? true,
+    orden: Number(r.orden ?? 0),
+  };
+}
+
+export async function getSegmentosRaspa(
+  db: SupabaseClient,
+  soloActivos = false,
+): Promise<SegmentoRaspa[]> {
+  try {
+    let q = db
+      .from("raspadita_segmentos")
+      .select("id, nombre, score_min, score_max, prob_ganar, es_default, activo, orden")
+      .order("orden");
+    if (soloActivos) q = q.eq("activo", true);
+    const { data, error } = await q;
+    if (error) throw error;
+    return (data ?? []).map((r) => mapSegmento(r as Record<string, unknown>));
   } catch (e) {
     if (tablaFaltante(e)) return [];
     throw e;
   }
+}
+
+export async function guardarSegmentoRaspaDb(
+  db: SupabaseClient,
+  input: {
+    id?: string | null;
+    nombre: string;
+    scoreMin: number;
+    scoreMax: number;
+    probGanar: number;
+    activo: boolean;
+    orden: number;
+  },
+): Promise<void> {
+  const fila = {
+    nombre: input.nombre,
+    score_min: input.scoreMin,
+    score_max: input.scoreMax,
+    prob_ganar: input.probGanar,
+    activo: input.activo,
+    orden: input.orden,
+  };
+  const { error } = input.id
+    ? await db.from("raspadita_segmentos").update(fila).eq("id", input.id)
+    : await db.from("raspadita_segmentos").insert(fila);
+  if (error) throw error;
+}
+
+export async function borrarSegmentoRaspaDb(db: SupabaseClient, id: string): Promise<void> {
+  // No se puede borrar el tramo "Los demás" (catch-all): dejaría clientes sin tramo.
+  const { error } = await db.from("raspadita_segmentos").delete().eq("id", id).eq("es_default", false);
+  if (error) throw error;
 }
 
 export async function contarJugadasRaspa(db: SupabaseClient, clienteId: string): Promise<number> {
@@ -69,7 +145,7 @@ export async function getEstadoRaspaCliente(
 
 export async function registrarJugadaRaspa(
   db: SupabaseClient,
-  input: { clienteId: string; premioId: string; premioLabel: string; premioTipo: string },
+  input: { clienteId: string; premioId: string | null; premioLabel: string; premioTipo: string },
 ): Promise<void> {
   const { error } = await db.from("raspaditas_jugadas").insert({
     cliente_id: input.clienteId,
@@ -83,9 +159,25 @@ export async function registrarJugadaRaspa(
 // Admin CRUD de premios.
 export async function guardarPremioRaspaDb(
   db: SupabaseClient,
-  input: { id?: string | null; label: string; tipo: string; peso: number; activo: boolean; orden: number },
+  input: {
+    id?: string | null;
+    label: string;
+    tipo: string;
+    peso: number;
+    activo: boolean;
+    orden: number;
+    /** Tramo al que pertenece (0042). Opcional para compat con bases sin 0042. */
+    segmentoId?: string | null;
+  },
 ): Promise<void> {
-  const fila = { label: input.label, tipo: input.tipo, peso: input.peso, activo: input.activo, orden: input.orden };
+  const fila: Record<string, unknown> = {
+    label: input.label,
+    tipo: input.tipo,
+    peso: input.peso,
+    activo: input.activo,
+    orden: input.orden,
+  };
+  if (input.segmentoId !== undefined) fila.segmento_id = input.segmentoId;
   const { error } = input.id
     ? await db.from("raspadita_premios").update(fila).eq("id", input.id)
     : await db.from("raspadita_premios").insert(fila);

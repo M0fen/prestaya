@@ -17,12 +17,21 @@ import { getPagosDePrestamo } from "@/lib/data/pagos";
 import { calcularEstadosCarton } from "@/lib/cartones";
 import {
   getEstadoRaspaCliente,
+  getSegmentosRaspa,
   registrarJugadaRaspa,
   getQuinielaAbierta,
   getParticipacionCliente,
   participarQuinielaDb,
 } from "@/lib/data/promos";
-import { elegirPremio } from "@/lib/raspadita";
+import {
+  elegirPremio,
+  segmentoParaScore,
+  resultadoRaspadita,
+  scoreAPorcentaje,
+} from "@/lib/raspadita";
+import { getHistorialCrediticio } from "@/lib/data/scoring";
+import { getConfigScoring } from "@/lib/data/scoringConfig";
+import { calcularScore } from "@/lib/scoring";
 import { numeroValido } from "@/lib/quiniela";
 import { tokenValido } from "@/lib/validacion/esquemas";
 
@@ -154,16 +163,39 @@ export async function jugarRaspadita(input: { token: string }): Promise<Resultad
     if (estado.disponibles <= 0)
       return { ok: false, error: "No tenés raspaditas por ahora. ¡Con tu próximo pago desbloqueás otra!" };
 
-    const premio = elegirPremio(estado.premios, azarServidor());
-    if (!premio) return { ok: false, error: "El juego no está disponible ahora." };
+    // El premio depende del SCORING del cliente (0042): el dueño define tramos
+    // (rango de score → % de ganar → premios). Se calcula el score en vivo, se
+    // busca su tramo y el servidor decide (gana/pierde + cuál premio, por peso).
+    const segmentos = await getSegmentosRaspa(db, true);
+    let premio: { id: string; label: string; tipo: "beneficio" | "nada" } | null;
+    if (segmentos.length === 0) {
+      // Compat: base sin 0042 → comportamiento previo (ruleta única por peso).
+      premio = elegirPremio(estado.premios, azarServidor());
+      if (!premio) return { ok: false, error: "El juego no está disponible ahora." };
+    } else {
+      const [historial, configScoring] = await Promise.all([
+        getHistorialCrediticio(db, cliente.id),
+        getConfigScoring(db),
+      ]);
+      const score = calcularScore({ ...historial, hoy: hoyUY() }, configScoring);
+      const seg = segmentoParaScore(scoreAPorcentaje(score.puntaje), segmentos);
+      // Premios de ESE tramo (los sin tramo cuentan como del default "Los demás").
+      const premiosDelTramo = estado.premios.filter(
+        (p) => p.activo && (p.segmentoId === seg?.id || (!!seg?.esDefault && !p.segmentoId)),
+      );
+      premio = resultadoRaspadita(seg, premiosDelTramo, azarServidor(), azarServidor());
+    }
 
+    // Se registra SIEMPRE (gane o no): si no ganó, queda como "nada" (auditable).
+    const label = premio?.label ?? "¡Seguí participando!";
+    const tipo: "beneficio" | "nada" = premio ? "beneficio" : "nada";
     await registrarJugadaRaspa(db, {
       clienteId: cliente.id,
-      premioId: premio.id,
-      premioLabel: premio.label,
-      premioTipo: premio.tipo,
+      premioId: premio?.id ?? null,
+      premioLabel: label,
+      premioTipo: tipo,
     });
-    return { ok: true, label: premio.label, tipo: premio.tipo };
+    return { ok: true, label, tipo };
   } catch {
     return { ok: false, error: "No pudimos jugar la raspadita. Probá más tarde." };
   }

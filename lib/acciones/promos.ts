@@ -11,6 +11,8 @@ import { getUsuarioActual, esGestor } from "@/lib/auth";
 import {
   guardarPremioRaspaDb,
   borrarPremioRaspaDb,
+  guardarSegmentoRaspaDb,
+  borrarSegmentoRaspaDb,
   crearQuinielaDb,
   cerrarQuinielaDb,
 } from "@/lib/data/promos";
@@ -33,6 +35,7 @@ export async function guardarPremioRaspa(input: {
   peso: number;
   activo: boolean;
   orden: number;
+  segmentoId?: string | null;
 }): Promise<Resultado> {
   const u = await gestor();
   if (!u) return { ok: false, error: "No tenés permisos." };
@@ -48,6 +51,7 @@ export async function guardarPremioRaspa(input: {
       peso: Math.max(0, Math.min(1000, Math.round(Number(input.peso) || 0))),
       activo: Boolean(input.activo),
       orden: Math.round(Number(input.orden) || 0),
+      segmentoId: input.segmentoId === undefined ? undefined : (input.segmentoId || null),
     });
     await registrarAuditoria(db, {
       actorId: u.id, actorNombre: u.nombre,
@@ -58,6 +62,61 @@ export async function guardarPremioRaspa(input: {
     return { ok: true };
   } catch {
     return { ok: false, error: "No se pudo guardar. ¿Corriste la migración 0021?" };
+  }
+}
+
+// ── Raspadita: TRAMOS de scoring (0042) ─────────────────────────────────────
+export async function guardarSegmentoRaspa(input: {
+  id?: string | null;
+  nombre: string;
+  scoreMin: number;
+  scoreMax: number;
+  probGanar: number;
+  activo: boolean;
+  orden: number;
+}): Promise<Resultado> {
+  const u = await gestor();
+  if (!u) return { ok: false, error: "No tenés permisos." };
+  const nombre = (input.nombre ?? "").trim().slice(0, 60);
+  if (!nombre) return { ok: false, error: "Poné un nombre para el tramo." };
+  // Clamp/orden de los límites (0..100) y probabilidad (0..100).
+  const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(Number(n) || 0)));
+  let min = clamp(input.scoreMin);
+  let max = clamp(input.scoreMax);
+  if (min > max) [min, max] = [max, min];
+  try {
+    const db = await createSupabaseServer();
+    await guardarSegmentoRaspaDb(db, {
+      id: input.id ?? null,
+      nombre,
+      scoreMin: min,
+      scoreMax: max,
+      probGanar: clamp(input.probGanar),
+      activo: Boolean(input.activo),
+      orden: Math.round(Number(input.orden) || 0),
+    });
+    await registrarAuditoria(db, {
+      actorId: u.id, actorNombre: u.nombre,
+      accion: input.id ? "Editó tramo de raspadita" : "Creó tramo de raspadita",
+      entidad: "promo", detalle: `${nombre} (${min}–${max}% · gana ${clamp(input.probGanar)}%)`,
+    });
+    revalidatePath("/admin/promos");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "No se pudo guardar. ¿Corriste la migración 0042?" };
+  }
+}
+
+export async function eliminarSegmentoRaspa(id: string): Promise<Resultado> {
+  const u = await gestor();
+  if (!u) return { ok: false, error: "No tenés permisos." };
+  try {
+    const db = await createSupabaseServer();
+    await borrarSegmentoRaspaDb(db, id);
+    revalidatePath("/admin/promos");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "No se pudo borrar (el tramo 'Los demás' no se puede eliminar)." };
   }
 }
 
