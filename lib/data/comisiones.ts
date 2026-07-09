@@ -22,9 +22,14 @@ export interface FilaComision {
 export interface ResumenComisiones {
   periodo: Periodo;
   etiqueta: string;
+  /** Rango del período (día UY "YYYY-MM-DD"), para mostrar "del X al Y". */
+  desde: string;
+  hasta: string;
   filas: FilaComision[];
   totalRecaudado: number;
   totalComision: number;
+  /** Total de cobros del período (suma de cobros de todos los cobradores). */
+  totalCobros: number;
   /** false si falta la columna comision_pct (migración 0014 sin correr). */
   disponible: boolean;
 }
@@ -84,9 +89,12 @@ export async function getComisionesPeriodo(
   return {
     periodo,
     etiqueta: resumen.etiqueta,
+    desde: resumen.desde,
+    hasta: resumen.hasta,
     filas,
     totalRecaudado: resumen.recaudado,
     totalComision: filas.reduce((s, f) => s + f.comision, 0),
+    totalCobros: filas.reduce((s, f) => s + f.cobros, 0),
     disponible,
   };
 }

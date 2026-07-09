@@ -44,6 +44,9 @@ export interface RecaudoCobrador {
 export interface ResumenPeriodo {
   periodo: Periodo;
   etiqueta: string;
+  /** Rango del período en "YYYY-MM-DD" (día UY). Para mostrar "del X al Y". */
+  desde: string;
+  hasta: string;
   recaudado: number;
   cobros: number;
   ticketPromedio: number;
@@ -209,6 +212,8 @@ export async function getResumenPeriodo(
   return {
     periodo,
     etiqueta: etiquetaPeriodo(base, periodo),
+    desde: desdeFecha,
+    hasta: hastaFecha,
     recaudado,
     cobros,
     ticketPromedio: cobros > 0 ? Math.round(recaudado / cobros) : 0,

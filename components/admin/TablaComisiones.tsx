@@ -12,10 +12,13 @@ import type { FilaComision } from "@/lib/data/comisiones";
 export function TablaComisiones({
   filas,
   etiqueta,
+  totalRecaudado = 0,
   puedeGestionar = true,
 }: {
   filas: FilaComision[];
   etiqueta: string;
+  /** Total recaudado del período (para el % de participación de cada cobrador). */
+  totalRecaudado?: number;
   /** Solo el admin puede fijar tasas y liquidar. El supervisor mira. */
   puedeGestionar?: boolean;
 }) {
@@ -29,7 +32,13 @@ export function TablaComisiones({
   return (
     <div className="flex flex-col divide-y divide-linea overflow-hidden rounded-[16px] border border-borde bg-tarjeta">
       {filas.map((f) => (
-        <Fila key={f.cobradorId} f={f} etiqueta={etiqueta} puedeGestionar={puedeGestionar} />
+        <Fila
+          key={f.cobradorId}
+          f={f}
+          etiqueta={etiqueta}
+          totalRecaudado={totalRecaudado}
+          puedeGestionar={puedeGestionar}
+        />
       ))}
     </div>
   );
@@ -38,10 +47,12 @@ export function TablaComisiones({
 function Fila({
   f,
   etiqueta,
+  totalRecaudado,
   puedeGestionar,
 }: {
   f: FilaComision;
   etiqueta: string;
+  totalRecaudado: number;
   puedeGestionar: boolean;
 }) {
   const router = useRouter();
@@ -83,7 +94,9 @@ function Fila({
         <div className="flex min-w-0 flex-col">
           <span className="truncate text-[13.5px] font-bold text-tinta">{f.nombre}</span>
           <span className="text-[11.5px] font-medium text-tenue">
-            recaudó {UYU(f.recaudado)} · {f.cobros} cobro{f.cobros === 1 ? "" : "s"}
+            recaudó {UYU(f.recaudado)} · {f.cobros} cobro{f.cobros === 1 ? "" : "s"} · ticket{" "}
+            {UYU(f.cobros > 0 ? Math.round(f.recaudado / f.cobros) : 0)}
+            {totalRecaudado > 0 && ` · ${Math.round((f.recaudado / totalRecaudado) * 100)}% del total`}
           </span>
         </div>
         <div className="flex flex-shrink-0 flex-col items-end">

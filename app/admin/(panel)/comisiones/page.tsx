@@ -6,7 +6,13 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { getComisionesPeriodo } from "@/lib/data/comisiones";
 import { normalizarPeriodo, PERIODOS } from "@/lib/data/periodo";
 import { TablaComisiones } from "@/components/admin/TablaComisiones";
-import { UYU } from "@/lib/format";
+import { UYU, meses } from "@/lib/format";
+
+// "YYYY-MM-DD" → "5 jul" (día UY, legible).
+function fCorta(ymd: string): string {
+  const [, m, d] = ymd.split("-");
+  return `${Number(d)} ${(meses[Number(m) - 1] ?? "").slice(0, 3)}`;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +34,8 @@ export default async function ComisionesPage({
         <div className="flex flex-col gap-0.5">
           <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">Comisiones</h1>
           <span className="text-[13px] font-medium text-gris">
-            {r.etiqueta} · % sobre lo recaudado por cada cobrador.
+            {r.etiqueta} · del <b className="text-cuerpo">{fCorta(r.desde)}</b> al{" "}
+            <b className="text-cuerpo">{fCorta(r.hasta)}</b> · {r.totalCobros} cobro(s).
           </span>
         </div>
         <div className="flex rounded-full bg-[#F0F3FA] p-0.5">
@@ -58,18 +65,30 @@ export default async function ComisionesPage({
       )}
 
       {/* Totales */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <div className="flex flex-col gap-0.5 rounded-[14px] border border-borde bg-tarjeta p-4">
           <span className="text-[11px] font-bold tracking-wide text-gris uppercase">Recaudado</span>
-          <span className="text-[21px] font-extrabold tabular-nums text-tinta">{UYU(r.totalRecaudado)}</span>
+          <span className="text-[19px] font-extrabold tabular-nums text-tinta">{UYU(r.totalRecaudado)}</span>
+        </div>
+        <div className="flex flex-col gap-0.5 rounded-[14px] border border-borde bg-tarjeta p-4">
+          <span className="text-[11px] font-bold tracking-wide text-gris uppercase">Cobros</span>
+          <span className="text-[19px] font-extrabold tabular-nums text-tinta">{r.totalCobros}</span>
+          <span className="text-[11px] font-medium text-tenue">
+            ticket {UYU(r.totalCobros > 0 ? Math.round(r.totalRecaudado / r.totalCobros) : 0)}
+          </span>
         </div>
         <div className="flex flex-col gap-0.5 rounded-[14px] border border-borde bg-tarjeta p-4">
           <span className="text-[11px] font-bold tracking-wide text-gris uppercase">Comisiones</span>
-          <span className="text-[21px] font-extrabold tabular-nums text-verde">{UYU(r.totalComision)}</span>
+          <span className="text-[19px] font-extrabold tabular-nums text-verde">{UYU(r.totalComision)}</span>
         </div>
       </div>
 
-      <TablaComisiones filas={r.filas} etiqueta={r.etiqueta} puedeGestionar={puedeGestionar} />
+      <TablaComisiones
+        filas={r.filas}
+        etiqueta={r.etiqueta}
+        totalRecaudado={r.totalRecaudado}
+        puedeGestionar={puedeGestionar}
+      />
 
       {!puedeGestionar && (
         <p className="rounded-[12px] bg-suave px-3.5 py-2.5 text-[12px] font-medium text-gris">
