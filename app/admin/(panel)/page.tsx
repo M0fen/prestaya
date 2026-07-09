@@ -127,6 +127,17 @@ export default async function DashboardPage({
               color="#C0392B"
             />
           </div>
+          {/* Desglose de la Cartera Pendiente: operativa (estilo Disapp) + la VIP
+              que Disapp no reflejaba. Suman el capital en calle REAL. */}
+          {cartera.carteraVip > 0 && (
+            <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-[12px] bg-suave px-3.5 py-2.5 text-[12px] font-medium text-cuerpo">
+              <span>Capital en calle real <b className="text-tinta">{UYU(cartera.carteraPorCobrar)}</b> =</span>
+              <span>Operativa <b className="text-tinta">{UYU(cartera.carteraPorCobrar - cartera.carteraVip)}</b></span>
+              <span className="text-tenue">+</span>
+              <span>Cartera especial/VIP <b className="text-[#7A4DD6]">{UYU(cartera.carteraVip)}</b></span>
+              <span className="text-[11px] text-tenue">(clientes grandes que Disapp no reflejaba)</span>
+            </div>
+          )}
         </section>
       )}
 

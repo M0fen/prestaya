@@ -30,6 +30,8 @@ export interface ResumenFinanciero {
     /** Abonado acumulado a la cartera activa = "Recaudo". */
     recaudadoAcumulado: number;
     carteraPorCobrar: number;
+    /** Parte VIP/especial de la cartera (créditos grandes que Disapp no reflejaba). */
+    carteraVip: number;
     /** Cuotas que vencen hoy y aún no se saldaron. */
     porCobrarHoy: number;
     creditosActivos: number;
@@ -95,6 +97,7 @@ export async function getResumenFinanciero(
       conIntereses: dash.totalConIntereses,
       recaudadoAcumulado: dash.recaudadoAcumulado,
       carteraPorCobrar: dash.carteraPorCobrar,
+      carteraVip: dash.carteraVip,
       porCobrarHoy: dash.porCobrarHoy,
       creditosActivos: dash.creditosActivos,
       clientesActivos: dash.clientesActivos,
