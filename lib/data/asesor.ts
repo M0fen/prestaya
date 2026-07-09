@@ -25,6 +25,10 @@ export interface ResumenFinanciero {
   fecha: string;
   cartera: {
     capitalColocado: number;
+    /** Total a cobrar (capital + interés) = "Con Intereses". */
+    conIntereses: number;
+    /** Abonado acumulado a la cartera activa = "Recaudo". */
+    recaudadoAcumulado: number;
     carteraPorCobrar: number;
     /** Cuotas que vencen hoy y aún no se saldaron. */
     porCobrarHoy: number;
@@ -88,6 +92,8 @@ export async function getResumenFinanciero(
     fecha: hoy.toISOString(),
     cartera: {
       capitalColocado: dash.capitalColocado,
+      conIntereses: dash.totalConIntereses,
+      recaudadoAcumulado: dash.recaudadoAcumulado,
       carteraPorCobrar: dash.carteraPorCobrar,
       porCobrarHoy: dash.porCobrarHoy,
       creditosActivos: dash.creditosActivos,

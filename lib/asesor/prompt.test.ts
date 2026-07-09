@@ -7,6 +7,8 @@ const RESUMEN: ResumenFinanciero = {
   fecha: "2026-07-02T12:00:00Z",
   cartera: {
     capitalColocado: 500000,
+    conIntereses: 650000,
+    recaudadoAcumulado: 110000,
     carteraPorCobrar: 390000,
     porCobrarHoy: 1000,
     creditosActivos: 1,

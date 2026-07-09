@@ -48,9 +48,9 @@ export default async function InformeCarteraPage({
     <div className="mx-auto flex max-w-[1100px] flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-col gap-0.5">
-          <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">Informe de cartera</h1>
+          <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">Ventas Crédito</h1>
           <span className="text-[13px] font-medium text-gris">
-            Pago total de ventas a hoy (interés variado). Todo derivado del cartón.
+            Gestioná y visualizá los créditos otorgados a clientes. Todo derivado del cartón real.
           </span>
         </div>
         <div className="flex gap-2 print:hidden">
@@ -64,12 +64,22 @@ export default async function InformeCarteraPage({
         </div>
       </div>
 
-      {/* 4 tarjetas de portada */}
-      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
-        <Kpi label="Total Venta" valor={UYU(r.totalVenta)} />
-        <Kpi label="Utilidad (interés proyectado)" valor={UYU(r.utilidadProyectada)} tono="#7A4DD6" />
-        <Kpi label="Total Recaudado" valor={UYU(r.totalRecaudado)} tono="#157A50" />
-        <Kpi label="Deuda Total a Hoy" valor={UYU(r.deudaTotalAHoy)} tono="#13308C" />
+      {/* Contador de créditos (como Disapp). */}
+      <span className="w-fit rounded-[12px] bg-[#EEF3FF] px-3.5 py-2 text-[13px] font-bold text-azul">
+        📄 Cantidad de créditos activos: {r.filas.length.toLocaleString("es-UY")}
+      </span>
+
+      {/* 5 KPIs (Ventas Crédito de Disapp). */}
+      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-5">
+        <Kpi label="Ventas Crédito" valor={UYU(r.totalVenta)} />
+        <Kpi label="Con Intereses" valor={UYU(r.totalConIntereses)} tono="#157A50" />
+        <Kpi label="Recaudo" valor={UYU(r.totalRecaudado)} tono="#1E47C8" />
+        <Kpi label="Cartera Pendiente" valor={UYU(r.deudaTotalAHoy)} tono="#B9770E" />
+        <Kpi
+          label="% Recaudo"
+          valor={`${r.totalConIntereses > 0 ? Math.round((r.totalRecaudado / r.totalConIntereses) * 1000) / 10 : 0}%`}
+          tono="#C0392B"
+        />
       </div>
 
       {/* Filtros */}
@@ -111,12 +121,13 @@ export default async function InformeCarteraPage({
               <th className="px-2.5 py-2.5 text-left">Inicio</th>
               <th className="px-2.5 py-2.5 text-center">Cuotas</th>
               <th className="px-2.5 py-2.5 text-right">Deuda a Hoy</th>
+              <th className="px-2.5 py-2.5 text-center">Estado</th>
             </tr>
           </thead>
           <tbody>
             {filasVisibles.length === 0 ? (
               <tr>
-                <td colSpan={12} className="px-3 py-8 text-center text-[13px] font-medium text-gris">
+                <td colSpan={13} className="px-3 py-8 text-center text-[13px] font-medium text-gris">
                   Sin créditos activos para el filtro.
                 </td>
               </tr>
@@ -140,6 +151,11 @@ export default async function InformeCarteraPage({
                   <td className="px-2.5 py-2 text-[10.5px] text-tenue">{fechaCorta(f.fechaInicio)}</td>
                   <td className="px-2.5 py-2 text-center tabular-nums text-gris">{f.cuotas}</td>
                   <td className="px-2.5 py-2 text-right tabular-nums font-extrabold text-[#13308C]">{UYU(f.deudaAHoy)}</td>
+                  <td className="px-2.5 py-2 text-center">
+                    <span className="rounded-full bg-[#E7F6EF] px-2.5 py-1 text-[10.5px] font-bold text-[#157A50]">
+                      Activo
+                    </span>
+                  </td>
                 </tr>
               ))
             )}
@@ -149,17 +165,16 @@ export default async function InformeCarteraPage({
 
       {hayMas > 0 && (
         <p className="text-[11.5px] font-semibold text-gris">
-          Mostrando las {LIMITE_TABLA} de {r.filas.length} ventas con mayor deuda a hoy. Las 4
-          tarjetas suman TODA la cartera; para el detalle completo, exportá el CSV.
+          Mostrando las {LIMITE_TABLA} de {r.filas.length.toLocaleString("es-UY")} ventas con mayor deuda a
+          hoy. Los KPIs de arriba suman TODA la cartera; para el detalle completo, exportá el CSV.
         </p>
       )}
 
       <p className="text-[11px] leading-[1.6] font-medium text-[#AEB6CC]">
-        El <b>$88,8M</b> de "Ventas Crédito" de Disapp es un bruto irreproducible desde el export.
-        Presta Ya reporta el <b>capital en calle real</b> = <b>{UYU(r.deudaTotalAHoy)}</b> (Deuda Total a Hoy),
-        que coincide con el dashboard. La "Utilidad" es el interés PROYECTADO (Σ total − venta) si todo se
-        cobrara completo; el interés efectivamente devengado por días es un cálculo aparte (pendiente de
-        conectar al módulo de mora si se necesita).
+        Todo derivado del cartón real: <b>Ventas Crédito</b> = capital colocado; <b>Con Intereses</b> = total
+        a cobrar (interés incluido en la cuota); <b>Recaudo</b> = abonado a hoy; <b>Cartera Pendiente</b> =
+        saldo por cobrar (coincide con “Capital en calle” del dashboard). El <b>% Recaudo</b> = Recaudo / Con
+        Intereses.
       </p>
     </div>
   );

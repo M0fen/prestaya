@@ -28,8 +28,8 @@ export async function getEquipoDetallado(db: SupabaseClient): Promise<MiembroEqu
   const { data: filas, error } = await db
     .from("usuarios")
     .select("*")
-    .order("rol")
-    .order("nombre");
+    // Orden alfabético por nombre (lista de vendedores/equipo ordenada A→Z).
+    .order("nombre", { ascending: true });
   if (error) throw error;
   const usuarios = (filas ?? []) as Record<string, unknown>[];
 

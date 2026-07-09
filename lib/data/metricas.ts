@@ -31,9 +31,13 @@ export interface DashboardMetricas {
   creditosActivos: number;
   creditosFinalizados: number;
   incobrables: number;
-  /** Capital entregado en créditos activos (UYU). */
+  /** Capital entregado en créditos activos (UYU) = "Ventas Crédito". */
   capitalColocado: number;
-  /** Saldo total por cobrar de los créditos activos (UYU). */
+  /** Total a cobrar (capital + interés en la cuota) = "Con Intereses". */
+  totalConIntereses: number;
+  /** Abonado acumulado a los créditos activos = "Recaudo" de la cartera. */
+  recaudadoAcumulado: number;
+  /** Saldo total por cobrar de los créditos activos (UYU) = "Cartera Pendiente". */
   carteraPorCobrar: number;
   /** Cuotas que VENCEN hoy y aún no están saldadas (≠ cartera total). */
   porCobrarHoy: number;
@@ -139,6 +143,8 @@ export async function getDashboardMetricas(
 
   // 3) Cartera y mora: corremos el cartón de cada crédito activo.
   let capitalColocado = 0;
+  let totalConIntereses = 0;
+  let recaudadoAcumulado = 0;
   let carteraPorCobrar = 0;
   let porCobrarHoy = 0;
   let morosos = 0;
@@ -163,6 +169,8 @@ export async function getDashboardMetricas(
       hoyCal,
     );
     carteraPorCobrar += r.falta;
+    totalConIntereses += r.totalAPagar;
+    recaudadoAcumulado += r.totalPagado;
 
     // "Por cobrar HOY": la cuota que vence hoy y aún no se saldó (lo que el
     // cobrador debería juntar en el día, ≠ cartera total pendiente).
@@ -200,6 +208,8 @@ export async function getDashboardMetricas(
     creditosFinalizados,
     incobrables,
     capitalColocado,
+    totalConIntereses,
+    recaudadoAcumulado,
     carteraPorCobrar,
     porCobrarHoy,
     recaudadoHoy,

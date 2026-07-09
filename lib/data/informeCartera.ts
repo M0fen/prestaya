@@ -36,6 +36,8 @@ export interface FilaInforme {
 export interface InformeCartera {
   filas: FilaInforme[];
   totalVenta: number;
+  /** Σ total (venta + interés) = "Con Intereses" de Disapp (Ventas Crédito). */
+  totalConIntereses: number;
   totalRecaudado: number;
   deudaTotalAHoy: number;
   /** Interés proyectado si todos pagaran completo = Σ(total − venta). Etiquetado
@@ -58,6 +60,7 @@ export async function getInformeCartera(
   const termino = (opts.q ?? "").trim().toLowerCase();
   const filas: FilaInforme[] = [];
   let totalVenta = 0;
+  let totalConIntereses = 0;
   let totalRecaudado = 0;
   let deudaTotalAHoy = 0;
   let utilidadProyectada = 0;
@@ -112,6 +115,7 @@ export async function getInformeCartera(
 
     filas.push(fila);
     totalVenta += venta;
+    totalConIntereses += total;
     totalRecaudado += abonos;
     deudaTotalAHoy += saldoPte;
     utilidadProyectada += Math.max(0, total - venta);
@@ -120,5 +124,5 @@ export async function getInformeCartera(
   // Orden: mayor deuda a hoy primero (los que más deben arriba).
   filas.sort((a, b) => b.deudaAHoy - a.deudaAHoy);
 
-  return { filas, totalVenta, totalRecaudado, deudaTotalAHoy, utilidadProyectada };
+  return { filas, totalVenta, totalConIntereses, totalRecaudado, deudaTotalAHoy, utilidadProyectada };
 }

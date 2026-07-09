@@ -106,6 +106,30 @@ export default async function DashboardPage({
         </div>
       </div>
 
+      {/* Acceso rápido: atajos a las pantallas más usadas (estilo Disapp). */}
+      <AccesoRapido admin={admin} />
+
+      {/* Resumen financiero de la cartera (Ventas Crédito), directo, SOLO admin. */}
+      {admin && (
+        <section className="rounded-[16px] border border-borde bg-tarjeta p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-[15px] font-extrabold text-tinta">Ventas Crédito (cartera activa)</h2>
+            <Link href="/admin/informe-cartera" className="text-[12px] font-bold text-azul">Ver detalle →</Link>
+          </div>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+            <Mini2 etiqueta="Ventas Crédito" valor={UYU(cartera.capitalColocado)} />
+            <Mini2 etiqueta="Con Intereses" valor={UYU(cartera.conIntereses)} color="#157A50" />
+            <Mini2 etiqueta="Recaudo" valor={UYU(cartera.recaudadoAcumulado)} color="#1E47C8" />
+            <Mini2 etiqueta="Cartera Pendiente" valor={UYU(cartera.carteraPorCobrar)} color="#B9770E" />
+            <Mini2
+              etiqueta="% Recaudo"
+              valor={`${cartera.conIntereses > 0 ? Math.round((cartera.recaudadoAcumulado / cartera.conIntereses) * 1000) / 10 : 0}%`}
+              color="#C0392B"
+            />
+          </div>
+        </section>
+      )}
+
       {/* Las 6 tarjetas de la operación (orden/nombres de Disapp, para que
           Mauricio las reconozca). "Capital en calle" = deuda pendiente total. */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
@@ -280,6 +304,48 @@ export default async function DashboardPage({
           <Mini etiqueta="En estado crítico" valor={mora.criticos} alerta={mora.criticos > 0} />
         </section>
       </div>
+    </div>
+  );
+}
+
+/** Atajos a las pantallas más usadas (estilo "Acceso rápido" de Disapp). */
+function AccesoRapido({ admin }: { admin: boolean }) {
+  const items: { href: string; label: string; icon: string; soloAdmin?: boolean }[] = [
+    { href: "/admin/informe-cartera", label: "Ventas Crédito", icon: "💳", soloAdmin: true },
+    { href: "/admin/cobranza", label: "Cobros del día", icon: "🛡️" },
+    { href: "/admin/caja", label: "Caja diaria", icon: "💰" },
+    { href: "/admin/recaudos", label: "Recaudos", icon: "💵" },
+    { href: "/admin/alertas", label: "Alertas", icon: "🚨" },
+    { href: "/admin/recibos", label: "Recibos", icon: "🧾", soloAdmin: true },
+    { href: "/admin/clientes", label: "Clientes", icon: "👤" },
+  ].filter((i) => admin || !i.soloAdmin);
+  return (
+    <section className="flex flex-col gap-2">
+      <span className="text-[12px] font-bold uppercase tracking-wide text-gris">Acceso rápido</span>
+      <div className="flex flex-wrap gap-2.5">
+        {items.map((i) => (
+          <Link
+            key={i.href}
+            href={i.href}
+            className="flex min-w-[92px] flex-1 flex-col items-center gap-1.5 rounded-[16px] border border-borde bg-tarjeta px-3 py-3 text-center hover:bg-suave"
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-[#EEF3FF] text-[17px]">
+              {i.icon}
+            </span>
+            <span className="text-[11.5px] font-bold text-cuerpo leading-tight">{i.label}</span>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** Mini-estadística compacta para el resumen de cartera. */
+function Mini2({ etiqueta, valor, color = "#0F1B3D" }: { etiqueta: string; valor: string; color?: string }) {
+  return (
+    <div className="flex flex-col gap-0.5 rounded-[13px] bg-suave p-3">
+      <span className="text-[10.5px] font-bold uppercase tracking-wide text-tenue">{etiqueta}</span>
+      <span className="text-[17px] font-extrabold tabular-nums" style={{ color }}>{valor}</span>
     </div>
   );
 }
