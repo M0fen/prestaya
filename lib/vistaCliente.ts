@@ -154,6 +154,7 @@ export function construirVistaCliente(params: {
     esHoy: d.esHoy,
     style: celdaStyle(d.estado, d.esHoy),
     fechaLarga: fechaLargaDe(d.fecha),
+    diaSemana: parseFecha(d.fecha).getDay(),
     montoPagado: d.montoPagado > 0 ? UYU(d.montoPagado) : "",
     esHito: d.dia % 5 === 0 || d.dia === prestamo.total_dias,
     esMeta: d.dia === prestamo.total_dias,

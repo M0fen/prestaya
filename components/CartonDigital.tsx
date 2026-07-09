@@ -32,6 +32,13 @@ export function CartonDigital({ dias, diaActual, totalDias, unidad = UNIDAD_DEFE
   // Delay escalonado del sello ✓ solo para los días pagados (efecto de entrada).
   let indicePagado = 0;
 
+  // En crédito DIARIO el cobro es Lun–Sáb (no domingo): alineamos la grilla a la
+  // semana (encabezado L–S + hueco inicial) para que el cartón REFLEJE que el
+  // domingo no se cobra. En otras frecuencias, grilla corrida normal.
+  const porSemana = unidad.ord === "Día";
+  // Columna de arranque (Lun=0 … Sáb=5) del primer día (nunca es domingo en diario).
+  const offset = porSemana && dias[0] ? (dias[0].diaSemana + 6) % 7 : 0;
+
   return (
     <section className="rounded-[22px] border border-[#ECEFF8] bg-white px-[18px] py-5 shadow-[0_1px_3px_rgba(15,27,61,0.05),0_10px_26px_rgba(15,27,61,0.04)]">
       <div className="mb-1 flex items-end justify-between">
@@ -49,10 +56,27 @@ export function CartonDigital({ dias, diaActual, totalDias, unidad = UNIDAD_DEFE
       </div>
 
       <p className="mt-1 text-[11.5px] font-medium text-gris">
+        {porSemana ? "Cobro de lunes a sábado (el domingo no se cobra). " : ""}
         Tocá una casilla para ver el detalle.
       </p>
 
-      <div className="mt-3 grid grid-cols-6 gap-2">
+      {/* Encabezado de días de la semana (solo cartón diario, Lun–Sáb). */}
+      {porSemana && (
+        <div className="mt-3 grid grid-cols-6 gap-2">
+          {["L", "M", "M", "J", "V", "S"].map((d, i) => (
+            <span key={i} className="text-center text-[10px] font-black tracking-wide text-[#AEB6CC]">
+              {d}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className={`${porSemana ? "mt-1.5" : "mt-3"} grid grid-cols-6 gap-2`}>
+        {/* Huecos iniciales para alinear el día 1 a su columna (Lun–Sáb). */}
+        {porSemana &&
+          Array.from({ length: offset }).map((_, i) => (
+            <div key={`sp${i}`} className="aspect-square" aria-hidden />
+          ))}
         {dias.map((box) => {
           const c = V[box.estado];
           const pagado = box.estado === "pagado";

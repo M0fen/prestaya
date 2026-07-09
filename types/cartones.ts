@@ -94,6 +94,8 @@ export interface DiaCarton {
   style: CSSProperties;
   /** Fecha larga del día, p. ej. "sábado, 14 de junio". */
   fechaLarga: string;
+  /** Día de la semana (0=domingo … 6=sábado), para alinear la grilla Lun–Sáb. */
+  diaSemana: number;
   /** Monto abonado ese día, formateado ("" si no hubo pago). */
   montoPagado: string;
   /** Hito visual: múltiplos de 5 y el último día (meta). */
