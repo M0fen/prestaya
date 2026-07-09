@@ -103,13 +103,13 @@ export function Gestion2FA() {
 
   if (estado === "enrolando")
     return (
-      <div className="flex flex-col gap-3 rounded-[16px] border border-[#E6EAF4] bg-white p-4">
+      <div className="flex flex-col gap-3 rounded-[16px] border border-borde bg-tarjeta p-4">
         <p className="text-[13px] font-medium text-tinta">
           1) Escaneá este código con Google Authenticator, Authy o similar:
         </p>
         {qr && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={qr} alt="QR de 2FA" className="mx-auto h-44 w-44 rounded-[10px] bg-white" />
+          <img src={qr} alt="QR de 2FA" className="mx-auto h-44 w-44 rounded-[10px] bg-tarjeta" />
         )}
         {secret && (
           <p className="text-center text-[11.5px] font-medium text-gris">
@@ -123,7 +123,7 @@ export function Gestion2FA() {
           value={code}
           onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
           placeholder="000000"
-          className="rounded-[12px] border border-[#DCE3F4] px-4 py-2.5 text-center text-[20px] font-extrabold tracking-[0.3em] text-tinta outline-none focus:border-azul"
+          className="rounded-[12px] border border-borde px-4 py-2.5 text-center text-[20px] font-extrabold tracking-[0.3em] text-tinta outline-none focus:border-azul"
         />
         {error && <p className="text-[12px] font-bold text-[#C0392B]">{error}</p>}
         <button
@@ -139,7 +139,7 @@ export function Gestion2FA() {
 
   // estado === "sin"
   return (
-    <div className="flex items-center justify-between gap-3 rounded-[14px] border border-[#E6EAF4] bg-white px-4 py-3">
+    <div className="flex items-center justify-between gap-3 rounded-[14px] border border-borde bg-tarjeta px-4 py-3">
       <div className="flex flex-col">
         <span className="text-[13.5px] font-bold text-tinta">2FA desactivado</span>
         <span className="text-[12px] font-medium text-gris">

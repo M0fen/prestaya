@@ -61,7 +61,7 @@ function Item({ s, esAdmin }: { s: SolicitudRenovacion; esAdmin: boolean }) {
             {UYU(s.monto)} × {s.totalDias} ({s.frecuencia})
           </span>
           {s.solicitadoPorNombre && (
-            <span className="text-[11px] font-medium text-[#8A93AD]">
+            <span className="text-[11px] font-medium text-tenue">
               Pidió: {s.solicitadoPorNombre}
             </span>
           )}
@@ -72,7 +72,7 @@ function Item({ s, esAdmin }: { s: SolicitudRenovacion; esAdmin: boolean }) {
               type="button"
               onClick={() => setRechazando((v) => !v)}
               disabled={pendiente}
-              className="rounded-full border border-[#DCE3F4] px-3 py-1.5 text-[12px] font-bold text-gris disabled:opacity-50"
+              className="rounded-full border border-borde px-3 py-1.5 text-[12px] font-bold text-gris disabled:opacity-50"
             >
               Rechazar
             </button>
@@ -100,7 +100,7 @@ function Item({ s, esAdmin }: { s: SolicitudRenovacion; esAdmin: boolean }) {
             onChange={(e) => setMotivo(e.target.value)}
             maxLength={300}
             placeholder="Motivo del rechazo (opcional)"
-            className="flex-1 rounded-[10px] border border-[#DCE3F4] bg-white px-3 py-2 text-[13px] outline-none focus:border-azul"
+            className="flex-1 rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[13px] outline-none focus:border-azul"
           />
           <button
             type="button"

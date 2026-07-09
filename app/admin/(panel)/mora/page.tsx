@@ -79,7 +79,7 @@ export default async function MoraPage() {
           <span className="text-[12px] font-bold tracking-[0.03em] text-gris uppercase">
             Morosos · lista negra y castigos ({morosos.length})
           </span>
-          <ul className="flex flex-col divide-y divide-[#F6DAD4] overflow-hidden rounded-[16px] border border-[#F3C0B8] bg-white">
+          <ul className="flex flex-col divide-y divide-[#F6DAD4] overflow-hidden rounded-[16px] border border-[#F3C0B8] bg-tarjeta">
             {morosos.map((m) => (
               <li key={m.clienteId} className="flex items-center gap-3 px-3.5 py-3">
                 <div className="flex min-w-0 flex-1 flex-col">
@@ -113,7 +113,7 @@ export default async function MoraPage() {
       )}
 
       {enRiesgo.length === 0 && (
-        <p className="rounded-[14px] bg-white px-4 py-6 text-center text-[13px] font-medium text-gris">
+        <p className="rounded-[14px] bg-tarjeta px-4 py-6 text-center text-[13px] font-medium text-gris">
           {resumen.activos === 0
             ? "No hay créditos activos para evaluar."
             : "Nadie en riesgo hoy: toda la cartera activa está al día. 🎉"}
@@ -127,7 +127,7 @@ export default async function MoraPage() {
           return (
             <section
               key={c.clienteId}
-              className="rounded-[16px] border border-[#E6EAF4] bg-white p-4"
+              className="rounded-[16px] border border-borde bg-tarjeta p-4"
             >
               <div className="mb-2 flex items-start gap-3">
                 <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[13px] bg-[#2453DC] text-[16px] font-black text-white">
@@ -162,7 +162,7 @@ export default async function MoraPage() {
               </div>
 
               {/* Acción + deuda */}
-              <div className="flex items-center justify-between gap-3 rounded-[12px] bg-[#F7F9FD] p-3">
+              <div className="flex items-center justify-between gap-3 rounded-[12px] bg-suave p-3">
                 <div className="flex min-w-0 flex-col">
                   <span className="text-[12.5px] font-bold text-tinta">
                     {c.alerta.accionSugerida}
@@ -219,8 +219,8 @@ function Kpi({
   money?: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-1 rounded-[14px] bg-white p-3.5 shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
-      <span className="text-[11px] font-semibold text-[#8A93AD]">{label}</span>
+    <div className="flex flex-col gap-1 rounded-[14px] bg-tarjeta p-3.5 shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
+      <span className="text-[11px] font-semibold text-tenue">{label}</span>
       <span
         className={`font-extrabold text-tinta tabular-nums ${money ? "text-[16px]" : "text-[22px]"}`}
         style={money ? undefined : { color: tono.fg }}
@@ -235,7 +235,7 @@ function Chip({ texto, activo }: { texto: string; activo: boolean }) {
   return (
     <span
       className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-        activo ? "bg-[#FBE4E2] text-[#C0392B]" : "bg-[#EEF1F8] text-[#8A93AD]"
+        activo ? "bg-[#FBE4E2] text-[#C0392B]" : "bg-linea text-tenue"
       }`}
     >
       {texto}

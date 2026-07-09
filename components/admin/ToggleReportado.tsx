@@ -32,7 +32,7 @@ export function ToggleReportado({
   };
 
   return (
-    <div className="flex items-center justify-between rounded-[16px] border border-[#E6EAF4] bg-white p-4">
+    <div className="flex items-center justify-between rounded-[16px] border border-borde bg-tarjeta p-4">
       <div className="flex flex-col">
         <span className="text-[13px] font-bold text-tinta">Cliente reportado</span>
         <span className="text-[11.5px] font-medium text-gris">
@@ -50,7 +50,7 @@ export function ToggleReportado({
         } disabled:opacity-60`}
       >
         <span
-          className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all ${
+          className={`absolute top-0.5 h-6 w-6 rounded-full bg-tarjeta shadow transition-all ${
             reportado ? "left-[22px]" : "left-0.5"
           }`}
         />

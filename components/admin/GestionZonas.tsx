@@ -53,7 +53,7 @@ export function GestionZonas({
       )}
 
       {/* Crear zona */}
-      <section className="flex flex-col gap-3 rounded-[16px] border border-[#E6EAF4] bg-white p-5">
+      <section className="flex flex-col gap-3 rounded-[16px] border border-borde bg-tarjeta p-5">
         <span className="text-[12px] font-bold tracking-[0.03em] text-gris uppercase">Nueva zona</span>
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex flex-1 flex-col gap-1" style={{ minWidth: 200 }}>
@@ -100,7 +100,7 @@ export function GestionZonas({
           Zonas ({zonas.length})
         </span>
         {zonas.length === 0 && (
-          <p className="rounded-[14px] border border-dashed border-[#DCE3F1] bg-white px-4 py-6 text-center text-[13px] font-medium text-gris">
+          <p className="rounded-[14px] border border-dashed border-[#DCE3F1] bg-tarjeta px-4 py-6 text-center text-[13px] font-medium text-gris">
             Todavía no hay zonas. Creá la primera arriba.
           </p>
         )}
@@ -108,7 +108,7 @@ export function GestionZonas({
           {zonas.map((z) => {
             const sups = supervisoresPorZona[z.id] ?? [];
             return (
-              <div key={z.id} className="flex flex-col gap-2 rounded-[16px] border border-[#E6EAF4] bg-white p-4">
+              <div key={z.id} className="flex flex-col gap-2 rounded-[16px] border border-borde bg-tarjeta p-4">
                 <div className="flex items-center gap-2.5">
                   <span className="h-3.5 w-3.5 flex-shrink-0 rounded-full" style={{ background: z.color ?? "#8A93AD" }} />
                   <span className="flex-1 truncate text-[15px] font-extrabold text-tinta">{z.nombre}</span>
@@ -125,7 +125,7 @@ export function GestionZonas({
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-1.5 text-[11.5px] font-medium">
-                  <span className="rounded-full bg-[#EEF1F8] px-2.5 py-0.5 text-[#5B6478]">
+                  <span className="rounded-full bg-linea px-2.5 py-0.5 text-[#5B6478]">
                     {conteo[z.id] ?? 0} cobrador{(conteo[z.id] ?? 0) === 1 ? "" : "es"}
                   </span>
                   <span className="rounded-full bg-[#EAF0FF] px-2.5 py-0.5 text-azul">
@@ -142,7 +142,7 @@ export function GestionZonas({
       {cobradores.length > 0 && (
         <section className="flex flex-col gap-2">
           <span className="text-[12px] font-bold tracking-[0.03em] text-gris uppercase">Cobradores y su zona</span>
-          <ul className="flex flex-col divide-y divide-[#EEF1F8] overflow-hidden rounded-[16px] border border-[#E6EAF4] bg-white">
+          <ul className="flex flex-col divide-y divide-linea overflow-hidden rounded-[16px] border border-borde bg-tarjeta">
             {cobradores.map((c) => (
               <li key={c.id} className="flex items-center gap-3 px-4 py-3">
                 <span className="min-w-0 flex-1 truncate text-[13.5px] font-bold text-tinta">{c.nombre}</span>
@@ -152,7 +152,7 @@ export function GestionZonas({
                   onChange={(e) =>
                     ejecutar(setZonaCobradorAction({ cobradorId: c.id, zonaId: e.target.value || null }))
                   }
-                  className="rounded-[10px] border border-[#DCE3F1] bg-white px-2.5 py-1.5 text-[12.5px] font-semibold text-tinta outline-none focus:border-azul"
+                  className="rounded-[10px] border border-[#DCE3F1] bg-tarjeta px-2.5 py-1.5 text-[12.5px] font-semibold text-tinta outline-none focus:border-azul"
                 >
                   <option value="">Sin zona</option>
                   {zonas.map((z) => (
@@ -173,10 +173,10 @@ export function GestionZonas({
           <span className="text-[12px] font-bold tracking-[0.03em] text-gris uppercase">
             Qué zonas cubre cada supervisor
           </span>
-          <div className="overflow-x-auto rounded-[16px] border border-[#E6EAF4] bg-white">
+          <div className="overflow-x-auto rounded-[16px] border border-borde bg-tarjeta">
             <table className="w-full border-collapse text-[12.5px]">
               <thead>
-                <tr className="border-b border-[#EEF1F8] text-[11px] font-bold tracking-wide text-gris uppercase">
+                <tr className="border-b border-linea text-[11px] font-bold tracking-wide text-gris uppercase">
                   <th className="px-4 py-2.5 text-left">Supervisor</th>
                   {zonas.map((z) => (
                     <th key={z.id} className="px-2 py-2.5 text-center">
@@ -231,7 +231,7 @@ export function GestionZonas({
               </tbody>
             </table>
           </div>
-          <p className="text-[11px] leading-[1.6] font-medium text-[#8A93AD]">
+          <p className="text-[11px] leading-[1.6] font-medium text-tenue">
             Sin zonas marcadas, el supervisor ve toda la operación (compatibilidad). Al marcarle la
             primera zona, pasa a ver solo esa. La restricción es real: la aplica la base (RLS), no solo la pantalla.
           </p>

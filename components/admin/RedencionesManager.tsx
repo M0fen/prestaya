@@ -20,7 +20,7 @@ export function RedencionesManager({ pendientes }: { pendientes: RedencionPendie
 
   if (pendientes.length === 0) {
     return (
-      <div className="rounded-[16px] border border-[#E6EAF4] bg-white p-6 text-center">
+      <div className="rounded-[16px] border border-borde bg-tarjeta p-6 text-center">
         <p className="text-[13px] font-medium text-gris">
           No hay canjes pendientes. Cuando un cliente pida canjear estrellas, aparece acá.
         </p>
@@ -33,7 +33,7 @@ export function RedencionesManager({ pendientes }: { pendientes: RedencionPendie
       {pendientes.map((r) => (
         <div
           key={r.id}
-          className="flex items-center gap-3 rounded-[16px] border border-[#E6EAF4] bg-white p-3.5"
+          className="flex items-center gap-3 rounded-[16px] border border-borde bg-tarjeta p-3.5"
         >
           <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-[#FFF8E6] text-[20px]" aria-hidden="true">
             ⭐
@@ -49,7 +49,7 @@ export function RedencionesManager({ pendientes }: { pendientes: RedencionPendie
               type="button"
               disabled={ocupado === r.id}
               onClick={() => resolver(r.id, "rechazar")}
-              className="rounded-full border border-[#DCE3F4] px-3 py-1.5 text-[12.5px] font-bold text-gris hover:bg-[#F4F6FB] disabled:opacity-50"
+              className="rounded-full border border-borde px-3 py-1.5 text-[12.5px] font-bold text-gris hover:bg-suave disabled:opacity-50"
             >
               Rechazar
             </button>

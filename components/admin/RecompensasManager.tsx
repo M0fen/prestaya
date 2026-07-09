@@ -57,7 +57,7 @@ export function RecompensasManager({ recompensas }: { recompensas: RecompensaAdm
     startTransition(async () => { await eliminarRecompensa(id); router.refresh(); });
 
   return (
-    <section className="flex flex-col gap-4 rounded-[16px] border border-[#E6EAF4] bg-white p-4">
+    <section className="flex flex-col gap-4 rounded-[16px] border border-borde bg-tarjeta p-4">
       <div className="flex flex-col gap-0.5">
         <span className="text-[15px] font-extrabold text-tinta">Recompensas</span>
         <span className="text-[12px] font-medium text-gris">
@@ -67,7 +67,7 @@ export function RecompensasManager({ recompensas }: { recompensas: RecompensaAdm
 
       {/* Lista */}
       {recompensas.length > 0 && (
-        <ul className="flex flex-col divide-y divide-[#EEF1F8]">
+        <ul className="flex flex-col divide-y divide-linea">
           {recompensas.map((r) => (
             <li key={r.id} className="flex items-center gap-3 py-2.5">
               <div className="flex min-w-0 flex-1 flex-col">
@@ -81,7 +81,7 @@ export function RecompensasManager({ recompensas }: { recompensas: RecompensaAdm
                 onClick={() => toggle(r.id, !r.activo)}
                 disabled={pendiente}
                 className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
-                  r.activo ? "bg-[#E4F5EC] text-[#157A50]" : "bg-[#EEF1F8] text-gris"
+                  r.activo ? "bg-[#E4F5EC] text-[#157A50]" : "bg-linea text-gris"
                 }`}
               >
                 {r.activo ? "Activa" : "Oculta"}
@@ -101,29 +101,29 @@ export function RecompensasManager({ recompensas }: { recompensas: RecompensaAdm
       )}
 
       {/* Alta */}
-      <div className="flex flex-col gap-2.5 rounded-[12px] bg-[#F7F9FD] p-3">
+      <div className="flex flex-col gap-2.5 rounded-[12px] bg-suave p-3">
         <span className="text-[12px] font-bold text-tinta">Nueva recompensa</span>
         <input
           value={titulo} onChange={(e) => setTitulo(e.target.value)} maxLength={60}
           placeholder="Título (ej. Racha de 15)"
-          className="rounded-[10px] border border-[#DCE3F4] px-3 py-2 text-[13.5px] outline-none focus:border-azul"
+          className="rounded-[10px] border border-borde px-3 py-2 text-[13.5px] outline-none focus:border-azul"
         />
         <input
           value={premio} onChange={(e) => setPremio(e.target.value)} maxLength={120}
           placeholder="Premio (ej. Descuento en tu próximo crédito)"
-          className="rounded-[10px] border border-[#DCE3F4] px-3 py-2 text-[13.5px] outline-none focus:border-azul"
+          className="rounded-[10px] border border-borde px-3 py-2 text-[13.5px] outline-none focus:border-azul"
         />
         <div className="flex gap-2">
           <select
             value={hito} onChange={(e) => setHito(e.target.value as HitoTipo)}
-            className="flex-1 rounded-[10px] border border-[#DCE3F4] bg-white px-3 py-2 text-[13.5px] outline-none focus:border-azul"
+            className="flex-1 rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[13.5px] outline-none focus:border-azul"
           >
             {HITOS.map((h) => <option key={h.id} value={h.id}>{h.label}</option>)}
           </select>
           {usaValor && (
             <input
               inputMode="numeric" value={valor} onChange={(e) => setValor(e.target.value.replace(/[^\d]/g, ""))}
-              className="w-20 rounded-[10px] border border-[#DCE3F4] px-3 py-2 text-center text-[14px] tabular-nums outline-none focus:border-azul"
+              className="w-20 rounded-[10px] border border-borde px-3 py-2 text-center text-[14px] tabular-nums outline-none focus:border-azul"
               aria-label="Valor del hito"
             />
           )}

@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireUsuario, etiquetaRol, esGestor, esAdmin } from "@/lib/auth";
+import { cookies } from "next/headers";
 import { SidebarNav } from "@/components/admin/SidebarNav";
+import { ModoOscuro } from "@/components/admin/ModoOscuro";
 import { cerrarSesion } from "@/lib/auth-actions";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { estadoMfa } from "@/lib/seguridad/mfa";
@@ -36,6 +38,7 @@ export default async function PanelLayout({
   const falta2fa = esAdmin(usuario.rol) && !mfa.tieneFactor;
 
   const noLeidos = await getTotalNoLeidos(db, usuario);
+  const tema = (await cookies()).get("tema")?.value === "oscuro" ? "oscuro" : "claro";
   const iniciales = usuario.nombre
     .split(" ")
     .map((p) => p[0])
@@ -44,7 +47,7 @@ export default async function PanelLayout({
     .toUpperCase();
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#F4F6FB] md:flex-row">
+    <div id="panel-root" data-tema={tema} className="flex min-h-screen flex-col bg-fondo md:flex-row">
       {/* Barra lateral (desktop) / superior (mobile) */}
       <aside className="print:hidden flex flex-col bg-[#0F1B3D] md:min-h-screen md:w-60 md:flex-shrink-0">
         <div className="flex items-center gap-2.5 px-4 py-4">
@@ -65,7 +68,7 @@ export default async function PanelLayout({
 
       {/* Contenido */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="print:hidden flex items-center justify-between gap-3 border-b border-[#E6EAF4] bg-white px-5 py-3">
+        <header className="print:hidden flex items-center justify-between gap-3 border-b border-borde bg-tarjeta px-5 py-3">
           <div className="flex flex-col">
             <span className="text-[11px] font-semibold tracking-wide text-gris uppercase">
               {etiquetaRol[usuario.rol]}
@@ -75,6 +78,7 @@ export default async function PanelLayout({
             </span>
           </div>
           <div className="flex items-center gap-3">
+            <ModoOscuro inicial={tema === "oscuro"} />
             <CommandPalette rol={usuario.rol} esDev={usuario.es_dev} />
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#EEF3FF] text-[13px] font-extrabold text-azul">
               {iniciales}
@@ -82,7 +86,7 @@ export default async function PanelLayout({
             <form action={cerrarSesion}>
               <button
                 type="submit"
-                className="rounded-full border border-[#DCE3F4] px-3.5 py-1.5 text-[12.5px] font-bold text-gris hover:bg-[#F4F6FB]"
+                className="rounded-full border border-borde px-3.5 py-1.5 text-[12.5px] font-bold text-gris hover:bg-suave"
               >
                 Salir
               </button>

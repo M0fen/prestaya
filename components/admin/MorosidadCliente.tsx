@@ -74,7 +74,7 @@ export function MorosidadCliente({
   return (
     <section
       className={`rounded-[16px] border p-4 ${
-        inicial.moroso ? "border-[#F3C0B8] bg-[#FDF1EF]" : "border-[#E6EAF4] bg-white"
+        inicial.moroso ? "border-[#F3C0B8] bg-[#FDF1EF]" : "border-borde bg-tarjeta"
       }`}
     >
       <div className="flex items-start justify-between gap-3">
@@ -99,7 +99,7 @@ export function MorosidadCliente({
             type="button"
             onClick={desmarcar}
             disabled={pendiente}
-            className="flex-shrink-0 rounded-full border border-[#DCE3F4] px-3 py-1.5 text-[12px] font-bold text-gris disabled:opacity-50"
+            className="flex-shrink-0 rounded-full border border-borde px-3 py-1.5 text-[12px] font-bold text-gris disabled:opacity-50"
           >
             Quitar marca
           </button>
@@ -118,7 +118,7 @@ export function MorosidadCliente({
 
       {/* Confirmación de marca con motivo */}
       {marcando && !inicial.moroso && (
-        <div className="mt-3 flex flex-col gap-2 border-t border-[#EEF1F8] pt-3">
+        <div className="mt-3 flex flex-col gap-2 border-t border-linea pt-3">
           <input
             type="text"
             value={motivo}
@@ -126,7 +126,7 @@ export function MorosidadCliente({
             maxLength={300}
             autoFocus
             placeholder="Motivo (dejó deuda, desapareció, documento dudoso…)"
-            className="rounded-[10px] border border-[#DCE3F4] px-3 py-2 text-[13px] outline-none focus:border-azul"
+            className="rounded-[10px] border border-borde px-3 py-2 text-[13px] outline-none focus:border-azul"
           />
           <div className="flex gap-2">
             <button
@@ -140,7 +140,7 @@ export function MorosidadCliente({
             <button
               type="button"
               onClick={() => setMarcando(false)}
-              className="rounded-full border border-[#DCE3F4] px-3 py-2 text-[12.5px] font-bold text-gris"
+              className="rounded-full border border-borde px-3 py-2 text-[12.5px] font-bold text-gris"
             >
               Cancelar
             </button>
@@ -149,7 +149,7 @@ export function MorosidadCliente({
       )}
 
       {/* Bitácora de motivos/acuerdos */}
-      <div className="mt-3 flex flex-col gap-2 border-t border-[#EEF1F8] pt-3">
+      <div className="mt-3 flex flex-col gap-2 border-t border-linea pt-3">
         <span className="text-[11.5px] font-bold tracking-wide text-gris uppercase">
           Motivos y acuerdos de pago
         </span>
@@ -162,7 +162,7 @@ export function MorosidadCliente({
                 type="button"
                 onClick={() => setTipoNota(t)}
                 className={`rounded-full px-2.5 py-1 text-[11.5px] font-bold ${
-                  tipoNota === t ? "bg-[#2453DC] text-white" : "bg-[#F1F3F9] text-[#6B7494]"
+                  tipoNota === t ? "bg-[#2453DC] text-white" : "bg-[#F1F3F9] text-gris"
                 }`}
               >
                 {TIPO_LABEL[t].label}
@@ -182,7 +182,7 @@ export function MorosidadCliente({
                     ? "Motivo: perdió el trabajo, se mudó…"
                     : "Nota…"
               }
-              className="flex-1 rounded-[10px] border border-[#DCE3F4] px-3 py-2 text-[13px] outline-none focus:border-azul"
+              className="flex-1 rounded-[10px] border border-borde px-3 py-2 text-[13px] outline-none focus:border-azul"
             />
             <button
               type="button"
@@ -202,7 +202,7 @@ export function MorosidadCliente({
             {notas.map((n) => {
               const t = TIPO_LABEL[n.tipo];
               return (
-                <li key={n.id} className="flex items-start gap-2 rounded-[10px] bg-[#F9FBFF] px-2.5 py-2">
+                <li key={n.id} className="flex items-start gap-2 rounded-[10px] bg-suave px-2.5 py-2">
                   <span
                     className="mt-0.5 flex-shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-bold"
                     style={{ background: t.bg, color: t.fg }}
@@ -211,7 +211,7 @@ export function MorosidadCliente({
                   </span>
                   <div className="flex min-w-0 flex-1 flex-col">
                     <span className="text-[12.5px] font-medium text-tinta">{n.texto}</span>
-                    <span className="text-[10.5px] font-medium text-[#8A93AD]">
+                    <span className="text-[10.5px] font-medium text-tenue">
                       {n.autorNombre ?? "—"} · {fecha(n.creadoEn)}
                     </span>
                   </div>

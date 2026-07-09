@@ -42,7 +42,7 @@ export default async function AuditoriaPage() {
       </div>
 
       {registros.length === 0 ? (
-        <p className="rounded-[14px] border border-[#E6EAF4] bg-white px-4 py-8 text-center text-[13px] font-medium text-gris">
+        <p className="rounded-[14px] border border-borde bg-tarjeta px-4 py-8 text-center text-[13px] font-medium text-gris">
           Todavía no hay acciones registradas.
           <br />
           <span className="text-[12px] text-[#AEB6CC]">
@@ -50,7 +50,7 @@ export default async function AuditoriaPage() {
           </span>
         </p>
       ) : (
-        <ul className="flex flex-col divide-y divide-[#EEF1F8] overflow-hidden rounded-[16px] border border-[#E6EAF4] bg-white">
+        <ul className="flex flex-col divide-y divide-linea overflow-hidden rounded-[16px] border border-borde bg-tarjeta">
           {registros.map((r) => (
             <li key={r.id} className="flex items-start gap-3 p-3.5">
               <span className="mt-0.5 text-[16px]">{iconoDe(r.accion)}</span>
@@ -59,7 +59,7 @@ export default async function AuditoriaPage() {
                   {r.accion}
                   {r.detalle && <span className="font-medium text-gris"> — {r.detalle}</span>}
                 </span>
-                <span className="text-[11.5px] font-medium text-[#8A93AD]">
+                <span className="text-[11.5px] font-medium text-tenue">
                   {r.actorNombre} · {cuando(r.creadoEn)}
                 </span>
               </div>

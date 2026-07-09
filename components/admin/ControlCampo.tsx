@@ -30,7 +30,7 @@ function horaUY(iso: string): string {
 export function ControlCampo({ resumen }: { resumen: ResumenCobradorDia[] }) {
   if (resumen.length === 0) {
     return (
-      <div className="rounded-[16px] border border-[#E6EAF4] bg-white p-6 text-center">
+      <div className="rounded-[16px] border border-borde bg-tarjeta p-6 text-center">
         <p className="text-[13px] font-medium text-gris">
           No hay actividad de campo registrada ese día. (Requiere la migración 0024 corrida.)
         </p>
@@ -43,7 +43,7 @@ export function ControlCampo({ resumen }: { resumen: ResumenCobradorDia[] }) {
       {resumen.map((c) => {
         const n = NIVEL[c.senales.nivel] ?? NIVEL.ok;
         return (
-          <section key={c.actorId} className="rounded-[18px] border border-[#E6EAF4] bg-white p-4">
+          <section key={c.actorId} className="rounded-[18px] border border-borde bg-tarjeta p-4">
             <div className="mb-2 flex items-center gap-3">
               <span className="text-[15px] font-extrabold text-tinta">{c.actorNombre}</span>
               <span
@@ -72,7 +72,7 @@ export function ControlCampo({ resumen }: { resumen: ResumenCobradorDia[] }) {
             )}
 
             {/* Lista de acciones */}
-            <ul className="flex flex-col divide-y divide-[#EEF1F8]">
+            <ul className="flex flex-col divide-y divide-linea">
               {c.eventos.map((e) => {
                 const hayGps = e.gpsLat != null && e.gpsLng != null;
                 return (

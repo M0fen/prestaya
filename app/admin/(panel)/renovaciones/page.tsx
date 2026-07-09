@@ -53,7 +53,7 @@ export default async function RenovacionesPage() {
       <SolicitudesRenovacion solicitudes={solicitudes} esAdmin={esAdminV} />
 
       {candidatos.length === 0 && (
-        <p className="rounded-[14px] bg-white px-4 py-6 text-center text-[13px] font-medium text-gris">
+        <p className="rounded-[14px] bg-tarjeta px-4 py-6 text-center text-[13px] font-medium text-gris">
           Nadie está cerca de completar su crédito todavía. Aparecerán acá al
           superar el 75% pagado.
         </p>
@@ -66,7 +66,7 @@ export default async function RenovacionesPage() {
           return (
             <section
               key={cliente.id}
-              className="rounded-[16px] border border-[#E6EAF4] bg-white p-4"
+              className="rounded-[16px] border border-borde bg-tarjeta p-4"
             >
               <div className="mb-2 flex items-center gap-3">
                 <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[13px] bg-[#2453DC] text-[16px] font-black text-white">
@@ -99,7 +99,7 @@ export default async function RenovacionesPage() {
               </div>
 
               {/* Progreso del crédito actual */}
-              <div className="mb-3 h-[8px] w-full overflow-hidden rounded-full bg-[#EEF1F8]">
+              <div className="mb-3 h-[8px] w-full overflow-hidden rounded-full bg-linea">
                 <div
                   className="h-full rounded-full bg-[#1FA971]"
                   style={{ transformOrigin: "left", transform: `scaleX(${progresoPct / 100})` }}
@@ -107,7 +107,7 @@ export default async function RenovacionesPage() {
               </div>
 
               {/* Recomendación */}
-              <div className="flex items-center justify-between gap-3 rounded-[12px] bg-[#F7F9FD] p-3">
+              <div className="flex items-center justify-between gap-3 rounded-[12px] bg-suave p-3">
                 <div className="flex min-w-0 flex-col">
                   <span className="text-[11px] font-semibold text-gris">
                     Recomendación

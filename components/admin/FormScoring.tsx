@@ -57,7 +57,7 @@ export function FormScoring({ inicial }: { inicial: ConfigScoring }) {
   };
 
   return (
-    <div className="flex flex-col gap-4 rounded-[16px] border border-[#E6EAF4] bg-white p-4">
+    <div className="flex flex-col gap-4 rounded-[16px] border border-borde bg-tarjeta p-4">
       {/* Pesos */}
       <div className="flex flex-col gap-3">
         <span className="text-[12px] font-extrabold text-tinta">Peso de cada factor</span>
@@ -80,13 +80,13 @@ export function FormScoring({ inicial }: { inicial: ConfigScoring }) {
             </span>
           </div>
         ))}
-        <span className="text-[11px] font-medium text-[#8A93AD]">
+        <span className="text-[11px] font-medium text-tenue">
           Los pesos se normalizan a 100% al guardar. Suma actual: {suma} (se reparte proporcional).
         </span>
       </div>
 
       {/* Umbrales */}
-      <div className="flex flex-col gap-2 border-t border-[#EEF1F8] pt-3">
+      <div className="flex flex-col gap-2 border-t border-linea pt-3">
         <span className="text-[12px] font-extrabold text-tinta">Umbrales de banda (0–1000)</span>
         <div className="grid grid-cols-3 gap-2.5">
           <Campo label="Excelente ≥" valor={umb.excelente} onChange={(v) => setUmb((u) => ({ ...u, excelente: v }))} />
@@ -98,7 +98,7 @@ export function FormScoring({ inicial }: { inicial: ConfigScoring }) {
             Deben ir de mayor a menor: excelente &gt; bueno &gt; regular.
           </span>
         )}
-        <span className="text-[11px] font-medium text-[#8A93AD]">
+        <span className="text-[11px] font-medium text-tenue">
           Debajo de “Regular” el cliente cae en <b>riesgo</b>. Con poco historial queda “nuevo”.
         </span>
       </div>
@@ -130,7 +130,7 @@ function Campo({ label, valor, onChange }: { label: string; valor: number; onCha
         inputMode="numeric"
         value={valor}
         onChange={(e) => onChange(Number(e.target.value.replace(/[^\d]/g, "")) || 0)}
-        className="rounded-[10px] border border-[#DCE3F4] px-2.5 py-2 text-[14px] tabular-nums outline-none focus:border-azul"
+        className="rounded-[10px] border border-borde px-2.5 py-2 text-[14px] tabular-nums outline-none focus:border-azul"
       />
     </label>
   );

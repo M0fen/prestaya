@@ -23,7 +23,7 @@ export default async function ScoringPage() {
 
       <FormScoring inicial={config} />
 
-      <p className="text-[11.5px] leading-[1.6] font-medium text-[#8A93AD]">
+      <p className="text-[11.5px] leading-[1.6] font-medium text-tenue">
         El scorecard es transparente: el puntaje (0–1000) es la suma ponderada de los factores, con
         penalización por castigos graves (créditos cancelados o incobrables). Es interno: no se le
         muestra al cliente. Cambiar los pesos ayuda a afinar a quién y cuánto prestar según tu experiencia.

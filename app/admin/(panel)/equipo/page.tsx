@@ -70,7 +70,7 @@ export default async function EquipoPage({
               name="q"
               defaultValue={q ?? ""}
               placeholder="Nombre, email o documento…"
-              className="rounded-[10px] border border-[#DCE3F4] bg-white px-3 py-2 text-[13px] outline-none focus:border-azul"
+              className="rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[13px] outline-none focus:border-azul"
             />
             <button type="submit" className="rounded-[10px] bg-[#2453DC] px-3.5 py-2 text-[12.5px] font-bold text-white">
               Buscar
@@ -87,10 +87,10 @@ export default async function EquipoPage({
       {/* Matriz de permisos */}
       <section className="flex flex-col gap-2">
         <span className="text-[12px] font-bold tracking-[0.03em] text-gris uppercase">Qué puede cada rol</span>
-        <div className="overflow-x-auto rounded-[16px] border border-[#E6EAF4] bg-white">
+        <div className="overflow-x-auto rounded-[16px] border border-borde bg-tarjeta">
           <table className="w-full border-collapse text-[12.5px]">
             <thead>
-              <tr className="border-b border-[#EEF1F8] text-[11px] font-bold tracking-wide text-gris uppercase">
+              <tr className="border-b border-linea text-[11px] font-bold tracking-wide text-gris uppercase">
                 <th className="px-4 py-2.5 text-left">Acción</th>
                 <th className="px-2 py-2.5 text-center">Admin</th>
                 <th className="px-2 py-2.5 text-center">Supervisor</th>
@@ -109,7 +109,7 @@ export default async function EquipoPage({
             </tbody>
           </table>
         </div>
-        <p className="text-[11px] leading-[1.6] font-medium text-[#8A93AD]">
+        <p className="text-[11px] leading-[1.6] font-medium text-tenue">
           El supervisor ve su(s) zona(s) y no puede tocar mora, comisiones ni anular pagos directo:
           eso queda protegido en el servidor (RLS), no solo escondido en la pantalla. Sí puede
           <b> solicitar</b> una anulación, que confirma una segunda persona (doble registro). Un

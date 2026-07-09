@@ -14,7 +14,7 @@ const TONO: Record<EstadoRendicion, { bg: string; fg: string }> = {
 export function RendicionesDia({ r }: { r: ResumenRendiciones }) {
   if (!r.disponible) {
     return (
-      <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-4">
+      <section className="rounded-[16px] border border-borde bg-tarjeta p-4">
         <span className="text-[13px] font-bold text-tinta">Rendiciones de jornada</span>
         <p className="mt-1.5 text-[12.5px] font-medium text-gris">
           Para habilitar el cierre de jornada del cobrador, corré la migración{" "}
@@ -27,7 +27,7 @@ export function RendicionesDia({ r }: { r: ResumenRendiciones }) {
   if (r.rendidas.length === 0 && r.pendientes.length === 0) return null;
 
   return (
-    <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-4">
+    <section className="rounded-[16px] border border-borde bg-tarjeta p-4">
       <div className="mb-2.5 flex items-center justify-between">
         <span className="text-[13px] font-bold text-tinta">Rendiciones de jornada</span>
         {r.totalFaltante > 0 && (
@@ -39,14 +39,14 @@ export function RendicionesDia({ r }: { r: ResumenRendiciones }) {
 
       {/* Rendidas */}
       {r.rendidas.length > 0 && (
-        <ul className="flex flex-col divide-y divide-[#EEF1F8]">
+        <ul className="flex flex-col divide-y divide-linea">
           {r.rendidas.map((x) => {
             const t = TONO[x.estado];
             return (
               <li key={x.id} className="flex items-center justify-between gap-2 py-2">
                 <div className="flex min-w-0 flex-col">
                   <span className="truncate text-[13px] font-semibold text-tinta">{x.cobradorNombre}</span>
-                  <span className="text-[11px] font-medium text-[#8A93AD]">
+                  <span className="text-[11px] font-medium text-tenue">
                     entregó {UYU(x.entregado)} · esperado {UYU(x.recaudado - x.gastos)}
                     {x.gastos > 0 ? ` · gastos ${UYU(x.gastos)}` : ""}
                   </span>
@@ -67,9 +67,9 @@ export function RendicionesDia({ r }: { r: ResumenRendiciones }) {
 
       {/* Pendientes de rendir */}
       {r.pendientes.length > 0 && (
-        <div className="mt-2 border-t border-[#EEF1F8] pt-2">
-          <span className="text-[11px] font-bold tracking-wide text-[#8A93AD] uppercase">Falta rendir</span>
-          <ul className="mt-1 flex flex-col divide-y divide-[#EEF1F8]">
+        <div className="mt-2 border-t border-linea pt-2">
+          <span className="text-[11px] font-bold tracking-wide text-tenue uppercase">Falta rendir</span>
+          <ul className="mt-1 flex flex-col divide-y divide-linea">
             {r.pendientes.map((p) => (
               <li key={p.cobradorId} className="flex items-center justify-between py-1.5">
                 <span className="text-[13px] font-semibold text-tinta">{p.nombre}</span>

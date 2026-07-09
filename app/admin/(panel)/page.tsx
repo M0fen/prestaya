@@ -88,7 +88,7 @@ export default async function DashboardPage({
           Mauricio las reconozca). "Capital en calle" = deuda pendiente total. */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         <Kpi etiqueta="Total de ventas activas" valor={String(cartera.creditosActivos)} sub="créditos en calle" acento="#1E47C8" />
-        <div className="flex flex-col gap-1 rounded-[16px] border border-[#E6EAF4] bg-white p-4">
+        <div className="flex flex-col gap-1 rounded-[16px] border border-borde bg-tarjeta p-4">
           <div className="flex items-center justify-between">
             <span className="text-[11.5px] font-bold tracking-wide text-gris uppercase">Recaudo de hoy</span>
             {serie.tendencia !== 0 && (
@@ -99,7 +99,7 @@ export default async function DashboardPage({
           </div>
           <span className="text-[23px] leading-tight font-extrabold tabular-nums text-verde">{UYU(recaudacion.hoy)}</span>
           <div className="mt-0.5"><Sparkline valores={recaudos} color="#1FA971" alto={30} /></div>
-          <span className="text-[12px] font-medium text-[#8A93AD]">Mes: {UYU(recaudacion.mes)}</span>
+          <span className="text-[12px] font-medium text-tenue">Mes: {UYU(recaudacion.mes)}</span>
         </div>
         <Kpi etiqueta="Por cobrar hoy" valor={UYU(cartera.porCobrarHoy)} sub="cuotas que vencen hoy" acento="#13308C" />
         <Kpi etiqueta="Total de clientes" valor={String(cartera.clientesActivos)} sub={`${cartera.deudoresActivos} con crédito activo`} acento="#0F1B3D" />
@@ -114,7 +114,7 @@ export default async function DashboardPage({
       <AureoInsights insights={insights} />
 
       {/* MOVIMIENTO por período (día/semana/mes/año) */}
-      <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-5">
+      <section className="rounded-[16px] border border-borde bg-tarjeta p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-col">
             <h2 className="text-[15px] font-extrabold text-tinta">Movimiento</h2>
@@ -129,7 +129,7 @@ export default async function DashboardPage({
                   key={p.id}
                   href={p.id === "dia" ? "/admin" : `/admin?periodo=${p.id}`}
                   className={`rounded-full px-3.5 py-1.5 text-[12.5px] font-bold transition-colors ${
-                    activo ? "bg-white text-azul shadow-[0_1px_2px_rgba(26,34,71,0.1)]" : "text-gris hover:text-tinta"
+                    activo ? "bg-tarjeta text-azul shadow-[0_1px_2px_rgba(26,34,71,0.1)]" : "text-gris hover:text-tinta"
                   }`}
                 >
                   {p.label}
@@ -146,7 +146,7 @@ export default async function DashboardPage({
             <span className="text-[20px] font-extrabold tabular-nums text-verde">{UYU(mov.recaudado)}</span>
             <div className="flex items-center gap-1.5">
               {varPct === null ? (
-                <span className="text-[11.5px] font-medium text-[#8A93AD]">sin base previa</span>
+                <span className="text-[11.5px] font-medium text-tenue">sin base previa</span>
               ) : (
                 <span className={`text-[11.5px] font-bold ${varPct >= 0 ? "text-verde" : "text-rojo"}`}>
                   {varPct >= 0 ? "▲" : "▼"} {Math.abs(varPct)}% vs anterior
@@ -178,7 +178,7 @@ export default async function DashboardPage({
 
         {/* Recaudo por cobrador en el período */}
         {mov.porCobrador.length > 0 && (
-          <div className="mt-5 border-t border-[#EEF1F8] pt-4">
+          <div className="mt-5 border-t border-linea pt-4">
             <div className="mb-3 flex items-center justify-between">
               <span className="text-[12.5px] font-bold text-tinta">Recaudo por cobrador</span>
               <span className="text-[11.5px] font-medium text-gris">{mov.etiqueta}</span>
@@ -199,7 +199,7 @@ export default async function DashboardPage({
 
       {/* Cobradores + mora por antigüedad */}
       <div className="grid gap-3 lg:grid-cols-2">
-        <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-5">
+        <section className="rounded-[16px] border border-borde bg-tarjeta p-5">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-[15px] font-extrabold text-tinta">Cobradores hoy</h2>
             <Link href="/admin/cobranza" className="text-[12px] font-bold text-azul">Ver control →</Link>
@@ -215,7 +215,7 @@ export default async function DashboardPage({
           />
         </section>
 
-        <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-5">
+        <section className="rounded-[16px] border border-borde bg-tarjeta p-5">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-[15px] font-extrabold text-tinta">Mora por antigüedad</h2>
             <Link href="/admin/mora" className="text-[12px] font-bold text-azul">Ver mora →</Link>
@@ -238,7 +238,7 @@ export default async function DashboardPage({
 
       {/* Cartera + estado */}
       <div className="grid gap-3 lg:grid-cols-2">
-        <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-5">
+        <section className="rounded-[16px] border border-borde bg-tarjeta p-5">
           <h2 className="mb-4 text-[15px] font-extrabold text-tinta">Cartera por cobrar</h2>
           <Donut
             centroValor={UYU(cartera.carteraPorCobrar)}
@@ -262,27 +262,27 @@ export default async function DashboardPage({
 
 function Kpi({ etiqueta, valor, sub, acento }: { etiqueta: string; valor: string; sub: string; acento: string }) {
   return (
-    <div className="flex flex-col gap-1 rounded-[16px] border border-[#E6EAF4] bg-white p-4">
+    <div className="flex flex-col gap-1 rounded-[16px] border border-borde bg-tarjeta p-4">
       <span className="text-[11.5px] font-bold tracking-wide text-gris uppercase">{etiqueta}</span>
       <span className="text-[23px] leading-tight font-extrabold tabular-nums" style={{ color: acento }}>{valor}</span>
-      <span className="text-[12px] font-medium text-[#8A93AD]">{sub}</span>
+      <span className="text-[12px] font-medium text-tenue">{sub}</span>
     </div>
   );
 }
 
 function Tile({ etiqueta, valor, sub, acento = "#0F1B3D" }: { etiqueta: string; valor: string; sub: string; acento?: string }) {
   return (
-    <div className="flex flex-col gap-1 rounded-[13px] bg-[#F7F9FD] p-3.5">
+    <div className="flex flex-col gap-1 rounded-[13px] bg-suave p-3.5">
       <span className="text-[11px] font-bold tracking-wide text-gris uppercase">{etiqueta}</span>
       <span className="text-[20px] font-extrabold tabular-nums" style={{ color: acento }}>{valor}</span>
-      <span className="text-[11.5px] font-medium text-[#8A93AD]">{sub}</span>
+      <span className="text-[11.5px] font-medium text-tenue">{sub}</span>
     </div>
   );
 }
 
 function Mini({ etiqueta, valor, alerta = false }: { etiqueta: string; valor: number; alerta?: boolean }) {
   return (
-    <div className="flex items-center justify-between rounded-[13px] border border-[#E6EAF4] bg-white px-4 py-3">
+    <div className="flex items-center justify-between rounded-[13px] border border-borde bg-tarjeta px-4 py-3">
       <span className="text-[12.5px] font-semibold text-gris">{etiqueta}</span>
       <span className={`text-[18px] font-extrabold tabular-nums ${alerta ? "text-[#C0392B]" : "text-tinta"}`}>{valor}</span>
     </div>
@@ -293,7 +293,7 @@ function Mini({ etiqueta, valor, alerta = false }: { etiqueta: string; valor: nu
 function LiquidacionDiaria({ liq }: { liq: LiquidacionDia }) {
   const cellNum = "px-3 py-2.5 text-right tabular-nums";
   return (
-    <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-5">
+    <section className="rounded-[16px] border border-borde bg-tarjeta p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-col">
           <h2 className="text-[15px] font-extrabold text-tinta">Liquidación diaria</h2>
@@ -316,7 +316,7 @@ function LiquidacionDiaria({ liq }: { liq: LiquidacionDia }) {
       <div className="overflow-x-auto">
         <table className="w-full min-w-[720px] border-collapse text-[12.5px]">
           <thead>
-            <tr className="border-b border-[#EEF1F8] text-[11px] font-bold uppercase tracking-wide text-gris">
+            <tr className="border-b border-linea text-[11px] font-bold uppercase tracking-wide text-gris">
               <th className="px-3 py-2 text-left">Vendedor</th>
               <th className="px-3 py-2 text-right">Base</th>
               <th className="px-3 py-2 text-right">Visitas</th>

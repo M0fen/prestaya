@@ -21,13 +21,13 @@ export function TablaComisiones({
 }) {
   if (filas.length === 0) {
     return (
-      <p className="rounded-[14px] border border-[#E6EAF4] bg-white px-4 py-6 text-center text-[13px] font-medium text-gris">
+      <p className="rounded-[14px] border border-borde bg-tarjeta px-4 py-6 text-center text-[13px] font-medium text-gris">
         No hay cobradores activos.
       </p>
     );
   }
   return (
-    <div className="flex flex-col divide-y divide-[#EEF1F8] overflow-hidden rounded-[16px] border border-[#E6EAF4] bg-white">
+    <div className="flex flex-col divide-y divide-linea overflow-hidden rounded-[16px] border border-borde bg-tarjeta">
       {filas.map((f) => (
         <Fila key={f.cobradorId} f={f} etiqueta={etiqueta} puedeGestionar={puedeGestionar} />
       ))}
@@ -82,20 +82,20 @@ function Fila({
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 flex-col">
           <span className="truncate text-[13.5px] font-bold text-tinta">{f.nombre}</span>
-          <span className="text-[11.5px] font-medium text-[#8A93AD]">
+          <span className="text-[11.5px] font-medium text-tenue">
             recaudó {UYU(f.recaudado)} · {f.cobros} cobro{f.cobros === 1 ? "" : "s"}
           </span>
         </div>
         <div className="flex flex-shrink-0 flex-col items-end">
           <span className="text-[15px] font-extrabold tabular-nums text-verde">{UYU(comision)}</span>
-          <span className="text-[10.5px] font-semibold text-[#8A93AD]">comisión</span>
+          <span className="text-[10.5px] font-semibold text-tenue">comisión</span>
         </div>
       </div>
 
       {puedeGestionar ? (
         <>
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 rounded-[11px] border border-[#DCE3F4] px-2.5 py-1.5">
+            <div className="flex items-center gap-1 rounded-[11px] border border-borde px-2.5 py-1.5">
               <input
                 inputMode="decimal"
                 value={pct}
@@ -109,7 +109,7 @@ function Fila({
               type="button"
               onClick={guardar}
               disabled={pendiente || !cambiado}
-              className="rounded-full border border-[#DCE3F4] px-3 py-1.5 text-[12px] font-bold text-azul disabled:opacity-40"
+              className="rounded-full border border-borde px-3 py-1.5 text-[12px] font-bold text-azul disabled:opacity-40"
             >
               Guardar
             </button>
@@ -127,7 +127,7 @@ function Fila({
         </>
       ) : (
         // Supervisor: solo lectura (tasa vigente, sin poder cambiar ni liquidar).
-        <span className="text-[11.5px] font-medium text-[#8A93AD]">Comisión: {f.pct}%</span>
+        <span className="text-[11.5px] font-medium text-tenue">Comisión: {f.pct}%</span>
       )}
     </div>
   );

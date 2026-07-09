@@ -58,7 +58,7 @@ export function PromosManager({
         <NuevaQuiniela onDone={() => router.refresh()} />
         <div className="flex flex-col gap-2">
           {quinielas.length === 0 && (
-            <p className="rounded-[14px] bg-white p-4 text-center text-[13px] font-medium text-gris">
+            <p className="rounded-[14px] bg-tarjeta p-4 text-center text-[13px] font-medium text-gris">
               No hay quinielas todavía.
             </p>
           )}
@@ -72,7 +72,7 @@ export function PromosManager({
 }
 
 const inputCls =
-  "rounded-[10px] border border-[#DCE3F4] px-3 py-2 text-[13px] text-tinta outline-none focus:border-azul";
+  "rounded-[10px] border border-borde px-3 py-2 text-[13px] text-tinta outline-none focus:border-azul";
 
 function PremioFila({
   premio,
@@ -106,7 +106,7 @@ function PremioFila({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-[14px] border border-[#E6EAF4] bg-white p-2.5">
+    <div className="flex flex-wrap items-center gap-2 rounded-[14px] border border-borde bg-tarjeta p-2.5">
       <input className={`${inputCls} min-w-0 flex-1`} placeholder={nuevo ? "Nuevo premio…" : ""}
         value={label} onChange={(e) => setLabel(e.target.value)} />
       <select className={inputCls} value={tipo} onChange={(e) => setTipo(e.target.value as PremioRaspa["tipo"])}>
@@ -150,7 +150,7 @@ function NuevaQuiniela({ onDone }: { onDone: () => void }) {
   };
 
   return (
-    <div className="flex flex-col gap-2 rounded-[14px] border border-[#E6EAF4] bg-white p-3">
+    <div className="flex flex-col gap-2 rounded-[14px] border border-borde bg-tarjeta p-3">
       <span className="text-[13px] font-bold text-tinta">Abrir una quiniela</span>
       <input className={inputCls} placeholder="Título (ej. Quiniela de julio)" value={titulo}
         onChange={(e) => setTitulo(e.target.value)} />
@@ -186,10 +186,10 @@ function QuinielaFila({ q, resumen, onDone }: { q: Quiniela; resumen?: ResumenQu
   };
 
   return (
-    <div className="flex flex-col gap-2 rounded-[14px] border border-[#E6EAF4] bg-white p-3">
+    <div className="flex flex-col gap-2 rounded-[14px] border border-borde bg-tarjeta p-3">
       <div className="flex items-center gap-2">
         <span className="text-[13.5px] font-bold text-tinta">{q.titulo}</span>
-        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${q.estado === "abierta" ? "bg-[#E7F7EF] text-[#157A50]" : "bg-[#EEF1F8] text-gris"}`}>
+        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${q.estado === "abierta" ? "bg-[#E7F7EF] text-[#157A50]" : "bg-linea text-gris"}`}>
           {q.estado}
         </span>
         <span className="ml-auto text-[11.5px] font-medium text-gris">{count} participante{count === 1 ? "" : "s"}</span>
@@ -209,7 +209,7 @@ function QuinielaFila({ q, resumen, onDone }: { q: Quiniela; resumen?: ResumenQu
           </button>
         </div>
       ) : (
-        <div className="rounded-[10px] bg-[#F4F6FB] p-2.5">
+        <div className="rounded-[10px] bg-suave p-2.5">
           <span className="text-[12.5px] font-bold text-tinta">Número ganador: {q.numeroGanador}</span>
           {resumen && resumen.ganadores.length > 0 ? (
             <p className="mt-1 text-[12px] font-medium text-[#157A50]">

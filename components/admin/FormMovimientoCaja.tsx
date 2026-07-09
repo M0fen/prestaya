@@ -69,7 +69,7 @@ export function FormMovimientoCaja({ cuenta = "operativa" }: { cuenta?: "operati
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-[16px] border border-[#E6EAF4] bg-white p-4">
+    <div className="flex flex-col gap-3 rounded-[16px] border border-borde bg-tarjeta p-4">
       <span className="text-[13px] font-bold text-tinta">
         {cuenta === "capital" ? "Nuevo movimiento de capital" : "Nuevo movimiento de caja"}
       </span>
@@ -101,7 +101,7 @@ export function FormMovimientoCaja({ cuenta = "operativa" }: { cuenta?: "operati
             min={1}
             value={monto}
             onChange={(e) => setMonto(e.target.value)}
-            className="rounded-[10px] border border-[#DCE3F4] px-3 py-2 text-[14px] font-semibold outline-none focus:border-azul"
+            className="rounded-[10px] border border-borde px-3 py-2 text-[14px] font-semibold outline-none focus:border-azul"
           />
         </label>
         <label className="flex flex-col gap-1">
@@ -111,7 +111,7 @@ export function FormMovimientoCaja({ cuenta = "operativa" }: { cuenta?: "operati
           <select
             value={categoria}
             onChange={(e) => setCategoria(e.target.value)}
-            className="rounded-[10px] border border-[#DCE3F4] bg-white px-3 py-2 text-[14px] outline-none focus:border-azul"
+            className="rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[14px] outline-none focus:border-azul"
           >
             {cats.map((c) => (
               <option key={c} value={c}>
@@ -130,14 +130,14 @@ export function FormMovimientoCaja({ cuenta = "operativa" }: { cuenta?: "operati
           maxLength={200}
           onChange={(e) => setDescripcion(e.target.value)}
           placeholder="Ej: nafta de la moto, adelanto a Diego…"
-          className="rounded-[10px] border border-[#DCE3F4] px-3 py-2 text-[14px] outline-none focus:border-azul"
+          className="rounded-[10px] border border-borde px-3 py-2 text-[14px] outline-none focus:border-azul"
         />
       </label>
 
       {cuenta === "operativa" && (
         <label className="flex items-center gap-2">
           <input type="checkbox" checked={visible} onChange={(e) => setVisible(e.target.checked)} />
-          <span className="text-[12px] font-semibold text-[#3A445F]">
+          <span className="text-[12px] font-semibold text-cuerpo">
             Visible en la app del cobrador
           </span>
         </label>
@@ -150,7 +150,7 @@ export function FormMovimientoCaja({ cuenta = "operativa" }: { cuenta?: "operati
           type="button"
           onClick={() => setAbierto(false)}
           disabled={pendiente}
-          className="rounded-full border border-[#DCE3F4] bg-white px-4 py-2.5 text-[13px] font-bold text-[#6B7494]"
+          className="rounded-full border border-borde bg-tarjeta px-4 py-2.5 text-[13px] font-bold text-gris"
         >
           Cancelar
         </button>

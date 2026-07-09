@@ -36,7 +36,7 @@ export function FormAjustesJuego({
   };
 
   return (
-    <div className="flex flex-col gap-4 rounded-[16px] border border-[#E6EAF4] bg-white p-4">
+    <div className="flex flex-col gap-4 rounded-[16px] border border-borde bg-tarjeta p-4">
       {/* Encendido */}
       <Toggle
         label="Zona de juego encendida"
@@ -53,7 +53,7 @@ export function FormAjustesJuego({
             value={a.juegoActivo}
             disabled={!a.activo}
             onChange={(e) => set("juegoActivo", e.target.value)}
-            className="rounded-[10px] border border-[#DCE3F4] bg-white px-3 py-2 text-[14px] outline-none focus:border-azul"
+            className="rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[14px] outline-none focus:border-azul"
           >
             {juegos.map((j) => (
               <option key={j.id} value={j.id}>
@@ -73,7 +73,7 @@ export function FormAjustesJuego({
             value={a.metaRacha}
             disabled={!a.activo}
             onChange={(e) => set("metaRacha", Number(e.target.value))}
-            className="w-28 rounded-[10px] border border-[#DCE3F4] px-3 py-2 text-[14px] outline-none focus:border-azul"
+            className="w-28 rounded-[10px] border border-borde px-3 py-2 text-[14px] outline-none focus:border-azul"
           />
         </label>
 
@@ -86,7 +86,7 @@ export function FormAjustesJuego({
             disabled={!a.activo}
             maxLength={200}
             onChange={(e) => set("premioMeta", e.target.value)}
-            className="rounded-[10px] border border-[#DCE3F4] px-3 py-2 text-[14px] outline-none focus:border-azul"
+            className="rounded-[10px] border border-borde px-3 py-2 text-[14px] outline-none focus:border-azul"
           />
         </label>
 
@@ -99,7 +99,7 @@ export function FormAjustesJuego({
             disabled={!a.activo}
             maxLength={200}
             onChange={(e) => set("mensajeBienvenida", e.target.value)}
-            className="rounded-[10px] border border-[#DCE3F4] px-3 py-2 text-[14px] outline-none focus:border-azul"
+            className="rounded-[10px] border border-borde px-3 py-2 text-[14px] outline-none focus:border-azul"
           />
         </label>
 
@@ -112,7 +112,7 @@ export function FormAjustesJuego({
         />
 
         {/* Temporada / evento del mes */}
-        <div className="rounded-[12px] border border-[#EEF1F8] bg-[#F7F9FD] p-3">
+        <div className="rounded-[12px] border border-linea bg-suave p-3">
           <Toggle
             label="Temporada / evento del mes"
             sub="Un tema con meta colectiva y premio, visible para los clientes."
@@ -129,7 +129,7 @@ export function FormAjustesJuego({
                     type="text" value={a.temporadaNombre} maxLength={40} disabled={!a.activo}
                     onChange={(e) => set("temporadaNombre", e.target.value)}
                     placeholder="Verano 2026"
-                    className="rounded-[10px] border border-[#DCE3F4] px-3 py-2 text-[14px] outline-none focus:border-azul"
+                    className="rounded-[10px] border border-borde px-3 py-2 text-[14px] outline-none focus:border-azul"
                   />
                 </label>
                 <label className="flex w-20 flex-col gap-1">
@@ -137,7 +137,7 @@ export function FormAjustesJuego({
                   <input
                     type="text" value={a.temporadaEmoji} maxLength={4} disabled={!a.activo}
                     onChange={(e) => set("temporadaEmoji", e.target.value)}
-                    className="rounded-[10px] border border-[#DCE3F4] px-3 py-2 text-center text-[16px] outline-none focus:border-azul"
+                    className="rounded-[10px] border border-borde px-3 py-2 text-center text-[16px] outline-none focus:border-azul"
                   />
                 </label>
               </div>
@@ -146,7 +146,7 @@ export function FormAjustesJuego({
                 <input
                   type="number" min={1} max={100} value={a.temporadaMeta} disabled={!a.activo}
                   onChange={(e) => set("temporadaMeta", Number(e.target.value))}
-                  className="w-28 rounded-[10px] border border-[#DCE3F4] px-3 py-2 text-[14px] outline-none focus:border-azul"
+                  className="w-28 rounded-[10px] border border-borde px-3 py-2 text-[14px] outline-none focus:border-azul"
                 />
               </label>
               <label className="flex flex-col gap-1">
@@ -155,7 +155,7 @@ export function FormAjustesJuego({
                   type="text" value={a.temporadaPremio} maxLength={120} disabled={!a.activo}
                   onChange={(e) => set("temporadaPremio", e.target.value)}
                   placeholder="Sorteo de una camiseta"
-                  className="rounded-[10px] border border-[#DCE3F4] px-3 py-2 text-[14px] outline-none focus:border-azul"
+                  className="rounded-[10px] border border-borde px-3 py-2 text-[14px] outline-none focus:border-azul"
                 />
               </label>
             </div>
@@ -165,7 +165,7 @@ export function FormAjustesJuego({
 
       {/* Config del cliente que aplica SIEMPRE (aunque la zona de juego esté
           apagada): estrellas y caritas se muestran igual. */}
-      <div className="flex flex-col gap-3 rounded-[12px] border border-[#EEF1F8] bg-[#F7F9FD] p-3">
+      <div className="flex flex-col gap-3 rounded-[12px] border border-linea bg-suave p-3">
         <span className="text-[12px] font-extrabold text-tinta">Vista del cliente</span>
         <label className="flex flex-col gap-1">
           <span className="text-[11.5px] font-bold text-tinta">Ciclo del canje de estrellas</span>
@@ -175,7 +175,7 @@ export function FormAjustesJuego({
           <select
             value={a.estrellasCiclo}
             onChange={(e) => set("estrellasCiclo", e.target.value as AjustesJuego["estrellasCiclo"])}
-            className="mt-1 w-56 rounded-[10px] border border-[#DCE3F4] bg-white px-3 py-2 text-[14px] outline-none focus:border-azul"
+            className="mt-1 w-56 rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[14px] outline-none focus:border-azul"
           >
             <option value="mes">Por mes calendario</option>
             <option value="credito">Por crédito</option>
@@ -194,7 +194,7 @@ export function FormAjustesJuego({
             max={60}
             value={a.umbralCaritas}
             onChange={(e) => set("umbralCaritas", Number(e.target.value))}
-            className="mt-1 w-28 rounded-[10px] border border-[#DCE3F4] px-3 py-2 text-[14px] outline-none focus:border-azul"
+            className="mt-1 w-28 rounded-[10px] border border-borde px-3 py-2 text-[14px] outline-none focus:border-azul"
           />
         </label>
       </div>
@@ -250,7 +250,7 @@ function Toggle({
         }`}
       >
         <span
-          className="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform"
+          className="absolute top-0.5 h-5 w-5 rounded-full bg-tarjeta transition-transform"
           style={{ transform: valor ? "translateX(22px)" : "translateX(2px)" }}
         />
       </span>

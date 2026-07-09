@@ -40,7 +40,7 @@ export function EditorMeta({ meta }: { meta: number }) {
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1 rounded-[10px] border border-[#DCE3F4] px-2.5 py-1.5">
+        <div className="flex items-center gap-1 rounded-[10px] border border-borde px-2.5 py-1.5">
           <span className="text-[13px] font-bold text-gris">$</span>
           <input
             inputMode="numeric"
@@ -63,7 +63,7 @@ export function EditorMeta({ meta }: { meta: number }) {
         <button
           type="button"
           onClick={() => setAbierto(false)}
-          className="rounded-full border border-[#DCE3F4] px-3 py-1.5 text-[12px] font-bold text-gris"
+          className="rounded-full border border-borde px-3 py-1.5 text-[12px] font-bold text-gris"
         >
           Cancelar
         </button>

@@ -55,7 +55,7 @@ export default async function InformeCarteraPage({
         <div className="flex gap-2 print:hidden">
           <a
             href={csvHref}
-            className="inline-flex items-center gap-1.5 rounded-full border border-[#DCE3F4] bg-white px-4 py-2 text-[13px] font-bold text-[#2453DC] hover:bg-[#F7F9FD]"
+            className="inline-flex items-center gap-1.5 rounded-full border border-borde bg-tarjeta px-4 py-2 text-[13px] font-bold text-[#2453DC] hover:bg-suave"
           >
             ⬇️ Exportar CSV
           </a>
@@ -94,10 +94,10 @@ export default async function InformeCarteraPage({
       </form>
 
       {/* Tabla */}
-      <div className="overflow-x-auto rounded-[16px] border border-[#E6EAF4] bg-white">
+      <div className="overflow-x-auto rounded-[16px] border border-borde bg-tarjeta">
         <table className="w-full border-collapse text-[12px]">
           <thead>
-            <tr className="border-b border-[#EEF1F8] text-[10.5px] font-bold tracking-wide text-gris uppercase">
+            <tr className="border-b border-linea text-[10.5px] font-bold tracking-wide text-gris uppercase">
               <th className="px-2.5 py-2.5 text-left">Ref</th>
               <th className="px-2.5 py-2.5 text-left">Modalidad</th>
               <th className="px-2.5 py-2.5 text-left">Vendedor</th>
@@ -122,22 +122,22 @@ export default async function InformeCarteraPage({
             ) : (
               filasVisibles.map((f) => (
                 <tr key={f.id} className="border-b border-[#F4F6FB]">
-                  <td className="px-2.5 py-2 font-mono text-[10.5px] text-[#8A93AD]">{f.refCredito ?? "—"}</td>
-                  <td className="px-2.5 py-2 capitalize text-[#3A445F]">{f.modalidad}</td>
-                  <td className="px-2.5 py-2 text-[#3A445F]">{f.vendedor ?? "—"}</td>
+                  <td className="px-2.5 py-2 font-mono text-[10.5px] text-tenue">{f.refCredito ?? "—"}</td>
+                  <td className="px-2.5 py-2 capitalize text-cuerpo">{f.modalidad}</td>
+                  <td className="px-2.5 py-2 text-cuerpo">{f.vendedor ?? "—"}</td>
                   <td className="px-2.5 py-2">
                     <div className="flex flex-col">
                       <span className="font-semibold text-tinta">{f.cliente}</span>
-                      <span className="text-[10.5px] text-[#8A93AD]">{f.documento ?? "—"}</span>
+                      <span className="text-[10.5px] text-tenue">{f.documento ?? "—"}</span>
                     </div>
                   </td>
-                  <td className="px-2.5 py-2 text-right tabular-nums text-[#3A445F]">{UYU(f.venta)}</td>
-                  <td className="px-2.5 py-2 text-right tabular-nums text-[#6B7494]">{f.interesPct.toFixed(1)}%</td>
-                  <td className="px-2.5 py-2 text-right tabular-nums text-[#3A445F]">{UYU(f.total)}</td>
+                  <td className="px-2.5 py-2 text-right tabular-nums text-cuerpo">{UYU(f.venta)}</td>
+                  <td className="px-2.5 py-2 text-right tabular-nums text-gris">{f.interesPct.toFixed(1)}%</td>
+                  <td className="px-2.5 py-2 text-right tabular-nums text-cuerpo">{UYU(f.total)}</td>
                   <td className="px-2.5 py-2 text-right tabular-nums font-semibold text-tinta">{UYU(f.saldoPte)}</td>
                   <td className="px-2.5 py-2 text-right tabular-nums text-[#157A50]">{UYU(f.abonos)}</td>
-                  <td className="px-2.5 py-2 text-[10.5px] text-[#8A93AD]">{fechaCorta(f.fechaInicio)}</td>
-                  <td className="px-2.5 py-2 text-center tabular-nums text-[#6B7494]">{f.cuotas}</td>
+                  <td className="px-2.5 py-2 text-[10.5px] text-tenue">{fechaCorta(f.fechaInicio)}</td>
+                  <td className="px-2.5 py-2 text-center tabular-nums text-gris">{f.cuotas}</td>
                   <td className="px-2.5 py-2 text-right tabular-nums font-extrabold text-[#13308C]">{UYU(f.deudaAHoy)}</td>
                 </tr>
               ))
@@ -147,7 +147,7 @@ export default async function InformeCarteraPage({
       </div>
 
       {hayMas > 0 && (
-        <p className="text-[11.5px] font-semibold text-[#6B7494]">
+        <p className="text-[11.5px] font-semibold text-gris">
           Mostrando las {LIMITE_TABLA} de {r.filas.length} ventas con mayor deuda a hoy. Las 4
           tarjetas suman TODA la cartera; para el detalle completo, exportá el CSV.
         </p>
@@ -165,12 +165,12 @@ export default async function InformeCarteraPage({
 }
 
 const INPUT =
-  "rounded-[10px] border border-[#DCE3F4] bg-white px-3 py-2 text-[13.5px] outline-none focus:border-azul";
+  "rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[13.5px] outline-none focus:border-azul";
 
 function Kpi({ label, valor, tono }: { label: string; valor: string; tono?: string }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-[14px] bg-white p-3.5 shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
-      <span className="text-[11px] font-semibold text-[#8A93AD]">{label}</span>
+    <div className="flex flex-col gap-0.5 rounded-[14px] bg-tarjeta p-3.5 shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
+      <span className="text-[11px] font-semibold text-tenue">{label}</span>
       <span className="text-[19px] font-extrabold tabular-nums" style={{ color: tono ?? "#1A2247" }}>
         {valor}
       </span>

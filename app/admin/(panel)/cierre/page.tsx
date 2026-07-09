@@ -89,7 +89,7 @@ export default async function CierrePage() {
       )}
 
       {/* Tablero en vivo por cobrador */}
-      <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-4">
+      <section className="rounded-[16px] border border-borde bg-tarjeta p-4">
         <div className="mb-3 flex items-center justify-between">
           <span className="text-[15px] font-extrabold text-tinta">En vivo por cobrador</span>
           {rend.disponible && (
@@ -110,7 +110,7 @@ export default async function CierrePage() {
               return (
                 <li
                   key={c.cobradorId}
-                  className="flex items-center gap-3 rounded-[12px] border border-[#EEF1F8] bg-[#F9FBFF] px-3 py-2.5"
+                  className="flex items-center gap-3 rounded-[12px] border border-linea bg-suave px-3 py-2.5"
                 >
                   <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[10px] bg-[#2453DC] text-[13px] font-black text-white">
                     {c.nombre.charAt(0).toUpperCase()}
@@ -130,7 +130,7 @@ export default async function CierrePage() {
       </section>
 
       {/* Proyección del mes + meta */}
-      <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-4">
+      <section className="rounded-[16px] border border-borde bg-tarjeta p-4">
         <div className="flex items-center justify-between gap-3">
           <span className="text-[15px] font-extrabold text-tinta">Proyección del mes</span>
           <EditorMeta meta={meta} />
@@ -158,7 +158,7 @@ export default async function CierrePage() {
                   : `A este ritmo te faltarían ${UYU(-brechaMeta)}`}
               </span>
             </div>
-            <div className="h-2.5 w-full overflow-hidden rounded-full bg-[#EEF1F8]">
+            <div className="h-2.5 w-full overflow-hidden rounded-full bg-linea">
               <div
                 className="h-full rounded-full"
                 style={{
@@ -172,7 +172,7 @@ export default async function CierrePage() {
             </span>
           </div>
         ) : (
-          <p className="mt-3 text-[11.5px] font-medium text-[#8A93AD]">
+          <p className="mt-3 text-[11.5px] font-medium text-tenue">
             Fijá una meta mensual para ver tu avance y si vas a llegar. Proyección lineal: mantené el
             ritmo diario del mes. Es una estimación, no un compromiso.
           </p>
@@ -196,7 +196,7 @@ function Kpi({
   alerta?: boolean;
 }) {
   return (
-    <div className="flex flex-col rounded-[14px] border border-[#E6EAF4] bg-white p-3.5">
+    <div className="flex flex-col rounded-[14px] border border-borde bg-tarjeta p-3.5">
       <span className="text-[11px] font-bold tracking-wide text-gris uppercase">{label}</span>
       <span
         className={`mt-1 text-[19px] font-extrabold tabular-nums ${
@@ -205,7 +205,7 @@ function Kpi({
       >
         {valor}
       </span>
-      {sub && <span className="text-[11px] font-medium text-[#8A93AD]">{sub}</span>}
+      {sub && <span className="text-[11px] font-medium text-tenue">{sub}</span>}
     </div>
   );
 }
@@ -231,7 +231,7 @@ function Alerta({
       <span className="text-[13px] font-extrabold" style={{ color: c.fg }}>
         {titulo}
       </span>
-      <span className="text-[12px] font-medium text-[#6B7494]">{children}</span>
+      <span className="text-[12px] font-medium text-gris">{children}</span>
     </div>
   );
 }
@@ -246,7 +246,7 @@ function EstadoCobrador({
   if (!disponible) return null;
   if (!rendido) {
     return (
-      <span className="flex-shrink-0 rounded-full bg-[#F1F3F9] px-2.5 py-1 text-[11px] font-bold text-[#6B7494]">
+      <span className="flex-shrink-0 rounded-full bg-[#F1F3F9] px-2.5 py-1 text-[11px] font-bold text-gris">
         En ruta
       </span>
     );

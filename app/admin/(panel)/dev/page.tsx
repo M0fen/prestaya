@@ -103,7 +103,7 @@ export default async function DevPage() {
 
 function Bloque({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
-    <section className="flex flex-col gap-2.5 rounded-[16px] border border-[#E6EAF4] bg-white p-5">
+    <section className="flex flex-col gap-2.5 rounded-[16px] border border-borde bg-tarjeta p-5">
       <span className="text-[12px] font-bold tracking-[0.03em] text-gris uppercase">{titulo}</span>
       {children}
     </section>
@@ -112,7 +112,7 @@ function Bloque({ titulo, children }: { titulo: string; children: React.ReactNod
 
 function Fila({ label, ok, okTxt, noTxt }: { label: string; ok: boolean; okTxt: string; noTxt: string }) {
   return (
-    <div className="flex items-center justify-between gap-2 rounded-[10px] bg-[#F7F9FD] px-3 py-2">
+    <div className="flex items-center justify-between gap-2 rounded-[10px] bg-suave px-3 py-2">
       <span className="text-[12.5px] font-semibold text-tinta">{label}</span>
       <span
         className="rounded-full px-2.5 py-0.5 text-[11px] font-bold"
@@ -126,8 +126,8 @@ function Fila({ label, ok, okTxt, noTxt }: { label: string; ok: boolean; okTxt: 
 
 function Kpi({ label, valor }: { label: string; valor: number | null }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-[12px] bg-[#F7F9FD] p-3">
-      <span className="text-[11px] font-semibold text-[#8A93AD]">{label}</span>
+    <div className="flex flex-col gap-0.5 rounded-[12px] bg-suave p-3">
+      <span className="text-[11px] font-semibold text-tenue">{label}</span>
       <span className="text-[18px] font-black tabular-nums text-tinta">{valor ?? "—"}</span>
     </div>
   );

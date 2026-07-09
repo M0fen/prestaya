@@ -113,7 +113,7 @@ export function FormRenovacion({
   }
 
   return (
-    <div className="mt-3 flex flex-col gap-3 rounded-[14px] border border-[#E6EAF4] bg-[#F7F9FD] p-3.5">
+    <div className="mt-3 flex flex-col gap-3 rounded-[14px] border border-borde bg-suave p-3.5">
       <span className="text-[12px] font-bold text-tinta">
         Nuevo crédito para {clienteNombre}
       </span>
@@ -136,7 +136,7 @@ export function FormRenovacion({
               setMonto(e.target.value);
               setConfirmar(false);
             }}
-            className="rounded-[10px] border border-[#DCE3F4] bg-white px-3 py-2 text-[14px] font-semibold outline-none focus:border-azul"
+            className="rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[14px] font-semibold outline-none focus:border-azul"
           />
         </label>
         <label className="flex flex-col gap-1">
@@ -150,7 +150,7 @@ export function FormRenovacion({
               setDias(e.target.value);
               setConfirmar(false);
             }}
-            className="rounded-[10px] border border-[#DCE3F4] bg-white px-3 py-2 text-[14px] font-semibold outline-none focus:border-azul"
+            className="rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[14px] font-semibold outline-none focus:border-azul"
           />
         </label>
       </div>
@@ -167,7 +167,7 @@ export function FormRenovacion({
                 setConfirmar(false);
               }}
               className={`rounded-full px-3 py-1.5 text-[12.5px] font-bold ${
-                frecuencia === f.id ? "bg-[#2453DC] text-white" : "bg-white text-[#6B7494] border border-[#DCE3F4]"
+                frecuencia === f.id ? "bg-[#2453DC] text-white" : "bg-tarjeta text-gris border border-borde"
               }`}
             >
               {f.label}
@@ -177,7 +177,7 @@ export function FormRenovacion({
       </label>
 
       {valido && (
-        <div className="flex items-center justify-between rounded-[10px] bg-white px-3 py-2 text-[12.5px]">
+        <div className="flex items-center justify-between rounded-[10px] bg-tarjeta px-3 py-2 text-[12.5px]">
           <span className="font-medium text-gris">
             Cuota <b className="text-tinta">{UYU(cuota)}</b>
           </span>
@@ -217,7 +217,7 @@ export function FormRenovacion({
             setError(null);
           }}
           disabled={ocupado}
-          className="rounded-full border border-[#DCE3F4] bg-white px-4 py-2.5 text-[13px] font-bold text-[#6B7494] disabled:opacity-60"
+          className="rounded-full border border-borde bg-tarjeta px-4 py-2.5 text-[13px] font-bold text-gris disabled:opacity-60"
         >
           Cancelar
         </button>

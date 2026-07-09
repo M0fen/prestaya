@@ -97,12 +97,12 @@ export function AnunciosManager({ anuncios }: { anuncios: Anuncio[] }) {
   };
 
   const inputCls =
-    "w-full rounded-[10px] border border-[#DCE3F4] px-3 py-2 text-[13px] text-tinta outline-none focus:border-azul";
+    "w-full rounded-[10px] border border-borde px-3 py-2 text-[13px] text-tinta outline-none focus:border-azul";
 
   return (
     <div className="flex flex-col gap-5">
       {/* Formulario + preview */}
-      <div className="rounded-[18px] border border-[#E6EAF4] bg-white p-4">
+      <div className="rounded-[18px] border border-borde bg-tarjeta p-4">
         <div className="mb-3 flex items-center justify-between">
           <span className="text-[14px] font-extrabold text-tinta">
             {form.id ? "Editar anuncio" : "Nuevo anuncio"}
@@ -139,7 +139,7 @@ export function AnunciosManager({ anuncios }: { anuncios: Anuncio[] }) {
             <div className="flex items-center gap-2">
               <input className={`${inputCls} min-w-0 flex-1`} placeholder="URL de imagen (opcional) o subí una →"
                 value={form.imagenUrl ?? ""} onChange={(e) => set("imagenUrl", e.target.value)} />
-              <label className={`flex-shrink-0 cursor-pointer rounded-[10px] border border-[#DCE3F4] px-3 py-2 text-[12.5px] font-bold text-azul hover:bg-[#F4F6FB] ${subiendo ? "opacity-50" : ""}`}>
+              <label className={`flex-shrink-0 cursor-pointer rounded-[10px] border border-borde px-3 py-2 text-[12.5px] font-bold text-azul hover:bg-suave ${subiendo ? "opacity-50" : ""}`}>
                 {subiendo ? "Subiendo…" : "📷 Subir"}
                 <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="hidden"
                   disabled={subiendo}
@@ -209,12 +209,12 @@ export function AnunciosManager({ anuncios }: { anuncios: Anuncio[] }) {
           Anuncios ({anuncios.length})
         </span>
         {anuncios.length === 0 ? (
-          <p className="rounded-[14px] bg-white p-5 text-center text-[13px] font-medium text-gris">
+          <p className="rounded-[14px] bg-tarjeta p-5 text-center text-[13px] font-medium text-gris">
             Todavía no hay anuncios. Creá el primero arriba.
           </p>
         ) : (
           anuncios.map((a) => (
-            <div key={a.id} className="flex items-center gap-3 rounded-[14px] border border-[#E6EAF4] bg-white p-3">
+            <div key={a.id} className="flex items-center gap-3 rounded-[14px] border border-borde bg-tarjeta p-3">
               <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[13px] font-black text-white"
                 style={{ background: a.activo ? "#1FA971" : "#AEB6CC" }}>
                 {a.prioridad}
@@ -226,10 +226,10 @@ export function AnunciosManager({ anuncios }: { anuncios: Anuncio[] }) {
                   {a.activo ? "" : " · inactivo"}
                 </span>
               </div>
-              <button onClick={() => toggle(a)} className="rounded-full border border-[#DCE3F4] px-2.5 py-1 text-[11.5px] font-bold text-gris hover:bg-[#F4F6FB]">
+              <button onClick={() => toggle(a)} className="rounded-full border border-borde px-2.5 py-1 text-[11.5px] font-bold text-gris hover:bg-suave">
                 {a.activo ? "Pausar" : "Activar"}
               </button>
-              <button onClick={() => editar(a)} className="rounded-full border border-[#DCE3F4] px-2.5 py-1 text-[11.5px] font-bold text-azul hover:bg-[#F4F6FB]">
+              <button onClick={() => editar(a)} className="rounded-full border border-borde px-2.5 py-1 text-[11.5px] font-bold text-azul hover:bg-suave">
                 Editar
               </button>
               <button onClick={() => borrar(a)} aria-label="Borrar" className="text-[15px] text-[#C7D2EC] hover:text-[#D64545]">

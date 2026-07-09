@@ -155,12 +155,12 @@ export function CommandPalette({ rol, esDev = false }: { rol: Rol; esDev?: boole
       {/* Disparador en la barra superior */}
       <button
         onClick={abrir}
-        className="flex items-center gap-2 rounded-full border border-[#DCE3F4] bg-[#F4F6FB] px-3 py-1.5 text-[12.5px] font-semibold text-gris hover:border-[#C7D2ED] hover:text-tinta"
+        className="flex items-center gap-2 rounded-full border border-borde bg-suave px-3 py-1.5 text-[12.5px] font-semibold text-gris hover:border-[#C7D2ED] hover:text-tinta"
         aria-label="Buscar (Ctrl/Cmd + K)"
       >
         <span aria-hidden="true">🔎</span>
         <span className="hidden sm:inline">Buscar…</span>
-        <kbd className="hidden rounded-[6px] border border-[#DCE3F4] bg-white px-1.5 py-0.5 text-[10px] font-bold text-gris sm:inline">
+        <kbd className="hidden rounded-[6px] border border-borde bg-tarjeta px-1.5 py-0.5 text-[10px] font-bold text-gris sm:inline">
           {esMac ? "⌘" : "Ctrl"} K
         </kbd>
       </button>
@@ -171,11 +171,11 @@ export function CommandPalette({ rol, esDev = false }: { rol: Rol; esDev?: boole
           onClick={cerrar}
         >
           <div
-            className="toast-in flex w-full max-w-[560px] flex-col overflow-hidden rounded-[18px] border border-[#E6EAF4] bg-white shadow-[0_24px_60px_rgba(19,48,140,0.28)]"
+            className="toast-in flex w-full max-w-[560px] flex-col overflow-hidden rounded-[18px] border border-borde bg-tarjeta shadow-[0_24px_60px_rgba(19,48,140,0.28)]"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Buscador */}
-            <div className="flex items-center gap-2.5 border-b border-[#EEF1F8] px-4 py-3">
+            <div className="flex items-center gap-2.5 border-b border-linea px-4 py-3">
               <span aria-hidden="true" className="text-[16px] text-gris">
                 🔎
               </span>
@@ -190,7 +190,7 @@ export function CommandPalette({ rol, esDev = false }: { rol: Rol; esDev?: boole
                 placeholder="Buscar sección o cliente…"
                 className="min-w-0 flex-1 bg-transparent text-[15px] font-medium text-tinta outline-none placeholder:text-[#AEB6CC]"
               />
-              <kbd className="rounded-[6px] border border-[#DCE3F4] bg-[#F4F6FB] px-1.5 py-0.5 text-[10px] font-bold text-gris">
+              <kbd className="rounded-[6px] border border-borde bg-suave px-1.5 py-0.5 text-[10px] font-bold text-gris">
                 Esc
               </kbd>
             </div>
@@ -251,7 +251,7 @@ export function CommandPalette({ rol, esDev = false }: { rol: Rol; esDev?: boole
             </div>
 
             {/* Pie con ayuda de teclado */}
-            <div className="flex items-center gap-3 border-t border-[#EEF1F8] px-4 py-2 text-[11px] font-semibold text-[#AEB6CC]">
+            <div className="flex items-center gap-3 border-t border-linea px-4 py-2 text-[11px] font-semibold text-[#AEB6CC]">
               <span>↑ ↓ moverse</span>
               <span>↵ abrir</span>
               <span>esc cerrar</span>
@@ -294,7 +294,7 @@ function FilaBtn({
       onClick={onClick}
       onMouseEnter={onMouseEnter}
       className={`flex w-full items-center gap-3 px-4 py-2 text-left transition-colors ${
-        activo ? "bg-[#EEF3FF]" : "hover:bg-[#F4F6FB]"
+        activo ? "bg-[#EEF3FF]" : "hover:bg-suave"
       }`}
     >
       <span aria-hidden="true" className="text-[16px]">

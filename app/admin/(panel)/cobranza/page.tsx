@@ -39,7 +39,7 @@ export default async function CobranzaPage() {
       </div>
 
       {/* Alertas */}
-      <section className="flex flex-col gap-2.5 rounded-[16px] border border-[#E6EAF4] bg-white p-5">
+      <section className="flex flex-col gap-2.5 rounded-[16px] border border-borde bg-tarjeta p-5">
         <div className="flex items-center justify-between">
           <h2 className="text-[15px] font-extrabold text-tinta">Alertas de fuga</h2>
           <span className="rounded-full bg-[#FCE8E8] px-2.5 py-0.5 text-[11.5px] font-bold text-[#C0392B]">
@@ -69,13 +69,13 @@ export default async function CobranzaPage() {
 
       <div className="grid gap-5 lg:grid-cols-2">
         {/* Mapa geográfico de cobros */}
-        <section className="flex flex-col gap-2.5 rounded-[16px] border border-[#E6EAF4] bg-white p-5">
+        <section className="flex flex-col gap-2.5 rounded-[16px] border border-borde bg-tarjeta p-5">
           <h2 className="text-[15px] font-extrabold text-tinta">Mapa de cobros de hoy</h2>
           <MapaCobranza puntos={mapaCobros} />
         </section>
 
         {/* Ranking */}
-        <section className="flex flex-col gap-3 rounded-[16px] border border-[#E6EAF4] bg-white p-5">
+        <section className="flex flex-col gap-3 rounded-[16px] border border-borde bg-tarjeta p-5">
           <h2 className="text-[15px] font-extrabold text-tinta">Ranking de cobradores</h2>
           {ranking.length === 0 && (
             <span className="text-[12.5px] font-medium text-gris">
@@ -131,7 +131,7 @@ function Kpi({
   alerta?: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-1 rounded-[16px] border border-[#E6EAF4] bg-white p-4">
+    <div className="flex flex-col gap-1 rounded-[16px] border border-borde bg-tarjeta p-4">
       <span className="text-[11.5px] font-bold tracking-wide text-gris uppercase">{label}</span>
       <span
         className="text-[23px] font-extrabold tabular-nums"

@@ -28,7 +28,7 @@ export function MapaCobranza({ puntos }: { puntos: PuntoCobro[] }) {
             onClick={() => setModo(m)}
             className={`rounded-full px-3 py-1.5 text-[12px] font-bold transition-colors ${
               modo === m
-                ? "bg-white text-azul shadow-[0_1px_2px_rgba(26,34,71,0.1)]"
+                ? "bg-tarjeta text-azul shadow-[0_1px_2px_rgba(26,34,71,0.1)]"
                 : "text-gris hover:text-tinta"
             }`}
           >

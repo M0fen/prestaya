@@ -74,9 +74,9 @@ export default async function EstadoCuentaPage({
       </div>
 
       {/* Documento */}
-      <div className="rounded-[16px] border border-[#E6EAF4] bg-white p-6 print:rounded-none print:border-0 print:p-0">
+      <div className="rounded-[16px] border border-borde bg-tarjeta p-6 print:rounded-none print:border-0 print:p-0">
         {/* Encabezado */}
-        <div className="flex items-start justify-between gap-4 border-b border-[#E6EAF4] pb-4">
+        <div className="flex items-start justify-between gap-4 border-b border-borde pb-4">
           <div className="flex flex-col">
             <span className="text-[20px] font-black tracking-[-0.02em] text-tinta">
               {NEGOCIO.nombre}
@@ -99,13 +99,13 @@ export default async function EstadoCuentaPage({
         </div>
 
         {!activo || !creditoActivo ? (
-          <p className="rounded-[12px] bg-[#F7F9FD] px-4 py-6 text-center text-[13px] font-medium text-gris">
+          <p className="rounded-[12px] bg-suave px-4 py-6 text-center text-[13px] font-medium text-gris">
             Este cliente no tiene un crédito activo.
           </p>
         ) : (
           <>
             {/* Resumen del crédito */}
-            <div className="grid grid-cols-2 gap-3 rounded-[12px] bg-[#F7F9FD] p-4 sm:grid-cols-4 print:bg-white print:border print:border-[#E6EAF4]">
+            <div className="grid grid-cols-2 gap-3 rounded-[12px] bg-suave p-4 sm:grid-cols-4 print:bg-tarjeta print:border print:border-borde">
               <Dato label="Prestado" valor={UYU(creditoActivo.monto)} />
               <Dato label="Cuota" valor={UYU(activo.cuota)} />
               <Dato label="Total a pagar" valor={UYU(totalAPagar)} />
@@ -131,7 +131,7 @@ export default async function EstadoCuentaPage({
               <div className="mt-2 overflow-x-auto">
                 <table className="w-full border-collapse text-[12.5px]">
                   <thead>
-                    <tr className="border-b border-[#E6EAF4] text-left text-[11px] font-bold tracking-wide text-gris uppercase">
+                    <tr className="border-b border-borde text-left text-[11px] font-bold tracking-wide text-gris uppercase">
                       <th className="py-2 pr-2">#</th>
                       <th className="py-2 pr-2">Fecha</th>
                       <th className="py-2 pr-2 text-right">Cuota</th>
@@ -168,7 +168,7 @@ export default async function EstadoCuentaPage({
           </>
         )}
 
-        <p className="mt-5 border-t border-[#E6EAF4] pt-3 text-[10.5px] leading-[1.6] text-[#8A93AD]">
+        <p className="mt-5 border-t border-borde pt-3 text-[10.5px] leading-[1.6] text-tenue">
           Documento informativo generado por {NEGOCIO.nombre}. Los montos están en pesos
           uruguayos. El libro de pagos es la fuente oficial; ante cualquier diferencia,
           consultá en la oficina.

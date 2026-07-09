@@ -108,7 +108,7 @@ export default async function FichaClientePage({
         </Link>
         <Link
           href={`/admin/clientes/${id}/estado`}
-          className="inline-flex items-center gap-1.5 rounded-full border border-[#DCE3F4] px-3.5 py-1.5 text-[12.5px] font-bold text-azul hover:bg-[#F4F6FB]"
+          className="inline-flex items-center gap-1.5 rounded-full border border-borde px-3.5 py-1.5 text-[12.5px] font-bold text-azul hover:bg-suave"
         >
           🧾 Estado de cuenta
         </Link>
@@ -124,7 +124,7 @@ export default async function FichaClientePage({
           <span className="text-[12.5px] font-medium text-gris">
             {cliente.documento ?? "Sin documento"} · {cliente.telefono ?? "Sin teléfono"}
           </span>
-          <span className="text-[12px] font-medium text-[#8A93AD]">
+          <span className="text-[12px] font-medium text-tenue">
             {cliente.direccion ?? "Sin dirección"} · alta: {cliente.origen}
           </span>
         </div>
@@ -145,7 +145,7 @@ export default async function FichaClientePage({
 
       {/* Datos adicionales (paridad Disapp): género, ciudad, dirección secundaria */}
       {(cliente.genero || cliente.ciudad || cliente.direccion_secundaria) && (
-        <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-4">
+        <section className="rounded-[16px] border border-borde bg-tarjeta p-4">
           <span className="text-[13px] font-bold text-tinta">Datos adicionales</span>
           <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 md:grid-cols-3">
             {cliente.genero && (
@@ -163,7 +163,7 @@ export default async function FichaClientePage({
       {puedeAnular && <ToggleReportado clienteId={id} inicial={cliente.reportado} />}
 
       {/* Score interno */}
-      <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-4">
+      <section className="rounded-[16px] border border-borde bg-tarjeta p-4">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-[13px] font-bold text-tinta">Score interno</span>
           <span
@@ -178,7 +178,7 @@ export default async function FichaClientePage({
           {score.factores.map((f) => (
             <span
               key={f.clave}
-              className="rounded-full bg-[#F4F6FB] px-2.5 py-1 text-[11px] font-semibold text-[#6B7494]"
+              className="rounded-full bg-suave px-2.5 py-1 text-[11px] font-semibold text-gris"
               title={f.detalle}
             >
               {f.etiqueta}: {f.puntos > 0 ? "+" : ""}
@@ -233,7 +233,7 @@ export default async function FichaClientePage({
       </section>
 
       {/* Créditos activos + cartón (desde 0037 pueden ser VARIOS) */}
-      <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-4">
+      <section className="rounded-[16px] border border-borde bg-tarjeta p-4">
         <div className="flex items-center justify-between">
           <span className="text-[13px] font-bold text-tinta">
             {activos.length > 1 ? `Créditos activos (${activos.length})` : "Crédito activo"}
@@ -248,7 +248,7 @@ export default async function FichaClientePage({
             {activos.map((activo, idx) => (
               <div
                 key={activo.id}
-                className={idx > 0 ? "border-t border-[#EEF1F8] pt-4" : ""}
+                className={idx > 0 ? "border-t border-linea pt-4" : ""}
               >
                 {activos.length > 1 && (
                   <span className="mb-2 inline-block rounded-full bg-[#EAF0FF] px-2.5 py-1 text-[11px] font-bold text-[#1E47C8]">
@@ -301,19 +301,19 @@ export default async function FichaClientePage({
       </section>
 
       {/* Historial de pagos */}
-      <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-4">
+      <section className="rounded-[16px] border border-borde bg-tarjeta p-4">
         <span className="text-[13px] font-bold text-tinta">Historial de pagos</span>
         {pagos.length === 0 ? (
           <p className="mt-2 text-[13px] font-medium text-gris">Todavía no hay pagos registrados.</p>
         ) : (
-          <ul className="mt-2 flex flex-col divide-y divide-[#EEF1F8]">
+          <ul className="mt-2 flex flex-col divide-y divide-linea">
             {pagos.map((p) => (
               <li key={p.id} className="flex items-center justify-between gap-3 py-2">
                 <div className="flex min-w-0 flex-col">
                   <span className="text-[13.5px] font-semibold text-tinta">
                     {fechaCorta(p.fecha)} · {horaDe(p.fecha)}
                   </span>
-                  <span className="text-[11.5px] font-medium text-[#8A93AD]">
+                  <span className="text-[11.5px] font-medium text-tenue">
                     Día {p.dia}
                     {p.registradoPor ? ` · ${p.registradoPor}` : ""}
                   </span>
@@ -335,23 +335,23 @@ export default async function FichaClientePage({
       </section>
 
       {/* Historial de créditos */}
-      <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-4">
+      <section className="rounded-[16px] border border-borde bg-tarjeta p-4">
         <span className="text-[13px] font-bold text-tinta">Créditos</span>
         <ul className="mt-2 flex flex-col gap-2">
           {creditos.map((c) => (
             <li
               key={c.id}
-              className="flex items-center justify-between rounded-[12px] bg-[#F7F9FD] px-3 py-2.5"
+              className="flex items-center justify-between rounded-[12px] bg-suave px-3 py-2.5"
             >
               <div className="flex flex-col">
                 <span className="text-[13.5px] font-bold text-tinta">
                   {UYU(c.monto)} · cuota {UYU(c.cuota)} × {c.totalDias}
                 </span>
-                <span className="text-[11.5px] font-medium text-[#8A93AD]">
+                <span className="text-[11.5px] font-medium text-tenue">
                   Desde {fechaCorta(c.fechaInicio)} · pagó {UYU(c.pagadoTotal)}
                 </span>
               </div>
-              <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-bold text-[#6B7494]">
+              <span className="rounded-full bg-tarjeta px-2.5 py-1 text-[11px] font-bold text-gris">
                 {ESTADO_CREDITO[c.estado]}
               </span>
             </li>
@@ -392,7 +392,7 @@ function EstrellaKpi({
 function DatoFicha({ k, v }: { k: string; v: string }) {
   return (
     <div className="flex flex-col py-1">
-      <dt className="text-[11px] font-semibold text-[#8A93AD]">{k}</dt>
+      <dt className="text-[11px] font-semibold text-tenue">{k}</dt>
       <dd className="text-[13px] font-semibold text-tinta">{v}</dd>
     </div>
   );
@@ -400,8 +400,8 @@ function DatoFicha({ k, v }: { k: string; v: string }) {
 
 function Kpi({ label, valor, acento }: { label: string; valor: string; acento?: string }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-[12px] bg-[#F7F9FD] p-3">
-      <span className="text-[11px] font-semibold text-[#8A93AD]">{label}</span>
+    <div className="flex flex-col gap-0.5 rounded-[12px] bg-suave p-3">
+      <span className="text-[11px] font-semibold text-tenue">{label}</span>
       <span
         className="text-[16px] font-extrabold tabular-nums"
         style={{ color: acento ?? "#1A2247" }}

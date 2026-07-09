@@ -13,7 +13,7 @@ function etiquetaMes(iso: string): string {
 export function ScoreEvolucion({ serie }: { serie: PuntoEvolucion[] }) {
   if (serie.length < 2) {
     return (
-      <div className="rounded-[14px] border border-[#E6EAF4] bg-white p-4">
+      <div className="rounded-[14px] border border-borde bg-tarjeta p-4">
         <span className="text-[12px] font-bold text-tinta">Evolución del score</span>
         <p className="mt-1 text-[11.5px] font-medium text-gris">
           Todavía no hay suficiente historial para mostrar la evolución.
@@ -29,7 +29,7 @@ export function ScoreEvolucion({ serie }: { serie: PuntoEvolucion[] }) {
   const color = sube ? "#1FA971" : "#D64545";
 
   return (
-    <div className="flex flex-col gap-2 rounded-[14px] border border-[#E6EAF4] bg-white p-4">
+    <div className="flex flex-col gap-2 rounded-[14px] border border-borde bg-tarjeta p-4">
       <div className="flex items-center justify-between gap-2">
         <span className="text-[12px] font-bold text-tinta">Evolución del score</span>
         <span
@@ -43,7 +43,7 @@ export function ScoreEvolucion({ serie }: { serie: PuntoEvolucion[] }) {
 
       <Sparkline valores={serie.map((p) => p.puntaje)} color={color} alto={44} />
 
-      <div className="flex items-center justify-between text-[11px] font-medium text-[#8A93AD] tabular-nums">
+      <div className="flex items-center justify-between text-[11px] font-medium text-tenue tabular-nums">
         <span>
           {etiquetaMes(primero.fecha)} · {primero.puntaje}
         </span>

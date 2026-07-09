@@ -21,7 +21,7 @@ export function AureoInsights({ insights }: { insights: Insight[] }) {
   if (insights.length === 0) return null;
 
   return (
-    <section className="rounded-[16px] border border-[#E6EAF4] bg-[linear-gradient(135deg,#0F1B3D,#1B2E5E)] p-5 text-white">
+    <section className="rounded-[16px] border border-borde bg-[linear-gradient(135deg,#0F1B3D,#1B2E5E)] p-5 text-white">
       <div className="mb-3.5 flex items-center gap-2.5">
         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[linear-gradient(135deg,#2453DC,#13308C)] text-[18px]">
           💡

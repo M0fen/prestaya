@@ -65,7 +65,7 @@ export function NuevoUsuario({ zonas }: { zonas: Zona[] }) {
     "rounded-[10px] border border-[#DCE3F1] px-3 py-2 text-[13.5px] font-medium text-tinta outline-none focus:border-azul";
 
   return (
-    <section className="flex flex-col gap-3 rounded-[16px] border border-[#E6EAF4] bg-white p-5">
+    <section className="flex flex-col gap-3 rounded-[16px] border border-borde bg-tarjeta p-5">
       <span className="text-[12px] font-bold tracking-[0.03em] text-gris uppercase">Nuevo usuario</span>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -92,7 +92,7 @@ export function NuevoUsuario({ zonas }: { zonas: Zona[] }) {
           <button
             type="button"
             onClick={() => setPassword(passwordAleatoria())}
-            className="rounded-[10px] border border-[#DCE3F1] px-3 py-2 text-[12px] font-bold text-azul hover:bg-[#F4F6FB]"
+            className="rounded-[10px] border border-[#DCE3F1] px-3 py-2 text-[12px] font-bold text-azul hover:bg-suave"
           >
             Generar
           </button>
@@ -108,7 +108,7 @@ export function NuevoUsuario({ zonas }: { zonas: Zona[] }) {
               type="button"
               onClick={() => setRol(r.id)}
               className={`flex flex-col items-start gap-0.5 rounded-[12px] border px-3 py-2 text-left transition-colors ${
-                rol === r.id ? "border-azul bg-[#EAF0FF]" : "border-[#E6EAF4] bg-white hover:bg-[#F7F9FD]"
+                rol === r.id ? "border-azul bg-[#EAF0FF]" : "border-borde bg-tarjeta hover:bg-suave"
               }`}
             >
               <span className="text-[13px] font-bold text-tinta">{r.label}</span>

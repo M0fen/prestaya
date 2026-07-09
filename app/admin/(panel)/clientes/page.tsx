@@ -45,20 +45,20 @@ export default async function ClientesPage({
             type="button"
             disabled
             title="Alta de clientes desde el panel: pronto (hoy se dan de alta en ruta / oficina)"
-            className="cursor-not-allowed rounded-full border border-[#DCE3F4] bg-white px-4 py-2 text-[13px] font-bold text-[#AEB6CC]"
+            className="cursor-not-allowed rounded-full border border-borde bg-tarjeta px-4 py-2 text-[13px] font-bold text-[#AEB6CC]"
           >
             + Crear cliente (pronto)
           </button>
           <a
             href="/api/reportes/clientes"
-            className="inline-flex items-center gap-1.5 rounded-full border border-[#DCE3F4] bg-white px-4 py-2 text-[13px] font-bold text-[#2453DC] hover:bg-[#F7F9FD]"
+            className="inline-flex items-center gap-1.5 rounded-full border border-borde bg-tarjeta px-4 py-2 text-[13px] font-bold text-[#2453DC] hover:bg-suave"
           >
             ⬇️ Exportar CSV
           </a>
           <Link
             href={archivados ? "/admin/clientes" : "/admin/clientes?archivados=1"}
             className={`rounded-full px-4 py-2 text-[13px] font-bold ${
-              archivados ? "bg-[#2453DC] text-white" : "border border-[#DCE3F4] bg-white text-[#6B7494]"
+              archivados ? "bg-[#2453DC] text-white" : "border border-borde bg-tarjeta text-gris"
             }`}
           >
             {archivados ? "← Activos" : "Archivados"}
@@ -74,7 +74,7 @@ export default async function ClientesPage({
           name="q"
           defaultValue={q ?? ""}
           placeholder="Buscar por nombre o documento…"
-          className="flex-1 rounded-[12px] border border-[#DCE3F4] bg-white px-3.5 py-2.5 text-[14px] outline-none focus:border-azul"
+          className="flex-1 rounded-[12px] border border-borde bg-tarjeta px-3.5 py-2.5 text-[14px] outline-none focus:border-azul"
         />
         <button type="submit" className="rounded-[12px] bg-[#2453DC] px-4 py-2.5 text-[13px] font-bold text-white">
           Buscar
@@ -82,14 +82,14 @@ export default async function ClientesPage({
       </form>
 
       {clientes.length === 0 ? (
-        <p className="rounded-[14px] bg-white px-4 py-6 text-center text-[13px] font-medium text-gris">
+        <p className="rounded-[14px] bg-tarjeta px-4 py-6 text-center text-[13px] font-medium text-gris">
           {q ? `Sin resultados para "${q}".` : "No hay clientes."}
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-[16px] border border-[#E6EAF4] bg-white">
+        <div className="overflow-x-auto rounded-[16px] border border-borde bg-tarjeta">
           <table className="w-full border-collapse text-[12.5px]">
             <thead>
-              <tr className="border-b border-[#EEF1F8] text-[11px] font-bold tracking-wide text-gris uppercase">
+              <tr className="border-b border-linea text-[11px] font-bold tracking-wide text-gris uppercase">
                 <th className="px-3 py-2.5 text-left">Ref</th>
                 <th className="px-3 py-2.5 text-left">Cliente</th>
                 <th className="px-3 py-2.5 text-left">Vendedor</th>
@@ -103,16 +103,16 @@ export default async function ClientesPage({
               {clientes.map((c) => {
                 const banda = BANDA[c.calificacion] ?? BANDA.nuevo;
                 return (
-                  <tr key={c.id} className="border-b border-[#F4F6FB] hover:bg-[#F7F9FD]">
-                    <td className="px-3 py-2.5 font-mono text-[11px] text-[#8A93AD]">{c.refDisapp ?? "—"}</td>
+                  <tr key={c.id} className="border-b border-[#F4F6FB] hover:bg-suave">
+                    <td className="px-3 py-2.5 font-mono text-[11px] text-tenue">{c.refDisapp ?? "—"}</td>
                     <td className="px-3 py-2.5">
                       <Link href={`/admin/clientes/${c.id}`} className="flex flex-col">
                         <span className="font-bold text-azul">{c.nombre}</span>
-                        <span className="text-[11px] text-[#8A93AD]">{c.documento ?? "Sin documento"}</span>
+                        <span className="text-[11px] text-tenue">{c.documento ?? "Sin documento"}</span>
                       </Link>
                     </td>
-                    <td className="px-3 py-2.5 text-[#3A445F]">{c.vendedor ?? "—"}</td>
-                    <td className="px-3 py-2.5 text-[#3A445F]">{c.direccion ?? "—"}</td>
+                    <td className="px-3 py-2.5 text-cuerpo">{c.vendedor ?? "—"}</td>
+                    <td className="px-3 py-2.5 text-cuerpo">{c.direccion ?? "—"}</td>
                     <td className="px-3 py-2.5 text-center tabular-nums font-bold text-tinta">
                       {c.creditosActivos}
                     </td>
@@ -120,7 +120,7 @@ export default async function ClientesPage({
                       {c.reportado ? (
                         <span className="text-[11px] font-bold text-[#C0392B]">Sí</span>
                       ) : (
-                        <span className="text-[11px] font-bold text-[#8A93AD]">No</span>
+                        <span className="text-[11px] font-bold text-tenue">No</span>
                       )}
                     </td>
                     <td className="px-3 py-2.5 text-center">

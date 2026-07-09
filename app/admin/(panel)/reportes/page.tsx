@@ -32,7 +32,7 @@ function Tarjeta({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-3 rounded-[16px] border border-[#E6EAF4] bg-white p-4">
+    <div className="flex flex-col gap-3 rounded-[16px] border border-borde bg-tarjeta p-4">
       <div className="flex items-start gap-3">
         <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[12px] bg-[#EEF3FF] text-[18px]">
           {icono}
@@ -96,7 +96,7 @@ export default async function ReportesPage() {
         </Tarjeta>
       </div>
 
-      <div className="flex flex-col gap-3 rounded-[16px] border border-[#E6EAF4] bg-white p-4">
+      <div className="flex flex-col gap-3 rounded-[16px] border border-borde bg-tarjeta p-4">
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[12px] bg-[#EEF3FF] text-[18px]">
             🧾
@@ -112,7 +112,7 @@ export default async function ReportesPage() {
         <div>
           <Link
             href="/admin/clientes"
-            className="inline-flex items-center gap-1.5 rounded-full border border-[#DCE3F4] px-3.5 py-2 text-[12.5px] font-bold text-azul hover:bg-[#F4F6FB]"
+            className="inline-flex items-center gap-1.5 rounded-full border border-borde px-3.5 py-2 text-[12.5px] font-bold text-azul hover:bg-suave"
           >
             Ir a clientes →
           </Link>
@@ -138,7 +138,7 @@ export default async function ReportesPage() {
         </div>
       </div>
 
-      <p className="text-[11.5px] leading-[1.6] font-medium text-[#8A93AD]">
+      <p className="text-[11.5px] leading-[1.6] font-medium text-tenue">
         Los montos se exportan como números enteros (sin símbolo) para que puedas sumar y
         armar tablas dinámicas. El archivo abre directo en Excel o Google Sheets.
       </p>

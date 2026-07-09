@@ -86,7 +86,7 @@ function Bloque({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-5">
+    <section className="rounded-[16px] border border-borde bg-tarjeta p-5">
       <div className="mb-3 flex flex-col gap-0.5">
         <h2 className="text-[15px] font-extrabold text-tinta">{titulo}</h2>
         <span className="text-[12px] font-medium text-gris">{nota}</span>
@@ -108,7 +108,7 @@ function Metrica({
   alerta?: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-1 rounded-[12px] bg-[#F7F9FD] p-3.5">
+    <div className="flex flex-col gap-1 rounded-[12px] bg-suave p-3.5">
       <span className="text-[11px] font-semibold text-gris">{label}</span>
       <span
         className="text-[18px] font-extrabold tabular-nums"

@@ -66,7 +66,7 @@ export default async function CajaPage({
         <div className="flex gap-2 print:hidden">
           <a
             href={csvHref}
-            className="inline-flex items-center gap-1.5 rounded-full border border-[#DCE3F4] bg-white px-4 py-2 text-[13px] font-bold text-[#2453DC] hover:bg-[#F7F9FD]"
+            className="inline-flex items-center gap-1.5 rounded-full border border-borde bg-tarjeta px-4 py-2 text-[13px] font-bold text-[#2453DC] hover:bg-suave"
           >
             ⬇️ Exportar CSV
           </a>
@@ -100,12 +100,12 @@ export default async function CajaPage({
 
       {/* Desglose de egresos */}
       {r.egresosPorCategoria.length > 0 && (
-        <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-4">
+        <section className="rounded-[16px] border border-borde bg-tarjeta p-4">
           <span className="text-[13px] font-bold text-tinta">Egresos por categoría</span>
-          <ul className="mt-2 flex flex-col divide-y divide-[#EEF1F8]">
+          <ul className="mt-2 flex flex-col divide-y divide-linea">
             {r.egresosPorCategoria.map((e) => (
               <li key={e.categoria} className="flex items-center justify-between py-2">
-                <span className="text-[13px] font-medium text-[#3A445F]">{e.categoria}</span>
+                <span className="text-[13px] font-medium text-cuerpo">{e.categoria}</span>
                 <span className="text-[13.5px] font-extrabold text-tinta tabular-nums">{UYU(e.monto)}</span>
               </li>
             ))}
@@ -115,11 +115,11 @@ export default async function CajaPage({
 
       {/* Efectivo a rendir por cobrador */}
       {r.porCobrador.length > 0 && (
-        <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-4">
+        <section className="rounded-[16px] border border-borde bg-tarjeta p-4">
           <span className="text-[13px] font-bold text-tinta">
             {esHoy ? "Efectivo a rendir hoy" : "Recaudado por cobrador"}
           </span>
-          <ul className="mt-2 flex flex-col divide-y divide-[#EEF1F8]">
+          <ul className="mt-2 flex flex-col divide-y divide-linea">
             {r.porCobrador.map((c) => (
               <li key={c.nombre} className="flex items-center justify-between py-2">
                 <span className="text-[13px] font-semibold text-tinta">{c.nombre}</span>
@@ -137,7 +137,7 @@ export default async function CajaPage({
       {rendiciones && <RendicionesDia r={rendiciones} />}
 
       {/* Libro de movimientos con columna Visible */}
-      <section className="overflow-x-auto rounded-[16px] border border-[#E6EAF4] bg-white">
+      <section className="overflow-x-auto rounded-[16px] border border-borde bg-tarjeta">
         <div className="px-4 pt-4">
           <span className="text-[13px] font-bold text-tinta">Libro de caja</span>
         </div>
@@ -146,7 +146,7 @@ export default async function CajaPage({
         ) : (
           <table className="mt-2 w-full border-collapse text-[12.5px]">
             <thead>
-              <tr className="border-b border-[#EEF1F8] text-[11px] font-bold tracking-wide text-gris uppercase">
+              <tr className="border-b border-linea text-[11px] font-bold tracking-wide text-gris uppercase">
                 <th className="px-4 py-2.5 text-left">Concepto</th>
                 <th className="px-3 py-2.5 text-left">Fecha</th>
                 <th className="px-3 py-2.5 text-center">Visible</th>
@@ -157,12 +157,12 @@ export default async function CajaPage({
               {r.libro.map((l, i) => (
                 <tr key={i} className="border-b border-[#F4F6FB]">
                   <td className="px-4 py-2.5 font-semibold text-tinta">{l.concepto}</td>
-                  <td className="px-3 py-2.5 text-[11.5px] text-[#8A93AD]">{fechaHora(l.fechaIso)}</td>
+                  <td className="px-3 py-2.5 text-[11.5px] text-tenue">{fechaHora(l.fechaIso)}</td>
                   <td className="px-3 py-2.5 text-center">
                     {l.visible ? (
                       <span className="text-[11px] font-bold text-[#157A50]">Sí</span>
                     ) : (
-                      <span className="text-[11px] font-bold text-[#8A93AD]">No</span>
+                      <span className="text-[11px] font-bold text-tenue">No</span>
                     )}
                   </td>
                   <td
@@ -188,12 +188,12 @@ export default async function CajaPage({
 }
 
 const INPUT =
-  "rounded-[10px] border border-[#DCE3F4] bg-white px-3 py-2 text-[13.5px] outline-none focus:border-azul";
+  "rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[13.5px] outline-none focus:border-azul";
 
 function Kpi({ label, valor, tono }: { label: string; valor: string; tono?: string }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-[14px] bg-white p-3.5 shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
-      <span className="text-[11px] font-semibold text-[#8A93AD]">{label}</span>
+    <div className="flex flex-col gap-0.5 rounded-[14px] bg-tarjeta p-3.5 shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
+      <span className="text-[11px] font-semibold text-tenue">{label}</span>
       <span className="text-[19px] font-extrabold tabular-nums" style={{ color: tono ?? "#1A2247" }}>
         {valor}
       </span>

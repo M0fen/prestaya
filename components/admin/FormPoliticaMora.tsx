@@ -33,13 +33,13 @@ export function FormPoliticaMora({
   // Supervisor: solo lectura de la política vigente (sin poder cambiarla).
   if (!puedeEditar) {
     return (
-      <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-4">
+      <section className="rounded-[16px] border border-borde bg-tarjeta p-4">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 flex-col">
             <span className="text-[13.5px] font-extrabold text-tinta">Política de mora</span>
             <span className="truncate text-[12px] font-medium text-gris">{describirMora(config)}</span>
           </div>
-          <span className="flex-shrink-0 rounded-full bg-[#F1F3F9] px-3 py-1.5 text-[11.5px] font-bold text-[#8A93AD]">
+          <span className="flex-shrink-0 rounded-full bg-[#F1F3F9] px-3 py-1.5 text-[11.5px] font-bold text-tenue">
             Solo administrador
           </span>
         </div>
@@ -62,7 +62,7 @@ export function FormPoliticaMora({
   };
 
   return (
-    <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-4">
+    <section className="rounded-[16px] border border-borde bg-tarjeta p-4">
       <button
         type="button"
         onClick={() => setAbierto((v) => !v)}
@@ -78,7 +78,7 @@ export function FormPoliticaMora({
       </button>
 
       {abierto && (
-        <div className="mt-3.5 flex flex-col gap-3 border-t border-[#EEF1F8] pt-3.5">
+        <div className="mt-3.5 flex flex-col gap-3 border-t border-linea pt-3.5">
           <div className="grid grid-cols-3 gap-2">
             {MODOS.map((m) => (
               <button
@@ -86,7 +86,7 @@ export function FormPoliticaMora({
                 type="button"
                 onClick={() => setModo(m.id)}
                 className={`flex flex-col gap-0.5 rounded-[12px] border px-3 py-2.5 text-left transition-colors ${
-                  modo === m.id ? "border-azul bg-[#EEF3FF]" : "border-[#E3EAFB] bg-white"
+                  modo === m.id ? "border-azul bg-[#EEF3FF]" : "border-[#E3EAFB] bg-tarjeta"
                 }`}
               >
                 <span className="text-[12.5px] font-bold text-tinta">{m.label}</span>
@@ -99,15 +99,15 @@ export function FormPoliticaMora({
             <div className="grid grid-cols-3 gap-2.5">
               <Campo label={modo === "fijo" ? "Monto ($)" : "Porcentaje (%)"}>
                 <input inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value.replace(/[^\d.]/g, ""))}
-                  className="w-full rounded-[10px] border border-[#DCE3F4] px-2.5 py-2 text-[14px] tabular-nums outline-none focus:border-azul" />
+                  className="w-full rounded-[10px] border border-borde px-2.5 py-2 text-[14px] tabular-nums outline-none focus:border-azul" />
               </Campo>
               <Campo label="Cuotas de gracia">
                 <input inputMode="numeric" value={gracia} onChange={(e) => setGracia(e.target.value.replace(/[^\d]/g, ""))}
-                  className="w-full rounded-[10px] border border-[#DCE3F4] px-2.5 py-2 text-[14px] tabular-nums outline-none focus:border-azul" />
+                  className="w-full rounded-[10px] border border-borde px-2.5 py-2 text-[14px] tabular-nums outline-none focus:border-azul" />
               </Campo>
               <Campo label="Tope (% vencido)">
                 <input inputMode="decimal" value={tope} onChange={(e) => setTope(e.target.value.replace(/[^\d.]/g, ""))}
-                  className="w-full rounded-[10px] border border-[#DCE3F4] px-2.5 py-2 text-[14px] tabular-nums outline-none focus:border-azul" />
+                  className="w-full rounded-[10px] border border-borde px-2.5 py-2 text-[14px] tabular-nums outline-none focus:border-azul" />
               </Campo>
             </div>
           )}

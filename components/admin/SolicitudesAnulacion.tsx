@@ -30,7 +30,7 @@ export function SolicitudesAnulacion({
 
   if (solicitudes.length === 0) {
     return (
-      <p className="rounded-[14px] border border-dashed border-[#DCE3F1] bg-white px-4 py-8 text-center text-[13px] font-medium text-gris">
+      <p className="rounded-[14px] border border-dashed border-[#DCE3F1] bg-tarjeta px-4 py-8 text-center text-[13px] font-medium text-gris">
         No hay solicitudes de anulación pendientes. Todo en orden ✓
       </p>
     );
@@ -46,7 +46,7 @@ export function SolicitudesAnulacion({
       {solicitudes.map((s) => {
         const esMia = s.solicitadoPor === yoId;
         return (
-          <div key={s.id} className="flex flex-col gap-2.5 rounded-[16px] border border-[#E6EAF4] bg-white p-4">
+          <div key={s.id} className="flex flex-col gap-2.5 rounded-[16px] border border-borde bg-tarjeta p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 flex-col">
                 <span className="text-[14px] font-extrabold text-tinta">
@@ -60,7 +60,7 @@ export function SolicitudesAnulacion({
                 Pendiente
               </span>
             </div>
-            <p className="rounded-[10px] bg-[#F7F9FD] px-3 py-2 text-[12.5px] font-medium text-tinta">
+            <p className="rounded-[10px] bg-suave px-3 py-2 text-[12.5px] font-medium text-tinta">
               “{s.motivo}”
             </p>
             <div className="flex items-center justify-end gap-2">
@@ -71,7 +71,7 @@ export function SolicitudesAnulacion({
                   const m = prompt("Motivo del rechazo (opcional):") ?? "";
                   ejecutar(rechazarAnulacionAction({ solicitudId: s.id, motivo: m }));
                 }}
-                className="rounded-[10px] border border-[#DCE3F1] px-3.5 py-1.5 text-[12px] font-bold text-gris hover:bg-[#F4F6FB] disabled:opacity-40"
+                className="rounded-[10px] border border-[#DCE3F1] px-3.5 py-1.5 text-[12px] font-bold text-gris hover:bg-suave disabled:opacity-40"
               >
                 Rechazar
               </button>

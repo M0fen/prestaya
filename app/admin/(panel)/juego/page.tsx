@@ -41,7 +41,7 @@ export default async function JuegoPage() {
       </div>
 
       {ajustes.temporadaActiva && pctAlDia !== null && (
-        <div className="rounded-[16px] border border-[#E6EAF4] bg-white p-4">
+        <div className="rounded-[16px] border border-borde bg-tarjeta p-4">
           <div className="mb-1.5 flex items-center justify-between">
             <span className="text-[13px] font-bold text-tinta">
               {ajustes.temporadaEmoji} {ajustes.temporadaNombre || "Temporada"}

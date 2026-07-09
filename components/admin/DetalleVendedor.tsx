@@ -33,7 +33,7 @@ export function DetalleVendedor({ m, onClose }: { m: MiembroEquipo; onClose: () 
       role="presentation"
     >
       <div
-        className="max-h-[90vh] w-full max-w-[440px] overflow-y-auto rounded-[20px] bg-white p-5 shadow-[0_20px_60px_rgba(19,48,140,0.35)]"
+        className="max-h-[90vh] w-full max-w-[440px] overflow-y-auto rounded-[20px] bg-tarjeta p-5 shadow-[0_20px_60px_rgba(19,48,140,0.35)]"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -45,13 +45,13 @@ export function DetalleVendedor({ m, onClose }: { m: MiembroEquipo; onClose: () 
           </div>
           <div className="flex min-w-0 flex-1 flex-col">
             <span className="truncate text-[16px] font-extrabold text-tinta">{m.nombre}</span>
-            <span className="truncate text-[12px] font-medium text-[#8A93AD]">{m.email ?? "Sin email"}</span>
+            <span className="truncate text-[12px] font-medium text-tenue">{m.email ?? "Sin email"}</span>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Cerrar"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F1F3F9] text-[15px] font-black text-[#6B7494]"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F1F3F9] text-[15px] font-black text-gris"
           >
             ✕
           </button>
@@ -73,7 +73,7 @@ export function DetalleVendedor({ m, onClose }: { m: MiembroEquipo; onClose: () 
         </div>
 
         {/* Detalle */}
-        <dl className="mt-4 flex flex-col divide-y divide-[#EEF1F8]">
+        <dl className="mt-4 flex flex-col divide-y divide-linea">
           <Fila k="ID (Ref Disapp)" v={m.refDisapp ?? "—"} />
           <Fila k="Documento" v={m.documento ?? "—"} />
           <Fila k="Teléfono" v={m.telefono ?? "—"} />
@@ -89,7 +89,7 @@ export function DetalleVendedor({ m, onClose }: { m: MiembroEquipo; onClose: () 
             type="button"
             disabled
             title="Edición de vendedor: pronto"
-            className="cursor-not-allowed rounded-full border border-[#DCE3F4] bg-white px-4 py-2 text-[13px] font-bold text-[#AEB6CC]"
+            className="cursor-not-allowed rounded-full border border-borde bg-tarjeta px-4 py-2 text-[13px] font-bold text-[#AEB6CC]"
           >
             Editar vendedor (pronto)
           </button>

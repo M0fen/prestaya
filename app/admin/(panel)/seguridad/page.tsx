@@ -49,7 +49,7 @@ export default async function SeguridadPage() {
             Si alguien pierde el teléfono, reseteale el 2FA acá. Vuelve a entrar con su contraseña y
             lo activa de nuevo. (Respaldo: el panel de Supabase.)
           </p>
-          <ul className="flex flex-col divide-y divide-[#EEF1F8] overflow-hidden rounded-[16px] border border-[#E6EAF4] bg-white">
+          <ul className="flex flex-col divide-y divide-linea overflow-hidden rounded-[16px] border border-borde bg-tarjeta">
             {otros.length === 0 && (
               <li className="px-4 py-3 text-[12.5px] font-medium text-gris">No hay otros gestores.</li>
             )}

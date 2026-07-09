@@ -14,7 +14,39 @@
   --color-tinta: #0f1b3d; /* texto principal */
   --color-gris: #6b7494; /* texto secundario */
 
+  /* Superficies del panel (antes hardcodeadas) → tokens para el modo oscuro. */
+  --color-tarjeta: #ffffff; /* tarjetas (bg-white) */
+  --color-borde: #e6eaf4; /* bordes de tarjeta */
+  --color-linea: #eef1f8; /* divisores/hairlines */
+  --color-suave: #f7f9fd; /* fondos sutiles / hover */
+  --color-tenue: #8a93ad; /* texto muy secundario */
+  --color-cuerpo: #3a445f; /* texto de cuerpo */
+
   --font-sans: "Inter", system-ui, sans-serif;
+}
+
+/* ── MODO OSCURO (scopeado al panel admin vía [data-tema="oscuro"]) ──────────
+   Se aplica en un ancestro (#panel-root) y sobrescribe las variables de color,
+   así todas las utilidades que usan tokens (bg-tarjeta, text-tinta, border-borde…)
+   flipean solas. No toca las vistas de cliente/cobrador (sin ese ancestro). */
+[data-tema="oscuro"] {
+  --color-fondo: #0d1220;
+  --color-app: #0d1220;
+  --color-tarjeta: #161d2e;
+  --color-borde: #28324c;
+  --color-linea: #222c44;
+  --color-suave: #1b2337;
+  --color-tinta: #e8ecf6;
+  --color-gris: #99a3bd;
+  --color-tenue: #7d89a7;
+  --color-cuerpo: #c6cee2;
+  --color-azul: #5b83f5;
+  --color-azul-claro: #6b8ff7;
+}
+/* Alto contraste + oscuro: sube el secundario. */
+[data-tema="oscuro"] html[data-contraste="1"],
+html[data-contraste="1"] [data-tema="oscuro"] {
+  --color-gris: #c6cee2;
 }
 
 * {

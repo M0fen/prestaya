@@ -87,10 +87,10 @@ export default async function CapitalPage({
       <FormMovimientoCaja cuenta="capital" />
 
       {/* Tabla */}
-      <div className="overflow-x-auto rounded-[16px] border border-[#E6EAF4] bg-white">
+      <div className="overflow-x-auto rounded-[16px] border border-borde bg-tarjeta">
         <table className="w-full border-collapse text-[12.5px]">
           <thead>
-            <tr className="border-b border-[#EEF1F8] text-[11px] font-bold tracking-wide text-gris uppercase">
+            <tr className="border-b border-linea text-[11px] font-bold tracking-wide text-gris uppercase">
               <th className="px-3 py-2.5 text-left">Operación</th>
               <th className="px-3 py-2.5 text-left">Concepto</th>
               <th className="px-3 py-2.5 text-left">Vendedor</th>
@@ -122,8 +122,8 @@ export default async function CapitalPage({
                     </span>
                   </td>
                   <td className="px-3 py-2.5 font-semibold text-tinta">{l.concepto}</td>
-                  <td className="px-3 py-2.5 text-[#3A445F]">{l.vendedor ?? "—"}</td>
-                  <td className="px-3 py-2.5 text-[11.5px] text-[#8A93AD]">{fechaHora(l.fechaIso)}</td>
+                  <td className="px-3 py-2.5 text-cuerpo">{l.vendedor ?? "—"}</td>
+                  <td className="px-3 py-2.5 text-[11.5px] text-tenue">{fechaHora(l.fechaIso)}</td>
                   <td className="px-3 py-2.5 text-right tabular-nums font-extrabold text-[#157A50]">
                     {l.operacion === "ingreso" ? UYU(l.monto) : ""}
                   </td>
@@ -141,12 +141,12 @@ export default async function CapitalPage({
 }
 
 const INPUT =
-  "rounded-[10px] border border-[#DCE3F4] bg-white px-3 py-2 text-[13.5px] outline-none focus:border-azul";
+  "rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[13.5px] outline-none focus:border-azul";
 
 function Kpi({ label, valor, tono }: { label: string; valor: string; tono?: string }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-[14px] bg-white p-3.5 shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
-      <span className="text-[11px] font-semibold text-[#8A93AD]">{label}</span>
+    <div className="flex flex-col gap-0.5 rounded-[14px] bg-tarjeta p-3.5 shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
+      <span className="text-[11px] font-semibold text-tenue">{label}</span>
       <span className="text-[19px] font-extrabold tabular-nums" style={{ color: tono ?? "#1A2247" }}>
         {valor}
       </span>
