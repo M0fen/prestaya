@@ -4,15 +4,18 @@
 import { useState } from "react";
 import type { HistorialItem } from "@/types/cartones";
 
-// Se muestran los primeros 3 pagos; el resto queda colapsado tras "Ver más".
-const TOPE = 3;
-
+// Colapsado se ven 2 pagos completos + un pedazo del 3ero (recorte + degradado),
+// para ahorrar espacio; "Ver más" despliega el resto.
 export function Historial({ historial }: { historial: HistorialItem[] }) {
   const [abierto, setAbierto] = useState<number | null>(null);
   const [verTodos, setVerTodos] = useState(false);
 
-  const visibles = verTodos ? historial : historial.slice(0, TOPE);
-  const ocultos = historial.length - TOPE;
+  const hayMas = historial.length > 2;
+  // Colapsado: renderizamos 3 filas pero recortamos la altura para dejar el 3ero
+  // asomando. Expandido: todas.
+  const visibles = verTodos ? historial : historial.slice(0, 3);
+  const ocultos = historial.length - 2;
+  const recortar = !verTodos && hayMas;
 
   return (
     <section className="flex flex-col gap-2.5">
@@ -30,7 +33,11 @@ export function Historial({ historial }: { historial: HistorialItem[] }) {
         </span>
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div className="relative">
+      <div
+        className="flex flex-col gap-2"
+        style={recortar ? { maxHeight: 168, overflow: "hidden" } : undefined}
+      >
         {visibles.map((pago) => {
           const expandido = abierto === pago.dia;
           return (
@@ -133,8 +140,16 @@ export function Historial({ historial }: { historial: HistorialItem[] }) {
           );
         })}
       </div>
+        {/* Degradado que "corta" el 3er pago asomando (efecto de que hay más). */}
+        {recortar && (
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-14"
+            style={{ background: "linear-gradient(to top, var(--color-app, #F6F8FD), transparent)" }}
+          />
+        )}
+      </div>
 
-      {historial.length > TOPE && (
+      {hayMas && (
         <button
           type="button"
           onClick={() => setVerTodos((v) => !v)}

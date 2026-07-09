@@ -6,8 +6,10 @@ import { getAjustesJuego } from "@/lib/data/juegoConfig";
 import { getRecompensas } from "@/lib/data/recompensas";
 import { getDashboardMetricas } from "@/lib/data/metricas";
 import { JUEGOS } from "@/lib/juegos";
+import { juegoArcadeDe } from "@/lib/juegoAjustes";
 import { FormAjustesJuego } from "@/components/admin/FormAjustesJuego";
 import { RecompensasManager } from "@/components/admin/RecompensasManager";
+import { GameSlot } from "@/components/GameSlot";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +18,9 @@ export default async function JuegoPage() {
   const db = await createSupabaseServer();
   const [ajustes, recompensas] = await Promise.all([getAjustesJuego(db), getRecompensas(db)]);
   const juegos = Object.values(JUEGOS).map((j) => ({ id: j.id, titulo: j.titulo }));
+  // Juego arcade seleccionado (para el preview jugable de abajo). Se muestra
+  // aunque la zona esté apagada, para poder probarlo antes de encenderla.
+  const juegoPreview = juegoArcadeDe(ajustes);
 
   // Progreso colectivo de la temporada: % de créditos activos al día.
   let pctAlDia: number | null = null;
@@ -60,6 +65,30 @@ export default async function JuegoPage() {
       )}
 
       <FormAjustesJuego inicial={ajustes} juegos={juegos} />
+
+      {/* Preview JUGABLE del juego seleccionado: así el gestor lo prueba acá
+          mismo antes (o después) de encender la zona para los clientes. */}
+      {juegoPreview && (
+        <section className="flex flex-col gap-2 rounded-[16px] border border-borde bg-tarjeta p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-[14px] font-extrabold text-tinta">
+              Probá el juego · {juegoPreview.titulo}
+            </span>
+            <span
+              className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                ajustes.activo ? "bg-[#E7F6EF] text-[#157A50]" : "bg-[#FBF1DC] text-[#9A6A0E]"
+              }`}
+            >
+              {ajustes.activo ? "Visible para clientes" : "Zona apagada (solo vos lo ves acá)"}
+            </span>
+          </div>
+          <span className="text-[12px] font-medium text-gris">
+            Este es el juego que verán tus clientes. Jugalo para probarlo.
+          </span>
+          <GameSlot juego={juegoPreview} />
+        </section>
+      )}
+
       <RecompensasManager recompensas={recompensas} />
 
       <p className="text-[11px] leading-[1.5] font-medium text-[#AEB6CC]">
