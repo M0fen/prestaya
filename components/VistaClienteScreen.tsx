@@ -67,7 +67,7 @@ export function VistaClienteScreen({
 }) {
   return (
     <div className="flex min-h-screen justify-center bg-fondo text-tinta">
-      <div className="flex w-full max-w-[440px] flex-col gap-[18px] bg-app px-[18px] pt-5 pb-10 shadow-[0_0_60px_rgba(15,27,61,0.08)]">
+      <div className="flex w-full max-w-[440px] flex-col gap-3 bg-app px-[18px] pt-4 pb-8 shadow-[0_0_60px_rgba(15,27,61,0.08)]">
         <Header inicial={v.inicial} />
         <Saludo nombre={v.nombre} />
 

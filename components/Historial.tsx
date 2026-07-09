@@ -9,23 +9,51 @@ const TOPE = 7;
 export function Historial({ historial }: { historial: HistorialItem[] }) {
   const [abierto, setAbierto] = useState<number | null>(null);
   const [verTodos, setVerTodos] = useState(false);
+  // La sección arranca COLAPSADA para no ocupar media pantalla: se abre al tocar.
+  const [seccionAbierta, setSeccionAbierta] = useState(false);
 
   const visibles = verTodos ? historial : historial.slice(0, TOPE);
   const ocultos = historial.length - TOPE;
+  const ultimo = historial[0]; // el historial viene con el más reciente primero
 
   return (
     <section className="flex flex-col gap-2.5">
-      <div className="flex items-end justify-between px-0.5">
+      {/* Encabezado clickeable: colapsa/expande todo el historial. */}
+      <button
+        type="button"
+        onClick={() => setSeccionAbierta((v) => !v)}
+        aria-expanded={seccionAbierta}
+        className="flex items-center justify-between rounded-[15px] border border-[#ECEFF8] bg-white px-[15px] py-3 text-left shadow-[0_1px_2px_rgba(15,27,61,0.04)]"
+      >
         <div className="flex flex-col gap-0.5">
           <span className="text-[11.5px] font-bold tracking-[0.04em] text-gris uppercase">
             Historial
           </span>
-          <h2 className="m-0 text-[18px] font-extrabold tracking-[-0.02em] text-tinta">
+          <h2 className="m-0 text-[16px] font-extrabold tracking-[-0.02em] text-tinta">
             Pagos realizados
           </h2>
+          {!seccionAbierta && ultimo && (
+            <span className="text-[11.5px] font-medium text-gris">
+              {historial.length} pago(s) · último {ultimo.fecha}
+            </span>
+          )}
         </div>
-      </div>
+        <div className="flex items-center gap-2">
+          <span className="rounded-full bg-[#F2F5FC] px-2.5 py-1 text-[12px] font-extrabold text-tinta tabular-nums">
+            {historial.length}
+          </span>
+          <span
+            className="text-[12px] text-[#9AA3BC] transition-transform"
+            style={{ transform: seccionAbierta ? "rotate(180deg)" : "none" }}
+            aria-hidden="true"
+          >
+            ▾
+          </span>
+        </div>
+      </button>
 
+      {seccionAbierta && (
+      <>
       <div className="flex flex-col gap-2">
         {visibles.map((pago) => {
           const expandido = abierto === pago.dia;
@@ -138,6 +166,8 @@ export function Historial({ historial }: { historial: HistorialItem[] }) {
         >
           {verTodos ? "Ver menos" : `Ver más (${ocultos})`}
         </button>
+      )}
+      </>
       )}
     </section>
   );
