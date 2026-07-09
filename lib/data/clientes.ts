@@ -6,9 +6,10 @@
 // ─────────────────────────────────────────────────────────────────────────
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Cliente } from "@/types/db";
+import { createSupabaseAdmin } from "@/lib/supabase/admin";
 
 /** Convierte una fila cruda de Supabase en un Cliente tipado. */
-function mapCliente(r: Record<string, unknown>): Cliente {
+export function mapCliente(r: Record<string, unknown>): Cliente {
   return {
     id: r.id as string,
     nombre: r.nombre as string,
@@ -98,7 +99,12 @@ export async function getClientePorDocumento(
 export async function getClientesAsignados(
   db: SupabaseClient,
 ): Promise<Cliente[]> {
-  const { data, error } = await db
+  // Solo la usa el panel (renovaciones, gestor). Va por service_role: un
+  // `select * from clientes` bajo el RLS de zona escanea 13k filas evaluando la
+  // política por-fila → statement timeout. El panel ya opera sobre la cartera
+  // completa para gestores.
+  void db;
+  const { data, error } = await createSupabaseAdmin()
     .from("clientes")
     .select("*")
     .eq("activo", true)
@@ -154,7 +160,11 @@ export async function getClientesListaAdmin(
   opts: { q?: string | null; archivados?: boolean; limite?: number } = {},
 ): Promise<ClienteFilaAdmin[]> {
   const limite = opts.limite ?? 60;
-  let query = db
+  // service_role para la lista: bajo el RLS de zona, un select sobre 13k clientes
+  // evalúa la política por-fila → statement timeout (supervisor). El panel ya
+  // muestra la operación completa a gestores.
+  const admin = createSupabaseAdmin();
+  let query = admin
     .from("clientes")
     .select("id, nombre, documento, telefono, direccion, calificacion, activo, disapp_id, reportado")
     .eq("activo", !opts.archivados);

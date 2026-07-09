@@ -13,6 +13,7 @@ import { calcularEstadosCarton } from "@/lib/cartones";
 import { hoyUY, inicioDiaUYIso, inicioMesUYIso } from "@/lib/fecha";
 import { getActivosConPagos, pagosDeActivo } from "./activos";
 import { getConfigMora } from "./moraConfig";
+import { createSupabaseAdmin } from "@/lib/supabase/admin";
 
 export interface TramoMora {
   /** Etiqueta del tramo, p. ej. "1–7 días". */
@@ -70,7 +71,12 @@ export async function getDashboardMetricas(
   hoy: Date = new Date(),
   activosPre?: import("./activos").ActivoConPagos[],
 ): Promise<DashboardMetricas> {
-  // 1) Conteos baratos (head count).
+  // 1) Conteos baratos (head count). Van por SERVICE_ROLE (bypass RLS) porque un
+  //    count sobre 13k clientes / 11k préstamos evaluando el RLS por-fila daba
+  //    statement timeout (sobre todo para un supervisor con zona, cuyo RLS es más
+  //    pesado). Son agregados globales, coherentes con que el dashboard ya
+  //    muestra la operación COMPLETA a cualquier gestor vía las RPCs definer.
+  const admin = createSupabaseAdmin();
   const [
     clientesActivos,
     creditosActivos,
@@ -79,12 +85,12 @@ export async function getDashboardMetricas(
     reportesNuevos,
     anunciosActivos,
   ] = await Promise.all([
-    contar(db, "clientes", (q) => q.eq("activo", true)),
-    contar(db, "prestamos", (q) => q.eq("estado", "activo")),
-    contar(db, "prestamos", (q) => q.eq("estado", "finalizado")),
-    contar(db, "prestamos", (q) => q.eq("estado", "incobrable")),
-    contar(db, "reportes", (q) => q.eq("estado", "nuevo")),
-    contar(db, "anuncios", (q) => q.eq("activo", true)),
+    contar(admin, "clientes", (q) => q.eq("activo", true)),
+    contar(admin, "prestamos", (q) => q.eq("estado", "activo")),
+    contar(admin, "prestamos", (q) => q.eq("estado", "finalizado")),
+    contar(admin, "prestamos", (q) => q.eq("estado", "incobrable")),
+    contar(admin, "reportes", (q) => q.eq("estado", "nuevo")),
+    contar(admin, "anuncios", (q) => q.eq("activo", true)),
   ]);
 
   // 2) Créditos activos + sus pagos. A ESCALA: una sola RPC que devuelve los

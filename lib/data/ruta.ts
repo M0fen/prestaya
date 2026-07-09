@@ -5,7 +5,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Cliente } from "@/types/db";
-import { getClientesAsignados } from "./clientes";
+import { mapCliente } from "./clientes";
 import { inicioDiaUYIso } from "@/lib/fecha";
 
 export type EstadoHoy = "pagado" | "no_pago" | "pendiente" | "sin_credito";
@@ -46,14 +46,34 @@ export async function getRutaCobrador(
   db: SupabaseClient,
   hoy: Date = new Date(),
 ): Promise<Ruta> {
-  const clientes = await getClientesAsignados(db);
+  // Clientes del cobrador SCOPEADOS por sus asignaciones (RLS = suyas, indexado
+  // por cobrador_id → devuelve ~decenas). Antes se hacía `select * from clientes`
+  // dependiendo del RLS, que con 13k clientes evaluaba la política fila-por-fila
+  // → statement timeout. Con `.in(ids)` el RLS solo se evalúa sobre esos ids.
+  const { data: asigRaw, error: e0 } = await db
+    .from("asignaciones")
+    .select("cliente_id")
+    .eq("activo", true);
+  if (e0) throw e0;
+  const cliIds = [...new Set((asigRaw ?? []).map((a) => a.cliente_id as string))];
+  if (cliIds.length === 0) return { items: [], arqueo: ARQUEO_VACIO };
+
+  const { data: cliRaw, error: eC } = await db
+    .from("clientes")
+    .select("*")
+    .in("id", cliIds)
+    .eq("activo", true)
+    .order("nombre", { ascending: true });
+  if (eC) throw eC;
+  const clientes = (cliRaw ?? []).map(mapCliente);
   if (clientes.length === 0) return { items: [], arqueo: ARQUEO_VACIO };
 
-  // Préstamo activo por cliente.
+  // Préstamo activo por cliente (scopeado por los ids, no todo el RLS).
   const { data: presRaw, error: e1 } = await db
     .from("prestamos")
     .select("id, cliente_id, cuota_diaria")
-    .eq("estado", "activo");
+    .eq("estado", "activo")
+    .in("cliente_id", cliIds);
   if (e1) throw e1;
   const prestamoDe = new Map<string, { id: string; cuota: number }>();
   for (const p of presRaw ?? [])
