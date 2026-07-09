@@ -1,6 +1,6 @@
 // Informe "Pago Total de Ventas a Hoy (Interés Variado)" — réplica de la captura
 // 9 de Disapp. TODO derivado del cartón (sin columnas de dinero nuevas).
-import { requireGestor } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getInformeCartera } from "@/lib/data/informeCartera";
 import { getVendedores } from "@/lib/data/usuarios";
@@ -25,7 +25,8 @@ export default async function InformeCarteraPage({
   searchParams: Promise<{ vendedor?: string; q?: string }>;
 }) {
   const sp = await searchParams;
-  await requireGestor();
+  // Solo el dueño: expone utilidad/interés/ganancia total (dato privado del admin).
+  await requireAdmin();
   const db = await createSupabaseServer();
 
   const vendedorId = sp.vendedor || null;

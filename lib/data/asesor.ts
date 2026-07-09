@@ -12,6 +12,7 @@ import { getControlCobranza } from "./control";
 import { getSerieRecaudo } from "./series";
 import { getPrestamosActivosPorCliente } from "./prestamos";
 import { getActivosConPagos, pagosDeActivo } from "./activos";
+import { alcanceDelActor } from "./alcance";
 import { getPagosDePrestamo } from "./pagos";
 import { getHistorialCrediticio } from "./scoring";
 import { getNotasCliente } from "./notas";
@@ -36,6 +37,8 @@ export interface ResumenFinanciero {
     incobrables: number;
   };
   recaudacion: { hoy: number; mes: number };
+  /** Reportes de discrepancia sin atender (acotado a la zona del gestor). */
+  reportesNuevos: number;
   mora: {
     monto: number;
     morosos: number;
@@ -67,13 +70,16 @@ export async function getResumenFinanciero(
   db: SupabaseClient,
   hoy: Date = new Date(),
 ): Promise<ResumenFinanciero> {
-  // Se trae la cartera activa UNA vez y se comparte entre métricas y mora
-  // (ambas corren el cartón sobre los mismos créditos → media RPC menos).
-  const activos = await getActivosConPagos(db);
+  // Alcance del gestor (una vez): admin → todo; supervisor → su zona. Se pasa a
+  // cada consumidor para no re-resolverlo 3 veces.
+  const alcance = await alcanceDelActor();
+  // Se trae la cartera activa UNA vez (ya acotada) y se comparte entre métricas
+  // y mora (ambas corren el cartón sobre los mismos créditos → media RPC menos).
+  const activos = await getActivosConPagos(db, alcance);
   const [dash, mora, control] = await Promise.all([
-    getDashboardMetricas(db, hoy, activos),
+    getDashboardMetricas(db, hoy, activos, alcance),
     getTableroMora(db, hoy, activos),
-    getControlCobranza(db, hoy, activos),
+    getControlCobranza(db, hoy, activos, alcance),
   ]);
 
   const moraPct = dash.carteraPorCobrar > 0 ? dash.montoEnMora / dash.carteraPorCobrar : 0;
@@ -91,6 +97,7 @@ export async function getResumenFinanciero(
       incobrables: dash.incobrables,
     },
     recaudacion: { hoy: dash.recaudadoHoy, mes: dash.recaudadoMes },
+    reportesNuevos: dash.reportesNuevos,
     mora: {
       monto: dash.montoEnMora,
       morosos: dash.morosos,

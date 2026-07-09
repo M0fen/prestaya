@@ -1,7 +1,7 @@
 // Tablero "Valor del sistema" (admin/supervisor): hace visible la razón de la
 // inversión con datos reales — trazabilidad auditable, cartera sana y
 // crecimiento. Honesto: crece con el volumen; lo estimado se marca.
-import { requireGestor } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getValorSistema } from "@/lib/data/valor";
 import { UYU } from "@/lib/format";
@@ -11,7 +11,8 @@ export const dynamic = "force-dynamic";
 const pct = (x: number) => `${Math.round(x * 100)}%`;
 
 export default async function ValorPage() {
-  await requireGestor();
+  // Solo el dueño: expone rentabilidad/ROI del negocio (dato privado del admin).
+  await requireAdmin();
   const db = await createSupabaseServer();
   const v = await getValorSistema(db);
 

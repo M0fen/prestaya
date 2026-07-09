@@ -1,7 +1,7 @@
 // Dashboard del panel: foto de la operación (stock: cartera/mora al instante) +
 // MOVIMIENTO por período (día/semana/mes/año, con comparativa y serie) +
 // tendencias y el bloque proactivo "Aureo ve hoy".
-import { requireGestor } from "@/lib/auth";
+import { requireGestor, esAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getResumenFinanciero } from "@/lib/data/asesor";
 import { getSerieRecaudo } from "@/lib/data/series";
@@ -27,19 +27,23 @@ export default async function DashboardPage({
 }: {
   searchParams: Promise<{ periodo?: string }>;
 }) {
-  await requireGestor();
+  const usuario = await requireGestor();
+  const admin = esAdmin(usuario.rol);
   const hoy = new Date();
   const db = await createSupabaseServer();
   const periodo = normalizarPeriodo((await searchParams).periodo);
 
-  const [resumen, serie, mov, liquidacion, reportesRes] = await Promise.all([
+  // Base (siempre): cartera/mora/cobradores YA vienen acotadas a la zona del
+  // gestor (supervisor → su zona; admin → todo). El "Movimiento" y la serie salen
+  // de RPCs de agregado GLOBAL: se muestran SOLO al dueño (para no mezclar zonas).
+  const [resumen, liquidacion] = await Promise.all([
     getResumenFinanciero(db, hoy),
-    getSerieRecaudo(db, hoy, 14),
-    getResumenPeriodo(db, periodo, hoy),
     getLiquidacionDiaria(db, hoy),
-    db.from("reportes").select("*", { count: "exact", head: true }).eq("estado", "nuevo"),
   ]);
-  const reportesNuevos = reportesRes.count ?? 0;
+  const [serie, mov] = admin
+    ? await Promise.all([getSerieRecaudo(db, hoy, 14), getResumenPeriodo(db, periodo, hoy)])
+    : [null, null];
+  const reportesNuevos = resumen.reportesNuevos;
 
   const { cartera, recaudacion, mora, cobradores } = resumen;
   const alDia = Math.max(0, cartera.carteraPorCobrar - mora.monto);
@@ -55,12 +59,15 @@ export default async function DashboardPage({
     topRiesgo: mora.topRiesgo,
     cobradores: cobradores.ranking,
     alertas: cobradores.alertas,
-    serie: { promedio: serie.promedio, hoy: serie.hoy, tendencia: serie.tendencia },
+    // La serie es un agregado global (solo admin). Para el supervisor, neutra.
+    serie: serie
+      ? { promedio: serie.promedio, hoy: serie.hoy, tendencia: serie.tendencia }
+      : { promedio: 0, hoy: 0, tendencia: 0 },
   });
 
-  const recaudos = serie.dias.map((d) => d.recaudado);
-  const tendPct = Math.round(serie.tendencia * 100);
-  const varPct = mov.variacionPct === null ? null : Math.round(mov.variacionPct * 100);
+  const recaudos = serie ? serie.dias.map((d) => d.recaudado) : [];
+  const tendPct = serie ? Math.round(serie.tendencia * 100) : 0;
+  const varPct = mov && mov.variacionPct !== null ? Math.round(mov.variacionPct * 100) : null;
 
   return (
     <div className="flex flex-col gap-5 lg:gap-6">
@@ -91,14 +98,14 @@ export default async function DashboardPage({
         <div className="flex flex-col gap-1 rounded-[16px] border border-borde bg-tarjeta p-4">
           <div className="flex items-center justify-between">
             <span className="text-[11.5px] font-bold tracking-wide text-gris uppercase">Recaudo de hoy</span>
-            {serie.tendencia !== 0 && (
+            {serie && serie.tendencia !== 0 && (
               <span className={`text-[11px] font-bold tabular-nums ${tendPct >= 0 ? "text-verde" : "text-rojo"}`}>
                 {tendPct >= 0 ? "▲" : "▼"} {Math.abs(tendPct)}%
               </span>
             )}
           </div>
           <span className="text-[23px] leading-tight font-extrabold tabular-nums text-verde">{UYU(recaudacion.hoy)}</span>
-          <div className="mt-0.5"><Sparkline valores={recaudos} color="#1FA971" alto={30} /></div>
+          {serie && <div className="mt-0.5"><Sparkline valores={recaudos} color="#1FA971" alto={30} /></div>}
           <span className="text-[12px] font-medium text-tenue">Mes: {UYU(recaudacion.mes)}</span>
         </div>
         <Kpi etiqueta="Por cobrar hoy" valor={UYU(cartera.porCobrarHoy)} sub="cuotas que vencen hoy" acento="#13308C" />
@@ -113,7 +120,8 @@ export default async function DashboardPage({
       {/* Aureo ve hoy (proactivo) */}
       <AureoInsights insights={insights} />
 
-      {/* MOVIMIENTO por período (día/semana/mes/año) */}
+      {/* MOVIMIENTO por período (día/semana/mes/año) — agregado GLOBAL, solo dueño. */}
+      {admin && mov && (
       <section className="rounded-[16px] border border-borde bg-tarjeta p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-col">
@@ -196,6 +204,7 @@ export default async function DashboardPage({
           </div>
         )}
       </section>
+      )}
 
       {/* Cobradores + mora por antigüedad */}
       <div className="grid gap-3 lg:grid-cols-2">

@@ -55,7 +55,7 @@ describe("getLiquidacionDiaria", () => {
       rendiciones: [{ cobrador_id: "c1" }], // c1 cerró
     });
 
-    const liq = await getLiquidacionDiaria(db, HOY);
+    const liq = await getLiquidacionDiaria(db, HOY, { global: true });
 
     expect(liq.totalCobradores).toBe(2);
     expect(liq.cajasCerradas).toBe(1);

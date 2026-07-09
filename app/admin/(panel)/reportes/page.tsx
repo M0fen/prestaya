@@ -1,7 +1,7 @@
 // Reportes — exportación de datos a CSV (Excel) y estado de cuenta en PDF.
 // Solo gestores. Las descargas van por /api/reportes/<tipo> (protegido por rol).
 import Link from "next/link";
-import { requireGestor } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { RespaldoTotal } from "@/components/admin/RespaldoTotal";
 
 export const dynamic = "force-dynamic";
@@ -48,7 +48,8 @@ function Tarjeta({
 }
 
 export default async function ReportesPage() {
-  await requireGestor();
+  // Solo el dueño: exporta la operación completa (incluye datos financieros).
+  await requireAdmin();
 
   return (
     <div className="mx-auto flex max-w-[820px] flex-col gap-5">

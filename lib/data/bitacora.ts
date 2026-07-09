@@ -6,6 +6,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { tablaFaltante } from "@/lib/data/errores";
 import { analizarSospecha, type EventoBitacora, type SenalesSospecha } from "@/lib/sospecha";
+import { alcanceDelActor } from "./alcance";
 
 export interface EntradaBitacora {
   actorId: string;
@@ -77,11 +78,16 @@ export async function getResumenBitacoraDia(
   fechaUY: string,
 ): Promise<ResumenCobradorDia[]> {
   try {
-    const { data, error } = await db
+    // El supervisor ve SOLO la bitácora de sus cobradores; el admin, todos.
+    const alcance = await alcanceDelActor();
+    if (!alcance.global && alcance.cobradorIds.length === 0) return [];
+    let query = db
       .from("bitacora")
       .select("*")
       .eq("fecha_uy", fechaUY)
       .order("server_ts", { ascending: true });
+    if (!alcance.global) query = query.in("actor_id", alcance.cobradorIds);
+    const { data, error } = await query;
     if (error) throw error;
     const filas = data ?? [];
 

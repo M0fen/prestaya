@@ -16,6 +16,7 @@ const RESUMEN: ResumenFinanciero = {
     incobrables: 0,
   },
   recaudacion: { hoy: 0, mes: 12000 },
+  reportesNuevos: 0,
   mora: {
     monto: 320000,
     morosos: 1,

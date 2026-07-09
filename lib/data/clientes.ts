@@ -7,6 +7,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Cliente } from "@/types/db";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
+import { alcanceDelActor, enLotes } from "./alcance";
 
 /** Convierte una fila cruda de Supabase en un Cliente tipado. */
 export function mapCliente(r: Record<string, unknown>): Cliente {
@@ -101,17 +102,30 @@ export async function getClientesAsignados(
 ): Promise<Cliente[]> {
   // Solo la usa el panel (renovaciones, gestor). Va por service_role: un
   // `select * from clientes` bajo el RLS de zona escanea 13k filas evaluando la
-  // política por-fila → statement timeout. El panel ya opera sobre la cartera
-  // completa para gestores.
+  // política por-fila → statement timeout. El supervisor recibe `.in(id, ...)`
+  // para ver SOLO su zona (acotado y rápido); el admin ve todos.
   void db;
-  const { data, error } = await createSupabaseAdmin()
-    .from("clientes")
-    .select("*")
-    .eq("activo", true)
-    .order("nombre", { ascending: true });
-
-  if (error) throw error;
-  return (data ?? []).map(mapCliente);
+  const admin = createSupabaseAdmin();
+  const alcance = await alcanceDelActor();
+  if (alcance.global) {
+    const { data, error } = await admin
+      .from("clientes")
+      .select("*")
+      .eq("activo", true)
+      .order("nombre", { ascending: true });
+    if (error) throw error;
+    return (data ?? []).map(mapCliente);
+  }
+  if (alcance.clienteIds.length === 0) return [];
+  // Supervisor: `.in(id, ...)` EN LOTES (URL de PostgREST) y se une en JS.
+  const filas: Record<string, unknown>[] = [];
+  for (const lote of enLotes(alcance.clienteIds)) {
+    const { data, error } = await admin.from("clientes").select("*").eq("activo", true).in("id", lote);
+    if (error) throw error;
+    filas.push(...(data ?? []));
+  }
+  filas.sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), "es"));
+  return filas.map(mapCliente);
 }
 
 /**
@@ -161,21 +175,41 @@ export async function getClientesListaAdmin(
 ): Promise<ClienteFilaAdmin[]> {
   const limite = opts.limite ?? 60;
   // service_role para la lista: bajo el RLS de zona, un select sobre 13k clientes
-  // evalúa la política por-fila → statement timeout (supervisor). El panel ya
-  // muestra la operación completa a gestores.
+  // evalúa la política por-fila → statement timeout (supervisor). Para acotar a
+  // SU zona, un supervisor recibe además `.in(id, clienteIds)` (acotado y rápido);
+  // el admin ve todos.
   const admin = createSupabaseAdmin();
-  let query = admin
-    .from("clientes")
-    .select("id, nombre, documento, telefono, direccion, calificacion, activo, disapp_id, reportado")
-    .eq("activo", !opts.archivados);
+  const alcance = await alcanceDelActor();
   const termino = (opts.q ?? "").trim();
-  if (termino.length > 0) {
-    const t = termino.replace(/[%_]/g, (m) => `\\${m}`);
-    query = query.or(`nombre.ilike.%${t}%,documento.ilike.%${t}%`);
+  // Fábrica de la consulta base (columnas + búsqueda), reusable por lote/zona.
+  const construir = () => {
+    let q = admin
+      .from("clientes")
+      .select("id, nombre, documento, telefono, direccion, calificacion, activo, disapp_id, reportado")
+      .eq("activo", !opts.archivados);
+    if (termino.length > 0) {
+      const t = termino.replace(/[%_]/g, (m) => `\\${m}`);
+      q = q.or(`nombre.ilike.%${t}%,documento.ilike.%${t}%`);
+    }
+    return q;
+  };
+  let filas: Record<string, unknown>[];
+  if (alcance.global) {
+    const { data, error } = await construir().order("nombre", { ascending: true }).limit(limite);
+    if (error) throw error;
+    filas = (data ?? []) as Record<string, unknown>[];
+  } else {
+    // Supervisor: solo su zona. `.in(id, ...)` EN LOTES; se une, ordena y corta.
+    if (alcance.clienteIds.length === 0) return [];
+    const acc: Record<string, unknown>[] = [];
+    for (const lote of enLotes(alcance.clienteIds)) {
+      const { data, error } = await construir().in("id", lote).order("nombre", { ascending: true }).limit(limite);
+      if (error) throw error;
+      acc.push(...((data ?? []) as Record<string, unknown>[]));
+    }
+    acc.sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), "es"));
+    filas = acc.slice(0, limite);
   }
-  const { data, error } = await query.order("nombre", { ascending: true }).limit(limite);
-  if (error) throw error;
-  const filas = (data ?? []) as Record<string, unknown>[];
   const ids = filas.map((f) => f.id as string);
 
   const vendedorDe = new Map<string, string>();

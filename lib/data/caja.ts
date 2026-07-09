@@ -9,6 +9,7 @@ import { traerTodo } from "./paginado";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { inicioDiaUYIso, inicioMesUYIso } from "@/lib/fecha";
 import { tablaFaltante } from "./errores";
+import { alcanceDelActor } from "./alcance";
 import type { CuentaCaja } from "@/types/db";
 
 // Re-export para que los consumidores (acciones) importen el tipo desde acá.
@@ -90,9 +91,16 @@ async function resumenCajaCore(
 ): Promise<ResumenCaja> {
   const { desde, hasta, periodo } = rango;
 
+  // Alcance del gestor: el supervisor ve SOLO la caja de sus cobradores (cobros
+  // que ellos registraron + movimientos de su ruta); el admin, toda la operación.
+  const alcance = await alcanceDelActor();
+  const cobradorIds = alcance.global ? null : alcance.cobradorIds;
+
   // 1) Cobros del período (ingreso principal). A ESCALA: se PAGINA (el mes puede
   //    ser >1000 pagos) y el nombre del cliente va EMBEBIDO (evita .in de miles).
-  const pagos = await traerTodo<{
+  const pagos = cobradorIds && cobradorIds.length === 0
+    ? []
+    : await traerTodo<{
     monto: number;
     registrado_en: string;
     registrado_por: string | null;
@@ -105,6 +113,8 @@ async function resumenCajaCore(
       .eq("anulado", false)
       .gte("registrado_en", desde);
     if (hasta) query = query.lt("registrado_en", hasta);
+    // Supervisor: solo los cobros que registraron SUS cobradores.
+    if (cobradorIds) query = query.in("registrado_por", cobradorIds);
     // Orden estable por PK: sin él la paginación puede duplicar/saltear filas.
     return query.order("id", { ascending: true }).range(d, h);
   });
@@ -112,14 +122,18 @@ async function resumenCajaCore(
   // 2) Movimientos de caja OPERATIVA (degrada a vacío si falta 0010). Se filtra
   //    cuenta='operativa' en JS: defensivo si 0041 aún no agregó la columna.
   let movimientos: Record<string, unknown>[] = [];
-  try {
-    let query = db.from("movimientos_caja").select("*").gte("registrado_en", desde);
-    if (hasta) query = query.lt("registrado_en", hasta);
-    const { data, error } = await query;
-    if (error) throw error;
-    movimientos = (data ?? []).filter((m) => ((m.cuenta as string | null) ?? "operativa") === "operativa");
-  } catch (e) {
-    if (!tablaFaltante(e)) throw e;
+  if (!(cobradorIds && cobradorIds.length === 0)) {
+    try {
+      let query = db.from("movimientos_caja").select("*").gte("registrado_en", desde);
+      if (hasta) query = query.lt("registrado_en", hasta);
+      // Supervisor: solo movimientos de sus cobradores (gastos de su ruta).
+      if (cobradorIds) query = query.in("cobrador_id", cobradorIds);
+      const { data, error } = await query;
+      if (error) throw error;
+      movimientos = (data ?? []).filter((m) => ((m.cuenta as string | null) ?? "operativa") === "operativa");
+    } catch (e) {
+      if (!tablaFaltante(e)) throw e;
+    }
   }
 
   // 3) Resolver nombres (cobradores) y clientes (para el libro de cobros).

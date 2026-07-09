@@ -13,6 +13,7 @@ import { inicioDiaUYIso, hoyUY } from "@/lib/fecha";
 import { toIso } from "@/lib/format";
 import { traerTodo } from "./paginado";
 import { tablaFaltante } from "./errores";
+import { alcanceDelActor, type Alcance } from "./alcance";
 
 export interface FilaLiquidacion {
   cobradorId: string;
@@ -43,16 +44,21 @@ export interface LiquidacionDia {
 export async function getLiquidacionDiaria(
   db: SupabaseClient,
   hoy: Date = new Date(),
+  alcancePre?: Alcance,
 ): Promise<LiquidacionDia> {
   const desde = inicioDiaUYIso(hoy);
   const fechaHoy = toIso(hoyUY(hoy));
 
-  // Cobradores activos = las filas de la tabla (uno por cobrador).
-  const cobRes = await db
+  // Cobradores activos = las filas de la tabla (uno por cobrador). El supervisor
+  // ve SOLO los de su zona; el admin, todos.
+  const alcance = alcancePre ?? (await alcanceDelActor());
+  let cobQuery = db
     .from("usuarios")
     .select("id, nombre")
     .eq("rol", "cobrador")
     .eq("activo", true);
+  if (!alcance.global) cobQuery = cobQuery.in("id", alcance.cobradorIds);
+  const cobRes = await cobQuery;
   if (cobRes.error) throw cobRes.error;
   const cobradores = (cobRes.data ?? []).map((c) => ({
     id: c.id as string,

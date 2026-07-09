@@ -6,6 +6,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Pago, Prestamo } from "@/types/db";
+import { alcanceDelActor, filtrarActivosPorAlcance, type Alcance } from "./alcance";
 
 export interface ActivoConPagos {
   id: string;
@@ -34,10 +35,19 @@ export interface ActivoConPagos {
   pagos?: { d: number; m: number }[];
 }
 
-export async function getActivosConPagos(db: SupabaseClient): Promise<ActivoConPagos[]> {
+export async function getActivosConPagos(
+  db: SupabaseClient,
+  alcance?: Alcance,
+): Promise<ActivoConPagos[]> {
   const { data, error } = await db.rpc("app_cartera_activa");
   if (error) throw error;
-  return (data ?? []) as ActivoConPagos[];
+  const activos = (data ?? []) as ActivoConPagos[];
+  // Acota a la zona del gestor logueado. La RPC es definer (trae TODA la cartera);
+  // el recorte por cliente lo hacemos acá. Si no se pasa alcance, lo resolvemos
+  // del actor actual (admin/supervisor-sin-zona → global; supervisor con zona →
+  // solo su zona). Cualquier caller que quiera forzar global pasa {global:true}.
+  const al = alcance ?? (await alcanceDelActor());
+  return filtrarActivosPorAlcance(activos, al);
 }
 
 /**

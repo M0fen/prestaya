@@ -9,6 +9,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { calcularEstadosCarton } from "@/lib/cartones";
 import { getActivosConPagos, pagosDeActivo } from "./activos";
+import { alcanceDelActor, prestamoIdsDelAlcance } from "./alcance";
 import { hoyUY } from "@/lib/fecha";
 
 /** Un pago del listado de recaudos (crudo, tal como lo devuelve la RPC). */
@@ -66,6 +67,18 @@ export async function getRecaudos(
   });
   if (error) throw error;
   const rpc = (data ?? { pagos: [], total_pagos: 0, monto_total: 0, creditos_unicos: 0 }) as RecaudosRpc;
+
+  // Acota a la zona del supervisor: la RPC es definer (trae todos los pagos del
+  // rango); nos quedamos SOLO con los de préstamos de sus clientes. Admin → sin
+  // filtro. Los totales se recalculan sobre lo filtrado (coherente con la tabla).
+  const alcance = await alcanceDelActor();
+  const prestamoSet = await prestamoIdsDelAlcance(alcance);
+  if (prestamoSet) {
+    rpc.pagos = rpc.pagos.filter((p) => prestamoSet.has(p.prestamo_id));
+    rpc.total_pagos = rpc.pagos.length;
+    rpc.monto_total = rpc.pagos.reduce((s, p) => s + Number(p.monto), 0);
+    rpc.creditos_unicos = new Set(rpc.pagos.map((p) => p.prestamo_id)).size;
+  }
 
   // Saldo por crédito activo: un solo pase sobre la cartera (cartón en TS). Los
   // créditos que no estén activos (históricos/finalizados) quedan sin saldo → "—".

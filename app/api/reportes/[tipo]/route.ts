@@ -5,7 +5,7 @@
 //  Protegido por ROL en el servidor (un cobrador recibe 403). Corre como el
 //  gestor logueado (RLS). Solo LECTURA: no muta nada.
 // ─────────────────────────────────────────────────────────────────────────
-import { getUsuarioActual, esGestor } from "@/lib/auth";
+import { getUsuarioActual, esAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { filasACsv, conBom, type CeldaCsv } from "@/lib/reportes/csv";
 import { getCarteraExport } from "@/lib/data/cartera";
@@ -68,10 +68,10 @@ export async function GET(
   req: Request,
   ctx: { params: Promise<{ tipo: string }> },
 ): Promise<Response> {
-  // Puerta por rol en el servidor (defensa: el RLS igual limita, pero acá
-  // cortamos de una a cualquiera que no sea gestor).
+  // Puerta por rol en el servidor: los reportes/exportaciones son SOLO del dueño
+  // (contienen la operación completa y datos financieros). Supervisor → 403.
   const usuario = await getUsuarioActual();
-  if (!usuario || !esGestor(usuario.rol)) {
+  if (!usuario || !esAdmin(usuario.rol)) {
     return new Response("No autorizado", { status: 403 });
   }
 

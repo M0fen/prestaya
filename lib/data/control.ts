@@ -9,6 +9,7 @@ import { evaluarZona } from "@/lib/geo";
 import { inicioDiaUYIso } from "@/lib/fecha";
 import { traerTodo } from "./paginado";
 import { getActivosConPagos } from "./activos";
+import { alcanceDelActor, type Alcance } from "./alcance";
 
 /** Efectivo por cobrador que dispara alerta de rendición (hasta tener módulo de caja). */
 const LIMITE_FLOAT = 15000;
@@ -66,19 +67,24 @@ export async function getControlCobranza(
   db: SupabaseClient,
   hoy: Date = new Date(),
   activosPre?: import("./activos").ActivoConPagos[],
+  alcancePre?: Alcance,
 ): Promise<ControlCobranza> {
   const desde = inicioDiaUYIso(hoy);
 
   // A ESCALA: los créditos activos (con cliente/gps/cobrador embebidos) vienen de
   // la RPC `app_cartera_activa` (una fila por crédito). El cobrador de cada
   // cliente sale del propio crédito (cobrador_id), sin traer asignaciones.
-  const cobRes = await db
+  // Alcance del gestor: el supervisor ve SOLO los cobradores de su zona.
+  const alcance = alcancePre ?? (await alcanceDelActor());
+  let cobQuery = db
     .from("usuarios")
     .select("id, nombre")
     .eq("rol", "cobrador")
     .eq("activo", true);
+  if (!alcance.global) cobQuery = cobQuery.in("id", alcance.cobradorIds);
+  const cobRes = await cobQuery;
   if (cobRes.error) throw cobRes.error;
-  const activos = activosPre ?? (await getActivosConPagos(db));
+  const activos = activosPre ?? (await getActivosConPagos(db, alcance));
 
   const cobradores = (cobRes.data ?? []).map((c) => ({
     id: c.id as string,
@@ -145,7 +151,14 @@ export async function getControlCobranza(
   let recaudadoHoy = 0;
   let fueraZona = 0;
 
-  for (const p of pagosRaw) {
+  // Acota a los pagos de créditos DENTRO del alcance (activos ya scopeado). Para
+  // el admin no cambia (tiene todos los activos); para el supervisor descarta
+  // pagos de otras zonas que el RLS pudiera dejar pasar.
+  const pagosScoped = alcance.global
+    ? pagosRaw
+    : pagosRaw.filter((p) => prestamoPorId.has(p.prestamo_id as string));
+
+  for (const p of pagosScoped) {
     const monto = Number(p.monto);
     recaudadoHoy += monto;
     const loan = prestamoPorId.get(p.prestamo_id as string);
@@ -187,7 +200,9 @@ export async function getControlCobranza(
   for (const v of visRaw) {
     const res = v.resultado as string;
     const cobradorId = v.cobrador_id as string | null;
-    if (cobradorId && res !== "pago" && res !== "abono") init(cobradorId).noPagos += 1;
+    // Solo visitas de cobradores dentro del alcance (evita contar otras zonas).
+    if (!cobradorId || (!alcance.global && !acc.has(cobradorId))) continue;
+    if (res !== "pago" && res !== "abono") init(cobradorId).noPagos += 1;
   }
 
   // Alertas de float alto.
