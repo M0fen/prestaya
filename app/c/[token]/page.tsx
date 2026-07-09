@@ -21,6 +21,7 @@ import { getRecompensasActivas } from "@/lib/data/recompensas";
 import { getSaldoEstrellas } from "@/lib/data/estrellas";
 import { claveCiclo } from "@/lib/estrellas";
 import { getEstadoRaspaCliente, getQuinielaAbierta, getParticipacionCliente } from "@/lib/data/promos";
+import { getRifaParaCliente } from "@/lib/data/rifas";
 import { cicloUY } from "@/lib/fecha";
 import { juegoArcadeDe } from "@/lib/juegoAjustes";
 import { construirVistaCliente } from "@/lib/vistaCliente";
@@ -107,19 +108,23 @@ export default async function VistaPorToken({
   const participacionNumero = quiniela
     ? await getParticipacionCliente(db, quiniela.id, cliente.id)
     : null;
-  const promo = {
-    raspaDisponibles: raspa.disponibles,
-    quiniela: quiniela
-      ? {
-          id: quiniela.id,
-          titulo: quiniela.titulo,
-          premioTexto: quiniela.premioTexto,
-          rangoMin: quiniela.rangoMin,
-          rangoMax: quiniela.rangoMax,
-        }
-      : null,
-    participacionNumero,
-  };
+  // Los juegos (raspadita + quiniela) se muestran SOLO si la zona de juego está
+  // activa (admin → /admin/juego). Apagándola se ocultan todos los juegos.
+  const promo = ajustes.activo
+    ? {
+        raspaDisponibles: raspa.disponibles,
+        quiniela: quiniela
+          ? {
+              id: quiniela.id,
+              titulo: quiniela.titulo,
+              premioTexto: quiniela.premioTexto,
+              rangoMin: quiniela.rangoMin,
+              rangoMax: quiniela.rangoMax,
+            }
+          : null,
+        participacionNumero,
+      }
+    : null;
 
   // Nombres de los cobradores que registraron pagos (para mostrar "quién cobró").
   const cobradorIds = [
@@ -184,11 +189,16 @@ export default async function VistaPorToken({
     reputacion = null;
   }
 
+  // Rifa promocional: se muestra si el admin la activó y este cliente califica
+  // (dirigida a los mejores clientes, según su calificación).
+  const rifa = await getRifaParaCliente(db, cliente.calificacion);
+
   return (
     <VistaClienteScreen
       v={v}
       anuncios={anuncios}
       token={token}
+      rifa={rifa}
       creditoSelector={creditoSelector}
       reputacion={reputacion}
       juego={juego}

@@ -31,6 +31,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/admin/juego", label: "Zona de juego", icon: "🎮", roles: ["admin", "supervisor"], alias: ["gaming", "recompensas", "temporada", "caritas"] },
   { href: "/admin/estrellas", label: "Estrellas", icon: "⭐", roles: ["admin", "supervisor"], alias: ["canjes", "redenciones", "premios"] },
   { href: "/admin/promos", label: "Juegos y sorteos", icon: "🎟️", roles: ["admin", "supervisor"], alias: ["raspadita", "quiniela", "sorteo", "promocion"] },
+  { href: "/admin/rifa", label: "Rifa", icon: "🎁", roles: ["admin"], alias: ["premio", "sorteo", "banner", "mejores clientes"] },
   { href: "/admin/mora", label: "Mora", icon: "⏰", roles: ["admin", "supervisor"], alias: ["atrasos", "morosos", "riesgo", "recargo"] },
   { href: "/admin/clientes", label: "Clientes", icon: "👤", roles: ["admin", "supervisor"], alias: ["deudores", "cartera"] },
   { href: "/admin/scoring", label: "Scoring", icon: "🧮", roles: ["admin"], alias: ["riesgo", "modelo", "puntaje", "credit score", "pesos", "umbrales"] },

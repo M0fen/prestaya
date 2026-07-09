@@ -20,6 +20,7 @@ import { Aliento } from "@/components/Aliento";
 import { ResumenCard } from "@/components/ResumenCard";
 import { PonerseAlDia } from "@/components/PonerseAlDia";
 import { BannerCarrusel } from "@/components/BannerCarrusel";
+import { RifaBanner, type RifaVista } from "@/components/RifaBanner";
 import { ProximaCuota } from "@/components/ProximaCuota";
 import { CartonDigital } from "@/components/CartonDigital";
 import { GameSlot } from "@/components/GameSlot";
@@ -38,10 +39,13 @@ export function VistaClienteScreen({
   umbralCaritas,
   juegoArcade = null,
   temporada = null,
+  rifa = null,
   creditoSelector = null,
 }: {
   v: VistaCredito;
   anuncios?: Anuncio[];
+  /** Rifa promocional a mostrarle a este cliente (o null). */
+  rifa?: RifaVista | null;
   /** Selector de crédito (si el cliente tiene varios activos). Se pinta arriba. */
   creditoSelector?: React.ReactNode;
   /** Token del link: habilita el reporte de discrepancia (solo vista real). */
@@ -100,6 +104,9 @@ export function VistaClienteScreen({
             premio={temporada.premio}
           />
         )}
+
+        {/* Rifa promocional (si el admin la activó y este cliente califica). */}
+        {rifa && <RifaBanner rifa={rifa} />}
 
         {/* Banner de anuncios, justo debajo de la temporada. Si no hay temporada,
             queda solo el banner. Si no hay anuncios, no ocupa espacio. */}
