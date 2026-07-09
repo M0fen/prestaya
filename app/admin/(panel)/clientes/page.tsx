@@ -31,6 +31,14 @@ export default async function ClientesPage({
   const q = (sp.q ?? "").trim() || null;
   const clientes = await getClientesListaAdmin(db, { q, archivados, limite: LIMITE });
 
+  // Vista general (de los resultados mostrados): totales + distribución.
+  const conCredito = clientes.filter((c) => c.creditosActivos > 0).length;
+  const reportadosN = clientes.filter((c) => c.reportado).length;
+  const porBanda = clientes.reduce<Record<string, number>>((acc, c) => {
+    acc[c.calificacion] = (acc[c.calificacion] ?? 0) + 1;
+    return acc;
+  }, {});
+
   return (
     <div className="mx-auto flex max-w-[1040px] flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -80,6 +88,28 @@ export default async function ClientesPage({
           Buscar
         </button>
       </form>
+
+      {/* Vista general de los resultados (dinámica). */}
+      {clientes.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Resumen etiqueta="Mostrados" valor={clientes.length} />
+          <Resumen etiqueta="Con crédito activo" valor={conCredito} acento="#1FA971" />
+          <Resumen etiqueta="Reportados" valor={reportadosN} acento={reportadosN > 0 ? "#C0392B" : undefined} />
+          <div className="ml-auto flex flex-wrap gap-1.5">
+            {(Object.keys(BANDA) as Calificacion[])
+              .filter((k) => porBanda[k])
+              .map((k) => (
+                <span
+                  key={k}
+                  className="rounded-full px-2.5 py-1 text-[11px] font-bold tabular-nums"
+                  style={{ background: BANDA[k].bg, color: BANDA[k].fg }}
+                >
+                  {BANDA[k].label} {porBanda[k]}
+                </span>
+              ))}
+          </div>
+        </div>
+      )}
 
       {clientes.length === 0 ? (
         <p className="rounded-[14px] bg-tarjeta px-4 py-6 text-center text-[13px] font-medium text-gris">
@@ -142,6 +172,17 @@ export default async function ClientesPage({
       <p className="text-[11px] font-medium text-[#AEB6CC]">
         Se muestran hasta {LIMITE} resultados. Afiná con el buscador para encontrar un cliente puntual.
       </p>
+    </div>
+  );
+}
+
+function Resumen({ etiqueta, valor, acento }: { etiqueta: string; valor: number; acento?: string }) {
+  return (
+    <div className="flex items-center gap-2 rounded-[12px] border border-borde bg-tarjeta px-3 py-2">
+      <span className="text-[19px] font-extrabold tabular-nums" style={{ color: acento ?? "var(--color-tinta)" }}>
+        {valor}
+      </span>
+      <span className="text-[11.5px] font-semibold text-gris">{etiqueta}</span>
     </div>
   );
 }

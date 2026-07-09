@@ -40,13 +40,26 @@ export function PromosManager({
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Explicador simple de cómo funciona todo (arriba de todo). */}
+      <div className="flex flex-col gap-2 rounded-[16px] border border-[#D9E4FF] bg-[#EEF3FF] p-4">
+        <span className="text-[14px] font-extrabold text-[#1E47C8]">🎫 Cómo funciona la raspadita</span>
+        <ol className="flex flex-col gap-1.5 text-[12.5px] font-medium text-cuerpo">
+          <li><b>1.</b> Creás <b>tramos</b> por el score del cliente (ej.: “Clientes estrella”, score 90–100%).</li>
+          <li><b>2.</b> A cada tramo le ponés su <b>chance de ganar</b>: 100% = gana siempre; 40% = gana 4 de cada 10.</li>
+          <li><b>3.</b> Cargás <b>premios</b> y los asignás a un tramo. Cuando el cliente gana, se sortea uno por su “peso”.</li>
+        </ol>
+        <p className="rounded-[10px] bg-white/70 px-3 py-2 text-[11.5px] font-semibold text-[#3A4664]">
+          Ejemplo: un cliente con score 95% cae en “Clientes estrella” → gana siempre → saca uno de los premios de ese tramo.
+          Uno con 60% cae en “Los demás” → gana según el % que le pongas.
+        </p>
+      </div>
+
       {/* ── Tramos de scoring ── */}
       <section className="flex flex-col gap-3">
-        <h2 className="text-[15px] font-extrabold text-tinta">🎯 Tramos por scoring</h2>
+        <h2 className="text-[15px] font-extrabold text-tinta">🎯 Paso 1 · Tramos por scoring</h2>
         <p className="text-[12px] font-medium text-gris">
-          Premiá distinto según el score del cliente. Cada tramo es un rango de score (en %) con su{" "}
-          <b>% de probabilidad de ganar</b>: 100% = siempre gana (premio “regalado”), 40% = gana 4 de
-          cada 10. Los premios se reparten por tramo. “Los demás” cubre a quien no cae en ningún tramo.
+          Cada tramo es un rango de score (en %) con su <b>% de probabilidad de ganar</b>. “Los demás”
+          cubre a quien no cae en ningún tramo (no se puede borrar ni apagar).
         </p>
         <div className="flex flex-col gap-2">
           {tramos.map((s) => (
@@ -58,10 +71,10 @@ export function PromosManager({
 
       {/* ── Raspadita: premios (asignados a un tramo) ── */}
       <section className="flex flex-col gap-3">
-        <h2 className="text-[15px] font-extrabold text-tinta">🎟️ Raspadita — premios por tramo</h2>
+        <h2 className="text-[15px] font-extrabold text-tinta">🎟️ Paso 2 · Premios de cada tramo</h2>
         <p className="text-[12px] font-medium text-gris">
-          Cada premio pertenece a un tramo. Cuando el cliente <b>gana</b> (según el % del tramo), se
-          sortea CUÁL premio por su “peso” (mayor peso, más chance). El servidor decide (no se truca).
+          Cargá los premios y asigná cada uno a un tramo (con el selector). Al ganar, se sortea CUÁL por
+          su “peso” (mayor peso = más chance). El servidor decide el resultado (no se puede trucar).
         </p>
         {tramos.map((t) => {
           const delTramo = premios.filter(
