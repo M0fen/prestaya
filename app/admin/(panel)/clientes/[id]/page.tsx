@@ -13,6 +13,8 @@ import { AnularPago } from "@/components/admin/AnularPago";
 import { ReasignarCliente, type CobradorOpcion } from "@/components/admin/ReasignarCliente";
 import { RotarToken } from "@/components/admin/RotarToken";
 import { ToggleReportado } from "@/components/admin/ToggleReportado";
+import { FotoClienteAdmin } from "@/components/admin/FotoClienteAdmin";
+import { urlFirmadaFoto } from "@/lib/data/fotos";
 import { getSaldoEstrellas } from "@/lib/data/estrellas";
 import { getAjustesJuego } from "@/lib/data/juegoConfig";
 import { claveCiclo } from "@/lib/estrellas";
@@ -64,6 +66,8 @@ export default async function FichaClientePage({
   if (!ficha) notFound();
 
   const { cliente, score, evolucionScore: evolucion, activos, creditos, pagos, notas } = ficha;
+  // URL firmada (temporal) de la foto del cliente, si tiene.
+  const fotoUrl = await urlFirmadaFoto(cliente.foto_path);
   const banda = BANDA[cliente.calificacion] ?? BANDA.nuevo;
   const bandaScore = BANDA[score.banda as Calificacion] ?? BANDA.nuevo;
 
@@ -158,6 +162,9 @@ export default async function FichaClientePage({
           </dl>
         </section>
       )}
+
+      {/* Foto del cliente (ver / cargar / actualizar) */}
+      <FotoClienteAdmin clienteId={id} fotoUrl={fotoUrl} />
 
       {/* Reportado a buró / lista de morosos (solo admin puede cambiarlo) */}
       {puedeAnular && <ToggleReportado clienteId={id} inicial={cliente.reportado} />}

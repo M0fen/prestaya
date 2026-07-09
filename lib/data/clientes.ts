@@ -31,6 +31,7 @@ export function mapCliente(r: Record<string, unknown>): Cliente {
     genero: (r.genero as Cliente["genero"] | undefined) ?? null,
     ciudad: (r.ciudad as string | null | undefined) ?? null,
     direccion_secundaria: (r.direccion_secundaria as string | null | undefined) ?? null,
+    foto_path: (r.foto_path as string | null | undefined) ?? null,
     creado_en: r.creado_en as string,
     actualizado_en: r.actualizado_en as string,
   };

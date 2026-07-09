@@ -7,8 +7,9 @@
 // ─────────────────────────────────────────────────────────────────────────
 import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { getUsuarioActual, esAdmin } from "@/lib/auth";
+import { getUsuarioActual, esAdmin, esGestor } from "@/lib/auth";
 import { registrarAuditoria } from "@/lib/data/auditoria";
+import { subirFotoCliente } from "@/lib/data/fotos";
 
 type Resultado = { ok: true; reportado: boolean } | { ok: false; error: string };
 
@@ -42,4 +43,36 @@ export async function marcarClienteReportado(input: {
   } catch {
     return { ok: false, error: "No se pudo actualizar. ¿Corriste la migración 0041?" };
   }
+}
+
+// ── Subir/actualizar la FOTO de un cliente (gestor) ────────────────────────
+// La imagen viene YA comprimida del navegador (data URL). Se guarda en Storage
+// (service_role) y queda la ruta en clientes.foto_path. Gestores (admin/supervisor
+// de su zona); el RLS del cliente igual acota, pero la subida va por service_role,
+// así que validamos el rol acá.
+export async function guardarFotoCliente(input: {
+  clienteId: string;
+  dataUrl: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const usuario = await getUsuarioActual();
+  if (!usuario || !usuario.activo || !esGestor(usuario.rol)) {
+    return { ok: false, error: "No tenés permisos para cargar la foto." };
+  }
+  if (!input.clienteId) return { ok: false, error: "Cliente inválido." };
+  const res = await subirFotoCliente(input.clienteId, input.dataUrl);
+  if (!res.ok) return { ok: false, error: res.error };
+  try {
+    const db = await createSupabaseServer();
+    await registrarAuditoria(db, {
+      actorId: usuario.id,
+      actorNombre: usuario.nombre,
+      accion: "Cargó/actualizó la foto del cliente",
+      entidad: "cliente",
+      entidadId: input.clienteId,
+    });
+  } catch {
+    /* la auditoría es best-effort: la foto ya se guardó */
+  }
+  revalidatePath(`/admin/clientes/${input.clienteId}`);
+  return { ok: true };
 }

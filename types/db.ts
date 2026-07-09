@@ -79,6 +79,8 @@ export interface Cliente {
   genero: "masculino" | "femenino" | "otro" | null;
   ciudad: string | null;
   direccion_secundaria: string | null;
+  /** Ruta de la foto en Storage (bucket privado, 0044). null = sin foto. */
+  foto_path: string | null;
   creado_en: string;
   actualizado_en: string;
 }

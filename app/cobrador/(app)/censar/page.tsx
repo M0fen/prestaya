@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { relevarCliente } from "@/app/cobrador/(app)/actions";
+import { CapturaFoto } from "@/components/CapturaFoto";
 
 function pedirGps(): Promise<{ lat: number | null; lng: number | null }> {
   return new Promise((resolve) => {
@@ -24,6 +25,7 @@ export default function CensarPage() {
   const [error, setError] = useState<string | null>(null);
   const [gps, setGps] = useState<{ lat: number | null; lng: number | null } | null>(null);
   const [ubicando, setUbicando] = useState(false);
+  const [foto, setFoto] = useState<string | null>(null);
 
   const capturarGps = async () => {
     setUbicando(true);
@@ -35,6 +37,10 @@ export default function CensarPage() {
   const enviar = (formData: FormData) =>
     start(async () => {
       setError(null);
+      if (!foto) {
+        setError("Sacale una foto al cliente para darlo de alta.");
+        return;
+      }
       const res = await relevarCliente({
         nombre: String(formData.get("nombre") ?? ""),
         documento: String(formData.get("documento") ?? "") || null,
@@ -43,6 +49,7 @@ export default function CensarPage() {
         notas: String(formData.get("notas") ?? "") || null,
         gpsLat: gps?.lat ?? null,
         gpsLng: gps?.lng ?? null,
+        fotoDataUrl: foto,
       });
       if (res.ok) router.push(`/cobrador/cliente/${res.id}`);
       else setError(res.error);
@@ -56,6 +63,7 @@ export default function CensarPage() {
       <h1 className="text-[18px] font-extrabold text-tinta">Censar cliente</h1>
 
       <form action={enviar} className="flex flex-col gap-3">
+        <CapturaFoto onDataUrl={setFoto} etiqueta="Foto del cliente" requerida />
         <Campo name="nombre" label="Nombre y apellido" required placeholder="Ej. Juan Pérez" />
         <Campo name="documento" label="Documento (cédula)" placeholder="1.234.567-8" />
         <Campo name="telefono" label="Teléfono" placeholder="099 123 456" />

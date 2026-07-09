@@ -37,6 +37,7 @@ export const clienteMock: Cliente = {
   genero: "femenino",
   ciudad: "Montevideo",
   direccion_secundaria: null,
+  foto_path: null,
   creado_en: "2026-06-03T00:00:00Z",
   actualizado_en: "2026-06-03T00:00:00Z",
 };

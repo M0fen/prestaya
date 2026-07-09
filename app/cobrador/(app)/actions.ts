@@ -21,6 +21,7 @@ import {
   getPrestamosActivosPorCliente,
 } from "@/lib/data/prestamos";
 import { getPagosDePrestamo, registrarPago } from "@/lib/data/pagos";
+import { subirFotoCliente } from "@/lib/data/fotos";
 import type { Prestamo } from "@/types/db";
 import { crearVisita } from "@/lib/data/visitas";
 import { registrarBitacora } from "@/lib/data/bitacora";
@@ -42,6 +43,8 @@ export async function relevarCliente(input: {
   notas?: string | null;
   gpsLat?: number | null;
   gpsLng?: number | null;
+  /** Foto del cliente (data URL comprimido). Anti cliente-fantasma. */
+  fotoDataUrl?: string | null;
 }): Promise<ResultadoCenso> {
   try {
     const usuario = await getUsuarioActual();
@@ -83,6 +86,17 @@ export async function relevarCliente(input: {
       activo: true,
     });
     if (errAsig) throw errAsig;
+
+    // Foto del alta (best-effort): si viene, se sube y queda en foto_path. No
+    // rompe el censo si falla el Storage (p. ej. falta el bucket 0044); la foto
+    // se puede recargar después desde la ficha.
+    if (input.fotoDataUrl) {
+      try {
+        await subirFotoCliente(cliente.id, input.fotoDataUrl);
+      } catch {
+        /* best-effort */
+      }
+    }
 
     // Bitácora de campo (best-effort): alta de cliente en calle, con GPS.
     await registrarBitacora(db, {
