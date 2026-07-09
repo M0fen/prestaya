@@ -81,14 +81,29 @@ export default async function DashboardPage({
             {fechaHoyLarga(hoy)}
           </span>
         </div>
-        {reportesNuevos > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          {reportesNuevos > 0 && (
+            <Link
+              href="/admin/clientes"
+              className="rounded-full bg-[#FCE8E8] px-3 py-1.5 text-[12.5px] font-bold text-[#C0392B]"
+            >
+              {reportesNuevos} reporte(s) sin atender
+            </Link>
+          )}
+          {/* Acceso al Centro de alertas (anti-fuga): resalta si hay alertas hoy. */}
           <Link
-            href="/admin/clientes"
-            className="rounded-full bg-[#FCE8E8] px-3 py-1.5 text-[12.5px] font-bold text-[#C0392B]"
+            href="/admin/alertas"
+            className={`rounded-full px-3 py-1.5 text-[12.5px] font-bold ${
+              cobradores.alertas.length > 0
+                ? "bg-[#FBE4E2] text-[#C0392B]"
+                : "border border-borde bg-tarjeta text-gris"
+            }`}
           >
-            {reportesNuevos} reporte(s) sin atender
+            🚨 {cobradores.alertas.length > 0
+              ? `${cobradores.alertas.length} alerta(s) hoy`
+              : "Centro de alertas"}
           </Link>
-        )}
+        </div>
       </div>
 
       {/* Las 6 tarjetas de la operación (orden/nombres de Disapp, para que
