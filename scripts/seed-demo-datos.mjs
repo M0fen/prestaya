@@ -21,6 +21,9 @@ if (!url || !key) {
 const db = createClient(url, key, { auth: { persistSession: false } });
 const LIMPIAR = process.argv.includes("--limpiar");
 
+// Credenciales generadas (supervisor + cobrador demo) para imprimir al final.
+const credenciales = [];
+
 // ── Ids fijos (uuid válidos) para poder reejecutar sin duplicar ────────────
 const cobId = (n) => `d0c0b000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const cliId = (n) => `c1100000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -70,6 +73,39 @@ const COBRADORES = [
   { id: cobId(4), nombre: "Bruno Cabrera" },
   { id: cobId(5), nombre: "Lucía Méndez" },
 ];
+
+// ── Jerarquía con login (demo autocontenido del alcance por rol) ────────────
+//  Zona demo + supervisor sobre ESA zona + login para el 1er cobrador. Deja ver
+//  la regla en vivo: admin ve TODO · supervisor ve SOLO su zona · cobrador ve su
+//  ruta. Ids fijos → reejecutable y borrable con --limpiar.
+const ZONA_ID = "20a00000-0000-4000-8000-000000000001";
+const SUP_ID = "50c0b000-0000-4000-8000-000000000001"; // usuarios.id del supervisor demo
+const SUP_EMAIL = "demo-supervisor@prestaya.uy";
+const COB_LOGIN_EMAIL = "demo-cobrador@prestaya.uy"; // login para COBRADORES[0]
+
+/** Contraseña temporal legible (sin caracteres ambiguos). */
+function generarPass() {
+  const abc = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const a = new Uint32Array(12);
+  globalThis.crypto.getRandomValues(a);
+  return [...a].map((n) => abc[n % abc.length]).join("");
+}
+/** Busca un usuario de auth por email (pagina lo suficiente para este volumen). */
+async function buscarAuth(email) {
+  const { data } = await db.auth.admin.listUsers({ page: 1, perPage: 200 });
+  return (data?.users ?? []).find((u) => (u.email ?? "").toLowerCase() === email.toLowerCase()) ?? null;
+}
+/** Asegura un login (crea o resetea contraseña). Devuelve el auth_user_id. */
+async function asegurarLogin(email, password) {
+  const ex = await buscarAuth(email);
+  if (ex) {
+    await db.auth.admin.updateUserById(ex.id, { password, email_confirm: true });
+    return ex.id;
+  }
+  const { data, error } = await db.auth.admin.createUser({ email, password, email_confirm: true });
+  if (error || !data?.user) throw new Error(`auth ${email}: ${error?.message}`);
+  return data.user.id;
+}
 
 const NOMBRES = [
   "Ana Belén Rodríguez", "Carlos Machado", "Gabriela Núñez", "Jorge Píriz",
@@ -141,6 +177,20 @@ async function main() {
   console.log(LIMPIAR ? "Limpiando datos demo…" : "Sembrando datos demo…");
   await limpiar();
   if (LIMPIAR) {
+    // Jerarquía con login, en orden por FK: supervisor_zonas → zona_id de los
+    // cobradores → zona → usuario supervisor → usuarios de auth.
+    try {
+      await db.from("supervisor_zonas").delete().eq("supervisor_id", SUP_ID);
+      await db.from("usuarios").update({ zona_id: null }).in("id", COBRADORES.map((c) => c.id));
+      await db.from("zonas").delete().eq("id", ZONA_ID);
+      await db.from("usuarios").delete().eq("id", SUP_ID);
+      for (const email of [SUP_EMAIL, COB_LOGIN_EMAIL]) {
+        const a = await buscarAuth(email);
+        if (a) await db.auth.admin.deleteUser(a.id);
+      }
+    } catch (e) {
+      console.log(`⚠ limpieza de jerarquía parcial: ${e.message}`);
+    }
     await db.from("clientes").delete().in("id", TODOS_CLIENTES);
     await db.from("usuarios").delete().in("id", COBRADORES.map((c) => c.id));
     console.log("✓ Datos demo eliminados.");
@@ -213,6 +263,51 @@ async function main() {
   );
   console.log(`✓ ${CLIENTES.length} asignaciones`);
 
+  // 4b) Jerarquía con login: zona demo + supervisor sobre la zona + login para
+  //     el primer cobrador. Con esto se demuestra EN VIVO el alcance por rol
+  //     (admin ve todo · supervisor ve SOLO su zona · cobrador ve su ruta).
+  //     Degrada si la migración 0030 (zonas) aún no corrió.
+  try {
+    const supPass = generarPass();
+    const supAuthId = await asegurarLogin(SUP_EMAIL, supPass);
+    // Usuario supervisor (id fijo para poder limpiarlo).
+    await db.from("usuarios").upsert(
+      { id: SUP_ID, nombre: "Carola Supervisora (demo)", rol: "supervisor", activo: true, auth_user_id: supAuthId },
+      { onConflict: "id" },
+    );
+    // Zona demo (creado_por = un usuario válido; usamos el supervisor demo).
+    await db.from("zonas").upsert(
+      {
+        id: ZONA_ID,
+        nombre: "Zona Demo Centro",
+        color: "#1E47C8",
+        descripcion: "Zona de demostración (datos [demo-seed]).",
+        activo: true,
+        creado_por: SUP_ID,
+      },
+      { onConflict: "id" },
+    );
+    // Todos los cobradores demo entran en la zona → los ~16 clientes quedan bajo
+    // la zona del supervisor.
+    await db.from("usuarios").update({ zona_id: ZONA_ID }).in("id", COBRADORES.map((c) => c.id));
+    // Supervisor ↔ zona.
+    await db.from("supervisor_zonas").upsert(
+      { supervisor_id: SUP_ID, zona_id: ZONA_ID, asignado_por: SUP_ID },
+      { onConflict: "supervisor_id,zona_id" },
+    );
+    // Login para el primer cobrador (su ruta = sus clientes asignados).
+    const cobPass = generarPass();
+    const cobAuthId = await asegurarLogin(COB_LOGIN_EMAIL, cobPass);
+    await db.from("usuarios").update({ auth_user_id: cobAuthId }).eq("id", COBRADORES[0].id);
+    credenciales.push(
+      { rol: "supervisor", email: SUP_EMAIL, password: supPass, quien: "ve SOLO la Zona Demo Centro" },
+      { rol: "cobrador", email: COB_LOGIN_EMAIL, password: cobPass, quien: `${COBRADORES[0].nombre} — su ruta` },
+    );
+    console.log("✓ zona demo + supervisor + login de cobrador");
+  } catch (e) {
+    console.log(`⚠ jerarquía con login omitida (¿falta la migración 0030?): ${e.message}`);
+  }
+
   // 5) Pagos (historial repartido en el tiempo, atribuido al cobrador).
   const pagos = [];
   // Activos: pagan según su fiabilidad; el día de hoy queda pendiente para varios.
@@ -257,6 +352,13 @@ async function main() {
   }
   await chunkInsert("pagos", pagos);
   console.log(`✓ ${pagos.length} pagos repartidos en el tiempo`);
+
+  if (credenciales.length) {
+    console.log("\n===== LOGINS DEMO (temporales — para probar el alcance por rol) =====");
+    for (const c of credenciales)
+      console.log(`${c.rol.padEnd(11)} ${c.email.padEnd(26)} ${c.password}   (${c.quien})`);
+    console.log("El admin real (admin@prestaya.uy) ve TODA la operación, incluido lo demo.");
+  }
 
   console.log("\nDatos demo listos ✅  Entrá al panel y probá el selector Día/Semana/Mes/Año.");
   console.log("Para borrarlos: node --env-file=.env.local scripts/seed-demo-datos.mjs --limpiar");
