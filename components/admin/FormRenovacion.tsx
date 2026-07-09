@@ -12,6 +12,9 @@ import { renovarCredito } from "@/app/admin/(panel)/renovaciones/actions";
 import type { PrestamoAnterior } from "@/lib/data/renovaciones";
 import type { FrecuenciaPrestamo } from "@/types/db";
 
+/** Plazos estándar del negocio (cantidad de cuotas). Cobro diario Lun–Sáb. */
+const PLAZOS = [20, 24, 30] as const;
+
 const FRECUENCIAS: { id: FrecuenciaPrestamo; label: string }[] = [
   { id: "diario", label: "Diario" },
   { id: "semanal", label: "Semanal" },
@@ -152,6 +155,24 @@ export function FormRenovacion({
             }}
             className="rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[14px] font-semibold outline-none focus:border-azul"
           />
+          {/* Plazos estándar del negocio (cobro diario Lun–Sáb). */}
+          <div className="mt-1 flex gap-1.5">
+            {PLAZOS.map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => {
+                  setDias(String(p));
+                  setConfirmar(false);
+                }}
+                className={`rounded-full px-2.5 py-1 text-[11.5px] font-bold ${
+                  diasNum === p ? "bg-[#2453DC] text-white" : "bg-tarjeta text-gris border border-borde"
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
         </label>
       </div>
 
