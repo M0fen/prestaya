@@ -22,7 +22,7 @@ export type NavItem = {
 export const NAV_ITEMS: NavItem[] = [
   { href: "/admin", label: "Dashboard", icon: "▣", alias: ["inicio", "tablero", "resumen"] },
   { href: "/admin/alertas", label: "Centro de alertas", icon: "🚨", roles: ["admin", "supervisor"], alias: ["vigilancia", "fuga", "confianza cobrador", "sospecha", "faltante", "riesgo", "no pago"] },
-  { href: "/admin/cierre", label: "Cierre del día", icon: "🌅", roles: ["admin", "supervisor"], alias: ["cierre", "jornada", "operacion", "en vivo", "meta", "proyeccion", "hoy"] },
+  { href: "/admin/cierre", label: "Cierre del día", icon: "🌅", roles: ["admin"], alias: ["cierre", "jornada", "operacion", "en vivo", "meta", "proyeccion", "hoy"] },
   { href: "/admin/chat", label: "Chat", icon: "💬", alias: ["mensajes"] },
   { href: "/admin/notas", label: "Notas", icon: "📝" },
   { href: "/admin/cobranza", label: "Cobranza", icon: "🛡️", roles: ["admin", "supervisor"], alias: ["mapa", "geo", "cobros"] },

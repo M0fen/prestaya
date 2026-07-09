@@ -2,12 +2,13 @@
 // (Desde/Hasta, hoy por defecto), efectivo a rendir por cobrador, libro de
 // movimientos con columna Visible, y alta de gastos/desembolsos/aportes/retiros.
 // Los cobros vienen de `pagos`. El capital vive en /admin/capital.
-import { requireGestor } from "@/lib/auth";
+import { requireGestor, getActorActual } from "@/lib/auth";
+import { puedeVerZona } from "@/lib/permisos";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getResumenCajaRango, type LineaLibro } from "@/lib/data/caja";
-import { getRendicionesDia } from "@/lib/data/rendicion";
+import { getCierrePorZona } from "@/lib/data/cierreZona";
 import { FormMovimientoCaja } from "@/components/admin/FormMovimientoCaja";
-import { RendicionesDia } from "@/components/admin/RendicionesDia";
+import { CierrePorZona } from "@/components/admin/CierrePorZona";
 import { BotonImprimir } from "@/components/admin/BotonImprimir";
 import { UYU, horaDe, meses } from "@/lib/format";
 import { diaUYInicioIso, diaUYFinIso, fechaISOUY } from "@/lib/fecha";
@@ -17,8 +18,10 @@ export const dynamic = "force-dynamic";
 const esYmd = (v: string | undefined): string | null =>
   v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
 
-function fechaHora(iso: string): string {
+function fechaHora(iso: string | null | undefined): string {
+  if (!iso) return "—"; // fecha ausente → guion, no "Invalid Date"
   const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—"; // fecha inválida → guion
   return `${d.getDate()} ${meses[d.getMonth()].slice(0, 3)} ${horaDe(iso)}`;
 }
 
@@ -48,8 +51,16 @@ export default async function CajaPage({
     desde: diaUYInicioIso(desde),
     hasta: diaUYFinIso(hasta),
   });
-  // Rendiciones de jornada: solo tienen sentido cuando el rango es "hoy".
-  const rendiciones = esHoy ? await getRendicionesDia(db) : null;
+  // Cierre por zona (rendiciones agrupadas): solo tiene sentido cuando es "hoy".
+  const actor = await getActorActual();
+  const cierre = esHoy ? await getCierrePorZona(db) : null;
+  // Zonas que el usuario actual puede cerrar (supervisor de la zona; admin todas).
+  const cerrables =
+    actor && cierre
+      ? cierre.consolidado.zonas
+          .filter((z) => z.zonaId && puedeVerZona(actor, z.zonaId))
+          .map((z) => z.zonaId as string)
+      : [];
 
   const qs = new URLSearchParams({ desde, hasta, periodo: esHoy ? "hoy" : "mes" });
   const csvHref = `/api/reportes/caja?${qs.toString()}`;
@@ -133,8 +144,8 @@ export default async function CajaPage({
         </section>
       )}
 
-      {/* Rendiciones de jornada (solo hoy) */}
-      {rendiciones && <RendicionesDia r={rendiciones} />}
+      {/* Cierre por zona: rendiciones agrupadas + confirmación del supervisor (solo hoy) */}
+      {cierre && <CierrePorZona resumen={cierre} cerrables={cerrables} />}
 
       {/* Libro de movimientos con columna Visible */}
       <section className="overflow-x-auto rounded-[16px] border border-borde bg-tarjeta">

@@ -4,7 +4,7 @@
 //  · Alertas que importan: faltantes de caja, sin rendir, mora crítica.  [1.2 interno]
 //  · Proyección del mes ("a este ritmo llegás a X").  [1.4]
 // Solo gestores. Todo LECTURA, reusa la capa de datos ya testeada.
-import { requireGestor } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getResumenPeriodo } from "@/lib/data/periodo";
 import { getResumenCaja } from "@/lib/data/caja";
@@ -19,7 +19,9 @@ import { ActivarAvisos } from "@/components/pwa/ActivarAvisos";
 export const dynamic = "force-dynamic";
 
 export default async function CierrePage() {
-  await requireGestor();
+  // Foto operativa del DUEÑO (recaudo/proyección/meta globales). Solo admin: el
+  // supervisor tiene su cierre acotado a la zona en /admin/caja (Cierre por zona).
+  await requireAdmin();
   const db = await createSupabaseServer();
 
   const [dia, mes, caja, rend, mora, meta] = await Promise.all([

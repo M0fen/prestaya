@@ -11,6 +11,7 @@ import type { EstadoRendicion } from "@/lib/rendicion";
 import { getGastosCobradorHoy } from "./gastos";
 import { tablaFaltante } from "./errores";
 import { traerTodo } from "./paginado";
+import type { Alcance } from "./alcance";
 
 export interface RendicionDia {
   id: string;
@@ -136,18 +137,28 @@ export interface ResumenRendiciones {
   disponible: boolean;
 }
 
-/** Vista del gestor: rendiciones de hoy + quién falta rendir. Corre como gestor. */
+/**
+ * Vista del gestor: rendiciones de hoy + quién falta rendir. Corre como gestor.
+ * `alcance` opcional: si viene y NO es global (supervisor con zona), acota TODO
+ * a sus cobradores — si no, le mostraríamos faltantes/sin-rendir de otras zonas
+ * (acusaría mal + fuga). Sin `alcance` = comportamiento global de siempre.
+ */
 export async function getRendicionesDia(
   db: SupabaseClient,
   hoy: Date = new Date(),
+  alcance?: Alcance,
 ): Promise<ResumenRendiciones> {
   const desde = inicioDiaUYIso(hoy);
+  // Cobradores del alcance (few → `.in` directo es seguro). null = sin recorte.
+  const soloCobradores = alcance && !alcance.global ? alcance.cobradorIds : null;
 
   // Rendiciones de hoy (degrada si falta 0013).
   let rows: Record<string, unknown>[] = [];
   let disponible = true;
   try {
-    const { data, error } = await db.from("rendiciones").select("*").eq("fecha", toIso(hoyUY(hoy)));
+    let q = db.from("rendiciones").select("*").eq("fecha", toIso(hoyUY(hoy)));
+    if (soloCobradores) q = q.in("cobrador_id", soloCobradores);
+    const { data, error } = await q;
     if (error) throw error;
     rows = data ?? [];
   } catch (e) {
@@ -158,15 +169,15 @@ export async function getRendicionesDia(
   // Recaudado por cobrador hoy (para mostrar a los que faltan rendir). Se PAGINA
   // (con orden estable por id): un día grande puede superar las 1000 filas de
   // PostgREST y truncar los montos en silencio (esto alimenta alertas de dinero).
-  const pagos = await traerTodo<{ monto: number; registrado_por: string | null }>((d, h) =>
-    db
+  const pagos = await traerTodo<{ monto: number; registrado_por: string | null }>((d, h) => {
+    let q = db
       .from("pagos")
       .select("monto, registrado_por")
       .eq("anulado", false)
-      .gte("registrado_en", desde)
-      .order("id", { ascending: true })
-      .range(d, h),
-  );
+      .gte("registrado_en", desde);
+    if (soloCobradores) q = q.in("registrado_por", soloCobradores);
+    return q.order("id", { ascending: true }).range(d, h);
+  });
   const recaudadoPorCob = new Map<string, { recaudado: number; cobros: number }>();
   for (const p of pagos ?? []) {
     const id = p.registrado_por as string | null;
