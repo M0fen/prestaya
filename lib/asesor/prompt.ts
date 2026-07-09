@@ -5,13 +5,13 @@
 // ─────────────────────────────────────────────────────────────────────────
 import type { Rol } from "@/types/db";
 
-// DeepSeek deprecó `deepseek-chat` y `deepseek-reasoner` el 2026-07-24 (pasan a
-// ser modos de deepseek-v4-flash). Usamos los IDs vigentes (V4), base_url igual,
-// API compatible con OpenAI. Rápido = Flash; profundo = Pro (más capaz).
-// Fuente: api-docs.deepseek.com (verificado 2026-07-05).
-export const MODELO_ASESOR = "deepseek-v4-flash";
+// Modelos oficiales y estables de DeepSeek (API compatible con OpenAI):
+//   · deepseek-chat     → rápido, soporta function calling (tools). Modo "rápido".
+//   · deepseek-reasoner → razonamiento (R1), sin tools. Modo "análisis profundo".
+// Si DeepSeek publica nuevos IDs, actualizarlos acá (base_url no cambia).
+export const MODELO_ASESOR = "deepseek-chat";
 /** Modelo de razonamiento para el modo "análisis profundo". */
-export const MODELO_ASESOR_PROFUNDO = "deepseek-v4-pro";
+export const MODELO_ASESOR_PROFUNDO = "deepseek-reasoner";
 /** Tono estable (poco creativo): consejo financiero, no poesía. */
 export const TEMPERATURA_ASESOR = 0.4;
 export const MAX_TOKENS_ASESOR = 1200;
