@@ -9,6 +9,10 @@ import { traerTodo } from "./paginado";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { inicioDiaUYIso, inicioMesUYIso } from "@/lib/fecha";
 import { tablaFaltante } from "./errores";
+import type { CuentaCaja } from "@/types/db";
+
+// Re-export para que los consumidores (acciones) importen el tipo desde acá.
+export type { CuentaCaja } from "@/types/db";
 
 export type PeriodoCaja = "hoy" | "mes";
 export type TipoMovimiento = "ingreso" | "egreso" | "desembolso" | "retiro";
@@ -33,6 +37,9 @@ export interface LineaLibro {
   concepto: string;
   monto: number;
   signo: 1 | -1;
+  /** Columna "Visible" de Disapp: si el movimiento se ve en la app del cobrador.
+   *  Los cobros siempre son visibles. */
+  visible: boolean;
 }
 
 export interface ResumenCaja {
@@ -60,6 +67,28 @@ export async function getResumenCaja(
   opts?: { limiteLibro?: number },
 ): Promise<ResumenCaja> {
   const desde = periodo === "mes" ? inicioMesUYIso(hoy) : inicioDiaUYIso(hoy);
+  return resumenCajaCore(db, { desde, hasta: null, periodo }, opts);
+}
+
+/**
+ * Caja de un RANGO explícito [desde, hasta) — para el filtro Desde/Hasta de la
+ * página. Solo cuenta OPERATIVA (los movimientos de capital viven en su propia
+ * pantalla, ver lib/data/capital.ts). `hasta` es el fin EXCLUSIVO.
+ */
+export async function getResumenCajaRango(
+  db: SupabaseClient,
+  rango: { desde: string; hasta: string },
+  opts?: { limiteLibro?: number },
+): Promise<ResumenCaja> {
+  return resumenCajaCore(db, { desde: rango.desde, hasta: rango.hasta, periodo: "hoy" }, opts);
+}
+
+async function resumenCajaCore(
+  db: SupabaseClient,
+  rango: { desde: string; hasta: string | null; periodo: PeriodoCaja },
+  opts?: { limiteLibro?: number },
+): Promise<ResumenCaja> {
+  const { desde, hasta, periodo } = rango;
 
   // 1) Cobros del período (ingreso principal). A ESCALA: se PAGINA (el mes puede
   //    ser >1000 pagos) y el nombre del cliente va EMBEBIDO (evita .in de miles).
@@ -69,24 +98,26 @@ export async function getResumenCaja(
     registrado_por: string | null;
     prestamo_id: string;
     prestamos: { clientes: { nombre: string } | null } | null;
-  }>((d, h) =>
-    db
+  }>((d, h) => {
+    let query = db
       .from("pagos")
       .select("monto, registrado_en, registrado_por, prestamo_id, prestamos(clientes(nombre))")
       .eq("anulado", false)
-      .gte("registrado_en", desde)
-      .range(d, h),
-  );
+      .gte("registrado_en", desde);
+    if (hasta) query = query.lt("registrado_en", hasta);
+    // Orden estable por PK: sin él la paginación puede duplicar/saltear filas.
+    return query.order("id", { ascending: true }).range(d, h);
+  });
 
-  // 2) Movimientos de caja (degrada a vacío si falta 0010).
+  // 2) Movimientos de caja OPERATIVA (degrada a vacío si falta 0010). Se filtra
+  //    cuenta='operativa' en JS: defensivo si 0041 aún no agregó la columna.
   let movimientos: Record<string, unknown>[] = [];
   try {
-    const { data, error } = await db
-      .from("movimientos_caja")
-      .select("*")
-      .gte("registrado_en", desde);
+    let query = db.from("movimientos_caja").select("*").gte("registrado_en", desde);
+    if (hasta) query = query.lt("registrado_en", hasta);
+    const { data, error } = await query;
     if (error) throw error;
-    movimientos = data ?? [];
+    movimientos = (data ?? []).filter((m) => ((m.cuenta as string | null) ?? "operativa") === "operativa");
   } catch (e) {
     if (!tablaFaltante(e)) throw e;
   }
@@ -124,6 +155,7 @@ export async function getResumenCaja(
       concepto: `Cobro · ${p.prestamos?.clientes?.nombre ?? "cliente"}`,
       monto,
       signo: 1,
+      visible: true,
     });
   }
 
@@ -153,6 +185,7 @@ export async function getResumenCaja(
         ETIQUETA[tipo] + (quien ? ` · ${quien}` : ""),
       monto,
       signo: SIGNO[tipo],
+      visible: (m.visible as boolean | undefined) ?? true,
     });
   }
 
@@ -190,6 +223,10 @@ export interface NuevoMovimiento {
   descripcion: string | null;
   cobradorId: string | null;
   registradoPor: string;
+  /** operativa (gastos de ruta) | capital (aportes/retiros del dueño). Default operativa. */
+  cuenta?: CuentaCaja;
+  /** Se ve en la app del cobrador (columna Visible). Default true. */
+  visible?: boolean;
 }
 
 export async function registrarMovimientoCaja(
@@ -203,6 +240,8 @@ export async function registrarMovimientoCaja(
     descripcion: m.descripcion,
     cobrador_id: m.cobradorId,
     registrado_por: m.registradoPor,
+    cuenta: m.cuenta ?? "operativa",
+    visible: m.visible ?? true,
   });
   if (error) throw error;
 }

@@ -59,3 +59,46 @@ export function inicioMesUYIso(base: Date = new Date()): string {
   s.setUTCHours(0, 0, 0, 0);
   return new Date(s.getTime() + UY_OFFSET_MIN * 60000).toISOString();
 }
+
+/** Inicio del día UY de una fecha "YYYY-MM-DD" como instante ISO (UTC−3 fijo). */
+export function diaUYInicioIso(ymd: string): string {
+  return `${ymd}T00:00:00-03:00`;
+}
+
+/** Días de COBRO (Lun–Sáb, sin domingos) en los próximos `nCalendario` días desde
+ *  `hoy` (sin incluir hoy). Para proyecciones que no deben contar domingos. */
+export function diasCobrablesProximos(hoy: Date, nCalendario: number): number {
+  let count = 0;
+  const d = new Date(hoy);
+  for (let k = 0; k < nCalendario; k++) {
+    d.setDate(d.getDate() + 1);
+    if (d.getDay() !== 0) count++; // 0 = domingo
+  }
+  return count;
+}
+
+/** Días de cobro (Lun–Sáb) del mes de `hoy`: transcurridos (día 1 → hoy inclusive)
+ *  y total del mes. Para proyecciones mensuales que no cuentan domingos. */
+export function diasCobrablesDelMes(hoy: Date): { transcurridos: number; total: number } {
+  const y = hoy.getFullYear();
+  const m = hoy.getMonth();
+  const finMes = new Date(y, m + 1, 0).getDate();
+  let transcurridos = 0;
+  let total = 0;
+  for (let d = 1; d <= finMes; d++) {
+    if (new Date(y, m, d).getDay() === 0) continue; // domingo no cuenta
+    total++;
+    if (d <= hoy.getDate()) transcurridos++;
+  }
+  return { transcurridos, total };
+}
+
+/** Inicio del día SIGUIENTE (fin EXCLUSIVO de un rango que incluye a `ymd`). */
+export function diaUYFinIso(ymd: string): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const nx = new Date(Date.UTC(y, m - 1, d + 1)); // suma 1 día sin líos de TZ
+  const yy = nx.getUTCFullYear();
+  const mm = String(nx.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(nx.getUTCDate()).padStart(2, "0");
+  return `${yy}-${mm}-${dd}T00:00:00-03:00`;
+}

@@ -39,27 +39,30 @@ describe("construirVistaCliente (demo)", () => {
   it("ponerse al día: $1.500 y fecha de finalización en julio", () => {
     expect(v.necesitaPonerseAlDia).toBe(true);
     expect(v.montoParaAlDia).toBe("$1.500"); // día 11 ($1.000) + falta de hoy ($500)
-    expect(v.fechaFinLarga).toContain("2 de julio");
+    expect(v.fechaFinLarga).toContain("7 de julio"); // día 30 Lun–Sáb
   });
 
-  it("próxima cuota: mañana, 15 de junio", () => {
+  it("próxima cuota: mañana, 17 de junio", () => {
     expect(v.proxRelativo).toBe("Mañana");
-    expect(v.proxFechaLarga).toContain("15 de junio");
+    expect(v.proxFechaLarga).toContain("17 de junio");
   });
 
   it("historial: 11 pagos, más reciente primero, abono etiquetado", () => {
+    // FIFO: 10.500 abonados llenan los días 1–10 y dejan el abono de 500 en el
+    // día 11 (frontera del acumulado) → 11 ítems, el más reciente es el día 11.
     expect(v.historial).toHaveLength(11);
-    expect(v.historial[0].dia).toBe(12);
+    expect(v.historial[0].dia).toBe(11);
     expect(v.historial[0].estadoLabel).toBe("Abono parcial");
     expect(v.historial[0].monto).toBe("$500");
   });
 
-  it("comprobante: cada día trae sus pagos con hora y fecha larga", () => {
-    const dia12 = v.historial.find((h) => h.dia === 12)!;
-    expect(dia12.pagos).toHaveLength(1);
-    expect(dia12.pagos[0].monto).toBe("$500");
-    expect(dia12.pagos[0].hora).toMatch(/^\d{2}:\d{2}$/);
-    expect(dia12.fechaLarga).toMatch(/14 de junio/);
+  it("comprobante: el pago real (con hora) cae en la cuota que llena (FIFO)", () => {
+    const dia11 = v.historial.find((h) => h.dia === 11)!;
+    expect(dia11.pagos).toHaveLength(1);
+    expect(dia11.pagos[0].monto).toBe("$500");
+    expect(dia11.pagos[0].hora).toMatch(/^\d{2}:\d{2}$/);
+    // Fecha de la cuota 11 en el cronograma Lun–Sáb (día 11 = lunes 15 de junio).
+    expect(dia11.fechaLarga).toMatch(/15 de junio/);
   });
 
   it("30 casillas en el cartón, una marcada como hoy", () => {

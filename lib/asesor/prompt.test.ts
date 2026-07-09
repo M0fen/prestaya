@@ -8,8 +8,10 @@ const RESUMEN: ResumenFinanciero = {
   cartera: {
     capitalColocado: 500000,
     carteraPorCobrar: 390000,
+    porCobrarHoy: 1000,
     creditosActivos: 1,
     clientesActivos: 1,
+    deudoresActivos: 1,
     creditosFinalizados: 0,
     incobrables: 0,
   },

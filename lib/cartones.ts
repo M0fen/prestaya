@@ -26,23 +26,55 @@ const PASO_DIAS: Record<Exclude<FrecuenciaPrestamo, "mensual">, number> = {
 };
 
 /**
+ * DOMINGO no es día de cobro (verificado con la data real: <0,1% de los pagos
+ * caen en domingo). El cobro es de LUNES a SÁBADO (6 días/semana). Por eso:
+ *  · el cronograma DIARIO avanza de a un día HÁBIL, salteando domingos;
+ *  · ninguna cuota (de cualquier frecuencia) vence en domingo: si cae domingo,
+ *    se corre al lunes.
+ */
+
+/**
+ * Fecha de la cuota diaria número `i` (0-based) saltando domingos. O(1): calcula
+ * cuántas semanas y días hábiles hay que sumar en vez de iterar (importa: se
+ * llama una vez por cuota × crédito sobre toda la cartera).
+ */
+function fechaDiariaHabil(inicio: Date, i: number): Date {
+  const d0 = new Date(inicio);
+  // Si el crédito arranca un domingo, el primer día de cobro es el lunes.
+  if (d0.getDay() === 0) d0.setDate(d0.getDate() + 1);
+  // Posición del día de arranque dentro de la semana hábil: Lun=0 … Sáb=5.
+  const pos = (d0.getDay() + 6) % 7; // d0 nunca es domingo acá
+  const slot = pos + i; // índice absoluto de día hábil
+  const semanas = Math.floor(slot / 6);
+  const rem = slot % 6; // 0=Lun … 5=Sáb
+  const dias = semanas * 7 + (rem - pos);
+  const f = new Date(d0);
+  f.setDate(d0.getDate() + dias);
+  return f;
+}
+
+/**
  * Fecha de la cuota número `i` (0-based) contando desde `inicio`, según la
- * frecuencia. Diario/semanal/quincenal avanzan por días fijos; mensual avanza
- * por meses calendario (con guarda para fin de mes: 31-ene + 1 mes → 28/29-feb).
+ * frecuencia. Diario avanza por días HÁBILES (Lun–Sáb); semanal/quincenal por
+ * días fijos; mensual por meses calendario (con guarda para fin de mes: 31-ene
+ * + 1 mes → 28/29-feb). Ninguna cuota vence en domingo (se corre al lunes).
  */
 export function fechaDeCuota(
   inicio: Date,
   i: number,
   frecuencia: FrecuenciaPrestamo = "diario",
 ): Date {
+  if (frecuencia === "diario") return fechaDiariaHabil(inicio, i);
   const f = new Date(inicio);
   if (frecuencia === "mensual") {
     f.setMonth(inicio.getMonth() + i);
     // Si el día "se pasó" (p. ej. 31 → mes sin 31), caemos al último día real.
     if (f.getDate() !== inicio.getDate()) f.setDate(0);
-    return f;
+  } else {
+    f.setDate(inicio.getDate() + i * PASO_DIAS[frecuencia]);
   }
-  f.setDate(inicio.getDate() + i * PASO_DIAS[frecuencia]);
+  // Ninguna cuota se cobra en domingo: si cae domingo, se corre al lunes.
+  if (f.getDay() === 0) f.setDate(f.getDate() + 1);
   return f;
 }
 
@@ -74,22 +106,25 @@ export function calcularEstadosCarton(
   // (que trae hora) funcione igual que una fecha de medianoche.
   const hoyMid = aMedianoche(hoy);
 
-  // Suma de abonos por día (un día puede recibir varios pagos).
-  const pagosPorDia: Record<number, number> = {};
-  for (const p of pagos) {
-    pagosPorDia[p.dia_credito] = (pagosPorDia[p.dia_credito] || 0) + p.monto;
-  }
+  // Total abonado al crédito. En cobro diario cada pago cubre la cuota MÁS VIEJA
+  // impaga (FIFO): la plata "llena" las cuotas desde el día 1 hacia adelante. Por
+  // eso el estado de cada día se deriva del ACUMULADO pagado, NO de la fecha
+  // exacta de cada abono (dato que la fuente Disapp no provee de forma fiable:
+  // su "Cuota #" es un snapshot, no el índice del pago). Consecuencia natural y
+  // correcta: un cliente que debe N cuotas las debe "al final" — los huecos
+  // (atraso) quedan en los últimos días vencidos, no salteados en el medio.
+  const totalPagado = pagos.reduce((s, p) => s + p.monto, 0);
 
   const dias: DiaEstado[] = [];
-  let totalPagado = 0;
   let diaActual = 0;
 
   for (let i = 0; i < totalDias; i++) {
     // Fecha calendario de esta cuota (según la frecuencia del crédito).
     const fecha = fechaDeCuota(start, i, frecuencia);
 
-    const pagado = pagosPorDia[i + 1] || 0;
-    totalPagado += pagado;
+    // Cuánto de lo abonado cae en ESTE día tras llenar los i días previos (FIFO).
+    // Se satura a [0, cuota]: cada día se cubre como máximo con una cuota.
+    const pagado = Math.max(0, Math.min(cuota, totalPagado - i * cuota));
 
     const esFuturo = fecha.getTime() > hoyMid.getTime();
     const esHoy = fecha.getTime() === hoyMid.getTime();

@@ -20,7 +20,9 @@ const pagosBase: Pick<Pago, "dia_credito" | "monto">[] = [
   { dia_credito: 12, monto: 10000 },
 ];
 
-const HOY = parseFecha("2026-06-14");
+// Con cobro Lun–Sáb, la 12ª cuota diaria del crédito (inicio miércoles 03-jun)
+// cae el martes 16-jun (03-jun era la 1ª; se saltea el domingo 07 y el 14).
+const HOY = parseFecha("2026-06-16");
 
 describe("calcularEstadosCarton — totales (caso base)", () => {
   const r = calcularEstadosCarton(prestamoBase, pagosBase, HOY);
@@ -49,8 +51,8 @@ describe("calcularEstadosCarton — totales (caso base)", () => {
   it("monto para ponerse al día = día 11 (20.000) + falta de hoy (10.000)", () => {
     expect(r.montoParaAlDia).toBe(30000);
   });
-  it("fecha de finalización = día 30 (2026-07-02)", () => {
-    expect(r.fechaFin).toBe("2026-07-02");
+  it("fecha de finalización = día 30 (Lun–Sáb → 2026-07-07)", () => {
+    expect(r.fechaFin).toBe("2026-07-07");
   });
 });
 
@@ -61,10 +63,14 @@ describe("calcularEstadosCarton — estados por día (caso base)", () => {
   it("días 1–10 pagados", () => {
     for (let d = 1; d <= 10; d++) expect(estadoDe(d)).toBe("pagado");
   });
-  it("día 11 (pasado sin pago) atrasado", () => {
-    expect(estadoDe(11)).toBe("atrasado");
+  it("día 11 (frontera del acumulado: cae el abono parcial de 10.000) pendiente", () => {
+    // FIFO: 210.000 abonados llenan los días 1–10 (20.000 c/u) y dejan 10.000
+    // en el día 11 → abono parcial → pendiente (antes, con el modelo por fecha
+    // exacta, este día quedaba "atrasado"; FIFO es lo correcto para cobro diario).
+    expect(estadoDe(11)).toBe("pendiente");
+    expect(r.dias.find((d) => d.dia === 11)!.montoPagado).toBe(10000);
   });
-  it("día 12 (hoy, abono parcial) pendiente", () => {
+  it("día 12 (hoy, sin plata restante) pendiente por regla de HOY", () => {
     expect(estadoDe(12)).toBe("pendiente");
     expect(r.dias.find((d) => d.dia === 12)!.esHoy).toBe(true);
   });
@@ -83,22 +89,24 @@ describe("calcularEstadosCarton — regla de oro: HOY nunca es atrasado", () => 
 
 describe("calcularEstadosCarton — normaliza 'hoy' con hora", () => {
   it("una fecha con hora se trata igual que medianoche", () => {
-    const hoyConHora = new Date(2026, 5, 14, 17, 45, 30); // 14-jun 17:45
+    const hoyConHora = new Date(2026, 5, 16, 17, 45, 30); // 16-jun 17:45 (día 12)
     const r = calcularEstadosCarton(prestamoBase, pagosBase, hoyConHora);
     expect(r.diaActual).toBe(12);
     expect(r.dias.find((d) => d.dia === 12)!.esHoy).toBe(true);
   });
 });
 
-describe("calcularEstadosCarton — suma varios abonos del mismo día", () => {
-  it("dos abonos de 8.000 + 12.000 completan la cuota (pagado)", () => {
+describe("calcularEstadosCarton — suma varios abonos (acumulado)", () => {
+  it("dos abonos de 8.000 + 12.000 completan una cuota (pagado)", () => {
+    // FIFO: 20.000 abonados llenan la 1ª cuota, sin importar en qué día se pagó.
+    const prestamo = { cuota_diaria: 20000, total_dias: 1, fecha_inicio: "2026-06-14" };
     const pagos = [
-      { dia_credito: 12, monto: 8000 },
-      { dia_credito: 12, monto: 12000 },
+      { dia_credito: 99, monto: 8000 }, // dia_credito ya NO se usa (era el bug)
+      { dia_credito: 99, monto: 12000 },
     ];
-    const r = calcularEstadosCarton(prestamoBase, pagos, HOY);
-    expect(r.dias.find((d) => d.dia === 12)!.montoPagado).toBe(20000);
-    expect(r.dias.find((d) => d.dia === 12)!.estado).toBe("pagado");
+    const r = calcularEstadosCarton(prestamo, pagos, HOY);
+    expect(r.dias[0].montoPagado).toBe(20000);
+    expect(r.dias[0].estado).toBe("pagado");
   });
 });
 
@@ -107,7 +115,7 @@ describe("calcularEstadosCarton — próxima cuota", () => {
     const r = calcularEstadosCarton(prestamoBase, pagosBase, HOY);
     expect(r.proxima).not.toBeNull();
     expect(r.proxima!.dia).toBe(13);
-    expect(r.proxima!.fecha).toBe("2026-06-15");
+    expect(r.proxima!.fecha).toBe("2026-06-17"); // miércoles siguiente a hoy (mar 16)
     expect(r.proxima!.diasRestantes).toBe(1); // mañana
   });
 
@@ -173,11 +181,35 @@ describe("calcularEstadosCarton — modalidades (frecuencia)", () => {
     expect(r.proxima?.diasRestantes).toBe(7);
   });
 
+  it("DIARIO saltea domingos: ninguna cuota vence en domingo", () => {
+    // Inicio miércoles 03-jun. 12 cuotas diarias → 2 semanas Lun–Sáb.
+    const inicio = parseFecha("2026-06-03");
+    const fechas = Array.from({ length: 12 }, (_, i) => toIso(fechaDeCuota(inicio, i, "diario")));
+    // Ninguna cae en domingo (getDay 0).
+    for (const f of fechas) expect(parseFecha(f).getDay()).not.toBe(0);
+    // Se saltean los domingos 07 y 14 de junio.
+    expect(fechas).not.toContain("2026-06-07");
+    expect(fechas).not.toContain("2026-06-14");
+    // La 4ª cuota (sáb 06) → la 5ª es lunes 08, no domingo 07.
+    expect(fechas[4]).toBe("2026-06-08");
+  });
+
+  it("si el crédito arranca un domingo, la 1ª cuota se cobra el lunes", () => {
+    const inicio = parseFecha("2026-06-07"); // domingo
+    expect(toIso(fechaDeCuota(inicio, 0, "diario"))).toBe("2026-06-08"); // lunes
+  });
+
+  it("una cuota semanal que caería en domingo se corre al lunes", () => {
+    const inicio = parseFecha("2026-06-07"); // domingo
+    // +7 = domingo 14 → se corre al lunes 15.
+    expect(toIso(fechaDeCuota(inicio, 1, "semanal"))).toBe("2026-06-15");
+  });
+
   it("diario y semanal difieren: el mismo día i cae en fechas distintas", () => {
     const base = { cuota_diaria: 1000, total_dias: 5, fecha_inicio: "2026-06-03" };
     const diario = calcularEstadosCarton({ ...base, frecuencia: "diario" }, [], parseFecha("2026-06-03"));
     const semanal = calcularEstadosCarton({ ...base, frecuencia: "semanal" }, [], parseFecha("2026-06-03"));
-    expect(diario.dias[4].fecha).toBe("2026-06-07"); // +4 días
+    expect(diario.dias[4].fecha).toBe("2026-06-08"); // +4 días hábiles (saltea dom 07)
     expect(semanal.dias[4].fecha).toBe("2026-07-01"); // +4 semanas
   });
 });

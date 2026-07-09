@@ -34,10 +34,11 @@ describe("calcularAlertaMora", () => {
   });
 
   it("crítico: pagó los primeros 5 y se cortó hace 11 días → visitar hoy", () => {
-    // Inicio jun-01 → hoy es el día 16. Pagó 1..5; 6..15 vencidos; 16 es hoy.
+    // Inicio jun-01 (lunes). Con cobro Lun–Sáb, hoy (16-jun) es el día 14 (se
+    // saltearon los domingos 07 y 14). Pagó 1..5; 6..13 vencidos; 14 es hoy.
     const r = correr("2026-06-01", pagosDias(rango(5)));
-    expect(r.senales.rachaAtraso).toBe(10);
-    expect(r.senales.atrasosTotales).toBe(10);
+    expect(r.senales.rachaAtraso).toBe(8);
+    expect(r.senales.atrasosTotales).toBe(8);
     expect(r.senales.diasSinPagar).toBe(11);
     expect(r.riesgo).toBeGreaterThanOrEqual(70);
     expect(r.nivel).toBe("critico");
@@ -48,8 +49,9 @@ describe("calcularAlertaMora", () => {
   });
 
   it("medio: 2 días seguidos sin cubrir tras venir al día → vigilar", () => {
-    // Inicio jun-08 → hoy es el día 9. Pagó 1..6; 7 y 8 vencidos; 9 es hoy.
-    const r = correr("2026-06-08", pagosDias(rango(6)));
+    // Inicio jun-06 (sábado). Con cobro Lun–Sáb, hoy (16-jun) es el día 9 (se
+    // saltearon los domingos 07 y 14). Pagó 1..6; 7 y 8 vencidos; 9 es hoy.
+    const r = correr("2026-06-06", pagosDias(rango(6)));
     expect(r.senales.rachaAtraso).toBe(2);
     expect(r.nivel).toBe("medio");
     expect(r.riesgo).toBeGreaterThanOrEqual(20);

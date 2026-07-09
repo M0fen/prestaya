@@ -7,7 +7,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getUsuarioActual, esGestor } from "@/lib/auth";
-import { registrarMovimientoCaja, type TipoMovimiento } from "@/lib/data/caja";
+import { registrarMovimientoCaja, type TipoMovimiento, type CuentaCaja } from "@/lib/data/caja";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { UYU } from "@/lib/format";
 
@@ -20,6 +20,9 @@ export async function agregarMovimientoCaja(input: {
   categoria?: string | null;
   descripcion?: string | null;
   cobradorId?: string | null;
+  /** operativa (default) | capital. La vista de Capital fuerza 'capital'. */
+  cuenta?: string;
+  visible?: boolean;
 }): Promise<Resultado> {
   const usuario = await getUsuarioActual();
   if (!usuario || !usuario.activo || !esGestor(usuario.rol)) {
@@ -27,6 +30,11 @@ export async function agregarMovimientoCaja(input: {
   }
   if (!TIPOS.includes(input.tipo as TipoMovimiento)) {
     return { ok: false, error: "Tipo de movimiento inválido." };
+  }
+  const cuenta: CuentaCaja = input.cuenta === "capital" ? "capital" : "operativa";
+  // Los movimientos de CAPITAL (aportes/retiros del dueño) son sensibles → solo admin.
+  if (cuenta === "capital" && usuario.rol !== "admin") {
+    return { ok: false, error: "Solo el administrador registra capital." };
   }
   const monto = Math.round(Number(input.monto));
   if (!(monto > 0)) return { ok: false, error: "El monto debe ser mayor a 0." };
@@ -40,15 +48,18 @@ export async function agregarMovimientoCaja(input: {
       descripcion: (input.descripcion ?? "").trim().slice(0, 200) || null,
       cobradorId: input.cobradorId || null,
       registradoPor: usuario.id,
+      cuenta,
+      visible: input.visible ?? true,
     });
     await registrarAuditoria(db, {
       actorId: usuario.id,
       actorNombre: usuario.nombre,
-      accion: "Registró movimiento de caja",
+      accion: cuenta === "capital" ? "Registró movimiento de capital" : "Registró movimiento de caja",
       entidad: "caja",
       detalle: `${input.tipo} ${UYU(monto)}${input.categoria ? ` · ${input.categoria}` : ""}`,
     });
     revalidatePath("/admin/caja");
+    revalidatePath("/admin/capital");
     return { ok: true };
   } catch {
     return { ok: false, error: "No se pudo registrar. ¿Corriste la migración 0010?" };

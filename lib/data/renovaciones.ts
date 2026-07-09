@@ -9,6 +9,7 @@ import type { Cliente, Pago, Prestamo } from "@/types/db";
 import type { ResultadoScore } from "@/types/scoring";
 import { getClientesAsignados } from "./clientes";
 import { getPagosDePrestamo } from "./pagos";
+import { getActivosConPagos, pagosDeActivo } from "./activos";
 import { getPrestamoPorId } from "./prestamos";
 import { getHistorialCrediticio } from "./scoring";
 import { calcularEstadosCarton } from "@/lib/cartones";
@@ -46,6 +47,7 @@ export async function getCandidatosRenovacion(
   db: SupabaseClient,
   hoy: Date = new Date(),
   umbral = 0.75,
+  limite = 60,
 ): Promise<CandidatoRenovacion[]> {
   const clientes = await getClientesAsignados(db);
   if (clientes.length === 0) return [];
@@ -67,41 +69,71 @@ export async function getCandidatosRenovacion(
       estado: "activo",
     } as unknown as Prestamo);
 
-  const candidatos: CandidatoRenovacion[] = [];
+  // Total pagado por crédito activo en UNA sola RPC (antes: getPagosDePrestamo
+  // por cada uno de ~2.226 clientes con crédito → N+1). El cartón solo usa la
+  // suma, así que basta un pago sintético con el total.
+  const activos = await getActivosConPagos(db);
+  const pagadoDe = new Map<string, number>();
+  // pagosDeActivo es transición-safe: usa `pagado` (RPC nueva) o suma `pagos` (vieja).
+  for (const a of activos) pagadoDe.set(a.id, pagosDeActivo(a).reduce((s, p) => s + p.monto, 0));
+
   const hoyCal = hoyUY(hoy);
 
+  // 1) Pre-candidatos con cálculo BARATO (cartón desde la suma pagada), sin score.
+  interface Pre {
+    cliente: Cliente;
+    prestamo: Prestamo;
+    progresoPct: number;
+    completo: boolean;
+    cuotasFaltantes: number;
+  }
+  const pre: Pre[] = [];
   for (const cliente of clientes) {
     const prestamo = prestamoDe.get(cliente.id);
     if (!prestamo) continue;
-
-    const pagos: Pago[] = await getPagosDePrestamo(db, prestamo.id);
+    const pagos = [{ dia_credito: 1, monto: pagadoDe.get(prestamo.id) ?? 0 }];
     const r = calcularEstadosCarton(prestamo, pagos, hoyCal);
-    const progreso = r.progresoPct / 100;
-    if (progreso < umbral) continue; // aún lejos de renovar
-
+    if (r.progresoPct / 100 < umbral) continue; // aún lejos de renovar
     const cuotasCubiertas = r.dias.filter((d) => d.estado === "pagado").length;
-    const historial = await getHistorialCrediticio(db, cliente.id);
-    const score = calcularScore({ ...historial, hoy: hoyCal });
-
-    candidatos.push({
+    pre.push({
       cliente,
+      prestamo,
       progresoPct: r.progresoPct,
       completo: r.falta === 0,
       cuotasFaltantes: Math.max(0, prestamo.total_dias - cuotasCubiertas),
-      score,
-      moroso: false,
-      prestamoAnterior: {
-        id: prestamo.id,
-        monto: prestamo.monto_prestado,
-        cuota: prestamo.cuota_diaria,
-        totalDias: prestamo.total_dias,
-        frecuencia: prestamo.frecuencia,
-        cobradorId: prestamo.cobrador_id,
-      },
     });
   }
 
-  // Marca de moroso de cada candidato (aviso al renovar). Degrada si falta 0027.
+  // 2) Los más avanzados primero; el SCORE histórico (caro: 1 + N queries por
+  //    cliente) se calcula SOLO para los top `limite` → evita cientos de N+1.
+  pre.sort((a, b) => b.progresoPct - a.progresoPct);
+  const top = pre.slice(0, limite);
+
+  // 3) Score en paralelo (bounded a `limite`).
+  const candidatos: CandidatoRenovacion[] = await Promise.all(
+    top.map(async (p): Promise<CandidatoRenovacion> => {
+      const historial = await getHistorialCrediticio(db, p.cliente.id);
+      const score = calcularScore({ ...historial, hoy: hoyCal });
+      return {
+        cliente: p.cliente,
+        progresoPct: p.progresoPct,
+        completo: p.completo,
+        cuotasFaltantes: p.cuotasFaltantes,
+        score,
+        moroso: false,
+        prestamoAnterior: {
+          id: p.prestamo.id,
+          monto: p.prestamo.monto_prestado,
+          cuota: p.prestamo.cuota_diaria,
+          totalDias: p.prestamo.total_dias,
+          frecuencia: p.prestamo.frecuencia,
+          cobradorId: p.prestamo.cobrador_id,
+        },
+      };
+    }),
+  );
+
+  // 4) Marca de moroso de cada candidato (aviso al renovar). Degrada si falta 0027.
   const ids = candidatos.map((c) => c.cliente.id);
   if (ids.length > 0) {
     const { data } = await db.from("clientes").select("id, moroso").in("id", ids);
@@ -109,7 +141,7 @@ export async function getCandidatosRenovacion(
     for (const c of candidatos) c.moroso = marca.get(c.cliente.id) ?? false;
   }
 
-  return candidatos.sort((a, b) => b.progresoPct - a.progresoPct);
+  return candidatos; // ya vienen ordenados por progreso (top `limite`)
 }
 
 // ── ALTA REAL del crédito de renovación (escribe dinero) ───────────────────

@@ -2,24 +2,39 @@
 // Alta de un movimiento de caja (gestor): gasto, desembolso, aporte o retiro.
 // Los cobros NO se cargan acá (se registran en la calle). Guarda por Server
 // Action y refresca el resumen.
+//   cuenta="operativa" (default) → gastos de ruta (pantalla "Caja diaria").
+//   cuenta="capital"             → aportes/retiros del dueño (pantalla "Inversión
+//                                  de capital"), solo Ingreso/Retiro.
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { agregarMovimientoCaja } from "@/lib/acciones/caja";
 
-const TIPOS = [
-  { id: "egreso", label: "Gasto", cats: ["Combustible", "Sueldo", "Alquiler", "Comida", "Mantenimiento", "Otro"] },
+type Tipo = { id: "egreso" | "desembolso" | "ingreso" | "retiro"; label: string; cats: string[] };
+
+// Categorías operativas alineadas a Disapp (Arriendo, Recargas, Gasolina/Gas,
+// Ahorros, Otros Gastos) + las que ya usaba el equipo.
+const TIPOS_OPERATIVA: Tipo[] = [
+  { id: "egreso", label: "Gasto", cats: ["Arriendo", "Recargas", "Gasolina / Gas", "Ahorros", "Sueldo", "Comida", "Mantenimiento", "Otros Gastos"] },
   { id: "desembolso", label: "Desembolso", cats: ["Crédito nuevo", "Renovación", "Otro"] },
   { id: "ingreso", label: "Aporte / Ingreso", cats: ["Capital", "Otro"] },
   { id: "retiro", label: "Retiro del dueño", cats: ["Retiro", "Otro"] },
-] as const;
+];
 
-export function FormMovimientoCaja() {
+// Conceptos de capital (captura 6 de Disapp).
+const TIPOS_CAPITAL: Tipo[] = [
+  { id: "ingreso", label: "Ingreso", cats: ["Aporte a Caja de Vendedor", "Transferencia a Caja General", "Otro"] },
+  { id: "retiro", label: "Retiro", cats: ["Retiro", "Descuadre", "Transferencia a Caja General", "Otro"] },
+];
+
+export function FormMovimientoCaja({ cuenta = "operativa" }: { cuenta?: "operativa" | "capital" }) {
   const router = useRouter();
+  const TIPOS = cuenta === "capital" ? TIPOS_CAPITAL : TIPOS_OPERATIVA;
   const [abierto, setAbierto] = useState(false);
-  const [tipo, setTipo] = useState<(typeof TIPOS)[number]["id"]>("egreso");
+  const [tipo, setTipo] = useState<Tipo["id"]>(TIPOS[0].id);
   const [monto, setMonto] = useState("");
-  const [categoria, setCategoria] = useState("Combustible");
+  const [categoria, setCategoria] = useState(TIPOS[0].cats[0]);
   const [descripcion, setDescripcion] = useState("");
+  const [visible, setVisible] = useState(true);
   const [pendiente, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -31,7 +46,7 @@ export function FormMovimientoCaja() {
     if (!valido || pendiente) return;
     setError(null);
     startTransition(async () => {
-      const res = await agregarMovimientoCaja({ tipo, monto: montoNum, categoria, descripcion });
+      const res = await agregarMovimientoCaja({ tipo, monto: montoNum, categoria, descripcion, cuenta, visible });
       if (res.ok) {
         setMonto("");
         setDescripcion("");
@@ -48,14 +63,16 @@ export function FormMovimientoCaja() {
         onClick={() => setAbierto(true)}
         className="rounded-full bg-[#2453DC] px-4 py-2.5 text-[13px] font-bold text-white active:scale-[0.99]"
       >
-        + Registrar movimiento
+        + {cuenta === "capital" ? "Registrar movimiento de capital" : "Registrar movimiento"}
       </button>
     );
   }
 
   return (
     <div className="flex flex-col gap-3 rounded-[16px] border border-[#E6EAF4] bg-white p-4">
-      <span className="text-[13px] font-bold text-tinta">Nuevo movimiento de caja</span>
+      <span className="text-[13px] font-bold text-tinta">
+        {cuenta === "capital" ? "Nuevo movimiento de capital" : "Nuevo movimiento de caja"}
+      </span>
 
       <div className="flex flex-wrap gap-1.5">
         {TIPOS.map((t) => (
@@ -88,7 +105,9 @@ export function FormMovimientoCaja() {
           />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] font-semibold text-gris">Categoría</span>
+          <span className="text-[11px] font-semibold text-gris">
+            {cuenta === "capital" ? "Concepto" : "Categoría"}
+          </span>
           <select
             value={categoria}
             onChange={(e) => setCategoria(e.target.value)}
@@ -114,6 +133,15 @@ export function FormMovimientoCaja() {
           className="rounded-[10px] border border-[#DCE3F4] px-3 py-2 text-[14px] outline-none focus:border-azul"
         />
       </label>
+
+      {cuenta === "operativa" && (
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={visible} onChange={(e) => setVisible(e.target.checked)} />
+          <span className="text-[12px] font-semibold text-[#3A445F]">
+            Visible en la app del cobrador
+          </span>
+        </label>
+      )}
 
       {error && <span className="text-[11.5px] font-semibold text-[#C0392B]">{error}</span>}
 

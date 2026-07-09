@@ -14,8 +14,10 @@ import { parseFecha } from "@/lib/format";
 const CLIENTE_ID = "00000000-0000-0000-0000-000000000001";
 const PRESTAMO_ID = "00000000-0000-0000-0000-0000000000a1";
 
-/** "Hoy" de referencia para el demo (en prod: new Date() del servidor). */
-export const HOY_DEMO = parseFecha("2026-06-14");
+/** "Hoy" de referencia para el demo (en prod: new Date() del servidor).
+ *  Con cobro Lun–Sáb, la 12ª cuota diaria (inicio miércoles 03-jun) cae el
+ *  martes 16-jun (se saltean los domingos 07 y 14). */
+export const HOY_DEMO = parseFecha("2026-06-16");
 
 export const clienteMock: Cliente = {
   id: CLIENTE_ID,
@@ -31,6 +33,10 @@ export const clienteMock: Cliente = {
   creado_por: null,
   gps_lat: null,
   gps_lng: null,
+  reportado: false,
+  genero: "femenino",
+  ciudad: "Montevideo",
+  direccion_secundaria: null,
   creado_en: "2026-06-03T00:00:00Z",
   actualizado_en: "2026-06-03T00:00:00Z",
 };
@@ -46,6 +52,8 @@ export const prestamoMock: Prestamo = {
   fecha_inicio: "2026-06-03",
   estado: "activo",
   creado_por: null,
+  es_float_supervisor: false,
+  interes_pct: null,
   creado_en: "2026-06-03T00:00:00Z",
   actualizado_en: "2026-06-03T00:00:00Z",
   finalizado_en: null,

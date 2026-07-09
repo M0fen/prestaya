@@ -12,6 +12,7 @@ import type { Pago, Prestamo } from "@/types/db";
 import { calcularEstadosCarton } from "@/lib/cartones";
 import { hoyUY, inicioDiaUYIso, inicioMesUYIso } from "@/lib/fecha";
 import { getActivosConPagos, pagosDeActivo } from "./activos";
+import { getConfigMora } from "./moraConfig";
 
 export interface TramoMora {
   /** Etiqueta del tramo, p. ej. "1–7 días". */
@@ -21,7 +22,10 @@ export interface TramoMora {
 }
 
 export interface DashboardMetricas {
+  /** Clientes con registro activo (toda la base, tengan crédito o no). */
   clientesActivos: number;
+  /** Clientes que HOY tienen al menos un crédito activo (deudores reales). */
+  deudoresActivos: number;
   creditosActivos: number;
   creditosFinalizados: number;
   incobrables: number;
@@ -29,6 +33,8 @@ export interface DashboardMetricas {
   capitalColocado: number;
   /** Saldo total por cobrar de los créditos activos (UYU). */
   carteraPorCobrar: number;
+  /** Cuotas que VENCEN hoy y aún no están saldadas (≠ cartera total). */
+  porCobrarHoy: number;
   recaudadoHoy: number;
   recaudadoMes: number;
   /** Créditos activos con al menos un día atrasado. */
@@ -87,10 +93,22 @@ export async function getDashboardMetricas(
   const activos = activosPre ?? (await getActivosConPagos(db));
   const pagosPorPrestamo: Record<string, Pick<Pago, "dia_credito" | "monto">[]> = {};
   for (const a of activos) pagosPorPrestamo[a.id] = pagosDeActivo(a);
+  // Deudores reales = clientes DISTINTOS con al menos un crédito activo (un
+  // cliente puede tener varios). Es lo que la gente entiende por "cliente
+  // activo", ≠ total de clientes registrados en la base.
+  const deudoresActivos = new Set(activos.map((a) => a.cliente_id)).size;
+
+  // Gracia para clasificar MORA (no alarmar por atrasos menores): la de la
+  // política vigente (config_mora) + 1 cuota por el día de DESEMBOLSO — la 1ª
+  // cuota vence al día siguiente de entregar, así que el día 1 del cartón nunca
+  // se paga y no debe contar como mora. Un crédito atrasado ≤ gracia = "al día".
+  const configMora = await getConfigMora(db);
+  const graciaMora = Math.max(0, Math.floor(configMora.cuotasGracia)) + 1;
 
   // 3) Cartera y mora: corremos el cartón de cada crédito activo.
   let capitalColocado = 0;
   let carteraPorCobrar = 0;
+  let porCobrarHoy = 0;
   let morosos = 0;
   let montoEnMora = 0;
   const tramos = [
@@ -114,15 +132,22 @@ export async function getDashboardMetricas(
     );
     carteraPorCobrar += r.falta;
 
-    const diasAtraso = r.dias.filter((d) => d.estado === "atrasado");
-    if (diasAtraso.length > 0) {
+    // "Por cobrar HOY": la cuota que vence hoy y aún no se saldó (lo que el
+    // cobrador debería juntar en el día, ≠ cartera total pendiente).
+    const diaHoy = r.dias.find((d) => d.esHoy);
+    if (diaHoy && diaHoy.estado !== "pagado") {
+      porCobrarHoy += Math.max(0, Number(p.cuota_diaria) - diaHoy.montoPagado);
+    }
+
+    // Cuotas vencidas impagas, menos la gracia (día de desembolso + política).
+    const nAtraso = r.dias.filter((d) => d.estado === "atrasado").length;
+    const atrasoNeto = nAtraso - graciaMora;
+    if (atrasoNeto > 0) {
       morosos++;
-      const moraCredito = diasAtraso.reduce(
-        (s, d) => s + Math.max(0, Number(p.cuota_diaria) - d.montoPagado),
-        0,
-      );
+      // Un día atrasado siempre está impago (parcial → "pendiente"): cuota entera.
+      const moraCredito = atrasoNeto * Number(p.cuota_diaria);
       montoEnMora += moraCredito;
-      const t = diasAtraso.length <= 7 ? 0 : diasAtraso.length <= 15 ? 1 : 2;
+      const t = atrasoNeto <= 7 ? 0 : atrasoNeto <= 15 ? 1 : 2;
       tramos[t].creditos++;
       tramos[t].monto += moraCredito;
     }
@@ -136,11 +161,13 @@ export async function getDashboardMetricas(
 
   return {
     clientesActivos,
+    deudoresActivos,
     creditosActivos,
     creditosFinalizados,
     incobrables,
     capitalColocado,
     carteraPorCobrar,
+    porCobrarHoy,
     recaudadoHoy,
     recaudadoMes,
     morosos,

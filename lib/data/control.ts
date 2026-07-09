@@ -108,6 +108,8 @@ export async function getControlCobranza(
           .eq("prestamos.estado", "activo")
           .eq("anulado", false)
           .gte("registrado_en", desde)
+          // Orden estable por PK: sin él la paginación puede duplicar/saltear.
+          .order("id", { ascending: true })
           .range(d, h),
     ),
     traerTodo<{ prestamo_id: string; cobrador_id: string; resultado: string }>((d, h) =>
@@ -116,6 +118,7 @@ export async function getControlCobranza(
         .select("prestamo_id, cobrador_id, resultado, prestamos!inner(estado)")
         .eq("prestamos.estado", "activo")
         .gte("registrado_en", desde)
+        .order("id", { ascending: true })
         .range(d, h),
     ),
   ]);

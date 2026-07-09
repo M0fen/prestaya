@@ -58,13 +58,53 @@ language sql stable security definer set search_path = public as $$
   order by 1;
 $$;
 
--- ── Créditos activos con sus pagos AGRUPADOS por préstamo (un jsonb) ──────────
+-- ── Recaudo AGREGADO de un rango (para /cierre y el dashboard por período) ───
+--  Reemplaza el fetch de decenas de miles de pagos (que se paginaba en ~66 idas
+--  y vueltas para sumar/bucketizar en JS → /cierre tardaba minutos). Agrega en
+--  SQL en UNA llamada: total, cobros, serie por bucket y recaudo por cobrador.
+--  `unidad`: 'hora' (día) · 'dia' (semana/mes) · 'mes' (año). Claves en hora UY.
+create or replace function app_recaudo_agregado(desde timestamptz, hasta timestamptz, unidad text)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select case when app_es_gestor() then (
+    with p as (
+      select monto, registrado_por,
+             (registrado_en at time zone 'America/Montevideo') as loc
+      from pagos
+      where anulado = false and registrado_en >= desde and registrado_en <= hasta
+    ),
+    ser as (
+      select case unidad
+               when 'hora' then 'h' || extract(hour from loc)::int
+               when 'mes'  then to_char(loc, 'YYYY-MM')
+               else to_char(loc, 'YYYY-MM-DD')
+             end as k,
+             sum(monto) as v
+      from p group by 1
+    ),
+    cob as (
+      select registrado_por as id, sum(monto) as v, count(*) as n
+      from p group by 1
+    )
+    select jsonb_build_object(
+      'recaudado', coalesce((select sum(monto) from p), 0),
+      'cobros', (select count(*) from p),
+      'serie', coalesce((select jsonb_agg(jsonb_build_object('k', k, 'v', v)) from ser), '[]'::jsonb),
+      'porCobrador', coalesce((select jsonb_agg(jsonb_build_object('id', id, 'v', v, 'n', n)) from cob), '[]'::jsonb)
+    )
+  ) else jsonb_build_object('recaudado', 0, 'cobros', 0, 'serie', '[]'::jsonb, 'porCobrador', '[]'::jsonb) end;
+$$;
+grant execute on function app_recaudo_agregado(timestamptz, timestamptz, text) to authenticated;
+
+-- ── Créditos activos con el TOTAL pagado por préstamo (un jsonb) ─────────────
+--  OPTIMIZACIÓN: el cartón (FIFO) solo necesita la SUMA de pagos por crédito, no
+--  cada pago. Antes se embebían los ~155k pagos (jsonb de varios MB, re-fetch +
+--  re-parse en cada página pesada). Ahora se manda `pagado` (un número/crédito):
+--  payload ~50× menor. El estado de cada cuota se deriva igual del acumulado.
 create or replace function app_cartera_activa()
 returns jsonb language sql stable security definer set search_path = public as $$
   select case when app_es_gestor() then (
     with pg as (
-      select p.prestamo_id,
-             jsonb_agg(jsonb_build_object('d', p.dia_credito, 'm', p.monto)) as pagos
+      select p.prestamo_id, sum(p.monto) as pagado
       from pagos p
       join prestamos pp on pp.id = p.prestamo_id and pp.estado = 'activo'
       where p.anulado = false
@@ -80,6 +120,8 @@ returns jsonb language sql stable security definer set search_path = public as $
         'total_dias', p.total_dias,
         'frecuencia', p.frecuencia,
         'fecha_inicio', p.fecha_inicio,
+        'disapp_credit_ref', p.disapp_credit_ref,
+        'interes_pct', p.interes_pct,
         'cliente_nombre', c.nombre,
         'cliente_documento', c.documento,
         'cliente_telefono', c.telefono,
@@ -88,7 +130,7 @@ returns jsonb language sql stable security definer set search_path = public as $
         'cliente_gps_lat', c.gps_lat,
         'cliente_gps_lng', c.gps_lng,
         'cobrador_nombre', u.nombre,
-        'pagos', coalesce(pg.pagos, '[]'::jsonb)
+        'pagado', coalesce(pg.pagado, 0)
       )
     ), '[]'::jsonb)
     from prestamos p

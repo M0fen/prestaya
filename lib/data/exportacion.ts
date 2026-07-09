@@ -20,6 +20,9 @@ async function traerTodo(
   for (let desde = 0; ; desde += TAM) {
     let q = db.from(tabla).select(columnas);
     if (orden) q = q.order(orden.col, { ascending: orden.asc ?? true });
+    // Desempate por PK: garantiza un orden TOTAL estable entre páginas (si se
+    // ordena por una columna no única, los empates podrían repetir/saltear filas).
+    q = q.order("id", { ascending: true });
     const { data, error } = await q.range(desde, desde + TAM - 1);
     if (error) throw error;
     const filas = (data ?? []) as unknown as Row[];

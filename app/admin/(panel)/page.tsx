@@ -6,6 +6,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { getResumenFinanciero } from "@/lib/data/asesor";
 import { getSerieRecaudo } from "@/lib/data/series";
 import { getResumenPeriodo, normalizarPeriodo, PERIODOS } from "@/lib/data/periodo";
+import { getLiquidacionDiaria, type LiquidacionDia } from "@/lib/data/liquidacion";
 import { generarInsights } from "@/lib/insights";
 import { UYU, diasSemana, meses } from "@/lib/format";
 import { Sparkline } from "@/components/charts/Sparkline";
@@ -31,10 +32,11 @@ export default async function DashboardPage({
   const db = await createSupabaseServer();
   const periodo = normalizarPeriodo((await searchParams).periodo);
 
-  const [resumen, serie, mov, reportesRes] = await Promise.all([
+  const [resumen, serie, mov, liquidacion, reportesRes] = await Promise.all([
     getResumenFinanciero(db, hoy),
     getSerieRecaudo(db, hoy, 14),
     getResumenPeriodo(db, periodo, hoy),
+    getLiquidacionDiaria(db, hoy),
     db.from("reportes").select("*", { count: "exact", head: true }).eq("estado", "nuevo"),
   ]);
   const reportesNuevos = reportesRes.count ?? 0;
@@ -82,12 +84,13 @@ export default async function DashboardPage({
         )}
       </div>
 
-      {/* KPIs de STOCK (al instante) */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi etiqueta="Por cobrar" valor={UYU(cartera.carteraPorCobrar)} sub={`${cartera.creditosActivos} crédito(s) activo(s)`} acento="#1E47C8" />
+      {/* Las 6 tarjetas de la operación (orden/nombres de Disapp, para que
+          Mauricio las reconozca). "Capital en calle" = deuda pendiente total. */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <Kpi etiqueta="Total de ventas activas" valor={String(cartera.creditosActivos)} sub="créditos en calle" acento="#1E47C8" />
         <div className="flex flex-col gap-1 rounded-[16px] border border-[#E6EAF4] bg-white p-4">
           <div className="flex items-center justify-between">
-            <span className="text-[11.5px] font-bold tracking-wide text-gris uppercase">Recaudado hoy</span>
+            <span className="text-[11.5px] font-bold tracking-wide text-gris uppercase">Recaudo de hoy</span>
             {serie.tendencia !== 0 && (
               <span className={`text-[11px] font-bold tabular-nums ${tendPct >= 0 ? "text-verde" : "text-rojo"}`}>
                 {tendPct >= 0 ? "▲" : "▼"} {Math.abs(tendPct)}%
@@ -98,9 +101,14 @@ export default async function DashboardPage({
           <div className="mt-0.5"><Sparkline valores={recaudos} color="#1FA971" alto={30} /></div>
           <span className="text-[12px] font-medium text-[#8A93AD]">Mes: {UYU(recaudacion.mes)}</span>
         </div>
-        <Kpi etiqueta="En mora" valor={UYU(mora.monto)} sub={`${mora.morosos} atrasado(s) · ${Math.round(mora.moraPct * 100)}% cartera`} acento="#E06A6A" />
-        <Kpi etiqueta="Capital colocado" valor={UYU(cartera.capitalColocado)} sub={`${cartera.clientesActivos} cliente(s) activo(s)`} acento="#7A4DD6" />
+        <Kpi etiqueta="Por cobrar hoy" valor={UYU(cartera.porCobrarHoy)} sub="cuotas que vencen hoy" acento="#13308C" />
+        <Kpi etiqueta="Total de clientes" valor={String(cartera.clientesActivos)} sub={`${cartera.deudoresActivos} con crédito activo`} acento="#0F1B3D" />
+        <Kpi etiqueta="Ventas en mora" valor={String(mora.morosos)} sub={`${UYU(mora.monto)} · ${Math.round(mora.moraPct * 100)}% cartera`} acento="#D64545" />
+        <Kpi etiqueta="Capital en calle" valor={UYU(cartera.carteraPorCobrar)} sub="deuda pendiente total" acento="#7A4DD6" />
       </div>
+
+      {/* Liquidación diaria por cobrador */}
+      <LiquidacionDiaria liq={liquidacion} />
 
       {/* Aureo ve hoy (proactivo) */}
       <AureoInsights insights={insights} />
@@ -278,5 +286,73 @@ function Mini({ etiqueta, valor, alerta = false }: { etiqueta: string; valor: nu
       <span className="text-[12.5px] font-semibold text-gris">{etiqueta}</span>
       <span className={`text-[18px] font-extrabold tabular-nums ${alerta ? "text-[#C0392B]" : "text-tinta"}`}>{valor}</span>
     </div>
+  );
+}
+
+/** Tabla "Liquidación diaria" por cobrador (paridad Disapp). */
+function LiquidacionDiaria({ liq }: { liq: LiquidacionDia }) {
+  const cellNum = "px-3 py-2.5 text-right tabular-nums";
+  return (
+    <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-5">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-col">
+          <h2 className="text-[15px] font-extrabold text-tinta">Liquidación diaria</h2>
+          <span className="text-[12px] font-medium text-gris">
+            {liq.cajasCerradas}/{liq.totalCobradores} cajas cerradas
+            {!liq.disponibleRendiciones && " · (estado no disponible)"}
+          </span>
+        </div>
+        <div className="flex gap-5">
+          <div className="flex flex-col items-end">
+            <span className="text-[10.5px] font-bold uppercase tracking-wide text-gris">Recaudo total</span>
+            <span className="text-[16px] font-extrabold tabular-nums text-verde">{UYU(liq.recaudoTotal)}</span>
+          </div>
+          <div className="flex flex-col items-end">
+            <span className="text-[10.5px] font-bold uppercase tracking-wide text-gris">Caja final total</span>
+            <span className="text-[16px] font-extrabold tabular-nums text-tinta">{UYU(liq.cajaFinalTotal)}</span>
+          </div>
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[720px] border-collapse text-[12.5px]">
+          <thead>
+            <tr className="border-b border-[#EEF1F8] text-[11px] font-bold uppercase tracking-wide text-gris">
+              <th className="px-3 py-2 text-left">Vendedor</th>
+              <th className="px-3 py-2 text-right">Base</th>
+              <th className="px-3 py-2 text-right">Visitas</th>
+              <th className="px-3 py-2 text-right">Recaudo</th>
+              <th className="px-3 py-2 text-right">Retiros</th>
+              <th className="px-3 py-2 text-right">Ventas</th>
+              <th className="px-3 py-2 text-right">Caja final</th>
+              <th className="px-3 py-2 text-center">Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {liq.filas.map((f) => (
+              <tr key={f.cobradorId} className="border-b border-[#F4F6FB] last:border-0">
+                <td className="px-3 py-2.5 font-semibold text-tinta">{f.nombre}</td>
+                <td className={`${cellNum} text-gris`}>{f.base === null ? "—" : UYU(f.base)}</td>
+                <td className={`${cellNum} text-gris`}>{f.visitas}</td>
+                <td className={`${cellNum} font-bold text-verde`}>{UYU(f.recaudo)}</td>
+                <td className={`${cellNum} text-gris`}>{f.retiros > 0 ? UYU(f.retiros) : "—"}</td>
+                <td className={`${cellNum} text-gris`}>{f.ventas}</td>
+                <td className={`${cellNum} font-bold text-tinta`}>{UYU(f.cajaFinal)}</td>
+                <td className="px-3 py-2.5 text-center">
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                      f.estado === "cerrada"
+                        ? "bg-[#E7F6EF] text-[#157A50]"
+                        : "bg-[#FBF1DC] text-[#9A6A0E]"
+                    }`}
+                  >
+                    {f.estado === "cerrada" ? "Cerrada" : "Abierta"}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }

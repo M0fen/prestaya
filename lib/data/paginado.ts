@@ -15,9 +15,16 @@ type Respuesta = { data: unknown; error: unknown };
  * tope de PostgREST). `consulta(desde, hasta)` debe construir una consulta NUEVA
  * y aplicarle `.range(desde, hasta)`. Lanza si alguna página da error.
  *
+ * ⚠️ OBLIGATORIO: la consulta DEBE ordenar por una columna ÚNICA y estable
+ * (normalmente `.order("id")`) ANTES del `.range()`. Sin un orden total estable,
+ * PostgREST puede repetir o saltear filas entre páginas → totales inflados o
+ * faltantes (esto es DINERO). Ordenar por una columna no única no alcanza: los
+ * empates rompen igual; agregá `id` como desempate.
+ *
  * Ej:
  *   const filas = await traerTodo<Fila>((d, h) =>
- *     db.from("pagos").select("monto").eq("anulado", false).range(d, h));
+ *     db.from("pagos").select("monto").eq("anulado", false)
+ *       .order("id", { ascending: true }).range(d, h));
  */
 export async function traerTodo<T>(
   consulta: (desde: number, hasta: number) => PromiseLike<Respuesta>,

@@ -113,20 +113,39 @@ export function construirVistaCliente(params: {
 
   const r = calcularEstadosCarton(prestamo, pagos, hoy);
 
-  // Pagos individuales por día, para el comprobante (recibo).
+  // Pagos individuales por día, para el comprobante (recibo). FIFO: en cobro
+  // diario cada pago cubre la cuota MÁS VIEJA impaga, así que distribuimos los
+  // pagos reales (ordenados por fecha real de registro) sobre las cuotas —
+  // coherente con el cálculo del cartón. Cada pago se lista UNA vez, en la cuota
+  // donde EMPIEZA a aplicarse (no usamos `dia_credito`: era el dato roto).
+  const cuota = prestamo.cuota_diaria;
   const pagosPorDia: Record<number, typeof pagos> = {};
-  for (const p of pagos) {
-    (pagosPorDia[p.dia_credito] ??= []).push(p);
+  {
+    const orden = pagos
+      .slice()
+      .sort((a, b) => a.registrado_en.localeCompare(b.registrado_en));
+    let dia = 1;
+    let lleno = 0;
+    for (const p of orden) {
+      (pagosPorDia[dia] ??= []).push(p);
+      let resto = p.monto;
+      while (resto > 0 && cuota > 0 && dia <= prestamo.total_dias) {
+        const toma = Math.min(resto, cuota - lleno);
+        lleno += toma;
+        resto -= toma;
+        if (lleno >= cuota) {
+          dia += 1;
+          lleno = 0;
+        }
+      }
+    }
   }
   const recibosDia = (dia: number) =>
-    (pagosPorDia[dia] ?? [])
-      .slice()
-      .sort((a, b) => a.registrado_en.localeCompare(b.registrado_en))
-      .map((p) => ({
-        hora: horaDe(p.registrado_en),
-        monto: UYU(p.monto),
-        quien: p.registrado_por ? (nombresCobrador[p.registrado_por] ?? null) : null,
-      }));
+    (pagosPorDia[dia] ?? []).map((p) => ({
+      hora: horaDe(p.registrado_en),
+      monto: UYU(p.monto),
+      quien: p.registrado_por ? (nombresCobrador[p.registrado_por] ?? null) : null,
+    }));
 
   // Casillas del cartón con su estilo + datos para el detalle al tocar.
   const dias: DiaCarton[] = r.dias.map((d) => ({

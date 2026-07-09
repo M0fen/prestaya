@@ -1,8 +1,85 @@
 # ESTADO — Empalme Disapp → Presta Ya + Multi-crédito + Escala (handoff quirúrgico)
 
-> Punto de continuación tras compactar. Todo lo de abajo está **en el working tree
-> SIN commitear** (44 archivos cambiados). El trabajo se validó contra un **proyecto
-> Supabase de PRUEBA**, NO producción.
+## 🔴🔴 CONTINUAR ACÁ (sesión 2026-07-08, la más reciente) 🔴🔴
+
+**✅ RECONSTRUCCIÓN DE PAGOS NO-DIARIOS: HECHA Y APLICADA A PRUEBA.**
+`scripts/empalme_disapp.py` paso [6] implementado + `--commit` corrido en
+`prestaya-pruebas`. Detalle en `docs/reconstruccion-pagos-no-diarios.md`.
+- **251 créditos reconstruidos · 3.582 pagos de ajuste (`origen='ajuste_migracion'`,
+  `registrado_por=NULL`) · $13,89M · 🔴 sub-cobrados (falta plata) = 0.**
+- **Capital en calle: $107,7M → $93,88M** (verificado en DB con paginación ORDENADA
+  = libro completo real; NO el tile filtrado $68,5M de Disapp). Mora baja fuerte.
+- Idempotente (re-POST de 151.572 import quedó en 151.572; ajustes deterministas
+  `ajuste-<credit>-<dia>`). Base LIMPIA: 2.747 activos + 8.799 finalizados = 11.546
+  SIN duplicados (el viejo warning "610 duplicados" YA NO aplica).
+- Hallazgos verificados: `Pagos+Saldo==Total` 100% pero `Cuotas Pend.` solo 25,6%
+  fiable→informativa; los recaudos también omiten pagos DIARIOS viejos (fuera de la
+  ventana del export). Nuevos: `--probe`, gap en `--audit`, CSV de revisión, y
+  `get_rows()` del importer con `order=id` (mismo bug de paginación).
+
+**⚠️ 0041 CAMBIÓ (Bloques 3-7 estéticos):** ahora además agrega la RPC
+`app_recaudos_rango` (página Recaudos) y `usuarios.documento`. **RE-CORRER 0041 en
+el SQL Editor** (test DB) para que funcione /admin/recaudos. Sigue re-ejecutable.
+
+**Bloques 3-7 (acople estético/UI) HECHOS (tsc + 237 tests verdes):** Recaudos
+(`/admin/recaudos`), Caja diaria nutrida (cuenta operativa + Visible + rango + cats
+Disapp), Inversión de capital (`/admin/capital`), Equipo estilo Disapp + modal Detalle,
+Clientes lista enriquecida + toggle Reportado en ficha + Género/Ciudad/Dir.secundaria,
+Informe de cartera (`/admin/informe-cartera`). Todo SIN commitear.
+
+**PRÓXIMO PASO:** re-correr 0041 → validar navegando la PRUEBA (dashboard: Capital en
+calle ~$93,9M, mora mucho menor) → commit de TODO lo sin-commitear → go-live a PROD
+nuevo y limpio (40 migs + `--commit --prod` + rotar claves). Plan de reconstrucción abajo.
+
+**Entorno REAL ahora (ignorar la sección "CRÍTICO" de abajo, quedó vieja):**
+- Base de PRUEBA en uso: **`prestaya-pruebas`** = ref **`kvmqlkqfgjimfpzlwsdt`**.
+  `.env.local` Y `.env.prueba` apuntan ahí. (El viejo `nqdrutfxqbuvdvlhtdmb` quedó
+  obsoleto; el prod real sigue respaldado en `.env.local.PROD.bak`.)
+- **Dev server en `http://localhost:3000`** (no 3001).
+- Import limpio corrido ahí: 13.028 clientes · 2.747 activos · 8.799 stubs ·
+  151.572 pagos. Migración **0041 corrida** en ese proyecto.
+- Logins de prueba: admin `admin@prestaya.uy` / `PrestaYa2026!` · cobrador ruta
+  `cobrador-8138@import.prestaya.local` / `JaXtZpqbPKcv` · CARTERA VIP
+  `cobrador-13519@import.prestaya.local` / `dRfd2VDFyGm9` · cliente
+  `/c/c6c556e8c04f89c8e8d70dbce8d3147c486091ca2e20be4a` (LAURA DA ROSA).
+
+**EL problema a resolver (verificado):** la exportación de recaudos de Disapp es
+"Recaudos Diario" → solo pagos DIARIOS. Los pagos de créditos SEMANALES/quincenales/
+mensuales/VIP **no se pueden exportar** (Disapp no lo permite). ⇒ 40% de créditos
+semanales ($33,4M) figuran con $0 pagado → inflan mora y cartera. **Decisión de
+Carlos: reconstruir** el pagado desde la columna `Pagos` del Excel de créditos
+(sembrar un pago de ajuste `origen='ajuste_migracion'` por la diferencia). Detalle
+en el doc citado.
+
+**Conciliación mío vs Disapp (tras la reconstrucción):**
+| Métrica | Mío (antes) | Mío (AHORA) | Disapp | Nota |
+|---|---|---|---|---|
+| Total de clientes | 13.027 | 13.027 | 13.032 | ✅ ~cuadra |
+| Total de ventas activas | 2.747 | 2.747 | 2.419 | Disapp filtra/esconde parte de su cartera |
+| Capital en calle | $107,7M | **$93,88M** | $68,5M | mío = libro COMPLETO real (= Σ Saldo Disapp $94,17M) |
+| Ventas en mora (conteo) | 1.958 | ↓ (validar en UI) | 532 | los no-diarios/diarios-viejos dejan de figurar impagos |
+
+**Código de ESTA sesión (todo SIN commitear, tsc + 237 tests VERDES):**
+- `lib/cartones.ts` → cartón **FIFO acumulado** (arregla el bug de "Cuota #" de Disapp,
+  que era un snapshot inútil). `lib/vistaCliente.ts` → comprobante FIFO.
+- `lib/data/metricas.ts` → mora con **gracia = config_mora.cuotasGracia + 1** (día de
+  desembolso); + `porCobrarHoy` + `deudoresActivos`.
+- Fix de **paginación** (`.order("id")`) en periodo/caja/control/exportacion/paginado
+  (sin orden estable PostgREST repite/saltea filas → plata mal). Bug de dinero.
+- `supabase/migrations/0041_disapp_parity.sql` (movimientos_caja cuenta/visible ·
+  clientes reportado/genero/ciudad/direccion_secundaria · prestamos
+  es_float_supervisor/interes_pct). `types/db.ts` + mappers actualizados.
+- Dashboard: **6 tarjetas alineadas a Disapp** + copy arreglado ("Total de clientes"
+  sub = "X con crédito activo", ya NO "clientes activos") + tabla **Liquidación diaria**
+  (`lib/data/liquidacion.ts` + test).
+
+**Regla que Carlos remarcó:** VERIFICAR contra la data real, no deducir (ver
+`memory/verificar-no-deducir.md`).
+
+---
+
+> (Lo de abajo es de sesiones previas; parte del entorno quedó viejo — usar el bloque
+> de arriba.) Todo el trabajo está **en el working tree SIN commitear**.
 
 ## ⚠️ CRÍTICO — estado del entorno local
 - **`.env.local` apunta al proyecto de PRUEBA** (`nqdrutfxqbuvdvlhtdmb`), NO a prod.
@@ -19,14 +96,20 @@ $88,8M, Con Intereses $96,9M, Recaudo $28,6M**) con nuestro panel y vio menos pl
 
 - El Excel fuente (`creditos_*.xlsx`, 2 archivos, unión por ID = **2.748** créditos,
   todos "Activo") suma **$126,1M** de capital.
-- **86 de esos créditos son de los 3 SUPERVISORES** (EDWIN/CÉSAR/BOSO): $66,9M
-  (53% del capital), **interés ≈0%**, promedio $777k c/u. **Decisión de Carlos:
-  es FLOAT MAYORISTA → EXCLUIR** (esa plata ya está contada como los créditos
-  chicos de los cobradores de la zona; incluirla = doble conteo). El importador
-  YA los saltea (skip por `es_supervisor`). **NO cambiar el importador por esto.**
-  ⇒ Disapp DOBLE-CUENTA el float; por eso su dashboard "infla" a $88,8M.
-- Nuestro set importado = Excel **menos supervisores** = **2.661 únicos / $59,2M**
-  capital / $68,7M con intereses. Es el libro REAL de préstamos a clientes.
+- **86 de esos créditos son de los 3 SUPERVISORES** (EDWIN/CÉSAR/BOSO): $66,9M,
+  **modalidad SEMANAL/quincenal, interés 0%, montos altos** ($0,8–1,75M). Al ver
+  la "Cartera por Cliente" de Disapp se confirmó que son **CLIENTES REALES**
+  (nombre/doc/tel), cartera VIP que el supervisor gestiona en persona (NO tienen
+  ruta diaria). **Decisión de Carlos (revisada 2026-07-08): IMPORTARLOS** — es
+  $47,9M de saldo real por cobrar. Se traen como un **cobrador dedicado
+  "CARTERA \<zona\>"** por supervisor (opción elegida). Importador YA modificado:
+  paso [1] crea `CARTERA ZONA SUR/CENTRO/…` como rol cobrador; paso [3] ya NO
+  saltea (`inc_cartera=86`). Dry-run confirma **2.748 créditos**.
+  ⚠️ (Mi lectura inicial de "float mayorista, excluir" fue ERRÓNEA — no repetir.)
+- Con supervisores, cartera total real = **2.748 / $126,1M** capital / $135,6M con
+  intereses / saldo $94,2M. Es MÁS que el dashboard de Disapp ($88,8M): Disapp
+  esconde parte de su propia cartera con su filtro interno. El nuestro es el libro
+  completo y real.
 - **Multi-crédito es REAL** (no artefacto): 391 clientes (17,9%) con 2+ créditos
   activos distintos (máx 5); 54 clientes con cobradores distintos. Features
   justificadas → se quedan.

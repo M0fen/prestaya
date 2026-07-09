@@ -10,8 +10,11 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { filasACsv, conBom, type CeldaCsv } from "@/lib/reportes/csv";
 import { getCarteraExport } from "@/lib/data/cartera";
 import { getClientesExport, getPagosExport } from "@/lib/data/exportacion";
-import { getResumenCaja, type PeriodoCaja } from "@/lib/data/caja";
+import { getResumenCaja, getResumenCajaRango, type PeriodoCaja } from "@/lib/data/caja";
 import { getTableroMora } from "@/lib/data/mora";
+import { getRecaudos } from "@/lib/data/recaudos";
+import { getInformeCartera } from "@/lib/data/informeCartera";
+import { diaUYInicioIso, diaUYFinIso } from "@/lib/fecha";
 import { getComisionesPeriodo } from "@/lib/data/comisiones";
 import { normalizarPeriodo } from "@/lib/data/periodo";
 import { reporteTipo as reporteTipoSchema } from "@/lib/validacion/esquemas";
@@ -104,15 +107,32 @@ export async function GET(
   }
 
   if (tipo === "caja") {
-    const periodo: PeriodoCaja = url.searchParams.get("periodo") === "mes" ? "mes" : "hoy";
-    const r = await getResumenCaja(db, periodo, new Date(), { limiteLibro: 100000 });
+    // Rango explícito Desde/Hasta si viene; si no, el periodo hoy/mes (compat).
+    const ymd = (v: string | null) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
+    const desdeYmd = ymd(url.searchParams.get("desde"));
+    const hastaYmd = ymd(url.searchParams.get("hasta"));
+    let r;
+    let sufijo: string;
+    if (desdeYmd && hastaYmd) {
+      r = await getResumenCajaRango(
+        db,
+        { desde: diaUYInicioIso(desdeYmd), hasta: diaUYFinIso(hastaYmd) },
+        { limiteLibro: 100000 },
+      );
+      sufijo = `${desdeYmd}_${hastaYmd}`;
+    } else {
+      const periodo: PeriodoCaja = url.searchParams.get("periodo") === "mes" ? "mes" : "hoy";
+      r = await getResumenCaja(db, periodo, new Date(), { limiteLibro: 100000 });
+      sufijo = `${periodo}_${fecha}`;
+    }
     return csvResponse(
-      `presta-ya_caja_${periodo}_${fecha}.csv`,
-      ["Fecha y hora", "Tipo", "Concepto", "Movimiento", "Monto"],
+      `presta-ya_caja_${sufijo}.csv`,
+      ["Fecha y hora", "Tipo", "Concepto", "Visible", "Movimiento", "Monto"],
       r.libro.map((l) => [
         fechaHoraUY(l.fechaIso),
         l.tipo === "cobro" ? "Cobro" : l.tipo,
         l.concepto,
+        l.visible ? "Sí" : "No",
         l.signo === 1 ? "Entra" : "Sale",
         l.monto,
       ]),
@@ -164,6 +184,59 @@ export async function GET(
       ["Fecha y hora", "Cliente", "Documento", "Día", "Monto", "Anulado", "Cobrador"],
       filas.map((f) => [
         fechaHoraUY(f.fechaIso), f.cliente, f.documento, f.dia, f.monto, f.anulado ? "sí" : "no", f.cobrador,
+      ]),
+    );
+  }
+
+  if (tipo === "recaudos") {
+    const ymd = (v: string | null) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : fechaHoyUY());
+    const desdeYmd = ymd(url.searchParams.get("desde"));
+    const hastaYmd = ymd(url.searchParams.get("hasta"));
+    const vendedorId = url.searchParams.get("vendedor");
+    const r = await getRecaudos(db, {
+      desde: diaUYInicioIso(desdeYmd),
+      hasta: diaUYFinIso(hastaYmd),
+      vendedorId,
+      q: url.searchParams.get("q"),
+    });
+    return csvResponse(
+      `presta-ya_recaudos_${desdeYmd}_${hastaYmd}.csv`,
+      ["Ref Crédito", "Vendedor", "Cliente", "Documento", "Total Crédito", "Fecha Pago", "Recaudo", "Saldo Pendiente"],
+      r.filas.map((f) => [
+        f.refCredito ?? "",
+        f.cobradorNombre ?? "",
+        f.clienteNombre,
+        f.clienteDocumento ?? "",
+        f.totalCredito,
+        fechaHoraUY(f.fechaIso),
+        f.monto,
+        f.saldoPendiente == null ? "—" : f.saldoPendiente,
+      ]),
+    );
+  }
+
+  if (tipo === "informe-cartera") {
+    const r = await getInformeCartera(db, {
+      vendedorId: url.searchParams.get("vendedor"),
+      q: url.searchParams.get("q"),
+    });
+    return csvResponse(
+      `presta-ya_informe-cartera_${fecha}.csv`,
+      ["Ref", "Modalidad", "Vendedor", "Cliente", "Documento", "Venta", "Interés %", "Total", "Saldo Pte", "Abonos", "Inicio", "Cuotas", "Deuda a Hoy"],
+      r.filas.map((f) => [
+        f.refCredito ?? "",
+        f.modalidad,
+        f.vendedor ?? "",
+        f.cliente,
+        f.documento ?? "",
+        Math.round(f.venta),
+        f.interesPct.toFixed(1),
+        Math.round(f.total),
+        Math.round(f.saldoPte),
+        Math.round(f.abonos),
+        f.fechaInicio,
+        f.cuotas,
+        Math.round(f.deudaAHoy),
       ]),
     );
   }

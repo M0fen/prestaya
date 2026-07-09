@@ -38,3 +38,21 @@ export async function getUsuarioPorAuthId(
   if (error) throw error;
   return data ? mapUsuario(data) : null;
 }
+
+/**
+ * Vendedores (cobradores + supervisores) ACTIVOS para poblar los <select> de
+ * filtro por vendedor (Recaudos, Capital, Informe de cartera). Ordenados por
+ * nombre. Corre como gestor (RLS ve todos).
+ */
+export async function getVendedores(
+  db: SupabaseClient,
+): Promise<{ id: string; nombre: string }[]> {
+  const { data, error } = await db
+    .from("usuarios")
+    .select("id, nombre")
+    .eq("activo", true)
+    .in("rol", ["cobrador", "supervisor"])
+    .order("nombre", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map((u) => ({ id: u.id as string, nombre: u.nombre as string }));
+}

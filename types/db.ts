@@ -72,6 +72,13 @@ export interface Cliente {
   /** Ubicación capturada al censar (casa del cliente). */
   gps_lat: number | null;
   gps_lng: number | null;
+  // ── Paridad Disapp (0041) ──────────────────────────────────────────────
+  /** Reportado a buró / lista de morosos (atributo del cliente; NO es la tabla
+   *  `reportes`, que son quejas del cliente vía token). */
+  reportado: boolean;
+  genero: "masculino" | "femenino" | "otro" | null;
+  ciudad: string | null;
+  direccion_secundaria: string | null;
   creado_en: string;
   actualizado_en: string;
 }
@@ -101,6 +108,13 @@ export interface Prestamo {
   fecha_inicio: string;
   estado: EstadoPrestamo;
   creado_por: string | null;
+  // ── Paridad Disapp (0041) ──────────────────────────────────────────────
+  /** Marca los créditos VIP al 0% de la cartera de supervisor (CESAR/BOSO/EDWIN).
+   *  El saldo/mora sigue saliendo del cartón; esto es solo clasificación. */
+  es_float_supervisor: boolean;
+  /** % de interés informativo del import (Disapp). La app NO lo usa para el saldo
+   *  (el saldo sale del cartón); sirve para mostrar el % exacto en informes. */
+  interes_pct: number | null;
   creado_en: string;
   actualizado_en: string;
   finalizado_en: string | null;
@@ -148,6 +162,32 @@ export interface Asignacion {
   cliente_id: string;
   activo: boolean;
   asignado_en: string;
+}
+
+// ── Caja / tesorería (movimientos de efectivo que NO son cobros, ver 0010) ──
+
+/** ingreso (+) aporte de capital · egreso (−) gasto operativo ·
+ *  desembolso (−) plata al colocar un crédito · retiro (−) retiro del dueño. */
+export type TipoMovimientoCaja = "ingreso" | "egreso" | "desembolso" | "retiro";
+
+/** operativa = gastos de ruta ("Caja Diaria") · capital = aportes/retiros/
+ *  transferencias/descuadres ("Inversión de Capital"). Ver 0041. */
+export type CuentaCaja = "operativa" | "capital";
+
+export interface MovimientoCaja {
+  id: string;
+  tipo: TipoMovimientoCaja;
+  categoria: string | null;
+  monto: number;
+  descripcion: string | null;
+  cobrador_id: string | null;
+  registrado_por: string | null;
+  fecha: string;
+  registrado_en: string;
+  // ── Paridad Disapp (0041) ──────────────────────────────────────────────
+  cuenta: CuentaCaja;
+  /** Si el movimiento aparece en la app del cobrador ("Visible Sí/No" de Disapp). */
+  visible: boolean;
 }
 
 /** Tema visual del banner de anuncio. */

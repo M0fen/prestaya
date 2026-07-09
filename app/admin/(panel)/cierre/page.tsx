@@ -11,7 +11,7 @@ import { getResumenCaja } from "@/lib/data/caja";
 import { getRendicionesDia } from "@/lib/data/rendicion";
 import { getTableroMora } from "@/lib/data/mora";
 import { getMetaMensual } from "@/lib/data/metaOperacion";
-import { hoyUY } from "@/lib/fecha";
+import { hoyUY, diasCobrablesDelMes } from "@/lib/fecha";
 import { UYU, meses, diasSemana } from "@/lib/format";
 import { EditorMeta } from "@/components/admin/EditorMeta";
 import { ActivarAvisos } from "@/components/pwa/ActivarAvisos";
@@ -34,10 +34,11 @@ export default async function CierrePage() {
   const hoy = hoyUY();
   const fechaTitulo = `${diasSemana[hoy.getDay()]} ${hoy.getDate()} de ${meses[hoy.getMonth()]}`;
 
-  // Proyección lineal del mes: a este ritmo diario, ¿a cuánto llega a fin de mes?
-  const diaDelMes = hoy.getDate();
-  const diasEnMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
-  const proyeccionMes = diaDelMes > 0 ? Math.round((mes.recaudado / diaDelMes) * diasEnMes) : mes.recaudado;
+  // Proyección lineal del mes en días de COBRO (Lun–Sáb): no se cobra domingos,
+  // así que extrapolar por días calendario distorsionaría el ritmo.
+  const { transcurridos: diasCobrados, total: diasCobrablesMes } = diasCobrablesDelMes(hoy);
+  const proyeccionMes =
+    diasCobrados > 0 ? Math.round((mes.recaudado / diasCobrados) * diasCobrablesMes) : mes.recaudado;
 
   // Meta mensual (0 = sin fijar): avance real + si la proyección la alcanza.
   const avancePct = meta > 0 ? Math.round((mes.recaudado / meta) * 100) : null;
@@ -141,8 +142,8 @@ export default async function CierrePage() {
             valor={mes.variacionPct == null ? "—" : `${mes.variacionPct >= 0 ? "+" : ""}${Math.round(mes.variacionPct * 100)}%`}
             alerta={mes.variacionPct != null && mes.variacionPct < 0}
           />
-          <Kpi label="Ritmo diario" valor={UYU(Math.round(mes.recaudado / Math.max(1, diaDelMes)))} sub="promedio" />
-          <Kpi label="Proyección fin de mes" valor={UYU(proyeccionMes)} sub={`día ${diaDelMes}/${diasEnMes}`} fuerte />
+          <Kpi label="Ritmo diario" valor={UYU(Math.round(mes.recaudado / Math.max(1, diasCobrados)))} sub="por día de cobro" />
+          <Kpi label="Proyección fin de mes" valor={UYU(proyeccionMes)} sub={`${diasCobrados}/${diasCobrablesMes} días de cobro`} fuerte />
         </div>
 
         {meta > 0 ? (

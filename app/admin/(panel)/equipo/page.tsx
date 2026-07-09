@@ -1,19 +1,14 @@
 // Equipo y permisos (solo ADMIN). Lista el equipo y documenta qué puede hacer
 // cada rol. Los permisos sensibles (mora, comisiones, anular pagos) se aplican
 // además en el servidor (requireAdmin / esAdmin en cada acción).
-import { requireAdmin, etiquetaRol } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getZonas } from "@/lib/data/zonas";
+import { getEquipoDetallado } from "@/lib/data/equipo";
 import { NuevoUsuario } from "@/components/admin/NuevoUsuario";
-import type { Rol } from "@/types/db";
+import { EquipoTabla } from "@/components/admin/EquipoTabla";
 
 export const dynamic = "force-dynamic";
-
-const ROL_BADGE: Record<Rol, { bg: string; fg: string }> = {
-  admin: { bg: "#EAF0FF", fg: "#1E47C8" },
-  supervisor: { bg: "#E7F1FF", fg: "#1C6BD6" },
-  cobrador: { bg: "#E4F5EC", fg: "#157A50" },
-};
 
 // Matriz de permisos (documenta el modelo; el enforcement real está en el server).
 type Cel = "si" | "no" | "campo";
@@ -30,24 +25,29 @@ const PERMISOS: { accion: string; admin: Cel; supervisor: Cel; cobrador: Cel }[]
   { accion: "Registrar cobros y visitas en ruta", admin: "no", supervisor: "no", cobrador: "campo" },
 ];
 
-export default async function EquipoPage() {
+export default async function EquipoPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
   await requireAdmin();
   const db = await createSupabaseServer();
-  const [{ data }, zonas] = await Promise.all([
-    // select("*") para no romper si aún no corrió 0034 (columna es_dev).
-    db.from("usuarios").select("*").order("rol").order("nombre"),
-    getZonas(db),
-  ]);
-  const usuarios = (data ?? []) as {
-    id: string;
-    nombre: string;
-    rol: Rol;
-    activo: boolean;
-    es_dev?: boolean;
-  }[];
+  const [miembros, zonas] = await Promise.all([getEquipoDetallado(db), getZonas(db)]);
+
+  // Buscador (GET) por nombre / email / documento.
+  const termino = (q ?? "").trim().toLowerCase();
+  const filtrados = termino
+    ? miembros.filter(
+        (m) =>
+          m.nombre.toLowerCase().includes(termino) ||
+          (m.email ?? "").toLowerCase().includes(termino) ||
+          (m.documento ?? "").toLowerCase().includes(termino),
+      )
+    : miembros;
 
   return (
-    <div className="mx-auto flex max-w-[820px] flex-col gap-5">
+    <div className="mx-auto flex max-w-[1040px] flex-col gap-5">
       <div className="flex flex-col gap-0.5">
         <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">Equipo y permisos</h1>
         <span className="text-[13px] font-medium text-gris">
@@ -55,40 +55,33 @@ export default async function EquipoPage() {
         </span>
       </div>
 
-      {/* Alta de usuarios */}
+      {/* Alta de usuarios (= "Crear Vendedor") */}
       <NuevoUsuario zonas={zonas} />
 
-      {/* Integrantes */}
+      {/* Vendedores (lista estilo Disapp) */}
       <section className="flex flex-col gap-2">
-        <span className="text-[12px] font-bold tracking-[0.03em] text-gris uppercase">Integrantes</span>
-        <ul className="flex flex-col divide-y divide-[#EEF1F8] overflow-hidden rounded-[16px] border border-[#E6EAF4] bg-white">
-          {usuarios.map((u) => {
-            const badge = ROL_BADGE[u.rol] ?? ROL_BADGE.cobrador;
-            return (
-              <li key={u.id} className="flex items-center gap-3 px-4 py-3">
-                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[11px] bg-[#2453DC] text-[14px] font-black text-white">
-                  {u.nombre.charAt(0).toUpperCase()}
-                </div>
-                <span className="min-w-0 flex-1 truncate text-[14px] font-bold text-tinta">{u.nombre}</span>
-                {!u.activo && (
-                  <span className="rounded-full bg-[#F1F3F9] px-2.5 py-1 text-[11px] font-bold text-[#8A93AD]">
-                    Inactivo
-                  </span>
-                )}
-                <span
-                  className="flex-shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold"
-                  style={
-                    u.es_dev
-                      ? { background: "#EDE7FB", color: "#6B3FD4" }
-                      : { background: badge.bg, color: badge.fg }
-                  }
-                >
-                  {u.es_dev ? "Desarrollador" : etiquetaRol[u.rol]}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-[12px] font-bold tracking-[0.03em] text-gris uppercase">
+            Vendedores ({filtrados.length})
+          </span>
+          <form method="get" className="flex gap-1.5">
+            <input
+              type="search"
+              name="q"
+              defaultValue={q ?? ""}
+              placeholder="Nombre, email o documento…"
+              className="rounded-[10px] border border-[#DCE3F4] bg-white px-3 py-2 text-[13px] outline-none focus:border-azul"
+            />
+            <button type="submit" className="rounded-[10px] bg-[#2453DC] px-3.5 py-2 text-[12.5px] font-bold text-white">
+              Buscar
+            </button>
+          </form>
+        </div>
+        <EquipoTabla miembros={filtrados} />
+        <p className="text-[10.5px] font-medium text-[#AEB6CC]">
+          "Conectado" es un proxy honesto: indica login en las últimas 24 h (no presencia en vivo).
+          "Dispositivos" = suscripciones push activas del usuario.
+        </p>
       </section>
 
       {/* Matriz de permisos */}

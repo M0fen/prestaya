@@ -14,49 +14,107 @@ import {
   getSolicitudPorId,
   resolverSolicitudDb,
 } from "@/lib/data/solicitudesRenovacion";
+import { getPrestamoPorId } from "@/lib/data/prestamos";
+import { evaluarRenovacion } from "@/lib/renovacion";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { UYU } from "@/lib/format";
 import type { FrecuenciaPrestamo } from "@/types/db";
 
 type ResultadoSimple = { ok: true } | { ok: false; error: string };
 
+/** Resultado de renovar: `via` dice cómo se resolvió. */
+export type ResultadoRenovar =
+  | { ok: true; via: "auto" | "admin"; prestamoId: string; cuota: number }
+  | { ok: true; via: "solicitud" }
+  | { ok: false; error: string };
+
+/**
+ * Renovación cap-aware (una sola puerta):
+ *  · DENTRO del tope (aumento ≤ 20% y ≤ $100.000) → se aprueba SOLA: crea el
+ *    crédito al instante, sea admin o supervisor (renovación "automática").
+ *  · FUERA del tope → requiere aprobación: el admin la crea directo (él ES el
+ *    aprobador); el supervisor genera una SOLICITUD que el admin resuelve.
+ *  El servidor decide con `evaluarRenovacion` (verdad del dinero); el preview
+ *  del form es solo informativo.
+ */
 export async function renovarCredito(input: {
   clienteId: string;
   prestamoAnteriorId: string;
   monto: number;
   totalDias: number;
   frecuencia: FrecuenciaPrestamo;
-}): Promise<ResultadoAlta> {
+}): Promise<ResultadoRenovar> {
   const usuario = await getUsuarioActual();
   if (!usuario || !usuario.activo || !esGestor(usuario.rol)) {
     return { ok: false, error: "No tenés permisos para dar de alta créditos." };
   }
+  const monto = Math.round(Number(input.monto));
+  const totalDias = Math.round(Number(input.totalDias));
+  if (!(monto > 0) || !(totalDias > 0)) return { ok: false, error: "Revisá el monto y las cuotas." };
 
   const db = await createSupabaseServer();
-  const res = await crearRenovacion(db, {
-    clienteId: input.clienteId,
-    prestamoAnteriorId: input.prestamoAnteriorId,
-    monto: Math.round(Number(input.monto)),
-    totalDias: Math.round(Number(input.totalDias)),
-    frecuencia: input.frecuencia,
-    creadoPor: usuario.id,
-  });
 
-  if (res.ok) {
+  // Monto del crédito anterior para evaluar el tope de auto-aprobación.
+  const ant = await getPrestamoPorId(db, input.prestamoAnteriorId);
+  if (!ant || ant.cliente_id !== input.clienteId || ant.estado !== "activo") {
+    return { ok: false, error: "El crédito anterior no está activo." };
+  }
+  const evalu = evaluarRenovacion(ant.monto_prestado, monto);
+  const puedeDirecto = evalu.autoAprobable || esAdmin(usuario.rol);
+
+  if (puedeDirecto) {
+    const res = await crearRenovacion(db, {
+      clienteId: input.clienteId,
+      prestamoAnteriorId: input.prestamoAnteriorId,
+      monto,
+      totalDias,
+      frecuencia: input.frecuencia,
+      creadoPor: usuario.id,
+    });
+    if (!res.ok) return res;
     await registrarAuditoria(db, {
       actorId: usuario.id,
       actorNombre: usuario.nombre,
-      accion: "Renovó crédito",
+      accion: evalu.autoAprobable
+        ? "Renovó crédito (auto, dentro del tope)"
+        : "Renovó crédito (admin, sobre el tope)",
       entidad: "cliente",
       entidadId: input.clienteId,
-      detalle: `Nuevo crédito ${UYU(Math.round(Number(input.monto)))} × ${Math.round(Number(input.totalDias))} (${input.frecuencia})`,
+      detalle: `Nuevo crédito ${UYU(monto)} × ${totalDias} (${input.frecuencia})`,
     });
     // El nuevo crédito cambia cartera, mora y renovaciones.
     revalidatePath("/admin/renovaciones");
     revalidatePath("/admin/mora");
     revalidatePath("/admin");
+    return { ok: true, via: evalu.autoAprobable ? "auto" : "admin", prestamoId: res.prestamoId, cuota: res.cuota };
   }
-  return res;
+
+  // Fuera del tope y no es admin → solicitud a aprobar.
+  try {
+    await crearSolicitudDb(db, {
+      clienteId: input.clienteId,
+      prestamoAnteriorId: input.prestamoAnteriorId,
+      monto,
+      totalDias,
+      frecuencia: input.frecuencia,
+      solicitadoPor: usuario.id,
+      solicitadoPorNombre: usuario.nombre,
+    });
+    await registrarAuditoria(db, {
+      actorId: usuario.id,
+      actorNombre: usuario.nombre,
+      accion: "Solicitó renovación (supera el tope)",
+      entidad: "cliente",
+      entidadId: input.clienteId,
+      detalle: `${UYU(monto)} × ${totalDias} · ${evalu.motivo ?? ""}`,
+    });
+    revalidatePath("/admin/renovaciones");
+    return { ok: true, via: "solicitud" };
+  } catch (e) {
+    if ((e as { code?: string } | null)?.code === "23505")
+      return { ok: false, error: "Ya hay una solicitud pendiente para este crédito." };
+    return { ok: false, error: "No se pudo enviar la solicitud. ¿Corriste la migración 0029?" };
+  }
 }
 
 // ── Flujo de APROBACIÓN (supervisor solicita → admin resuelve) ─────────────

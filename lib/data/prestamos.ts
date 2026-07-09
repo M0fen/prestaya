@@ -19,6 +19,9 @@ function mapPrestamo(r: Record<string, unknown>): Prestamo {
     fecha_inicio: r.fecha_inicio as string,
     estado: r.estado as Prestamo["estado"],
     creado_por: (r.creado_por as string | null) ?? null,
+    // Paridad Disapp (0041); defensivo si aún no corrió la migración.
+    es_float_supervisor: (r.es_float_supervisor as boolean | undefined) ?? false,
+    interes_pct: r.interes_pct == null ? null : Number(r.interes_pct),
     creado_en: r.creado_en as string,
     actualizado_en: r.actualizado_en as string,
     finalizado_en: (r.finalizado_en as string | null) ?? null,

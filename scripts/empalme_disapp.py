@@ -6,10 +6,15 @@ Ver docs/mapeo-empalme.md para el mapeo y las decisiones.
 
 Modos:
   --audit                 Solo lectura: consolida los .xlsx, reporta cobertura de
-                          fechas, dias faltantes, vendedores y huerfanos. NO toca DB.
-  --dry-run  (default)    Consolida + reporta que HARIA (cuentas, banderas), sin escribir.
+                          fechas, dias faltantes, vendedores, huerfanos y el GAP de
+                          reconstruccion de pagos no-diarios. NO toca DB.
+  --probe REFS            Cuadre dirigido (coma-sep) sin escribir: muestra Saldo/Cuotas
+                          de Disapp vs el carton tras reconstruir. Ej:
+                          --probe PRD0003208827,PRD0002535750
+  --dry-run  (default)    Consolida + reporta que HARIA (cuentas, banderas, reconstruccion),
+                          sin escribir. Emite reconstruccion_revision.csv.
   --commit                Escribe de verdad (crea cobradores/auth, clientes, creditos,
-                          stubs y pagos). Requiere --env-file con SUPABASE_URL/KEY.
+                          stubs, pagos y pagos de AJUSTE). Requiere --env-file.
   --prod                  Permite apuntar a produccion (si no, aborta cuando el .env no
                           parece de prueba). NUNCA usar sin intencion.
   --validate-sample N     Tras --commit: toma N clientes y muestra saldo/estado calculado.
@@ -22,11 +27,25 @@ Reglas de dinero (criticas):
   · creditos_*.xlsx: montos como TEXTO uruguayo '6.000,00' -> 6000.00
   · recaudos_*.xlsx: Excel se comio el separador de miles. float -> x1000, int -> tal cual.
   · Fechas dd/mm/yyyy. Los pagos NUNCA se borran; 'Saldo Pendiente' es metadato, no fuente.
-  · El carton asigna el pago por dia_credito (= "Cuota #"), no por fecha.
+  · El carton es FIFO ACUMULADO (lib/cartones.ts): el estado de cada cuota sale del
+    TOTAL pagado, NO del dia_credito ("Cuota #" de Disapp es un snapshot inutil).
+  · Reconstruccion (paso 6): Disapp solo exporta recaudos DIARIOS; los pagos de creditos
+    semanales/quincenales/mensuales/VIP se reconstruyen desde la columna 'Pagos' del
+    Excel de creditos, sembrando ajustes (origen='ajuste_migracion'). Verdad = el DINERO
+    ('Pagos'+'Saldo'=='Total' en 100% de activos); 'Cuotas Pend.' es solo informativo
+    (concuerda con el dinero en ~26%).
 """
 import argparse, glob, os, sys, json, re, secrets, urllib.request, urllib.parse, urllib.error
 import datetime as dt
 from collections import defaultdict, Counter
+
+# La consola de Windows (cp1252) no traga los símbolos → ✓ ⚠ de los prints. Forzar
+# UTF-8 evita que el importador crashee a mitad del go-live por un carácter.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 try:
     import openpyxl
@@ -180,6 +199,18 @@ def load_creditos(src):
                 "frecuencia": MODALIDAD_FREC.get(mod, "diario"),
                 "modalidad_rara": mod not in MODALIDAD_FREC or mod == "personalizado",
                 "fecha": parse_date(_raw(r, col(hm, "Fecha Crédito", "Fecha Credito"))),
+                # Columnas de reconstrucción de pagos no-diarios (verificadas en el
+                # Excel real). Disapp NO exporta los pagos semanales/quincenales/
+                # mensuales/VIP → esas columnas son la ÚNICA fuente de lo pagado.
+                # Nota crítica (verificada en data real 2026-07-08): 'Pagos'+'Saldo
+                # Pendiente'=='Total c/ Intereses' en el 100% de los activos, pero
+                # 'Cuotas Pend.' solo concuerda con el dinero en el 25,6% → se usa
+                # el DINERO como verdad, 'Cuotas Pend.' es solo informativo.
+                "pagos_disapp": parse_money_text(_raw(r, col(hm, "Pagos"))),
+                "saldo_pendiente": parse_money_text(_raw(r, col(hm, "Saldo Pendiente"))),
+                "total_c_intereses": parse_money_text(_raw(r, col(hm, "Total c/ Intereses", "Total c/ Interes", "Total con Intereses"))),
+                "cuotas_pend": _int(r, col(hm, "Cuotas Pend.", "Cuotas Pend")),
+                "estado_disapp": (_s(r, col(hm, "Estado")) or "").strip(),
             }
     return by_id, vendedores, vend_por_texto
 
@@ -228,6 +259,168 @@ def consolidar(src):
         "refs_activos": refs_activos, "huerfanos": huerfanos,
     }
 
+# ══ RECONSTRUCCIÓN de pagos no-diarios ══════════════════════════════════════
+# Disapp solo exporta los recaudos de créditos DIARIOS. Los pagos de créditos
+# semanales / quincenales / mensuales / VIP de supervisor NO se pueden exportar
+# → entran con $0 pagado e inflan mora y cartera. La única fuente de lo pagado
+# para esos créditos es la columna 'Pagos' del Excel de créditos.
+#
+# ACOPLE con el cartón (lib/cartones.ts): el cartón es FIFO ACUMULADO — el estado
+# de cada cuota se deriva del TOTAL pagado (Math.min(cuota, totalPagado - i*cuota)),
+# NO del dia_credito de cada pago (el 'Cuota #' de Disapp es un snapshot inútil).
+# ⇒ para que mora y saldo salgan exactos basta con UNA identidad:
+#       suma(pagos del crédito) == Pagos (columna Disapp)
+# La distribución cuota-por-cuota de abajo es cosmética (comprobante natural +
+# respeta el trigger dia_credito ≤ total_dias); el resultado en dinero es idéntico
+# a un solo lump. Se distribuye llenando las cuotas MÁS TEMPRANAS aún no cubiertas
+# por recaudos reales, con cobertura FIFO-consistente (no por el 'Cuota #' basura).
+TOL_MONTO = 1.0
+
+def _cubierto_fifo(cubierto, dia, cuota):
+    """Cuánto de la cuota `dia` (1-based) queda cubierto por `cubierto` acumulado,
+    bajo FIFO (igual que el cartón). Se satura a [0, cuota]."""
+    return max(0.0, min(cuota, cubierto - (dia - 1) * cuota))
+
+def reconstruir_creditos(d, only_refs=None):
+    """PURA (no toca DB). Para cada crédito ACTIVO cuya columna 'Pagos' supera lo
+    ya importado de recaudos reales, calcula los pagos de AJUSTE a sembrar.
+    Devuelve dict ref -> {credit_id, fecha, cuota, total_dias, ya, pagos_disapp,
+    reconstruir, sembrados:[(dia,monto)], total_pagado_final, falta_final,
+    saldo_pend, cuotas_pend, revision:[str]}.
+    Solo créditos con Estado=Activo (los que definen el cartón de go-live)."""
+    # Suma de recaudos REALES ya imputados por crédito activo (por ref = 'Crédito #').
+    ya_por_ref = defaultdict(float)
+    for p in d["pagos"].values():
+        if p["ref"] and p["ref"] in d["refs_activos"] and p["monto"]:
+            ya_por_ref[p["ref"]] += p["monto"]
+
+    res = {}
+    for cid, c in d["creditos"].items():
+        ref = c["ref"]
+        if not ref:
+            continue
+        if (c.get("estado_disapp") or "").lower() != "activo":
+            continue
+        if only_refs and ref not in only_refs:
+            continue
+
+        cuota = c["cuota"] or 0.0
+        total_dias = c["cuotas"] or 0
+        pagos_disapp = c["pagos_disapp"] or 0.0
+        total_ci = c["total_c_intereses"]
+        saldo_pend = c["saldo_pendiente"]
+        cuotas_pend = c["cuotas_pend"]
+        ya = round(ya_por_ref.get(ref, 0.0), 2)
+        rev = []
+
+        # Precheck de consistencia: el cartón usa totalAPagar = cuota*total_dias.
+        # Si eso no coincide con 'Total c/ Intereses', el saldo reconstruido no va
+        # a igualar 'Saldo Pendiente' aunque los pagos estén perfectos (INFORMATIVO).
+        if cuota and total_dias and total_ci is not None:
+            if abs(cuota * total_dias - total_ci) > TOL_MONTO:
+                rev.append(f"cuota*cuotas={cuota*total_dias:.0f} != Totalc/Int={total_ci:.0f}")
+
+        info = {
+            "credit_id": cid, "ref": ref, "fecha": c["fecha"],
+            "cuota": cuota, "total_dias": total_dias, "ya": ya,
+            "pagos_disapp": pagos_disapp, "saldo_pend": saldo_pend,
+            "cuotas_pend": cuotas_pend, "frecuencia": c["frecuencia"],
+            "sembrados": [], "reconstruir": 0.0,
+            "total_pagado_final": ya, "falta_final": None, "revision": rev,
+        }
+
+        if cuota <= 0 or total_dias <= 0:
+            rev.append("cuota/total_dias inválidos")
+            info["falta_final"] = max(0.0, cuota * total_dias - ya)
+            res[ref] = info
+            continue
+
+        total_carton = cuota * total_dias
+        reconstruir = round(pagos_disapp - ya, 2)
+
+        # Cruce k por monto vs k por cuotas (INFORMATIVO: 'Cuotas Pend.' solo
+        # concuerda con el dinero en ~25% de los casos → nunca bloquea).
+        if cuotas_pend is not None:
+            k_monto = pagos_disapp / cuota
+            k_cuotas = total_dias - cuotas_pend
+            if abs(round(k_monto) - k_cuotas) > 1:
+                rev.append(f"k_monto={k_monto:.1f} vs k_cuotas={k_cuotas} (Cuotas Pend. no cuadra)")
+
+        if reconstruir < 0:
+            # Los recaudos reales traen MÁS que el Excel → no sembrar; a revisión.
+            rev.append(f"ya_importado={ya:.0f} > Pagos={pagos_disapp:.0f} (no siembra)")
+        elif reconstruir > 0:
+            # Cap para no exceder el cartón (sobrepago / dato inconsistente).
+            espacio = round(total_carton - ya, 2)
+            if reconstruir > espacio + 0.5:
+                rev.append(f"Pagos>cartón: reconstruir={reconstruir:.0f} > espacio={espacio:.0f} (cap)")
+                reconstruir = max(0.0, espacio)
+            restante = reconstruir
+            for dia in range(1, total_dias + 1):
+                if restante <= 0:
+                    break
+                falta_dia = round(cuota - _cubierto_fifo(ya, dia, cuota), 2)
+                if falta_dia <= 0:
+                    continue
+                monto = round(min(falta_dia, restante), 2)
+                if monto <= 0:
+                    continue
+                info["sembrados"].append((dia, monto))
+                restante = round(restante - monto, 2)
+            # Residuo de centavos: al último sembrado; nunca crear día > total_dias.
+            if restante > 0.5:
+                rev.append(f"sobró {restante:.2f} sin cuota donde ubicar")
+            elif restante > 0 and info["sembrados"]:
+                d0, m0 = info["sembrados"][-1]
+                info["sembrados"][-1] = (d0, round(m0 + restante, 2))
+            info["reconstruir"] = round(sum(m for _, m in info["sembrados"]), 2)
+
+        info["total_pagado_final"] = round(ya + info["reconstruir"], 2)
+        info["falta_final"] = round(max(0.0, total_carton - info["total_pagado_final"]), 2)
+        res[ref] = info
+    return res
+
+def _reconciliacion_identidades(info):
+    """Devuelve la lista de identidades que FALLAN para un crédito reconstruido
+    (contra las columnas del Excel). #1 y #2 son duras (dinero); #3 informativa."""
+    fallos = []
+    cuota, td = info["cuota"], info["total_dias"]
+    tp = info["total_pagado_final"]
+    # #1 suma de pagos == Pagos
+    if info["pagos_disapp"] is not None and abs(tp - info["pagos_disapp"]) > TOL_MONTO:
+        fallos.append(("1_suma!=Pagos", info["pagos_disapp"], tp))
+    # #2 falta del cartón == Saldo Pendiente
+    if info["saldo_pend"] is not None and abs(info["falta_final"] - info["saldo_pend"]) > TOL_MONTO:
+        fallos.append(("2_falta!=Saldo", info["saldo_pend"], info["falta_final"]))
+    # #3 cuotas pagadas completas == Cuotas - Cuotas Pend. (INFORMATIVA)
+    if info["cuotas_pend"] is not None and cuota > 0:
+        pagadas = int(tp // cuota) if td else 0
+        esperado = td - info["cuotas_pend"]
+        if abs(pagadas - esperado) > 1:
+            fallos.append(("3_cuotas(info)", esperado, pagadas))
+    return fallos
+
+def _filas_ajuste(res, ref_to_uuid, ahora_iso):
+    """Construye las filas de pago de ajuste para insertar. Solo para créditos ya
+    presentes en `ref_to_uuid` (prestamos insertados). Idempotente por
+    disapp_pago_id = 'ajuste-<credit_id>-<dia>'."""
+    filas = []
+    for ref, info in res.items():
+        pid = ref_to_uuid.get(ref)
+        if not pid or not info["sembrados"]:
+            continue
+        # registrado_en al inicio del crédito → NO contamina "recaudado hoy/mes".
+        reg = iso_ts(info["fecha"]) or iso_ts(dt.date.today())
+        for dia, monto in info["sembrados"]:
+            filas.append({
+                "prestamo_id": pid, "dia_credito": dia, "monto": monto,
+                "registrado_por": None, "registrado_en": reg,
+                "origen": "ajuste_migracion", "importado_en": ahora_iso,
+                "disapp_pago_id": f"ajuste-{info['credit_id']}-{dia}",
+                "disapp_credit_ref": ref,
+            })
+    return filas
+
 # ══ AUDIT ═══════════════════════════════════════════════════════════════════
 def audit(src, out):
     print("Leyendo exports de:", src)
@@ -256,6 +449,17 @@ def audit(src, out):
         for mk in sorted(por_mes):
             y, m = mk
             print(f"     {MESES[m-1]}-{y}:  {por_mes[mk]:>6} pagos   $ {suma_mes[mk]:>14,.0f}")
+
+    # Gap de reconstrucción: créditos activos donde Disapp dice que pagaron MÁS
+    # de lo que hay en recaudos (los no-diarios). Sin escribir nada.
+    res = reconstruir_creditos(d)
+    recon = [i for i in res.values() if i["sembrados"]]
+    gap = round(sum(i["reconstruir"] for i in recon), 2)
+    por_frec = Counter(i["frecuencia"] for i in recon)
+    print(f"\n  --- Gap de pagos no-diarios (reconstrucción) ---")
+    print(f"  Créditos activos con gap:  {len(recon)}   monto a reconstruir: $ {gap:,.0f}")
+    print(f"  Pagos de ajuste a sembrar: {sum(len(i['sembrados']) for i in recon)}")
+    print(f"  Por frecuencia: {dict(por_frec)}")
 
     pagos_huerf = sum(len(v) for v in d["huerfanos"].values())
     print(f"\n  Refs huerfanas (stub): {len(d['huerfanos'])}   pagos afectados: {pagos_huerf}")
@@ -318,11 +522,13 @@ def upsert(db, table, rows, on_conflict, ignore=False, rep=True):
     return out
 
 def get_rows(db, table, select, params=None):
-    """GET paginado (para armar mapas grandes)."""
+    """GET paginado (para armar mapas grandes). ⚠️ SIEMPRE con order estable: sin
+    él, PostgREST puede repetir/saltear filas entre páginas (>1000) y dejar mapas
+    incompletos → créditos/pagos perdidos. Mismo bug de dinero que en el panel."""
     out = []
     off = 0
     while True:
-        q = {"select": select, "limit": 1000, "offset": off}
+        q = {"select": select, "limit": 1000, "offset": off, "order": "id.asc"}
         if params:
             q.update(params)
         url = db["url"] + "/rest/v1/" + table + "?" + urllib.parse.urlencode(q)
@@ -363,7 +569,13 @@ def commit_import(src, out, db, dry):
     creds_csv = []
     print(f"\n[1] Cobradores/supervisores: {len(d['vendedores'])}")
     for idv, nombre in sorted(d["vendedores"].items()):
-        rol = "supervisor" if es_supervisor(nombre) else "cobrador"
+        # Los "supervisores" de Disapp (CESAR/BOSO/EDWIN) NO llevan ruta diaria:
+        # gestionan una cartera VIP (semanal, 0%, montos altos) de clientes reales.
+        # Se importan como un cobrador dedicado "CARTERA <zona>" para que esa
+        # cartera quede cobrable en Presta Ya (decisión Carlos 2026-07-08).
+        if es_supervisor(nombre):
+            nombre = nombre.replace("SUPERVISOR", "CARTERA")
+        rol = "cobrador"
         if es_admin_vend(nombre) and admin_id:
             id_vend_to_uuid[idv] = admin_id
             continue
@@ -408,13 +620,15 @@ def commit_import(src, out, db, dry):
             if row.get("documento"):
                 doc_to_uuid[row["documento"]] = row["id"]
 
-    # ── 3. Creditos activos (skip supervisores) ────────────────────────────
+    # ── 3. Creditos activos ─────────────────────────────────────────────────
+    # Los créditos de supervisores YA NO se saltan: van al cobrador "CARTERA
+    # <zona>" creado en el paso 1 (cartera VIP semanal de clientes reales).
     sup_ids = {i for i, n in d["vendedores"].items() if es_supervisor(n)}
     filas_cred, ref_to_uuid, ref_total_dias = [], {}, {}
-    skip_sup = skip_cli = 0
+    inc_cartera = skip_cli = 0
     for c in d["creditos"].values():
         if c["id_vendedor"] in sup_ids:
-            skip_sup += 1; continue
+            inc_cartera += 1
         cli = disapp_to_uuid.get(c["id_cliente"]) if not dry else "?"
         if not dry and not cli:
             skip_cli += 1; continue
@@ -428,7 +642,7 @@ def commit_import(src, out, db, dry):
         })
         if c["ref"]:
             ref_total_dias[c["ref"]] = td
-    print(f"\n[3] Creditos activos: {len(filas_cred)}  (skip supervisores: {skip_sup}, sin cliente: {skip_cli})")
+    print(f"\n[3] Creditos activos: {len(filas_cred)}  (cartera supervisor incluida: {inc_cartera}, sin cliente: {skip_cli})")
     if not dry:
         rep = upsert(db, "prestamos", filas_cred, "disapp_credit_id")
         for row in rep:
@@ -507,6 +721,68 @@ def commit_import(src, out, db, dry):
     if not dry:
         upsert(db, "pagos", filas_pago, "disapp_pago_id", ignore=True, rep=False)
 
+    # ── 6. Reconstrucción de pagos NO-diarios ────────────────────────────────
+    # DESPUÉS de los pagos reales, para conocer qué cuotas ya están cubiertas.
+    # Siembra un ajuste (origen='ajuste_migracion') por la diferencia entre la
+    # columna 'Pagos' de Disapp y lo importado de recaudos. Ver reconstruir_creditos.
+    res = reconstruir_creditos(d)
+    recon = [i for i in res.values() if i["sembrados"]]
+    n_semb = sum(len(i["sembrados"]) for i in recon)
+    monto_semb = round(sum(i["reconstruir"] for i in recon), 2)
+    a_revision = [i for i in res.values() if i["revision"]]
+    # Cartera pendiente global tras la reconstrucción = Σ falta (== Σ Saldo Pendiente
+    # cuando la reconstrucción cierra; es el LIBRO COMPLETO y real, ~$94,2M — MÁS que
+    # el tile "Capital en calle $68,5M" de Disapp, que esconde parte de su cartera).
+    cartera_global = round(sum((i["falta_final"] or 0.0) for i in res.values()), 2)
+    saldo_disapp = round(sum((i["saldo_pend"] or 0.0) for i in res.values()), 2)
+    print(f"\n[6] Reconstrucción de pagos no-diarios:")
+    print(f"      créditos activos evaluados:   {len(res):>8}")
+    print(f"      créditos reconstruidos:       {len(recon):>8}")
+    print(f"      pagos de ajuste sembrados:    {n_semb:>8}")
+    print(f"      monto total sembrado:       $ {monto_semb:>14,.0f}")
+    print(f"      créditos marcados a revisión: {len(a_revision):>8}  (Cuotas Pend. informativa)")
+    print(f"      cartera pendiente global:   $ {cartera_global:>14,.0f}  (Σ Saldo Disapp: $ {saldo_disapp:,.0f})")
+
+    # Reconciliación. Se separa el ÚNICO bucket que importa (dinero faltante real:
+    # pagado < Pagos, imposible de sembrar sin borrar recaudos inmutables) de los
+    # benignos: (a) pagado > Pagos = los recaudos traen pagos MÁS nuevos que el
+    # snapshot 'Pagos' del Excel (mi dato es más actual → saldo un poco menor); y
+    # (b) redondeo cuota*cuotas != Total. Ni (a) ni (b) son errores del pipeline.
+    sub_cobrados = 0        # pagado < Pagos  → REVISAR (falta plata)
+    mas_nuevos = 0          # pagado > Pagos  → OK (recaudos más recientes)
+    exceso_nuevos = 0.0
+    redondeo = 0            # cuota*cuotas != Total → OK (cosmético)
+    filas_csv = []
+    for info in res.values():
+        fallos = _reconciliacion_identidades(info)
+        motivos = info["revision"] + [f"{k}(esp={e:.0f},obt={o:.0f})" for k, e, o in fallos]
+        pd_, pf_ = (info["pagos_disapp"] or 0.0), info["total_pagado_final"]
+        if pf_ < pd_ - TOL_MONTO:
+            sub_cobrados += 1
+        elif pf_ > pd_ + TOL_MONTO:
+            mas_nuevos += 1; exceso_nuevos += (pf_ - pd_)
+        if any(k.startswith("cuota*cuotas") for k in info["revision"]):
+            redondeo += 1
+        if motivos:
+            filas_csv.append((info["ref"], info["frecuencia"], " | ".join(motivos),
+                              info["pagos_disapp"], info["total_pagado_final"],
+                              info["saldo_pend"], info["falta_final"]))
+    if filas_csv:
+        p = os.path.join(out, "reconstruccion_revision.csv")
+        with open(p, "w", encoding="utf-8") as f:
+            f.write("credit_ref,frecuencia,motivo,pagos_disapp,pagado_final,saldo_disapp,falta_final\n")
+            for ref, frec, mot, pd, pf, sd, ff in filas_csv:
+                f.write(f'{ref},{frec},"{mot}",{pd or 0:.0f},{pf:.0f},{sd or 0:.0f},{ff or 0:.0f}\n')
+        print(f"      🔴 sub-cobrados (pagado < Pagos, REVISAR): {sub_cobrados}")
+        print(f"      ✔ recaudos más nuevos que snapshot (OK):  {mas_nuevos}  (+$ {exceso_nuevos:,.0f})")
+        print(f"      ✔ redondeo cuota*cuotas != Total (OK):    {redondeo}")
+        print(f"      revisión -> {p}  ({len(filas_csv)} filas; #3/CuotasPend informativas)")
+
+    if not dry:
+        filas_ajuste = _filas_ajuste(res, ref_to_uuid, dt.datetime.now().isoformat())
+        print(f"      insertando {len(filas_ajuste)} pagos de ajuste...")
+        upsert(db, "pagos", filas_ajuste, "disapp_pago_id", ignore=True, rep=False)
+
     print("\n" + ("=== DRY-RUN OK (no se escribio nada) ===" if dry
                   else "=== COMMIT COMPLETO ==="))
 
@@ -550,6 +826,36 @@ def validate_sample(db, n):
               f"pagado ${pagado:>11,.0f} / total ${total:>11,.0f}  "
               f"saldo ${max(0,total-pagado):>11,.0f}  ({len(pagos)} pagos)")
 
+# ══ PROBE (cuadre dirigido, antes del masivo) ═══════════════════════════════
+def probe(src, refs):
+    """Reconstruye SOLO los créditos indicados y muestra, lado a lado, lo que dice
+    Disapp (Saldo Pendiente / Cuotas Pend.) vs lo que da el cartón tras sembrar.
+    No toca la DB. Uso: --probe PRD0003208827,PRD0002535750."""
+    only = {r.strip() for r in refs.split(",") if r.strip()}
+    d = consolidar(src)
+    res = reconstruir_creditos(d, only_refs=only)
+    print("\n=== PROBE (cuadre dirigido, sin escribir) ===")
+    faltantes = only - set(res.keys())
+    for r in sorted(faltantes):
+        print(f"  ⚠ {r}: no es un crédito ACTIVO del Excel (no reconstruible)")
+    for ref in sorted(res.keys()):
+        i = res[ref]
+        cuota = i["cuota"] or 0
+        pagadas = int(i["total_pagado_final"] // cuota) if cuota else 0
+        toca = "SÍ" if i["sembrados"] else "no (ya completo)"
+        print(f"\n  {ref}  [{i['frecuencia']}]  cuota ${cuota:,.0f} x {i['total_dias']}")
+        print(f"    recaudos reales importados : $ {i['ya']:>12,.0f}")
+        print(f"    Pagos (Disapp)             : $ {(i['pagos_disapp'] or 0):>12,.0f}")
+        print(f"    ¿reconstruye?              : {toca}  (+$ {i['reconstruir']:,.0f}, {len(i['sembrados'])} pagos)")
+        print(f"    pagado final (cartón)      : $ {i['total_pagado_final']:>12,.0f}")
+        print(f"    ── SALDO ──  cartón: $ {(i['falta_final'] or 0):>12,.0f}   Disapp: $ {(i['saldo_pend'] or 0):>12,.0f}")
+        print(f"    ── CUOTAS ─  cartón pagadas: {pagadas:>4}   Disapp pagadas: {(i['total_dias'] - i['cuotas_pend']) if i['cuotas_pend'] is not None else '?'}")
+        fallos = _reconciliacion_identidades(i)
+        if fallos:
+            print(f"    identidades que fallan: " + ", ".join(k for k, *_ in fallos))
+        else:
+            print(f"    ✓ identidades duras (#1 suma==Pagos, #2 saldo==Saldo) OK")
+
 # ══ main ════════════════════════════════════════════════════════════════════
 def main():
     ap = argparse.ArgumentParser(description="Empalme Disapp -> Presta Ya")
@@ -561,10 +867,16 @@ def main():
     ap.add_argument("--commit", action="store_true")
     ap.add_argument("--prod", action="store_true")
     ap.add_argument("--validate-sample", type=int, default=0)
+    ap.add_argument("--probe", default=None,
+                    help="Cuadre dirigido de refs (coma-sep), sin escribir. Ej: PRD0003208827,PRD0002535750")
     a = ap.parse_args()
     out = a.out or os.path.join(a.src, "_reportes")
     if not os.path.isdir(a.src):
         sys.exit(f"No existe la carpeta de datos: {a.src}")
+
+    if a.probe:
+        probe(a.src, a.probe)
+        return
 
     if a.audit:
         audit(a.src, out)

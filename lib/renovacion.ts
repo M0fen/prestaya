@@ -40,3 +40,49 @@ export function calcularCuotaRenovacion(
   const factor = tasaImplicita(anterior);
   return Math.round((montoNuevo * factor) / diasNuevo);
 }
+
+// ── Auto-aprobación de renovaciones (tope) ─────────────────────────────────
+//  Una renovación se aprueba SOLA (crea el crédito al instante, sin pasar por el
+//  admin) si el AUMENTO respecto del crédito anterior está DENTRO del tope:
+//    · el monto nuevo no supera al anterior en más de RENOVACION_TOPE_PCT %, y
+//    · el aumento en pesos no supera RENOVACION_TOPE_ABS.
+//  Si se pasa de cualquiera de los dos, requiere aprobación del admin.
+//  Renovar por el mismo monto o por menos siempre es auto-aprobable.
+export const RENOVACION_TOPE_PCT = 20;
+export const RENOVACION_TOPE_ABS = 100_000;
+
+export interface EvaluacionRenovacion {
+  /** true = se aprueba automáticamente; false = requiere aprobación del admin. */
+  autoAprobable: boolean;
+  /** Aumento en pesos (nuevo − anterior); negativo si renueva por menos. */
+  aumento: number;
+  /** Aumento en % sobre el anterior. */
+  aumentoPct: number;
+  /** Por qué requiere aprobación (null si es auto-aprobable). */
+  motivo: string | null;
+}
+
+/** Evalúa si una renovación entra en el tope de auto-aprobación. Puro. */
+export function evaluarRenovacion(
+  montoAnterior: number,
+  montoNuevo: number,
+): EvaluacionRenovacion {
+  const aumento = montoNuevo - montoAnterior;
+  const aumentoPct =
+    montoAnterior > 0 ? (aumento / montoAnterior) * 100 : montoNuevo > 0 ? Infinity : 0;
+  // Tolerancia mínima para no rechazar por redondeo (ej. 20.0000001%).
+  const excedePct = aumentoPct > RENOVACION_TOPE_PCT + 1e-6;
+  const excedeAbs = aumento > RENOVACION_TOPE_ABS;
+  const autoAprobable = !excedePct && !excedeAbs;
+
+  const pes = (n: number) => `$${Math.round(n).toLocaleString("es-UY")}`;
+  let motivo: string | null = null;
+  if (excedePct && excedeAbs)
+    motivo = `El aumento (${aumentoPct.toFixed(0)}% · +${pes(aumento)}) supera el tope de ${RENOVACION_TOPE_PCT}% y de ${pes(RENOVACION_TOPE_ABS)}.`;
+  else if (excedePct)
+    motivo = `El aumento de ${aumentoPct.toFixed(0)}% supera el tope de ${RENOVACION_TOPE_PCT}%.`;
+  else if (excedeAbs)
+    motivo = `El aumento de ${pes(aumento)} supera el tope de ${pes(RENOVACION_TOPE_ABS)}.`;
+
+  return { autoAprobable, aumento, aumentoPct, motivo };
+}

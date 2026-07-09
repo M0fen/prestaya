@@ -1,21 +1,25 @@
-// Caja / Tesorería (admin/supervisor): resumen del día (o del mes), ingresos vs
-// egresos, efectivo a rendir por cobrador, libro de movimientos y alta de
-// gastos/desembolsos/aportes/retiros. Los cobros vienen de `pagos`.
-import Link from "next/link";
+// Caja diaria (admin/supervisor): ingresos vs egresos OPERATIVOS de un rango
+// (Desde/Hasta, hoy por defecto), efectivo a rendir por cobrador, libro de
+// movimientos con columna Visible, y alta de gastos/desembolsos/aportes/retiros.
+// Los cobros vienen de `pagos`. El capital vive en /admin/capital.
 import { requireGestor } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { getResumenCaja, type PeriodoCaja, type LineaLibro } from "@/lib/data/caja";
+import { getResumenCajaRango, type LineaLibro } from "@/lib/data/caja";
 import { getRendicionesDia } from "@/lib/data/rendicion";
 import { FormMovimientoCaja } from "@/components/admin/FormMovimientoCaja";
 import { RendicionesDia } from "@/components/admin/RendicionesDia";
+import { BotonImprimir } from "@/components/admin/BotonImprimir";
 import { UYU, horaDe, meses } from "@/lib/format";
+import { diaUYInicioIso, diaUYFinIso, fechaISOUY } from "@/lib/fecha";
 
 export const dynamic = "force-dynamic";
 
-function fechaHora(iso: string, mostrarDia: boolean): string {
+const esYmd = (v: string | undefined): string | null =>
+  v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
+
+function fechaHora(iso: string): string {
   const d = new Date(iso);
-  const hm = horaDe(iso);
-  return mostrarDia ? `${d.getDate()} ${meses[d.getMonth()].slice(0, 3)} ${hm}` : hm;
+  return `${d.getDate()} ${meses[d.getMonth()].slice(0, 3)} ${horaDe(iso)}`;
 }
 
 const COLOR_LINEA: Record<LineaLibro["tipo"], string> = {
@@ -29,47 +33,67 @@ const COLOR_LINEA: Record<LineaLibro["tipo"], string> = {
 export default async function CajaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ p?: string }>;
+  searchParams: Promise<{ desde?: string; hasta?: string }>;
 }) {
-  const { p } = await searchParams;
-  const periodo: PeriodoCaja = p === "mes" ? "mes" : "hoy";
+  const sp = await searchParams;
   await requireGestor();
   const db = await createSupabaseServer();
-  const r = await getResumenCaja(db, periodo);
-  const esMes = periodo === "mes";
-  // Rendiciones de jornada: solo tienen sentido en la vista del día.
-  const rendiciones = esMes ? null : await getRendicionesDia(db);
+
+  const hoyYmd = fechaISOUY();
+  const desde = esYmd(sp.desde) ?? hoyYmd;
+  const hasta = esYmd(sp.hasta) ?? hoyYmd;
+  const esHoy = desde === hoyYmd && hasta === hoyYmd;
+
+  const r = await getResumenCajaRango(db, {
+    desde: diaUYInicioIso(desde),
+    hasta: diaUYFinIso(hasta),
+  });
+  // Rendiciones de jornada: solo tienen sentido cuando el rango es "hoy".
+  const rendiciones = esHoy ? await getRendicionesDia(db) : null;
+
+  const qs = new URLSearchParams({ desde, hasta, periodo: esHoy ? "hoy" : "mes" });
+  const csvHref = `/api/reportes/caja?${qs.toString()}`;
 
   return (
-    <div className="mx-auto flex max-w-[820px] flex-col gap-5">
+    <div className="mx-auto flex max-w-[900px] flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-col gap-0.5">
-          <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">Caja</h1>
+          <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">Caja diaria</h1>
           <span className="text-[13px] font-medium text-gris">
-            {esMes ? "Movimiento del mes" : "Resumen del día"} — ingresos, egresos y efectivo.
+            Ingresos, egresos y efectivo operativo. El capital va en su propia pantalla.
           </span>
         </div>
-        <div className="flex gap-1.5">
-          {(["hoy", "mes"] as const).map((op) => (
-            <Link
-              key={op}
-              href={`/admin/caja?p=${op}`}
-              className={`rounded-full px-3.5 py-1.5 text-[12.5px] font-bold ${
-                periodo === op ? "bg-[#2453DC] text-white" : "bg-white text-[#6B7494]"
-              }`}
-            >
-              {op === "hoy" ? "Hoy" : "Mes"}
-            </Link>
-          ))}
+        <div className="flex gap-2 print:hidden">
+          <a
+            href={csvHref}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#DCE3F4] bg-white px-4 py-2 text-[13px] font-bold text-[#2453DC] hover:bg-[#F7F9FD]"
+          >
+            ⬇️ Exportar CSV
+          </a>
+          <BotonImprimir />
         </div>
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
-        <Kpi label="Ingresos" valor={UYU(r.ingresosTotal)} tono="#157A50" />
-        <Kpi label="Egresos" valor={UYU(r.egresosTotal)} tono="#C0392B" />
-        <Kpi label="Neto" valor={UYU(r.neto)} tono={r.neto >= 0 ? "#157A50" : "#C0392B"} />
-        <Kpi label="Cobros" valor={`${r.cobrosCantidad}`} sub={UYU(r.cobros)} />
+      {/* Rango de fechas (GET, sin JS) */}
+      <form method="get" className="flex flex-wrap items-end gap-2 print:hidden">
+        <label className="flex flex-col gap-1">
+          <span className="text-[11px] font-semibold text-gris">Desde</span>
+          <input type="date" name="desde" defaultValue={desde} className={INPUT} />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-[11px] font-semibold text-gris">Hasta</span>
+          <input type="date" name="hasta" defaultValue={hasta} className={INPUT} />
+        </label>
+        <button type="submit" className="rounded-[12px] bg-[#2453DC] px-4 py-2.5 text-[13px] font-bold text-white">
+          Aplicar
+        </button>
+      </form>
+
+      {/* 3 tarjetas (como Disapp) */}
+      <div className="grid grid-cols-3 gap-2.5">
+        <Kpi label="Balance Total" valor={UYU(r.neto)} tono={r.neto >= 0 ? "#157A50" : "#C0392B"} />
+        <Kpi label="Total Entradas" valor={UYU(r.ingresosTotal)} tono="#157A50" />
+        <Kpi label="Total Retiros" valor={UYU(r.egresosTotal)} tono="#C0392B" />
       </div>
 
       <FormMovimientoCaja />
@@ -82,9 +106,7 @@ export default async function CajaPage({
             {r.egresosPorCategoria.map((e) => (
               <li key={e.categoria} className="flex items-center justify-between py-2">
                 <span className="text-[13px] font-medium text-[#3A445F]">{e.categoria}</span>
-                <span className="text-[13.5px] font-extrabold text-tinta tabular-nums">
-                  {UYU(e.monto)}
-                </span>
+                <span className="text-[13.5px] font-extrabold text-tinta tabular-nums">{UYU(e.monto)}</span>
               </li>
             ))}
           </ul>
@@ -95,7 +117,7 @@ export default async function CajaPage({
       {r.porCobrador.length > 0 && (
         <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-4">
           <span className="text-[13px] font-bold text-tinta">
-            {esMes ? "Recaudado por cobrador" : "Efectivo a rendir hoy"}
+            {esHoy ? "Efectivo a rendir hoy" : "Recaudado por cobrador"}
           </span>
           <ul className="mt-2 flex flex-col divide-y divide-[#EEF1F8]">
             {r.porCobrador.map((c) => (
@@ -104,9 +126,7 @@ export default async function CajaPage({
                 <span className="text-[12px] font-medium text-gris">
                   {c.cobros} cobro{c.cobros === 1 ? "" : "s"}
                 </span>
-                <span className="text-[13.5px] font-extrabold text-tinta tabular-nums">
-                  {UYU(c.recaudado)}
-                </span>
+                <span className="text-[13.5px] font-extrabold text-tinta tabular-nums">{UYU(c.recaudado)}</span>
               </li>
             ))}
           </ul>
@@ -116,60 +136,67 @@ export default async function CajaPage({
       {/* Rendiciones de jornada (solo hoy) */}
       {rendiciones && <RendicionesDia r={rendiciones} />}
 
-      {/* Libro de movimientos */}
-      <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-4">
-        <span className="text-[13px] font-bold text-tinta">Libro de caja</span>
+      {/* Libro de movimientos con columna Visible */}
+      <section className="overflow-x-auto rounded-[16px] border border-[#E6EAF4] bg-white">
+        <div className="px-4 pt-4">
+          <span className="text-[13px] font-bold text-tinta">Libro de caja</span>
+        </div>
         {r.libro.length === 0 ? (
-          <p className="mt-2 text-[13px] font-medium text-gris">Sin movimientos en el período.</p>
+          <p className="px-4 py-6 text-[13px] font-medium text-gris">Sin movimientos en el período.</p>
         ) : (
-          <ul className="mt-2 flex flex-col divide-y divide-[#EEF1F8]">
-            {r.libro.map((l, i) => (
-              <li key={i} className="flex items-center justify-between gap-3 py-2">
-                <div className="flex min-w-0 flex-col">
-                  <span className="truncate text-[13px] font-semibold text-tinta">{l.concepto}</span>
-                  <span className="text-[11px] font-medium text-[#8A93AD]">
-                    {fechaHora(l.fechaIso, esMes)}
-                  </span>
-                </div>
-                <span
-                  className="flex-shrink-0 text-[13.5px] font-extrabold tabular-nums"
-                  style={{ color: COLOR_LINEA[l.tipo] }}
-                >
-                  {l.signo > 0 ? "+" : "−"}
-                  {UYU(l.monto)}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <table className="mt-2 w-full border-collapse text-[12.5px]">
+            <thead>
+              <tr className="border-b border-[#EEF1F8] text-[11px] font-bold tracking-wide text-gris uppercase">
+                <th className="px-4 py-2.5 text-left">Concepto</th>
+                <th className="px-3 py-2.5 text-left">Fecha</th>
+                <th className="px-3 py-2.5 text-center">Visible</th>
+                <th className="px-4 py-2.5 text-right">Monto</th>
+              </tr>
+            </thead>
+            <tbody>
+              {r.libro.map((l, i) => (
+                <tr key={i} className="border-b border-[#F4F6FB]">
+                  <td className="px-4 py-2.5 font-semibold text-tinta">{l.concepto}</td>
+                  <td className="px-3 py-2.5 text-[11.5px] text-[#8A93AD]">{fechaHora(l.fechaIso)}</td>
+                  <td className="px-3 py-2.5 text-center">
+                    {l.visible ? (
+                      <span className="text-[11px] font-bold text-[#157A50]">Sí</span>
+                    ) : (
+                      <span className="text-[11px] font-bold text-[#8A93AD]">No</span>
+                    )}
+                  </td>
+                  <td
+                    className="px-4 py-2.5 text-right text-[13.5px] font-extrabold tabular-nums"
+                    style={{ color: COLOR_LINEA[l.tipo] }}
+                  >
+                    {l.signo > 0 ? "+" : "−"}
+                    {UYU(l.monto)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </section>
 
       <p className="text-[11px] leading-[1.5] font-medium text-[#AEB6CC]">
-        Los cobros entran automáticamente desde la calle (tabla de pagos, inmutable). Acá se
-        cargan gastos, desembolsos, aportes y retiros. El neto = ingresos − egresos.
+        Los cobros entran automáticamente desde la calle (tabla de pagos, inmutable). Acá se cargan
+        gastos, desembolsos, aportes y retiros OPERATIVOS. El balance = entradas − retiros.
       </p>
     </div>
   );
 }
 
-function Kpi({
-  label,
-  valor,
-  sub,
-  tono,
-}: {
-  label: string;
-  valor: string;
-  sub?: string;
-  tono?: string;
-}) {
+const INPUT =
+  "rounded-[10px] border border-[#DCE3F4] bg-white px-3 py-2 text-[13.5px] outline-none focus:border-azul";
+
+function Kpi({ label, valor, tono }: { label: string; valor: string; tono?: string }) {
   return (
     <div className="flex flex-col gap-0.5 rounded-[14px] bg-white p-3.5 shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
       <span className="text-[11px] font-semibold text-[#8A93AD]">{label}</span>
       <span className="text-[19px] font-extrabold tabular-nums" style={{ color: tono ?? "#1A2247" }}>
         {valor}
       </span>
-      {sub && <span className="text-[11px] font-semibold text-gris tabular-nums">{sub}</span>}
     </div>
   );
 }

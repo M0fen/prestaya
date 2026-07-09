@@ -116,60 +116,65 @@ export async function getResumenPeriodo(
   const prevInicioMs = Date.parse(isoUY(prev));
   const prevFinMs = prevInicioMs + transcurrido;
 
-  // Cubre el período actual y el previo. A ESCALA se PAGINA (un "año" puede
-  // traer >100k pagos → se truncaría a 1000 y los totales saldrían mal).
-  const pagosRaw = await traerTodo<{ monto: number; registrado_en: string; registrado_por: string | null }>(
-    (d, h) =>
-      db
-        .from("pagos")
-        .select("monto, registrado_en, registrado_por")
-        .eq("anulado", false)
-        .gte("registrado_en", isoUY(prev))
-        .range(d, h),
-  );
-
-  // Buckets de la serie interna del período actual.
+  // Buckets vacíos de la serie interna del período actual.
   const horaActualUY = partesUY(hoy.toISOString()).h;
   const { buckets, indice, unidad } = construirBuckets(base, inicio, periodo, horaActualUY);
+  const hastaIso = new Date(ahoraMs).toISOString();
+  const prevFinIso = new Date(prevFinMs).toISOString();
 
+  // Recaudo AGREGADO en SQL (una llamada) en vez de traer decenas de miles de
+  // pagos y sumar en JS (eso hacía que /cierre tardara minutos). `unidad` mapea
+  // el bucket: hora (día) · día (semana/mes) · mes (año).
+  const unidadSql = periodo === "dia" ? "hora" : periodo === "anio" ? "mes" : "dia";
   let recaudado = 0;
   let cobros = 0;
   let recaudadoPrevio = 0;
-  // Acumulador por cobrador (solo período actual).
-  const porCob = new Map<string, { recaudado: number; cobros: number }>();
-
-  for (const r of pagosRaw) {
-    const ts = Date.parse(r.registrado_en as string);
-    const monto = Number(r.monto);
-    if (ts >= inicioMs && ts <= ahoraMs) {
-      recaudado += monto;
-      cobros += 1;
-      const k = claveBucket(r.registrado_en as string, periodo);
-      const i = indice.get(k);
-      if (i !== undefined) buckets[i].valor += monto;
-      const cobId = (r.registrado_por as string | null) ?? "oficina";
-      const acc = porCob.get(cobId) ?? { recaudado: 0, cobros: 0 };
-      acc.recaudado += monto;
-      acc.cobros += 1;
-      porCob.set(cobId, acc);
-    } else if (ts >= prevInicioMs && ts <= prevFinMs) {
-      recaudadoPrevio += monto;
+  let porCobRaw: { id: string | null; v: number; n: number }[] = [];
+  try {
+    const [aggRes, prevRes] = await Promise.all([
+      db.rpc("app_recaudo_agregado", { desde: isoUY(inicio), hasta: hastaIso, unidad: unidadSql }),
+      db.rpc("app_suma_pagos_entre", { desde: isoUY(prev), hasta: prevFinIso }),
+    ]);
+    if (aggRes.error) throw aggRes.error;
+    const a = (aggRes.data ?? {}) as {
+      recaudado?: number; cobros?: number;
+      serie?: { k: string; v: number }[];
+      porCobrador?: { id: string | null; v: number; n: number }[];
+    };
+    recaudado = Number(a.recaudado ?? 0);
+    cobros = Number(a.cobros ?? 0);
+    recaudadoPrevio = Number(prevRes.data ?? 0);
+    for (const s of a.serie ?? []) {
+      const i = indice.get(s.k);
+      if (i !== undefined) buckets[i].valor = Number(s.v);
     }
+    porCobRaw = a.porCobrador ?? [];
+  } catch {
+    // Fallback si aún no se re-corrió 0040 (RPC nueva ausente): escalares con las
+    // RPCs vivas; la serie y el detalle por cobrador quedan vacíos temporalmente.
+    const [sAct, cAct, sPrev] = await Promise.all([
+      db.rpc("app_suma_pagos_entre", { desde: isoUY(inicio), hasta: hastaIso }),
+      db.rpc("app_cuenta_pagos_entre", { desde: isoUY(inicio), hasta: hastaIso }),
+      db.rpc("app_suma_pagos_entre", { desde: isoUY(prev), hasta: prevFinIso }),
+    ]);
+    recaudado = Number(sAct.data ?? 0);
+    cobros = Number(cAct.data ?? 0);
+    recaudadoPrevio = Number(sPrev.data ?? 0);
   }
 
   // Nombres de los cobradores que recaudaron en el período.
-  const cobIds = [...porCob.keys()].filter((k) => k !== "oficina");
+  const cobIds = porCobRaw.map((c) => c.id).filter((x): x is string => !!x);
   const nombreCob = new Map<string, string>();
   if (cobIds.length > 0) {
     const { data: us } = await db.from("usuarios").select("id, nombre").in("id", cobIds);
     for (const u of us ?? []) nombreCob.set(u.id as string, u.nombre as string);
   }
-  const porCobrador: RecaudoCobrador[] = [...porCob.entries()]
-    .map(([id, v]) => ({
-      cobradorId: id,
-      nombre: id === "oficina" ? "Sin asignar" : (nombreCob.get(id) ?? "Cobrador"),
-      recaudado: v.recaudado,
-      cobros: v.cobros,
+  const porCobrador: RecaudoCobrador[] = porCobRaw
+    .map((c) => ({
+      cobradorId: c.id ?? "oficina",
+      nombre: c.id ? (nombreCob.get(c.id) ?? "Cobrador") : "Sin asignar",
+      recaudado: Number(c.v),
+      cobros: Number(c.n),
     }))
     .sort((a, b) => b.recaudado - a.recaudado);
 
@@ -183,6 +188,7 @@ export async function getResumenPeriodo(
         .select("monto_prestado")
         .gte("fecha_inicio", desdeFecha)
         .lte("fecha_inicio", hastaFecha)
+        .order("id", { ascending: true }) // estable: evita overlap entre páginas
         .range(d, h),
     ),
     db
@@ -215,14 +221,6 @@ export async function getResumenPeriodo(
     serieUnidad: unidad,
     porCobrador,
   };
-}
-
-/** Clave de bucket de un pago según el período (hora / día / mes). */
-function claveBucket(iso: string, periodo: Periodo): string {
-  const { y, m, d, h } = partesUY(iso);
-  if (periodo === "dia") return `h${h}`;
-  if (periodo === "anio") return `${y}-${pad(m)}`;
-  return `${y}-${pad(m)}-${pad(d)}`; // semana y mes → por día
 }
 
 /** Arma los buckets vacíos de la serie interna + su índice y la unidad. */

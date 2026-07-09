@@ -4,8 +4,9 @@ import { describe, expect, it } from "vitest";
 import { calcularJuegoCliente } from "./juegoCliente";
 
 const HOY = new Date(2026, 5, 16); // 16 jun 2026 (local)
-// fecha_inicio = hoy − 11 → hoy es el día 12 del crédito.
-const prestamo = { cuota_diaria: 300, total_dias: 25, fecha_inicio: "2026-06-05" };
+// Inicio miércoles 03-jun → con cobro Lun–Sáb hoy (16-jun) es el día 12 del
+// crédito (se saltean los domingos 07 y 14).
+const prestamo = { cuota_diaria: 300, total_dias: 25, fecha_inicio: "2026-06-03" };
 const rango = (n: number) => Array.from({ length: n }, (_, i) => i + 1);
 const pagosDe = (dias: number[], monto = 300) =>
   dias.map((d) => ({ dia_credito: d, monto }));

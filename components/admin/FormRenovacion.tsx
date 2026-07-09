@@ -7,8 +7,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { UYU } from "@/lib/format";
-import { calcularCuotaRenovacion } from "@/lib/renovacion";
-import { renovarCredito, solicitarRenovacion } from "@/app/admin/(panel)/renovaciones/actions";
+import { calcularCuotaRenovacion, evaluarRenovacion } from "@/lib/renovacion";
+import { renovarCredito } from "@/app/admin/(panel)/renovaciones/actions";
 import type { PrestamoAnterior } from "@/lib/data/renovaciones";
 import type { FrecuenciaPrestamo } from "@/types/db";
 
@@ -44,7 +44,7 @@ export function FormRenovacion({
   const [frecuencia, setFrecuencia] = useState<FrecuenciaPrestamo>(anterior.frecuencia);
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hecho, setHecho] = useState(false);
+  const [via, setVia] = useState<"auto" | "admin" | "solicitud" | null>(null);
 
   const montoNum = Math.round(Number(monto));
   const diasNum = Math.round(Number(dias));
@@ -61,20 +61,25 @@ export function FormRenovacion({
     : 0;
   const totalAPagar = cuota * diasNum;
 
+  // Preview del tope (mismo cálculo que el servidor). Dentro del tope → alta
+  // directa para cualquiera; fuera → admin directo / supervisor a aprobación.
+  const evalu = valido ? evaluarRenovacion(anterior.monto, montoNum) : null;
+  const iraDirecto = evalu ? evalu.autoAprobable || esAdmin : true;
+  const accionLabel = iraDirecto ? "renovar" : "solicitar";
+
   const enviar = async () => {
     setOcupado(true);
     setError(null);
-    const payload = {
+    const res = await renovarCredito({
       clienteId,
       prestamoAnteriorId: anterior.id,
       monto: montoNum,
       totalDias: diasNum,
       frecuencia,
-    };
-    const res = esAdmin ? await renovarCredito(payload) : await solicitarRenovacion(payload);
+    });
     setOcupado(false);
     if (res.ok) {
-      setHecho(true);
+      setVia(res.via);
       router.refresh();
     } else {
       setConfirmar(false);
@@ -82,12 +87,14 @@ export function FormRenovacion({
     }
   };
 
-  if (hecho) {
+  if (via) {
     return (
       <div className="mt-3 rounded-[12px] bg-[#E4F5EC] px-4 py-3 text-[13px] font-bold text-[#157A50]">
-        {esAdmin
-          ? "✓ Renovación dada de alta. El nuevo crédito ya está activo."
-          : "✓ Solicitud enviada. El administrador la va a aprobar."}
+        {via === "auto"
+          ? "✓ Renovación aprobada al instante (dentro del tope). El nuevo crédito ya está activo."
+          : via === "admin"
+            ? "✓ Renovación dada de alta. El nuevo crédito ya está activo."
+            : "✓ Solicitud enviada. Supera el tope: el administrador la va a aprobar."}
       </div>
     );
   }
@@ -100,7 +107,7 @@ export function FormRenovacion({
         className="mt-3 w-full rounded-full bg-[#1FA971] px-4 py-2.5 text-[13px] font-bold text-white active:scale-[0.99]"
         style={{ transition: "transform .1s" }}
       >
-        {esAdmin ? "Renovar crédito →" : "Solicitar renovación →"}
+        Renovar crédito →
       </button>
     );
   }
@@ -113,7 +120,7 @@ export function FormRenovacion({
 
       {moroso && (
         <p className="rounded-[10px] bg-[#FBE4E2] px-3 py-2 text-[12px] font-bold text-[#C0392B]">
-          ⛔ Cliente marcado como MOROSO. Revisá bien antes de {esAdmin ? "renovar" : "solicitar"}.
+          ⛔ Cliente marcado como MOROSO. Revisá bien antes de {accionLabel}.
         </p>
       )}
 
@@ -180,6 +187,21 @@ export function FormRenovacion({
         </div>
       )}
 
+      {/* Preview del tope de auto-aprobación */}
+      {evalu && (
+        <p
+          className={`rounded-[10px] px-3 py-2 text-[12px] font-semibold ${
+            iraDirecto ? "bg-[#E4F5EC] text-[#157A50]" : "bg-[#FDF3E2] text-[#8A6D1E]"
+          }`}
+        >
+          {evalu.autoAprobable
+            ? "✓ Dentro del tope (≤20% y ≤ $100.000): se aprueba al instante."
+            : esAdmin
+              ? `${evalu.motivo} Como admin, lo das de alta directo.`
+              : `${evalu.motivo} Irá a aprobación del administrador.`}
+        </p>
+      )}
+
       {error && (
         <p className="rounded-[10px] bg-[#FBE4E2] px-3 py-2 text-[12px] font-semibold text-[#C0392B]">
           {error}
@@ -206,7 +228,7 @@ export function FormRenovacion({
             disabled={!valido || ocupado}
             className="flex-1 rounded-full bg-[#2453DC] px-4 py-2.5 text-[13px] font-bold text-white disabled:opacity-40"
           >
-            {esAdmin ? "Revisar y dar de alta" : "Revisar y solicitar"}
+            {iraDirecto ? "Revisar y dar de alta" : "Revisar y solicitar"}
           </button>
         ) : (
           <button
@@ -216,16 +238,16 @@ export function FormRenovacion({
             className="flex-1 rounded-full bg-[#1FA971] px-4 py-2.5 text-[13px] font-extrabold text-white disabled:opacity-60"
           >
             {ocupado
-              ? esAdmin
+              ? iraDirecto
                 ? "Creando…"
                 : "Enviando…"
-              : `${esAdmin ? "Confirmar alta" : "Enviar solicitud"} · ${UYU(montoNum)}`}
+              : `${iraDirecto ? "Confirmar alta" : "Enviar solicitud"} · ${UYU(montoNum)}`}
           </button>
         )}
       </div>
       {confirmar && !ocupado && (
         <p className="text-[11px] font-medium text-[#AEB6CC]">
-          {esAdmin
+          {iraDirecto
             ? "Esto finaliza el crédito actual (saldado) y crea uno nuevo activo."
             : "Queda pendiente hasta que el administrador la apruebe."}
         </p>

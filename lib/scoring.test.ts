@@ -19,6 +19,8 @@ function prestamo(over: Partial<Prestamo>): Prestamo {
     fecha_inicio: "2026-01-01",
     estado: "activo",
     creado_por: null,
+    es_float_supervisor: false,
+    interes_pct: null,
     creado_en: "",
     actualizado_en: "",
     finalizado_en: null,
@@ -103,8 +105,9 @@ describe("calcularScore", () => {
   });
 
   it("regular: activo con 1 día de atraso → revisar", () => {
-    // Inicio = hoy − 11 → hoy es el día 12. Días 1..10 pagos; 11 atrasado; 12 hoy.
-    const c = prestamo({ id: "c", estado: "activo", fecha_inicio: "2026-06-05", monto_prestado: 12000 });
+    // Inicio miércoles 03-jun → con cobro Lun–Sáb hoy (16-jun) es el día 12
+    // (se saltean los domingos 07 y 14). Días 1..10 pagos; 11 atrasado; 12 hoy.
+    const c = prestamo({ id: "c", estado: "activo", fecha_inicio: "2026-06-03", monto_prestado: 12000 });
     const r = correr([c], { c: pagosDias("c", rango(10)) });
 
     expect(r.metricas.diasAtrasoActual).toBe(1);

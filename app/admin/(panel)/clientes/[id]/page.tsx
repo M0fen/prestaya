@@ -12,6 +12,7 @@ import { puedeReasignarCliente } from "@/lib/permisos";
 import { AnularPago } from "@/components/admin/AnularPago";
 import { ReasignarCliente, type CobradorOpcion } from "@/components/admin/ReasignarCliente";
 import { RotarToken } from "@/components/admin/RotarToken";
+import { ToggleReportado } from "@/components/admin/ToggleReportado";
 import { getSaldoEstrellas } from "@/lib/data/estrellas";
 import { getAjustesJuego } from "@/lib/data/juegoConfig";
 import { claveCiclo } from "@/lib/estrellas";
@@ -141,6 +142,25 @@ export default async function FichaClientePage({
           </span>
         </div>
       </div>
+
+      {/* Datos adicionales (paridad Disapp): género, ciudad, dirección secundaria */}
+      {(cliente.genero || cliente.ciudad || cliente.direccion_secundaria) && (
+        <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-4">
+          <span className="text-[13px] font-bold text-tinta">Datos adicionales</span>
+          <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 md:grid-cols-3">
+            {cliente.genero && (
+              <DatoFicha k="Género" v={cliente.genero.charAt(0).toUpperCase() + cliente.genero.slice(1)} />
+            )}
+            {cliente.ciudad && <DatoFicha k="Ciudad" v={cliente.ciudad} />}
+            {cliente.direccion_secundaria && (
+              <DatoFicha k="Dirección secundaria" v={cliente.direccion_secundaria} />
+            )}
+          </dl>
+        </section>
+      )}
+
+      {/* Reportado a buró / lista de morosos (solo admin puede cambiarlo) */}
+      {puedeAnular && <ToggleReportado clienteId={id} inicial={cliente.reportado} />}
 
       {/* Score interno */}
       <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-4">
@@ -365,6 +385,15 @@ function EstrellaKpi({
       >
         {valor}
       </span>
+    </div>
+  );
+}
+
+function DatoFicha({ k, v }: { k: string; v: string }) {
+  return (
+    <div className="flex flex-col py-1">
+      <dt className="text-[11px] font-semibold text-[#8A93AD]">{k}</dt>
+      <dd className="text-[13px] font-semibold text-tinta">{v}</dd>
     </div>
   );
 }

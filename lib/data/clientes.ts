@@ -24,6 +24,11 @@ function mapCliente(r: Record<string, unknown>): Cliente {
     creado_por: (r.creado_por as string | null) ?? null,
     gps_lat: r.gps_lat == null ? null : Number(r.gps_lat),
     gps_lng: r.gps_lng == null ? null : Number(r.gps_lng),
+    // Paridad Disapp (0041); defensivo si aún no corrió la migración.
+    reportado: (r.reportado as boolean | undefined) ?? false,
+    genero: (r.genero as Cliente["genero"] | undefined) ?? null,
+    ciudad: (r.ciudad as string | null | undefined) ?? null,
+    direccion_secundaria: (r.direccion_secundaria as string | null | undefined) ?? null,
     creado_en: r.creado_en as string,
     actualizado_en: r.actualizado_en as string,
   };
@@ -122,6 +127,93 @@ export async function buscarClientesAdmin(
   const { data, error } = await query.order("nombre", { ascending: true }).limit(limite);
   if (error) throw error;
   return (data ?? []).map(mapCliente);
+}
+
+/** Fila enriquecida para la LISTA del panel admin (columnas estilo Disapp). */
+export interface ClienteFilaAdmin {
+  id: string;
+  nombre: string;
+  documento: string | null;
+  telefono: string | null;
+  direccion: string | null;
+  calificacion: Cliente["calificacion"];
+  activo: boolean;
+  refDisapp: string | null;
+  reportado: boolean;
+  vendedor: string | null;
+  creditosActivos: number;
+}
+
+/**
+ * Lista de clientes para el panel admin, enriquecida SIN N+1: se paginan/limitan
+ * los clientes y luego se resuelven, en un solo `in(...)` por lote, el cobrador
+ * asignado y la cantidad de créditos activos. `archivados` muestra los inactivos.
+ */
+export async function getClientesListaAdmin(
+  db: SupabaseClient,
+  opts: { q?: string | null; archivados?: boolean; limite?: number } = {},
+): Promise<ClienteFilaAdmin[]> {
+  const limite = opts.limite ?? 60;
+  let query = db
+    .from("clientes")
+    .select("id, nombre, documento, telefono, direccion, calificacion, activo, disapp_id, reportado")
+    .eq("activo", !opts.archivados);
+  const termino = (opts.q ?? "").trim();
+  if (termino.length > 0) {
+    const t = termino.replace(/[%_]/g, (m) => `\\${m}`);
+    query = query.or(`nombre.ilike.%${t}%,documento.ilike.%${t}%`);
+  }
+  const { data, error } = await query.order("nombre", { ascending: true }).limit(limite);
+  if (error) throw error;
+  const filas = (data ?? []) as Record<string, unknown>[];
+  const ids = filas.map((f) => f.id as string);
+
+  const vendedorDe = new Map<string, string>();
+  const creditosDe = new Map<string, number>();
+  if (ids.length > 0) {
+    // Cobrador asignado (activo) por cliente + nombres, en batch.
+    const { data: asig } = await db
+      .from("asignaciones")
+      .select("cliente_id, cobrador_id")
+      .eq("activo", true)
+      .in("cliente_id", ids);
+    const clienteCob = new Map<string, string>();
+    const cobIds = new Set<string>();
+    for (const a of asig ?? []) {
+      clienteCob.set(a.cliente_id as string, a.cobrador_id as string);
+      cobIds.add(a.cobrador_id as string);
+    }
+    if (cobIds.size > 0) {
+      const { data: us } = await db.from("usuarios").select("id, nombre").in("id", [...cobIds]);
+      const nombre = new Map<string, string>();
+      for (const u of us ?? []) nombre.set(u.id as string, u.nombre as string);
+      for (const [cli, cob] of clienteCob) vendedorDe.set(cli, nombre.get(cob) ?? "—");
+    }
+    // Créditos ACTIVOS por cliente (conteo), en batch.
+    const { data: pres } = await db
+      .from("prestamos")
+      .select("cliente_id")
+      .eq("estado", "activo")
+      .in("cliente_id", ids);
+    for (const p of pres ?? []) {
+      const cid = p.cliente_id as string;
+      creditosDe.set(cid, (creditosDe.get(cid) ?? 0) + 1);
+    }
+  }
+
+  return filas.map((f) => ({
+    id: f.id as string,
+    nombre: f.nombre as string,
+    documento: (f.documento as string | null) ?? null,
+    telefono: (f.telefono as string | null) ?? null,
+    direccion: (f.direccion as string | null) ?? null,
+    calificacion: f.calificacion as Cliente["calificacion"],
+    activo: f.activo as boolean,
+    refDisapp: (f.disapp_id as string | null | undefined) ?? null,
+    reportado: (f.reportado as boolean | undefined) ?? false,
+    vendedor: vendedorDe.get(f.id as string) ?? null,
+    creditosActivos: creditosDe.get(f.id as string) ?? 0,
+  }));
 }
 
 /**

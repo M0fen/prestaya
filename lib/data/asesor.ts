@@ -11,13 +11,13 @@ import { getTableroMora } from "./mora";
 import { getControlCobranza } from "./control";
 import { getSerieRecaudo } from "./series";
 import { getPrestamosActivosPorCliente } from "./prestamos";
-import { getActivosConPagos } from "./activos";
+import { getActivosConPagos, pagosDeActivo } from "./activos";
 import { getPagosDePrestamo } from "./pagos";
 import { getHistorialCrediticio } from "./scoring";
 import { getNotasCliente } from "./notas";
 import { calcularEstadosCarton } from "@/lib/cartones";
 import { calcularScore } from "@/lib/scoring";
-import { hoyUY } from "@/lib/fecha";
+import { hoyUY, diasCobrablesProximos } from "@/lib/fecha";
 import { UYU } from "@/lib/format";
 
 export interface ResumenFinanciero {
@@ -25,8 +25,13 @@ export interface ResumenFinanciero {
   cartera: {
     capitalColocado: number;
     carteraPorCobrar: number;
+    /** Cuotas que vencen hoy y aún no se saldaron. */
+    porCobrarHoy: number;
     creditosActivos: number;
+    /** Clientes registrados en la base (tengan crédito o no). */
     clientesActivos: number;
+    /** Clientes con al menos un crédito activo (deudores reales). */
+    deudoresActivos: number;
     creditosFinalizados: number;
     incobrables: number;
   };
@@ -78,8 +83,10 @@ export async function getResumenFinanciero(
     cartera: {
       capitalColocado: dash.capitalColocado,
       carteraPorCobrar: dash.carteraPorCobrar,
+      porCobrarHoy: dash.porCobrarHoy,
       creditosActivos: dash.creditosActivos,
       clientesActivos: dash.clientesActivos,
+      deudoresActivos: dash.deudoresActivos,
       creditosFinalizados: dash.creditosFinalizados,
       incobrables: dash.incobrables,
     },
@@ -239,52 +246,38 @@ export async function proyeccionCajaTexto(
   hoy: Date = new Date(),
 ): Promise<string> {
   const N = Math.max(1, Math.min(90, Math.round(dias || 30)));
-  const { data: presRaw, error } = await db
-    .from("prestamos")
-    .select("id, cuota_diaria, total_dias, frecuencia, fecha_inicio")
-    .eq("estado", "activo");
-  if (error) return "No se pudo calcular la proyección.";
-  const activos = presRaw ?? [];
+  // Créditos activos + total pagado en UNA RPC (antes: un .in() de pagos que se
+  // truncaba a 1000 filas → proyección mal calculada con miles de créditos).
+  const activos = await getActivosConPagos(db);
   if (activos.length === 0) return "No hay créditos activos: la proyección de caja es 0.";
 
-  const ids = activos.map((p) => p.id as string);
-  const { data: pagosRaw } = await db
-    .from("pagos")
-    .select("prestamo_id, dia_credito, monto")
-    .in("prestamo_id", ids)
-    .eq("anulado", false);
-  const pagosDe = new Map<string, { dia_credito: number; monto: number }[]>();
-  for (const p of pagosRaw ?? []) {
-    const arr = pagosDe.get(p.prestamo_id as string) ?? [];
-    arr.push({ dia_credito: Number(p.dia_credito), monto: Number(p.monto) });
-    pagosDe.set(p.prestamo_id as string, arr);
-  }
-
   const hoyCal = hoyUY(hoy);
+  // No se cobra los domingos: el horizonte se mide en días de COBRO, no calendario.
+  const diasCobro = diasCobrablesProximos(hoyCal, N);
   let totalHorizonte = 0;
   let ingresoDiario = 0;
   let vencidoYa = 0;
-  for (const p of activos) {
-    const cuota = Number(p.cuota_diaria);
+  for (const a of activos) {
+    const cuota = Number(a.cuota_diaria);
     const r = calcularEstadosCarton(
       {
         cuota_diaria: cuota,
-        total_dias: Number(p.total_dias),
-        frecuencia: (p.frecuencia as "diario") ?? "diario",
-        fecha_inicio: p.fecha_inicio as string,
+        total_dias: Number(a.total_dias),
+        frecuencia: a.frecuencia ?? "diario",
+        fecha_inicio: a.fecha_inicio,
       },
-      pagosDe.get(p.id as string) ?? [],
+      pagosDeActivo(a),
       hoyCal,
     );
     if (r.falta <= 0) continue;
-    // Escenario "cobra la cuota cada día": aporta cuota×N, tope el saldo.
-    totalHorizonte += Math.min(r.falta, cuota * N);
+    // Escenario "cobra la cuota cada día hábil": aporta cuota×(días de cobro), tope el saldo.
+    totalHorizonte += Math.min(r.falta, cuota * diasCobro);
     ingresoDiario += cuota;
     vencidoYa += r.montoParaAlDia;
   }
 
   return [
-    `PROYECCIÓN DE CAJA (próximos ${N} días):`,
+    `PROYECCIÓN DE CAJA (próximos ${N} días → ${diasCobro} de cobro, Lun–Sáb):`,
     `- Ingreso esperado si se cobra la cuota diaria: ~${UYU(totalHorizonte)}.`,
     `- Ingreso diario teórico (suma de cuotas activas): ~${UYU(ingresoDiario)}/día.`,
     `- Además hay ${UYU(vencidoYa)} de mora YA vencida por recuperar (aparte de lo de arriba).`,
@@ -369,7 +362,7 @@ export function resumenComoTexto(r: ResumenFinanciero): string {
   L.push(`CARTERA:`);
   L.push(`- Capital colocado (activo): ${UYU(r.cartera.capitalColocado)}`);
   L.push(`- Cartera por cobrar (saldo): ${UYU(r.cartera.carteraPorCobrar)}`);
-  L.push(`- Créditos activos: ${r.cartera.creditosActivos} · clientes activos: ${r.cartera.clientesActivos}`);
+  L.push(`- Créditos activos: ${r.cartera.creditosActivos} · deudores con crédito activo: ${r.cartera.deudoresActivos} · clientes registrados: ${r.cartera.clientesActivos}`);
   L.push(`- Créditos finalizados: ${r.cartera.creditosFinalizados} · incobrables: ${r.cartera.incobrables}`);
   L.push("");
   L.push(`RECAUDACIÓN:`);

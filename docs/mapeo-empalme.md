@@ -20,10 +20,12 @@
    préstamo `estado='finalizado'` con `total_dias` = `Total Cuotas` del pago (para
    respetar el trigger `dia_credito ≤ total_dias`). Mantiene el enganche y el
    historial. Nunca se descarta un pago.
-4. **Vendedores (47)** → los ~44 cobradores se crean como `usuarios` **con login**
+4. **Vendedores (47)** → todos se crean como `usuarios` cobrador **con login**
    (auth), mapeados por `ID Vendedor` (llave estable). Los 3 `SUPERVISOR ...` se
-   crean como `usuarios` rol `supervisor`; sus "créditos" gigantes (relación
-   supervisor↔cobrador) **NO** se importan como préstamos de cliente.
+   renombran a **`CARTERA <zona>`** (rol cobrador): sus 86 créditos son cartera
+   VIP real (clientes con nombre/doc, modalidad **semanal**, 0%, montos altos,
+   $47,9M de saldo) → **SÍ se importan** como préstamos, asignados a ese cobrador
+   dedicado. (Decisión Carlos 2026-07-08; corrige la lectura previa de "excluir".)
 
 ## Llaves externas (migración 0036)
 
@@ -93,7 +95,7 @@ cliente por **documento** (no hay `ID Cliente` en `recaudos`), que tiene duplica
 `Personalizado→diario` (solo 8, marcados para revisión). `total_dias` = nº de cuotas.
 
 ### Cobradores/supervisores (auth)
-Los ~44 cobradores + 3 supervisores se crean como `usuarios` con login de auth
+Los 47 vendedores (44 cobradores + 3 "CARTERA <zona>") se crean como `usuarios` cobrador con login de auth
 (email sintético estable `cobrador-<idVendedor>@import.prestaya.local` + contraseña
 aleatoria → CSV de credenciales para que Mauricio reparta). Mapeo por
 `disapp_vendedor_id`. Idempotente vía mapa persistido en `_reportes/`.
