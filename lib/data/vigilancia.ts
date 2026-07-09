@@ -91,30 +91,49 @@ export async function getVigilanciaCobradores(
   };
   for (const c of cobradores) get(c.id);
 
-  // 1) Pagos de la ventana (recaudado por cobrador + días con cobro).
-  const pagos = await traerTodo<{ registrado_por: string | null; monto: number; registrado_en: string }>(
-    (d, h) =>
-      db.from("pagos").select("registrado_por, monto, registrado_en")
-        .eq("anulado", false).gte("registrado_en", desdeIso)
-        .order("id", { ascending: true }).range(d, h),
-  );
-  for (const p of pagos) {
-    const id = p.registrado_por;
-    if (!id || !permitido.has(id)) continue;
+  // 1) Recaudo por cobrador y día. A ESCALA (decenas de miles de pagos en la
+  //    ventana) se AGREGA EN SQL con la RPC 0043 (devuelve cobradores×días filas,
+  //    no todos los pagos). Si falta la RPC, degrada: para el supervisor se puede
+  //    acotar barato por sus cobradores; para el admin se omite el recaudo (evita
+  //    colgar), y la confianza igual sale de rendición/bitácora.
+  const sumaDia = (id: string, dia: string, monto: number, cobros: number) => {
+    if (!permitido.has(id)) return;
     const a = get(id);
-    const monto = Number(p.monto);
-    const dia = diaUY(p.registrado_en);
     a.recaudado += monto;
-    a.cobros += 1;
+    a.cobros += cobros;
     a.diasPago.add(dia);
     a.recaudadoPorDia.set(dia, (a.recaudadoPorDia.get(dia) ?? 0) + monto);
+  };
+  try {
+    const { data, error } = await db.rpc("app_vigilancia_pagos", { desde: desdeIso });
+    if (error) throw error;
+    for (const r of (data ?? []) as { cobrador_id: string; dia: string; monto: number; cobros: number }[]) {
+      sumaDia(r.cobrador_id, r.dia as string, Number(r.monto), Number(r.cobros));
+    }
+  } catch {
+    if (cobIds) {
+      // Fallback acotado (supervisor): trae solo los pagos de SUS cobradores.
+      const pagos = await traerTodo<{ registrado_por: string | null; monto: number; registrado_en: string }>(
+        (d, h) =>
+          db.from("pagos").select("registrado_por, monto, registrado_en")
+            .eq("anulado", false).gte("registrado_en", desdeIso).in("registrado_por", cobIds)
+            .order("id", { ascending: true }).range(d, h),
+      );
+      for (const p of pagos) {
+        if (!p.registrado_por) continue;
+        sumaDia(p.registrado_por, diaUY(p.registrado_en), Number(p.monto), 1);
+      }
+    }
+    // Admin sin RPC: se omite el recaudo (no se paginan decenas de miles de filas).
   }
 
   // 2) Visitas "no pago" de la ventana.
   const visitas = await traerTodo<{ cobrador_id: string | null; resultado: string }>(
-    (d, h) =>
-      db.from("visitas").select("cobrador_id, resultado")
-        .gte("registrado_en", desdeIso).order("id", { ascending: true }).range(d, h),
+    (d, h) => {
+      let q = db.from("visitas").select("cobrador_id, resultado").gte("registrado_en", desdeIso);
+      if (cobIds) q = q.in("cobrador_id", cobIds);
+      return q.order("id", { ascending: true }).range(d, h);
+    },
   );
   for (const v of visitas) {
     const id = v.cobrador_id;
@@ -124,10 +143,9 @@ export async function getVigilanciaCobradores(
 
   // 3) Rendiciones de la ventana (por fecha).
   try {
-    const { data, error } = await db
-      .from("rendiciones")
-      .select("cobrador_id, fecha, entregado, diferencia")
-      .gte("fecha", desdeYmd);
+    let rq = db.from("rendiciones").select("cobrador_id, fecha, entregado, diferencia").gte("fecha", desdeYmd);
+    if (cobIds) rq = rq.in("cobrador_id", cobIds);
+    const { data, error } = await rq;
     if (error) throw error;
     for (const r of data ?? []) {
       const id = r.cobrador_id as string;
@@ -146,8 +164,9 @@ export async function getVigilanciaCobradores(
 
   // 4) Movimientos de caja (gastos de ruta) de la ventana.
   try {
-    const { data, error } = await db
-      .from("movimientos_caja").select("cobrador_id, tipo, monto").gte("registrado_en", desdeIso);
+    let mq = db.from("movimientos_caja").select("cobrador_id, tipo, monto").gte("registrado_en", desdeIso);
+    if (cobIds) mq = mq.in("cobrador_id", cobIds);
+    const { data, error } = await mq;
     if (error) throw error;
     for (const m of data ?? []) {
       const id = m.cobrador_id as string | null;
@@ -161,10 +180,13 @@ export async function getVigilanciaCobradores(
   // 5) Bitácora de la ventana → sospecha por día (planchado, fuera de zona, etc.).
   try {
     const eventos = await traerTodo<Record<string, unknown>>(
-      (d, h) =>
-        db.from("bitacora")
+      (d, h) => {
+        let q = db.from("bitacora")
           .select("actor_id, fecha_uy, accion, server_ts, gps_lat, gps_lng, gps_denegado, en_zona, cliente_id")
-          .gte("fecha_uy", desdeYmd).order("id", { ascending: true }).range(d, h),
+          .gte("fecha_uy", desdeYmd);
+        if (cobIds) q = q.in("actor_id", cobIds);
+        return q.order("id", { ascending: true }).range(d, h);
+      },
     );
     for (const r of eventos) {
       const id = r.actor_id as string | null;
