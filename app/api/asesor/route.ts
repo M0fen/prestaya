@@ -3,10 +3,12 @@
 //  del negocio, la inyecta como contexto y transmite la respuesta de DeepSeek
 //  token a token. La API key vive SOLO acá (servidor).
 //
-//  Dos modos (modelos V4; deepseek-chat/reasoner se deprecaron 2026-07-24):
-//   · rápido   → deepseek-v4-flash + herramientas (function calling). Si pide una
-//     herramienta, la ejecutamos contra la base y seguimos.
-//   · profundo → deepseek-v4-pro (más capaz) para preguntas estratégicas (sin tools).
+//  Dos modos (los IDs de modelo viven en lib/asesor/prompt.ts):
+//   · rápido   → MODELO_ASESOR (deepseek-chat) + herramientas (function calling).
+//     Si pide una herramienta, la ejecutamos contra la base y seguimos.
+//   · profundo → MODELO_ASESOR_PROFUNDO (deepseek-reasoner) para lo estratégico (sin tools).
+//  Acceso: SOLO gestores (cobrador → 401). El supervisor recibe herramientas
+//  ACOTADAS A SU ZONA (ver herramientasPara/esHerramientaPermitida + prompt.ts).
 // ─────────────────────────────────────────────────────────────────────────
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getUsuarioActual, esGestor } from "@/lib/auth";

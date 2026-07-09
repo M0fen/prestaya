@@ -134,8 +134,9 @@ export async function getResumenFinanciero(
 
 /**
  * Busca clientes por nombre y devuelve el perfil financiero del mejor match en
- * TEXTO (para que el modelo lo lea). Es la "mano" del asesor: puede consultar a
- * cualquier cliente, no solo a los del resumen. Corre como gestor (RLS).
+ * TEXTO (para que el modelo lo lea). Es la "mano" del asesor. ACOTADO POR ZONA:
+ * un SUPERVISOR solo puede consultar clientes de SU zona (no de otras); el admin,
+ * cualquiera. Corre como gestor.
  */
 export async function buscarClientePerfil(
   db: SupabaseClient,
@@ -150,14 +151,24 @@ export async function buscarClientePerfil(
     .select("id, nombre, documento, telefono, direccion")
     .ilike("nombre", `%${q}%`)
     .eq("activo", true)
-    .limit(5);
+    .limit(10);
   if (error) return "No se pudo buscar el cliente.";
-  if (!data || data.length === 0) return `No hay ningún cliente activo que coincida con "${q}".`;
+  let matches = data ?? [];
 
-  const elegido = data[0];
+  // Recorte por zona: el supervisor solo ve clientes de sus cobradores.
+  const alcance = await alcanceDelActor();
+  if (!alcance.global) {
+    const permitido = new Set(alcance.clienteIds);
+    matches = matches.filter((c) => permitido.has(c.id as string));
+  }
+  if (matches.length === 0)
+    return `No hay ningún cliente activo en tu zona que coincida con "${q}".`;
+  const data5 = matches.slice(0, 5);
+
+  const elegido = data5[0];
   const otros =
-    data.length > 1
-      ? ` (hay ${data.length - 1} coincidencia(s) más: ${data.slice(1).map((c) => c.nombre).join(", ")})`
+    data5.length > 1
+      ? ` (hay ${data5.length - 1} coincidencia(s) más: ${data5.slice(1).map((c) => c.nombre).join(", ")})`
       : "";
 
   const clienteId = elegido.id as string;

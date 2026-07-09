@@ -106,9 +106,11 @@ export const HERRAMIENTAS = [
 ];
 
 /** Herramientas que ve el asesor según el ROL (filtrado de contexto por rol).
- *  Las proyecciones de caja/tesorería quedan para el dueño (admin); el
- *  supervisor tiene el resto (operación: clientes, ruta, mora, ranking, tendencia). */
-const HERRAMIENTAS_SOLO_ADMIN = new Set(["proyeccion_caja"]);
+ *  SOLO DUEÑO (admin): proyección de caja/tesorería y la tendencia GLOBAL de
+ *  recaudo (dato de toda la operación). El supervisor solo tiene herramientas
+ *  ACOTADAS a su zona: clientes de su zona, sus cobradores (ruta/ranking) y su
+ *  mora. Defensa en profundidad: esto se valida además en el servidor. */
+const HERRAMIENTAS_SOLO_ADMIN = new Set(["proyeccion_caja", "tendencia_recaudo"]);
 
 export function herramientasPara(rol: Rol): typeof HERRAMIENTAS {
   if (rol === "admin") return HERRAMIENTAS;
@@ -129,7 +131,7 @@ export function construirSystemPrompt(resumen: string, rol: Rol = "admin"): stri
   const quienConsulta =
     rol === "admin"
       ? "Te consulta el DUEÑO (administrador): decide y cambia todo — política de mora, comisiones, renovaciones y anulaciones."
-      : "Te consulta un SUPERVISOR: ve toda la operación, pero NO cambia la política de mora, ni fija/liquida comisiones, ni anula pagos (eso lo decide el dueño). Las proyecciones de caja/tesorería las maneja el dueño: si te las piden, sugerí consultarlas con el administrador. Adaptá tus recomendaciones a lo que esta persona SÍ puede ejecutar, sin proponerle acciones que no le corresponden.";
+      : "Te consulta un SUPERVISOR: ve SOLO SU ZONA (sus cobradores y los clientes de ellos), NO toda la operación. No cambia la política de mora, ni fija/liquida comisiones, ni anula pagos, y NO ve la rentabilidad/ganancia, las comisiones, la proyección de caja/tesorería ni los números globales de otras zonas (eso es del dueño). Si te piden algo de otra zona o financiero del dueño, aclarales que esa información la maneja el administrador. Ceñí tus datos y recomendaciones a SU zona y a lo que esta persona SÍ puede ejecutar.";
 
   return `Sos "Aureo", el asesor financiero senior de Presta Ya, una empresa de préstamos de cobro diario (giro/microcrédito) en Uruguay. Aconsejás al dueño y a los supervisores para que controlen mejor el negocio y tomen decisiones más inteligentes.
 

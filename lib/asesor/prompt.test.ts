@@ -74,15 +74,19 @@ describe("construirSystemPrompt", () => {
 });
 
 describe("herramientasPara (filtrado de contexto por rol)", () => {
-  it("el admin ve todas; el supervisor no ve proyeccion_caja", () => {
+  it("el admin ve todas; el supervisor no ve las de dueño (caja global)", () => {
     const admin = herramientasPara("admin").map((h) => h.function.name);
     const sup = herramientasPara("supervisor").map((h) => h.function.name);
     expect(admin).toContain("proyeccion_caja");
+    expect(admin).toContain("tendencia_recaudo");
+    // El supervisor NO ve proyección de caja ni la tendencia GLOBAL de recaudo.
     expect(sup).not.toContain("proyeccion_caja");
-    expect(sup).toHaveLength(admin.length - 1);
-    // La operación del día SÍ la ve el supervisor.
+    expect(sup).not.toContain("tendencia_recaudo");
+    expect(sup).toHaveLength(admin.length - 2);
+    // La operación de SU zona SÍ la ve el supervisor.
     expect(sup).toContain("tablero_mora");
     expect(sup).toContain("ranking_cobradores");
     expect(sup).toContain("buscar_cliente");
+    expect(sup).toContain("ruta_cobrador");
   });
 });
