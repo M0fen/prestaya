@@ -43,9 +43,10 @@ export interface SegmentoRaspa {
   orden: number;
 }
 
-/** Convierte el puntaje interno (0..1000) a porcentaje 0..100 para los tramos. */
+/** Convierte el puntaje interno (0..1000) a porcentaje 0..100 para los tramos.
+ *  Usa FLOOR: "≥90%" significa ≥900 puntos exactos (895 = 89%, no entra). */
 export const scoreAPorcentaje = (puntaje: number): number =>
-  Math.max(0, Math.min(100, Math.round(puntaje / 10)));
+  Math.max(0, Math.min(100, Math.floor(puntaje / 10)));
 
 /**
  * Elige el TRAMO que le corresponde a un score (en %): el primer tramo ACTIVO

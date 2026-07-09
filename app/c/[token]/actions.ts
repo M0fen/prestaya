@@ -187,8 +187,10 @@ export async function jugarRaspadita(input: { token: string }): Promise<Resultad
     }
 
     // Se registra SIEMPRE (gane o no): si no ganó, queda como "nada" (auditable).
+    // El tipo sale del PREMIO real (en el fallback sin tramos, elegirPremio puede
+    // devolver el ítem 'nada' sembrado: NO hay que festejarlo como beneficio).
     const label = premio?.label ?? "¡Seguí participando!";
-    const tipo: "beneficio" | "nada" = premio ? "beneficio" : "nada";
+    const tipo: "beneficio" | "nada" = premio?.tipo ?? "nada";
     await registrarJugadaRaspa(db, {
       clienteId: cliente.id,
       premioId: premio?.id ?? null,

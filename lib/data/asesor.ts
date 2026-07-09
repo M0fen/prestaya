@@ -12,7 +12,7 @@ import { getControlCobranza } from "./control";
 import { getSerieRecaudo } from "./series";
 import { getPrestamosActivosPorCliente } from "./prestamos";
 import { getActivosConPagos, pagosDeActivo } from "./activos";
-import { alcanceDelActor } from "./alcance";
+import { alcanceDelActor, enLotes } from "./alcance";
 import { getPagosDePrestamo } from "./pagos";
 import { getHistorialCrediticio } from "./scoring";
 import { getNotasCliente } from "./notas";
@@ -146,23 +146,36 @@ export async function buscarClientePerfil(
   const q = (nombre ?? "").trim();
   if (q.length < 2) return "Nombre demasiado corto para buscar.";
 
-  const { data, error } = await db
-    .from("clientes")
-    .select("id, nombre, documento, telefono, direccion")
-    .ilike("nombre", `%${q}%`)
-    .eq("activo", true)
-    .limit(10);
-  if (error) return "No se pudo buscar el cliente.";
-  let matches = data ?? [];
+  type FilaCli = {
+    id: string;
+    nombre: string;
+    documento: string | null;
+    telefono: string | null;
+    direccion: string | null;
+  };
+  const cols = "id, nombre, documento, telefono, direccion";
 
-  // Recorte por zona: el supervisor solo ve clientes de sus cobradores.
+  // Recorte por zona ANTES de buscar: el admin busca en toda la base; el
+  // supervisor busca SOLO entre los clientes de su zona (en lotes, para no armar
+  // una URL gigante). Así no pasa que los 10 primeros globales sean de otra zona
+  // y parezca que el cliente "no existe" cuando sí está en la suya.
   const alcance = await alcanceDelActor();
-  if (!alcance.global) {
-    const permitido = new Set(alcance.clienteIds);
-    matches = matches.filter((c) => permitido.has(c.id as string));
+  let matches: FilaCli[] = [];
+  if (alcance.global) {
+    const { data, error } = await db.from("clientes").select(cols).ilike("nombre", `%${q}%`).eq("activo", true).limit(10);
+    if (error) return "No se pudo buscar el cliente.";
+    matches = (data ?? []) as FilaCli[];
+  } else {
+    if (alcance.clienteIds.length === 0) return "No tenés clientes en tu zona todavía.";
+    for (const lote of enLotes(alcance.clienteIds)) {
+      const { data, error } = await db.from("clientes").select(cols).ilike("nombre", `%${q}%`).eq("activo", true).in("id", lote).limit(10);
+      if (error) return "No se pudo buscar el cliente.";
+      matches.push(...((data ?? []) as FilaCli[]));
+      if (matches.length >= 10) break;
+    }
   }
   if (matches.length === 0)
-    return `No hay ningún cliente activo en tu zona que coincida con "${q}".`;
+    return `No hay ningún cliente activo${alcance.global ? "" : " en tu zona"} que coincida con "${q}".`;
   const data5 = matches.slice(0, 5);
 
   const elegido = data5[0];

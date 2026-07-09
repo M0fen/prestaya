@@ -10,6 +10,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { getUsuarioActual, esAdmin, esGestor } from "@/lib/auth";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { subirFotoCliente } from "@/lib/data/fotos";
+import { alcanceDelActor } from "@/lib/data/alcance";
 
 type Resultado = { ok: true; reportado: boolean } | { ok: false; error: string };
 
@@ -59,6 +60,13 @@ export async function guardarFotoCliente(input: {
     return { ok: false, error: "No tenés permisos para cargar la foto." };
   }
   if (!input.clienteId) return { ok: false, error: "Cliente inválido." };
+  // Recorte por zona: la subida va por service_role (salta RLS), así que acá
+  // verificamos que el cliente sea de la zona del gestor (un supervisor no puede
+  // tocar la foto de un cliente de otra zona). El admin ve todo.
+  const alcance = await alcanceDelActor();
+  if (!alcance.global && !alcance.clienteIds.includes(input.clienteId)) {
+    return { ok: false, error: "Ese cliente no es de tu zona." };
+  }
   const res = await subirFotoCliente(input.clienteId, input.dataUrl);
   if (!res.ok) return { ok: false, error: res.error };
   try {

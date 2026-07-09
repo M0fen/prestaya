@@ -256,8 +256,19 @@ function SegmentoFila({
           onChange={(e) => setProb(Number(e.target.value))} />
         <span>%</span>
       </label>
-      <label className="flex items-center gap-1 text-[12px] font-semibold text-tinta">
-        <input type="checkbox" checked={activo} onChange={(e) => setActivo(e.target.checked)} /> Activo
+      <label
+        className="flex items-center gap-1 text-[12px] font-semibold text-tinta"
+        title={esDefault ? "El tramo 'Los demás' no se puede desactivar (dejaría clientes sin premio)." : undefined}
+      >
+        {/* El default NO se puede desactivar: es el catch-all; sin él, quien no
+            cae en un tramo se queda siempre sin premio. */}
+        <input
+          type="checkbox"
+          checked={esDefault ? true : activo}
+          disabled={esDefault}
+          onChange={(e) => setActivo(e.target.checked)}
+        />{" "}
+        Activo
       </label>
       <button onClick={guardar} disabled={ocupado || !nombre.trim()}
         className="rounded-full bg-azul px-3 py-1.5 text-[12px] font-bold text-white disabled:opacity-50">

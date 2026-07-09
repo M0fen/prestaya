@@ -5,20 +5,53 @@
 // padre decide si subirlo ya (ficha) o mandarlo con el alta (censo).
 import { useRef, useState } from "react";
 
-/** Comprime una imagen a un data URL JPEG (máx `max` px del lado mayor). */
-export async function comprimirImagen(file: File, max = 900, calidad = 0.72): Promise<string> {
-  const bitmap = await createImageBitmap(file);
-  const escala = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
-  const w = Math.max(1, Math.round(bitmap.width * escala));
-  const h = Math.max(1, Math.round(bitmap.height * escala));
-  const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("sin canvas");
-  ctx.drawImage(bitmap, 0, 0, w, h);
-  bitmap.close?.();
-  return canvas.toDataURL("image/jpeg", calidad);
+/** Comprime una imagen a un data URL JPEG (máx `max` px del lado mayor).
+ *  Se mantiene chico (≈800px, q0.6) para no pasar el límite de payload de los
+ *  Server Actions de Next (~1MB). Fallback con <img> si no hay createImageBitmap
+ *  (Safari/iOS viejos), así el cobrador siempre puede sacar la foto. */
+export async function comprimirImagen(file: File, max = 800, calidad = 0.6): Promise<string> {
+  const dibujar = (src: CanvasImageSource, w0: number, h0: number): string => {
+    const escala = Math.min(1, max / Math.max(w0, h0));
+    const w = Math.max(1, Math.round(w0 * escala));
+    const h = Math.max(1, Math.round(h0 * escala));
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("sin canvas");
+    ctx.drawImage(src, 0, 0, w, h);
+    return canvas.toDataURL("image/jpeg", calidad);
+  };
+
+  if (typeof createImageBitmap === "function") {
+    try {
+      const bitmap = await createImageBitmap(file);
+      const out = dibujar(bitmap, bitmap.width, bitmap.height);
+      bitmap.close?.();
+      return out;
+    } catch {
+      /* cae al fallback con <img> */
+    }
+  }
+  return await new Promise<string>((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const out = dibujar(img, img.naturalWidth, img.naturalHeight);
+        URL.revokeObjectURL(url);
+        resolve(out);
+      } catch (e) {
+        URL.revokeObjectURL(url);
+        reject(e);
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("no se pudo leer la imagen"));
+    };
+    img.src = url;
+  });
 }
 
 export function CapturaFoto({

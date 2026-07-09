@@ -54,6 +54,9 @@ export async function relevarCliente(input: {
 
     const nombre = (input.nombre ?? "").trim();
     if (nombre.length < 2) return { ok: false, error: "Poné el nombre del cliente." };
+    // Foto OBLIGATORIA en el alta (anti cliente-fantasma). Se valida en el
+    // servidor, no solo en el form (que es fácil de saltar).
+    if (!input.fotoDataUrl) return { ok: false, error: "Sacale una foto al cliente para darlo de alta." };
     const documento = limpiar(input.documento);
     const telefono = limpiar(input.telefono);
     const direccion = limpiar(input.direccion);
@@ -87,15 +90,15 @@ export async function relevarCliente(input: {
     });
     if (errAsig) throw errAsig;
 
-    // Foto del alta (best-effort): si viene, se sube y queda en foto_path. No
-    // rompe el censo si falla el Storage (p. ej. falta el bucket 0044); la foto
-    // se puede recargar después desde la ficha.
-    if (input.fotoDataUrl) {
-      try {
-        await subirFotoCliente(cliente.id, input.fotoDataUrl);
-      } catch {
-        /* best-effort */
-      }
+    // Sube la foto del alta. Si falla (bucket ausente, foto inválida), se hace
+    // ROLLBACK del cliente recién creado: no debe quedar un alta SIN foto (la
+    // regla es "alta con foto"). Como es un cliente nuevo sin pagos/créditos,
+    // borrarlo es seguro.
+    const foto = await subirFotoCliente(cliente.id, input.fotoDataUrl);
+    if (!foto.ok) {
+      await db.from("asignaciones").delete().eq("cliente_id", cliente.id);
+      await db.from("clientes").delete().eq("id", cliente.id);
+      return { ok: false, error: `${foto.error} No se guardó el cliente; probá de nuevo.` };
     }
 
     // Bitácora de campo (best-effort): alta de cliente en calle, con GPS.

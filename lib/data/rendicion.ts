@@ -10,6 +10,7 @@ import { toIso } from "@/lib/format";
 import type { EstadoRendicion } from "@/lib/rendicion";
 import { getGastosCobradorHoy } from "./gastos";
 import { tablaFaltante } from "./errores";
+import { traerTodo } from "./paginado";
 
 export interface RendicionDia {
   id: string;
@@ -154,12 +155,18 @@ export async function getRendicionesDia(
     else throw e;
   }
 
-  // Recaudado por cobrador hoy (para mostrar a los que faltan rendir).
-  const { data: pagos } = await db
-    .from("pagos")
-    .select("monto, registrado_por")
-    .eq("anulado", false)
-    .gte("registrado_en", desde);
+  // Recaudado por cobrador hoy (para mostrar a los que faltan rendir). Se PAGINA
+  // (con orden estable por id): un día grande puede superar las 1000 filas de
+  // PostgREST y truncar los montos en silencio (esto alimenta alertas de dinero).
+  const pagos = await traerTodo<{ monto: number; registrado_por: string | null }>((d, h) =>
+    db
+      .from("pagos")
+      .select("monto, registrado_por")
+      .eq("anulado", false)
+      .gte("registrado_en", desde)
+      .order("id", { ascending: true })
+      .range(d, h),
+  );
   const recaudadoPorCob = new Map<string, { recaudado: number; cobros: number }>();
   for (const p of pagos ?? []) {
     const id = p.registrado_por as string | null;

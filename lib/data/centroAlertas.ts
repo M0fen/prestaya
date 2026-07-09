@@ -47,6 +47,15 @@ export async function getCentroAlertas(
     getNoPagosSospechososHoy(db, hoy, alcance),
   ]);
 
+  // getRendicionesDia NO recorta por zona (confía en RLS, que deja a cualquier
+  // gestor ver TODO). Para el supervisor acotamos acá a SUS cobradores: si no, le
+  // mostraríamos faltantes/sin-rendir de otras zonas (acusaría mal + fuga).
+  if (!alcance.global) {
+    const cobs = new Set(alcance.cobradorIds);
+    rend.rendidas = rend.rendidas.filter((r) => cobs.has(r.cobradorId));
+    rend.pendientes = rend.pendientes.filter((p) => cobs.has(p.cobradorId));
+  }
+
   const alertas: Alerta[] = [];
 
   // 1) Faltantes de rendición (entregó de menos) → alta.

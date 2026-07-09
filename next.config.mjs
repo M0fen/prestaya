@@ -46,11 +46,14 @@ const securityHeaders = [
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   {
     key: "Permissions-Policy",
-    value: "camera=(), microphone=(), payment=(), usb=(), geolocation=(self)",
+    // camera=(self): el censo del cobrador saca foto del cliente (anti-fantasma).
+    value: "camera=(self), microphone=(), payment=(), usb=(), geolocation=(self)",
   },
 ];
 
 const nextConfig = {
+  // Las fotos van comprimidas (~800px) por Server Action; damos aire al payload.
+  experimental: { serverActions: { bodySizeLimit: "2mb" } },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

@@ -13,6 +13,10 @@ const TIPOS_OK = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 export type ResultadoFoto = { ok: true; path: string } | { ok: false; error: string };
 
+/** UUID v4-ish: el path del bucket se arma con el clienteId, así que lo validamos
+ *  para no permitir `/` ni `..` (path traversal) desde un id manipulado. */
+const ES_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** Parsea un data URL "data:image/xxx;base64,...." → {contentType, buffer}. */
 function parseDataUrl(dataUrl: string): { contentType: string; buffer: Buffer } | null {
   const m = /^data:(image\/[a-zA-Z]+);base64,(.+)$/.exec(dataUrl ?? "");
@@ -32,12 +36,13 @@ function parseDataUrl(dataUrl: string): { contentType: string; buffer: Buffer } 
  * `dataUrl` es la imagen YA comprimida en el navegador (ver CapturaFoto).
  */
 export async function subirFotoCliente(clienteId: string, dataUrl: string): Promise<ResultadoFoto> {
+  if (!ES_UUID.test(clienteId)) return { ok: false, error: "Cliente inválido." };
   const parsed = parseDataUrl(dataUrl);
   if (!parsed) return { ok: false, error: "La foto no es válida (formato o tamaño)." };
   if (parsed.buffer.length > MAX_BYTES) return { ok: false, error: "La foto es demasiado grande." };
 
   const admin = createSupabaseAdmin();
-  const ext = parsed.contentType.split("/")[1] === "png" ? "png" : parsed.contentType.split("/")[1];
+  const ext = parsed.contentType.split("/")[1];
   const path = `${clienteId}/${Date.now()}.${ext}`;
   const up = await admin.storage.from(BUCKET_FOTOS).upload(path, parsed.buffer, {
     contentType: parsed.contentType,
