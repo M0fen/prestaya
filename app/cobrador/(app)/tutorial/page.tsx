@@ -19,7 +19,7 @@ export default async function TutorialCobradorPage() {
           Guía rápida para tu día a día. Tocá cada tarjeta para ver los pasos.
         </span>
       </div>
-      <Tutorial guias={guias} roles={roles} />
+      <Tutorial guias={guias} roles={roles} base="/cobrador" />
     </div>
   );
 }

@@ -3,6 +3,7 @@
 // (cobrador / supervisor / admin) y las muestra como acordeón. El acceso ya
 // viene resuelto: la página pasa solo las guías que este rol puede ver.
 import { useState } from "react";
+import Link from "next/link";
 import type { Rol } from "@/types/db";
 import {
   ROL_TUTORIAL,
@@ -16,7 +17,17 @@ const CARTON: { color: string; label: string; desc: string }[] = [
   { color: "#EEF1F8", label: "Futuro", desc: "todavía no vence" },
 ];
 
-export function Tutorial({ guias, roles }: { guias: GuiaTutorial[]; roles: Rol[] }) {
+export function Tutorial({
+  guias,
+  roles,
+  base = "/admin",
+}: {
+  guias: GuiaTutorial[];
+  roles: Rol[];
+  /** Superficie actual: solo se muestran los enlaces que pertenecen a ella
+   *  (en el tutorial del admin no linkeamos a /cobrador, y viceversa). */
+  base?: string;
+}) {
   // Abre la primera guía por defecto para que se vea cómo funciona.
   const [abiertas, setAbiertas] = useState<Set<string>>(() => new Set(guias[0] ? [guias[0].id] : []));
 
@@ -141,6 +152,18 @@ export function Tutorial({ guias, roles }: { guias: GuiaTutorial[]; roles: Rol[]
                             </li>
                           ))}
                         </ol>
+
+                        {/* Botón para ir a la pantalla real y practicar (solo
+                            enlaces de la superficie actual). */}
+                        {g.enlace && g.enlace.href.startsWith(base) && (
+                          <Link
+                            href={g.enlace.href}
+                            className="inline-flex w-fit items-center gap-1.5 rounded-full px-4 py-2 text-[13px] font-bold text-white"
+                            style={{ background: ROL_TUTORIAL[rol].color }}
+                          >
+                            {g.enlace.texto} <span aria-hidden>→</span>
+                          </Link>
+                        )}
                       </div>
                     )}
                   </div>
