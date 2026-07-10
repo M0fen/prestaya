@@ -7,8 +7,13 @@
 `prestaya-pruebas`. Detalle en `docs/reconstruccion-pagos-no-diarios.md`.
 - **251 créditos reconstruidos · 3.582 pagos de ajuste (`origen='ajuste_migracion'`,
   `registrado_por=NULL`) · $13,89M · 🔴 sub-cobrados (falta plata) = 0.**
-- **Capital en calle: $107,7M → $93,88M** (verificado en DB con paginación ORDENADA
-  = libro completo real; NO el tile filtrado $68,5M de Disapp). Mora baja fuerte.
+- **Capital en calle: $107,7M → $93,88M.** 🔴🔴 **CORRECCIÓN (2026-07-10):** la
+  afirmación "$93,88M = libro completo real; el $68,5M de Disapp esconde cartera" es
+  **ERRÓNEA**. El PDF autoritativo "Cartera por Cliente" de Disapp da **$68,54M / 2.413
+  créditos** exacto. El gap de **$25,76M / 341 créditos** son **REFINANCIACIONES a 0%
+  doble-contadas** (crédito nuevo "Activo" sin cerrar el viejo en el export). El número
+  CORRECTO es $68,5M; nuestro $93,88M infla. Regla que lo cuadra al 0,75%: quedarse con
+  el crédito MÁS NUEVO por (cliente, modalidad). Ver `memory/refinanciacion-cuadre.md`.
 - Idempotente (re-POST de 151.572 import quedó en 151.572; ajustes deterministas
   `ajuste-<credit>-<dia>`). Base LIMPIA: 2.747 activos + 8.799 finalizados = 11.546
   SIN duplicados (el viejo warning "610 duplicados" YA NO aplica).

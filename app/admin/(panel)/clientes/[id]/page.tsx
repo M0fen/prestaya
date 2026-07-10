@@ -47,6 +47,7 @@ const ESTADO_CREDITO: Record<Prestamo["estado"], string> = {
   finalizado: "Finalizado",
   cancelado: "Cancelado",
   incobrable: "Incobrable",
+  refinanciado: "Refinanciado",
 };
 
 function fechaCorta(iso: string): string {

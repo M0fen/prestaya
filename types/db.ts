@@ -89,7 +89,11 @@ export type EstadoPrestamo =
   | "activo"
   | "finalizado"
   | "cancelado"
-  | "incobrable";
+  | "incobrable"
+  // Rollover a 0% (refinanciación): el saldo lo carga el crédito más nuevo del
+  // cliente. NO es deuda activa → excluido de cartera/mora/ruta (0054). Los pagos
+  // quedan; el crédito se ve en el historial. Ver memory/refinanciacion-cuadre.md.
+  | "refinanciado";
 
 /** Frecuencia de las cuotas. "diario" es el caso histórico (cobro diario). */
 export type FrecuenciaPrestamo = "diario" | "semanal" | "quincenal" | "mensual";
