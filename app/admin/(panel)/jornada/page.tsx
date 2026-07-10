@@ -12,7 +12,6 @@ import { puedeVerZona } from "@/lib/permisos";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getResumenFinanciero } from "@/lib/data/asesor";
-import { getRendicionesDia } from "@/lib/data/rendicion";
 import { getCierrePorZona, type ResumenCierreZonas } from "@/lib/data/cierreZona";
 import { getCentroAlertas, type Alerta } from "@/lib/data/centroAlertas";
 import { getResumenCompromisos, type ResumenCompromisos } from "@/lib/data/gestionesCobranza";
@@ -51,9 +50,10 @@ export default async function JornadaPage({
   const alcance = await alcanceDelActor();
 
   const actor = await getActorActual();
-  const [resumen, rend, cierre, centro, compromisos] = await Promise.all([
+  // Perf: NO pedimos getRendicionesDia por separado — getCierrePorZona ya lo trae
+  // (consolidado por zona) y de ahí derivamos las señales del cierre. Menos idas a DB.
+  const [resumen, cierre, centro, compromisos] = await Promise.all([
     getResumenFinanciero(db, hoy),
-    getRendicionesDia(db, hoy, alcance),
     getCierrePorZona(db, hoy, alcance),
     getCentroAlertas(db, hoy, alcance),
     getResumenCompromisos(db, alcance, hoy),
@@ -93,10 +93,14 @@ export default async function JornadaPage({
     ? (pedido as Acto)
     : actoDefault;
 
-  // ── Señales que alimentan el "chip" de cada acto (para que el stepper hable) ──
-  const faltantes = rend.rendidas.filter((r) => r.diferencia < 0);
-  const sinRendir = rend.pendientes.filter((p) => p.recaudado > 0);
-  const floatCalle = sinRendir.reduce((s, p) => s + p.recaudado, 0);
+  // ── Señales del cierre, derivadas del consolidado (sin re-consultar rendiciones) ──
+  const cons = cierre.consolidado;
+  const faltantesN = cons.zonas.reduce(
+    (s, z) => s + z.cobradores.filter((c) => c.estado === "faltante").length,
+    0,
+  );
+  const sinRendirN = cons.pendientes;
+  const floatCalle = cons.porRendir;
   const esperadoTotal = cobradores.ranking.reduce((s, c) => s + c.esperado, 0);
   const cobradoRuta = cobradores.ranking.reduce((s, c) => s + c.recaudado, 0);
   const avancePct = esperadoTotal > 0 ? Math.min(100, Math.round((cobradoRuta / esperadoTotal) * 100)) : 0;
@@ -137,10 +141,10 @@ export default async function JornadaPage({
           const activo = a.id === acto;
           const chip =
             a.id === "apertura"
-              ? faltantes.length + sinRendir.length + mora.criticos + compromisos.venceHoy.length + compromisos.incumplidos.length
+              ? faltantesN + sinRendirN + mora.criticos + compromisos.venceHoy.length + compromisos.incumplidos.length
               : a.id === "vivo"
                 ? alertasAltas
-                : sinRendir.length;
+                : sinRendirN;
           return (
             <Link
               key={a.id}
@@ -176,11 +180,11 @@ export default async function JornadaPage({
           moraMonto={mora.monto}
           morosos={mora.morosos}
           porCobrarHoy={cartera.porCobrarHoy}
-          faltantes={faltantes.length}
-          montoFaltante={rend.totalFaltante}
-          sinRendir={sinRendir.length}
+          faltantes={faltantesN}
+          montoFaltante={cons.totalFaltante}
+          sinRendir={sinRendirN}
           floatCalle={floatCalle}
-          rendicionesDisponible={rend.disponible}
+          rendicionesDisponible={cierre.disponible}
           compromisos={compromisos}
         />
       )}

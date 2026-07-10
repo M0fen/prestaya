@@ -50,6 +50,15 @@ export default async function DetalleClientePage({
   // tumbar la ficha (charAt sobre null/undefined tira). "—" si no hay letra.
   const inicial = (cliente.nombre ?? "").trim().charAt(0).toUpperCase() || "—";
 
+  // "Cómo llegar": deep-link a Google Maps con el GPS del cliente (o la dirección).
+  // Le ahorra al cobrador —sobre todo en ruta nueva/reasignada— buscar la casa a mano.
+  const mapsUrl =
+    cliente.gps_lat != null && cliente.gps_lng != null
+      ? `https://www.google.com/maps/dir/?api=1&destination=${cliente.gps_lat},${cliente.gps_lng}`
+      : cliente.direccion
+        ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(cliente.direccion)}`
+        : null;
+
   return (
     <div className="flex flex-col gap-4">
       {/* Bitácora: registra que el cobrador abrió esta ficha, con GPS. */}
@@ -59,15 +68,25 @@ export default async function DetalleClientePage({
       </Link>
 
       <div className="flex items-center gap-3">
-        <div className="flex h-14 w-14 items-center justify-center rounded-[16px] bg-[#2453DC] text-[22px] font-black text-white">
+        <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-[16px] bg-[#2453DC] text-[22px] font-black text-white">
           {inicial}
         </div>
-        <div className="flex flex-col">
+        <div className="flex min-w-0 flex-1 flex-col">
           <span className="text-[19px] font-extrabold text-tinta">{cliente.nombre}</span>
-          <span className="text-[12.5px] font-medium text-gris">
+          <span className="truncate text-[12.5px] font-medium text-gris">
             {cliente.direccion ?? "Sin dirección"}
           </span>
         </div>
+        {mapsUrl && (
+          <a
+            href={mapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex flex-shrink-0 items-center gap-1 rounded-full bg-[#EEF3FF] px-3 py-2 text-[12.5px] font-bold text-azul active:scale-95"
+          >
+            📍 Cómo llegar
+          </a>
+        )}
       </div>
 
       {/* Selector de crédito: solo si el cliente tiene MÁS DE UNO activo. */}
@@ -139,7 +158,9 @@ async function Detalle({
   const pagos = await getPagosDePrestamo(db, prestamo.id);
   const r = calcularEstadosCarton(prestamo, pagos, hoyUY());
   const cubiertos = r.dias.filter((d) => d.estado === "pagado").length;
+  const atrasados = r.dias.filter((d) => d.estado === "atrasado").length;
   const tieneGps = Boolean(cliente?.gps_lat != null && cliente?.gps_lng != null);
+  const tonoAtraso = atrasados > 0 ? { bg: "#FBE4E2", fg: "#C0392B" } : { bg: "#FDF3E2", fg: "#9A6A0E" };
 
   return (
     <>
@@ -150,6 +171,30 @@ async function Detalle({
         <Resumen label="Días cubiertos" valor={`${cubiertos}/${prestamo.total_dias}`} />
         <Resumen label="Total" valor={UYU(r.totalAPagar)} />
       </div>
+
+      {/* Cuánto para ponerse al día — el cobrador no lo tiene que deducir del cartón. */}
+      {r.montoParaAlDia > 0 ? (
+        <div className="flex items-center justify-between rounded-[14px] px-4 py-3" style={{ background: tonoAtraso.bg }}>
+          <div className="flex flex-col">
+            <span className="text-[13px] font-extrabold" style={{ color: tonoAtraso.fg }}>
+              {atrasados > 0
+                ? `Debe ${atrasados} cuota${atrasados === 1 ? "" : "s"} atrasada${atrasados === 1 ? "" : "s"}`
+                : "Cuota de hoy pendiente"}
+            </span>
+            <span className="text-[11.5px] font-medium" style={{ color: tonoAtraso.fg }}>
+              Para ponerse al día
+            </span>
+          </div>
+          <span className="text-[20px] font-black tabular-nums" style={{ color: tonoAtraso.fg }}>
+            {UYU(r.montoParaAlDia)}
+          </span>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 rounded-[14px] bg-[#E4F5EC] px-4 py-2.5">
+          <span className="text-[14px]">✅</span>
+          <span className="text-[12.5px] font-bold text-[#157A50]">Está al día. Solo la cuota de hoy si corresponde.</span>
+        </div>
+      )}
 
       {/* Cartón real */}
       <div className="rounded-[16px] bg-[#F1E8D2] p-3.5">

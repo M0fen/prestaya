@@ -3,11 +3,12 @@
 // servidor), pide gastos de ruta + efectivo entregado, calcula en vivo la
 // diferencia (cuadra / faltante / sobrante) y cierra por Server Action. Una vez
 // cerrada, muestra el resumen. Mobile-first.
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { UYU } from "@/lib/format";
 import { calcularRendicion, ETIQUETA_ESTADO, type EstadoRendicion } from "@/lib/rendicion";
 import { cerrarJornada } from "@/lib/acciones/rendicion";
+import { suscribir, pendientes, hidratar } from "@/lib/cobrador/colaOffline";
 import type { RendicionDia } from "@/lib/data/rendicion";
 
 const TONO: Record<EstadoRendicion, { bg: string; fg: string }> = {
@@ -37,6 +38,15 @@ export function CerrarJornada({
   const [confirmar, setConfirmar] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendiente, startTransition] = useTransition();
+
+  // Cola offline (solo LECTURA): cobros registrados sin señal que AÚN no llegaron
+  // al servidor. El `recaudado` de arriba es del servidor y NO los incluye → si el
+  // cobrador cierra con cobros en la cola, rinde con un FALTANTE FANTASMA (plata
+  // que sí cobró pero no subió). Anti-fuga: se avisa y se bloquea el cierre.
+  const ops = useSyncExternalStore(suscribir, pendientes, () => []);
+  useEffect(() => {
+    hidratar();
+  }, []);
 
   if (!disponible) return null; // se habilita al correr 0013
 
@@ -70,6 +80,11 @@ export function CerrarJornada({
   const entregadoN = Math.max(0, Math.round(Number(entregado) || 0));
   const { esperado, diferencia, estado } = calcularRendicion(recaudado, gastosN, entregadoN);
   const t = TONO[estado];
+
+  // Cobros aún en la cola offline (no subieron): bloquean el cierre.
+  const cobrosPend = ops.filter((o) => o.tipo === "pago");
+  const montoPend = cobrosPend.reduce((s, o) => s + (o.monto ?? 0), 0);
+  const hayColaPendiente = cobrosPend.length > 0;
 
   const cerrar = () => {
     setError(null);
@@ -144,13 +159,29 @@ export function CerrarJornada({
 
       {error && <p className="mt-2 text-[12px] font-semibold text-[#C0392B]">{error}</p>}
 
+      {/* Anti-faltante-fantasma: cobros sin sincronizar todavía no están en el
+          "recaudado" del servidor. Avisar y bloquear el cierre hasta que suban. */}
+      {hayColaPendiente && (
+        <div className="mt-3 flex flex-col gap-1 rounded-[12px] border border-[#F0D9A8] bg-[#FEFBF3] px-3 py-2.5">
+          <span className="flex items-center gap-1.5 text-[12.5px] font-extrabold text-[#9A6A0E]">
+            ⏳ Tenés {cobrosPend.length} cobro{cobrosPend.length === 1 ? "" : "s"} sin subir
+            {montoPend > 0 ? ` (${UYU(montoPend)})` : ""}
+          </span>
+          <span className="text-[11.5px] font-medium text-[#9A6A0E]">
+            El recaudado todavía no los incluye. Esperá a tener señal para que suban; si cerrás ahora te
+            va a marcar un faltante que no es real.
+          </span>
+        </div>
+      )}
+
       {!confirmar ? (
         <button
           type="button"
           onClick={() => setConfirmar(true)}
-          className="mt-3 w-full rounded-[13px] bg-[#2453DC] py-3 text-[15px] font-extrabold text-white active:scale-[0.99]"
+          disabled={hayColaPendiente}
+          className="mt-3 w-full rounded-[13px] bg-[#2453DC] py-3 text-[15px] font-extrabold text-white active:scale-[0.99] disabled:opacity-50"
         >
-          Cerrar jornada
+          {hayColaPendiente ? "Esperá a que suban los cobros…" : "Cerrar jornada"}
         </button>
       ) : (
         <div className="mt-3 flex flex-col gap-2">
