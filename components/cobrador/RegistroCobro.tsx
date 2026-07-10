@@ -145,6 +145,8 @@ export function RegistroCobro({
       </button>
 
       <div className="flex gap-2">
+        {/* Botón que CAMBIA de estado al abrirse (antes quedaba gris y no se
+            entendía que había desplegado el panel de abono). */}
         <button
           type="button"
           disabled={ocupado}
@@ -152,9 +154,13 @@ export function RegistroCobro({
             setAbono((v) => !v);
             setMotivos(false);
           }}
-          className="flex-1 rounded-full border border-[#DCE3F4] bg-white px-4 py-2.5 text-[13px] font-bold text-[#6B7494] disabled:opacity-60"
+          className={`flex-1 rounded-full border px-4 py-2.5 text-[13px] font-bold disabled:opacity-60 ${
+            abono
+              ? "border-[#E8A317] bg-[#FDF3E2] text-[#B9770E]"
+              : "border-[#DCE3F4] bg-white text-[#6B7494]"
+          }`}
         >
-          Abono parcial
+          Abono parcial {abono ? "▴" : "▾"}
         </button>
         <button
           type="button"
@@ -163,32 +169,57 @@ export function RegistroCobro({
             setMotivos((v) => !v);
             setAbono(false);
           }}
-          className="flex-1 rounded-full border border-[#DCE3F4] bg-white px-4 py-2.5 text-[13px] font-bold text-[#6B7494] disabled:opacity-60"
+          className={`flex-1 rounded-full border px-4 py-2.5 text-[13px] font-bold disabled:opacity-60 ${
+            motivos
+              ? "border-[#D64545] bg-[#FBE4E2] text-[#C0392B]"
+              : "border-[#DCE3F4] bg-white text-[#6B7494]"
+          }`}
         >
-          No pago
+          No pago {motivos ? "▴" : "▾"}
         </button>
       </div>
 
       {abono && (
-        <div className="flex items-center gap-2 rounded-[14px] bg-white p-3 shadow-[0_1px_3px_rgba(26,34,71,0.06)]">
-          <span className="text-[15px] font-bold text-tinta">$</span>
-          <input
-            type="number"
-            inputMode="numeric"
-            min={1}
-            value={montoAbono}
-            onChange={(e) => setMontoAbono(e.target.value)}
-            placeholder="Monto del abono"
-            className="min-w-0 flex-1 rounded-[10px] border border-[#DCE3F4] px-3 py-2 text-[14px] outline-none focus:border-azul"
-          />
-          <button
-            type="button"
-            disabled={ocupado || !abonoValido}
-            onClick={() => cobrar(montoAbonoNum)}
-            className="rounded-full bg-[#1FA971] px-4 py-2 text-[13px] font-bold text-white disabled:opacity-40"
-          >
-            Registrar
-          </button>
+        <div className="flex flex-col gap-2.5 rounded-[16px] border border-[#F0D9A8] bg-[#FDF9F0] p-3.5">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[13.5px] font-extrabold text-[#B9770E]">Abono parcial</span>
+            <span className="text-[11.5px] leading-[1.5] font-medium text-gris">
+              El cliente paga <b>menos que la cuota</b> de {UYU(cuota)}. El día queda <b>pendiente</b> hasta
+              que la complete.
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[16px] font-bold text-tinta">$</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={1}
+              value={montoAbono}
+              onChange={(e) => setMontoAbono(e.target.value)}
+              placeholder="¿Cuánto abona?"
+              autoFocus
+              className="min-w-0 flex-1 rounded-[10px] border border-[#E7D4A6] bg-white px-3 py-2.5 text-[15px] font-semibold outline-none focus:border-[#E8A317]"
+            />
+            <button
+              type="button"
+              disabled={ocupado || !abonoValido}
+              onClick={() => cobrar(montoAbonoNum)}
+              className="rounded-full bg-[#1FA971] px-4 py-2.5 text-[13px] font-extrabold text-white disabled:opacity-40"
+            >
+              {ocupado ? "…" : "Registrar abono"}
+            </button>
+          </div>
+          {/* Pista en vivo: cuánto le queda faltando, o si ya cubre la cuota. */}
+          {abonoValido && montoAbonoNum < cuota && (
+            <span className="text-[11.5px] font-semibold text-[#B9770E] tabular-nums">
+              Le quedará faltando {UYU(cuota - montoAbonoNum)} de la cuota de hoy.
+            </span>
+          )}
+          {abonoValido && montoAbonoNum >= cuota && (
+            <span className="text-[11.5px] font-semibold text-[#157A50] tabular-nums">
+              Eso cubre la cuota completa — se registra como pago del día ✓.
+            </span>
+          )}
         </div>
       )}
 

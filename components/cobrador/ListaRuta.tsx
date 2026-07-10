@@ -37,10 +37,22 @@ const cerrado = (e: EstadoHoy): boolean => e === "pagado" || e === "abono" || e 
 
 type Origen = { lat: number; lng: number } | null;
 
+// Cuántas paradas se muestran antes de plegar el resto.
+const TOPE_RUTA = 7;
+
+// Normaliza para buscar sin distinguir mayúsculas ni acentos.
+const norm = (s: string) =>
+  s.toLowerCase().normalize("NFD").split("").filter((c) => {
+    const n = c.charCodeAt(0);
+    return n < 0x300 || n > 0x36f;
+  }).join("");
+
 export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
   const [origen, setOrigen] = useState<Origen>(null);
   const [porCercania, setPorCercania] = useState(false);
   const [estadoGeo, setEstadoGeo] = useState<"idle" | "pidiendo" | "ok" | "no">("idle");
+  const [verTodos, setVerTodos] = useState(false);
+  const [q, setQ] = useState("");
 
   const pedirUbicacion = () => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -74,8 +86,27 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
     return [...base, ...cerrados];
   }, [items, porCercania, origen]);
 
+  // Búsqueda por nombre: si hay término, filtra y muestra TODOS los que matchean.
+  const buscando = q.trim().length > 0;
+  const filtrados = buscando
+    ? ordenados.filter((i) => norm(i.nombre ?? "").includes(norm(q)))
+    : ordenados;
+  // Plegado: sin búsqueda, solo las primeras TOPE_RUTA paradas (las más
+  // relevantes, ya ordenadas). El resto queda detrás de "Ver los N restantes".
+  const visibles = verTodos || buscando ? filtrados : filtrados.slice(0, TOPE_RUTA);
+  const restantes = filtrados.length - visibles.length;
+
   return (
     <div className="flex flex-col gap-2">
+      {/* Buscar cliente por nombre */}
+      <input
+        type="search"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="🔍 Buscar cliente por nombre…"
+        className="rounded-[12px] border border-[#DCE3F4] bg-white px-3.5 py-2.5 text-[13.5px] outline-none focus:border-azul"
+      />
+
       {/* Barra de orden */}
       <div className="flex items-center justify-between px-0.5">
         <span className="text-[12px] font-semibold text-[#8A93AD]">
@@ -111,7 +142,13 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
         </p>
       )}
 
-      {ordenados.map((it, idx) => {
+      {buscando && filtrados.length === 0 && (
+        <p className="px-0.5 py-3 text-center text-[12.5px] font-medium text-[#8A93AD]">
+          Ningún cliente coincide con “{q}”.
+        </p>
+      )}
+
+      {visibles.map((it, idx) => {
         const chip = CHIP[it.estadoHoy];
         // Fallback de inicial: un cliente sin nombre no debe romper toda la
         // lista de la ruta (charAt sobre null/undefined tira). "—" si no hay.
@@ -178,6 +215,28 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
           </div>
         );
       })}
+
+      {/* Plegado: mostrar/ocultar el resto de la ruta (sin búsqueda activa). */}
+      {!buscando && restantes > 0 && (
+        <button
+          type="button"
+          onClick={() => setVerTodos(true)}
+          className="mt-1 rounded-[12px] border border-[#DCE3F4] bg-white px-4 py-2.5 text-[13px] font-bold text-azul active:scale-[0.99]"
+          style={{ transition: "transform .1s" }}
+        >
+          Ver los {restantes} clientes restantes ▾
+        </button>
+      )}
+      {!buscando && verTodos && ordenados.length > TOPE_RUTA && (
+        <button
+          type="button"
+          onClick={() => setVerTodos(false)}
+          className="mt-1 rounded-[12px] border border-[#DCE3F4] bg-white px-4 py-2.5 text-[13px] font-bold text-gris active:scale-[0.99]"
+          style={{ transition: "transform .1s" }}
+        >
+          Ver menos ▴
+        </button>
+      )}
     </div>
   );
 }
