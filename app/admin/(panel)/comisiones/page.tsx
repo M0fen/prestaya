@@ -65,10 +65,11 @@ export default async function ComisionesPage({
       )}
 
       {/* Totales */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <div className="flex flex-col gap-0.5 rounded-[14px] border border-borde bg-tarjeta p-4">
           <span className="text-[11px] font-bold tracking-wide text-gris uppercase">Recaudado</span>
           <span className="text-[19px] font-extrabold tabular-nums text-tinta">{UYU(r.totalRecaudado)}</span>
+          <span className="text-[11px] font-medium text-tenue">del período</span>
         </div>
         <div className="flex flex-col gap-0.5 rounded-[14px] border border-borde bg-tarjeta p-4">
           <span className="text-[11px] font-bold tracking-wide text-gris uppercase">Cobros</span>
@@ -78,8 +79,16 @@ export default async function ComisionesPage({
           </span>
         </div>
         <div className="flex flex-col gap-0.5 rounded-[14px] border border-borde bg-tarjeta p-4">
-          <span className="text-[11px] font-bold tracking-wide text-gris uppercase">Comisiones</span>
+          <span className="text-[11px] font-bold tracking-wide text-gris uppercase">Cobradores</span>
+          <span className="text-[19px] font-extrabold tabular-nums text-tinta">{r.filas.length}</span>
+          <span className="text-[11px] font-medium text-tenue">
+            {r.filas.filter((f) => f.recaudado > 0).length} con cobros
+          </span>
+        </div>
+        <div className="flex flex-col gap-0.5 rounded-[14px] border border-[#DCE6FB] bg-[#F4F7FF] p-4">
+          <span className="text-[11px] font-bold tracking-wide text-azul uppercase">A liquidar</span>
           <span className="text-[19px] font-extrabold tabular-nums text-verde">{UYU(r.totalComision)}</span>
+          <span className="text-[11px] font-medium text-tenue">comisiones del período</span>
         </div>
       </div>
 

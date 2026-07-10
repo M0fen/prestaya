@@ -40,6 +40,8 @@ export default async function InformeCarteraPage({
   ]);
   const filasVisibles = r.filas.slice(0, LIMITE_TABLA);
   const hayMas = r.filas.length - filasVisibles.length;
+  // Utilidad = interés proyectado (Con Intereses − Ventas); margen sobre el capital.
+  const margen = r.totalVenta > 0 ? Math.round((r.utilidadProyectada / r.totalVenta) * 1000) / 10 : 0;
 
   const qs = new URLSearchParams();
   if (vendedorId) qs.set("vendedor", vendedorId);
@@ -71,16 +73,18 @@ export default async function InformeCarteraPage({
         📄 Cantidad de créditos activos: {r.filas.length.toLocaleString("es-UY")}
       </span>
 
-      {/* 5 KPIs (Ventas Crédito de Disapp). */}
-      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-5">
-        <Kpi label="Ventas Crédito" valor={UYU(r.totalVenta)} />
-        <Kpi label="Con Intereses" valor={UYU(r.totalConIntereses)} tono="#157A50" />
-        <Kpi label="Recaudo" valor={UYU(r.totalRecaudado)} tono="#1E47C8" />
-        <Kpi label="Cartera Pendiente" valor={UYU(r.deudaTotalAHoy)} tono="#B9770E" />
+      {/* KPIs (Ventas Crédito de Disapp) + Utilidad/margen (dato del dueño). */}
+      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 lg:grid-cols-6">
+        <Kpi label="Ventas Crédito" valor={UYU(r.totalVenta)} sub="capital colocado" />
+        <Kpi label="Con Intereses" valor={UYU(r.totalConIntereses)} tono="#157A50" sub="total a cobrar" />
+        <Kpi label="Utilidad proyectada" valor={UYU(r.utilidadProyectada)} tono="#1FA971" sub={`margen ${margen}%`} />
+        <Kpi label="Recaudo" valor={UYU(r.totalRecaudado)} tono="#1E47C8" sub="abonado a hoy" />
+        <Kpi label="Cartera Pendiente" valor={UYU(r.deudaTotalAHoy)} tono="#B9770E" sub="saldo por cobrar" />
         <Kpi
           label="% Recaudo"
           valor={`${r.totalConIntereses > 0 ? Math.round((r.totalRecaudado / r.totalConIntereses) * 1000) / 10 : 0}%`}
           tono="#C0392B"
+          sub="recaudo / total"
         />
       </div>
 
@@ -174,9 +178,10 @@ export default async function InformeCarteraPage({
 
       <p className="text-[11px] leading-[1.6] font-medium text-[#AEB6CC]">
         Todo derivado del cartón real: <b>Ventas Crédito</b> = capital colocado; <b>Con Intereses</b> = total
-        a cobrar (interés incluido en la cuota); <b>Recaudo</b> = abonado a hoy; <b>Cartera Pendiente</b> =
-        saldo por cobrar (coincide con “Capital en calle” del dashboard). El <b>% Recaudo</b> = Recaudo / Con
-        Intereses.
+        a cobrar (interés incluido en la cuota); <b>Utilidad proyectada</b> = Con Intereses − Ventas (interés a
+        ganar si todos pagan; el <b>margen</b> es sobre el capital) — es PROYECTADA, no ganancia neta;
+        <b>Recaudo</b> = abonado a hoy; <b>Cartera Pendiente</b> = saldo por cobrar (coincide con “Capital en
+        calle” del dashboard). El <b>% Recaudo</b> = Recaudo / Con Intereses.
       </p>
     </div>
   );
@@ -185,13 +190,14 @@ export default async function InformeCarteraPage({
 const INPUT =
   "rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[13.5px] outline-none focus:border-azul";
 
-function Kpi({ label, valor, tono }: { label: string; valor: string; tono?: string }) {
+function Kpi({ label, valor, tono, sub }: { label: string; valor: string; tono?: string; sub?: string }) {
   return (
     <div className="flex flex-col gap-0.5 rounded-[14px] bg-tarjeta p-3.5 shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
       <span className="text-[11px] font-semibold text-tenue">{label}</span>
       <span className="text-[19px] font-extrabold tabular-nums" style={{ color: tono ?? "#1A2247" }}>
         {valor}
       </span>
+      {sub && <span className="text-[10.5px] font-medium text-[#AEB6CC]">{sub}</span>}
     </div>
   );
 }
