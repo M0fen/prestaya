@@ -47,9 +47,13 @@ const ARQUEO_VACIO: Arqueo = {
 };
 
 /**
- * Estado del cliente HOY, con la MISMA regla que el cartón (lib/cartones.ts):
- * cubrir el día exige pagar >= la cuota. Pura y testeable — es la fuente de
- * verdad de los chips de la ruta y de los contadores del arqueo.
+ * Estado del cliente HOY según la CAJA COBRADA HOY (no el cartón). Mide "¿cuánto
+ * me pagó hoy este cliente?": >= cuota → "pagado", 0<x<cuota → "abono" parcial,
+ * 0 → pendiente/no-pago. Sirve para que el cobrador sepa a quién ya visitó/cobró.
+ * OJO: NO es lo mismo que la celda de HOY del cartón (lib/cartones.ts), que aplica
+ * el pago por FIFO a la cuota vencida más vieja — un cliente atrasado que paga 1
+ * cuota queda "pagado" acá (cobró hoy) pero su cartón puede seguir con HOY pendiente.
+ * Pura y testeable — fuente de verdad de los chips de la ruta y del arqueo.
  */
 export function estadoHoyDe(
   pagadoHoy: number,

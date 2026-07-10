@@ -63,9 +63,11 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/admin/capital", label: "Inversión de capital", icon: "🏦", grupo: "Finanzas y análisis", roles: ["admin"], alias: ["capital", "aportes", "inversion"] },
   { href: "/admin/reportes", label: "Reportes", icon: "📨", grupo: "Finanzas y análisis", roles: ["admin"], alias: ["exportar", "csv", "excel", "descargar", "estado de cuenta", "pdf", "respaldo", "backup"] },
   // ── Fidelización (juegos y comunicación al cliente) ──
-  { href: "/admin/juego", label: "Zona de juego", icon: "🎮", grupo: "Fidelización", roles: ["admin", "supervisor"], alias: ["gaming", "recompensas", "temporada", "caritas"] },
-  { href: "/admin/estrellas", label: "Estrellas", icon: "⭐", grupo: "Fidelización", roles: ["admin", "supervisor"], alias: ["canjes", "redenciones", "premios"] },
-  { href: "/admin/promos", label: "Juegos y sorteos", icon: "🎟️", grupo: "Fidelización", roles: ["admin", "supervisor"], alias: ["raspadita", "quiniela", "sorteo", "promocion"] },
+  // Juego/Estrellas/Sorteos = config GLOBAL del negocio y canjes (dinero-adyacente):
+  // solo el dueño (admin). El supervisor no los ve (además su RLS no acota estrellas por zona).
+  { href: "/admin/juego", label: "Zona de juego", icon: "🎮", grupo: "Fidelización", roles: ["admin"], alias: ["gaming", "recompensas", "temporada", "caritas"] },
+  { href: "/admin/estrellas", label: "Estrellas", icon: "⭐", grupo: "Fidelización", roles: ["admin"], alias: ["canjes", "redenciones", "premios"] },
+  { href: "/admin/promos", label: "Juegos y sorteos", icon: "🎟️", grupo: "Fidelización", roles: ["admin"], alias: ["raspadita", "quiniela", "sorteo", "promocion"] },
   { href: "/admin/rifa", label: "Rifa", icon: "🎁", grupo: "Fidelización", roles: ["admin"], alias: ["premio", "sorteo", "banner", "mejores clientes"] },
   { href: "/admin/anuncios", label: "Anuncios", icon: "📣", grupo: "Fidelización", roles: ["admin", "supervisor"], alias: ["publicidad", "campanas", "banner", "temporada"] },
   // ── Comunicación interna ──

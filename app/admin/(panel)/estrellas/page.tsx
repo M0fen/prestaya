@@ -1,7 +1,7 @@
 // Estrellas (admin): canjes de estrellas por aprobar. Los fragmentos se derivan
 // de los pagos reales (1 pago = 1 fragmento; 5 = 1 estrella); acá el gestor
 // aprueba/rechaza las solicitudes de canje. El premio lo entrega la oficina.
-import { requireGestor } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getRedencionesPendientes, getHistorialRedenciones } from "@/lib/data/estrellas";
 import { RedencionesManager } from "@/components/admin/RedencionesManager";
@@ -18,7 +18,7 @@ function fechaHora(iso: string | null): string {
 }
 
 export default async function EstrellasPage() {
-  await requireGestor();
+  await requireAdmin();
   const db = await createSupabaseServer();
   const [pendientes, historial] = await Promise.all([
     getRedencionesPendientes(db),

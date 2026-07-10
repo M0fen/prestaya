@@ -1,7 +1,7 @@
 // Juegos promocionales (admin): raspadita (premios + probabilidades) y quiniela
 // (abrir/cerrar/sorteo/ganadores). ⚠️ Estrictamente promocional: los premios son
 // beneficios simbólicos del préstamo, NUNCA dinero (ver migración 0021).
-import { requireGestor } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getPremiosRaspa, getSegmentosRaspa, getQuinielasAdmin, getParticipaciones } from "@/lib/data/promos";
 import { ganadores as calcularGanadores } from "@/lib/quiniela";
@@ -10,7 +10,7 @@ import { PromosManager, type ResumenQuiniela } from "@/components/admin/PromosMa
 export const dynamic = "force-dynamic";
 
 export default async function PromosPage() {
-  await requireGestor();
+  await requireAdmin();
   const db = await createSupabaseServer();
   const [premios, segmentos, quinielas] = await Promise.all([
     getPremiosRaspa(db, false),

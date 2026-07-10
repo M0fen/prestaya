@@ -10,6 +10,7 @@ import { BannerEquipo } from "@/components/cobrador/BannerEquipo";
 import { getEstadoJornada } from "@/lib/data/rendicion";
 import { getGastosCobradorHoy } from "@/lib/data/gastos";
 import { getUsuarioActual } from "@/lib/auth";
+import { hoyUY } from "@/lib/fecha";
 import { UYU, meses, diasSemana } from "@/lib/format";
 import { ListaRuta, type ItemRutaVista } from "@/components/cobrador/ListaRuta";
 import { GastosRuta } from "@/components/cobrador/GastosRuta";
@@ -48,7 +49,7 @@ export default async function RutaPage() {
     .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : ""))
     .join(" ")
     .trim() || "cobrador";
-  const hoy = new Date();
+  const hoy = hoyUY(); // día calendario de Uruguay (no la TZ del server), como la ruta/arqueo
   const fechaLarga = `${diasSemana[hoy.getDay()]} ${hoy.getDate()} de ${meses[hoy.getMonth()]}`;
 
   const vista: ItemRutaVista[] = items.map((i) => ({

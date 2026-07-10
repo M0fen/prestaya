@@ -1,6 +1,6 @@
 // Control de la ZONA DE JUEGO (admin/supervisor): encendido, juego del mes,
 // meta de racha, premio y mensajes. Lo que se guarda acá lo ve el cliente.
-import { requireGestor } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getAjustesJuego } from "@/lib/data/juegoConfig";
 import { getRecompensas } from "@/lib/data/recompensas";
@@ -14,7 +14,7 @@ import { GameSlot } from "@/components/GameSlot";
 export const dynamic = "force-dynamic";
 
 export default async function JuegoPage() {
-  await requireGestor();
+  await requireAdmin();
   const db = await createSupabaseServer();
   const [ajustes, recompensas] = await Promise.all([getAjustesJuego(db), getRecompensas(db)]);
   const juegos = Object.values(JUEGOS).map((j) => ({ id: j.id, titulo: j.titulo }));

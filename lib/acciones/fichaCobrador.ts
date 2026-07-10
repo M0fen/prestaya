@@ -40,61 +40,67 @@ export async function peekClienteCobrador(clienteId: string): Promise<ResultadoP
   await requireUsuario(); // exige sesión interna; RLS hace el resto del control
   if (!ES_UUID.test(clienteId)) return { ok: false, error: "Cliente inválido." };
 
-  const db = await createSupabaseServer();
-  const cliente = await getClientePorId(db, clienteId);
-  if (!cliente) return { ok: false, error: "No encontrado o fuera de tu ruta." };
+  // Todo el cuerpo en try/catch: un error transitorio de DB no debe dejar el
+  // ojito colgado en "Cargando…" (el cliente espera {ok:false} para mostrar error).
+  try {
+    const db = await createSupabaseServer();
+    const cliente = await getClientePorId(db, clienteId);
+    if (!cliente) return { ok: false, error: "No encontrado o fuera de tu ruta." };
 
-  const activos = await getPrestamosActivosPorCliente(db, clienteId);
-  const prestamo = activos[0] ?? null;
+    const activos = await getPrestamosActivosPorCliente(db, clienteId);
+    const prestamo = activos[0] ?? null;
 
-  let cuota = 0;
-  let saldo = 0;
-  let progresoPct = 0;
-  let diasCubiertos = 0;
-  let totalDias = 0;
-  let pagadoHoy = 0;
-  let ultimosPagos: { fecha: string; monto: number }[] = [];
+    let cuota = 0;
+    let saldo = 0;
+    let progresoPct = 0;
+    let diasCubiertos = 0;
+    let totalDias = 0;
+    let pagadoHoy = 0;
+    let ultimosPagos: { fecha: string; monto: number }[] = [];
 
-  if (prestamo) {
-    const pagos = await getPagosDePrestamo(db, prestamo.id);
-    const r = calcularEstadosCarton(prestamo, pagos, hoyUY());
-    cuota = prestamo.cuota_diaria;
-    saldo = r.falta;
-    progresoPct = r.progresoPct;
-    diasCubiertos = r.dias.filter((d) => d.estado === "pagado").length;
-    totalDias = prestamo.total_dias;
+    if (prestamo) {
+      const pagos = await getPagosDePrestamo(db, prestamo.id);
+      const r = calcularEstadosCarton(prestamo, pagos, hoyUY());
+      cuota = prestamo.cuota_diaria;
+      saldo = r.falta;
+      progresoPct = r.progresoPct;
+      diasCubiertos = r.dias.filter((d) => d.estado === "pagado").length;
+      totalDias = prestamo.total_dias;
 
-    const desde = inicioDiaUYIso();
-    pagadoHoy = pagos
-      .filter((p) => !p.anulado && p.registrado_en >= desde)
-      .reduce((s, p) => s + Number(p.monto), 0);
+      const desde = inicioDiaUYIso();
+      pagadoHoy = pagos
+        .filter((p) => !p.anulado && p.registrado_en >= desde)
+        .reduce((s, p) => s + Number(p.monto), 0);
 
-    ultimosPagos = [...pagos]
-      .filter((p) => !p.anulado)
-      .sort((a, b) => (a.registrado_en < b.registrado_en ? 1 : -1))
-      .slice(0, 3)
-      .map((p) => ({ fecha: p.registrado_en, monto: Number(p.monto) }));
+      ultimosPagos = [...pagos]
+        .filter((p) => !p.anulado)
+        .sort((a, b) => (a.registrado_en < b.registrado_en ? 1 : -1))
+        .slice(0, 3)
+        .map((p) => ({ fecha: p.registrado_en, monto: Number(p.monto) }));
+    }
+
+    const notas = await getNotasCliente(db, clienteId);
+
+    return {
+      ok: true,
+      ficha: {
+        nombre: cliente.nombre,
+        telefono: cliente.telefono,
+        direccion: cliente.direccion,
+        calificacion: cliente.calificacion ?? null,
+        cuota,
+        saldo,
+        progresoPct,
+        diasCubiertos,
+        totalDias,
+        pagadoHoy,
+        tieneCredito: Boolean(prestamo),
+        ultimosPagos,
+        notasCount: notas.length,
+        ultimaNota: notas[0]?.cuerpo ?? null,
+      },
+    };
+  } catch {
+    return { ok: false, error: "No se pudo cargar la ficha. Probá de nuevo." };
   }
-
-  const notas = await getNotasCliente(db, clienteId);
-
-  return {
-    ok: true,
-    ficha: {
-      nombre: cliente.nombre,
-      telefono: cliente.telefono,
-      direccion: cliente.direccion,
-      calificacion: cliente.calificacion ?? null,
-      cuota,
-      saldo,
-      progresoPct,
-      diasCubiertos,
-      totalDias,
-      pagadoHoy,
-      tieneCredito: Boolean(prestamo),
-      ultimosPagos,
-      notasCount: notas.length,
-      ultimaNota: notas[0]?.cuerpo ?? null,
-    },
-  };
 }
