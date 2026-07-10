@@ -153,7 +153,9 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
         // Fallback de inicial: un cliente sin nombre no debe romper toda la
         // lista de la ruta (charAt sobre null/undefined tira). "—" si no hay.
         const inicial = (it.nombre ?? "").trim().charAt(0).toUpperCase() || "—";
-        const mostrarPaso = porCercania && origen && !cerrado(it.estadoHoy);
+        // El nº de paso es el orden de la RUTA; al buscar, `idx` es el índice del
+        // filtrado (no el paso real) → se oculta mientras se busca.
+        const mostrarPaso = porCercania && origen && !cerrado(it.estadoHoy) && !buscando;
         const esCerrado = cerrado(it.estadoHoy);
         // Abono parcial: cuánto le falta para cubrir la cuota de hoy.
         const restaHoy = it.estadoHoy === "abono" ? Math.max(0, it.cuota - it.pagadoHoy) : 0;

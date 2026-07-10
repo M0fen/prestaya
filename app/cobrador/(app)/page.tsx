@@ -90,7 +90,7 @@ export default async function RutaPage() {
         <div className="mb-2 flex items-end justify-between">
           <div className="flex flex-col">
             <span className="text-[11px] font-semibold tracking-wide text-white/50 uppercase">
-              Recaudado hoy
+              Cobrado en tu ruta
             </span>
             <span className="text-[27px] leading-tight font-black tabular-nums">
               {UYU(arqueo.recaudado)}

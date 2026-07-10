@@ -93,21 +93,30 @@ export async function getRutaCobrador(
   const clientes = (cliRaw ?? []).map(mapCliente);
   if (clientes.length === 0) return { items: [], arqueo: ARQUEO_VACIO };
 
-  // Préstamo activo por cliente (scopeado por los ids, no todo el RLS).
+  // Créditos activos por cliente. Un cliente puede tener VARIOS (0037): se
+  // acumulan TODOS — la cuota del día y lo cobrado hoy suman los de todos sus
+  // créditos (si no, el arqueo subestima el esperado y pierde pagos del 2º).
   const { data: presRaw, error: e1 } = await db
     .from("prestamos")
     .select("id, cliente_id, cuota_diaria")
     .eq("estado", "activo")
     .in("cliente_id", cliIds);
   if (e1) throw e1;
-  const prestamoDe = new Map<string, { id: string; cuota: number }>();
-  for (const p of presRaw ?? [])
-    prestamoDe.set(p.cliente_id as string, {
-      id: p.id as string,
-      cuota: Number(p.cuota_diaria),
-    });
+  const creditosDe = new Map<string, { ids: string[]; cuotaTotal: number; principalId: string }>();
+  for (const p of presRaw ?? []) {
+    const cid = p.cliente_id as string;
+    const pid = p.id as string;
+    const cuota = Number(p.cuota_diaria);
+    const acc = creditosDe.get(cid);
+    if (acc) {
+      acc.ids.push(pid);
+      acc.cuotaTotal += cuota;
+    } else {
+      creditosDe.set(cid, { ids: [pid], cuotaTotal: cuota, principalId: pid });
+    }
+  }
 
-  const ids = [...prestamoDe.values()].map((p) => p.id);
+  const ids = [...creditosDe.values()].flatMap((c) => c.ids);
   const desde = inicioDiaUYIso(hoy);
 
   // Cobros y visitas de HOY.
@@ -147,17 +156,20 @@ export async function getRutaCobrador(
   let noPagos = 0;
 
   const items: ItemRuta[] = clientes.map((c) => {
-    const pr = prestamoDe.get(c.id);
-    if (!pr)
+    const cr = creditosDe.get(c.id);
+    if (!cr)
       return { cliente: c, prestamoId: null, cuota: 0, estadoHoy: "sin_credito", pagadoHoy: 0 };
-    esperado += pr.cuota;
-    const pagadoHoy = pagadoPorPrestamo.get(pr.id) ?? 0;
+    esperado += cr.cuotaTotal;
+    // Suma de lo cobrado HOY en TODOS los créditos activos del cliente.
+    const pagadoHoy = cr.ids.reduce((s, id) => s + (pagadoPorPrestamo.get(id) ?? 0), 0);
     recaudado += pagadoHoy;
-    const estadoHoy = estadoHoyDe(pagadoHoy, pr.cuota, noPagoPrestamos.has(pr.id));
+    // No-pago si alguno de sus créditos quedó marcado como visita sin cobro.
+    const esNoPago = cr.ids.some((id) => noPagoPrestamos.has(id));
+    const estadoHoy = estadoHoyDe(pagadoHoy, cr.cuotaTotal, esNoPago);
     if (estadoHoy === "pagado") cobrados++;
     else if (estadoHoy === "abono") abonos++;
     else if (estadoHoy === "no_pago") noPagos++;
-    return { cliente: c, prestamoId: pr.id, cuota: pr.cuota, estadoHoy, pagadoHoy };
+    return { cliente: c, prestamoId: cr.principalId, cuota: cr.cuotaTotal, estadoHoy, pagadoHoy };
   });
 
   const conCredito = items.filter((i) => i.prestamoId).length;

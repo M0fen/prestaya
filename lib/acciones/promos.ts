@@ -7,7 +7,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { getUsuarioActual, esGestor } from "@/lib/auth";
+import { getUsuarioActual, esAdmin } from "@/lib/auth";
 import {
   guardarPremioRaspaDb,
   borrarPremioRaspaDb,
@@ -23,7 +23,7 @@ type Resultado = { ok: true } | { ok: false; error: string };
 
 async function gestor() {
   const u = await getUsuarioActual();
-  if (!u || !u.activo || !esGestor(u.rol)) return null;
+  if (!u || !u.activo || !esAdmin(u.rol)) return null;
   return u;
 }
 

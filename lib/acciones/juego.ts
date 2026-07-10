@@ -5,7 +5,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { getUsuarioActual, esGestor } from "@/lib/auth";
+import { getUsuarioActual, esAdmin } from "@/lib/auth";
 import { actualizarAjustesJuego } from "@/lib/data/juegoConfig";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { JUEGOS } from "@/lib/juegos";
@@ -15,7 +15,7 @@ type Resultado = { ok: true } | { ok: false; error: string };
 
 export async function guardarAjustesJuego(input: AjustesJuego): Promise<Resultado> {
   const usuario = await getUsuarioActual();
-  if (!usuario || !usuario.activo || !esGestor(usuario.rol)) {
+  if (!usuario || !usuario.activo || !esAdmin(usuario.rol)) {
     return { ok: false, error: "No tenés permisos." };
   }
   // Validación/saneo.

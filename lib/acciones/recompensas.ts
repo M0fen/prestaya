@@ -5,7 +5,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { getUsuarioActual, esGestor } from "@/lib/auth";
+import { getUsuarioActual, esAdmin } from "@/lib/auth";
 import {
   crearRecompensa,
   actualizarRecompensa,
@@ -19,7 +19,7 @@ const HITOS: HitoTipo[] = ["racha", "mes_al_dia", "credito_completo", "nivel"];
 
 async function gestor() {
   const u = await getUsuarioActual();
-  if (!u || !u.activo || !esGestor(u.rol)) return null;
+  if (!u || !u.activo || !esAdmin(u.rol)) return null;
   return u;
 }
 

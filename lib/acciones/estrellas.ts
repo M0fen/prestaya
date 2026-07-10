@@ -7,11 +7,24 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
-import { getUsuarioActual, esGestor } from "@/lib/auth";
+import { getUsuarioActual, esAdmin } from "@/lib/auth";
 import { resolverRedencionDb, getSaldoEstrellas, redimirDirectoDb } from "@/lib/data/estrellas";
+import { getPrestamosActivosPorCliente } from "@/lib/data/prestamos";
+import { getAjustesJuego } from "@/lib/data/juegoConfig";
 import { registrarAuditoria } from "@/lib/data/auditoria";
-import { validarRedencion, type SaldoEstrellas } from "@/lib/estrellas";
+import { validarRedencion, claveCiclo, type SaldoEstrellas } from "@/lib/estrellas";
 import { cicloUY } from "@/lib/fecha";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+/** Ciclo de tope de estrellas del cliente, igual que la vista de cliente y la
+ *  ficha: respeta la config (mensual vs por-crédito) para que el cupo coincida. */
+async function cicloDeCliente(db: SupabaseClient, clienteId: string): Promise<string> {
+  const [ajustes, activos] = await Promise.all([
+    getAjustesJuego(db),
+    getPrestamosActivosPorCliente(db, clienteId),
+  ]);
+  return claveCiclo(ajustes.estrellasCiclo, { cicloMes: cicloUY(), prestamoId: activos[0]?.id ?? null });
+}
 
 type Resultado = { ok: true } | { ok: false; error: string };
 
@@ -19,7 +32,7 @@ const ES_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 async function resolver(id: string, estado: "aprobada" | "rechazada"): Promise<Resultado> {
   const u = await getUsuarioActual();
-  if (!u || !u.activo || !esGestor(u.rol)) return { ok: false, error: "No tenés permisos." };
+  if (!u || !u.activo || !esAdmin(u.rol)) return { ok: false, error: "No tenés permisos." };
   if (!id) return { ok: false, error: "Redención inválida." };
   try {
     const db = await createSupabaseServer();
@@ -50,11 +63,11 @@ export async function saldoEstrellasCliente(
   clienteId: string,
 ): Promise<{ ok: true; saldo: SaldoEstrellas; nombre: string } | { ok: false; error: string }> {
   const u = await getUsuarioActual();
-  if (!u || !u.activo || !esGestor(u.rol)) return { ok: false, error: "No tenés permisos." };
+  if (!u || !u.activo || !esAdmin(u.rol)) return { ok: false, error: "No tenés permisos." };
   if (!ES_UUID.test(clienteId)) return { ok: false, error: "Cliente inválido." };
   try {
     const db = await createSupabaseServer();
-    const saldo = await getSaldoEstrellas(db, clienteId, cicloUY());
+    const saldo = await getSaldoEstrellas(db, clienteId, await cicloDeCliente(db, clienteId));
     const { data: c } = await db.from("clientes").select("nombre").eq("id", clienteId).maybeSingle();
     return { ok: true, saldo, nombre: (c?.nombre as string) ?? "Cliente" };
   } catch {
@@ -73,12 +86,12 @@ export async function redimirEstrellasAdmin(input: {
   estrellas: number;
 }): Promise<Resultado> {
   const u = await getUsuarioActual();
-  if (!u || !u.activo || !esGestor(u.rol)) return { ok: false, error: "No tenés permisos." };
+  if (!u || !u.activo || !esAdmin(u.rol)) return { ok: false, error: "No tenés permisos." };
   if (!ES_UUID.test(input.clienteId)) return { ok: false, error: "Cliente inválido." };
   const n = Math.round(input.estrellas);
   try {
     const db = await createSupabaseServer();
-    const ciclo = cicloUY();
+    const ciclo = await cicloDeCliente(db, input.clienteId);
     // Verdad del servidor: recalcula el saldo y valida ANTES de escribir.
     const saldo = await getSaldoEstrellas(db, input.clienteId, ciclo);
     const v = validarRedencion(saldo, n);

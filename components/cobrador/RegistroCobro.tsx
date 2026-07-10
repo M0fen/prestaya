@@ -95,8 +95,11 @@ export function RegistroCobro({
   };
 
   const cobrar = async (monto: number | null) => {
-    const montoCobrado = monto && monto > 0 ? Math.round(monto) : cuota;
-    const offline = await registrar("pago", { monto, motivo: null });
+    // Dinero SIEMPRE entero: redondeamos ANTES de encolar (nunca un float llega
+    // al libro de pagos). El comprobante y el estado usan ese mismo entero.
+    const m = monto != null && monto > 0 ? Math.round(monto) : null;
+    const montoCobrado = m ?? cuota;
+    const offline = await registrar("pago", { monto: m, motivo: null });
     setAbono(false);
     setMontoAbono("");
     // Comprobante profesional (recibo con trazabilidad), compartible por WhatsApp.
@@ -108,7 +111,7 @@ export function RegistroCobro({
       cobradorNombre,
       monto: montoCobrado,
       saldoRestante: Math.max(0, Math.round(saldoActual) - montoCobrado),
-      tipo: monto && monto > 0 && monto < cuota ? "abono" : "cuota",
+      tipo: m != null && m < cuota ? "abono" : "cuota",
       fechaHora,
       offline,
     });
