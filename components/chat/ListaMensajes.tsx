@@ -1,11 +1,15 @@
 "use client";
 // Lista de mensajes del chat: contenedor con SCROLL propio (alto acotado) que
 // auto-baja al último mensaje al entrar y al llegar uno nuevo, separadores por
-// día, iniciales de color por autor y burbujas legibles. Antes la lista crecía
-// sin límite y no bajaba sola (se sentía "raro").
-import { useEffect, useRef } from "react";
+// día, iniciales de color por autor y burbujas legibles. Muestra los mensajes
+// RECIENTES y colapsa los viejos detrás de "Ver historial" (no abruma; se piden
+// a demanda). Antes la lista crecía sin límite y no bajaba sola (se sentía "raro").
+import { useEffect, useRef, useState } from "react";
 import { horaDe } from "@/lib/format";
 import type { MensajeVista } from "@/lib/data/chat";
+
+// Cuántos mensajes recientes se muestran antes de ofrecer "Ver historial".
+const RECIENTES = 20;
 
 const COLORES = ["#2453DC", "#1FA971", "#B9770E", "#7A4DD6", "#C0392B", "#0E7C86"];
 function colorDe(nombre: string): string {
@@ -33,8 +37,13 @@ function etiquetaDia(iso: string): string {
 export function ListaMensajes({ mensajes }: { mensajes: MensajeVista[] }) {
   const finRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [verHistorial, setVerHistorial] = useState(false);
 
-  // Baja al último mensaje al montar y cuando cambia la cantidad.
+  // Por defecto solo los últimos RECIENTES; el resto queda en el historial.
+  const ocultos = Math.max(0, mensajes.length - RECIENTES);
+  const visibles = verHistorial || ocultos === 0 ? mensajes : mensajes.slice(-RECIENTES);
+
+  // Baja al último mensaje al montar y cuando cambia la cantidad visible.
   useEffect(() => {
     const cont = scrollRef.current;
     if (cont) cont.scrollTop = cont.scrollHeight;
@@ -56,7 +65,19 @@ export function ListaMensajes({ mensajes }: { mensajes: MensajeVista[] }) {
       ref={scrollRef}
       className="flex h-[52vh] flex-col gap-2 overflow-y-auto rounded-[16px] border border-[#E6EAF4] bg-[#F4F6FB] p-3.5"
     >
-      {mensajes.map((m) => {
+      {/* Historial: mensajes viejos, plegados por defecto. */}
+      {ocultos > 0 && (
+        <div className="flex justify-center py-0.5">
+          <button
+            type="button"
+            onClick={() => setVerHistorial((v) => !v)}
+            className="rounded-full bg-white px-3 py-1 text-[11.5px] font-bold text-azul shadow-[0_1px_2px_rgba(26,34,71,0.06)]"
+          >
+            {verHistorial ? "Ocultar historial" : `Ver historial (${ocultos} mensaje${ocultos === 1 ? "" : "s"} anterior${ocultos === 1 ? "" : "es"})`}
+          </button>
+        </div>
+      )}
+      {visibles.map((m) => {
         const dia = etiquetaDia(m.creado_en);
         const nuevoDia = dia !== ultimoDia;
         ultimoDia = dia;

@@ -3,6 +3,7 @@
 // La lista puede reordenarse por cercanía (client-side, ver ListaRuta).
 import Link from "next/link";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getRutaCobrador } from "@/lib/data/ruta";
 import { getEstadoJornada } from "@/lib/data/rendicion";
 import { getGastosCobradorHoy } from "@/lib/data/gastos";
@@ -22,9 +23,11 @@ export default async function RutaPage() {
   const gastos = usuario ? await getGastosCobradorHoy(db, usuario.id) : null;
 
   // Saludo personalizado (nombre + zona). Da identidad a la app del cobrador.
+  // El nombre de la zona se resuelve con el cliente ADMIN: la tabla `zonas` está
+  // bloqueada por RLS para el cobrador (0 filas), y esto es solo una etiqueta.
   const zonaNombre =
     usuario?.zona_id
-      ? (await db.from("zonas").select("nombre").eq("id", usuario.zona_id).maybeSingle()).data?.nombre ?? null
+      ? (await createSupabaseAdmin().from("zonas").select("nombre").eq("id", usuario.zona_id).maybeSingle()).data?.nombre ?? null
       : null;
   const horaUY = Number(
     new Intl.DateTimeFormat("en-US", {

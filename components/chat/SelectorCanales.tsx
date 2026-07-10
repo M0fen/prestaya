@@ -1,9 +1,10 @@
 "use client";
-// Selector de canales VERTICAL, agrupado y con búsqueda. Reemplaza la tira
-// horizontal (inusable con 47+ hilos de cobrador). Grupos: General (equipo/
-// supervisores), Zonas y Conversaciones (hilos por cobrador). En escritorio es
-// la columna izquierda de un layout de dos paneles; en mobile es un desplegable
-// compacto que se cierra solo al elegir (la navegación resetea el estado).
+// Selector de canales VERTICAL, agrupado, con búsqueda y COLAPSO. Reemplaza la
+// tira horizontal (inusable con 47+ hilos de cobrador). Grupos: General (equipo/
+// supervisores), Zonas y Conversaciones (hilos por cobrador). Cada grupo muestra
+// hasta 7 y COLAPSA el resto detrás de "Ver N más". Al buscar, muestra todos los
+// que matchean. En escritorio es la columna izquierda de un layout de dos paneles;
+// en mobile va arriba (visible, sin esconderse tras un tap → antes se sentía roto).
 import { useState } from "react";
 import Link from "next/link";
 import type { Canal } from "@/lib/data/chat";
@@ -22,9 +23,11 @@ const GRUPOS: { titulo: string; ambitos: AmbitoMensaje[] }[] = [
   { titulo: "Conversaciones", ambitos: ["cobrador"] },
 ];
 
+// Cuántos canales muestra cada grupo antes de colapsar el resto.
+const TOPE = 7;
+
 // Normaliza para buscar sin distinguir mayúsculas ni acentos (quita las marcas
-// diacríticas combinantes U+0300–U+036F por code-point → fuente ASCII, sin líos
-// de codificación del archivo).
+// diacríticas combinantes U+0300–U+036F por code-point → fuente ASCII).
 const norm = (s: string) =>
   s
     .toLowerCase()
@@ -46,11 +49,11 @@ export function SelectorCanales({
   basePath: string;
 }) {
   const [q, setQ] = useState("");
-  const [abierto, setAbierto] = useState(false);
+  const [expandido, setExpandido] = useState<Record<string, boolean>>({});
   const activo = canales.find((c) => c.key === canalActivo) ?? canales[0];
-  const totalNoLeidos = canales.reduce((s, c) => s + c.noLeidos, 0);
+  const buscando = q.trim().length > 0;
 
-  const filtro = q.trim() ? canales.filter((c) => norm(c.titulo).includes(norm(q))) : canales;
+  const filtro = buscando ? canales.filter((c) => norm(c.titulo).includes(norm(q))) : canales;
   const grupos = GRUPOS.map((g) => ({
     ...g,
     items: filtro.filter((c) => g.ambitos.includes(c.ambito)),
@@ -58,45 +61,30 @@ export function SelectorCanales({
 
   return (
     <div className="flex flex-col gap-2 md:sticky md:top-4">
-      {/* Mobile: barra que muestra el canal activo y abre la lista. */}
-      <button
-        type="button"
-        onClick={() => setAbierto((v) => !v)}
-        className="flex items-center gap-2 rounded-[14px] border border-borde bg-tarjeta px-3.5 py-2.5 md:hidden"
-      >
-        <span className="text-[15px]">{activo ? ICONO[activo.ambito] : "💬"}</span>
-        <span className="flex-1 truncate text-left text-[13.5px] font-bold text-tinta">
-          {activo?.titulo ?? "Chat"}
-        </span>
-        {!abierto && totalNoLeidos > 0 && (
-          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#E06A6A] px-1.5 text-[10px] font-black text-white">
-            {totalNoLeidos > 9 ? "9+" : totalNoLeidos}
-          </span>
+      <input
+        type="search"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Buscar canal o persona…"
+        className="rounded-[12px] border border-borde bg-tarjeta px-3 py-2 text-[13px] outline-none focus:border-azul"
+      />
+      <div className="flex flex-col gap-3">
+        {grupos.length === 0 && (
+          <p className="px-1 text-[12px] font-medium text-gris">Sin resultados para “{q}”.</p>
         )}
-        <span className={`text-[11px] text-gris transition-transform ${abierto ? "rotate-90" : ""}`}>▶</span>
-      </button>
-
-      {/* Panel: oculto en mobile hasta abrir; siempre visible en escritorio. */}
-      <div className={`${abierto ? "flex" : "hidden"} flex-col gap-2 md:flex`}>
-        <input
-          type="search"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Buscar canal o persona…"
-          className="rounded-[12px] border border-borde bg-tarjeta px-3 py-2 text-[13px] outline-none focus:border-azul"
-        />
-        <div className="flex flex-col gap-3">
-          {grupos.length === 0 && (
-            <p className="px-1 text-[12px] font-medium text-gris">Sin resultados para “{q}”.</p>
-          )}
-          {grupos.map((g) => (
+        {grupos.map((g) => {
+          // Al buscar, se muestran todos los que matchean; si no, tope de 7.
+          const abierto = buscando || expandido[g.titulo];
+          const visibles = abierto ? g.items : g.items.slice(0, TOPE);
+          const resto = g.items.length - visibles.length;
+          return (
             <div key={g.titulo} className="flex flex-col gap-1">
               <span className="px-1 text-[10.5px] font-bold tracking-wide text-gris uppercase">
-                {g.titulo} {g.items.length > 3 && <span className="text-tenue">· {g.items.length}</span>}
+                {g.titulo}
+                {g.items.length > TOPE && <span className="text-tenue"> · {g.items.length}</span>}
               </span>
-              {/* La lista de conversaciones puede ser larga (47 cobradores) → scroll propio. */}
-              <div className={`flex flex-col gap-0.5 ${g.ambitos.includes("cobrador") ? "max-h-[42vh] overflow-y-auto pr-0.5 md:max-h-[46vh]" : ""}`}>
-                {g.items.map((c) => {
+              <div className="flex flex-col gap-0.5">
+                {visibles.map((c) => {
                   const sel = c.key === activo?.key;
                   return (
                     <Link
@@ -122,9 +110,19 @@ export function SelectorCanales({
                   );
                 })}
               </div>
+              {/* Colapso: el resto del grupo detrás de "Ver N más". */}
+              {!buscando && g.items.length > TOPE && (
+                <button
+                  type="button"
+                  onClick={() => setExpandido((e) => ({ ...e, [g.titulo]: !e[g.titulo] }))}
+                  className="self-start rounded-full px-2.5 py-1 text-[11.5px] font-bold text-azul hover:bg-[#EEF3FF]"
+                >
+                  {expandido[g.titulo] ? "Ver menos" : `Ver ${resto} más`}
+                </button>
+              )}
             </div>
-          ))}
-        </div>
+          );
+        })}
       </div>
     </div>
   );
