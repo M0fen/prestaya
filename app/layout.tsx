@@ -31,6 +31,9 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: "#13308C",
+  // Extiende el contenido bajo el notch/home-indicator; los headers y el
+  // bottom-nav respetan el área segura con env(safe-area-inset-*). Mobile-first.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

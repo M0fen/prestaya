@@ -11,7 +11,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Rol } from "@/types/db";
-import { navVisible, navAgrupado, type NavItem } from "@/lib/admin/nav";
+import { navAgrupado, type NavItem } from "@/lib/admin/nav";
 
 export function SidebarNav({
   rol,
@@ -23,7 +23,6 @@ export function SidebarNav({
   esDev?: boolean;
 }) {
   const pathname = usePathname();
-  const planos = navVisible(rol, esDev);
   const { suelto, grupos } = navAgrupado(rol, esDev);
 
   const esActivo = (item: NavItem) =>
@@ -31,14 +30,8 @@ export function SidebarNav({
 
   return (
     <>
-      {/* Mobile: franja horizontal plana. */}
-      <nav className="flex gap-1 overflow-x-auto p-2 md:hidden">
-        {planos.map((item) => (
-          <ItemLink key={item.href} item={item} activo={esActivo(item)} noLeidos={noLeidos} />
-        ))}
-      </nav>
-
-      {/* Escritorio: Dashboard suelto + secciones colapsables. */}
+      {/* Solo escritorio: Dashboard suelto + secciones colapsables. En mobile la
+          navegación es el PanelBottomNav (barra inferior). */}
       <nav className="hidden flex-col gap-0.5 p-3 md:flex">
         {suelto.map((item) => (
           <ItemLink key={item.href} item={item} activo={esActivo(item)} noLeidos={noLeidos} />

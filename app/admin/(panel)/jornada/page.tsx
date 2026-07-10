@@ -16,6 +16,7 @@ import { getCierrePorZona, type ResumenCierreZonas } from "@/lib/data/cierreZona
 import { getCentroAlertas, type Alerta } from "@/lib/data/centroAlertas";
 import { getResumenCompromisos, type ResumenCompromisos } from "@/lib/data/gestionesCobranza";
 import { alcanceDelActor } from "@/lib/data/alcance";
+import { navVisible } from "@/lib/admin/nav";
 import { UYU, diasSemana, meses } from "@/lib/format";
 import { hoyUY } from "@/lib/fecha";
 import { BarrasComparativas } from "@/components/charts/BarrasComparativas";
@@ -48,6 +49,8 @@ export default async function JornadaPage({
   const hoy = new Date();
   const db = await createSupabaseServer();
   const alcance = await alcanceDelActor();
+  // Herramientas del día visibles para este rol (para el launchpad unificado).
+  const toolHrefs = new Set(navVisible(usuario.rol, usuario.es_dev).map((i) => i.href));
 
   const actor = await getActorActual();
   // Perf: NO pedimos getRendicionesDia por separado — getCierrePorZona ya lo trae
@@ -134,6 +137,9 @@ export default async function JornadaPage({
         clientes={cartera.deudoresActivos}
         creditos={cartera.creditosActivos}
       />
+
+      {/* Launchpad: las herramientas del día, todas en un toque (todo en un solo sitio). */}
+      <HerramientasDia hrefs={toolHrefs} />
 
       {/* Stepper de los 3 actos (guía del día) */}
       <nav className="grid grid-cols-3 gap-2">
@@ -497,6 +503,40 @@ function PulsoTile({ etiqueta, valor, sub, color }: { etiqueta: string; valor: s
       </span>
       <span className="text-[11px] font-medium text-tenue">{sub}</span>
     </div>
+  );
+}
+
+/* ── Launchpad: herramientas del día (todo en un solo sitio) ───────────── */
+const TOOLS: { href: string; label: string; icon: string }[] = [
+  { href: "/admin/mora", label: "Mora", icon: "⏰" },
+  { href: "/admin/cobranza", label: "Cobranza", icon: "🛡️" },
+  { href: "/admin/recaudos", label: "Recaudos", icon: "💵" },
+  { href: "/admin/caja", label: "Caja", icon: "💰" },
+  { href: "/admin/alertas", label: "Alertas", icon: "🚨" },
+  { href: "/admin/campo", label: "Campo", icon: "🛰️" },
+  { href: "/admin/clientes", label: "Clientes", icon: "👤" },
+  { href: "/admin/chat", label: "Chat", icon: "💬" },
+];
+
+function HerramientasDia({ hrefs }: { hrefs: Set<string> }) {
+  const items = TOOLS.filter((t) => hrefs.has(t.href));
+  if (items.length === 0) return null;
+  return (
+    <section className="flex flex-col gap-2">
+      <span className="px-0.5 text-[12px] font-bold uppercase tracking-wide text-gris">Herramientas del día</span>
+      <div className="grid grid-cols-4 gap-2 md:grid-cols-8">
+        {items.map((t) => (
+          <Link
+            key={t.href}
+            href={t.href}
+            className="flex flex-col items-center gap-1.5 rounded-[14px] border border-borde bg-tarjeta py-3 transition-transform hover:bg-suave active:scale-95"
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-[#EEF3FF] text-[17px]">{t.icon}</span>
+            <span className="text-[11px] font-bold text-cuerpo">{t.label}</span>
+          </Link>
+        ))}
+      </div>
+    </section>
   );
 }
 

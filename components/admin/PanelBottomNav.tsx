@@ -1,0 +1,153 @@
+"use client";
+// Barra de navegación INFERIOR del panel, solo mobile (md:hidden). Reemplaza la
+// franja de scroll horizontal (poco descubrible, lejos del pulgar) por 4 destinos
+// del flujo diario + "Menú" (hoja deslizable con TODA la navegación agrupada).
+// Fija abajo, respeta el safe-area (home indicator). Reusa lib/admin/nav.ts.
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
+import type { Rol } from "@/types/db";
+import { navVisible, navAgrupado } from "@/lib/admin/nav";
+
+/** Destinos del flujo diario en la barra inferior (orden = importancia). Se
+ *  muestran solo los que el rol puede ver. El 5º slot es siempre "Menú". */
+const TABS = [
+  { href: "/admin", label: "Inicio", icon: "▣" },
+  { href: "/admin/jornada", label: "Jornada", icon: "🧭" },
+  { href: "/admin/cobranza", label: "Cobranza", icon: "🛡️" },
+  { href: "/admin/caja", label: "Caja", icon: "💰" },
+];
+
+export function PanelBottomNav({
+  rol,
+  noLeidos = 0,
+  esDev = false,
+}: {
+  rol: Rol;
+  noLeidos?: number;
+  esDev?: boolean;
+}) {
+  const pathname = usePathname();
+  const [abierto, setAbierto] = useState(false);
+  const visibles = new Set(navVisible(rol, esDev).map((i) => i.href));
+  const tabs = TABS.filter((t) => visibles.has(t.href));
+  const { suelto, grupos } = navAgrupado(rol, esDev);
+  const activo = (href: string) =>
+    href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
+
+  return (
+    <>
+      {/* Barra inferior fija (mobile) */}
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-white/10 bg-[#0F1B3D] pb-safe md:hidden">
+        {tabs.map((t) => {
+          const on = activo(t.href);
+          return (
+            <Link
+              key={t.href}
+              href={t.href}
+              className={`flex flex-1 flex-col items-center gap-0.5 pt-2 pb-1.5 text-[10px] font-bold ${on ? "text-white" : "text-white/50"}`}
+            >
+              <span className="text-[19px] leading-none">{t.icon}</span>
+              {t.label}
+            </Link>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => setAbierto(true)}
+          aria-label="Abrir menú"
+          className="flex flex-1 flex-col items-center gap-0.5 pt-2 pb-1.5 text-[10px] font-bold text-white/50"
+        >
+          <span className="relative text-[19px] leading-none">
+            ☰
+            {noLeidos > 0 && (
+              <span className="absolute -top-0.5 -right-2 h-2 w-2 rounded-full bg-[#E06A6A]" />
+            )}
+          </span>
+          Menú
+        </button>
+      </nav>
+
+      {/* Hoja con TODA la navegación (mobile) */}
+      {abierto && (
+        <div
+          className="fixed inset-0 z-40 flex flex-col justify-end bg-black/55 md:hidden"
+          onClick={() => setAbierto(false)}
+        >
+          <div
+            className="max-h-[82vh] overflow-y-auto rounded-t-[22px] bg-[#0F1B3D] px-3 pt-3 pb-safe"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-white/20" />
+            <div className="mb-1 flex items-center justify-between px-2">
+              <span className="text-[13px] font-extrabold text-white">Menú</span>
+              <button
+                type="button"
+                onClick={() => setAbierto(false)}
+                className="rounded-full px-2 text-[20px] leading-none text-white/60"
+                aria-label="Cerrar"
+              >
+                ×
+              </button>
+            </div>
+            <div className="flex flex-col gap-0.5 pb-3">
+              {suelto.map((i) => (
+                <ItemSheet key={i.href} href={i.href} icon={i.icon} label={i.label} activo={activo(i.href)} onNav={() => setAbierto(false)} />
+              ))}
+              {grupos.map(({ grupo, items }) => (
+                <div key={grupo} className="mt-2">
+                  <span className="px-3 text-[10px] font-bold uppercase tracking-wide text-white/40">{grupo}</span>
+                  <div className="mt-0.5 flex flex-col gap-0.5">
+                    {items.map((i) => (
+                      <ItemSheet
+                        key={i.href}
+                        href={i.href}
+                        icon={i.icon}
+                        label={i.label}
+                        activo={activo(i.href)}
+                        badge={i.href === "/admin/chat" ? noLeidos : 0}
+                        onNav={() => setAbierto(false)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function ItemSheet({
+  href,
+  icon,
+  label,
+  activo,
+  badge = 0,
+  onNav,
+}: {
+  href: string;
+  icon: string;
+  label: string;
+  activo: boolean;
+  badge?: number;
+  onNav: () => void;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onNav}
+      className={`flex items-center gap-3 rounded-[12px] px-3 py-2.5 text-[14px] font-semibold ${activo ? "bg-white/15 text-white" : "text-white/75 active:bg-white/10"}`}
+    >
+      <span aria-hidden="true" className="text-[17px]">{icon}</span>
+      <span>{label}</span>
+      {badge > 0 && (
+        <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-[#E06A6A] px-1.5 text-[10px] font-black text-white">
+          {badge > 9 ? "9+" : badge}
+        </span>
+      )}
+    </Link>
+  );
+}

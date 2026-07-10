@@ -65,6 +65,20 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* ── Safe areas (notch / home indicator / PWA standalone) ───────────────
+   Requiere viewport-fit=cover (ver `viewport` en app/layout.tsx). Se aplican en
+   los headers sticky (arriba) y en lo fijo-abajo (bottom-nav, toasts). */
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+/* Header sticky: su padding visual + el inset del notch (no queda tapado). */
+.header-safe {
+  padding-top: calc(0.75rem + env(safe-area-inset-top));
+}
+
 /* ── Accesibilidad ──────────────────────────────────────────────────────
    Escala de texto (A+) por zoom del contenido, y alto contraste oscureciendo
    el texto secundario. Las preferencias las fija AccesibilidadControl en

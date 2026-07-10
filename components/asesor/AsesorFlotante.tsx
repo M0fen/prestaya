@@ -115,14 +115,14 @@ export function AsesorFlotante() {
         type="button"
         onClick={() => setAbierto((v) => !v)}
         aria-label="Asesor financiero"
-        className="fixed right-4 bottom-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[linear-gradient(135deg,#2453DC,#13308C)] text-[24px] text-white shadow-[0_10px_30px_rgba(19,48,140,0.45)] transition-transform active:scale-90"
+        className="fixed right-4 bottom-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[linear-gradient(135deg,#2453DC,#13308C)] text-[24px] text-white shadow-[0_10px_30px_rgba(19,48,140,0.45)] transition-transform active:scale-90 max-md:bottom-[5.5rem]"
       >
         {abierto ? "✕" : "💡"}
       </button>
 
       {/* Panel */}
       {abierto && (
-        <div className="fixed right-4 bottom-20 z-50 flex h-[70vh] max-h-[640px] w-[min(420px,calc(100vw-2rem))] flex-col overflow-hidden rounded-[20px] border border-[#E6EAF4] bg-white shadow-[0_20px_60px_rgba(15,27,61,0.35)]">
+        <div className="fixed right-4 bottom-20 z-50 flex h-[70vh] max-h-[640px] w-[min(420px,calc(100vw-2rem))] flex-col overflow-hidden rounded-[20px] border border-[#E6EAF4] bg-white shadow-[0_20px_60px_rgba(15,27,61,0.35)] max-md:bottom-[9rem]">
           {/* Encabezado */}
           <div className="flex items-center gap-2.5 border-b border-[#EEF1F8] bg-[#0F1B3D] px-4 py-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[linear-gradient(135deg,#2453DC,#13308C)] text-[18px]">

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requireUsuario, etiquetaRol, esGestor, esAdmin } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { SidebarNav } from "@/components/admin/SidebarNav";
+import { PanelBottomNav } from "@/components/admin/PanelBottomNav";
 import { ModoOscuro } from "@/components/admin/ModoOscuro";
 import { cerrarSesion } from "@/lib/auth-actions";
 import { createSupabaseServer } from "@/lib/supabase/server";
@@ -48,8 +49,8 @@ export default async function PanelLayout({
 
   return (
     <div id="panel-root" data-tema={tema} className="flex min-h-screen flex-col bg-fondo md:flex-row">
-      {/* Barra lateral (desktop) / superior (mobile) */}
-      <aside className="print:hidden flex flex-col bg-[#0F1B3D] md:min-h-screen md:w-60 md:flex-shrink-0">
+      {/* Barra lateral — SOLO escritorio. En mobile navega el PanelBottomNav (abajo). */}
+      <aside className="print:hidden hidden flex-col bg-[#0F1B3D] md:flex md:min-h-screen md:w-60 md:flex-shrink-0">
         <div className="flex items-center gap-2.5 px-4 py-4">
           <div className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-[linear-gradient(135deg,#2453DC,#13308C)] text-[16px] font-black text-white">
             P
@@ -68,7 +69,7 @@ export default async function PanelLayout({
 
       {/* Contenido */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="print:hidden flex items-center justify-between gap-3 border-b border-borde bg-tarjeta px-5 py-3">
+        <header className="header-safe print:hidden sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-borde bg-tarjeta px-5 py-3">
           <div className="flex flex-col">
             <span className="text-[11px] font-semibold tracking-wide text-gris uppercase">
               {etiquetaRol[usuario.rol]}
@@ -102,8 +103,12 @@ export default async function PanelLayout({
             🔐 Activá la verificación en dos pasos para blindar tu cuenta de administrador →
           </Link>
         )}
-        <main className="flex-1 p-5 md:p-7 print:p-0">{children}</main>
+        {/* pb extra en mobile: deja lugar a la barra inferior fija. */}
+        <main className="flex-1 p-5 pb-24 md:p-7 print:p-0">{children}</main>
       </div>
+
+      {/* Navegación inferior (mobile): el flujo del día + Menú con todo. */}
+      <PanelBottomNav rol={usuario.rol} noLeidos={noLeidos} esDev={usuario.es_dev} />
 
       {/* Flotantes (asesor + avisos): fuera del documento impreso. */}
       <div className="print:hidden">
