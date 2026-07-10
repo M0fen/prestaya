@@ -137,10 +137,15 @@ export default async function CajaPage({
 
       {/* 3 tarjetas (como Disapp) */}
       <div className="grid grid-cols-3 gap-2.5">
-        <Kpi label="Balance Total" valor={UYU(r.neto)} tono={r.neto >= 0 ? "#157A50" : "#C0392B"} />
+        <Kpi label="Balance operativo" valor={UYU(r.neto)} tono={r.neto >= 0 ? "#157A50" : "#C0392B"} />
         <Kpi label="Total Entradas" valor={UYU(r.ingresosTotal)} tono="#157A50" />
-        <Kpi label="Total Retiros" valor={UYU(r.egresosTotal)} tono="#C0392B" />
+        <Kpi label="Total Egresos" valor={UYU(r.egresosTotal)} tono="#C0392B" />
       </div>
+      <p className="-mt-2 text-[11px] leading-[1.5] font-medium text-[#AEB6CC]">
+        <b>Balance = Entradas − Egresos</b> (contable/devengado). Entradas incluye los cobros del día aunque parte
+        siga <b>por rendir</b> (en la calle). <b>Egresos</b> = gastos + desembolsos + retiros operativos (no solo
+        retiros del dueño). El efectivo físico ya entregado se ve en "Cierre por zona".
+      </p>
 
       <FormMovimientoCaja />
 

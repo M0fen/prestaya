@@ -2,6 +2,7 @@
 // del día por zona: el supervisor ve/cierra SU zona; el admin ve todas. Muestra,
 // por zona, el esperado/entregado/faltante/por-rendir y el detalle por cobrador,
 // con el sello de "cerrada" cuando el supervisor confirmó la entrega.
+import Link from "next/link";
 import { UYU } from "@/lib/format";
 import type { ResumenCierreZonas } from "@/lib/data/cierreZona";
 import type { EstadoCobradorCierre } from "@/lib/cierreZona";
@@ -129,6 +130,19 @@ export function CierrePorZona({
           )}
         </div>
       ))}
+
+      {(consolidado.totalFaltante > 0 || consolidado.porRendir > 0) && (
+        <p className="text-[11px] leading-[1.5] font-medium text-[#AEB6CC]">
+          {consolidado.totalFaltante > 0 && (
+            <>
+              Los <b className="text-[#C0392B]">faltantes</b> bajan el score de confianza del cobrador y quedan en su
+              cuenta corriente.{" "}
+            </>
+          )}
+          {consolidado.porRendir > 0 && <>Lo <b className="text-[#B9770E]">por rendir</b> es float aún en la calle. </>}
+          Actuá desde el <Link href="/admin/alertas" className="font-bold text-azul">Centro de alertas</Link>.
+        </p>
+      )}
     </section>
   );
 }

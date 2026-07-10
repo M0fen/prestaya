@@ -67,7 +67,7 @@ export default async function CierrePage() {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Kpi label="Recaudado hoy" valor={UYU(rec.total)} sub={`${rec.cobros} cobros · ${rec.cobradores} cobradores`} fuerte />
         <Kpi label="Colocado hoy" valor={UYU(dia.colocado)} sub={`${dia.creditosNuevos} créditos`} />
-        <Kpi label="Neto de caja hoy" valor={UYU(caja.neto)} sub={`egresos ${UYU(caja.egresosTotal)}`} alerta={caja.neto < 0} />
+        <Kpi label="Neto de caja hoy" valor={UYU(caja.neto)} sub={`contable · egresos ${UYU(caja.egresosTotal)}`} alerta={caja.neto < 0} />
         <Kpi label="Ticket promedio" valor={UYU(dia.ticketPromedio)} sub="por cobro" />
       </div>
 
@@ -135,7 +135,7 @@ export default async function CierrePage() {
               href="/admin/mora"
               nota="Mora crítica = 16+ días de atraso: el capital MÁS en riesgo. Tocá para ver la lista priorizada y disparar la cobranza."
             >
-              {`${UYU(mora.resumen.deudaEnRiesgo)} en riesgo · ${mora.resumen.alto} en alerta alta`}
+              {`${mora.resumen.alto} en alerta alta · deuda vencida en TODA la cartera en riesgo (crítico+alto+medio): ${UYU(mora.resumen.deudaEnRiesgo)}`}
             </Alerta>
           )}
         </div>
