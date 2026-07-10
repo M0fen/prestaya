@@ -11,6 +11,8 @@ import { UYU } from "@/lib/format";
 import { hrefSeguro } from "@/lib/seguridad";
 import { FormPoliticaMora } from "@/components/admin/FormPoliticaMora";
 import { FichaRapidaBoton } from "@/components/admin/FichaRapida";
+import { GestionCobranzaBoton } from "@/components/admin/GestionCobranza";
+import { getEstadoGestionClientes, type EstadoGestionCliente } from "@/lib/data/gestionesCobranza";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +44,10 @@ export default async function MoraPage() {
     getMorosos(db),
   ]);
   const conMora = config.modo !== "off";
+
+  // Estado de gestión (mini-CRM) por cliente en riesgo: si ya se gestionó hoy y si
+  // hay un compromiso de pago abierto. Enciende el loop de cobranza sobre la lista.
+  const estadosGestion = await getEstadoGestionClientes(db, enRiesgo.map((c) => c.clienteId));
 
   return (
     <div className="flex flex-col gap-5">
@@ -164,6 +170,7 @@ export default async function MoraPage() {
                 <Chip texto={`${s.diasSinPagar} días sin pagar`} activo={s.diasSinPagar >= 3} />
                 <Chip texto={`${s.atrasosTotales} cuotas vencidas`} activo={s.atrasosTotales >= 3} />
                 <Chip texto={TENDENCIA[c.alerta.tendencia]} activo={c.alerta.tendencia === "empeorando"} />
+                <GestionEstadoChip estado={estadosGestion.get(c.clienteId)} />
               </div>
 
               {/* Acción + deuda */}
@@ -180,6 +187,8 @@ export default async function MoraPage() {
                   </span>
                 </div>
                 <div className="flex flex-shrink-0 flex-wrap justify-end gap-2">
+                  {/* Registrar gestión / compromiso de pago (mini-CRM de cobranza). */}
+                  <GestionCobranzaBoton clienteId={c.clienteId} nombre={c.nombre} montoSugerido={s.deudaVencida} />
                   {/* Dejar un mensaje en el chat (al hilo del cobrador que la tiene
                       asignada) para mandarlo a cobrar. No se llama al cliente. */}
                   <Link
@@ -236,6 +245,29 @@ function Kpi({
       </span>
     </div>
   );
+}
+
+/** Chip del estado de gestión (mini-CRM) sobre la fila de mora: prioriza el
+ *  compromiso de pago abierto; si no, muestra si ya se gestionó hoy. */
+function GestionEstadoChip({ estado }: { estado?: EstadoGestionCliente }) {
+  if (!estado) return null;
+  if (estado.compromiso) {
+    const c = estado.compromiso;
+    const tono =
+      c.estado === "incumplido"
+        ? { bg: "#FBE4E2", fg: "#C0392B", txt: "incumplió" }
+        : c.estado === "vence_hoy"
+          ? { bg: "#FDF3E2", fg: "#B9770E", txt: "vence hoy" }
+          : { bg: "#EAF0FF", fg: "#1E47C8", txt: "vigente" };
+    return (
+      <span className="rounded-full px-2.5 py-1 text-[11px] font-bold tabular-nums" style={{ background: tono.bg, color: tono.fg }}>
+        🤝 {UYU(c.monto)} · {tono.txt}
+      </span>
+    );
+  }
+  if (estado.gestionadoHoy)
+    return <span className="rounded-full bg-[#E4F5EC] px-2.5 py-1 text-[11px] font-bold text-[#157A50]">✓ Gestionado hoy</span>;
+  return null;
 }
 
 function Chip({ texto, activo }: { texto: string; activo: boolean }) {

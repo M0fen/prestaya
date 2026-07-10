@@ -13,6 +13,7 @@ import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getResumenFinanciero } from "@/lib/data/asesor";
 import { getRendicionesDia } from "@/lib/data/rendicion";
 import { getCentroAlertas, type Alerta } from "@/lib/data/centroAlertas";
+import { getResumenCompromisos, type ResumenCompromisos } from "@/lib/data/gestionesCobranza";
 import { alcanceDelActor } from "@/lib/data/alcance";
 import { UYU, diasSemana, meses } from "@/lib/format";
 import { hoyUY } from "@/lib/fecha";
@@ -46,10 +47,11 @@ export default async function JornadaPage({
   const db = await createSupabaseServer();
   const alcance = await alcanceDelActor();
 
-  const [resumen, rend, centro] = await Promise.all([
+  const [resumen, rend, centro, compromisos] = await Promise.all([
     getResumenFinanciero(db, hoy),
     getRendicionesDia(db, hoy, alcance),
     getCentroAlertas(db, hoy, alcance),
+    getResumenCompromisos(db, alcance, hoy),
   ]);
   const { cartera, recaudacion, mora, cobradores } = resumen;
 
@@ -126,7 +128,7 @@ export default async function JornadaPage({
           const activo = a.id === acto;
           const chip =
             a.id === "apertura"
-              ? faltantes.length + sinRendir.length + mora.criticos
+              ? faltantes.length + sinRendir.length + mora.criticos + compromisos.venceHoy.length + compromisos.incumplidos.length
               : a.id === "vivo"
                 ? alertasAltas
                 : sinRendir.length;
@@ -167,6 +169,7 @@ export default async function JornadaPage({
           sinRendir={sinRendir.length}
           floatCalle={floatCalle}
           rendicionesDisponible={rend.disponible}
+          compromisos={compromisos}
         />
       )}
       {acto === "vivo" && (
@@ -202,6 +205,7 @@ function Apertura({
   sinRendir,
   floatCalle,
   rendicionesDisponible,
+  compromisos,
 }: {
   moraCriticos: number;
   moraMonto: number;
@@ -212,14 +216,54 @@ function Apertura({
   sinRendir: number;
   floatCalle: number;
   rendicionesDisponible: boolean;
+  compromisos: ResumenCompromisos;
 }) {
   const hayPendiente = faltantes > 0 || sinRendir > 0;
+  const hayCompromisos =
+    compromisos.venceHoy.length > 0 || compromisos.incumplidos.length > 0 || compromisos.vigentes > 0 || compromisos.cumplidosHoy > 0;
+  const montoVenceHoy = compromisos.venceHoy.reduce((s, c) => s + c.monto, 0);
+  const montoIncumplido = compromisos.incumplidos.reduce((s, c) => s + Math.max(0, c.monto - c.pagadoDesde), 0);
   return (
     <div className="flex flex-col gap-4">
       <Encabezado
         titulo="Arrancá el día"
         bajada="Revisá lo que quedó pendiente y decidí a quién hay que cobrar hoy, antes de que salga el equipo."
       />
+
+      {/* Compromisos de pago (mini-CRM) — auto-verificados contra el libro de pagos. */}
+      {hayCompromisos && (
+        <Panel
+          titulo="Compromisos de pago"
+          href="/admin/mora"
+          cta="Ir a Mora →"
+          tono={compromisos.incumplidos.length > 0 ? "rojo" : compromisos.venceHoy.length > 0 ? "ambar" : "neutro"}
+        >
+          <div className="grid grid-cols-3 gap-2.5">
+            <DatoGrande
+              activo={compromisos.venceHoy.length > 0}
+              etiqueta="Vencen hoy"
+              valor={String(compromisos.venceHoy.length)}
+              sub={compromisos.venceHoy.length > 0 ? `${UYU(montoVenceHoy)} prometidos` : "ninguno hoy"}
+              tono="ambar"
+            />
+            <DatoGrande
+              activo={compromisos.incumplidos.length > 0}
+              etiqueta="Incumplidos"
+              valor={String(compromisos.incumplidos.length)}
+              sub={compromisos.incumplidos.length > 0 ? `${UYU(montoIncumplido)} sin pagar` : "ninguno"}
+            />
+            <DatoGrande
+              etiqueta="Cumplidos"
+              valor={String(compromisos.cumplidosHoy)}
+              sub={`${compromisos.vigentes} vigente(s)`}
+              tono="azul"
+            />
+          </div>
+          <p className="mt-3 text-[12px] font-medium text-gris">
+            El sistema verifica solo contra los pagos: si prometió y no pagó, aparece en <b className="text-tinta">Incumplidos</b>.
+          </p>
+        </Panel>
+      )}
 
       {/* Lo que quedó abierto de la caja */}
       {hayPendiente ? (
