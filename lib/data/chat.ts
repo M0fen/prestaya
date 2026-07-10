@@ -114,33 +114,46 @@ export async function enviarMensajeDb(
   if (error) throw error;
 }
 
-/** Cuenta no leídos de un canal: mensajes de otros posteriores a mi última lectura. */
-async function contarNoLeidos(
-  db: SupabaseClient,
+/** Clave de canal a la que pertenece un mensaje (para bucketizar no-leídos). */
+function canalDeMensaje(
   ambito: AmbitoMensaje,
   cobradorId: string | null,
   zonaId: string | null,
-  yoId: string,
-  desde: string,
-): Promise<number> {
-  const base = db
-    .from("mensajes")
-    .select("*", { count: "exact", head: true })
-    .eq("ambito", ambito)
-    .gt("creado_en", desde)
-    .neq("autor_id", yoId);
-  const q =
-    ambito === "cobrador"
-      ? base.eq("cobrador_id", cobradorId ?? "")
-      : ambito === "zona"
-        ? base.eq("zona_id", zonaId ?? "")
-        : base.is("cobrador_id", null);
-  const { count, error } = await q;
-  if (error) throw error;
-  return count ?? 0;
+): string {
+  if (ambito === "cobrador" && cobradorId) return canalCobrador(cobradorId);
+  if (ambito === "zona" && zonaId) return canalZona(zonaId);
+  if (ambito === "supervisores") return CANAL_SUPERVISORES;
+  return CANAL_GENERAL;
 }
 
 const EPOCA = "1970-01-01T00:00:00Z";
+
+/**
+ * No-leídos por canal en UNA sola query (antes: un `count` por canal → ~50
+ * queries por carga con muchos cobradores = N+1). Trae los mensajes visibles
+ * (RLS ya acota a los canales del usuario) de OTROS, y los bucketiza contra la
+ * última lectura de cada canal. `limit` acota a los más recientes (los no-leídos
+ * SIEMPRE lo son). Devuelve un Map canalKey → conteo.
+ */
+async function noLeidosPorCanal(
+  db: SupabaseClient,
+  yoId: string,
+  leido: Map<string, string>,
+): Promise<Map<string, number>> {
+  const conteo = new Map<string, number>();
+  const { data, error } = await db
+    .from("mensajes")
+    .select("ambito, cobrador_id, zona_id, creado_en")
+    .neq("autor_id", yoId)
+    .order("creado_en", { ascending: false })
+    .limit(1000);
+  if (error) throw error;
+  for (const m of data ?? []) {
+    const key = canalDeMensaje(m.ambito as AmbitoMensaje, (m.cobrador_id as string | null) ?? null, (m.zona_id as string | null) ?? null);
+    if ((m.creado_en as string) > (leido.get(key) ?? EPOCA)) conteo.set(key, (conteo.get(key) ?? 0) + 1);
+  }
+  return conteo;
+}
 
 /**
  * Canales visibles para el usuario, con su conteo de no leídos.
@@ -228,13 +241,9 @@ export async function getCanales(db: SupabaseClient, usuario: Usuario): Promise<
     const leido = new Map<string, string>();
     for (const l of lecturas ?? []) leido.set(l.canal as string, l.ultima_lectura as string);
 
-    // Conteos en paralelo.
-    const noLeidos = await Promise.all(
-      base.map((c) =>
-        contarNoLeidos(db, c.ambito, c.cobradorId, c.zonaId, usuario.id, leido.get(c.key) ?? EPOCA),
-      ),
-    );
-    return base.map((c, i) => ({ ...c, noLeidos: noLeidos[i] }));
+    // No-leídos por canal en UNA query (antes: un count por canal → N+1).
+    const conteo = await noLeidosPorCanal(db, usuario.id, leido);
+    return base.map((c) => ({ ...c, noLeidos: conteo.get(c.key) ?? 0 }));
   } catch (e) {
     if (tablaFaltante(e))
       return [
@@ -244,11 +253,22 @@ export async function getCanales(db: SupabaseClient, usuario: Usuario): Promise<
   }
 }
 
-/** Total de no leídos (para el badge del nav). Nunca rompe: 0 si falla. */
+/** Total de no leídos (para el badge del nav, en CADA página). Nunca rompe: 0 si
+ *  falla. Ruta caliente → NO enumera canales: solo 2 queries (lecturas + mensajes)
+ *  y bucketiza. Antes pasaba por getCanales (~50 counts con muchos cobradores). */
 export async function getTotalNoLeidos(db: SupabaseClient, usuario: Usuario): Promise<number> {
   try {
-    const canales = await getCanales(db, usuario);
-    return canales.reduce((s, c) => s + c.noLeidos, 0);
+    const { data: lecturas, error } = await db
+      .from("chat_lecturas")
+      .select("canal, ultima_lectura")
+      .eq("usuario_id", usuario.id);
+    if (error) throw error;
+    const leido = new Map<string, string>();
+    for (const l of lecturas ?? []) leido.set(l.canal as string, l.ultima_lectura as string);
+    const conteo = await noLeidosPorCanal(db, usuario.id, leido);
+    let total = 0;
+    for (const n of conteo.values()) total += n;
+    return total;
   } catch {
     return 0;
   }
