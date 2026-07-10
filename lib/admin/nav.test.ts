@@ -19,9 +19,10 @@ describe("nav — visibilidad por rol", () => {
 });
 
 describe("nav — agrupación del sidebar", () => {
-  it("Dashboard queda suelto (sin grupo) y arriba", () => {
+  it("Dashboard y Mi jornada quedan sueltos (destacados) arriba, Dashboard primero", () => {
     const { suelto } = navAgrupado("admin", true);
-    expect(suelto.map((i) => i.href)).toEqual(["/admin"]);
+    expect(suelto[0].href).toBe("/admin");
+    expect(suelto.map((i) => i.href)).toEqual(["/admin", "/admin/jornada"]);
   });
 
   it("los grupos respetan el orden de NAV_GRUPOS y no vienen vacíos", () => {
@@ -40,9 +41,10 @@ describe("nav — agrupación del sidebar", () => {
     expect(agrupados).toEqual(visibles);
   });
 
-  it("todo ítem (salvo Dashboard) declara un grupo válido", () => {
+  it("todo ítem (salvo los sueltos destacados) declara un grupo válido", () => {
+    const sueltos = new Set(["/admin", "/admin/jornada"]);
     for (const i of NAV_ITEMS) {
-      if (i.href === "/admin") continue;
+      if (sueltos.has(i.href)) continue;
       expect(i.grupo, `${i.href} sin grupo`).toBeTruthy();
       expect(NAV_GRUPOS).toContain(i.grupo);
     }

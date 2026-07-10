@@ -42,6 +42,8 @@ export type NavItem = {
 
 export const NAV_ITEMS: NavItem[] = [
   { href: "/admin", label: "Dashboard", icon: "▣", alias: ["inicio", "tablero", "resumen"] },
+  // Flujo guiado del día (sobre todo para el supervisor): Apertura/En vivo/Cierre.
+  { href: "/admin/jornada", label: "Mi jornada", icon: "🧭", roles: ["admin", "supervisor"], alias: ["jornada", "mi dia", "flujo", "guia del dia", "apertura", "en vivo", "cierre", "supervisor"] },
   // ── Operación diaria (el control del dinero, de un vistazo) ──
   { href: "/admin/alertas", label: "Centro de alertas", icon: "🚨", grupo: "Operación diaria", roles: ["admin", "supervisor"], alias: ["vigilancia", "fuga", "confianza cobrador", "sospecha", "faltante", "riesgo", "no pago"] },
   { href: "/admin/cierre", label: "Cierre del día", icon: "🌅", grupo: "Operación diaria", roles: ["admin"], alias: ["cierre", "jornada", "operacion", "en vivo", "meta", "proyeccion", "hoy"] },
