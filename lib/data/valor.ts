@@ -29,7 +29,8 @@ export interface ValorSistema {
 }
 
 /** Cuenta pagos vigentes del mes (head count, sin traer filas). Con `soloGps`
- *  cuenta solo los que tienen GPS (cobros auditables en el terreno). */
+ *  cuenta solo los que tienen GPS (cobros auditables en el terreno).
+ *  Fallback: se usa solo si el RPC `app_cobros_mes` (0052) aún no existe. */
 async function contarPagosMes(
   db: SupabaseClient,
   desde: string,
@@ -46,6 +47,29 @@ async function contarPagosMes(
   return count ?? 0;
 }
 
+/**
+ * Cobros del mes (total + con GPS) en UNA llamada. Usa el RPC security-definer
+ * (salta el RLS por-fila que hacía el count lento ~6s). Si el RPC aún no existe
+ * (0052 sin correr), cae al conteo directo por PostgREST (más lento pero funciona).
+ */
+async function cobrosDelMes(
+  db: SupabaseClient,
+  desde: string,
+): Promise<{ total: number; gps: number }> {
+  try {
+    const { data, error } = await db.rpc("app_cobros_mes", { desde });
+    if (error) throw error;
+    const o = (data ?? {}) as { total?: number; gps?: number };
+    return { total: Number(o.total ?? 0), gps: Number(o.gps ?? 0) };
+  } catch {
+    const [total, gps] = await Promise.all([
+      contarPagosMes(db, desde, false),
+      contarPagosMes(db, desde, true),
+    ]);
+    return { total, gps };
+  }
+}
+
 export async function getValorSistema(
   db: SupabaseClient,
   hoy: Date = new Date(),
@@ -56,10 +80,7 @@ export async function getValorSistema(
   // ⚠️ Se cuentan en la BD (head count): traer las filas truncaba a 1000 y el mes
   //    tiene decenas de miles → la métrica quedaba mal. Sin traer filas.
   const desdeMes = inicioMesUYIso(hoy);
-  const [cobrosMes, cobrosAuditables] = await Promise.all([
-    contarPagosMes(db, desdeMes, false),
-    contarPagosMes(db, desdeMes, true),
-  ]);
+  const { total: cobrosMes, gps: cobrosAuditables } = await cobrosDelMes(db, desdeMes);
   const trazabilidadPct = cobrosMes > 0 ? cobrosAuditables / cobrosMes : 0;
 
   // `carteraPorCobrar` (falta) YA incluye lo vencido: la mora es una parte de
