@@ -97,6 +97,13 @@ export default async function DashboardPage({
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {/* Foco del día: caer en "Mi jornada" (el hub guiado). CTA primario. */}
+          <Link
+            href="/admin/jornada"
+            className="rounded-full bg-[linear-gradient(135deg,#2453DC,#13308C)] px-4 py-1.5 text-[12.5px] font-extrabold text-white shadow-[0_4px_14px_rgba(19,48,140,0.32)] transition-transform active:scale-95"
+          >
+            🧭 Ir a Mi jornada →
+          </Link>
           {reportesNuevos > 0 && (
             <Link
               href="/admin/clientes"

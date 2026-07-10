@@ -49,6 +49,51 @@ html[data-contraste="1"] [data-tema="oscuro"] {
   --color-gris: #c6cee2;
 }
 
+/* ── Tonos de panel (Mi jornada) — TEMA-AWARE ───────────────────────────────
+   En claro llevan un tinte suave; en oscuro, una superficie OSCURA acorde. Clave:
+   el texto interno usa tokens (text-tinta/text-gris) que en oscuro pasan a claro,
+   así que el fondo DEBE oscurecerse o el título quedaba blanco sobre blanco. */
+.panel-neutro {
+  background: var(--color-tarjeta);
+  border-color: var(--color-borde);
+}
+.panel-rojo {
+  background: #fef6f3;
+  border-color: #f3c9bf;
+}
+.panel-ambar {
+  background: #fefbf3;
+  border-color: #f0d9a8;
+}
+[data-tema="oscuro"] .panel-rojo {
+  background: #241619;
+  border-color: #4a2b2e;
+}
+[data-tema="oscuro"] .panel-ambar {
+  background: #221d12;
+  border-color: #47391d;
+}
+/* Acto "activo" del stepper: azul suave en claro, azul translúcido en oscuro. */
+.acto-activo {
+  background: #eef3ff;
+}
+[data-tema="oscuro"] .acto-activo {
+  background: rgba(91, 131, 245, 0.16);
+}
+/* CTA de panel (rojo/ámbar): se aclaran en oscuro para no quedar tinta-sobre-tinta. */
+.cta-rojo {
+  color: #c0392b;
+}
+.cta-ambar {
+  color: #9a6a0e;
+}
+[data-tema="oscuro"] .cta-rojo {
+  color: #f4a79b;
+}
+[data-tema="oscuro"] .cta-ambar {
+  color: #e6c06a;
+}
+
 * {
   box-sizing: border-box;
 }

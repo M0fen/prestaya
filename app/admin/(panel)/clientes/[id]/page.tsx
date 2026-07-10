@@ -416,7 +416,7 @@ function Kpi({ label, valor, acento }: { label: string; valor: string; acento?: 
       <span className="text-[11px] font-semibold text-tenue">{label}</span>
       <span
         className="text-[16px] font-extrabold tabular-nums"
-        style={{ color: acento ?? "#1A2247" }}
+        style={{ color: acento ?? "var(--color-tinta)" }}
       >
         {valor}
       </span>

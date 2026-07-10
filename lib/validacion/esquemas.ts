@@ -68,6 +68,7 @@ export const reporteTipo = z.enum([
   "pagos",
   "recaudos",
   "informe-cartera",
+  "desempeno",
 ]);
 
 /** Resultado de validar: datos tipados o rechazo (sin filtrar detalles). */

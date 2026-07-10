@@ -10,7 +10,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { toIso } from "@/lib/format";
 import { hoyUY } from "@/lib/fecha";
 import { alcanceDelActor, type Alcance } from "./alcance";
-import { getRendicionesDia } from "./rendicion";
+import { getRendicionesDia, type ResumenRendiciones } from "./rendicion";
 import { tablaFaltante } from "./errores";
 import {
   consolidarPorZona,
@@ -32,11 +32,14 @@ export async function getCierrePorZona(
   db: SupabaseClient,
   hoy: Date = new Date(),
   alcancePre?: Alcance,
+  // Perf: si el caller ya trae las rendiciones del día (p. ej. "Mi jornada", que
+  // las comparte con el Centro de alertas), las pasa para no recomputarlas.
+  rendPre?: ResumenRendiciones,
 ): Promise<ResumenCierreZonas> {
   const alcance = alcancePre ?? (await alcanceDelActor());
 
   // Rendiciones del día, ya acotadas a la(s) zona(s) del gestor.
-  const rend = await getRendicionesDia(db, hoy, alcance);
+  const rend = rendPre ?? (await getRendicionesDia(db, hoy, alcance));
 
   const rendidas: RendidaLite[] = rend.rendidas.map((r) => ({
     cobradorId: r.cobradorId,

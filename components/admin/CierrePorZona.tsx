@@ -65,7 +65,7 @@ export function CierrePorZona({
             <div className="flex min-w-0 flex-col">
               <span className="truncate text-[14px] font-extrabold text-tinta">{z.zonaNombre}</span>
               <span className="text-[11px] font-medium text-tenue">
-                {z.rendidos} rindió{z.rendidos === 1 ? "" : "eron"}
+                {z.rendidos} rindi{z.rendidos === 1 ? "ó" : "eron"}
                 {z.pendientes > 0 ? ` · ${z.pendientes} sin rendir` : ""}
               </span>
             </div>
@@ -162,7 +162,7 @@ function Mini({ label, valor, tono }: { label: string; valor: number; tono?: str
   return (
     <div className="flex flex-col gap-0.5 rounded-[12px] bg-suave px-3 py-2">
       <span className="text-[10.5px] font-semibold text-tenue">{label}</span>
-      <span className="text-[14px] font-extrabold tabular-nums" style={{ color: tono ?? "#1A2247" }}>
+      <span className="text-[14px] font-extrabold tabular-nums" style={{ color: tono ?? "var(--color-tinta)" }}>
         {UYU(valor)}
       </span>
     </div>

@@ -12,6 +12,12 @@ describe("nav — visibilidad por rol", () => {
     expect(hrefs.has("/admin/cobranza")).toBe(true);
   });
 
+  it("Desempeño (historial por rango) lo ven admin y supervisor", () => {
+    expect(navVisible("admin").some((i) => i.href === "/admin/desempeno")).toBe(true);
+    expect(navVisible("supervisor").some((i) => i.href === "/admin/desempeno")).toBe(true);
+    expect(navVisible("cobrador").some((i) => i.href === "/admin/desempeno")).toBe(false);
+  });
+
   it("el ítem Dev solo aparece para desarrolladores", () => {
     expect(navVisible("admin", false).some((i) => i.href === "/admin/dev")).toBe(false);
     expect(navVisible("admin", true).some((i) => i.href === "/admin/dev")).toBe(true);

@@ -5,6 +5,7 @@ import { requireGestor } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getControlCobranza, type Severidad } from "@/lib/data/control";
 import { getRecaudoHoy } from "@/lib/data/recaudoHoy";
+import { getActivosConPagos } from "@/lib/data/activos";
 import { alcanceDelActor } from "@/lib/data/alcance";
 import { MapaCobranza } from "@/components/admin/MapaCobranza";
 import { UYU } from "@/lib/format";
@@ -22,9 +23,14 @@ export default async function CobranzaPage() {
   const db = await createSupabaseServer();
   // Alcance una vez (admin = todo; supervisor = su zona) → control y recaudo consistentes.
   const alcance = await alcanceDelActor();
+  // Perf: la cartera activa (RPC) se trae UNA vez y se comparte: el control la usa
+  // para el mapa/ranking y el recaudo para clasificar ruta/cerrados sin re-consultar
+  // estados. Antes el control la traía y el recaudo consultaba `prestamos.estado` aparte.
+  const activos = await getActivosConPagos(db, alcance);
+  const activosIds = new Set(activos.map((a) => a.id));
   const [{ resumen, ranking, alertas, mapaCobros }, rec] = await Promise.all([
-    getControlCobranza(db, undefined, undefined, alcance),
-    getRecaudoHoy(db, undefined, alcance),
+    getControlCobranza(db, undefined, activos, alcance),
+    getRecaudoHoy(db, undefined, alcance, activosIds),
   ]);
 
   return (
@@ -47,7 +53,7 @@ export default async function CobranzaPage() {
       </div>
 
       {/* Aclaración: por qué este número puede ser MENOR que el "Recaudado hoy" del panel. */}
-      <div className="rounded-[14px] border border-borde bg-[#F7F9FE] px-4 py-3">
+      <div className="rounded-[14px] border border-borde bg-suave px-4 py-3">
         <p className="text-[12px] leading-[1.6] font-medium text-gris">
           Esta pantalla es de <b>control de la ruta</b>: cuenta solo los cobros de HOY en{" "}
           <b>créditos activos</b> (con GPS, para detectar fuga). El <b>recaudo TOTAL del día</b> —incluyendo pagos

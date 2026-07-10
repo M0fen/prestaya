@@ -8,12 +8,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getDashboardMetricas } from "./metricas";
 import { getTableroMora } from "./mora";
-import { getControlCobranza } from "./control";
+import { getControlCobranza, type ControlCobranza } from "./control";
 import { getSerieRecaudo } from "./series";
 import { getPrestamosActivosPorCliente } from "./prestamos";
-import { getActivosConPagos, pagosDeActivo } from "./activos";
+import { getActivosConPagos, pagosDeActivo, type ActivoConPagos } from "./activos";
 import { getInformeCartera } from "./informeCartera";
-import { alcanceDelActor, enLotes } from "./alcance";
+import { alcanceDelActor, enLotes, type Alcance } from "./alcance";
 import { getPagosDePrestamo } from "./pagos";
 import { getHistorialCrediticio } from "./scoring";
 import { getNotasCliente } from "./notas";
@@ -76,17 +76,22 @@ export interface ResumenFinanciero {
 export async function getResumenFinanciero(
   db: SupabaseClient,
   hoy: Date = new Date(),
+  // Inyección de dependencias (perf): páginas que ya resolvieron el alcance, la
+  // cartera activa (RPC cara) o el control de cobranza pueden pasarlos para no
+  // recomputarlos. P. ej. "Mi jornada" comparte activos+control con el cierre y
+  // las alertas → la RPC `app_cartera_activa` y el control corren UNA vez, no dos.
+  deps?: { alcance?: Alcance; activos?: ActivoConPagos[]; control?: ControlCobranza },
 ): Promise<ResumenFinanciero> {
   // Alcance del gestor (una vez): admin → todo; supervisor → su zona. Se pasa a
   // cada consumidor para no re-resolverlo 3 veces.
-  const alcance = await alcanceDelActor();
+  const alcance = deps?.alcance ?? (await alcanceDelActor());
   // Se trae la cartera activa UNA vez (ya acotada) y se comparte entre métricas
   // y mora (ambas corren el cartón sobre los mismos créditos → media RPC menos).
-  const activos = await getActivosConPagos(db, alcance);
+  const activos = deps?.activos ?? (await getActivosConPagos(db, alcance));
   const [dash, mora, control] = await Promise.all([
     getDashboardMetricas(db, hoy, activos, alcance),
     getTableroMora(db, hoy, activos),
-    getControlCobranza(db, hoy, activos, alcance),
+    deps?.control ?? getControlCobranza(db, hoy, activos, alcance),
   ]);
 
   const moraPct = dash.carteraPorCobrar > 0 ? dash.montoEnMora / dash.carteraPorCobrar : 0;

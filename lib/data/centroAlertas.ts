@@ -9,8 +9,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { inicioDiaUYIso } from "@/lib/fecha";
 import { tablaFaltante } from "./errores";
 import { alcanceDelActor, type Alcance } from "./alcance";
-import { getRendicionesDia } from "./rendicion";
-import { getControlCobranza } from "./control";
+import { getRendicionesDia, type ResumenRendiciones } from "./rendicion";
+import { getControlCobranza, type ControlCobranza } from "./control";
 import { getNoPagosSospechososHoy } from "./noPagoSospechoso";
 
 /** Desembolso (salida de caja) que dispara alerta por su monto. Configurable a futuro. */
@@ -37,29 +37,37 @@ export async function getCentroAlertas(
   db: SupabaseClient,
   hoy: Date = new Date(),
   alcancePre?: Alcance,
+  // Inyección de dependencias (perf): "Mi jornada" ya computa control+rendiciones
+  // para el cierre → los pasa acá para no recomputarlos (control es caro: RPC de
+  // cartera + paginación de pagos). Sin deps, se comportan como siempre.
+  deps?: { control?: ControlCobranza; rend?: ResumenRendiciones },
 ): Promise<CentroAlertas> {
   const alcance = alcancePre ?? (await alcanceDelActor());
   const desde = inicioDiaUYIso(hoy);
 
   const [rend, control, noPagos] = await Promise.all([
-    getRendicionesDia(db, hoy),
-    getControlCobranza(db, hoy, undefined, alcance),
+    // Ya acotado por zona (pasamos alcance): antes iba sin alcance y se filtraba
+    // después; ahora la consulta ya viene chica.
+    deps?.rend ?? getRendicionesDia(db, hoy, alcance),
+    deps?.control ?? getControlCobranza(db, hoy, undefined, alcance),
     getNoPagosSospechososHoy(db, hoy, alcance),
   ]);
 
-  // getRendicionesDia NO recorta por zona (confía en RLS, que deja a cualquier
-  // gestor ver TODO). Para el supervisor acotamos acá a SUS cobradores: si no, le
-  // mostraríamos faltantes/sin-rendir de otras zonas (acusaría mal + fuga).
+  // Recorte por zona a SUS cobradores (defensa; si el rend ya vino acotado es un
+  // no-op). Usamos variables LOCALES: no mutamos `rend`, que puede venir
+  // compartido con getCierrePorZona (mutarlo corrompería su consolidado).
+  let rendidas = rend.rendidas;
+  let pendientes = rend.pendientes;
   if (!alcance.global) {
     const cobs = new Set(alcance.cobradorIds);
-    rend.rendidas = rend.rendidas.filter((r) => cobs.has(r.cobradorId));
-    rend.pendientes = rend.pendientes.filter((p) => cobs.has(p.cobradorId));
+    rendidas = rendidas.filter((r) => cobs.has(r.cobradorId));
+    pendientes = pendientes.filter((p) => cobs.has(p.cobradorId));
   }
 
   const alertas: Alerta[] = [];
 
   // 1) Faltantes de rendición (entregó de menos) → alta.
-  for (const r of rend.rendidas) {
+  for (const r of rendidas) {
     if (r.diferencia < 0)
       alertas.push({
         id: `faltante-${r.cobradorId}`,
@@ -71,7 +79,7 @@ export async function getCentroAlertas(
   }
 
   // 2) Recaudó y NO rindió (float sin declarar) → media.
-  for (const p of rend.pendientes) {
+  for (const p of pendientes) {
     if (p.recaudado <= 0) continue;
     alertas.push({
       id: `sinrendir-${p.cobradorId}`,

@@ -93,6 +93,15 @@ export function diasCobrablesDelMes(hoy: Date): { transcurridos: number; total: 
   return { transcurridos, total };
 }
 
+/** Suma `n` días (puede ser negativo) a una fecha "YYYY-MM-DD". UTC → sin TZ. */
+export function sumarDiasYmd(ymd: string, n: number): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d + n));
+  const mm = String(t.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(t.getUTCDate()).padStart(2, "0");
+  return `${t.getUTCFullYear()}-${mm}-${dd}`;
+}
+
 /** Inicio del día SIGUIENTE (fin EXCLUSIVO de un rango que incluye a `ymd`). */
 export function diaUYFinIso(ymd: string): string {
   const [y, m, d] = ymd.split("-").map(Number);

@@ -36,6 +36,11 @@ export async function getRecaudoHoy(
   db: SupabaseClient,
   hoy: Date = new Date(),
   alcancePre?: Alcance,
+  // Perf: si el caller ya tiene el set de IDs de préstamos ACTIVOS (de la RPC de
+  // cartera), lo pasa para clasificar ruta/cerrados en memoria y ahorrarse la
+  // consulta de estados. Igual de exacto (un pago es "en ruta" ⟺ su crédito está
+  // activo). Sin el set, se consulta `prestamos.estado` como siempre.
+  activosPrestamoIds?: Set<string> | null,
 ): Promise<RecaudoHoy> {
   const desde = inicioDiaUYIso(hoy);
   const hasta = hoy.toISOString(); // "hoy hasta ahora" (igual que el resto del panel)
@@ -61,13 +66,19 @@ export async function getRecaudoHoy(
           return q.order("id", { ascending: true }).range(d, h);
         });
 
-  // Estado del crédito de cada pago (para partir ruta vs cerrados), en lotes.
-  const ids = [...new Set(pagos.map((p) => p.prestamo_id))];
-  const estado = new Map<string, string>();
-  for (let i = 0; i < ids.length; i += 300) {
-    const lote = ids.slice(i, i + 300);
-    const { data } = await db.from("prestamos").select("id, estado").in("id", lote);
-    for (const pr of data ?? []) estado.set(pr.id as string, pr.estado as string);
+  // Estado del crédito de cada pago (para partir ruta vs cerrados). Si el caller
+  // nos pasó el set de créditos activos, clasificamos con él (0 consultas); si no,
+  // consultamos `prestamos.estado` en lotes.
+  let activosSet = activosPrestamoIds ?? null;
+  if (!activosSet) {
+    const ids = [...new Set(pagos.map((p) => p.prestamo_id))];
+    const estado = new Map<string, string>();
+    for (let i = 0; i < ids.length; i += 300) {
+      const lote = ids.slice(i, i + 300);
+      const { data } = await db.from("prestamos").select("id, estado").in("id", lote);
+      for (const pr of data ?? []) estado.set(pr.id as string, pr.estado as string);
+    }
+    activosSet = new Set([...estado.entries()].filter(([, e]) => e === "activo").map(([id]) => id));
   }
 
   let total = 0;
@@ -80,7 +91,7 @@ export async function getRecaudoHoy(
     const m = N(p.monto);
     total += m;
     if (p.registrado_por) cobradores.add(p.registrado_por);
-    if (estado.get(p.prestamo_id) === "activo") {
+    if (activosSet.has(p.prestamo_id)) {
       enRuta += m;
       cobrosRuta += 1;
     } else {

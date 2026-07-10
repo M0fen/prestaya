@@ -72,7 +72,7 @@ export default async function CierrePage() {
       </div>
 
       {/* Explicación del número más sensible del día: 100% verídico, del libro inmutable. */}
-      <div className="rounded-[14px] border border-borde bg-[#F7F9FE] p-4">
+      <div className="rounded-[14px] border border-borde bg-suave p-4">
         <p className="text-[12.5px] font-extrabold text-tinta">Cómo se calcula "Recaudado hoy" (es exacto)</p>
         <p className="mt-1 text-[12px] leading-[1.6] font-medium text-gris">
           Es la suma de <b>todos los cobros registrados hoy</b> (día de Uruguay, de medianoche hasta ahora),

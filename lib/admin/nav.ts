@@ -62,6 +62,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/admin/estadisticas", label: "Estadísticas", icon: "📈", grupo: "Finanzas y análisis", roles: ["admin"], alias: ["stats", "crecimiento", "cohortes", "tendencias", "colocacion", "distribucion", "comportamiento", "metricas"] },
   { href: "/admin/valor", label: "Valor", icon: "💎", grupo: "Finanzas y análisis", roles: ["admin"], alias: ["roi", "rentabilidad"] },
   { href: "/admin/comisiones", label: "Comisiones", icon: "📊", grupo: "Finanzas y análisis", roles: ["admin"], alias: ["liquidacion", "cobradores"] },
+  { href: "/admin/desempeno", label: "Desempeño", icon: "🏆", grupo: "Finanzas y análisis", roles: ["admin", "supervisor"], alias: ["historial", "rendimiento", "cobradores", "ranking", "rango", "desde hasta", "por fecha", "de fecha a fecha"] },
   { href: "/admin/capital", label: "Inversión de capital", icon: "🏦", grupo: "Finanzas y análisis", roles: ["admin"], alias: ["capital", "aportes", "inversion"] },
   { href: "/admin/reportes", label: "Reportes", icon: "📨", grupo: "Finanzas y análisis", roles: ["admin"], alias: ["exportar", "csv", "excel", "descargar", "estado de cuenta", "pdf", "respaldo", "backup"] },
   // ── Fidelización (juegos y comunicación al cliente) ──

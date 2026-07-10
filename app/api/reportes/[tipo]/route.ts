@@ -13,6 +13,7 @@ import { getClientesExport, getPagosExport } from "@/lib/data/exportacion";
 import { getResumenCaja, getResumenCajaRango, type PeriodoCaja } from "@/lib/data/caja";
 import { getTableroMora } from "@/lib/data/mora";
 import { getRecaudos } from "@/lib/data/recaudos";
+import { getDesempenoRango } from "@/lib/data/desempeno";
 import { getInformeCartera } from "@/lib/data/informeCartera";
 import { diaUYInicioIso, diaUYFinIso } from "@/lib/fecha";
 import { getComisionesPeriodo } from "@/lib/data/comisiones";
@@ -211,6 +212,30 @@ export async function GET(
         fechaHoraUY(f.fechaIso),
         f.monto,
         f.saldoPendiente == null ? "—" : f.saldoPendiente,
+      ]),
+    );
+  }
+
+  if (tipo === "desempeno") {
+    // Historial de desempeño de cobradores por rango. Admin-only (ya gateado
+    // arriba) → alcance global. Filas: una por cobrador con actividad/rendición.
+    const ymd = (v: string | null) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : fechaHoyUY());
+    const desdeYmd = ymd(url.searchParams.get("desde"));
+    const hastaYmd = ymd(url.searchParams.get("hasta"));
+    const r = await getDesempenoRango({ desde: desdeYmd, hasta: hastaYmd }, { global: true });
+    return csvResponse(
+      `presta-ya_desempeno_${r.desde}_${r.hasta}.csv`,
+      ["Cobrador", "Zona", "Recaudado", "Cobros", "Días activos", "Entregado", "Rendiciones", "Faltantes", "Monto faltante"],
+      r.cobradores.map((c) => [
+        c.nombre,
+        c.zonaNombre ?? "",
+        c.recaudado,
+        c.cobros,
+        c.diasActivos,
+        c.entregado,
+        c.rendiciones,
+        c.faltantes,
+        c.montoFaltante,
       ]),
     );
   }

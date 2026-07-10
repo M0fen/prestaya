@@ -87,7 +87,7 @@ export default async function CajaPage({
       </div>
 
       {/* Cómo funciona la caja diaria — el flujo completo, para que no falte contexto. */}
-      <details className="rounded-[14px] border border-borde bg-[#F7F9FE] px-4 py-3 print:hidden">
+      <details className="rounded-[14px] border border-borde bg-suave px-4 py-3 print:hidden">
         <summary className="cursor-pointer text-[12.5px] font-extrabold text-tinta">
           ¿Cómo funciona la caja diaria? (el flujo completo)
         </summary>
@@ -245,7 +245,7 @@ function Kpi({ label, valor, tono }: { label: string; valor: string; tono?: stri
   return (
     <div className="flex flex-col gap-0.5 rounded-[14px] bg-tarjeta p-3.5 shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
       <span className="text-[11px] font-semibold text-tenue">{label}</span>
-      <span className="text-[19px] font-extrabold tabular-nums" style={{ color: tono ?? "#1A2247" }}>
+      <span className="text-[19px] font-extrabold tabular-nums" style={{ color: tono ?? "var(--color-tinta)" }}>
         {valor}
       </span>
     </div>

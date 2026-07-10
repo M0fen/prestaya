@@ -225,7 +225,7 @@ function Dato({ k, v }: { k: string; v: string }) {
 function Mini({ k, v, tono }: { k: string; v: string; tono?: string }) {
   return (
     <div className="flex flex-col rounded-[10px] bg-suave py-1.5">
-      <span className="text-[13px] font-extrabold tabular-nums" style={{ color: tono ?? "#1A2247" }}>{v}</span>
+      <span className="text-[13px] font-extrabold tabular-nums" style={{ color: tono ?? "var(--color-tinta)" }}>{v}</span>
       <span className="text-[9.5px] font-semibold text-tenue">{k}</span>
     </div>
   );
@@ -234,7 +234,7 @@ function Mini({ k, v, tono }: { k: string; v: string; tono?: string }) {
 function MiniScore({ k, v, tono }: { k: string; v: string; tono?: string }) {
   return (
     <div className="flex flex-col rounded-[8px] bg-suave py-1">
-      <span className="text-[12.5px] font-extrabold tabular-nums" style={{ color: tono ?? "#1A2247" }}>{v}</span>
+      <span className="text-[12.5px] font-extrabold tabular-nums" style={{ color: tono ?? "var(--color-tinta)" }}>{v}</span>
       <span className="text-[9px] font-semibold text-tenue">{k}</span>
     </div>
   );

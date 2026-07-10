@@ -15,10 +15,14 @@ import { getResumenFinanciero } from "@/lib/data/asesor";
 import { getCierrePorZona, type ResumenCierreZonas } from "@/lib/data/cierreZona";
 import { getCentroAlertas, type Alerta } from "@/lib/data/centroAlertas";
 import { getResumenCompromisos, type ResumenCompromisos } from "@/lib/data/gestionesCobranza";
+import { getActivosConPagos } from "@/lib/data/activos";
+import { getControlCobranza } from "@/lib/data/control";
+import { getRendicionesDia } from "@/lib/data/rendicion";
+import { getDesempenoRango, type DesempenoRango } from "@/lib/data/desempeno";
 import { alcanceDelActor } from "@/lib/data/alcance";
 import { navVisible } from "@/lib/admin/nav";
 import { UYU, diasSemana, meses } from "@/lib/format";
-import { hoyUY } from "@/lib/fecha";
+import { fechaISOUY, sumarDiasYmd } from "@/lib/fecha";
 import { BarrasComparativas } from "@/components/charts/BarrasComparativas";
 import { CierrePorZona } from "@/components/admin/CierrePorZona";
 import type { ReactNode } from "react";
@@ -43,22 +47,77 @@ function horaMontevideo(): number {
 export default async function JornadaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ acto?: string }>;
+  searchParams: Promise<{ acto?: string; fecha?: string }>;
 }) {
   const usuario = await requireGestor();
-  const hoy = new Date();
   const db = await createSupabaseServer();
   const alcance = await alcanceDelActor();
   // Herramientas del día visibles para este rol (para el launchpad unificado).
   const toolHrefs = new Set(navVisible(usuario.rol, usuario.es_dev).map((i) => i.href));
+  const sp = await searchParams;
 
+  // Fecha de la jornada: ?fecha=YYYY-MM-DD (default HOY; nunca futuro). Con una
+  // fecha pasada, "Mi jornada" muestra el HISTORIAL de ese día (solo lectura).
+  const hoyYmd = fechaISOUY();
+  const pedida = /^\d{4}-\d{2}-\d{2}$/.test(sp.fecha ?? "") ? (sp.fecha as string) : hoyYmd;
+  const fechaYmd = pedida > hoyYmd ? hoyYmd : pedida;
+  const esHoy = fechaYmd === hoyYmd;
+
+  // Nombre de la zona (etiqueta): `zonas` está bajo RLS para el gestor con zona,
+  // así que se resuelve con el cliente admin (igual que en la app del cobrador).
+  const zonaNombre = usuario.zona_id
+    ? (await createSupabaseAdmin().from("zonas").select("nombre").eq("id", usuario.zona_id).maybeSingle()).data
+        ?.nombre ?? null
+    : null;
+
+  // Etiqueta larga de la fecha elegida.
+  const [fy, fm, fd] = fechaYmd.split("-").map(Number);
+  const fechaCal = new Date(fy, fm - 1, fd);
+  const fechaLarga = `${diasSemana[fechaCal.getDay()]} ${fechaCal.getDate()} de ${meses[fechaCal.getMonth()]}`;
+
+  // ── HISTORIAL (día pasado): foto de SOLO LECTURA, sin el motor "en vivo" (caro
+  //    y solo con sentido para hoy). Reusa la capa de desempeño, acotada a ese día. ──
+  if (!esHoy) {
+    const dia = await getDesempenoRango({ desde: fechaYmd, hasta: fechaYmd }, alcance);
+    return (
+      <div className="flex flex-col gap-5">
+        <header className="flex flex-wrap items-end justify-between gap-2">
+          <div className="flex flex-col gap-0.5">
+            <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta capitalize">
+              Historial · {fechaLarga}
+            </h1>
+            <span className="text-[13px] font-medium text-gris">
+              {zonaNombre ? `Zona ${zonaNombre} · ` : ""}foto de ese día (solo lectura)
+            </span>
+          </div>
+          <Link
+            href="/admin/desempeno"
+            className="rounded-full border border-borde bg-tarjeta px-3 py-1.5 text-[12.5px] font-bold text-gris"
+          >
+            Desempeño por rango →
+          </Link>
+        </header>
+        <DateBar fechaYmd={fechaYmd} hoyYmd={hoyYmd} />
+        <HerramientasDia hrefs={toolHrefs} />
+        <HistorialDia dia={dia} />
+      </div>
+    );
+  }
+
+  // ── HOY: motor en vivo. PERF — las 3 primitivas caras (RPC de cartera activa,
+  //    control de cobranza y rendiciones) se computan UNA sola vez y se comparten
+  //    entre resumen/cierre/alertas (antes cada una se recomputaba → ~2× el tiempo). ──
+  const hoy = new Date();
   const actor = await getActorActual();
-  // Perf: NO pedimos getRendicionesDia por separado — getCierrePorZona ya lo trae
-  // (consolidado por zona) y de ahí derivamos las señales del cierre. Menos idas a DB.
+  const activos = await getActivosConPagos(db, alcance);
+  const [control, rend] = await Promise.all([
+    getControlCobranza(db, hoy, activos, alcance),
+    getRendicionesDia(db, hoy, alcance),
+  ]);
   const [resumen, cierre, centro, compromisos] = await Promise.all([
-    getResumenFinanciero(db, hoy),
-    getCierrePorZona(db, hoy, alcance),
-    getCentroAlertas(db, hoy, alcance),
+    getResumenFinanciero(db, hoy, { alcance, activos, control }),
+    getCierrePorZona(db, hoy, alcance, rend),
+    getCentroAlertas(db, hoy, alcance, { control, rend }),
     getResumenCompromisos(db, alcance, hoy),
   ]);
   const { cartera, recaudacion, mora, cobradores } = resumen;
@@ -66,14 +125,6 @@ export default async function JornadaPage({
   const cerrables = actor
     ? cierre.consolidado.zonas.filter((z) => z.zonaId && puedeVerZona(actor, z.zonaId)).map((z) => z.zonaId as string)
     : [];
-
-  // Nombre de la zona (etiqueta): la tabla `zonas` está bloqueada por RLS para el
-  // gestor con zona, así que se resuelve con el cliente admin, igual que en la app
-  // del cobrador. Admin sin zona → sin etiqueta (ve toda la operación).
-  const zonaNombre = usuario.zona_id
-    ? (await createSupabaseAdmin().from("zonas").select("nombre").eq("id", usuario.zona_id).maybeSingle()).data
-        ?.nombre ?? null
-    : null;
 
   const hora = horaMontevideo();
   const saludo = hora < 12 ? "Buen día" : hora < 19 ? "Buenas tardes" : "Buenas noches";
@@ -85,12 +136,10 @@ export default async function JornadaPage({
       .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : ""))
       .join(" ")
       .trim() || "supervisor";
-  const hoyCal = hoyUY(hoy);
-  const fechaLarga = `${diasSemana[hoyCal.getDay()]} ${hoyCal.getDate()} de ${meses[hoyCal.getMonth()]}`;
 
   // Acto por defecto según la hora (mañana=apertura, tarde=en vivo, noche=cierre),
   // sobreescribible por ?acto= (navegación sin JS, como el selector de período).
-  const pedido = (await searchParams).acto;
+  const pedido = sp.acto;
   const actoDefault: Acto = hora < 12 ? "apertura" : hora < 18 ? "vivo" : "cierre";
   const acto: Acto = (["apertura", "vivo", "cierre"] as const).includes(pedido as Acto)
     ? (pedido as Acto)
@@ -127,6 +176,9 @@ export default async function JornadaPage({
         </Link>
       </div>
 
+      {/* Navegación por fecha: revivir la jornada de cualquier día pasado. */}
+      <DateBar fechaYmd={fechaYmd} hoyYmd={hoyYmd} />
+
       {/* Concentrado de la zona: el pulso de tu operación, en una fracción, siempre visible. */}
       <ResumenZona
         capitalEnCalle={cartera.carteraPorCobrar}
@@ -157,7 +209,7 @@ export default async function JornadaPage({
               href={`/admin/jornada?acto=${a.id}`}
               className={`flex flex-col gap-1 rounded-[15px] border p-3 transition-all ${
                 activo
-                  ? "border-azul bg-[#EEF3FF] shadow-[0_6px_20px_rgba(30,71,200,0.16)]"
+                  ? "acto-activo border-azul shadow-[0_6px_20px_rgba(30,71,200,0.16)]"
                   : "border-borde bg-tarjeta hover:bg-suave hover:shadow-[0_2px_10px_rgba(15,27,61,0.06)]"
               }`}
             >
@@ -244,6 +296,13 @@ function Apertura({
         titulo="Arrancá el día"
         bajada="Revisá lo que quedó pendiente y decidí a quién hay que cobrar hoy, antes de que salga el equipo."
       />
+
+      {/* Instrumentos del supervisor: las acciones del día, a un toque. */}
+      <div className="grid grid-cols-3 gap-2">
+        <AccionRapida href="/admin/chat" icon="💬" label="Avisar al equipo" sub="mensaje a cobradores" />
+        <AccionRapida href="/admin/mora" icon="✍️" label="Registrar gestión" sub="compromiso de pago" />
+        <AccionRapida href="/admin/desempeno" icon="🏆" label="Desempeño" sub="últimos 7 días" />
+      </div>
 
       {/* Compromisos de pago (mini-CRM) — auto-verificados contra el libro de pagos. */}
       {hayCompromisos && (
@@ -446,7 +505,7 @@ function Cierre({ cierre, cerrables }: { cierre: ResumenCierreZonas; cerrables: 
             <div className="flex flex-col">
               <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/55">Efectivo a caja central</span>
               <span className="text-[11.5px] font-medium text-white/60">
-                {c.rendidos} rindió{c.rendidos === 1 ? "" : "eron"}
+                {c.rendidos} rindi{c.rendidos === 1 ? "ó" : "eron"}
                 {c.pendientes > 0 ? ` · ${c.pendientes} en la calle` : " · todos entregaron"}
               </span>
             </div>
@@ -512,8 +571,11 @@ const TOOLS: { href: string; label: string; icon: string }[] = [
   { href: "/admin/cobranza", label: "Cobranza", icon: "🛡️" },
   { href: "/admin/recaudos", label: "Recaudos", icon: "💵" },
   { href: "/admin/caja", label: "Caja", icon: "💰" },
+  { href: "/admin/desempeno", label: "Desempeño", icon: "🏆" },
   { href: "/admin/alertas", label: "Alertas", icon: "🚨" },
   { href: "/admin/campo", label: "Campo", icon: "🛰️" },
+  { href: "/admin/renovaciones", label: "Renovar", icon: "🔄" },
+  { href: "/admin/anulaciones", label: "Anular", icon: "🚫" },
   { href: "/admin/clientes", label: "Clientes", icon: "👤" },
   { href: "/admin/chat", label: "Chat", icon: "💬" },
 ];
@@ -540,6 +602,20 @@ function HerramientasDia({ hrefs }: { hrefs: Set<string> }) {
   );
 }
 
+/* ── Acción rápida del supervisor (instrumento del día) ────────────────── */
+function AccionRapida({ href, icon, label, sub }: { href: string; icon: string; label: string; sub: string }) {
+  return (
+    <Link
+      href={href}
+      className="flex flex-col items-center gap-1 rounded-[14px] border border-borde bg-tarjeta px-2 py-3 text-center transition-transform hover:bg-suave active:scale-95"
+    >
+      <span className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-[#EEF3FF] text-[17px]">{icon}</span>
+      <span className="text-[12px] font-bold text-tinta leading-tight">{label}</span>
+      <span className="text-[10px] font-medium text-tenue leading-tight">{sub}</span>
+    </Link>
+  );
+}
+
 /* ── Piezas compartidas ────────────────────────────────────────────────── */
 function Encabezado({ titulo, bajada }: { titulo: string; bajada: string }) {
   return (
@@ -563,11 +639,12 @@ function Panel({
   tono: "rojo" | "ambar" | "neutro";
   children: ReactNode;
 }) {
-  const borde = tono === "rojo" ? "#F3C9BF" : tono === "ambar" ? "#F0D9A8" : "#E7ECF5";
-  const fondo = tono === "rojo" ? "#FEF6F3" : tono === "ambar" ? "#FEFBF3" : "#FFFFFF";
-  const ctaColor = tono === "rojo" ? "text-[#C0392B]" : tono === "ambar" ? "text-[#9A6A0E]" : "text-azul";
+  // Clases tema-aware (globals.css): el fondo se oscurece en modo oscuro para que
+  // el título por token (text-tinta) no quede claro-sobre-claro (invisible).
+  const clase = tono === "rojo" ? "panel-rojo" : tono === "ambar" ? "panel-ambar" : "panel-neutro";
+  const ctaColor = tono === "rojo" ? "cta-rojo" : tono === "ambar" ? "cta-ambar" : "text-azul";
   return (
-    <section className="rounded-[16px] border p-4" style={{ borderColor: borde, background: fondo }}>
+    <section className={`rounded-[16px] border p-4 ${clase}`}>
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-[14.5px] font-extrabold text-tinta">{titulo}</h3>
         <Link href={href} className={`text-[12px] font-bold ${ctaColor}`}>
@@ -592,7 +669,8 @@ function DatoGrande({
   activo?: boolean;
   tono?: "rojo" | "ambar" | "azul";
 }) {
-  const fg = !activo ? "#8A93AC" : tono === "ambar" ? "#B9770E" : tono === "azul" ? "#1E47C8" : "#C0392B";
+  // Azul por token (var) para que en modo oscuro se aclare y no quede ilegible.
+  const fg = !activo ? "#8A93AC" : tono === "ambar" ? "#B9770E" : tono === "azul" ? "var(--color-azul)" : "#C0392B";
   return (
     <div className="flex flex-col gap-0.5 rounded-[13px] border border-borde bg-tarjeta px-3.5 py-3">
       <span className="text-[11px] font-bold uppercase tracking-wide text-gris">{etiqueta}</span>
@@ -632,5 +710,118 @@ function Siguiente({ href, texto }: { href: string; texto: string }) {
     >
       {texto} →
     </Link>
+  );
+}
+
+/* ── Navegación por fecha (revivir jornadas pasadas) — GET, sin JS ──────────── */
+function DateBar({ fechaYmd, hoyYmd }: { fechaYmd: string; hoyYmd: string }) {
+  const prev = sumarDiasYmd(fechaYmd, -1);
+  const next = sumarDiasYmd(fechaYmd, 1);
+  const esHoy = fechaYmd === hoyYmd;
+  const puedeAvanzar = next <= hoyYmd; // nunca al futuro
+  const flecha =
+    "flex h-9 w-9 items-center justify-center rounded-[11px] border border-borde bg-tarjeta text-[16px] font-bold text-cuerpo hover:bg-suave";
+  return (
+    <section className="flex flex-wrap items-center gap-2">
+      <Link href={`/admin/jornada?fecha=${prev}`} className={flecha} aria-label="Día anterior">
+        ‹
+      </Link>
+      <form method="get" action="/admin/jornada" className="flex items-center gap-2">
+        <input
+          type="date"
+          name="fecha"
+          defaultValue={fechaYmd}
+          max={hoyYmd}
+          className="h-9 rounded-[11px] border border-borde bg-tarjeta px-3 text-[13px] font-semibold text-tinta outline-none focus:border-azul"
+        />
+        <button type="submit" className="h-9 rounded-[11px] bg-[#2453DC] px-3.5 text-[13px] font-bold text-white">
+          Ver
+        </button>
+      </form>
+      {puedeAvanzar ? (
+        <Link href={`/admin/jornada?fecha=${next}`} className={flecha} aria-label="Día siguiente">
+          ›
+        </Link>
+      ) : (
+        <span className={`${flecha} cursor-not-allowed opacity-40`} aria-hidden>
+          ›
+        </span>
+      )}
+      {!esHoy && (
+        <Link
+          href="/admin/jornada"
+          className="acto-activo flex h-9 items-center justify-center rounded-[11px] border border-azul px-3.5 text-[13px] font-bold text-azul"
+        >
+          Hoy
+        </Link>
+      )}
+    </section>
+  );
+}
+
+/* ── Historial de un día (foto de solo lectura) ────────────────────────────── */
+function HistorialDia({ dia }: { dia: DesempenoRango }) {
+  const entregado = dia.cobradores.reduce((s, c) => s + c.entregado, 0);
+  const faltantes = dia.cobradores.reduce((s, c) => s + c.faltantes, 0);
+  const rindieron = dia.cobradores.filter((c) => c.rendiciones > 0).length;
+  const topRecaudo = Math.max(1, ...dia.cobradores.map((c) => c.recaudado));
+  return (
+    <div className="flex flex-col gap-4">
+      <section className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
+        <PulsoTile etiqueta="Recaudado" valor={UYU(dia.totalRecaudado)} sub={`${dia.totalCobros} cobros`} color="#157A50" />
+        <PulsoTile etiqueta="Cobradores" valor={String(dia.cobradoresActivos)} sub="con actividad ese día" color="#1E47C8" />
+        <PulsoTile
+          etiqueta="Entregado"
+          valor={dia.disponibleRendiciones ? UYU(entregado) : "—"}
+          sub={dia.disponibleRendiciones ? `${rindieron} rindieron` : "sin rendición"}
+          color="#7A4DD6"
+        />
+        <PulsoTile
+          etiqueta="Faltantes"
+          valor={String(faltantes)}
+          sub={faltantes > 0 ? "en el cierre" : "sin faltantes"}
+          color={faltantes > 0 ? "#C0392B" : "#8A93AC"}
+        />
+      </section>
+
+      <Panel titulo="Cobradores ese día" href="/admin/desempeno" cta="Ver desempeño por rango →" tono="neutro">
+        {dia.cobradores.length === 0 ? (
+          <p className="py-6 text-center text-[12.5px] font-medium text-gris">No hubo cobros registrados ese día.</p>
+        ) : (
+          <ul className="flex flex-col gap-2.5">
+            {dia.cobradores.map((c, i) => (
+              <li key={c.cobradorId} className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-[13px] font-black text-tenue tabular-nums">#{i + 1}</span>
+                  <span className="flex-1 truncate text-[13.5px] font-bold text-tinta">{c.nombre}</span>
+                  {c.faltantes > 0 && (
+                    <span className="rounded-full bg-[#FBE4E2] px-2 py-0.5 text-[10.5px] font-bold text-[#C0392B]">faltante</span>
+                  )}
+                  <span className="text-[13px] font-extrabold text-tinta tabular-nums">{UYU(c.recaudado)}</span>
+                </div>
+                <div className="h-[7px] w-full overflow-hidden rounded-full bg-suave">
+                  <div
+                    className="h-full rounded-full bg-azul"
+                    style={{ transformOrigin: "left", transform: `scaleX(${Math.min(1, c.recaudado / topRecaudo)})` }}
+                  />
+                </div>
+                <span className="text-[11px] font-medium text-gris">
+                  {c.cobros} cobros{c.zonaNombre ? ` · ${c.zonaNombre}` : ""}
+                  {c.rendiciones > 0 ? ` · entregó ${UYU(c.entregado)}` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
+
+      <p className="text-[11px] leading-[1.5] font-medium text-tenue">
+        Historial de solo lectura, del libro de pagos inmutable. Para analizar varios días juntos, usá{" "}
+        <Link href="/admin/desempeno" className="font-bold text-azul">
+          Desempeño por rango
+        </Link>
+        .
+      </p>
+    </div>
   );
 }
