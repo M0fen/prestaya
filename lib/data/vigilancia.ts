@@ -162,16 +162,19 @@ export async function getVigilanciaCobradores(
     if (!tablaFaltante(e)) throw e; // sin 0013: sin datos de rendición
   }
 
-  // 4) Movimientos de caja (gastos de ruta) de la ventana.
+  // 4) Movimientos de caja (gastos de RUTA) de la ventana. Se EXCLUYE la categoría
+  //    "Comisión": un pago de comisión al cobrador NO es un gasto de su ruta (y si
+  //    se contara, distorsionaría su cuenta corriente / gastos declarados).
   try {
-    let mq = db.from("movimientos_caja").select("cobrador_id, tipo, monto").gte("registrado_en", desdeIso);
+    let mq = db.from("movimientos_caja").select("cobrador_id, tipo, monto, categoria").gte("registrado_en", desdeIso);
     if (cobIds) mq = mq.in("cobrador_id", cobIds);
     const { data, error } = await mq;
     if (error) throw error;
     for (const m of data ?? []) {
       const id = m.cobrador_id as string | null;
       if (!id || !permitido.has(id)) continue;
-      if ((m.tipo as string) === "egreso") get(id).gastos += Number(m.monto);
+      if ((m.tipo as string) === "egreso" && (m.categoria as string | null) !== "Comisión")
+        get(id).gastos += Number(m.monto);
     }
   } catch (e) {
     if (!tablaFaltante(e)) throw e;

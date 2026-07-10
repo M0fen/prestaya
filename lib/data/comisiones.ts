@@ -17,6 +17,15 @@ export interface FilaComision {
   cobros: number;
   pct: number;
   comision: number;
+  /** Si ya se liquidó la comisión de ESTE período (candado anti-doble-pago). */
+  liquidado: { monto: number; fecha: string } | null;
+}
+
+/** Clave canónica del período para la idempotencia (mes:2026-07, dia:2026-07-09…). */
+function periodoKeyDe(periodo: Periodo, desde: string): string {
+  if (periodo === "mes") return `mes:${desde.slice(0, 7)}`;
+  if (periodo === "anio") return `anio:${desde.slice(0, 4)}`;
+  return `${periodo}:${desde}`; // dia / semana usan el inicio del período
 }
 
 export interface ResumenComisiones {
@@ -30,6 +39,10 @@ export interface ResumenComisiones {
   totalComision: number;
   /** Total de cobros del período (suma de cobros de todos los cobradores). */
   totalCobros: number;
+  /** Clave canónica del período (para liquidar de forma idempotente). */
+  periodoKey: string;
+  /** Total ya liquidado en el período (candado 0049). */
+  totalLiquidado: number;
   /** false si falta la columna comision_pct (migración 0014 sin correr). */
   disponible: boolean;
 }
@@ -70,6 +83,21 @@ export async function getComisionesPeriodo(
     cobs = (data ?? []).map((u) => ({ id: u.id as string, nombre: u.nombre as string, comision_pct: 0 }));
   }
 
+  // Liquidaciones ya hechas de ESTE período (candado idempotente 0049).
+  const periodoKey = periodoKeyDe(periodo, resumen.desde);
+  const liqMap = new Map<string, { monto: number; fecha: string }>();
+  try {
+    const { data, error } = await db
+      .from("comisiones_liquidadas")
+      .select("cobrador_id, monto, liquidado_en")
+      .eq("periodo_key", periodoKey);
+    if (error) throw error;
+    for (const r of data ?? [])
+      liqMap.set(r.cobrador_id as string, { monto: Number(r.monto), fecha: r.liquidado_en as string });
+  } catch {
+    /* sin 0049: sin candado (se comporta como antes, sin marca de liquidado) */
+  }
+
   const filas: FilaComision[] = cobs
     .map((u) => {
       const r = recaudadoDe.get(u.id);
@@ -82,6 +110,7 @@ export async function getComisionesPeriodo(
         cobros,
         pct: u.comision_pct,
         comision: calcularComision(recaudado, u.comision_pct),
+        liquidado: liqMap.get(u.id) ?? null,
       };
     })
     .sort((a, b) => b.comision - a.comision || b.recaudado - a.recaudado);
@@ -95,6 +124,8 @@ export async function getComisionesPeriodo(
     totalRecaudado: resumen.recaudado,
     totalComision: filas.reduce((s, f) => s + f.comision, 0),
     totalCobros: filas.reduce((s, f) => s + f.cobros, 0),
+    periodoKey,
+    totalLiquidado: [...liqMap.values()].reduce((s, l) => s + l.monto, 0),
     disponible,
   };
 }

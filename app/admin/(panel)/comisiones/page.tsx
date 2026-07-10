@@ -27,6 +27,8 @@ export default async function ComisionesPage({
   const db = await createSupabaseServer();
   const r = await getComisionesPeriodo(db, periodo);
   const puedeGestionar = esAdmin(usuario.rol);
+  // "A liquidar" = solo lo PENDIENTE (los ya liquidados no se vuelven a pagar).
+  const aLiquidar = r.filas.filter((f) => !f.liquidado).reduce((s, f) => s + f.comision, 0);
 
   return (
     <div className="mx-auto flex max-w-[720px] flex-col gap-5">
@@ -87,14 +89,17 @@ export default async function ComisionesPage({
         </div>
         <div className="flex flex-col gap-0.5 rounded-[14px] border border-[#DCE6FB] bg-[#F4F7FF] p-4">
           <span className="text-[11px] font-bold tracking-wide text-azul uppercase">A liquidar</span>
-          <span className="text-[19px] font-extrabold tabular-nums text-verde">{UYU(r.totalComision)}</span>
-          <span className="text-[11px] font-medium text-tenue">comisiones del período</span>
+          <span className="text-[19px] font-extrabold tabular-nums text-verde">{UYU(aLiquidar)}</span>
+          <span className="text-[11px] font-medium text-tenue">
+            {r.totalLiquidado > 0 ? `${UYU(r.totalLiquidado)} ya liquidado` : "pendiente del período"}
+          </span>
         </div>
       </div>
 
       <TablaComisiones
         filas={r.filas}
         etiqueta={r.etiqueta}
+        periodoKey={r.periodoKey}
         totalRecaudado={r.totalRecaudado}
         puedeGestionar={puedeGestionar}
       />
@@ -106,8 +111,11 @@ export default async function ComisionesPage({
       )}
 
       <p className="text-[11px] leading-[1.5] font-medium text-[#AEB6CC]">
-        Liquidar registra un egreso en la Caja (categoría “Comisión”) y queda en la auditoría. La
-        comisión se calcula sobre lo recaudado por cada cobrador en el período elegido.
+        La comisión se calcula sobre lo <b>recaudado</b> por cada cobrador en el período. <b>Liquidar</b> registra
+        un egreso en la Caja (categoría “Comisión”) y queda en la auditoría — <b>una sola vez por período</b> (si ya
+        se liquidó, el botón queda deshabilitado; no se paga dos veces). Los <b>faltantes NO se descuentan acá</b>:
+        van a la cuenta corriente y al score de confianza del cobrador (Centro de alertas), que es donde se decide
+        cómo recuperarlos.
       </p>
     </div>
   );

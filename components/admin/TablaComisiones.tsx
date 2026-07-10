@@ -12,11 +12,14 @@ import type { FilaComision } from "@/lib/data/comisiones";
 export function TablaComisiones({
   filas,
   etiqueta,
+  periodoKey,
   totalRecaudado = 0,
   puedeGestionar = true,
 }: {
   filas: FilaComision[];
   etiqueta: string;
+  /** Clave canónica del período (candado idempotente al liquidar). */
+  periodoKey: string;
   /** Total recaudado del período (para el % de participación de cada cobrador). */
   totalRecaudado?: number;
   /** Solo el admin puede fijar tasas y liquidar. El supervisor mira. */
@@ -36,6 +39,7 @@ export function TablaComisiones({
           key={f.cobradorId}
           f={f}
           etiqueta={etiqueta}
+          periodoKey={periodoKey}
           totalRecaudado={totalRecaudado}
           puedeGestionar={puedeGestionar}
         />
@@ -47,11 +51,13 @@ export function TablaComisiones({
 function Fila({
   f,
   etiqueta,
+  periodoKey,
   totalRecaudado,
   puedeGestionar,
 }: {
   f: FilaComision;
   etiqueta: string;
+  periodoKey: string;
   totalRecaudado: number;
   puedeGestionar: boolean;
 }) {
@@ -82,7 +88,7 @@ function Fila({
         const r1 = await setComisionPct(f.cobradorId, pctN);
         if (!r1.ok) { setError(r1.error); return; }
       }
-      const res = await liquidarComision({ cobradorId: f.cobradorId, nombre: f.nombre, monto: comision, periodo: etiqueta });
+      const res = await liquidarComision({ cobradorId: f.cobradorId, nombre: f.nombre, monto: comision, periodo: etiqueta, periodoKey });
       if (res.ok) { setOkMsg("Liquidada ✓"); router.refresh(); }
       else setError(res.error);
     });
@@ -101,7 +107,11 @@ function Fila({
         </div>
         <div className="flex flex-shrink-0 flex-col items-end">
           <span className="text-[15px] font-extrabold tabular-nums text-verde">{UYU(comision)}</span>
-          <span className="text-[10.5px] font-semibold text-tenue">comisión</span>
+          {f.liquidado ? (
+            <span className="text-[10px] font-bold text-[#157A50]">✓ liquidada {UYU(f.liquidado.monto)}</span>
+          ) : (
+            <span className="text-[10.5px] font-semibold text-tenue">comisión</span>
+          )}
         </div>
       </div>
 
@@ -129,10 +139,11 @@ function Fila({
             <button
               type="button"
               onClick={liquidar}
-              disabled={pendiente || comision <= 0}
+              disabled={pendiente || comision <= 0 || !!f.liquidado}
+              title={f.liquidado ? "Ya liquidada en este período" : undefined}
               className="ml-auto rounded-full bg-[#1FA971] px-3.5 py-1.5 text-[12px] font-extrabold text-white disabled:opacity-40"
             >
-              {pendiente ? "…" : "Liquidar"}
+              {f.liquidado ? "Liquidada ✓" : pendiente ? "…" : "Liquidar"}
             </button>
           </div>
           {error && <span className="text-[11px] font-semibold text-[#C0392B]">{error}</span>}
