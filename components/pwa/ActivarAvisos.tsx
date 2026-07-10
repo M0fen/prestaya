@@ -1,7 +1,8 @@
 "use client";
 // Activa/desactiva avisos PUSH en ESTE dispositivo (admin/supervisor/cobrador).
 // Pide permiso, se suscribe con la clave pública VAPID y guarda la suscripción.
-// Si no hay clave configurada, avisa (no ofrece el toggle roto).
+// Si no hay clave configurada, NO muestra nada (feature oculto hasta cargar
+// NEXT_PUBLIC_VAPID_PUBLIC_KEY; al cargarla reaparece el toggle solo).
 import { useEffect, useState } from "react";
 import { guardarSuscripcion, borrarSuscripcion } from "@/lib/acciones/push";
 
@@ -89,13 +90,9 @@ export function ActivarAvisos({ vapidPublicKey }: { vapidPublicKey: string | nul
     }
   };
 
-  if (!vapidPublicKey) {
-    return (
-      <span className="rounded-full bg-[#F1F3F9] px-3 py-1.5 text-[11.5px] font-bold text-[#8A93AD]">
-        Avisos push: falta configurar claves
-      </span>
-    );
-  }
+  // Sin clave VAPID el feature queda OCULTO (no molesta con "falta configurar").
+  // Reaparece solo cuando se cargue NEXT_PUBLIC_VAPID_PUBLIC_KEY.
+  if (!vapidPublicKey) return null;
   if (estado === "cargando" || estado === "no_soportado") return null;
 
   return (
