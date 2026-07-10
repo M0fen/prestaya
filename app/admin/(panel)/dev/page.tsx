@@ -1,9 +1,17 @@
 // Pantalla DEV (solo desarrollador): salud del sistema de un vistazo. Read-only,
 // SIN exponer secretos (solo si están o no configurados). Útil para diagnosticar
 // la entrega: claves cargadas, migraciones presentes, conteos, datos demo.
+import Link from "next/link";
 import { requireDev } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { getEstadisticas } from "@/lib/data/estadisticas";
+import { UYU, meses as MESES } from "@/lib/format";
 import type { SupabaseClient } from "@supabase/supabase-js";
+
+function mesCorto(ym: string): string {
+  const [y, m] = ym.split("-").map(Number);
+  return `${(MESES[m - 1] ?? "").slice(0, 3)} ${String(y).slice(2)}`;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +61,9 @@ export default async function DevPage() {
     ),
   );
 
+  // Estadísticas de crecimiento + comportamiento por persona (0048; degrada solo).
+  const stats = await getEstadisticas(db, { meses: 6, dias: 30, topN: 8 });
+
   return (
     <div className="mx-auto flex max-w-[820px] flex-col gap-5">
       <div className="flex flex-col gap-0.5">
@@ -97,6 +108,57 @@ export default async function DevPage() {
           ))}
         </div>
       </Bloque>
+
+      {/* Crecimiento (0048) — degrada solo si la migración no corrió. */}
+      {stats.disponible && stats.mensual.length > 0 && (
+        <Bloque titulo="Crecimiento (últimos meses)">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-[12px]">
+              <thead>
+                <tr className="border-b border-linea text-[10px] font-bold uppercase tracking-wide text-gris">
+                  <th className="px-2 py-1.5 text-left">Mes</th>
+                  <th className="px-2 py-1.5 text-right">Colocado</th>
+                  <th className="px-2 py-1.5 text-right">Recaudado</th>
+                  <th className="px-2 py-1.5 text-center">Créd.</th>
+                  <th className="px-2 py-1.5 text-center">Clientes</th>
+                  <th className="px-2 py-1.5 text-center">Cobrad.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.mensual.map((m) => (
+                  <tr key={m.mes} className="border-b border-[#F4F6FB]">
+                    <td className="px-2 py-1.5 font-semibold text-tinta">{mesCorto(m.mes)}</td>
+                    <td className="px-2 py-1.5 text-right tabular-nums text-cuerpo">{UYU(m.colocado)}</td>
+                    <td className="px-2 py-1.5 text-right tabular-nums text-[#157A50]">{UYU(m.recaudado)}</td>
+                    <td className="px-2 py-1.5 text-center tabular-nums">{m.creditosNuevos}</td>
+                    <td className="px-2 py-1.5 text-center tabular-nums">{m.clientesNuevos}</td>
+                    <td className="px-2 py-1.5 text-center tabular-nums">{m.cobradoresNuevos}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Bloque>
+      )}
+
+      {/* Comportamiento por cobrador (0048) */}
+      {stats.disponible && stats.porCobrador.length > 0 && (
+        <Bloque titulo="Comportamiento por cobrador (30 días)">
+          <div className="flex flex-col divide-y divide-linea">
+            {stats.porCobrador.map((c) => (
+              <div key={c.cobradorId} className="flex items-center justify-between gap-2 py-1.5 text-[12.5px]">
+                <span className="min-w-0 flex-1 truncate font-semibold text-tinta">{c.nombre}</span>
+                <span className="text-[11px] text-gris">{c.creditosActivos} créd · {c.cobros} cobros</span>
+                <span className="font-extrabold tabular-nums text-[#157A50]">{UYU(c.recaudo)}</span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-1 text-[10.5px] text-tenue">
+            Recaudo de los últimos 30 días · panel completo en{" "}
+            <Link href="/admin/estadisticas" className="font-bold text-azul">Estadísticas</Link>.
+          </p>
+        </Bloque>
+      )}
     </div>
   );
 }

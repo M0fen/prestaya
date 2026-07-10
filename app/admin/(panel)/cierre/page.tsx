@@ -101,9 +101,15 @@ export default async function CierrePage() {
               tono="rojo"
               titulo={`${faltantes.length} faltante${faltantes.length === 1 ? "" : "s"} de caja`}
               href="/admin/caja"
-              nota="Cobradores que entregaron MENOS de lo esperado. Revisá la rendición en Caja."
+              nota="Cobradores que entregaron MENOS de lo esperado al cerrar su jornada. El faltante es la diferencia entre lo que debía entregar (recaudado − gastos) y lo que entregó. Revisá la rendición en Caja."
             >
-              {resumirNombres(faltantes.map((f) => `${f.cobradorNombre} (${UYU(f.diferencia)})`))}
+              <ListaAlerta
+                items={faltantes.map((f) => ({
+                  nombre: f.cobradorNombre ?? "Cobrador",
+                  valor: `falta ${UYU(Math.abs(f.diferencia))}`,
+                  tono: "#C0392B",
+                }))}
+              />
             </Alerta>
           )}
           {rend.pendientes.length > 0 && (
@@ -111,9 +117,15 @@ export default async function CierrePage() {
               tono="ambar"
               titulo={`${rend.pendientes.length} cobrador${rend.pendientes.length === 1 ? "" : "es"} sin rendir`}
               href="/admin/caja"
-              nota="Recaudaron pero todavía no cerraron su jornada (efectivo en la calle)."
+              nota="Recaudaron en la calle pero todavía no cerraron su jornada: ese efectivo aún no entró a la caja. El monto es lo que tienen en mano por rendir."
             >
-              {resumirNombres(rend.pendientes.map((p) => `${p.nombre} · ${UYU(p.recaudado)}`))}
+              <ListaAlerta
+                items={rend.pendientes.map((p) => ({
+                  nombre: p.nombre,
+                  valor: `${UYU(p.recaudado)} en mano`,
+                  tono: "#B9770E",
+                }))}
+              />
             </Alerta>
           )}
           {mora.resumen.critico > 0 && (
@@ -131,7 +143,7 @@ export default async function CierrePage() {
 
       {/* Tablero en vivo por cobrador */}
       <section className="rounded-[16px] border border-borde bg-tarjeta p-4">
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-1.5 flex items-center justify-between">
           <span className="text-[15px] font-extrabold text-tinta">En vivo por cobrador</span>
           {rend.disponible && (
             <span className="text-[12px] font-medium text-gris">
@@ -139,6 +151,13 @@ export default async function CierrePage() {
             </span>
           )}
         </div>
+        <p className="mb-3 text-[11.5px] leading-[1.55] font-medium text-gris">
+          Cada cobrador con lo que <b>recaudó hoy</b> (del libro de pagos) y su estado de cierre de jornada:{" "}
+          <b className="text-[#157A50]">Cuadra</b> (entregó lo esperado),{" "}
+          <b className="text-[#C0392B]">Faltante</b> / <b className="text-azul">Sobrante</b> (diferencia al rendir), o{" "}
+          <b className="text-gris">En ruta</b> (todavía no cerró: el efectivo sigue en la calle). El "esperado" =
+          recaudado − gastos de ruta declarados.
+        </p>
 
         {dia.porCobrador.length === 0 ? (
           <p className="py-6 text-center text-[13px] font-medium text-gris">
@@ -261,10 +280,30 @@ function Desglose({ label, valor, sub, tono }: { label: string; valor: number; s
   );
 }
 
-/** Resume una lista de textos: muestra los primeros `max` y "…y N más". */
-function resumirNombres(items: string[], max = 6): string {
-  if (items.length <= max) return items.join(" · ");
-  return `${items.slice(0, max).join(" · ")} …y ${items.length - max} más`;
+/** Lista de la alerta como FILAS (nombre a la izquierda, monto a la derecha).
+ *  Mucho más legible que un run-on de nombres. Corta en `max` con "…y N más". */
+function ListaAlerta({
+  items,
+  max = 6,
+}: {
+  items: { nombre: string; valor: string; tono?: string }[];
+  max?: number;
+}) {
+  const visibles = items.slice(0, max);
+  const resto = items.length - visibles.length;
+  return (
+    <div className="mt-1 flex flex-col gap-0.5">
+      {visibles.map((it, i) => (
+        <div key={i} className="flex items-center justify-between gap-3 border-t border-black/5 py-1 first:border-t-0">
+          <span className="min-w-0 flex-1 truncate text-[12px] font-semibold text-tinta">{it.nombre}</span>
+          <span className="flex-shrink-0 text-[12px] font-extrabold tabular-nums" style={{ color: it.tono ?? "#6B7494" }}>
+            {it.valor}
+          </span>
+        </div>
+      ))}
+      {resto > 0 && <span className="pt-0.5 text-[11px] font-bold text-tenue">…y {resto} más</span>}
+    </div>
+  );
 }
 
 function Alerta({
@@ -298,7 +337,7 @@ function Alerta({
           </span>
         )}
       </div>
-      <span className="text-[12px] font-medium text-gris">{children}</span>
+      <div className="text-[12px] font-medium text-gris">{children}</div>
       {nota && <span className="mt-0.5 text-[11px] font-medium text-tenue">{nota}</span>}
     </>
   );
