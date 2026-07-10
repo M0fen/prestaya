@@ -51,8 +51,9 @@ export function ControlCampo({ resumen }: { resumen: ResumenCobradorDia[] }) {
               <span
                 className="rounded-full px-2.5 py-1 text-[11px] font-bold"
                 style={{ background: n.bg, color: n.fg }}
+                title="Score de SOSPECHA del día (0–100, mayor = más sospecha). Es lo opuesto al score de CONFIANZA del Centro de alertas (mayor = mejor)."
               >
-                {n.label} · {c.senales.score}
+                {n.label} · sospecha {c.senales.score}/100
               </span>
               <span className="ml-auto text-[12px] font-medium text-gris">
                 {c.senales.cobros} cobro{c.senales.cobros === 1 ? "" : "s"} · {c.eventos.length} acciones
