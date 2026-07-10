@@ -1,7 +1,11 @@
-// Vista del chat interno (server component). Layout de DOS PANELES: a la
-// izquierda el selector de canales vertical (agrupado + buscable), a la derecha
-// la conversación (encabezado, mensajes y caja). Reusada por el panel admin y la
-// app del cobrador (cambia `basePath`). El botón "Vaciar" solo aparece al admin.
+// Vista del chat interno (server component). Dos modos:
+//  · ADMIN (ancho): DOS PANELES — selector vertical agrupado+buscable a la
+//    izquierda, conversación a la derecha.
+//  · COBRADOR (`compacto`, contenedor 480px, 2-3 canales): una sola columna con
+//    chips horizontales arriba + conversación a ancho completo (el layout de dos
+//    paneles se aplastaba en 480px y espachurraba el composer).
+// El botón "Vaciar" solo aparece al admin.
+import Link from "next/link";
 import type { Canal, MensajeVista } from "@/lib/data/chat";
 import type { AmbitoMensaje } from "@/types/db";
 import { Composer } from "./Composer";
@@ -24,12 +28,51 @@ const SUBTITULO_CANAL: Record<AmbitoMensaje, string> = {
   cobrador: "Hilo privado con la oficina",
 };
 
+/** Chips horizontales de canales (modo compacto del cobrador: pocos canales). */
+function ChipsCanales({
+  canales,
+  activoKey,
+  basePath,
+}: {
+  canales: Canal[];
+  activoKey: string;
+  basePath: string;
+}) {
+  if (canales.length <= 1) return null;
+  return (
+    <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+      {canales.map((c) => {
+        const sel = c.key === activoKey;
+        return (
+          <Link
+            key={c.key}
+            href={`${basePath}?c=${encodeURIComponent(c.key)}`}
+            scroll={false}
+            className={`flex flex-shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12.5px] font-bold transition-colors ${
+              sel ? "bg-[#2453DC] text-white" : "bg-white text-[#6B7494] hover:bg-[#EEF3FF]"
+            }`}
+          >
+            <span>{ICONO_CANAL[c.ambito]}</span>
+            <span className="whitespace-nowrap">{c.titulo}</span>
+            {!sel && c.noLeidos > 0 && (
+              <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-[#E06A6A] px-1 text-[10px] font-black text-white">
+                {c.noLeidos > 9 ? "9+" : c.noLeidos}
+              </span>
+            )}
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
 export function ChatVista({
   basePath,
   canales,
   canalActivo,
   mensajes,
   esAdmin = false,
+  compacto = false,
 }: {
   basePath: string;
   canales: Canal[];
@@ -37,9 +80,26 @@ export function ChatVista({
   mensajes: MensajeVista[];
   /** Muestra el botón "Vaciar" del canal (solo admin). */
   esAdmin?: boolean;
+  /** Modo una-columna para contenedores angostos (app del cobrador). */
+  compacto?: boolean;
 }) {
   const activo = canales.find((c) => c.key === canalActivo) ?? canales[0];
   const hayNoLeidos = (activo?.noLeidos ?? 0) > 0;
+
+  // Modo compacto (cobrador): una sola columna, chips arriba, todo a ancho completo.
+  if (compacto) {
+    return (
+      <div className="flex flex-col gap-3">
+        <ChipsCanales canales={canales} activoKey={activo?.key ?? "general"} basePath={basePath} />
+        <Conversacion
+          activo={activo}
+          mensajes={mensajes}
+          esAdmin={esAdmin}
+          hayNoLeidos={hayNoLeidos}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-3 md:grid md:grid-cols-[minmax(220px,260px)_1fr] md:items-start md:gap-4">
@@ -47,7 +107,25 @@ export function ChatVista({
       <SelectorCanales canales={canales} canalActivo={activo?.key ?? "general"} basePath={basePath} />
 
       {/* Panel derecho: conversación del canal activo. */}
-      <div className="flex min-w-0 flex-col gap-3">
+      <Conversacion activo={activo} mensajes={mensajes} esAdmin={esAdmin} hayNoLeidos={hayNoLeidos} />
+    </div>
+  );
+}
+
+/** La conversación del canal activo (encabezado + mensajes + caja). Compartida. */
+function Conversacion({
+  activo,
+  mensajes,
+  esAdmin,
+  hayNoLeidos,
+}: {
+  activo: Canal | undefined;
+  mensajes: MensajeVista[];
+  esAdmin: boolean;
+  hayNoLeidos: boolean;
+}) {
+  return (
+    <div className="flex min-w-0 flex-col gap-3">
         {activo && (
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-2">
@@ -73,7 +151,6 @@ export function ChatVista({
         {activo && (
           <RealtimeChat ambito={activo.ambito} cobradorId={activo.cobradorId} zonaId={activo.zonaId} />
         )}
-      </div>
     </div>
   );
 }

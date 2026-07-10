@@ -40,6 +40,7 @@ export default async function ChatCobradorPage({
         canales={canales}
         canalActivo={activo?.key ?? "general"}
         mensajes={mensajes}
+        compacto
       />
     </div>
   );
