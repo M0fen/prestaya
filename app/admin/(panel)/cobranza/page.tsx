@@ -1,8 +1,11 @@
 // Torre de control anti-fuga (admin/supervisor): KPIs del día, alertas de
 // anomalía, mapa de calor de cobros (GPS) y ranking de cobradores. Datos reales.
+import Link from "next/link";
 import { requireGestor } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getControlCobranza, type Severidad } from "@/lib/data/control";
+import { getRecaudoHoy } from "@/lib/data/recaudoHoy";
+import { alcanceDelActor } from "@/lib/data/alcance";
 import { MapaCobranza } from "@/components/admin/MapaCobranza";
 import { UYU } from "@/lib/format";
 
@@ -17,7 +20,12 @@ const SEV: Record<Severidad, { bg: string; fg: string; dot: string }> = {
 export default async function CobranzaPage() {
   await requireGestor();
   const db = await createSupabaseServer();
-  const { resumen, ranking, alertas, mapaCobros } = await getControlCobranza(db);
+  // Alcance una vez (admin = todo; supervisor = su zona) → control y recaudo consistentes.
+  const alcance = await alcanceDelActor();
+  const [{ resumen, ranking, alertas, mapaCobros }, rec] = await Promise.all([
+    getControlCobranza(db, undefined, undefined, alcance),
+    getRecaudoHoy(db, undefined, alcance),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -30,12 +38,25 @@ export default async function CobranzaPage() {
         </span>
       </div>
 
-      {/* Resumen */}
+      {/* Resumen (esta pantalla mira SOLO la ruta activa; el total del día está abajo) */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi label="Recaudado hoy" valor={UYU(resumen.recaudadoHoy)} acento="#1FA971" />
-        <Kpi label="Cobros hoy" valor={String(resumen.cobrosHoy)} acento="#1E47C8" />
+        <Kpi label="Cobrado en ruta hoy" valor={UYU(rec.enRuta)} acento="#1FA971" />
+        <Kpi label="Cobros en ruta" valor={String(rec.cobrosRuta)} acento="#1E47C8" />
         <Kpi label="Fuera de zona" valor={String(resumen.fueraZona)} acento="#E06A6A" alerta={resumen.fueraZona > 0} />
         <Kpi label="Cobradores" valor={String(resumen.cobradores)} acento="#7A4DD6" />
+      </div>
+
+      {/* Aclaración: por qué este número puede ser MENOR que el "Recaudado hoy" del panel. */}
+      <div className="rounded-[14px] border border-borde bg-[#F7F9FE] px-4 py-3">
+        <p className="text-[12px] leading-[1.6] font-medium text-gris">
+          Esta pantalla es de <b>control de la ruta</b>: cuenta solo los cobros de HOY en{" "}
+          <b>créditos activos</b> (con GPS, para detectar fuga). El <b>recaudo TOTAL del día</b> —incluyendo pagos
+          en créditos ya cerrados/históricos— es{" "}
+          <b className="text-tinta">{UYU(rec.total)}</b>
+          {rec.enCerrados > 0 && <> (hay {UYU(rec.enCerrados)} en créditos cerrados)</>}, y lo ves en el{" "}
+          <Link href="/admin" className="font-bold text-azul">Dashboard</Link>. Los dos números son
+          correctos: miden cosas distintas.
+        </p>
       </div>
 
       {/* Alertas */}

@@ -9,6 +9,7 @@ import { requireAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getResumenPeriodo } from "@/lib/data/periodo";
 import { getResumenCaja } from "@/lib/data/caja";
+import { getRecaudoHoy } from "@/lib/data/recaudoHoy";
 import { getRendicionesDia } from "@/lib/data/rendicion";
 import { getTableroMora } from "@/lib/data/mora";
 import { getMetaMensual } from "@/lib/data/metaOperacion";
@@ -25,13 +26,14 @@ export default async function CierrePage() {
   await requireAdmin();
   const db = await createSupabaseServer();
 
-  const [dia, mes, caja, rend, mora, meta] = await Promise.all([
+  const [dia, mes, caja, rend, mora, meta, rec] = await Promise.all([
     getResumenPeriodo(db, "dia"),
     getResumenPeriodo(db, "mes"),
     getResumenCaja(db, "hoy"),
     getRendicionesDia(db),
     getTableroMora(db),
     getMetaMensual(db),
+    getRecaudoHoy(db),
   ]);
 
   const hoy = hoyUY();
@@ -49,7 +51,6 @@ export default async function CierrePage() {
   const brechaMeta = proyeccionMes - meta;
 
   const faltantes = rend.rendidas.filter((r) => r.diferencia < 0);
-  const totalRecaudadoHoy = dia.recaudado;
 
   return (
     <div className="mx-auto flex max-w-[900px] flex-col gap-5">
@@ -64,10 +65,32 @@ export default async function CierrePage() {
 
       {/* Resumen del día */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Kpi label="Recaudado hoy" valor={UYU(totalRecaudadoHoy)} sub={`${dia.cobros} cobros`} fuerte />
+        <Kpi label="Recaudado hoy" valor={UYU(rec.total)} sub={`${rec.cobros} cobros · ${rec.cobradores} cobradores`} fuerte />
         <Kpi label="Colocado hoy" valor={UYU(dia.colocado)} sub={`${dia.creditosNuevos} créditos`} />
         <Kpi label="Neto de caja hoy" valor={UYU(caja.neto)} sub={`egresos ${UYU(caja.egresosTotal)}`} alerta={caja.neto < 0} />
         <Kpi label="Ticket promedio" valor={UYU(dia.ticketPromedio)} sub="por cobro" />
+      </div>
+
+      {/* Explicación del número más sensible del día: 100% verídico, del libro inmutable. */}
+      <div className="rounded-[14px] border border-borde bg-[#F7F9FE] p-4">
+        <p className="text-[12.5px] font-extrabold text-tinta">Cómo se calcula "Recaudado hoy" (es exacto)</p>
+        <p className="mt-1 text-[12px] leading-[1.6] font-medium text-gris">
+          Es la suma de <b>todos los cobros registrados hoy</b> (día de Uruguay, de medianoche hasta ahora),
+          tomada del <b>libro de pagos inmutable</b>: no se estima ni se puede editar — un pago solo se{" "}
+          <b>anula</b> dejando registro de quién y por qué. Es autoritativo del servidor, no del teléfono del cobrador.
+        </p>
+        <div className="mt-2.5 flex flex-wrap gap-2">
+          <Desglose label="En ruta (créditos activos)" valor={rec.enRuta} sub={`${rec.cobrosRuta} cobros`} tono="#157A50" />
+          <Desglose label="En créditos ya cerrados" valor={rec.enCerrados} sub={`${rec.cobrosCerrados} cobros`} tono="#B9770E" />
+        </div>
+        {rec.enCerrados > 0 && (
+          <p className="mt-2 text-[11.5px] leading-[1.5] font-medium text-tenue">
+            Del total, <b>{UYU(rec.enCerrados)}</b> son pagos de hoy sobre créditos ya finalizados/históricos
+            (cuotas que cerraron un crédito o referencias que el sistema aún no re-vinculó a un crédito activo). Por
+            eso el <Link href="/admin/cobranza" className="font-bold text-azul">mapa de Cobranza</Link> —que solo
+            mira la ruta activa— muestra {UYU(rec.enRuta)}, no el total del día.
+          </p>
+        )}
       </div>
 
       {/* Alertas que importan (clickeables donde se puede actuar) */}
@@ -224,6 +247,16 @@ function Kpi({
         {valor}
       </span>
       {sub && <span className="text-[11px] font-medium text-tenue">{sub}</span>}
+    </div>
+  );
+}
+
+function Desglose({ label, valor, sub, tono }: { label: string; valor: number; sub: string; tono: string }) {
+  return (
+    <div className="flex flex-col rounded-[10px] border border-borde bg-tarjeta px-3 py-2">
+      <span className="text-[10.5px] font-semibold text-tenue">{label}</span>
+      <span className="text-[15px] font-extrabold tabular-nums" style={{ color: tono }}>{UYU(valor)}</span>
+      <span className="text-[10px] font-medium text-[#AEB6CC]">{sub}</span>
     </div>
   );
 }
