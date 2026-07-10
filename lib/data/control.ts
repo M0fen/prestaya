@@ -11,6 +11,7 @@ import { toIso } from "@/lib/format";
 import { traerTodo } from "./paginado";
 import { getActivosConPagos } from "./activos";
 import { alcanceDelActor, type Alcance } from "./alcance";
+import { createSupabaseAdmin } from "@/lib/supabase/admin";
 
 /** Efectivo por cobrador que dispara alerta de rendición (hasta tener módulo de caja). */
 const LIMITE_FLOAT = 15000;
@@ -106,10 +107,16 @@ export async function getControlCobranza(
   }
 
   // Eventos de HOY (pagos + visitas de créditos activos), paginados y sin .in().
+  // Se leen con el cliente ADMIN (service_role) para esquivar el RLS por-fila sobre
+  // `pagos` (158k filas), que hacía lentísima esta consulta (medido: jornada del
+  // supervisor ~8s). El scope se aplica EXPLÍCITO más abajo (`pagosScoped` filtra
+  // por `prestamoPorId`, que sale de `activos` YA acotado al alcance) → resultado
+  // idéntico al de RLS pero sin el costo por-fila. Mismo patrón que las RPC definer.
+  const adminDb = createSupabaseAdmin();
   const [pagosRaw, visRaw] = await Promise.all([
     traerTodo<{ prestamo_id: string; monto: number; registrado_por: string | null; gps_lat: number | null; gps_lng: number | null }>(
       (d, h) =>
-        db
+        adminDb
           .from("pagos")
           .select("prestamo_id, monto, registrado_por, gps_lat, gps_lng, prestamos!inner(estado)")
           .eq("prestamos.estado", "activo")
@@ -120,7 +127,7 @@ export async function getControlCobranza(
           .range(d, h),
     ),
     traerTodo<{ prestamo_id: string; cobrador_id: string; resultado: string }>((d, h) =>
-      db
+      adminDb
         .from("visitas")
         .select("prestamo_id, cobrador_id, resultado, prestamos!inner(estado)")
         .eq("prestamos.estado", "activo")
