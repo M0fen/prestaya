@@ -5,6 +5,8 @@ import Link from "next/link";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getRutaCobrador } from "@/lib/data/ruta";
+import { getBannerCobradorActivo } from "@/lib/data/bannerCobrador";
+import { BannerEquipo } from "@/components/cobrador/BannerEquipo";
 import { getEstadoJornada } from "@/lib/data/rendicion";
 import { getGastosCobradorHoy } from "@/lib/data/gastos";
 import { getUsuarioActual } from "@/lib/auth";
@@ -21,6 +23,7 @@ export default async function RutaPage() {
   const usuario = await getUsuarioActual();
   const jornada = usuario ? await getEstadoJornada(db, usuario.id) : null;
   const gastos = usuario ? await getGastosCobradorHoy(db, usuario.id) : null;
+  const banner = await getBannerCobradorActivo(db);
 
   // Saludo personalizado (nombre + zona). Da identidad a la app del cobrador.
   // El nombre de la zona se resuelve con el cliente ADMIN: la tabla `zonas` está
@@ -77,6 +80,9 @@ export default async function RutaPage() {
           {zonaNombre ? `${zonaNombre} · ` : ""}{fechaLarga}
         </span>
       </div>
+
+      {/* Banner del equipo (aviso del admin), si hay uno activo. */}
+      {banner && <BannerEquipo banner={banner} />}
 
       {/* Arqueo del día */}
       <section className="rounded-[18px] bg-[linear-gradient(155deg,#173063_0%,#0F1B3D_60%)] p-4 text-white shadow-[0_10px_24px_rgba(15,27,61,0.28)]">

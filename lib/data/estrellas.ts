@@ -129,6 +129,87 @@ export async function getRedencionesPendientes(
   }
 }
 
+/** Una redención resuelta (para el historial del admin). */
+export interface RedencionHistorial {
+  id: string;
+  clienteId: string;
+  clienteNombre: string;
+  estrellas: number;
+  ciclo: string;
+  estado: "aprobada" | "rechazada";
+  resueltoEn: string | null;
+  resueltoPorNombre: string | null;
+  nota: string | null;
+}
+
+/** Historial de redenciones RESUELTAS (aprobadas/rechazadas), más nuevas primero. */
+export async function getHistorialRedenciones(
+  db: SupabaseClient,
+  limite = 40,
+): Promise<RedencionHistorial[]> {
+  try {
+    const { data, error } = await db
+      .from("estrellas_redenciones")
+      .select("id, cliente_id, estrellas, ciclo, estado, resuelto_en, resuelto_por, nota")
+      .neq("estado", "pendiente")
+      .order("resuelto_en", { ascending: false, nullsFirst: false })
+      .limit(Math.max(1, Math.min(200, limite)));
+    if (error) throw error;
+    const filas = data ?? [];
+    const cliIds = [...new Set(filas.map((r) => (r as { cliente_id: string }).cliente_id))];
+    const usrIds = [...new Set(filas.map((r) => (r as { resuelto_por: string | null }).resuelto_por).filter(Boolean) as string[])];
+    const nomCli = new Map<string, string>();
+    const nomUsr = new Map<string, string>();
+    if (cliIds.length > 0) {
+      const { data: cs } = await db.from("clientes").select("id, nombre").in("id", cliIds);
+      for (const c of cs ?? []) nomCli.set((c as { id: string }).id, (c as { nombre: string }).nombre);
+    }
+    if (usrIds.length > 0) {
+      const { data: us } = await db.from("usuarios").select("id, nombre").in("id", usrIds);
+      for (const u of us ?? []) nomUsr.set((u as { id: string }).id, (u as { nombre: string }).nombre);
+    }
+    return filas.map((r) => {
+      const row = r as {
+        id: string; cliente_id: string; estrellas: number; ciclo: string;
+        estado: "aprobada" | "rechazada"; resuelto_en: string | null; resuelto_por: string | null; nota: string | null;
+      };
+      return {
+        id: row.id,
+        clienteId: row.cliente_id,
+        clienteNombre: nomCli.get(row.cliente_id) ?? "—",
+        estrellas: Number(row.estrellas),
+        ciclo: row.ciclo,
+        estado: row.estado,
+        resueltoEn: row.resuelto_en,
+        resueltoPorNombre: row.resuelto_por ? nomUsr.get(row.resuelto_por) ?? null : null,
+        nota: row.nota ?? null,
+      };
+    });
+  } catch (e) {
+    if (tablaFaltante(e)) return [];
+    throw e;
+  }
+}
+
+/** Inserta una redención YA APROBADA (canje directo hecho por el admin en persona).
+ *  Requiere `db` con permiso de escritura (service_role): la acción que la llama
+ *  ya validó que es un gestor y que hay saldo/cupo. */
+export async function redimirDirectoDb(
+  db: SupabaseClient,
+  input: { clienteId: string; estrellas: number; ciclo: string; resueltoPor: string; nota?: string | null },
+): Promise<void> {
+  const { error } = await db.from("estrellas_redenciones").insert({
+    cliente_id: input.clienteId,
+    estrellas: input.estrellas,
+    ciclo: input.ciclo,
+    estado: "aprobada",
+    nota: input.nota ?? "Canje directo (admin)",
+    resuelto_por: input.resueltoPor,
+    resuelto_en: new Date().toISOString(),
+  });
+  if (error) throw error;
+}
+
 /** Aprueba o rechaza una redención (marca quién y cuándo la resolvió). */
 export async function resolverRedencionDb(
   db: SupabaseClient,
