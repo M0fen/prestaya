@@ -7,7 +7,7 @@ import { getRutaCobrador } from "@/lib/data/ruta";
 import { getEstadoJornada } from "@/lib/data/rendicion";
 import { getGastosCobradorHoy } from "@/lib/data/gastos";
 import { getUsuarioActual } from "@/lib/auth";
-import { UYU } from "@/lib/format";
+import { UYU, meses, diasSemana } from "@/lib/format";
 import { ListaRuta, type ItemRutaVista } from "@/components/cobrador/ListaRuta";
 import { GastosRuta } from "@/components/cobrador/GastosRuta";
 import { CerrarJornada } from "@/components/cobrador/CerrarJornada";
@@ -20,6 +20,30 @@ export default async function RutaPage() {
   const usuario = await getUsuarioActual();
   const jornada = usuario ? await getEstadoJornada(db, usuario.id) : null;
   const gastos = usuario ? await getGastosCobradorHoy(db, usuario.id) : null;
+
+  // Saludo personalizado (nombre + zona). Da identidad a la app del cobrador.
+  const zonaNombre =
+    usuario?.zona_id
+      ? (await db.from("zonas").select("nombre").eq("id", usuario.zona_id).maybeSingle()).data?.nombre ?? null
+      : null;
+  const horaUY = Number(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Montevideo",
+      hour: "2-digit",
+      hourCycle: "h23",
+    }).format(new Date()),
+  );
+  const saludo = horaUY < 12 ? "Buen día" : horaUY < 19 ? "Buenas tardes" : "Buenas noches";
+  // Primer(os) nombre(s), con mayúscula inicial (los nombres vienen en MAYÚS).
+  const primerNombre = (usuario?.nombre ?? "")
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : ""))
+    .join(" ")
+    .trim() || "cobrador";
+  const hoy = new Date();
+  const fechaLarga = `${diasSemana[hoy.getDay()]} ${hoy.getDate()} de ${meses[hoy.getMonth()]}`;
 
   const vista: ItemRutaVista[] = items.map((i) => ({
     id: i.cliente.id,
@@ -41,6 +65,16 @@ export default async function RutaPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Saludo personalizado (nombre + zona + fecha). */}
+      <div className="flex flex-col gap-0.5 px-0.5">
+        <span className="text-[19px] font-extrabold tracking-[-0.01em] text-tinta">
+          {saludo}, {primerNombre} 👋
+        </span>
+        <span className="text-[12.5px] font-medium text-gris capitalize">
+          {zonaNombre ? `${zonaNombre} · ` : ""}{fechaLarga}
+        </span>
+      </div>
+
       {/* Arqueo del día */}
       <section className="rounded-[18px] bg-[linear-gradient(155deg,#173063_0%,#0F1B3D_60%)] p-4 text-white shadow-[0_10px_24px_rgba(15,27,61,0.28)]">
         <div className="mb-2 flex items-end justify-between">
