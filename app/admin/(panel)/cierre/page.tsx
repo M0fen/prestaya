@@ -4,6 +4,7 @@
 //  · Alertas que importan: faltantes de caja, sin rendir, mora crítica.  [1.2 interno]
 //  · Proyección del mes ("a este ritmo llegás a X").  [1.4]
 // Solo gestores. Todo LECTURA, reusa la capa de datos ya testeada.
+import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getResumenPeriodo } from "@/lib/data/periodo";
@@ -69,21 +70,36 @@ export default async function CierrePage() {
         <Kpi label="Ticket promedio" valor={UYU(dia.ticketPromedio)} sub="por cobro" />
       </div>
 
-      {/* Alertas que importan */}
+      {/* Alertas que importan (clickeables donde se puede actuar) */}
       {(faltantes.length > 0 || rend.pendientes.length > 0 || mora.resumen.critico > 0) && (
         <div className="flex flex-col gap-2">
           {faltantes.length > 0 && (
-            <Alerta tono="rojo" titulo={`${faltantes.length} faltante${faltantes.length === 1 ? "" : "s"} de caja`}>
-              {faltantes.map((f) => `${f.cobradorNombre} (${UYU(f.diferencia)})`).join(" · ")}
+            <Alerta
+              tono="rojo"
+              titulo={`${faltantes.length} faltante${faltantes.length === 1 ? "" : "s"} de caja`}
+              href="/admin/caja"
+              nota="Cobradores que entregaron MENOS de lo esperado. Revisá la rendición en Caja."
+            >
+              {resumirNombres(faltantes.map((f) => `${f.cobradorNombre} (${UYU(f.diferencia)})`))}
             </Alerta>
           )}
           {rend.pendientes.length > 0 && (
-            <Alerta tono="ambar" titulo={`${rend.pendientes.length} cobrador${rend.pendientes.length === 1 ? "" : "es"} sin rendir`}>
-              {rend.pendientes.map((p) => `${p.nombre} (${UYU(p.recaudado)} en mano)`).join(" · ")}
+            <Alerta
+              tono="ambar"
+              titulo={`${rend.pendientes.length} cobrador${rend.pendientes.length === 1 ? "" : "es"} sin rendir`}
+              href="/admin/caja"
+              nota="Recaudaron pero todavía no cerraron su jornada (efectivo en la calle)."
+            >
+              {resumirNombres(rend.pendientes.map((p) => `${p.nombre} · ${UYU(p.recaudado)}`))}
             </Alerta>
           )}
           {mora.resumen.critico > 0 && (
-            <Alerta tono="rojo" titulo={`${mora.resumen.critico} en mora crítica`}>
+            <Alerta
+              tono="rojo"
+              titulo={`${mora.resumen.critico} crédito${mora.resumen.critico === 1 ? "" : "s"} en mora crítica`}
+              href="/admin/mora"
+              nota="Mora crítica = 16+ días de atraso: el capital MÁS en riesgo. Tocá para ver la lista priorizada y disparar la cobranza."
+            >
               {`${UYU(mora.resumen.deudaEnRiesgo)} en riesgo · ${mora.resumen.alto} en alerta alta`}
             </Alerta>
           )}
@@ -212,28 +228,56 @@ function Kpi({
   );
 }
 
+/** Resume una lista de textos: muestra los primeros `max` y "…y N más". */
+function resumirNombres(items: string[], max = 6): string {
+  if (items.length <= max) return items.join(" · ");
+  return `${items.slice(0, max).join(" · ")} …y ${items.length - max} más`;
+}
+
 function Alerta({
   tono,
   titulo,
   children,
+  href,
+  nota,
 }: {
   tono: "rojo" | "ambar";
   titulo: string;
   children: React.ReactNode;
+  /** Si viene, la alerta es un enlace a donde se actúa. */
+  href?: string;
+  /** Explicación corta de qué es y qué hacer. */
+  nota?: string;
 }) {
   const c =
     tono === "rojo"
       ? { bg: "#FBE9E7", bd: "#F3C0B8", fg: "#C0392B" }
       : { bg: "#FDF3E2", bd: "#F0D9A8", fg: "#B9770E" };
-  return (
-    <div
-      className="flex flex-col gap-0.5 rounded-[12px] border px-3.5 py-2.5"
-      style={{ background: c.bg, borderColor: c.bd }}
-    >
-      <span className="text-[13px] font-extrabold" style={{ color: c.fg }}>
-        {titulo}
-      </span>
+  const cuerpo = (
+    <>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[13px] font-extrabold" style={{ color: c.fg }}>
+          {titulo}
+        </span>
+        {href && (
+          <span className="flex-shrink-0 text-[11.5px] font-bold" style={{ color: c.fg }}>
+            Ver y actuar →
+          </span>
+        )}
+      </div>
       <span className="text-[12px] font-medium text-gris">{children}</span>
+      {nota && <span className="mt-0.5 text-[11px] font-medium text-tenue">{nota}</span>}
+    </>
+  );
+  const clase = "flex flex-col gap-0.5 rounded-[12px] border px-3.5 py-2.5";
+  const estilo = { background: c.bg, borderColor: c.bd };
+  return href ? (
+    <Link href={href} className={`${clase} transition-shadow hover:shadow-[0_2px_10px_rgba(0,0,0,0.08)]`} style={estilo}>
+      {cuerpo}
+    </Link>
+  ) : (
+    <div className={clase} style={estilo}>
+      {cuerpo}
     </div>
   );
 }
