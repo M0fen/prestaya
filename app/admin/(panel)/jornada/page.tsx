@@ -7,26 +7,29 @@
 //  getRendicionesDia / getCentroAlertas) → un supervisor ve solo lo suyo.
 // ─────────────────────────────────────────────────────────────────────────
 import Link from "next/link";
-import { requireGestor } from "@/lib/auth";
+import { requireGestor, getActorActual } from "@/lib/auth";
+import { puedeVerZona } from "@/lib/permisos";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getResumenFinanciero } from "@/lib/data/asesor";
 import { getRendicionesDia } from "@/lib/data/rendicion";
+import { getCierrePorZona, type ResumenCierreZonas } from "@/lib/data/cierreZona";
 import { getCentroAlertas, type Alerta } from "@/lib/data/centroAlertas";
 import { getResumenCompromisos, type ResumenCompromisos } from "@/lib/data/gestionesCobranza";
 import { alcanceDelActor } from "@/lib/data/alcance";
 import { UYU, diasSemana, meses } from "@/lib/format";
 import { hoyUY } from "@/lib/fecha";
 import { BarrasComparativas } from "@/components/charts/BarrasComparativas";
+import { CierrePorZona } from "@/components/admin/CierrePorZona";
 import type { ReactNode } from "react";
 
 export const dynamic = "force-dynamic";
 
 type Acto = "apertura" | "vivo" | "cierre";
-const ACTOS: { id: Acto; n: number; label: string; icon: string }[] = [
-  { id: "apertura", n: 1, label: "Apertura", icon: "🌅" },
-  { id: "vivo", n: 2, label: "En vivo", icon: "🛰️" },
-  { id: "cierre", n: 3, label: "Cierre", icon: "🌙" },
+const ACTOS: { id: Acto; n: number; label: string; icon: string; cuando: string }[] = [
+  { id: "apertura", n: 1, label: "Apertura", icon: "🌅", cuando: "temprano" },
+  { id: "vivo", n: 2, label: "En vivo", icon: "🛰️", cuando: "durante el día" },
+  { id: "cierre", n: 3, label: "Cierre", icon: "🌙", cuando: "al cierre" },
 ];
 
 function horaMontevideo(): number {
@@ -47,13 +50,19 @@ export default async function JornadaPage({
   const db = await createSupabaseServer();
   const alcance = await alcanceDelActor();
 
-  const [resumen, rend, centro, compromisos] = await Promise.all([
+  const actor = await getActorActual();
+  const [resumen, rend, cierre, centro, compromisos] = await Promise.all([
     getResumenFinanciero(db, hoy),
     getRendicionesDia(db, hoy, alcance),
+    getCierrePorZona(db, hoy, alcance),
     getCentroAlertas(db, hoy, alcance),
     getResumenCompromisos(db, alcance, hoy),
   ]);
   const { cartera, recaudacion, mora, cobradores } = resumen;
+  // Zonas que este gestor puede sellar (supervisor de la zona; admin todas).
+  const cerrables = actor
+    ? cierre.consolidado.zonas.filter((z) => z.zonaId && puedeVerZona(actor, z.zonaId)).map((z) => z.zonaId as string)
+    : [];
 
   // Nombre de la zona (etiqueta): la tabla `zonas` está bloqueada por RLS para el
   // gestor con zona, así que se resuelve con el cliente admin, igual que en la app
@@ -136,8 +145,10 @@ export default async function JornadaPage({
             <Link
               key={a.id}
               href={`/admin/jornada?acto=${a.id}`}
-              className={`flex flex-col gap-1 rounded-[15px] border p-3 transition-colors ${
-                activo ? "border-azul bg-[#EEF3FF]" : "border-borde bg-tarjeta hover:bg-suave"
+              className={`flex flex-col gap-1 rounded-[15px] border p-3 transition-all ${
+                activo
+                  ? "border-azul bg-[#EEF3FF] shadow-[0_6px_20px_rgba(30,71,200,0.16)]"
+                  : "border-borde bg-tarjeta hover:bg-suave hover:shadow-[0_2px_10px_rgba(15,27,61,0.06)]"
               }`}
             >
               <div className="flex items-center justify-between">
@@ -153,6 +164,7 @@ export default async function JornadaPage({
               <span className={`text-[14px] font-extrabold ${activo ? "text-tinta" : "text-cuerpo"}`}>
                 {a.icon} {a.label}
               </span>
+              <span className={`text-[10.5px] font-medium ${activo ? "text-azul/70" : "text-tenue"}`}>{a.cuando}</span>
             </Link>
           );
         })}
@@ -182,14 +194,7 @@ export default async function JornadaPage({
           alertas={centro.alertas}
         />
       )}
-      {acto === "cierre" && (
-        <Cierre
-          rendidas={rend.rendidas}
-          pendientes={sinRendir}
-          totalFaltante={rend.totalFaltante}
-          disponible={rend.disponible}
-        />
-      )}
+      {acto === "cierre" && <Cierre cierre={cierre} cerrables={cerrables} />}
     </div>
   );
 }
@@ -399,20 +404,10 @@ function EnVivo({
   );
 }
 
-/* ── ACTO 3 · CIERRE ───────────────────────────────────────────────────── */
-function Cierre({
-  rendidas,
-  pendientes,
-  totalFaltante,
-  disponible,
-}: {
-  rendidas: { cobradorId: string; cobradorNombre?: string; recaudado: number; entregado: number; diferencia: number }[];
-  pendientes: { cobradorId: string; nombre: string; recaudado: number; cobros: number }[];
-  totalFaltante: number;
-  disponible: boolean;
-}) {
-  const totalRecaudado = rendidas.reduce((s, r) => s + r.recaudado, 0) + pendientes.reduce((s, p) => s + p.recaudado, 0);
-  const totalEntregado = rendidas.reduce((s, r) => s + r.entregado, 0);
+/* ── ACTO 3 · CIERRE (cuadre de caja) ──────────────────────────────────── */
+function Cierre({ cierre, cerrables }: { cierre: ResumenCierreZonas; cerrables: string[] }) {
+  const c = cierre.consolidado;
+  const diferencia = c.totalSobrante - c.totalFaltante;
   return (
     <div className="flex flex-col gap-4">
       <Encabezado
@@ -420,69 +415,38 @@ function Cierre({
         bajada="Recibí el efectivo de cada cobrador, revisá que cuadre y sellá el cierre de tu zona."
       />
 
-      {!disponible && (
-        <LineaCalma texto="El estado de rendiciones no está disponible (falta correr la migración de rendición)." />
+      {!cierre.disponible ? (
+        <LineaCalma texto="El cierre de jornada necesita la migración de rendición (0013)." />
+      ) : (
+        <>
+          {/* Cuadre de un vistazo: recaudado − gastos = esperado → entregado → diferencia. */}
+          <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
+            <TotalCierre etiqueta="Recaudado" valor={UYU(c.totalRecaudado)} color="#157A50" />
+            <TotalCierre etiqueta="Entregado" valor={UYU(c.totalEntregado)} color="#1E47C8" />
+            <TotalCierre
+              etiqueta={c.totalFaltante > 0 ? "Faltante" : "Diferencia"}
+              valor={c.totalFaltante > 0 ? UYU(c.totalFaltante) : UYU(diferencia)}
+              color={c.totalFaltante > 0 ? "#C0392B" : diferencia > 0 ? "#B9770E" : "#157A50"}
+            />
+            <TotalCierre etiqueta="Por rendir" valor={UYU(c.porRendir)} color={c.porRendir > 0 ? "#B9770E" : "#8A93AC"} />
+          </div>
+
+          {/* Efectivo que el supervisor consolida y entrega a caja central. */}
+          <div className="flex items-center justify-between overflow-hidden rounded-[16px] bg-[linear-gradient(150deg,#1E47C8_0%,#13308C_60%,#0F1B3D_100%)] px-4 py-3.5 text-white shadow-[0_10px_24px_rgba(15,27,61,0.28)]">
+            <div className="flex flex-col">
+              <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/55">Efectivo a caja central</span>
+              <span className="text-[11.5px] font-medium text-white/60">
+                {c.rendidos} rindió{c.rendidos === 1 ? "" : "eron"}
+                {c.pendientes > 0 ? ` · ${c.pendientes} en la calle` : " · todos entregaron"}
+              </span>
+            </div>
+            <span className="text-[24px] font-black tabular-nums">{UYU(c.totalEntregado)}</span>
+          </div>
+
+          {/* Worksheet de cuadre por zona + sello de custodia (reusa el de Caja). */}
+          <CierrePorZona resumen={cierre} cerrables={cerrables} />
+        </>
       )}
-
-      {/* Totales del cierre */}
-      <div className="grid grid-cols-3 gap-2.5">
-        <TotalCierre etiqueta="Recaudado" valor={UYU(totalRecaudado)} color="#157A50" />
-        <TotalCierre etiqueta="Entregado" valor={UYU(totalEntregado)} color="#1E47C8" />
-        <TotalCierre etiqueta="Faltante" valor={UYU(totalFaltante)} color={totalFaltante > 0 ? "#C0392B" : "#8A93AC"} />
-      </div>
-
-      {/* Quién todavía no rindió */}
-      {pendientes.length > 0 && (
-        <Panel titulo={`Falta que rindan (${pendientes.length})`} href="/admin/caja" cta="Ir a Caja →" tono="ambar">
-          <ul className="flex flex-col gap-2">
-            {pendientes.map((p) => (
-              <li key={p.cobradorId} className="flex items-center justify-between rounded-[12px] bg-suave px-3 py-2.5">
-                <span className="text-[13px] font-bold text-tinta">{p.nombre}</span>
-                <span className="text-[12.5px] font-semibold tabular-nums text-[#9A6A0E]">
-                  {UYU(p.recaudado)} · {p.cobros} cobro(s) en la calle
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Panel>
-      )}
-
-      {/* Ya rindieron */}
-      <Panel titulo={`Rindieron (${rendidas.length})`} href="/admin/caja" cta="Cerrar mi zona →" tono="neutro">
-        {rendidas.length > 0 ? (
-          <ul className="flex flex-col gap-2">
-            {rendidas.map((r) => {
-              const falta = r.diferencia < 0;
-              const sobra = r.diferencia > 0;
-              return (
-                <li key={r.cobradorId} className="flex items-center justify-between rounded-[12px] bg-suave px-3 py-2.5">
-                  <div className="flex flex-col">
-                    <span className="text-[13px] font-bold text-tinta">{r.cobradorNombre ?? "Cobrador"}</span>
-                    <span className="text-[11.5px] font-medium text-gris tabular-nums">
-                      Recaudó {UYU(r.recaudado)} · entregó {UYU(r.entregado)}
-                    </span>
-                  </div>
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-[11px] font-bold tabular-nums ${
-                      falta ? "bg-[#FBE4E2] text-[#C0392B]" : sobra ? "bg-[#FBF1DC] text-[#9A6A0E]" : "bg-[#E7F6EF] text-[#157A50]"
-                    }`}
-                  >
-                    {falta ? `Falta ${UYU(-r.diferencia)}` : sobra ? `Sobra ${UYU(r.diferencia)}` : "Cuadra"}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <p className="py-6 text-center text-[12.5px] font-medium text-gris">Todavía no rindió ningún cobrador hoy.</p>
-        )}
-        <Link
-          href="/admin/caja"
-          className="mt-3 flex items-center justify-center rounded-[13px] bg-azul px-4 py-3 text-[13.5px] font-extrabold text-white hover:bg-azul-osc"
-        >
-          Recibir efectivo y cerrar mi zona
-        </Link>
-      </Panel>
     </div>
   );
 }
