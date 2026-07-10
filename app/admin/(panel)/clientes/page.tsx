@@ -5,6 +5,7 @@ import Link from "next/link";
 import { requireGestor } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getClientesListaAdmin } from "@/lib/data/clientes";
+import { FichaRapidaBoton } from "@/components/admin/FichaRapida";
 import type { Calificacion } from "@/types/db";
 
 export const dynamic = "force-dynamic";
@@ -127,6 +128,7 @@ export default async function ClientesPage({
                 <th className="px-3 py-2.5 text-center">Créditos</th>
                 <th className="px-3 py-2.5 text-center">Reportado</th>
                 <th className="px-3 py-2.5 text-center">Calificación</th>
+                <th className="px-3 py-2.5 text-center">Ver</th>
               </tr>
             </thead>
             <tbody>
@@ -160,6 +162,11 @@ export default async function ClientesPage({
                       >
                         {banda.label}
                       </span>
+                    </td>
+                    <td className="px-3 py-2.5 text-center">
+                      <div className="flex justify-center">
+                        <FichaRapidaBoton clienteId={c.id} />
+                      </div>
                     </td>
                   </tr>
                 );

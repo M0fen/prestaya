@@ -10,6 +10,7 @@ import type { NivelRiesgo, TendenciaMora } from "@/types/alerta";
 import { UYU } from "@/lib/format";
 import { hrefSeguro } from "@/lib/seguridad";
 import { FormPoliticaMora } from "@/components/admin/FormPoliticaMora";
+import { FichaRapidaBoton } from "@/components/admin/FichaRapida";
 
 export const dynamic = "force-dynamic";
 
@@ -105,6 +106,7 @@ export default async function MoraPage() {
                       Castigo
                     </span>
                   )}
+                  <FichaRapidaBoton clienteId={m.clienteId} />
                 </div>
               </li>
             ))}
@@ -145,12 +147,15 @@ export default async function MoraPage() {
                     {c.cobradorNombre ? ` · ${c.cobradorNombre}` : ""}
                   </span>
                 </div>
-                <span
-                  className="flex-shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold"
-                  style={{ background: nivel.bg, color: nivel.fg }}
-                >
-                  {nivel.label} · {c.alerta.riesgo}
-                </span>
+                <div className="flex flex-shrink-0 items-center gap-2">
+                  <span
+                    className="rounded-full px-2.5 py-1 text-[11px] font-bold"
+                    style={{ background: nivel.bg, color: nivel.fg }}
+                  >
+                    {nivel.label} · {c.alerta.riesgo}
+                  </span>
+                  <FichaRapidaBoton clienteId={c.clienteId} />
+                </div>
               </div>
 
               {/* Señales clave */}
