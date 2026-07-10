@@ -141,6 +141,63 @@ export function FichaRapidaBoton({ clienteId }: { clienteId: string }) {
                   )}
                 </div>
 
+                {/* Scoring y comportamiento (de esto dependen mora, renovación, premios) */}
+                {ficha.score && (
+                  <div className="mt-3 flex flex-col gap-2 rounded-[12px] border border-borde p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wide text-gris">
+                        Scoring y comportamiento
+                      </span>
+                      <span
+                        className="rounded-full px-2 py-0.5 text-[10.5px] font-bold"
+                        style={{
+                          background: (BANDA[ficha.score.banda] ?? BANDA.nuevo).bg,
+                          color: (BANDA[ficha.score.banda] ?? BANDA.nuevo).fg,
+                        }}
+                      >
+                        {ficha.score.puntaje}/1000 · {(BANDA[ficha.score.banda] ?? BANDA.nuevo).label}
+                      </span>
+                    </div>
+
+                    <p className="text-[12px] font-medium text-cuerpo">
+                      💡 {ficha.score.recomendacion.resumen}
+                      {ficha.score.recomendacion.montoSugerido != null && (
+                        <> · sugerido <b>{UYU(ficha.score.recomendacion.montoSugerido)}</b></>
+                      )}
+                    </p>
+
+                    <div className="grid grid-cols-3 gap-1.5 text-center">
+                      <MiniScore k="Cumplimiento" v={`${ficha.score.metricas.cumplimientoPct}%`} />
+                      <MiniScore k="Puntualidad" v={`${ficha.score.metricas.puntualidadPct}%`} />
+                      <MiniScore k="Antigüedad" v={`${ficha.score.metricas.mesesComoCliente} m`} />
+                      <MiniScore k="Créditos" v={`${ficha.score.metricas.creditosFinalizados}/${ficha.score.metricas.creditosTotales}`} />
+                      <MiniScore k="Atraso hoy" v={`${ficha.score.metricas.diasAtrasoActual} d`} tono={ficha.score.metricas.diasAtrasoActual > 0 ? "#C0392B" : undefined} />
+                      <MiniScore k="Incobrables" v={String(ficha.score.metricas.incobrables)} tono={ficha.score.metricas.incobrables > 0 ? "#C0392B" : undefined} />
+                    </div>
+
+                    <div className="flex flex-col gap-0.5 border-t border-linea pt-1.5">
+                      {ficha.score.factores.map((f, i) => (
+                        <div key={i} className="flex items-center justify-between gap-2 text-[11px]">
+                          <span className="min-w-0 flex-1 truncate text-gris">
+                            {f.etiqueta} · {f.detalle}
+                          </span>
+                          <span
+                            className="flex-shrink-0 font-bold tabular-nums"
+                            style={{ color: f.sentido === "positivo" ? "#157A50" : f.sentido === "negativo" ? "#C0392B" : "#6B7494" }}
+                          >
+                            {f.puntos >= 0 ? "+" : ""}{f.puntos}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    {!ficha.score.datosSuficientes && (
+                      <p className="text-[10.5px] font-medium text-[#B9770E]">
+                        ⚠ Historial corto: el puntaje aún no es confiable (evaluar a mano).
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <Link
                   href={`/admin/clientes/${ficha.id}`}
                   className="mt-4 inline-flex w-full items-center justify-center rounded-[12px] bg-[#2453DC] px-4 py-2.5 text-[13px] font-bold text-white"
@@ -170,6 +227,15 @@ function Mini({ k, v, tono }: { k: string; v: string; tono?: string }) {
     <div className="flex flex-col rounded-[10px] bg-suave py-1.5">
       <span className="text-[13px] font-extrabold tabular-nums" style={{ color: tono ?? "#1A2247" }}>{v}</span>
       <span className="text-[9.5px] font-semibold text-tenue">{k}</span>
+    </div>
+  );
+}
+
+function MiniScore({ k, v, tono }: { k: string; v: string; tono?: string }) {
+  return (
+    <div className="flex flex-col rounded-[8px] bg-suave py-1">
+      <span className="text-[12.5px] font-extrabold tabular-nums" style={{ color: tono ?? "#1A2247" }}>{v}</span>
+      <span className="text-[9px] font-semibold text-tenue">{k}</span>
     </div>
   );
 }

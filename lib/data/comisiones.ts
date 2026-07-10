@@ -9,6 +9,61 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getResumenPeriodo, type Periodo } from "./periodo";
 import { calcularComision } from "@/lib/comision";
 import { columnaFaltante } from "./errores";
+import { meses } from "@/lib/format";
+
+/** Período canónico ("mes:2026-07") → etiqueta legible ("Julio 2026"). */
+export function etiquetaPeriodoKey(key: string): string {
+  const [tipo, val] = (key ?? "").split(":");
+  if (!val) return key;
+  const [y, m, d] = val.split("-").map(Number);
+  const mesN = (mm: number) => meses[mm - 1] ?? "";
+  if (tipo === "mes") return `${mesN(m)} ${y}`;
+  if (tipo === "anio") return `Año ${y}`;
+  if (tipo === "dia") return `${d} ${mesN(m).slice(0, 3)} ${y}`;
+  if (tipo === "semana") return `Semana del ${d} ${mesN(m).slice(0, 3)}`;
+  return key;
+}
+
+export interface Liquidacion {
+  id: string;
+  cobradorNombre: string;
+  periodoKey: string;
+  monto: number;
+  liquidadoPorNombre: string | null;
+  liquidadoEn: string;
+}
+
+/** Historial de comisiones ya liquidadas (más reciente primero). Vacío si falta 0049. */
+export async function getHistorialLiquidaciones(
+  db: SupabaseClient,
+  limite = 40,
+): Promise<Liquidacion[]> {
+  try {
+    const { data, error } = await db
+      .from("comisiones_liquidadas")
+      .select("id, cobrador_id, periodo_key, monto, liquidado_por_nombre, liquidado_en")
+      .order("liquidado_en", { ascending: false })
+      .limit(limite);
+    if (error) throw error;
+    const rows = (data ?? []) as Record<string, unknown>[];
+    const ids = [...new Set(rows.map((r) => r.cobrador_id as string).filter(Boolean))];
+    const nombre = new Map<string, string>();
+    if (ids.length > 0) {
+      const { data: us } = await db.from("usuarios").select("id, nombre").in("id", ids);
+      for (const u of us ?? []) nombre.set(u.id as string, u.nombre as string);
+    }
+    return rows.map((r) => ({
+      id: r.id as string,
+      cobradorNombre: nombre.get(r.cobrador_id as string) ?? "Cobrador",
+      periodoKey: r.periodo_key as string,
+      monto: Number(r.monto),
+      liquidadoPorNombre: (r.liquidado_por_nombre as string | null) ?? null,
+      liquidadoEn: r.liquidado_en as string,
+    }));
+  } catch {
+    return [];
+  }
+}
 
 export interface FilaComision {
   cobradorId: string;

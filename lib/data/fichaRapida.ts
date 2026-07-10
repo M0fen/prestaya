@@ -5,6 +5,7 @@
 //  score y foto. Reusa el cartón (verdad única) para no duplicar lógica.
 // ─────────────────────────────────────────────────────────────────────────
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { ResultadoScore } from "@/types/scoring";
 import { calcularEstadosCarton } from "@/lib/cartones";
 import { calcularScore } from "@/lib/scoring";
 import { hoyUY } from "@/lib/fecha";
@@ -34,7 +35,8 @@ export interface FichaRapida {
   reportado: boolean;
   fotoUrl: string | null;
   cobrador: string | null;
-  score: { puntaje: number; banda: string } | null;
+  /** Scoring crediticio completo (puntaje, banda, factores, recomendación, métricas). */
+  score: ResultadoScore | null;
   creditos: CreditoFicha[];
 }
 
@@ -74,12 +76,11 @@ export async function getFichaRapida(
     cobrador = (u?.nombre as string | undefined) ?? null;
   }
 
-  // Score interno (resiliente).
-  let score: { puntaje: number; banda: string } | null = null;
+  // Scoring interno completo (resiliente): puntaje + factores + recomendación + métricas.
+  let score: ResultadoScore | null = null;
   try {
     const hist = await getHistorialCrediticio(db, clienteId);
-    const s = calcularScore({ ...hist, hoy: hoyCal });
-    score = { puntaje: s.puntaje, banda: s.banda };
+    score = calcularScore({ ...hist, hoy: hoyCal });
   } catch {
     /* sin score */
   }

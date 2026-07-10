@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { requireAdmin, esAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { getComisionesPeriodo } from "@/lib/data/comisiones";
+import { getComisionesPeriodo, getHistorialLiquidaciones, etiquetaPeriodoKey } from "@/lib/data/comisiones";
 import { normalizarPeriodo, PERIODOS } from "@/lib/data/periodo";
 import { TablaComisiones } from "@/components/admin/TablaComisiones";
 import { UYU, meses } from "@/lib/format";
@@ -12,6 +12,19 @@ import { UYU, meses } from "@/lib/format";
 function fCorta(ymd: string): string {
   const [, m, d] = ymd.split("-");
   return `${Number(d)} ${(meses[Number(m) - 1] ?? "").slice(0, 3)}`;
+}
+
+// timestamptz → "9 jul, 20:30" (hora Uruguay).
+function fHora(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—";
+  return new Intl.DateTimeFormat("es-UY", {
+    timeZone: "America/Montevideo",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(d);
 }
 
 export const dynamic = "force-dynamic";
@@ -25,7 +38,10 @@ export default async function ComisionesPage({
   const usuario = await requireAdmin();
   const periodo = normalizarPeriodo((await searchParams).periodo);
   const db = await createSupabaseServer();
-  const r = await getComisionesPeriodo(db, periodo);
+  const [r, historial] = await Promise.all([
+    getComisionesPeriodo(db, periodo),
+    getHistorialLiquidaciones(db),
+  ]);
   const puedeGestionar = esAdmin(usuario.rol);
   // "A liquidar" = solo lo PENDIENTE (los ya liquidados no se vuelven a pagar).
   const aLiquidar = r.filas.filter((f) => !f.liquidado).reduce((s, f) => s + f.comision, 0);
@@ -108,6 +124,33 @@ export default async function ComisionesPage({
         <p className="rounded-[12px] bg-suave px-3.5 py-2.5 text-[12px] font-medium text-gris">
           Estás como supervisor: podés ver las comisiones, pero fijarlas y liquidarlas queda para el administrador.
         </p>
+      )}
+
+      {/* Historial de liquidaciones (auditoría legible de lo ya pagado) */}
+      {historial.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <span className="text-[12px] font-bold uppercase tracking-[0.03em] text-gris">
+            Historial de liquidaciones ({historial.length})
+          </span>
+          <div className="overflow-hidden rounded-[16px] border border-borde bg-tarjeta">
+            <ul className="flex flex-col divide-y divide-linea">
+              {historial.map((l) => (
+                <li key={l.id} className="flex items-center justify-between gap-3 px-3.5 py-2.5">
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate text-[13px] font-bold text-tinta">{l.cobradorNombre}</span>
+                    <span className="text-[11px] font-medium text-tenue">
+                      {etiquetaPeriodoKey(l.periodoKey)}
+                      {l.liquidadoPorNombre ? ` · por ${l.liquidadoPorNombre}` : ""} · {fHora(l.liquidadoEn)}
+                    </span>
+                  </div>
+                  <span className="flex-shrink-0 text-[14px] font-extrabold tabular-nums text-verde">
+                    {UYU(l.monto)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
       )}
 
       <p className="text-[11px] leading-[1.5] font-medium text-[#AEB6CC]">
