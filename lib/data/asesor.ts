@@ -12,6 +12,7 @@ import { getControlCobranza } from "./control";
 import { getSerieRecaudo } from "./series";
 import { getPrestamosActivosPorCliente } from "./prestamos";
 import { getActivosConPagos, pagosDeActivo } from "./activos";
+import { getInformeCartera } from "./informeCartera";
 import { alcanceDelActor, enLotes } from "./alcance";
 import { getPagosDePrestamo } from "./pagos";
 import { getHistorialCrediticio } from "./scoring";
@@ -393,15 +394,59 @@ export async function tendenciaRecaudoTexto(
   return L.join("\n");
 }
 
+// ── Herramienta: RENTABILIDAD / utilidad de la cartera (contable) ──────────
+
+/** Utilidad proyectada, margen y desglose por cobrador, en TEXTO. Solo dueño. */
+export async function rentabilidadTexto(
+  db: SupabaseClient,
+  hoy: Date = new Date(),
+): Promise<string> {
+  const inf = await getInformeCartera(db, {}, hoy);
+  if (inf.filas.length === 0) return "No hay créditos activos para calcular rentabilidad.";
+  const margen = inf.totalVenta > 0 ? (inf.utilidadProyectada / inf.totalVenta) * 100 : 0;
+
+  // Utilidad y cartera por cobrador.
+  const porCob = new Map<string, { cartera: number; utilidad: number; saldo: number; creditos: number }>();
+  for (const f of inf.filas) {
+    const k = f.vendedor ?? "Sin asignar";
+    const a = porCob.get(k) ?? { cartera: 0, utilidad: 0, saldo: 0, creditos: 0 };
+    a.cartera += f.venta;
+    a.utilidad += Math.max(0, f.total - f.venta);
+    a.saldo += f.saldoPte;
+    a.creditos += 1;
+    porCob.set(k, a);
+  }
+  const top = [...porCob.entries()].sort((a, b) => b[1].utilidad - a[1].utilidad).slice(0, 8);
+
+  const L: string[] = [];
+  L.push(`RENTABILIDAD / UTILIDAD (cartera activa, proyectada):`);
+  L.push(`- Capital colocado: ${UYU(inf.totalVenta)} · Total a cobrar con interés: ${UYU(inf.totalConIntereses)}`);
+  L.push(`- Utilidad proyectada (interés a ganar si todos pagan): ${UYU(inf.utilidadProyectada)} → margen ${Math.round(margen)}% sobre el capital.`);
+  L.push(`- Ya recaudado de esta cartera: ${UYU(inf.totalRecaudado)} · Saldo por cobrar: ${UYU(inf.deudaTotalAHoy)}`);
+  L.push(`- Utilidad por cobrador (top, proyectada):`);
+  for (const [nom, v] of top) {
+    const m = v.cartera > 0 ? Math.round((v.utilidad / v.cartera) * 100) : 0;
+    L.push(`  · ${nom}: cartera ${UYU(v.cartera)} en ${v.creditos} créd., utilidad ${UYU(v.utilidad)} (margen ${m}%), saldo ${UYU(v.saldo)}`);
+  }
+  L.push(`Nota contable: la utilidad es PROYECTADA (interés total pactado, no todo cobrado aún). Para la GANANCIA NETA real restá gastos operativos, comisiones (~3% del recaudo) y la mora incobrable.`);
+  return L.join("\n");
+}
+
 /** Vuelca el resumen a un texto compacto y legible para el modelo (contexto). */
 export function resumenComoTexto(r: ResumenFinanciero): string {
   const pct = (x: number) => `${Math.round(x * 100)}%`;
   const L: string[] = [];
   L.push(`FOTO DE LA OPERACIÓN (moneda: pesos uruguayos, UYU).`);
   L.push("");
-  L.push(`CARTERA:`);
-  L.push(`- Capital colocado (activo): ${UYU(r.cartera.capitalColocado)}`);
-  L.push(`- Cartera por cobrar (saldo): ${UYU(r.cartera.carteraPorCobrar)}`);
+  const utilidadProy = Math.max(0, r.cartera.conIntereses - r.cartera.capitalColocado);
+  const margen = r.cartera.capitalColocado > 0 ? utilidadProy / r.cartera.capitalColocado : 0;
+  L.push(`CARTERA (estado contable de la cartera activa):`);
+  L.push(`- Capital colocado (lo prestado, activo): ${UYU(r.cartera.capitalColocado)}`);
+  L.push(`- Total a cobrar con interés (venta bruta): ${UYU(r.cartera.conIntereses)}`);
+  L.push(`- Utilidad/interés PROYECTADO (si todos pagan): ${UYU(utilidadProy)} → margen ${pct(margen)} sobre el capital`);
+  L.push(`- Recaudado acumulado de la cartera activa: ${UYU(r.cartera.recaudadoAcumulado)}`);
+  L.push(`- Cartera por cobrar (saldo pendiente hoy): ${UYU(r.cartera.carteraPorCobrar)}${r.cartera.carteraVip > 0 ? ` (de eso, VIP/especial: ${UYU(r.cartera.carteraVip)})` : ""}`);
+  L.push(`- Vence hoy y aún sin saldar: ${UYU(r.cartera.porCobrarHoy)}`);
   L.push(`- Créditos activos: ${r.cartera.creditosActivos} · deudores con crédito activo: ${r.cartera.deudoresActivos} · clientes registrados: ${r.cartera.clientesActivos}`);
   L.push(`- Créditos finalizados: ${r.cartera.creditosFinalizados} · incobrables: ${r.cartera.incobrables}`);
   L.push("");

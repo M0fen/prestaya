@@ -82,10 +82,12 @@ describe("herramientasPara (filtrado de contexto por rol)", () => {
     const sup = herramientasPara("supervisor").map((h) => h.function.name);
     expect(admin).toContain("proyeccion_caja");
     expect(admin).toContain("tendencia_recaudo");
-    // El supervisor NO ve proyección de caja ni la tendencia GLOBAL de recaudo.
+    expect(admin).toContain("rentabilidad");
+    // El supervisor NO ve proyección de caja, tendencia GLOBAL ni rentabilidad (dueño).
     expect(sup).not.toContain("proyeccion_caja");
     expect(sup).not.toContain("tendencia_recaudo");
-    expect(sup).toHaveLength(admin.length - 2);
+    expect(sup).not.toContain("rentabilidad");
+    expect(sup).toHaveLength(admin.length - 3);
     // La operación de SU zona SÍ la ve el supervisor.
     expect(sup).toContain("tablero_mora");
     expect(sup).toContain("ranking_cobradores");

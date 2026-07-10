@@ -22,6 +22,7 @@ import {
   tableroMoraTexto,
   rankingCobradoresTexto,
   tendenciaRecaudoTexto,
+  rentabilidadTexto,
 } from "@/lib/data/asesor";
 import {
   construirSystemPrompt,
@@ -144,6 +145,7 @@ async function ejecutarHerramienta(
   if (name === "tablero_mora") return tableroMoraTexto(db);
   if (name === "ranking_cobradores") return rankingCobradoresTexto(db);
   if (name === "tendencia_recaudo") return tendenciaRecaudoTexto(db, args.dias ?? 14);
+  if (name === "rentabilidad") return rentabilidadTexto(db);
   return `Herramienta desconocida: ${name}`;
 }
 
