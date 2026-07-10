@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getRecibos } from "@/lib/data/recibos";
 import { RecibosManager } from "@/components/admin/RecibosManager";
+import { NEGOCIO } from "@/lib/negocio";
 
 export const dynamic = "force-dynamic";
 
@@ -14,13 +15,17 @@ export default async function RecibosPage() {
   const [{ data: us }, recibos] = await Promise.all([
     db
       .from("usuarios")
-      .select("id, nombre")
+      .select("id, nombre, documento")
       .in("rol", ["cobrador", "supervisor"])
       .eq("activo", true)
       .order("nombre"),
     getRecibos(db),
   ]);
-  const trabajadores = (us ?? []).map((u) => ({ id: u.id as string, nombre: u.nombre as string }));
+  const trabajadores = (us ?? []).map((u) => ({
+    id: u.id as string,
+    nombre: u.nombre as string,
+    documento: (u.documento as string | null) ?? null,
+  }));
 
   return (
     <div className="mx-auto flex max-w-[820px] flex-col gap-5">
@@ -32,7 +37,7 @@ export default async function RecibosPage() {
         </span>
       </div>
 
-      <RecibosManager trabajadores={trabajadores} recibos={recibos} negocio="Presta Ya" />
+      <RecibosManager trabajadores={trabajadores} recibos={recibos} negocio={NEGOCIO} />
 
       <p className="text-[11px] leading-[1.5] font-medium text-[#AEB6CC] print:hidden">
         Es un comprobante interno de pago, no una factura fiscal (eso lo regula la DGI). Requiere la

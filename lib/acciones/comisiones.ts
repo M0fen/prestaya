@@ -11,8 +11,10 @@ import { getUsuarioActual, esAdmin } from "@/lib/auth";
 import { setComisionPctDb } from "@/lib/data/comisiones";
 import { registrarMovimientoCaja } from "@/lib/data/caja";
 import { registrarAuditoria } from "@/lib/data/auditoria";
+import { crearReciboDb } from "@/lib/data/recibos";
 
 type Resultado = { ok: true } | { ok: false; error: string };
+type ResultadoLiquidar = { ok: true; reciboNumero?: number } | { ok: false; error: string };
 
 export async function setComisionPct(cobradorId: string, pct: number): Promise<Resultado> {
   const u = await getUsuarioActual();
@@ -46,7 +48,7 @@ export async function liquidarComision(input: {
   monto: number;
   periodo: string; // etiqueta legible (para la descripción)
   periodoKey: string; // clave canónica (candado idempotente)
-}): Promise<Resultado> {
+}): Promise<ResultadoLiquidar> {
   const u = await getUsuarioActual();
   if (!u || !u.activo || !esAdmin(u.rol))
     return { ok: false, error: "Solo el administrador puede liquidar comisiones." };
@@ -89,9 +91,30 @@ export async function liquidarComision(input: {
       entidadId: input.cobradorId,
       detalle: `${input.nombre}: $${monto.toLocaleString("es-UY")} (${input.periodo})`,
     });
+
+    // Emite el comprobante de pago de la comisión (numerado, con monto en letras).
+    // Best-effort: si falta 0046 (recibos) NO rompe la liquidación, que ya cerró.
+    let reciboNumero: number | undefined;
+    try {
+      const recibo = await crearReciboDb(db, {
+        trabajadorId: input.cobradorId,
+        trabajadorNombre: input.nombre,
+        concepto: "Comisión",
+        monto,
+        periodo: input.periodo,
+        nota: null,
+        emitidoPor: u.id,
+        emitidoPorNombre: u.nombre,
+      });
+      reciboNumero = recibo.numero;
+    } catch {
+      /* recibos (0046) no disponible → la comisión queda liquidada igual */
+    }
+
     revalidatePath("/admin/comisiones");
     revalidatePath("/admin/caja");
-    return { ok: true };
+    revalidatePath("/admin/recibos");
+    return { ok: true, reciboNumero };
   } catch {
     // La caja falló DESPUÉS del candado → revertir para no dejar "liquidado"
     // sin el egreso (si no, quedaría marcado pagado sin haber salido de caja).

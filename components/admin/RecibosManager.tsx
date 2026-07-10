@@ -5,7 +5,9 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { UYU } from "@/lib/format";
 import { emitirRecibo } from "@/lib/acciones/recibos";
+import { montoALetras } from "@/lib/numeroALetras";
 import type { Recibo } from "@/lib/data/recibos";
+import type { Negocio } from "@/types/cartones";
 
 const input =
   "rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[14px] text-tinta outline-none focus:border-azul";
@@ -30,11 +32,13 @@ export function RecibosManager({
   recibos,
   negocio,
 }: {
-  trabajadores: { id: string; nombre: string }[];
+  trabajadores: { id: string; nombre: string; documento?: string | null }[];
   recibos: Recibo[];
-  negocio: string;
+  negocio: Negocio;
 }) {
   const router = useRouter();
+  // Documento por trabajador (para mostrarlo en el comprobante sin guardarlo en la fila).
+  const docPorTrabajador = new Map(trabajadores.map((t) => [t.id, t.documento ?? null]));
   const [trabajadorId, setTrabajadorId] = useState(trabajadores[0]?.id ?? "");
   const [concepto, setConcepto] = useState(CONCEPTOS[0]);
   const [monto, setMonto] = useState("");
@@ -70,7 +74,11 @@ export function RecibosManager({
       {/* Recibo recién emitido (imprimible) */}
       {emitido && (
         <div className="flex flex-col gap-2">
-          <ReciboImprimible recibo={emitido} negocio={negocio} />
+          <ReciboImprimible
+            recibo={emitido}
+            negocio={negocio}
+            documento={docPorTrabajador.get(emitido.trabajadorId ?? "") ?? null}
+          />
           <div className="flex gap-2 print:hidden">
             <button
               type="button"
@@ -173,41 +181,76 @@ export function RecibosManager({
   );
 }
 
-/** Recibo imprimible (comprobante interno de pago). */
-function ReciboImprimible({ recibo, negocio }: { recibo: Recibo; negocio: string }) {
+/** Recibo imprimible (comprobante interno de pago) con datos fiscales, documento
+ *  del que recibe y el monto EN LETRAS (lo que hace serio a un recibo). */
+function ReciboImprimible({
+  recibo,
+  negocio,
+  documento,
+}: {
+  recibo: Recibo;
+  negocio: Negocio;
+  documento: string | null;
+}) {
+  const fiscal = [
+    negocio.rut ? `RUT ${negocio.rut}` : null,
+    negocio.direccion || null,
+    negocio.telefono ? `Tel. ${negocio.telefono}` : null,
+  ]
+    .filter(Boolean)
+    .join("  ·  ");
+  const numero = String(recibo.numero).padStart(6, "0");
+
   return (
-    <div className="mx-auto w-full max-w-[520px] rounded-[16px] border border-borde bg-white p-6 text-[#0F1B3D]">
-      <div className="flex items-start justify-between border-b border-[#E6EAF4] pb-3">
-        <div className="flex flex-col">
-          <span className="text-[17px] font-extrabold">{negocio}</span>
-          <span className="text-[12px] font-medium text-[#6B7494]">Recibo de pago</span>
+    <div className="mx-auto w-full max-w-[560px] rounded-[16px] border border-borde bg-white p-6 text-[#0F1B3D]">
+      {/* Encabezado: negocio + datos fiscales | comprobante numerado */}
+      <div className="flex items-start justify-between gap-3 border-b border-[#E6EAF4] pb-3">
+        <div className="flex min-w-0 flex-col">
+          <span className="text-[18px] font-extrabold tracking-[-0.01em]">{negocio.nombre}</span>
+          {fiscal && <span className="mt-0.5 text-[10.5px] font-medium leading-snug text-[#6B7494]">{fiscal}</span>}
         </div>
-        <div className="flex flex-col items-end">
-          <span className="text-[12px] font-bold text-[#6B7494]">N.º</span>
-          <span className="text-[20px] font-extrabold tabular-nums">{recibo.numero}</span>
+        <div className="flex flex-shrink-0 flex-col items-end">
+          <span className="rounded-[7px] bg-[#EEF3FF] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#1E47C8]">
+            Recibo de pago
+          </span>
+          <span className="mt-1 text-[11px] font-bold text-[#6B7494]">N.º</span>
+          <span className="text-[18px] font-extrabold tabular-nums leading-none">{numero}</span>
         </div>
       </div>
 
       <dl className="flex flex-col gap-2 py-4 text-[13.5px]">
-        <Fila k="Recibí de" v={negocio} />
-        <Fila k="Pagado a" v={recibo.trabajadorNombre} negrita />
+        <Fila k="Recibí de" v={negocio.nombre} />
+        <Fila k="Pagado a" v={recibo.trabajadorNombre + (documento ? `  (Doc. ${documento})` : "")} negrita />
         <Fila k="Concepto" v={recibo.concepto} />
         {recibo.periodo && <Fila k="Período" v={recibo.periodo} />}
         {recibo.nota && <Fila k="Nota" v={recibo.nota} />}
         <Fila k="Fecha" v={fechaLarga(recibo.emitidoEn)} />
       </dl>
 
-      <div className="flex items-center justify-between rounded-[12px] bg-[#F1FBF6] px-4 py-3">
-        <span className="text-[13px] font-bold text-[#157A50]">Total</span>
-        <span className="text-[22px] font-extrabold tabular-nums text-[#157A50]">{UYU(recibo.monto)}</span>
+      {/* Total en cifras + EN LETRAS (anti-adulteración, estándar del comprobante) */}
+      <div className="flex flex-col gap-1 rounded-[12px] bg-[#F1FBF6] px-4 py-3">
+        <div className="flex items-center justify-between">
+          <span className="text-[13px] font-bold text-[#157A50]">Total</span>
+          <span className="text-[22px] font-extrabold tabular-nums text-[#157A50]">{UYU(recibo.monto)}</span>
+        </div>
+        <span className="text-[12px] font-semibold text-[#157A50]">
+          Son: {montoALetras(recibo.monto)}.
+        </span>
       </div>
 
       <div className="mt-8 grid grid-cols-2 gap-6 text-center text-[11.5px] text-[#6B7494]">
-        <div className="border-t border-[#0F1B3D] pt-1">Firma de quien recibe</div>
+        <div className="border-t border-[#0F1B3D] pt-1">
+          Firma de quien recibe
+          {documento && <div className="text-[10px] text-[#8A93AC]">Doc. {documento}</div>}
+        </div>
         <div className="border-t border-[#0F1B3D] pt-1">
           {recibo.emitidoPorNombre ? `Por ${recibo.emitidoPorNombre}` : "Firma de quien paga"}
         </div>
       </div>
+
+      <p className="mt-4 text-center text-[9.5px] leading-snug text-[#AEB6CC]">
+        Comprobante interno de pago. No es una factura fiscal (DGI).
+      </p>
     </div>
   );
 }

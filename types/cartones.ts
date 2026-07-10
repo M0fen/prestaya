@@ -84,6 +84,8 @@ export interface Negocio {
   direccion: string;
   telefono: string;
   horario: string;
+  /** Identificador fiscal (Uruguay: RUT) para comprobantes. Opcional. */
+  rut?: string;
 }
 
 /** Una casilla del cartón, lista para pintar (con datos para el detalle al tocar). */

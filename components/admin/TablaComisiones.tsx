@@ -4,6 +4,7 @@
 // para LIQUIDAR (registra el egreso en caja). Solo gestores llegan acá.
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { UYU } from "@/lib/format";
 import { calcularComision } from "@/lib/comision";
 import { setComisionPct, liquidarComision } from "@/lib/acciones/comisiones";
@@ -65,6 +66,7 @@ function Fila({
   const [pct, setPct] = useState(String(f.pct));
   const [error, setError] = useState<string | null>(null);
   const [okMsg, setOkMsg] = useState<string | null>(null);
+  const [reciboNum, setReciboNum] = useState<number | null>(null);
   const [pendiente, startTransition] = useTransition();
 
   const pctN = Math.max(0, Math.min(100, Number(pct) || 0));
@@ -89,8 +91,11 @@ function Fila({
         if (!r1.ok) { setError(r1.error); return; }
       }
       const res = await liquidarComision({ cobradorId: f.cobradorId, nombre: f.nombre, monto: comision, periodo: etiqueta, periodoKey });
-      if (res.ok) { setOkMsg("Liquidada ✓"); router.refresh(); }
-      else setError(res.error);
+      if (res.ok) {
+        setOkMsg("Liquidada ✓");
+        if (res.reciboNumero) setReciboNum(res.reciboNumero);
+        router.refresh();
+      } else setError(res.error);
     });
   };
 
@@ -147,7 +152,15 @@ function Fila({
             </button>
           </div>
           {error && <span className="text-[11px] font-semibold text-[#C0392B]">{error}</span>}
-          {okMsg && <span className="text-[11px] font-semibold text-verde">{okMsg}</span>}
+          {okMsg && !reciboNum && <span className="text-[11px] font-semibold text-verde">{okMsg}</span>}
+          {reciboNum && (
+            <Link
+              href="/admin/recibos"
+              className="inline-flex w-fit items-center gap-1 rounded-full bg-[#EEF3FF] px-2.5 py-1 text-[11px] font-bold text-azul"
+            >
+              🧾 Liquidada · Recibo N.º {String(reciboNum).padStart(6, "0")} — ver en Recibos →
+            </Link>
+          )}
         </>
       ) : (
         // Supervisor: solo lectura (tasa vigente, sin poder cambiar ni liquidar).
