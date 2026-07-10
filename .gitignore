@@ -13,3 +13,4 @@ next-env.d.ts
 # Python bytecode de scripts de empalme
 __pycache__/
 *.pyc
+backups-demo/

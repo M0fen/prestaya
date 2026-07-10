@@ -6,7 +6,8 @@
 // ─────────────────────────────────────────────────────────────────────────
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { evaluarZona } from "@/lib/geo";
-import { inicioDiaUYIso } from "@/lib/fecha";
+import { inicioDiaUYIso, hoyUY } from "@/lib/fecha";
+import { toIso } from "@/lib/format";
 import { traerTodo } from "./paginado";
 import { getActivosConPagos } from "./activos";
 import { alcanceDelActor, type Alcance } from "./alcance";
@@ -205,15 +206,28 @@ export async function getControlCobranza(
     if (res !== "pago" && res !== "abono") init(cobradorId).noPagos += 1;
   }
 
-  // Alertas de float alto.
+  // ¿Quién ya rindió hoy? Para NO acusar de "sin rendir" a quien ya cerró su
+  // caja (coherencia: el float alto solo importa mientras el efectivo sigue en
+  // la calle). Degrada al comportamiento previo si falta la tabla (0013).
+  const rendidos = new Set<string>();
+  try {
+    let q = db.from("rendiciones").select("cobrador_id").eq("fecha", toIso(hoyUY(hoy)));
+    if (!alcance.global) q = q.in("cobrador_id", alcance.cobradorIds);
+    const { data } = await q;
+    for (const r of data ?? []) rendidos.add(r.cobrador_id as string);
+  } catch {
+    /* 0013 ausente → nadie figura como rendido; se mantiene la alerta de siempre. */
+  }
+
+  // Alertas de float alto — solo para quien AÚN no rindió (efectivo en la calle).
   for (const c of cobradores) {
     const a = acc.get(c.id)!;
-    if (a.recaudado > LIMITE_FLOAT)
+    if (a.recaudado > LIMITE_FLOAT && !rendidos.has(c.id))
       alertas.push({
         id: `float-${c.id}`,
         severidad: "media",
         titulo: "Float alto sin rendir",
-        detalle: `${c.nombre} lleva $${a.recaudado.toLocaleString("es-UY")} cobrados hoy (sugerido rendir sobre $${LIMITE_FLOAT.toLocaleString("es-UY")}).`,
+        detalle: `${c.nombre} lleva $${a.recaudado.toLocaleString("es-UY")} cobrados hoy y aún no rinde (sugerido rendir sobre $${LIMITE_FLOAT.toLocaleString("es-UY")}).`,
       });
   }
 

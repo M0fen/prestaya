@@ -6,6 +6,8 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { getResumenFinanciero } from "@/lib/data/asesor";
 import { getSerieRecaudo } from "@/lib/data/series";
 import { getResumenPeriodo, normalizarPeriodo, PERIODOS } from "@/lib/data/periodo";
+import { getRendicionesDia } from "@/lib/data/rendicion";
+import { alcanceDelActor } from "@/lib/data/alcance";
 import { getLiquidacionDiaria, type LiquidacionDia } from "@/lib/data/liquidacion";
 import { generarInsights } from "@/lib/insights";
 import { UYU, diasSemana, meses } from "@/lib/format";
@@ -33,12 +35,16 @@ export default async function DashboardPage({
   const db = await createSupabaseServer();
   const periodo = normalizarPeriodo((await searchParams).periodo);
 
+  // Alcance del gestor (admin → todo; supervisor → su zona). Acota la franja de
+  // "Control del día" (faltantes/sin-rendir) a lo que ESE gestor debe vigilar.
+  const alcance = await alcanceDelActor();
   // Base (siempre): cartera/mora/cobradores YA vienen acotadas a la zona del
   // gestor (supervisor → su zona; admin → todo). El "Movimiento" y la serie salen
   // de RPCs de agregado GLOBAL: se muestran SOLO al dueño (para no mezclar zonas).
-  const [resumen, liquidacion] = await Promise.all([
+  const [resumen, liquidacion, rend] = await Promise.all([
     getResumenFinanciero(db, hoy),
     getLiquidacionDiaria(db, hoy),
+    getRendicionesDia(db, hoy, alcance),
   ]);
   const [serie, mov] = admin
     ? await Promise.all([getSerieRecaudo(db, hoy, 14), getResumenPeriodo(db, periodo, hoy)])
@@ -47,6 +53,15 @@ export default async function DashboardPage({
 
   const { cartera, recaudacion, mora, cobradores } = resumen;
   const alDia = Math.max(0, cartera.carteraPorCobrar - mora.monto);
+
+  // ── CONTROL DEL DÍA (anti-fuga, primera plana) ──────────────────────────
+  // Las 4 señales de riesgo del dueño, de un vistazo, cada una clickeable a
+  // donde se actúa. Todo reusa data ya cargada y acotada a la zona del gestor.
+  const faltantes = rend.rendidas.filter((r) => r.diferencia < 0);
+  const sinRendir = rend.pendientes; // recaudaron pero no cerraron: float en calle
+  const floatCalle = sinRendir.reduce((s, p) => s + p.recaudado, 0);
+  const senalesRiesgo =
+    faltantes.length + sinRendir.length + mora.criticos + cobradores.alertas.length;
 
   const insights = generarInsights({
     moraPct: mora.moraPct,
@@ -90,21 +105,34 @@ export default async function DashboardPage({
               {reportesNuevos} reporte(s) sin atender
             </Link>
           )}
-          {/* Acceso al Centro de alertas (anti-fuga): resalta si hay alertas hoy. */}
+          {/* Acceso al Centro de alertas (anti-fuga): resalta si hay señales de
+              riesgo hoy (faltantes/sin-rendir/mora crítica/anomalías), no solo
+              las de vigilancia — así un faltante SÍ enciende el badge. */}
           <Link
             href="/admin/alertas"
             className={`rounded-full px-3 py-1.5 text-[12.5px] font-bold ${
-              cobradores.alertas.length > 0
+              senalesRiesgo > 0
                 ? "bg-[#FBE4E2] text-[#C0392B]"
                 : "border border-borde bg-tarjeta text-gris"
             }`}
           >
-            🚨 {cobradores.alertas.length > 0
-              ? `${cobradores.alertas.length} alerta(s) hoy`
+            🚨 {senalesRiesgo > 0
+              ? `${senalesRiesgo} señal(es) de riesgo`
               : "Centro de alertas"}
           </Link>
         </div>
       </div>
+
+      {/* CONTROL DEL DÍA: las señales de fuga/riesgo en primera plana. */}
+      <ControlDelDia
+        faltantes={faltantes.length}
+        montoFaltante={rend.totalFaltante}
+        sinRendir={sinRendir.length}
+        floatCalle={floatCalle}
+        moraCriticos={mora.criticos}
+        anomalias={cobradores.alertas.length}
+        rendicionesDisponible={rend.disponible}
+      />
 
       {/* Acceso rápido: atajos a las pantallas más usadas (estilo Disapp). */}
       <AccesoRapido admin={admin} />
@@ -316,6 +344,131 @@ export default async function DashboardPage({
         </section>
       </div>
     </div>
+  );
+}
+
+/**
+ * Franja "Control del día": las 4 señales de riesgo del dueño en primera plana,
+ * cada una clickeable a donde se ACTÚA. Marca la lente de necesidad (revela fuga
+ * + da control). Cuando todo está limpio, una línea verde calma (sin alarmismo).
+ * Todo lo que muestra ya viene acotado a la zona del gestor.
+ */
+function ControlDelDia({
+  faltantes,
+  montoFaltante,
+  sinRendir,
+  floatCalle,
+  moraCriticos,
+  anomalias,
+  rendicionesDisponible,
+}: {
+  faltantes: number;
+  montoFaltante: number;
+  sinRendir: number;
+  floatCalle: number;
+  moraCriticos: number;
+  anomalias: number;
+  rendicionesDisponible: boolean;
+}) {
+  const hayRiesgo = faltantes > 0 || sinRendir > 0 || moraCriticos > 0 || anomalias > 0;
+
+  // Todo en orden: reconocerlo, sin ocupar espacio ni gritar.
+  if (!hayRiesgo) {
+    return (
+      <section className="flex items-center gap-2.5 rounded-[14px] border border-[#CFEBDD] bg-[#F1FBF6] px-4 py-3">
+        <span className="text-[16px]">🛡️</span>
+        <span className="text-[13px] font-bold text-[#157A50]">Control del día: todo en orden.</span>
+        <span className="text-[12px] font-medium text-[#4E9E79]">
+          {rendicionesDisponible
+            ? "Sin faltantes de caja, todos rindieron, sin mora crítica ni anomalías."
+            : "Sin mora crítica ni anomalías de cobradores."}
+        </span>
+      </section>
+    );
+  }
+
+  return (
+    <section className="flex flex-col gap-2.5 rounded-[16px] border border-[#F3C9BF] bg-[#FEF6F3] p-4">
+      <div className="flex items-center justify-between">
+        <span className="flex items-center gap-2 text-[14px] font-extrabold text-tinta">
+          🛡️ Control del día
+        </span>
+        <Link href="/admin/alertas" className="text-[12px] font-bold text-[#C0392B]">
+          Centro de alertas →
+        </Link>
+      </div>
+      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+        <ControlTile
+          activo={faltantes > 0}
+          href="/admin/alertas"
+          titulo="Faltantes de caja"
+          valor={faltantes}
+          sub={faltantes > 0 ? `${UYU(montoFaltante)} sin cuadrar` : "todos cuadran"}
+        />
+        <ControlTile
+          activo={sinRendir > 0}
+          href="/admin/alertas"
+          titulo="Sin rendir"
+          valor={sinRendir}
+          sub={sinRendir > 0 ? `${UYU(floatCalle)} en la calle` : "todos rindieron"}
+          tono="ambar"
+        />
+        <ControlTile
+          activo={moraCriticos > 0}
+          href="/admin/mora"
+          titulo="Mora crítica"
+          valor={moraCriticos}
+          sub={moraCriticos > 0 ? "16+ días de atraso" : "sin mora crítica"}
+        />
+        <ControlTile
+          activo={anomalias > 0}
+          href="/admin/alertas"
+          titulo="Anomalías"
+          valor={anomalias}
+          sub={anomalias > 0 ? "conducta de cobrador" : "sin anomalías"}
+          tono="ambar"
+        />
+      </div>
+    </section>
+  );
+}
+
+/** Un tile de la franja de control. Rojo/ámbar si hay señal, apagado si 0. */
+function ControlTile({
+  activo,
+  href,
+  titulo,
+  valor,
+  sub,
+  tono = "rojo",
+}: {
+  activo: boolean;
+  href: string;
+  titulo: string;
+  valor: number;
+  sub: string;
+  tono?: "rojo" | "ambar";
+}) {
+  const c = activo
+    ? tono === "rojo"
+      ? { bg: "#FFFFFF", bd: "#F3C0B8", fg: "#C0392B" }
+      : { bg: "#FFFFFF", bd: "#F0D9A8", fg: "#B9770E" }
+    : { bg: "#FBFCFE", bd: "#E7ECF5", fg: "#8A93AC" };
+  return (
+    <Link
+      href={href}
+      className="flex flex-col gap-0.5 rounded-[13px] border px-3.5 py-3 transition-shadow hover:shadow-[0_2px_10px_rgba(0,0,0,0.06)]"
+      style={{ background: c.bg, borderColor: c.bd }}
+    >
+      <span className="text-[11px] font-bold uppercase tracking-wide text-gris">{titulo}</span>
+      <div className="flex items-baseline justify-between gap-1">
+        <span className="text-[22px] font-extrabold tabular-nums" style={{ color: c.fg }}>
+          {valor}
+        </span>
+        {activo && <span className="text-[12px] font-bold" style={{ color: c.fg }}>Ver →</span>}
+      </div>
+      <span className="text-[11px] font-medium text-tenue">{sub}</span>
+    </Link>
   );
 }
 
