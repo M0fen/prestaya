@@ -8,7 +8,9 @@ import type { Cliente } from "@/types/db";
 import { mapCliente } from "./clientes";
 import { inicioDiaUYIso } from "@/lib/fecha";
 
-export type EstadoHoy = "pagado" | "no_pago" | "pendiente" | "sin_credito";
+// "abono" = pagó HOY pero menos que la cuota (abono parcial). Regla del negocio:
+// un abono parcial NO cubre el día → no es "pagado", queda como pendiente-visto.
+export type EstadoHoy = "pagado" | "abono" | "no_pago" | "pendiente" | "sin_credito";
 
 export interface ItemRuta {
   cliente: Cliente;
@@ -22,6 +24,8 @@ export interface Arqueo {
   esperado: number;
   recaudado: number;
   cobrados: number;
+  /** Clientes con abono PARCIAL hoy (pagó algo, no cubrió la cuota). */
+  abonos: number;
   pendientes: number;
   noPagos: number;
   clientes: number;
@@ -36,10 +40,27 @@ const ARQUEO_VACIO: Arqueo = {
   esperado: 0,
   recaudado: 0,
   cobrados: 0,
+  abonos: 0,
   pendientes: 0,
   noPagos: 0,
   clientes: 0,
 };
+
+/**
+ * Estado del cliente HOY, con la MISMA regla que el cartón (lib/cartones.ts):
+ * cubrir el día exige pagar >= la cuota. Pura y testeable — es la fuente de
+ * verdad de los chips de la ruta y de los contadores del arqueo.
+ */
+export function estadoHoyDe(
+  pagadoHoy: number,
+  cuota: number,
+  esNoPago: boolean,
+): EstadoHoy {
+  if (cuota > 0 && pagadoHoy >= cuota) return "pagado";
+  if (pagadoHoy > 0) return "abono"; // pagó algo pero no cubrió la cuota
+  if (esNoPago) return "no_pago";
+  return "pendiente";
+}
 
 /** Ruta del cobrador logueado + arqueo del día (todo scopeado por RLS). */
 export async function getRutaCobrador(
@@ -118,6 +139,7 @@ export async function getRutaCobrador(
   let esperado = 0;
   let recaudado = 0;
   let cobrados = 0;
+  let abonos = 0;
   let noPagos = 0;
 
   const items: ItemRuta[] = clientes.map((c) => {
@@ -127,14 +149,10 @@ export async function getRutaCobrador(
     esperado += pr.cuota;
     const pagadoHoy = pagadoPorPrestamo.get(pr.id) ?? 0;
     recaudado += pagadoHoy;
-    let estadoHoy: EstadoHoy = "pendiente";
-    if (pagadoHoy > 0) {
-      estadoHoy = "pagado";
-      cobrados++;
-    } else if (noPagoPrestamos.has(pr.id)) {
-      estadoHoy = "no_pago";
-      noPagos++;
-    }
+    const estadoHoy = estadoHoyDe(pagadoHoy, pr.cuota, noPagoPrestamos.has(pr.id));
+    if (estadoHoy === "pagado") cobrados++;
+    else if (estadoHoy === "abono") abonos++;
+    else if (estadoHoy === "no_pago") noPagos++;
     return { cliente: c, prestamoId: pr.id, cuota: pr.cuota, estadoHoy, pagadoHoy };
   });
 
@@ -145,7 +163,9 @@ export async function getRutaCobrador(
       esperado,
       recaudado,
       cobrados,
-      pendientes: Math.max(0, conCredito - cobrados - noPagos),
+      abonos,
+      // Pendientes "puros" = ni cobrados, ni con abono parcial, ni no-pago.
+      pendientes: Math.max(0, conCredito - cobrados - abonos - noPagos),
       noPagos,
       clientes: conCredito,
     },

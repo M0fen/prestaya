@@ -9,6 +9,7 @@ import Link from "next/link";
 import { ordenarPorCercania } from "@/lib/ruta";
 import type { EstadoHoy } from "@/lib/data/ruta";
 import { UYU } from "@/lib/format";
+import { OjitoCliente } from "./OjitoCliente";
 
 export interface ItemRutaVista {
   id: string;
@@ -16,19 +17,23 @@ export interface ItemRutaVista {
   direccion: string | null;
   cuota: number;
   estadoHoy: EstadoHoy;
+  /** Abonado HOY (para mostrar el parcial en el chip "Abonó $X"). */
+  pagadoHoy: number;
   lat: number | null;
   lng: number | null;
 }
 
-const CHIP: Record<EstadoHoy, { label: string; bg: string; fg: string }> = {
-  pagado: { label: "Cobrado", bg: "#E4F5EC", fg: "#157A50" },
-  no_pago: { label: "No pago", bg: "#FBE4E2", fg: "#C0392B" },
-  pendiente: { label: "Pendiente", bg: "#EEF1F8", fg: "#6B7494" },
-  sin_credito: { label: "Sin crédito", bg: "#F2F0FA", fg: "#7A6BA8" },
+// `barra` = franja de color a la izquierda de la tarjeta (jerarquía de un vistazo).
+const CHIP: Record<EstadoHoy, { label: string; bg: string; fg: string; barra: string }> = {
+  pagado: { label: "Cobrado", bg: "#E4F5EC", fg: "#157A50", barra: "#1FA971" },
+  abono: { label: "Abonó", bg: "#FDF3E2", fg: "#B9770E", barra: "#E8A317" },
+  no_pago: { label: "No pago", bg: "#FBE4E2", fg: "#C0392B", barra: "#D64545" },
+  pendiente: { label: "Pendiente", bg: "#EEF1F8", fg: "#6B7494", barra: "#C7D0E4" },
+  sin_credito: { label: "Sin crédito", bg: "#F2F0FA", fg: "#7A6BA8", barra: "#C9BEE6" },
 };
 
-/** Una parada "cerrada" (ya cobrada o marcada no-pago) baja al final. */
-const cerrado = (e: EstadoHoy): boolean => e === "pagado" || e === "no_pago";
+/** Una parada "cerrada" (ya visitada: cobró, abonó parcial o marcó no-pago) baja al final. */
+const cerrado = (e: EstadoHoy): boolean => e === "pagado" || e === "abono" || e === "no_pago";
 
 type Origen = { lat: number; lng: number } | null;
 
@@ -112,43 +117,65 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
         // lista de la ruta (charAt sobre null/undefined tira). "—" si no hay.
         const inicial = (it.nombre ?? "").trim().charAt(0).toUpperCase() || "—";
         const mostrarPaso = porCercania && origen && !cerrado(it.estadoHoy);
+        const esCerrado = cerrado(it.estadoHoy);
+        // Abono parcial: cuánto le falta para cubrir la cuota de hoy.
+        const restaHoy = it.estadoHoy === "abono" ? Math.max(0, it.cuota - it.pagadoHoy) : 0;
         return (
-          <Link
+          <div
             key={it.id}
-            href={`/cobrador/cliente/${it.id}`}
-            className="flex items-center gap-3 rounded-[16px] bg-white px-3.5 py-3 shadow-[0_1px_3px_rgba(26,34,71,0.05)] active:scale-[0.99]"
-            style={{ transition: "transform .1s", opacity: cerrado(it.estadoHoy) ? 0.6 : 1 }}
+            className="relative flex items-center gap-2 overflow-hidden rounded-[16px] bg-white py-2 pr-2 pl-4 shadow-[0_1px_3px_rgba(26,34,71,0.05)]"
+            style={{ opacity: esCerrado ? 0.72 : 1 }}
           >
-            <div className="relative flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[13px] bg-[#2453DC] text-[16px] font-black text-white">
-              {inicial}
-              {mostrarPaso && (
-                <span className="absolute -top-1.5 -left-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#0F1B3D] text-[10px] font-black text-white ring-2 ring-white">
-                  {idx + 1}
+            {/* Franja de estado a la izquierda: se lee la ruta de un vistazo. */}
+            <span
+              aria-hidden="true"
+              className="absolute top-0 bottom-0 left-0 w-1.5"
+              style={{ background: chip.barra }}
+            />
+            {/* Área principal → detalle del cliente. */}
+            <Link
+              href={`/cobrador/cliente/${it.id}`}
+              className="flex min-w-0 flex-1 items-center gap-3 py-1 active:scale-[0.99]"
+              style={{ transition: "transform .1s" }}
+            >
+              <div className="relative flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[13px] bg-[#2453DC] text-[16px] font-black text-white">
+                {inicial}
+                {mostrarPaso && (
+                  <span className="absolute -top-1.5 -left-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#0F1B3D] text-[10px] font-black text-white ring-2 ring-white">
+                    {idx + 1}
+                  </span>
+                )}
+              </div>
+              <div className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-[14.5px] font-bold text-tinta">
+                  {it.nombre}
                 </span>
-              )}
-            </div>
-            <div className="flex min-w-0 flex-1 flex-col">
-              <span className="truncate text-[14.5px] font-bold text-tinta">
-                {it.nombre}
-              </span>
-              <span className="truncate text-[12px] font-medium text-[#8A93AD]">
-                {it.direccion ?? "Sin dirección"}
-              </span>
-            </div>
-            <div className="flex flex-col items-end gap-1">
-              {it.cuota > 0 && (
-                <span className="text-[14px] font-extrabold text-tinta tabular-nums">
-                  {UYU(it.cuota)}
+                <span className="truncate text-[12px] font-medium text-[#8A93AD]">
+                  {it.direccion ?? "Sin dirección"}
                 </span>
-              )}
-              <span
-                className="rounded-full px-2 py-0.5 text-[10px] font-bold"
-                style={{ background: chip.bg, color: chip.fg }}
-              >
-                {chip.label}
-              </span>
-            </div>
-          </Link>
+              </div>
+              <div className="flex flex-col items-end gap-1">
+                {it.cuota > 0 && (
+                  <span className="text-[14px] font-extrabold text-tinta tabular-nums">
+                    {UYU(it.cuota)}
+                  </span>
+                )}
+                <span
+                  className="rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums"
+                  style={{ background: chip.bg, color: chip.fg }}
+                >
+                  {it.estadoHoy === "abono" ? `Abonó ${UYU(it.pagadoHoy)}` : chip.label}
+                </span>
+                {restaHoy > 0 && (
+                  <span className="text-[10px] font-semibold text-[#B9770E] tabular-nums">
+                    falta {UYU(restaHoy)}
+                  </span>
+                )}
+              </div>
+            </Link>
+            {/* Ojito: vistazo rápido sin salir de la ruta. */}
+            <OjitoCliente clienteId={it.id} nombre={it.nombre} />
+          </div>
         );
       })}
     </div>

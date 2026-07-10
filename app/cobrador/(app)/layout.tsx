@@ -22,7 +22,8 @@ export default async function CobradorLayout({
     <div className="flex min-h-screen justify-center bg-[#F4F6FB]">
       <div className="flex w-full max-w-[480px] flex-col">
         <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[#E6EAF4] bg-[#0F1B3D] px-4 py-3">
-          <div className="flex min-w-0 items-center gap-2.5">
+          {/* El logo + nombre llevan SIEMPRE a la ruta (escape universal). */}
+          <Link href="/cobrador" className="flex min-w-0 items-center gap-2.5" aria-label="Ir a mi ruta">
             <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[10px] bg-[linear-gradient(135deg,#2453DC,#13308C)] text-[14px] font-black text-white">
               P
             </div>
@@ -34,7 +35,7 @@ export default async function CobradorLayout({
                 Cobrador
               </span>
             </div>
-          </div>
+          </Link>
           <div className="flex flex-shrink-0 items-center gap-1.5">
             <Link
               href="/cobrador/chat"

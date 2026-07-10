@@ -31,7 +31,10 @@ export default async function CapitalPage({
   const db = await createSupabaseServer();
 
   const hoyYmd = fechaISOUY();
-  const desde = esYmd(sp.desde) ?? hoyYmd;
+  const inicioMes = `${hoyYmd.slice(0, 8)}01`; // primer día del mes (UY)
+  // Default = mes en curso (no solo HOY): si no, "Neto del período" salía ≈ $0
+  // casi siempre y parecía que no hay capital. El rango se puede ampliar abajo.
+  const desde = esYmd(sp.desde) ?? inicioMes;
   const hasta = esYmd(sp.hasta) ?? hoyYmd;
   const vendedorId = sp.vendedor || null;
 
@@ -53,12 +56,17 @@ export default async function CapitalPage({
         </span>
       </div>
 
-      {/* 3 tarjetas */}
+      {/* 3 tarjetas — SIEMPRE del período filtrado (por eso "del período", no
+          "Total": antes decía "Capital Total" con rango HOY y salía ≈$0). */}
       <div className="grid grid-cols-3 gap-2.5">
-        <Kpi label="Total Ingresos" valor={UYU(r.totalIngresos)} tono="#157A50" />
-        <Kpi label="Total Retiros" valor={UYU(r.totalRetiros)} tono="#C0392B" />
-        <Kpi label="Capital Total" valor={UYU(r.capitalTotal)} tono={r.capitalTotal >= 0 ? "#13308C" : "#C0392B"} />
+        <Kpi label="Ingresos del período" valor={UYU(r.totalIngresos)} tono="#157A50" />
+        <Kpi label="Retiros del período" valor={UYU(r.totalRetiros)} tono="#C0392B" />
+        <Kpi label="Neto del período" valor={UYU(r.capitalTotal)} tono={r.capitalTotal >= 0 ? "#13308C" : "#C0392B"} />
       </div>
+      <p className="-mt-2 text-[11.5px] font-medium text-tenue">
+        Cifras del <b>{desde}</b> al <b>{hasta}</b> (por defecto, el mes en curso). Ampliá el rango
+        abajo para ver más. <b>Neto</b> = ingresos − retiros del período; no es un saldo acumulado histórico.
+      </p>
 
       {/* Filtros */}
       <form method="get" className="flex flex-wrap items-end gap-2 print:hidden">

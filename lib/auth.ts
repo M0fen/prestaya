@@ -14,11 +14,19 @@ import type { Rol, Usuario } from "@/types/db";
 /** Usuario interno logueado, o null si no hay sesión / no es del sistema. */
 export async function getUsuarioActual(): Promise<Usuario | null> {
   const db = await createSupabaseServer();
-  const {
-    data: { user },
-  } = await db.auth.getUser();
-  if (!user) return null;
-  return getUsuarioPorAuthId(db, user.id);
+  // getUser() puede LANZAR (o devolver error) si el token está vencido/roto y el
+  // refresh falla con 400 "Bad Request". Eso NO es un crash: es "no hay sesión"
+  // → devolvemos null y las guardas mandan al login. Antes tumbaba la página.
+  try {
+    const {
+      data: { user },
+      error,
+    } = await db.auth.getUser();
+    if (error || !user) return null;
+    return await getUsuarioPorAuthId(db, user.id);
+  } catch {
+    return null;
+  }
 }
 
 /** Exige un usuario interno ACTIVO; si no, manda al login. Devuelve el usuario. */

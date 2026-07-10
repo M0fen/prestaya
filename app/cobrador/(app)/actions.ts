@@ -11,6 +11,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getUsuarioActual } from "@/lib/auth";
+import { MOTIVOS_NOPAGO, type MotivoNoPago } from "./motivos";
 import {
   crearClienteCenso,
   getClientePorDocumento,
@@ -208,14 +209,8 @@ export async function registrarPagoCobrador(input: {
 }
 
 // ── No pago (visita) ─────────────────────────────────────────────────────────
-export const MOTIVOS_NOPAGO = [
-  { id: "no_estaba", label: "No estaba", emoji: "🚪", resultado: "no_estaba" },
-  { id: "no_tenia", label: "No tenía", emoji: "💸", resultado: "no_pago" },
-  { id: "se_nego", label: "Se negó", emoji: "🙅", resultado: "no_pago" },
-  { id: "reagendado", label: "Reagendado", emoji: "📅", resultado: "otro" },
-] as const;
-
-export type MotivoNoPago = (typeof MOTIVOS_NOPAGO)[number]["id"];
+// MOTIVOS_NOPAGO y MotivoNoPago viven en ./motivos (este archivo es "use server"
+// y solo puede EXPORTAR funciones async).
 
 export async function registrarNoPagoCobrador(input: {
   clienteId: string;

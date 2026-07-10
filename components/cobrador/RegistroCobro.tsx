@@ -4,7 +4,7 @@
 // señal. Nunca "no anduvo": registra siempre, con o sin conexión.
 import { useState } from "react";
 import { encolar, type OpTipo } from "@/lib/cobrador/colaOffline";
-import { MOTIVOS_NOPAGO, type MotivoNoPago } from "@/app/cobrador/(app)/actions";
+import { MOTIVOS_NOPAGO, type MotivoNoPago } from "@/app/cobrador/(app)/motivos";
 import { UYU } from "@/lib/format";
 import { Comprobante, type DatosComprobante } from "@/components/cobrador/Comprobante";
 

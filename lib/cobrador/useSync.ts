@@ -13,8 +13,8 @@ import {
 import {
   registrarPagoCobrador,
   registrarNoPagoCobrador,
-  type MotivoNoPago,
 } from "@/app/cobrador/(app)/actions";
+import type { MotivoNoPago } from "@/app/cobrador/(app)/motivos";
 
 export function useSync(onSynced?: () => void) {
   const ops = useSyncExternalStore(suscribir, pendientes, () => []);

@@ -1,5 +1,6 @@
 // Chat interno (app del cobrador): canal del equipo + su hilo privado con la
 // oficina. El canal activo va en ?c=.
+import Link from "next/link";
 import { requireUsuario } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getCanales, getMensajesVista } from "@/lib/data/chat";
@@ -24,7 +25,16 @@ export default async function ChatCobradorPage({
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-[19px] font-extrabold text-tinta">Chat</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-[19px] font-extrabold text-tinta">Chat</h1>
+        {/* Salida clara a la ruta (además del escape del logo en el header). */}
+        <Link
+          href="/cobrador"
+          className="flex items-center gap-1.5 rounded-full bg-[#EEF3FF] px-3.5 py-1.5 text-[12.5px] font-bold text-azul active:scale-95"
+        >
+          ← Volver a la ruta
+        </Link>
+      </div>
       <ChatVista
         basePath="/cobrador/chat"
         canales={canales}

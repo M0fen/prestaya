@@ -33,9 +33,15 @@ export async function updateSession(request: NextRequest) {
   );
 
   // IMPORTANTE: no ejecutar lógica entre createServerClient y getUser().
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getUser() puede LANZAR si el refresh del token falla (400 "Bad Request" con
+  // token vencido/roto). Eso NO debe tumbar la request: se trata como sin sesión.
+  let user = null;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
+  } catch {
+    user = null;
+  }
 
   // Rutas internas sin sesión → al login.
   if (!user) {
