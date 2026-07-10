@@ -2,6 +2,7 @@
 // (Desde/Hasta, hoy por defecto), efectivo a rendir por cobrador, libro de
 // movimientos con columna Visible, y alta de gastos/desembolsos/aportes/retiros.
 // Los cobros vienen de `pagos`. El capital vive en /admin/capital.
+import Link from "next/link";
 import { requireGestor, getActorActual } from "@/lib/auth";
 import { puedeVerZona } from "@/lib/permisos";
 import { createSupabaseServer } from "@/lib/supabase/server";
@@ -84,6 +85,40 @@ export default async function CajaPage({
           <BotonImprimir />
         </div>
       </div>
+
+      {/* Cómo funciona la caja diaria — el flujo completo, para que no falte contexto. */}
+      <details className="rounded-[14px] border border-borde bg-[#F7F9FE] px-4 py-3 print:hidden">
+        <summary className="cursor-pointer text-[12.5px] font-extrabold text-tinta">
+          ¿Cómo funciona la caja diaria? (el flujo completo)
+        </summary>
+        <div className="mt-2 flex flex-col gap-1.5 text-[12px] leading-[1.6] font-medium text-gris">
+          <p>
+            <b className="text-tinta">1. Cobros.</b> Entran solos desde la calle (tabla de pagos, inmutable). No se
+            cargan a mano acá.
+          </p>
+          <p>
+            <b className="text-tinta">2. Rendición del cobrador.</b> Al cerrar su jornada declara gastos y efectivo
+            entregado. El sistema calcula <b>esperado = recaudado − gastos</b> y la <b>diferencia</b>:{" "}
+            <b className="text-[#157A50]">cuadra</b>, <b className="text-[#C0392B]">faltante</b> o{" "}
+            <b className="text-azul">sobrante</b> (ver "Cierre por zona" abajo).
+          </p>
+          <p>
+            <b className="text-tinta">3. Qué pasa con un faltante / float sin rendir.</b> No queda solo anotado: baja
+            el <b>score de confianza</b> del cobrador y suma a su <b>cuenta corriente</b> (recaudado vs rendido). Ahí
+            actuás: mirá el historial en el{" "}
+            <Link href="/admin/alertas" className="font-bold text-azul">Centro de alertas</Link>.
+          </p>
+          <p>
+            <b className="text-tinta">4. Cerrar la zona (supervisor).</b> Recibe el efectivo de sus cobradores y
+            confirma la entrega a la caja central. Queda con sello y en auditoría.
+          </p>
+          <p>
+            <b className="text-tinta">5. Movimientos.</b> Gastos, desembolsos, aportes y retiros OPERATIVOS se cargan
+            abajo. El <b>capital</b> (aportes/retiros del dueño) va en su propia pantalla. Comisiones se liquidan en{" "}
+            <Link href="/admin/comisiones" className="font-bold text-azul">Comisiones</Link> (registran un egreso acá).
+          </p>
+        </div>
+      </details>
 
       {/* Rango de fechas (GET, sin JS) */}
       <form method="get" className="flex flex-wrap items-end gap-2 print:hidden">

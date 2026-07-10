@@ -100,8 +100,8 @@ export default async function CierrePage() {
             <Alerta
               tono="rojo"
               titulo={`${faltantes.length} faltante${faltantes.length === 1 ? "" : "s"} de caja`}
-              href="/admin/caja"
-              nota="Cobradores que entregaron MENOS de lo esperado al cerrar su jornada. El faltante es la diferencia entre lo que debía entregar (recaudado − gastos) y lo que entregó. Revisá la rendición en Caja."
+              href="/admin/alertas"
+              nota="Entregó MENOS de lo esperado (recaudado − gastos). Qué pasa: el faltante queda registrado, BAJA el score de confianza del cobrador y suma a su cuenta corriente. Tocá para ver su historial de confianza y decidir (hablar, recuperar, descontar) en el Centro de alertas."
             >
               <ListaAlerta
                 items={faltantes.map((f) => ({
@@ -116,8 +116,8 @@ export default async function CierrePage() {
             <Alerta
               tono="ambar"
               titulo={`${rend.pendientes.length} cobrador${rend.pendientes.length === 1 ? "" : "es"} sin rendir`}
-              href="/admin/caja"
-              nota="Recaudaron en la calle pero todavía no cerraron su jornada: ese efectivo aún no entró a la caja. El monto es lo que tienen en mano por rendir."
+              href="/admin/alertas"
+              nota="Recaudaron en la calle pero todavía no cerraron su jornada: ese efectivo (float) aún no entró a la caja. Si persiste, sube la exposición y baja la confianza del cobrador. Seguilo en el Centro de alertas."
             >
               <ListaAlerta
                 items={rend.pendientes.map((p) => ({
