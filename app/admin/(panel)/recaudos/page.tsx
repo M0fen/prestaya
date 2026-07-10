@@ -4,11 +4,18 @@ import { requireGestor } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getRecaudos } from "@/lib/data/recaudos";
 import { getVendedores } from "@/lib/data/usuarios";
+import { getEstadisticas } from "@/lib/data/estadisticas";
 import { diaUYInicioIso, diaUYFinIso, fechaISOUY } from "@/lib/fecha";
 import { BotonImprimir } from "@/components/admin/BotonImprimir";
+import { Columnas } from "@/components/charts/Columnas";
 import { UYU, horaDe, meses } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
+
+function mesLabel(ym: string): string {
+  const [y, m] = ym.split("-").map(Number);
+  return `${(meses[m - 1] ?? "").slice(0, 3)} ${String(y).slice(2)}`;
+}
 
 const esYmd = (v: string | undefined): string | null =>
   v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
@@ -35,7 +42,7 @@ export default async function RecaudosPage({
   const vendedorId = sp.vendedor || null;
   const q = (sp.q ?? "").trim() || null;
 
-  const [r, vendedores] = await Promise.all([
+  const [r, vendedores, stats] = await Promise.all([
     getRecaudos(db, {
       desde: diaUYInicioIso(desde),
       hasta: diaUYFinIso(hasta),
@@ -43,7 +50,35 @@ export default async function RecaudosPage({
       q,
     }),
     getVendedores(db),
+    getEstadisticas(db, { meses: 8 }),
   ]);
+
+  // Rendimiento mensual: recaudo por mes + calificación del mes en curso vs el
+  // promedio de los meses previos (con caveat de que el mes actual es parcial).
+  const serieMes = stats.disponible ? stats.mensual : [];
+  const ultMes = serieMes.length - 1;
+  const mesActual = serieMes[ultMes];
+  const previos = serieMes.slice(0, ultMes);
+  const promPrevio = previos.length
+    ? previos.reduce((s, m) => s + m.recaudado, 0) / previos.length
+    : 0;
+  const vsProm = promPrevio > 0 && mesActual ? Math.round((mesActual.recaudado / promPrevio - 1) * 100) : null;
+  const calif =
+    vsProm == null
+      ? { label: "—", color: "#6B7494" }
+      : vsProm >= 10
+        ? { label: "Excelente", color: "#157A50" }
+        : vsProm >= -8
+          ? { label: "En línea", color: "#1E47C8" }
+          : vsProm >= -25
+            ? { label: "Bajo", color: "#B9770E" }
+            : { label: "Muy bajo", color: "#C0392B" };
+  const colsMes = serieMes.map((m, i) => ({
+    etiqueta: mesLabel(m.mes),
+    valor: m.recaudado,
+    esHoy: i === ultMes,
+    tooltip: `${mesLabel(m.mes)}: ${UYU(m.recaudado)} en ${m.cobros} cobros`,
+  }));
 
   // Link de exportación con los mismos filtros aplicados.
   const qs = new URLSearchParams();
@@ -79,6 +114,31 @@ export default async function RecaudosPage({
         <Kpi label="Monto Total" valor={UYU(r.montoTotal)} tono="#157A50" />
         <Kpi label="Créditos Únicos" valor={`${r.creditosUnicos}`} />
       </div>
+
+      {/* Rendimiento mensual (gráfica + calificación del mes en curso) */}
+      {serieMes.length > 1 && (
+        <section className="flex flex-col gap-2.5 rounded-[16px] border border-borde bg-tarjeta p-4 print:hidden">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[13.5px] font-extrabold text-tinta">Rendimiento mensual</span>
+              <span className="text-[11px] font-medium text-tenue">
+                Recaudo por mes · la barra azul oscura es el mes en curso (parcial)
+              </span>
+            </div>
+            {mesActual && (
+              <span
+                className="rounded-full px-2.5 py-1 text-[11.5px] font-bold"
+                style={{ background: `${calif.color}18`, color: calif.color }}
+                title="Calificación del mes en curso vs el promedio de los meses previos"
+              >
+                {calif.label}
+                {vsProm != null && ` · ${vsProm >= 0 ? "+" : ""}${vsProm}% vs promedio`}
+              </span>
+            )}
+          </div>
+          <Columnas datos={colsMes} color="#1FA971" colorHoy="#13308C" />
+        </section>
+      )}
 
       {/* Filtros (GET, sin JS) */}
       <form method="get" className="flex flex-wrap items-end gap-2 rounded-[16px] border border-borde bg-tarjeta p-3.5 print:hidden">

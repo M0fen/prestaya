@@ -92,6 +92,13 @@ export function FormMovimientoCaja({ cuenta = "operativa" }: { cuenta?: "operati
         ))}
       </div>
 
+      {cuenta === "operativa" && (
+        <p className="text-[11px] leading-[1.5] font-medium text-[#B9770E]">
+          ⚠️ Esta es la caja <b>OPERATIVA</b> (gastos/movimientos de la ruta). Los <b>aportes y retiros de CAPITAL
+          del dueño</b> se registran en <b>Inversión de capital</b> (otra cuenta) — cargarlos acá descuadra las dos.
+        </p>
+      )}
+
       <div className="grid grid-cols-2 gap-2.5">
         <label className="flex flex-col gap-1">
           <span className="text-[11px] font-semibold text-gris">Monto (UYU)</span>

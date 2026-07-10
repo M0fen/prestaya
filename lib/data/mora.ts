@@ -18,6 +18,7 @@ export interface ClienteEnRiesgo {
   nombre: string;
   telefono: string | null;
   direccion: string | null;
+  cobradorId: string | null;
   cobradorNombre: string | null;
   alerta: ResultadoAlerta;
   /** Recargo por mora sugerido según la política vigente (0 si está en off). */
@@ -101,6 +102,7 @@ export async function getTableroMora(
       nombre: p.cliente_nombre ?? "Cliente",
       telefono: p.cliente_telefono ?? null,
       direccion: p.cliente_direccion ?? null,
+      cobradorId: p.cobrador_id ?? null,
       cobradorNombre: p.cobrador_nombre ?? null,
       alerta,
       recargoMora,

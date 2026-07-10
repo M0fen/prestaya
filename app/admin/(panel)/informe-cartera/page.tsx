@@ -122,18 +122,17 @@ export default async function InformeCarteraPage({
               <th className="px-2.5 py-2.5 text-right">Venta</th>
               <th className="px-2.5 py-2.5 text-right">Interés %</th>
               <th className="px-2.5 py-2.5 text-right">Total</th>
-              <th className="px-2.5 py-2.5 text-right">Saldo Pte</th>
+              <th className="px-2.5 py-2.5 text-right">Saldo Pendiente (a hoy)</th>
               <th className="px-2.5 py-2.5 text-right">Abonos</th>
               <th className="px-2.5 py-2.5 text-left">Inicio</th>
               <th className="px-2.5 py-2.5 text-center">Cuotas</th>
-              <th className="px-2.5 py-2.5 text-right">Deuda a Hoy</th>
               <th className="px-2.5 py-2.5 text-center">Estado</th>
             </tr>
           </thead>
           <tbody>
             {filasVisibles.length === 0 ? (
               <tr>
-                <td colSpan={13} className="px-3 py-8 text-center text-[13px] font-medium text-gris">
+                <td colSpan={12} className="px-3 py-8 text-center text-[13px] font-medium text-gris">
                   Sin créditos activos para el filtro.
                 </td>
               </tr>
@@ -152,11 +151,10 @@ export default async function InformeCarteraPage({
                   <td className="px-2.5 py-2 text-right tabular-nums text-cuerpo">{UYU(f.venta)}</td>
                   <td className="px-2.5 py-2 text-right tabular-nums text-gris">{Number.isFinite(f.interesPct) ? f.interesPct.toFixed(1) : "0"}%</td>
                   <td className="px-2.5 py-2 text-right tabular-nums text-cuerpo">{UYU(f.total)}</td>
-                  <td className="px-2.5 py-2 text-right tabular-nums font-semibold text-tinta">{UYU(f.saldoPte)}</td>
+                  <td className="px-2.5 py-2 text-right tabular-nums font-extrabold text-[#13308C]">{UYU(f.saldoPte)}</td>
                   <td className="px-2.5 py-2 text-right tabular-nums text-[#157A50]">{UYU(f.abonos)}</td>
                   <td className="px-2.5 py-2 text-[10.5px] text-tenue">{fechaCorta(f.fechaInicio)}</td>
                   <td className="px-2.5 py-2 text-center tabular-nums text-gris">{f.cuotas}</td>
-                  <td className="px-2.5 py-2 text-right tabular-nums font-extrabold text-[#13308C]">{UYU(f.deudaAHoy)}</td>
                   <td className="px-2.5 py-2 text-center">
                     <span className="rounded-full bg-[#E7F6EF] px-2.5 py-1 text-[10.5px] font-bold text-[#157A50]">
                       Activo
@@ -178,10 +176,12 @@ export default async function InformeCarteraPage({
 
       <p className="text-[11px] leading-[1.6] font-medium text-[#AEB6CC]">
         Todo derivado del cartón real: <b>Ventas Crédito</b> = capital colocado; <b>Con Intereses</b> = total
-        a cobrar (interés incluido en la cuota); <b>Utilidad proyectada</b> = Con Intereses − Ventas (interés a
-        ganar si todos pagan; el <b>margen</b> es sobre el capital) — es PROYECTADA, no ganancia neta;
-        <b>Recaudo</b> = abonado a hoy; <b>Cartera Pendiente</b> = saldo por cobrar (coincide con “Capital en
-        calle” del dashboard). El <b>% Recaudo</b> = Recaudo / Con Intereses.
+        a cobrar (interés incluido en la cuota); <b>Utilidad proyectada</b> = Σ del interés por crédito (interés a
+        ganar si todos pagan, sin restar créditos VIP/0%) — es PROYECTADA, no ganancia neta; <b>Recaudo</b> =
+        abonado a hoy; <b>Cartera Pendiente</b> = saldo por cobrar. <b>Saldo Pendiente (a hoy)</b> por fila es esa
+        misma deuda a la fecha. <b>Sin filtros</b>, la Cartera Pendiente coincide con el “Capital en calle” del
+        dashboard; al filtrar por vendedor o búsqueda, los KPIs son de lo filtrado. El <b>% Recaudo</b> = Recaudo /
+        Con Intereses.
       </p>
     </div>
   );

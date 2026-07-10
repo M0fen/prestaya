@@ -179,14 +179,16 @@ export default async function MoraPage() {
                     )}
                   </span>
                 </div>
-                {c.telefono && (
-                  <div className="flex flex-shrink-0 gap-2">
-                    <a
-                      href={hrefSeguro(`tel:${c.telefono}`) ?? "#"}
-                      className="rounded-full bg-[#2453DC] px-3.5 py-2 text-[12.5px] font-bold text-white"
-                    >
-                      Llamar
-                    </a>
+                <div className="flex flex-shrink-0 flex-wrap justify-end gap-2">
+                  {/* Dejar un mensaje en el chat (al hilo del cobrador que la tiene
+                      asignada) para mandarlo a cobrar. No se llama al cliente. */}
+                  <Link
+                    href={c.cobradorId ? `/admin/chat?c=cob:${c.cobradorId}` : "/admin/chat"}
+                    className="rounded-full bg-[#2453DC] px-3.5 py-2 text-[12.5px] font-bold text-white"
+                  >
+                    💬 {c.cobradorId ? "Mensaje al cobrador" : "Dejar mensaje"}
+                  </Link>
+                  {c.telefono && (
                     <a
                       href={hrefSeguro(waLink(c.telefono)) ?? "#"}
                       target="_blank"
@@ -195,8 +197,8 @@ export default async function MoraPage() {
                     >
                       WhatsApp
                     </a>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </section>
           );
