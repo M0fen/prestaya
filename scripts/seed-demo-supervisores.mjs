@@ -119,10 +119,14 @@ async function main() {
   }
 
   console.log(`Sembrando (hoy UY = ${HOY})…\n`);
+  await limpiar(); // idempotente: parte de cero cada corrida
   const authMap = await cargarAuth();
 
-  // 1) Elegir el EQUIPO extra de cada zona: cobradores reales SIN zona, con cartera
-  //    de verdad (excluye placeholders y los 3 destacados). 3 por zona.
+  // 1) Equipos: distribuir TODO el roster real de cobradores SIN zona entre las 3
+  //    zonas, BALANCEADO por tamaño de cartera (round-robin sobre el orden por
+  //    activos), para que cada supervisor tenga un equipo grande y creíble —
+  //    alimentado con el resto de la data real. Excluye placeholders y los 3
+  //    destacados (que se fijan aparte como protagonistas).
   const { data: libres } = await db
     .from("usuarios")
     .select("id, nombre")
@@ -132,16 +136,22 @@ async function main() {
   const candidatos = (libres ?? []).filter(
     (u) => !FEATURED_IDS.includes(u.id) && !/^CARTERA|^ADMINISTRADOR/i.test(u.nombre),
   );
-  // Cuántos pagos hoy tiene cada candidato (para elegir a los que están activos HOY).
-  const pagosHoy = new Map();
+  const activosDe = new Map();
   for (const c of candidatos) {
-    const { count } = await db.from("pagos").select("*", { count: "exact", head: true })
-      .eq("registrado_por", c.id).eq("anulado", false).gte("registrado_en", inicioHoyIso);
-    pagosHoy.set(c.id, count ?? 0);
+    const { count } = await db
+      .from("prestamos")
+      .select("*", { count: "exact", head: true })
+      .eq("cobrador_id", c.id)
+      .eq("estado", "activo");
+    activosDe.set(c.id, count ?? 0);
   }
-  candidatos.sort((a, b) => (pagosHoy.get(b.id) ?? 0) - (pagosHoy.get(a.id) ?? 0));
+  // Solo cobradores con cartera de verdad (deja fuera restos de "cartera" chicos).
+  const reales = candidatos
+    .filter((c) => (activosDe.get(c.id) ?? 0) >= 15)
+    .sort((a, b) => (activosDe.get(b.id) ?? 0) - (activosDe.get(a.id) ?? 0));
   const extrasPorZona = [[], [], []];
-  candidatos.slice(0, 9).forEach((c, i) => extrasPorZona[i % 3].push(c));
+  reales.forEach((c, i) => extrasPorZona[i % 3].push(c)); // round-robin → equipos parejos
+  console.log(`  ${reales.length} cobradores reales repartidos (~${Math.ceil(reales.length / 3)} por zona)`);
 
   // 2) Zonas demo.
   await db.from("zonas").upsert(
@@ -180,7 +190,8 @@ async function main() {
   //    con faltante), los DESTACADOS quedan "en ruta" (para cerrar en vivo en la demo).
   const rendir = [];
   for (let i = 0; i < 3; i++) {
-    const equipo = extrasPorZona[i];
+    // Solo algunos rinden a mediodía; el resto (+ destacado) sigue en ruta.
+    const equipo = extrasPorZona[i].slice(0, 4);
     for (let j = 0; j < equipo.length; j++) {
       const cob = equipo[j];
       const { data: pg } = await db.from("pagos").select("monto")
@@ -228,10 +239,10 @@ async function main() {
   // ── Credenciales ──────────────────────────────────────────────────────────
   console.log("\n════════════ CREDENCIALES (clave común: " + PASS + ") ════════════");
   for (const c of credenciales) {
-    console.log(`\n▓ Zona ${c.zona}`);
+    console.log(`\n▓ Zona ${c.zona}  (${c.equipo.length + 1} cobradores en el equipo)`);
     console.log(`  Supervisor : ${c.sup.nombre.padEnd(18)} → ${c.sup.email}`);
-    console.log(`  Cobrador   : ${c.cob.nombre.padEnd(18)} → ${c.cob.email}`);
-    console.log(`  Equipo zona: ${c.equipo.join(" · ") || "—"}`);
+    console.log(`  Cobrador★  : ${c.cob.nombre.padEnd(18)} → ${c.cob.email}`);
+    console.log(`  Equipo     : ${c.equipo.slice(0, 4).join(" · ")}${c.equipo.length > 4 ? ` … (+${c.equipo.length - 4})` : ""}`);
   }
   console.log("\n✅ Seed lista. Cada supervisor entra y ve su equipo con recaudo real de hoy.");
   console.log("   Borrar: node --env-file=.env.local scripts/seed-demo-supervisores.mjs --limpiar");

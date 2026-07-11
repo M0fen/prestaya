@@ -10,6 +10,7 @@ import { getCobradorDeCliente } from "@/lib/data/asignaciones";
 import { getEquipoConZona } from "@/lib/data/zonas";
 import { puedeReasignarCliente } from "@/lib/permisos";
 import { AnularPago } from "@/components/admin/AnularPago";
+import { RegistrarPagoPanel } from "@/components/admin/RegistrarPagoPanel";
 import { ReasignarCliente, type CobradorOpcion } from "@/components/admin/ReasignarCliente";
 import { RotarToken } from "@/components/admin/RotarToken";
 import { ToggleReportado } from "@/components/admin/ToggleReportado";
@@ -258,11 +259,16 @@ export default async function FichaClientePage({
                 key={activo.id}
                 className={idx > 0 ? "border-t border-linea pt-4" : ""}
               >
-                {activos.length > 1 && (
-                  <span className="mb-2 inline-block rounded-full bg-[#EAF0FF] px-2.5 py-1 text-[11px] font-bold text-[#1E47C8]">
-                    Crédito {idx + 1} · desde {fechaCorta(activo.fechaInicio)}
-                  </span>
-                )}
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  {activos.length > 1 ? (
+                    <span className="inline-block rounded-full bg-[#EAF0FF] px-2.5 py-1 text-[11px] font-bold text-[#1E47C8]">
+                      Crédito {idx + 1} · desde {fechaCorta(activo.fechaInicio)}
+                    </span>
+                  ) : (
+                    <span />
+                  )}
+                  <RegistrarPagoPanel clienteId={id} prestamoId={activo.id} cuota={activo.cuota} />
+                </div>
                 <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
                   <Kpi label="Cuota diaria" valor={UYU(activo.cuota)} />
                   <Kpi label="Saldo" valor={UYU(activo.saldo)} />
