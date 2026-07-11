@@ -26,22 +26,42 @@ export function Sparkline({ valores, color = "#1FA971", alto = 36, className }: 
   const area = `${linea} L${W},${H} L0,${H} Z`;
   const idGrad = `sl-${color.replace(/[^a-z0-9]/gi, "")}`;
 
+  // Punto final = el dato de HOY (el que importa). Como el SVG estira (preserve
+  // none), el remate va como dot HTML posicionado por %, no un <circle> (elipse).
+  const yPct = (puntos[n - 1][1] / H) * 100;
+  const xPct = n > 1 ? 100 : 50;
+
   return (
-    <svg
-      viewBox={`0 0 ${W} ${H}`}
-      preserveAspectRatio="none"
-      className={className}
-      style={{ width: "100%", height: alto }}
-      aria-hidden="true"
-    >
-      <defs>
-        <linearGradient id={idGrad} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.28" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={area} fill={`url(#${idGrad})`} />
-      <path d={linea} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-    </svg>
+    <div className={className} style={{ position: "relative", width: "100%", height: alto }}>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="none"
+        style={{ width: "100%", height: alto, display: "block" }}
+        aria-hidden="true"
+      >
+        <defs>
+          <linearGradient id={idGrad} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity="0.28" />
+            <stop offset="100%" stopColor={color} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path d={area} fill={`url(#${idGrad})`} />
+        <path d={linea} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+      </svg>
+      <span
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          left: xPct >= 100 ? "calc(100% - 3px)" : `${xPct}%`,
+          top: `${yPct}%`,
+          width: 6,
+          height: 6,
+          borderRadius: 999,
+          background: color,
+          transform: "translate(-50%, -50%)",
+          boxShadow: "0 0 0 2px var(--color-tarjeta)",
+        }}
+      />
+    </div>
   );
 }

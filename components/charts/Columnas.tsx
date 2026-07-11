@@ -17,17 +17,23 @@ interface Props {
   colorHoy?: string;
   /** Alto del área de barras en px. */
   alto?: number;
+  /** Etiqueta del período actual (default: su propia etiqueta). Solo la serie
+   *  DIARIA debería pasar "hoy"; en mensual/anual mostraba "hoy" por error. */
+  labelActual?: string;
 }
 
 export function Columnas({
   datos,
   color = "#2453DC",
-  colorHoy = "#1FA971",
+  colorHoy,
   alto = 132,
+  labelActual,
 }: Props) {
+  // Período actual = mismo hue sólido (el verde queda reservado a "pagado").
+  const cHoy = colorHoy ?? color;
   if (datos.length === 0) {
     return (
-      <p className="py-6 text-center text-[12.5px] font-medium text-[#AEB6CC]">
+      <p className="py-6 text-center text-[12.5px] font-medium text-tenue-2">
         Sin datos aún.
       </p>
     );
@@ -39,7 +45,7 @@ export function Columnas({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex items-end gap-[3px]" style={{ height: alto }}>
+      <div className="flex items-end gap-[3px] border-b border-linea" style={{ height: alto }}>
         {datos.map((d, i) => {
           const h = Math.max(2, Math.round((d.valor / max) * (alto - 4)));
           return (
@@ -50,7 +56,7 @@ export function Columnas({
                 style={{
                   height: h,
                   background: d.esHoy
-                    ? colorHoy
+                    ? cHoy
                     : `linear-gradient(180deg, ${color}, ${color}CC)`,
                 }}
               />
@@ -63,11 +69,11 @@ export function Columnas({
           <div key={d.etiqueta + i} className="flex-1 text-center">
             {i % cada === 0 || d.esHoy ? (
               <span
-                className={`text-[9.5px] font-semibold whitespace-nowrap ${
-                  d.esHoy ? "text-verde" : "text-[#AEB6CC]"
+                className={`text-[9.5px] whitespace-nowrap ${
+                  d.esHoy ? "font-bold text-tinta" : "font-semibold text-tenue-2"
                 }`}
               >
-                {d.esHoy ? "hoy" : d.etiqueta}
+                {d.esHoy ? labelActual ?? d.etiqueta : d.etiqueta}
               </span>
             ) : null}
           </div>

@@ -27,12 +27,14 @@ export function Donut({ segmentos, centroValor, centroEtiqueta, tam = 148 }: Pro
     total > 0
       ? segmentos
           .filter((s) => s.valor > 0)
-          .map((s) => {
+          .map((s, _i, arr) => {
             const frac = s.valor / total;
             const dash = frac * C;
+            // Gap fino entre segmentos (se ve más "premium" que borde con borde).
+            const g = arr.length > 1 ? 1.6 : 0;
             const arco = {
               ...s,
-              dasharray: `${dash} ${C - dash}`,
+              dasharray: `${Math.max(0.1, dash - g)} ${C - dash + g}`,
               dashoffset: -offset,
             };
             offset += dash;
@@ -47,8 +49,8 @@ export function Donut({ segmentos, centroValor, centroEtiqueta, tam = 148 }: Pro
         style={{ width: tam, height: tam, flexShrink: 0 }}
         aria-hidden="true"
       >
-        {/* Riel de fondo */}
-        <circle cx={cx} cy={cx} r={R} fill="none" stroke="#EDF1F9" strokeWidth={grosor} />
+        {/* Riel de fondo (token → flipea en oscuro) */}
+        <circle cx={cx} cy={cx} r={R} fill="none" className="stroke-linea" strokeWidth={grosor} />
         {/* Segmentos (rotados −90° para arrancar arriba) */}
         <g transform={`rotate(-90 ${cx} ${cx})`}>
           {arcos.map((a) => (
@@ -68,11 +70,24 @@ export function Donut({ segmentos, centroValor, centroEtiqueta, tam = 148 }: Pro
             </circle>
           ))}
         </g>
-        <text x={cx} y={cx - 2} textAnchor="middle" style={{ fontSize: 15, fontWeight: 800, fill: "#0F1B3D" }}>
+        {/* Monto central: token (flipea en oscuro), auto-reduce por largo (millones
+            no rozan el anillo) y tabular-nums + tracking ceñido (regla de números). */}
+        <text
+          x={cx}
+          y={cx - 2}
+          textAnchor="middle"
+          className="fill-tinta"
+          style={{
+            fontSize: centroValor.length > 10 ? 12 : centroValor.length > 8 ? 13.5 : 15,
+            fontWeight: 800,
+            fontVariantNumeric: "tabular-nums",
+            letterSpacing: "-0.02em",
+          }}
+        >
           {centroValor}
         </text>
         {centroEtiqueta && (
-          <text x={cx} y={cx + 14} textAnchor="middle" style={{ fontSize: 8.5, fontWeight: 600, fill: "#8A93AD" }}>
+          <text x={cx} y={cx + 14} textAnchor="middle" className="fill-tenue" style={{ fontSize: 8.5, fontWeight: 600 }}>
             {centroEtiqueta}
           </text>
         )}
