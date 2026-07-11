@@ -147,7 +147,7 @@ export function RegistroCobro({
         {ocupado ? "Registrando…" : `Registrar pago · ${UYU(cuota)}`}
       </button>
 
-      <div className="flex gap-2">
+      <div className="flex gap-2.5">
         {/* Botón que CAMBIA de estado al abrirse (antes quedaba gris y no se
             entendía que había desplegado el panel de abono). */}
         <button
@@ -157,7 +157,7 @@ export function RegistroCobro({
             setAbono((v) => !v);
             setMotivos(false);
           }}
-          className={`flex-1 rounded-full border px-4 py-2.5 text-[13px] font-bold disabled:opacity-60 ${
+          className={`flex-1 min-h-11 rounded-full border px-4 py-3 text-[13px] font-bold transition-transform active:scale-[0.98] disabled:opacity-60${
             abono
               ? "border-[#E8A317] bg-[#FDF3E2] text-[#B9770E]"
               : "border-[#DCE3F4] bg-white text-[#6B7494]"
@@ -172,7 +172,7 @@ export function RegistroCobro({
             setMotivos((v) => !v);
             setAbono(false);
           }}
-          className={`flex-1 rounded-full border px-4 py-2.5 text-[13px] font-bold disabled:opacity-60 ${
+          className={`flex-1 min-h-11 rounded-full border px-4 py-3 text-[13px] font-bold transition-transform active:scale-[0.98] disabled:opacity-60${
             motivos
               ? "border-[#D64545] bg-[#FBE4E2] text-[#C0392B]"
               : "border-[#DCE3F4] bg-white text-[#6B7494]"
@@ -201,13 +201,13 @@ export function RegistroCobro({
               onChange={(e) => setMontoAbono(e.target.value)}
               placeholder="¿Cuánto abona?"
               autoFocus
-              className="min-w-0 flex-1 rounded-[10px] border border-[#E7D4A6] bg-white px-3 py-2.5 text-[15px] font-semibold outline-none focus:border-[#E8A317]"
+              className="min-h-11 min-w-0 flex-1 rounded-[10px] border border-[#E7D4A6] bg-white px-3 py-3 text-[15px] font-semibold outline-none focus:border-[#E8A317]"
             />
             <button
               type="button"
               disabled={ocupado || !abonoValido}
               onClick={() => cobrar(montoAbonoNum)}
-              className="rounded-full bg-[#1FA971] px-4 py-2.5 text-[13px] font-extrabold text-white disabled:opacity-40"
+              className="min-h-11 rounded-full bg-[#1FA971] px-4 py-3 text-[13px] font-extrabold text-white transition-transform active:scale-[0.98] disabled:opacity-40"
             >
               {ocupado ? "…" : "Registrar abono"}
             </button>
@@ -234,7 +234,7 @@ export function RegistroCobro({
               type="button"
               disabled={ocupado}
               onClick={() => noPago(m.id)}
-              className="flex items-center gap-2 rounded-[11px] bg-[#F4F6FB] px-3 py-2.5 text-[13px] font-semibold text-tinta active:scale-95 disabled:opacity-60"
+              className="flex min-h-11 items-center gap-2 rounded-[11px] bg-[#F4F6FB] px-3 py-3 text-[13px] font-semibold text-tinta active:scale-95 disabled:opacity-60"
               style={{ transition: "transform .1s" }}
             >
               <span>{m.emoji}</span>

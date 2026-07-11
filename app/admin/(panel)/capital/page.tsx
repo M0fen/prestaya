@@ -58,7 +58,7 @@ export default async function CapitalPage({
 
       {/* 3 tarjetas — SIEMPRE del período filtrado (por eso "del período", no
           "Total": antes decía "Capital Total" con rango HOY y salía ≈$0). */}
-      <div className="grid grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3">
         <Kpi label="Ingresos del período" valor={UYU(r.totalIngresos)} tono="#157A50" />
         <Kpi label="Retiros del período" valor={UYU(r.totalRetiros)} tono="#C0392B" />
         <Kpi label="Neto del período" valor={UYU(r.capitalTotal)} tono={r.capitalTotal >= 0 ? "#13308C" : "#C0392B"} />
@@ -155,9 +155,9 @@ const INPUT =
 
 function Kpi({ label, valor, tono }: { label: string; valor: string; tono?: string }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-[14px] bg-tarjeta p-3.5 shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
+    <div className="flex min-w-0 flex-col gap-0.5 rounded-[14px] bg-tarjeta p-3.5 shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
       <span className="text-[11px] font-semibold text-tenue">{label}</span>
-      <span className="text-[19px] font-extrabold tabular-nums" style={{ color: tono ?? "var(--color-tinta)" }}>
+      <span className="text-[16px] font-extrabold tabular-nums sm:text-[19px]" style={{ color: tono ?? "var(--color-tinta)" }}>
         {valor}
       </span>
     </div>

@@ -56,7 +56,7 @@ export default async function ComisionesPage({
             <b className="text-cuerpo">{fCorta(r.hasta)}</b> · {r.totalCobros} cobro(s).
           </span>
         </div>
-        <div className="flex rounded-full bg-[#F0F3FA] p-0.5">
+        <div className="flex rounded-full bg-suave p-0.5">
           {PERIODOS.map((p) => {
             const activo = p.id === periodo;
             return (

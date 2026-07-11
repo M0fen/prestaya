@@ -65,8 +65,8 @@ export default function CensarPage() {
       <form action={enviar} className="flex flex-col gap-3">
         <CapturaFoto onDataUrl={setFoto} etiqueta="Foto del cliente" requerida />
         <Campo name="nombre" label="Nombre y apellido" required placeholder="Ej. Juan Pérez" />
-        <Campo name="documento" label="Documento (cédula)" placeholder="1.234.567-8" />
-        <Campo name="telefono" label="Teléfono" placeholder="099 123 456" />
+        <Campo name="documento" label="Documento (cédula)" placeholder="1.234.567-8" inputMode="numeric" />
+        <Campo name="telefono" label="Teléfono" placeholder="099 123 456" type="tel" inputMode="tel" />
         <Campo name="direccion" label="Dirección" placeholder="Calle y número" />
 
         <label className="flex flex-col gap-1">
@@ -120,20 +120,27 @@ function Campo({
   label,
   placeholder,
   required = false,
+  type = "text",
+  inputMode,
 }: {
   name: string;
   label: string;
   placeholder?: string;
   required?: boolean;
+  type?: string;
+  // Abre el teclado adecuado en el celular (tel/numérico) al cargar en la calle.
+  inputMode?: "text" | "tel" | "numeric";
 }) {
   return (
     <label className="flex flex-col gap-1">
       <span className="text-[12px] font-semibold text-gris">{label}</span>
       <input
         name={name}
+        type={type}
+        inputMode={inputMode}
         required={required}
         placeholder={placeholder}
-        className="rounded-[10px] border border-[#DCE3F4] px-3 py-2.5 text-[14px] outline-none focus:border-azul"
+        className="min-h-11 rounded-[10px] border border-[#DCE3F4] px-3 py-2.5 text-[14px] outline-none focus:border-azul"
       />
     </label>
   );

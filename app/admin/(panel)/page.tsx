@@ -249,7 +249,7 @@ export default async function DashboardPage({
             <span className="text-[12px] font-medium text-gris">{mov.etiqueta}</span>
           </div>
           {/* Selector de período (sin JS: navega por query param) */}
-          <div className="flex rounded-full bg-[#F0F3FA] p-0.5">
+          <div className="flex rounded-full bg-suave p-0.5">
             {PERIODOS.map((p) => {
               const activo = p.id === periodo;
               return (
@@ -332,7 +332,7 @@ export default async function DashboardPage({
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-[15px] font-extrabold text-tinta">Cobradores</h2>
             {/* Período del ranking: Hoy (control en vivo) / Este mes / Este año. */}
-            <div className="flex rounded-full bg-[#F0F3FA] p-0.5">
+            <div className="flex rounded-full bg-suave p-0.5">
               {([["hoy", "Hoy"], ["mes", "Este mes"], ["anio", "Este año"]] as const).map(([id, label]) => {
                 const activo = cobsPeriodo === id;
                 return (

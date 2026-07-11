@@ -10,7 +10,7 @@ import type { PuntoCobro } from "@/lib/data/control";
 const MapaCallesLeaflet = dynamic(() => import("./MapaCallesLeaflet"), {
   ssr: false,
   loading: () => (
-    <div className="flex aspect-[5/4] w-full items-center justify-center rounded-[14px] bg-[#EAF1FB] text-[12px] font-medium text-gris">
+    <div className="flex aspect-[5/4] w-full items-center justify-center rounded-[14px] bg-suave text-[12px] font-medium text-gris">
       Cargando mapa de calles…
     </div>
   ),
@@ -20,7 +20,7 @@ export function MapaCobranza({ puntos }: { puntos: PuntoCobro[] }) {
   const [modo, setModo] = useState<"rapida" | "calles">("rapida");
   return (
     <div className="flex flex-col gap-2.5">
-      <div className="flex gap-1 self-start rounded-full bg-[#F0F3FA] p-0.5">
+      <div className="flex gap-1 self-start rounded-full bg-suave p-0.5">
         {(["rapida", "calles"] as const).map((m) => (
           <button
             key={m}

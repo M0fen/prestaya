@@ -92,7 +92,7 @@ function Bloque({
         <h2 className="text-[15px] font-extrabold text-tinta">{titulo}</h2>
         <span className="text-[12px] font-medium text-gris">{nota}</span>
       </div>
-      <div className="grid grid-cols-3 gap-3">{children}</div>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">{children}</div>
     </section>
   );
 }
@@ -109,10 +109,10 @@ function Metrica({
   alerta?: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-1 rounded-[12px] bg-suave p-3.5">
+    <div className="flex min-w-0 flex-col gap-1 rounded-[12px] bg-suave p-3.5">
       <span className="text-[11px] font-semibold text-gris">{label}</span>
       <span
-        className="text-[18px] font-extrabold tabular-nums"
+        className="text-[15px] font-extrabold tabular-nums sm:text-[18px]"
         style={{ color: alerta ? "#C0392B" : acento }}
       >
         {valor}

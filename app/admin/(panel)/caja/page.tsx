@@ -135,8 +135,9 @@ export default async function CajaPage({
         </button>
       </form>
 
-      {/* 3 tarjetas (como Disapp) */}
-      <div className="grid grid-cols-3 gap-2.5">
+      {/* 3 tarjetas (como Disapp). En mobile van a 2 col para que el monto no se
+          recorte/superponga en pantallas angostas (~360px). */}
+      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3">
         <Kpi label="Balance operativo" valor={UYU(r.neto)} tono={r.neto >= 0 ? "#157A50" : "#C0392B"} />
         <Kpi label="Total Entradas" valor={UYU(r.ingresosTotal)} tono="#157A50" />
         <Kpi label="Total Egresos" valor={UYU(r.egresosTotal)} tono="#C0392B" />
@@ -243,9 +244,9 @@ const INPUT =
 
 function Kpi({ label, valor, tono }: { label: string; valor: string; tono?: string }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-[14px] bg-tarjeta p-3.5 shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
+    <div className="flex min-w-0 flex-col gap-0.5 rounded-[14px] bg-tarjeta p-3.5 shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
       <span className="text-[11px] font-semibold text-tenue">{label}</span>
-      <span className="text-[19px] font-extrabold tabular-nums" style={{ color: tono ?? "var(--color-tinta)" }}>
+      <span className="text-[16px] font-extrabold tabular-nums sm:text-[19px]" style={{ color: tono ?? "var(--color-tinta)" }}>
         {valor}
       </span>
     </div>

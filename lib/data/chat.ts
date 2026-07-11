@@ -83,8 +83,17 @@ export async function getMensajesVista(
   const autorIds = [...new Set(mensajes.map((m) => m.autor_id))];
   const nombres = new Map<string, string>();
   if (autorIds.length > 0) {
-    const { data } = await db.from("usuarios").select("id, nombre").in("id", autorIds);
-    for (const u of data ?? []) nombres.set(u.id as string, u.nombre as string);
+    // Nombres vía RPC SECURITY DEFINER (solo id+nombre): resuelve autores de
+    // CUALQUIER zona sin depender del SELECT sobre `usuarios` (acotado por zona
+    // en 0060). Así el canal 'general' muestra el nombre aunque el autor sea de
+    // otra zona. Degrada al SELECT directo si 0060 aún no corrió.
+    const { data, error } = await db.rpc("app_usuarios_nombres", { ids: autorIds });
+    if (error) {
+      const { data: fb } = await db.from("usuarios").select("id, nombre").in("id", autorIds);
+      for (const u of fb ?? []) nombres.set(u.id as string, u.nombre as string);
+    } else {
+      for (const u of (data ?? []) as { id: string; nombre: string }[]) nombres.set(u.id, u.nombre);
+    }
   }
   return mensajes.map((m) => ({
     ...m,

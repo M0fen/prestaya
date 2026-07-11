@@ -109,7 +109,7 @@ export default async function RecaudosPage({
       </div>
 
       {/* Totales */}
-      <div className="grid grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3">
         <Kpi label="Total Pagos" valor={`${r.totalPagos}`} />
         <Kpi label="Monto Total" valor={UYU(r.montoTotal)} tono="#157A50" />
         <Kpi label="Créditos Únicos" valor={`${r.creditosUnicos}`} />
@@ -242,9 +242,9 @@ function Campo({ label, children }: { label: string; children: React.ReactNode }
 
 function Kpi({ label, valor, tono }: { label: string; valor: string; tono?: string }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-[14px] bg-tarjeta p-3.5 shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
+    <div className="flex min-w-0 flex-col gap-0.5 rounded-[14px] bg-tarjeta p-3.5 shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
       <span className="text-[11px] font-semibold text-tenue">{label}</span>
-      <span className="text-[20px] font-extrabold tabular-nums" style={{ color: tono ?? "var(--color-tinta)" }}>
+      <span className="text-[16px] font-extrabold tabular-nums sm:text-[20px]" style={{ color: tono ?? "var(--color-tinta)" }}>
         {valor}
       </span>
     </div>

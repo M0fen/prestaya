@@ -220,7 +220,9 @@ function ModalGestion({
                     value={monto}
                     onChange={(e) => setMonto(e.target.value.replace(/[^\d]/g, ""))}
                     placeholder="Monto prometido"
-                    className="min-w-0 flex-1 rounded-[10px] border border-[#BFE6D3] bg-white px-3 py-2 text-[14px] font-bold tabular-nums text-tinta focus:border-[#1FA971] focus:outline-none"
+                    // text fijo oscuro (no el token text-tinta, que en modo oscuro
+                    // se aclara a casi-blanco y desaparecía sobre el input blanco).
+                    className="min-w-0 flex-1 rounded-[10px] border border-[#BFE6D3] bg-white px-3 py-2 text-[14px] font-bold tabular-nums text-[#0F1B3D] focus:border-[#1FA971] focus:outline-none"
                   />
                 </div>
                 <div className="flex flex-wrap gap-1.5">

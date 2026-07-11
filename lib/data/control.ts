@@ -261,7 +261,10 @@ export async function getControlCobranza(
   return {
     resumen: {
       recaudadoHoy,
-      cobrosHoy: (pagosRaw).length,
+      // Acotado al alcance del actor (igual que recaudadoHoy). Con pagosRaw se
+      // contaban los cobros de HOY de TODA la empresa → cifra incoherente para
+      // el supervisor (y esa cifra llega al texto de Aureo).
+      cobrosHoy: pagosScoped.length,
       fueraZona,
       cobradores: cobradores.length,
     },

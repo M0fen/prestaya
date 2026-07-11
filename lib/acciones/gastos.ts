@@ -74,21 +74,13 @@ export async function aprobarGastoRuta(input: { solicitudId: string }): Promise<
   if (sol.estado !== "pendiente") return { ok: false, error: "Esa solicitud ya fue resuelta." };
 
   const admin = createSupabaseAdmin();
-  try {
-    // Recién ahora el gasto es plata real: se crea el egreso a nombre del cobrador.
-    await registrarMovimientoCaja(admin, {
-      tipo: "egreso",
-      categoria: sol.categoria ?? "Gasto de ruta",
-      monto: sol.monto,
-      descripcion: sol.descripcion,
-      cobradorId: sol.cobradorId,
-      registradoPor: usuario.id,
-    });
-  } catch {
-    return { ok: false, error: "No se pudo crear el egreso en la caja." };
-  }
-  // Marca aprobada (idempotente: solo si seguía pendiente).
-  const { data } = await admin
+
+  // CANDADO (evita el egreso DUPLICADO por doble clic / retry de red / dos gestores
+  // en paralelo): el UPDATE atómico pendiente→aprobada con guardia `.eq('estado',
+  // 'pendiente')` hace que SOLO una llamada concurrente gane (devuelve 1 fila). Se
+  // ejecuta ANTES de tocar la caja; recién el ganador crea el egreso. El perdedor
+  // no mueve plata. (Mismo patrón que liquidarComision: candado antes que caja.)
+  const { data: ganada, error: eUpd } = await admin
     .from("solicitudes_gasto")
     .update({
       estado: "aprobada",
@@ -99,6 +91,30 @@ export async function aprobarGastoRuta(input: { solicitudId: string }): Promise<
     .eq("id", sol.id)
     .eq("estado", "pendiente")
     .select("id");
+  if (eUpd) return { ok: false, error: "No se pudo aprobar el gasto." };
+  if (!ganada || ganada.length === 0) return { ok: false, error: "La solicitud ya había sido resuelta." };
+
+  try {
+    // Ganó el candado → recién ahora el gasto es plata real: se crea el egreso a
+    // nombre del cobrador (una sola vez, garantizado por el UPDATE de arriba).
+    await registrarMovimientoCaja(admin, {
+      tipo: "egreso",
+      categoria: sol.categoria ?? "Gasto de ruta",
+      monto: sol.monto,
+      descripcion: sol.descripcion,
+      cobradorId: sol.cobradorId,
+      registradoPor: usuario.id,
+    });
+  } catch {
+    // La caja falló DESPUÉS del candado → revertir a 'pendiente' para no dejar el
+    // gasto "aprobado" sin su egreso (si no, quedaría aprobado sin salir de caja).
+    await admin
+      .from("solicitudes_gasto")
+      .update({ estado: "pendiente", resuelto_por: null, resuelto_por_nombre: null, resuelto_en: null })
+      .eq("id", sol.id);
+    return { ok: false, error: "No se pudo crear el egreso en la caja." };
+  }
+
   await registrarAuditoria(admin, {
     actorId: usuario.id,
     actorNombre: usuario.nombre,
@@ -108,7 +124,6 @@ export async function aprobarGastoRuta(input: { solicitudId: string }): Promise<
     detalle: `${sol.cobradorNombre ?? "Cobrador"} · $${sol.monto.toLocaleString("es-UY")} · ${sol.categoria ?? "—"}`,
   });
   revalidatePath("/admin/gastos");
-  if (!data || data.length === 0) return { ok: false, error: "La solicitud ya había sido resuelta." };
   return { ok: true };
 }
 

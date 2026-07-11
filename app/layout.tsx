@@ -5,9 +5,12 @@ import { AccesibilidadControl } from "@/components/AccesibilidadControl";
 import { RegistrarSW } from "@/components/pwa/RegistrarSW";
 import { InstalarApp } from "@/components/pwa/InstalarApp";
 
+// Inter es VARIABLE font: no fijamos `weight` (uso idiomático) → Next sirve el
+// archivo variable y los pesos de Tailwind (font-bold, etc.) interpolan vía
+// font-variation-settings. (El array de pesos era redundante: con o sin él el
+// woff2 servido es el mismo archivo variable.)
 const inter = Inter({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800", "900"],
   variable: "--font-inter",
   display: "swap",
 });
