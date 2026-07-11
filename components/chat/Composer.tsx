@@ -6,31 +6,51 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { enviarMensaje } from "@/lib/acciones/chat";
 
-export function Composer({ canal }: { canal: string }) {
+// Acuse rápido: el cobrador responde a una orden en 1 toque, sin escribir. El
+// supervisor ve en el hilo que la orden llegó y en qué va.
+const ACUSES = ["✓ Recibido", "🏃 En camino", "✅ Hecho"];
+
+export function Composer({ canal, acuse = false }: { canal: string; acuse?: boolean }) {
   const router = useRouter();
   const [texto, setTexto] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pendiente, startTransition] = useTransition();
 
-  const enviar = () => {
-    const cuerpo = texto.trim();
+  // `preset` = acuse de 1 toque (no toca la caja de texto); sin preset envía lo escrito.
+  const enviar = (preset?: string) => {
+    const cuerpo = (preset ?? texto).trim();
     if (cuerpo.length === 0 || pendiente) return;
     setError(null);
-    setTexto(""); // optimista: la caja se vacía ya
+    if (!preset) setTexto(""); // optimista: la caja se vacía ya (solo el texto escrito)
     startTransition(async () => {
       const res = await enviarMensaje({ canal, cuerpo });
       if (res.ok) {
         router.refresh();
       } else {
-        setTexto(cuerpo); // falló: devolvemos el texto para reintentar
+        if (!preset) setTexto(cuerpo); // falló: devolvemos el texto para reintentar
         setError(res.error);
       }
     });
   };
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-1.5">
       {error && <span className="px-1 text-[11px] font-semibold text-[#C0392B]">{error}</span>}
+      {acuse && (
+        <div className="flex flex-wrap gap-1.5">
+          {ACUSES.map((a) => (
+            <button
+              key={a}
+              type="button"
+              disabled={pendiente}
+              onClick={() => enviar(a)}
+              className="rounded-full border border-[#DCE3F4] bg-white px-3 py-1.5 text-[12px] font-bold text-[#2453DC] transition-transform active:scale-95 disabled:opacity-40"
+            >
+              {a}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="flex items-end gap-2">
         <textarea
           value={texto}
@@ -47,7 +67,7 @@ export function Composer({ canal }: { canal: string }) {
         />
         <button
           type="button"
-          onClick={enviar}
+          onClick={() => enviar()}
           disabled={pendiente || texto.trim().length === 0}
           className="flex h-[44px] w-[44px] flex-shrink-0 items-center justify-center rounded-full bg-[#2453DC] text-[17px] text-white transition-transform active:scale-90 disabled:opacity-40"
           aria-label="Enviar"

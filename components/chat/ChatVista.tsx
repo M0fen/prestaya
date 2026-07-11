@@ -85,6 +85,9 @@ export function ChatVista({
 }) {
   const activo = canales.find((c) => c.key === canalActivo) ?? canales[0];
   const hayNoLeidos = (activo?.noLeidos ?? 0) > 0;
+  // Acuse de 1 toque: solo el cobrador (modo compacto), en los canales donde
+  // recibe órdenes (su hilo privado con la oficina y el de su zona).
+  const permitirAcuse = compacto && (activo?.ambito === "cobrador" || activo?.ambito === "zona");
 
   // Modo compacto (cobrador): una sola columna, chips arriba, todo a ancho completo.
   if (compacto) {
@@ -96,6 +99,7 @@ export function ChatVista({
           mensajes={mensajes}
           esAdmin={esAdmin}
           hayNoLeidos={hayNoLeidos}
+          acuse={permitirAcuse}
         />
       </div>
     );
@@ -107,7 +111,7 @@ export function ChatVista({
       <SelectorCanales canales={canales} canalActivo={activo?.key ?? "general"} basePath={basePath} />
 
       {/* Panel derecho: conversación del canal activo. */}
-      <Conversacion activo={activo} mensajes={mensajes} esAdmin={esAdmin} hayNoLeidos={hayNoLeidos} />
+      <Conversacion activo={activo} mensajes={mensajes} esAdmin={esAdmin} hayNoLeidos={hayNoLeidos} acuse={false} />
     </div>
   );
 }
@@ -118,11 +122,14 @@ function Conversacion({
   mensajes,
   esAdmin,
   hayNoLeidos,
+  acuse,
 }: {
   activo: Canal | undefined;
   mensajes: MensajeVista[];
   esAdmin: boolean;
   hayNoLeidos: boolean;
+  /** Muestra los botones de acuse rápido en el compositor (cobrador). */
+  acuse: boolean;
 }) {
   return (
     <div className="flex min-w-0 flex-col gap-3">
@@ -146,7 +153,7 @@ function Conversacion({
         {/* Mensajes (scroll propio, auto-baja) */}
         <ListaMensajes mensajes={mensajes} />
 
-        <Composer canal={activo?.key ?? "general"} />
+        <Composer canal={activo?.key ?? "general"} acuse={acuse} />
         {activo && <MarcarLeido canal={activo.key} hayNoLeidos={hayNoLeidos} />}
         {activo && (
           <RealtimeChat ambito={activo.ambito} cobradorId={activo.cobradorId} zonaId={activo.zonaId} />

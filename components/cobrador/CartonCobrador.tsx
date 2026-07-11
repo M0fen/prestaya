@@ -18,10 +18,13 @@ import {
   type OpCobro,
 } from "@/lib/cobrador/colaOffline";
 
+// Rojo FUERTE (#D64545) para el atrasado: el cobrador tiene que cobrarlo, así que
+// el día vencido le grita (el rojo suave #E06A6A es el "amable" de la vista del
+// cliente, no el de la calle). El resto sigue la paleta de estados del skill.
 const COLOR: Record<EstadoDia, string> = {
   pagado: "#1FA971",
   pendiente: "#E8A317",
-  atrasado: "#E06A6A",
+  atrasado: "#D64545",
   futuro: "#EEF1F8",
 };
 
@@ -91,13 +94,14 @@ export function CartonCobrador({
           return (
             <div
               key={d.dia}
-              className={`relative flex aspect-square items-center justify-center rounded-[9px] text-[11px] font-bold ${
+              className={`relative flex aspect-square items-center justify-center rounded-[14px] text-[11px] font-bold ${
                 provisional ? "py-sello" : ""
               }`}
               style={{
                 background: COLOR[estado],
                 color: estado === "futuro" ? "#B3A488" : "#fff",
-                boxShadow: d.esHoy ? "0 0 0 2px #13308C" : "none",
+                // HOY: doble anillo (blanco + color del estado), como en la vista del cliente/admin.
+                boxShadow: d.esHoy ? `0 0 0 3px #fff, 0 0 0 6px ${COLOR[estado]}` : "none",
               }}
             >
               {estado === "pagado" ? "✓" : d.dia}

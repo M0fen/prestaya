@@ -588,14 +588,14 @@ function Cierre({ cierre, cerrables }: { cierre: ResumenCierreZonas; cerrables: 
         <>
           {/* Cuadre de un vistazo: recaudado − gastos = esperado → entregado → diferencia. */}
           <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
-            <TotalCierre etiqueta="Recaudado" valor={UYU(c.totalRecaudado)} color="#157A50" />
-            <TotalCierre etiqueta="Entregado" valor={UYU(c.totalEntregado)} color="#1E47C8" />
+            <TotalCierre etiqueta="Recaudado" valor={UYU(c.totalRecaudado)} color="var(--color-verde-osc)" />
+            <TotalCierre etiqueta="Entregado" valor={UYU(c.totalEntregado)} color="var(--color-azul)" />
             <TotalCierre
               etiqueta={c.totalFaltante > 0 ? "Faltante" : "Diferencia"}
               valor={c.totalFaltante > 0 ? UYU(c.totalFaltante) : UYU(diferencia)}
-              color={c.totalFaltante > 0 ? "#C0392B" : diferencia > 0 ? "#B9770E" : "#157A50"}
+              color={c.totalFaltante > 0 ? "var(--color-rojo-osc)" : diferencia > 0 ? "var(--color-ambar-osc)" : "var(--color-verde-osc)"}
             />
-            <TotalCierre etiqueta="Por rendir" valor={UYU(c.porRendir)} color={c.porRendir > 0 ? "#B9770E" : "#8A93AC"} />
+            <TotalCierre etiqueta="Por rendir" valor={UYU(c.porRendir)} color={c.porRendir > 0 ? "var(--color-ambar-osc)" : "var(--color-tenue)"} />
           </div>
 
           {/* Efectivo que el supervisor consolida y entrega a caja central. */}
@@ -638,15 +638,15 @@ function ResumenZona({
 }) {
   return (
     <section className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
-      <PulsoTile etiqueta="Capital en calle" valor={UYU(capitalEnCalle)} sub={`${creditos} créditos activos`} color="#7A4DD6" />
-      <PulsoTile etiqueta="Recaudado hoy" valor={UYU(recaudadoHoy)} sub="cobrado en tu zona" color="#157A50" />
+      <PulsoTile etiqueta="Capital en calle" valor={UYU(capitalEnCalle)} sub={`${creditos} créditos activos`} color="var(--color-tinta)" />
+      <PulsoTile etiqueta="Recaudado hoy" valor={UYU(recaudadoHoy)} sub="cobrado en tu zona" color="var(--color-verde-osc)" />
       <PulsoTile
         etiqueta="En mora"
         valor={String(morosos)}
         sub={`${UYU(montoMora)} · ${Math.round(moraPct * 100)}% cartera`}
-        color={morosos > 0 ? "#C0392B" : "#8A93AC"}
+        color={morosos > 0 ? "var(--color-rojo-osc)" : "var(--color-tenue)"}
       />
-      <PulsoTile etiqueta="Clientes" valor={String(clientes)} sub="con crédito activo" color="#1E47C8" />
+      <PulsoTile etiqueta="Clientes" valor={String(clientes)} sub="con crédito activo" color="var(--color-azul)" />
     </section>
   );
 }
@@ -767,8 +767,14 @@ function DatoGrande({
   activo?: boolean;
   tono?: "rojo" | "ambar" | "azul";
 }) {
-  // Azul por token (var) para que en modo oscuro se aclare y no quede ilegible.
-  const fg = !activo ? "#8A93AC" : tono === "ambar" ? "#B9770E" : tono === "azul" ? "var(--color-azul)" : "#C0392B";
+  // Colores por token (var) para que en modo oscuro se aclaren y no queden ilegibles.
+  const fg = !activo
+    ? "var(--color-tenue)"
+    : tono === "ambar"
+      ? "var(--color-ambar-osc)"
+      : tono === "azul"
+        ? "var(--color-azul)"
+        : "var(--color-rojo-osc)";
   return (
     <div className="flex flex-col gap-0.5 rounded-[13px] border border-borde bg-tarjeta px-3.5 py-3">
       <span className="text-[11px] font-bold uppercase tracking-wide text-gris">{etiqueta}</span>
@@ -792,10 +798,12 @@ function TotalCierre({ etiqueta, valor, color }: { etiqueta: string; valor: stri
 }
 
 function LineaCalma({ texto }: { texto: string }) {
+  // Tokens (no hex): en modo oscuro el fondo/borde/verde flipean y no queda una
+  // caja menta brillante sobre tarjeta oscura.
   return (
-    <div className="flex items-center gap-2.5 rounded-[14px] border border-[#CFEBDD] bg-[#F1FBF6] px-4 py-3">
+    <div className="flex items-center gap-2.5 rounded-[14px] border border-borde bg-suave px-4 py-3">
       <span className="text-[16px]">🛡️</span>
-      <span className="text-[12.5px] font-medium text-[#157A50]">{texto}</span>
+      <span className="text-[12.5px] font-medium text-verde-osc">{texto}</span>
     </div>
   );
 }
@@ -866,19 +874,19 @@ function HistorialDia({ dia }: { dia: DesempenoRango }) {
   return (
     <div className="flex flex-col gap-4">
       <section className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
-        <PulsoTile etiqueta="Recaudado" valor={UYU(dia.totalRecaudado)} sub={`${dia.totalCobros} cobros`} color="#157A50" />
-        <PulsoTile etiqueta="Cobradores" valor={String(dia.cobradoresActivos)} sub="con actividad ese día" color="#1E47C8" />
+        <PulsoTile etiqueta="Recaudado" valor={UYU(dia.totalRecaudado)} sub={`${dia.totalCobros} cobros`} color="var(--color-verde-osc)" />
+        <PulsoTile etiqueta="Cobradores" valor={String(dia.cobradoresActivos)} sub="con actividad ese día" color="var(--color-azul)" />
         <PulsoTile
           etiqueta="Entregado"
           valor={dia.disponibleRendiciones ? UYU(entregado) : "—"}
           sub={dia.disponibleRendiciones ? `${rindieron} rindieron` : "sin rendición"}
-          color="#7A4DD6"
+          color="var(--color-tinta)"
         />
         <PulsoTile
           etiqueta="Faltantes"
           valor={String(faltantes)}
           sub={faltantes > 0 ? "en el cierre" : "sin faltantes"}
-          color={faltantes > 0 ? "#C0392B" : "#8A93AC"}
+          color={faltantes > 0 ? "var(--color-rojo-osc)" : "var(--color-tenue)"}
         />
       </section>
 

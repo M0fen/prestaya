@@ -51,10 +51,10 @@ export default async function CobranzaPage() {
 
       {/* Resumen (esta pantalla mira SOLO la ruta activa; el total del día está abajo) */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi label="Cobrado en ruta hoy" valor={UYU(rec.enRuta)} acento="#1FA971" />
-        <Kpi label="Cobros en ruta" valor={String(rec.cobrosRuta)} acento="#1E47C8" />
-        <Kpi label="Fuera de zona" valor={String(resumen.fueraZona)} acento="#E06A6A" alerta={resumen.fueraZona > 0} />
-        <Kpi label="Cobradores" valor={String(resumen.cobradores)} acento="#7A4DD6" />
+        <Kpi label="Cobrado en ruta hoy" valor={UYU(rec.enRuta)} acento="var(--color-verde-osc)" />
+        <Kpi label="Cobros en ruta" valor={String(rec.cobrosRuta)} acento="var(--color-azul)" />
+        <Kpi label="Fuera de zona" valor={String(resumen.fueraZona)} acento="var(--color-rojo-osc)" alerta={resumen.fueraZona > 0} />
+        <Kpi label="Cobradores" valor={String(resumen.cobradores)} acento="var(--color-tinta)" />
       </div>
 
       {/* Aclaración: por qué este número puede ser MENOR que el "Recaudado hoy" del panel. */}
@@ -117,7 +117,7 @@ export default async function CobranzaPage() {
           {ranking.map((r, i) => (
             <div key={r.cobradorId} className="flex flex-col gap-1.5">
               <div className="flex items-center gap-2.5">
-                <span className="text-[13px] font-black text-[#B3A488]">#{i + 1}</span>
+                <span className="text-[13px] font-black text-tenue">#{i + 1}</span>
                 <span className="flex-1 text-[13.5px] font-bold text-tinta">{r.nombre}</span>
                 {r.anomalias > 0 && (
                   <span className="rounded-full bg-[#FCE8E8] px-2 py-0.5 text-[10.5px] font-bold text-[#C0392B]">
@@ -128,9 +128,9 @@ export default async function CobranzaPage() {
                   {UYU(r.recaudado)}
                 </span>
               </div>
-              <div className="h-[7px] w-full overflow-hidden rounded-full bg-[#E6EBF5]">
+              <div className="h-[7px] w-full overflow-hidden rounded-full bg-linea">
                 <div
-                  className="h-full rounded-full bg-[#1E47C8]"
+                  className="h-full rounded-full bg-azul"
                   style={{ transformOrigin: "left", transform: `scaleX(${Math.min(1, r.progreso)})` }}
                 />
               </div>
@@ -174,7 +174,7 @@ function Kpi({
       <span className="text-[11.5px] font-bold tracking-wide text-gris uppercase">{label}</span>
       <span
         className="text-[23px] font-extrabold tabular-nums"
-        style={{ color: alerta ? "#C0392B" : acento }}
+        style={{ color: alerta ? "var(--color-rojo-osc)" : acento }}
       >
         {valor}
       </span>
