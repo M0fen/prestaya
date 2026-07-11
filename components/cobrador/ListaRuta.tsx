@@ -270,6 +270,16 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
                     {idx + 1}
                   </span>
                 )}
+                {/* Señal de RIESGO del cliente (la calificación ya reordena en
+                    modo Prioridad; acá la hace visible). Solo para riesgo/regular. */}
+                {(it.calificacion === "riesgo" || it.calificacion === "regular") && (
+                  <span
+                    aria-hidden="true"
+                    title={it.calificacion === "riesgo" ? "Riesgo" : "Regular"}
+                    className="absolute -right-1 -bottom-1 h-3.5 w-3.5 rounded-full ring-2 ring-white"
+                    style={{ background: it.calificacion === "riesgo" ? "#D64545" : "#E8A317" }}
+                  />
+                )}
               </div>
               <div className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate text-[14.5px] font-bold text-tinta">

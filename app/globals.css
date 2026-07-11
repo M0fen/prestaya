@@ -22,7 +22,25 @@
   --color-tenue: #8a93ad; /* texto muy secundario */
   --color-cuerpo: #3a445f; /* texto de cuerpo */
 
-  --font-sans: "Inter", system-ui, sans-serif;
+  /* Semánticos (texto-sobre-color y tintes). Colapsan los ~300 hex repetidos y
+     traen flip oscuro (abajo). Ej.: text-rojo-osc, bg-azul-suave, border-campo. */
+  --color-verde-osc: #157a50; /* verde para texto/monto sobre claro */
+  --color-rojo-osc: #c0392b; /* rojo para texto/monto sobre claro */
+  --color-ambar-osc: #b9770e; /* ámbar para texto sobre claro */
+  --color-azul-suave: #eef3ff; /* tinte azul: chips, filas activas */
+  --color-campo: #dce3f4; /* borde de inputs/pills */
+  --color-tenue-2: #aeb6cc; /* texto terciario (más claro que tenue) */
+  --color-notif: #e06a6a; /* punto/badge de notificación (rojo suave) */
+
+  /* Elevación: UNA base azul (rgba 15,27,61). shadow-brand para CTAs azules. */
+  --shadow-sm: 0 1px 2px rgba(15, 27, 61, 0.05);
+  --shadow-md: 0 6px 20px rgba(15, 27, 61, 0.1);
+  --shadow-lg: 0 16px 40px rgba(15, 27, 61, 0.16);
+
+  /* Inter llega vía next/font como var(--font-inter) (ver app/layout.tsx). Hay
+     que referenciarla PRIMERO: el literal "Inter" no apunta al woff2 self-hosted
+     y en un teléfono sin Inter instalada se perdía la fuente premium. */
+  --font-sans: var(--font-inter), "Inter", system-ui, sans-serif;
 }
 
 /* ── MODO OSCURO (scopeado al panel admin vía [data-tema="oscuro"]) ──────────
@@ -42,6 +60,13 @@
   --color-cuerpo: #c6cee2;
   --color-azul: #5b83f5;
   --color-azul-claro: #6b8ff7;
+  /* Semánticos en oscuro (legibles sobre superficie #161d2e). */
+  --color-verde-osc: #5fd0a0;
+  --color-rojo-osc: #f4a79b;
+  --color-ambar-osc: #e6c06a;
+  --color-azul-suave: #222c44;
+  --color-campo: #333e5c;
+  --color-tenue-2: #6b7593;
 }
 /* Alto contraste + oscuro: sube el secundario. */
 [data-tema="oscuro"] html[data-contraste="1"],
@@ -108,6 +133,13 @@ body {
   background: #eaeef7;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Números de dinero/conteo: tabulares + tracking ceñido (evita que "bailen" al
+   recalcularse). Reemplaza el `tabular-nums` + tracking a mano repartido. */
+.num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
 /* ── Safe areas (notch / home indicator / PWA standalone) ───────────────

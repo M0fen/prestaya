@@ -45,8 +45,9 @@ export function PanelBottomNav({
             <Link
               key={t.href}
               href={t.href}
-              className={`flex flex-1 flex-col items-center gap-0.5 pt-2 pb-1.5 text-[10px] font-bold ${on ? "text-white" : "text-white/50"}`}
+              className={`relative flex flex-1 flex-col items-center gap-0.5 pt-2.5 pb-1.5 text-[10px] font-bold ${on ? "text-white" : "text-white/45"}`}
             >
+              {on && <span aria-hidden="true" className="absolute top-0 h-[3px] w-9 rounded-full bg-[#6B8FF7]" />}
               <span className="text-[19px] leading-none">{t.icon}</span>
               {t.label}
             </Link>

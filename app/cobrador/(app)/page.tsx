@@ -98,7 +98,7 @@ export default async function RutaPage() {
       <section className="rounded-[18px] bg-[linear-gradient(155deg,#173063_0%,#0F1B3D_60%)] p-4 text-white shadow-[0_10px_24px_rgba(15,27,61,0.28)]">
         <div className="mb-2 flex items-end justify-between">
           <div className="flex flex-col">
-            <span className="text-[11px] font-semibold tracking-wide text-white/50 uppercase">
+            <span className="text-[11px] font-semibold tracking-wide text-white/70 uppercase">
               Cobrado en tu ruta
             </span>
             <span className="text-[27px] leading-tight font-black tabular-nums">
@@ -107,7 +107,15 @@ export default async function RutaPage() {
           </div>
           <div className="flex flex-col items-end">
             <span className="text-[12px] font-bold text-white/80 tabular-nums">{cobroPct}%</span>
-            <span className="text-[11px] font-medium text-white/50">de {UYU(arqueo.esperado)}</span>
+            {/* Lo que FALTA cobrar (accionable) lidera sobre el esperado pasivo. */}
+            {arqueo.esperado - arqueo.recaudado > 0 ? (
+              <span className="text-[13px] font-bold tabular-nums text-[#F2C14E]">
+                Falta {UYU(arqueo.esperado - arqueo.recaudado)}
+              </span>
+            ) : (
+              <span className="text-[12px] font-bold text-[#34E0A1]">Completo ✓</span>
+            )}
+            <span className="text-[10.5px] font-medium text-white/45">de {UYU(arqueo.esperado)}</span>
           </div>
         </div>
         {/* Progreso de cobro (recaudado / esperado). */}

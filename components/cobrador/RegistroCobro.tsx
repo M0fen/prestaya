@@ -157,7 +157,7 @@ export function RegistroCobro({
             setAbono((v) => !v);
             setMotivos(false);
           }}
-          className={`flex-1 min-h-11 rounded-full border px-4 py-3 text-[13px] font-bold transition-transform active:scale-[0.98] disabled:opacity-60${
+          className={`flex-1 min-h-11 rounded-full border px-4 py-3 text-[13px] font-bold transition-transform active:scale-[0.98] disabled:opacity-60 ${
             abono
               ? "border-[#E8A317] bg-[#FDF3E2] text-[#B9770E]"
               : "border-[#DCE3F4] bg-white text-[#6B7494]"
@@ -172,7 +172,7 @@ export function RegistroCobro({
             setMotivos((v) => !v);
             setAbono(false);
           }}
-          className={`flex-1 min-h-11 rounded-full border px-4 py-3 text-[13px] font-bold transition-transform active:scale-[0.98] disabled:opacity-60${
+          className={`flex-1 min-h-11 rounded-full border px-4 py-3 text-[13px] font-bold transition-transform active:scale-[0.98] disabled:opacity-60 ${
             motivos
               ? "border-[#D64545] bg-[#FBE4E2] text-[#C0392B]"
               : "border-[#DCE3F4] bg-white text-[#6B7494]"
