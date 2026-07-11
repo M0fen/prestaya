@@ -15,6 +15,7 @@ import { AsesorFlotante } from "@/components/asesor/AsesorFlotante";
 import { CommandPalette } from "@/components/admin/CommandPalette";
 import { Toaster } from "@/components/ui/Toaster";
 import { NotificacionesRealtime } from "@/components/admin/NotificacionesRealtime";
+import { RegistroUso } from "@/components/RegistroUso";
 
 // El panel siempre con datos frescos (nada de prerender estático).
 export const dynamic = "force-dynamic";
@@ -109,6 +110,9 @@ export default async function PanelLayout({
 
       {/* Navegación inferior (mobile): el flujo del día + Menú con todo. */}
       <PanelBottomNav rol={usuario.rol} noLeidos={noLeidos} esDev={usuario.es_dev} />
+
+      {/* Telemetría de uso (0064): registra qué sección abre este usuario. */}
+      <RegistroUso />
 
       {/* Flotantes (asesor + avisos): fuera del documento impreso. */}
       <div className="print:hidden">

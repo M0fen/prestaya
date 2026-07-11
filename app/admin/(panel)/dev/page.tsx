@@ -73,6 +73,20 @@ export default async function DevPage() {
         </span>
       </div>
 
+      {/* Auditoría de comportamiento del personal (0064) — herramienta dev. */}
+      <Link
+        href="/admin/uso"
+        className="flex items-center justify-between gap-3 rounded-[16px] bg-[linear-gradient(120deg,#1E47C8,#13308C)] px-5 py-4 text-white shadow-[0_10px_24px_rgba(19,48,140,0.22)]"
+      >
+        <div className="flex min-w-0 flex-col">
+          <span className="text-[15px] font-extrabold">🕵️ Auditoría de uso del personal</span>
+          <span className="text-[12.5px] font-medium text-white/70">
+            Qué sección abre cada quien, bajo qué rol, último acceso, acciones y brechas de capacitación.
+          </span>
+        </div>
+        <span className="flex-shrink-0 text-[18px]">→</span>
+      </Link>
+
       {/* Claves / features */}
       <Bloque titulo="Claves y features">
         <div className="grid gap-2 sm:grid-cols-2">

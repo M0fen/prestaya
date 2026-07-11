@@ -7,6 +7,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { getTotalNoLeidos } from "@/lib/data/chat";
 import { SyncEngine } from "@/components/cobrador/SyncEngine";
 import { CobradorBottomNav } from "@/components/cobrador/CobradorBottomNav";
+import { RegistroUso } from "@/components/RegistroUso";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +51,7 @@ export default async function CobradorLayout({
         </header>
 
         <SyncEngine />
+        <RegistroUso />
 
         <main className="flex-1 px-4 pt-4 pb-24">{children}</main>
         <CobradorBottomNav noLeidos={noLeidos} />

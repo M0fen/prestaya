@@ -85,6 +85,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/admin/tutorial", label: "Cómo se usa", icon: "🎓", grupo: "Configuración", alias: ["tutorial", "ayuda", "guia", "manual", "instrucciones", "aprender"] },
   { href: "/admin/seguridad", label: "Seguridad", icon: "🔐", grupo: "Configuración", alias: ["2fa", "dos pasos", "mfa", "totp", "contraseña", "verificacion"] },
   { href: "/admin/dev", label: "Dev", icon: "🛠️", grupo: "Configuración", dev: true, alias: ["diagnostico", "salud", "sistema", "debug", "desarrollador", "estado"] },
+  { href: "/admin/uso", label: "Auditoría de uso", icon: "🕵️", grupo: "Configuración", dev: true, alias: ["comportamiento", "capacitacion", "telemetria", "personal", "clics", "actividad", "quien usa", "navegacion", "logins"] },
 ];
 
 /** Ítems visibles para un rol dado (y si es desarrollador, los ítems dev). */
