@@ -9,6 +9,7 @@ import { getActivosConPagos } from "@/lib/data/activos";
 import { alcanceDelActor } from "@/lib/data/alcance";
 import { MapaCobranza } from "@/components/admin/MapaCobranza";
 import { AutoRefresco } from "@/components/admin/AutoRefresco";
+import { AvisarCobrador } from "@/components/admin/AvisarCobrador";
 import { UYU } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -136,6 +137,13 @@ export default async function CobranzaPage() {
               <span className="text-[11px] font-medium text-gris">
                 {r.cobrados} cobrados · {r.pendientes} pendientes · esperado {UYU(r.esperado)}
               </span>
+              {/* Del ranking pasivo a la acción: entrar a su campo o avisarle sin salir. */}
+              <div className="flex flex-wrap items-center gap-2">
+                <Link href="/admin/campo" className="text-[11.5px] font-bold text-azul hover:underline">
+                  Ver campo →
+                </Link>
+                <AvisarCobrador cobradorId={r.cobradorId} nombre={r.nombre} />
+              </div>
             </div>
           ))}
         </section>

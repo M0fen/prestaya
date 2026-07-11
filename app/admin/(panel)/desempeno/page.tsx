@@ -176,7 +176,21 @@ export default async function DesempenoPage({
               {r.cobradores.map((c, i) => (
                 <tr key={c.cobradorId} className="border-b border-linea">
                   <td className="px-3 py-2.5 font-black text-tenue tabular-nums">{i + 1}</td>
-                  <td className="px-3 py-2.5 font-bold text-tinta">{c.nombre}</td>
+                  <td className="px-3 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <Link href="/admin/campo" className="font-bold text-tinta hover:text-azul">
+                        {c.nombre}
+                      </Link>
+                      <Link
+                        href={`/admin/chat?c=cob:${c.cobradorId}`}
+                        className="text-[13px] leading-none hover:opacity-70"
+                        title={`Mensaje a ${c.nombre}`}
+                        aria-label={`Mensaje a ${c.nombre}`}
+                      >
+                        💬
+                      </Link>
+                    </div>
+                  </td>
                   <td className="px-3 py-2.5 text-gris">{c.zonaNombre ?? "—"}</td>
                   <td className="px-3 py-2.5 text-right font-extrabold tabular-nums text-[#157A50]">{UYU(c.recaudado)}</td>
                   <td className="px-3 py-2.5 text-right tabular-nums text-cuerpo">{c.cobros}</td>

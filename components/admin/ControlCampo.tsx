@@ -2,6 +2,7 @@
 // las señales (planchado, fuera de zona, sin moverse, GPS apagado) + la lista de
 // acciones con hora, cliente, monto, GPS y "ver en mapa". Presentacional (server).
 import type { ResumenCobradorDia } from "@/lib/data/bitacora";
+import { AvisarCobrador } from "@/components/admin/AvisarCobrador";
 import { UYU } from "@/lib/format";
 
 const NIVEL: Record<string, { bg: string; fg: string; label: string }> = {
@@ -58,6 +59,11 @@ export function ControlCampo({ resumen }: { resumen: ResumenCobradorDia[] }) {
               <span className="ml-auto text-[12px] font-medium text-gris">
                 {c.senales.cobros} cobro{c.senales.cobros === 1 ? "" : "s"} · {c.eventos.length} acciones
               </span>
+            </div>
+
+            {/* Detectaste la maña → actuá sin salir: avisá al cobrador a su chat. */}
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <AvisarCobrador cobradorId={c.actorId} nombre={c.actorNombre} />
             </div>
 
             {/* Motivos / alertas */}

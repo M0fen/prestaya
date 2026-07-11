@@ -36,7 +36,11 @@ function waLink(telefono: string): string {
   return `https://wa.me/${conPais}`;
 }
 
-export default async function MoraPage() {
+export default async function MoraPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ cob?: string; nivel?: string }>;
+}) {
   const usuario = await requireGestor();
   const db = await createSupabaseServer();
   const [{ resumen, config, enRiesgo }, morosos] = await Promise.all([
@@ -48,6 +52,25 @@ export default async function MoraPage() {
   // Estado de gestión (mini-CRM) por cliente en riesgo: si ya se gestionó hoy y si
   // hay un compromiso de pago abierto. Enciende el loop de cobranza sobre la lista.
   const estadosGestion = await getEstadoGestionClientes(db, enRiesgo.map((c) => c.clienteId));
+
+  // Filtro "modo ruta": por cobrador y por nivel, para aislar la lista de un
+  // cobrador y mandársela. GET (sin JS). Los KPIs de arriba siguen siendo del total.
+  const sp = await searchParams;
+  const filtroCob = sp.cob || null;
+  const nivelesFiltrables: NivelRiesgo[] = ["critico", "alto", "medio"];
+  const filtroNivel = nivelesFiltrables.includes((sp.nivel ?? "") as NivelRiesgo)
+    ? (sp.nivel as NivelRiesgo)
+    : null;
+  const cobradoresEnRiesgo = [
+    ...new Map(
+      enRiesgo.filter((c) => c.cobradorId).map((c) => [c.cobradorId as string, c.cobradorNombre ?? "—"]),
+    ).entries(),
+  ]
+    .map(([id, nombre]) => ({ id, nombre }))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre));
+  const enRiesgoFiltrado = enRiesgo.filter(
+    (c) => (!filtroCob || c.cobradorId === filtroCob) && (!filtroNivel || c.alerta.nivel === filtroNivel),
+  );
 
   return (
     <div className="flex flex-col gap-5">
@@ -128,8 +151,57 @@ export default async function MoraPage() {
         </p>
       )}
 
+      {/* Filtro por cobrador y nivel: arma la lista de cada cobrador para enviársela. */}
+      {enRiesgo.length > 0 && (
+        <form
+          method="get"
+          className="flex flex-wrap items-end gap-2 rounded-[14px] border border-borde bg-tarjeta p-3"
+        >
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-semibold text-gris">Cobrador</span>
+            <select name="cob" defaultValue={filtroCob ?? ""} className={INPUT}>
+              <option value="">Todos</option>
+              {cobradoresEnRiesgo.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nombre}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-semibold text-gris">Nivel</span>
+            <select name="nivel" defaultValue={filtroNivel ?? ""} className={INPUT}>
+              <option value="">Todos</option>
+              <option value="critico">Crítico</option>
+              <option value="alto">Alto</option>
+              <option value="medio">Medio</option>
+            </select>
+          </label>
+          <button type="submit" className="rounded-[10px] bg-[#2453DC] px-4 py-2 text-[13px] font-bold text-white">
+            Filtrar
+          </button>
+          {(filtroCob || filtroNivel) && (
+            <Link
+              href="/admin/mora"
+              className="rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[13px] font-bold text-gris"
+            >
+              Limpiar
+            </Link>
+          )}
+          <span className="ml-auto self-center text-[12px] font-semibold text-gris tabular-nums">
+            {enRiesgoFiltrado.length} de {enRiesgo.length}
+          </span>
+        </form>
+      )}
+
+      {enRiesgo.length > 0 && enRiesgoFiltrado.length === 0 && (
+        <p className="rounded-[14px] bg-tarjeta px-4 py-6 text-center text-[13px] font-medium text-gris">
+          Ningún cliente en riesgo con ese filtro.
+        </p>
+      )}
+
       <div className="flex flex-col gap-3">
-        {enRiesgo.map((c) => {
+        {enRiesgoFiltrado.map((c) => {
           const nivel = NIVEL[c.alerta.nivel];
           const s = c.alerta.senales;
           return (
@@ -222,6 +294,9 @@ export default async function MoraPage() {
     </div>
   );
 }
+
+const INPUT =
+  "rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[13px] text-tinta outline-none focus:border-azul";
 
 function Kpi({
   label,

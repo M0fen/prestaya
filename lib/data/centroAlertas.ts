@@ -24,6 +24,11 @@ export interface Alerta {
   categoria: string;
   titulo: string;
   detalle: string;
+  /** A dónde ir para actuar sobre esta señal ("Ver y actuar →"). */
+  href?: string;
+  /** Si la señal es atribuible a un cobrador: para avisarle sin salir. */
+  cobradorId?: string | null;
+  cobradorNombre?: string | null;
 }
 
 export interface CentroAlertas {
@@ -75,6 +80,9 @@ export async function getCentroAlertas(
         categoria: "Faltante de caja",
         titulo: `${r.cobradorNombre ?? "Cobrador"} entregó ${UYU(-r.diferencia)} de menos`,
         detalle: `Recaudó ${UYU(r.recaudado)} y entregó ${UYU(r.entregado)}.`,
+        href: "/admin/caja",
+        cobradorId: r.cobradorId,
+        cobradorNombre: r.cobradorNombre ?? null,
       });
   }
 
@@ -87,6 +95,9 @@ export async function getCentroAlertas(
       categoria: "Sin rendir",
       titulo: `${p.nombre} recaudó ${UYU(p.recaudado)} y aún no rindió`,
       detalle: `${p.cobros} cobro(s) hoy sin cierre de jornada.`,
+      href: "/admin/caja",
+      cobradorId: p.cobradorId,
+      cobradorNombre: p.nombre ?? null,
     });
   }
 
@@ -98,6 +109,7 @@ export async function getCentroAlertas(
       categoria: "No pago sospechoso",
       titulo: `${n.clienteNombre}: ${n.motivo}`,
       detalle: `${n.cuotasPagadas}/${n.cuotasVencidas} cuotas al día · cobrador ${n.cobradorNombre ?? "—"}.`,
+      href: `/admin/clientes/${n.clienteId}`,
     });
   }
 
@@ -109,6 +121,7 @@ export async function getCentroAlertas(
       categoria: a.titulo.includes("zona") ? "Fuera de zona" : "Float alto",
       titulo: a.titulo,
       detalle: a.detalle,
+      href: "/admin/cobranza",
     });
   }
 
@@ -130,6 +143,7 @@ export async function getCentroAlertas(
         categoria: "Desembolso grande",
         titulo: `Desembolso de ${UYU(Number(m.monto))}`,
         detalle: `${(m.categoria as string | null) || (m.descripcion as string | null) || "Salida de capital"}.`,
+        href: "/admin/caja",
       });
     }
   } catch (e) {

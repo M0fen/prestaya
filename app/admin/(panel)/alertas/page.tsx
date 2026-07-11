@@ -2,11 +2,13 @@
 // señales anti-fuga del día (faltantes, sin rendir, no-pago sospechoso, fuera de
 // zona, float alto, desembolsos grandes) + el ranking de CONFIANZA de cobradores
 // con su cuenta corriente. El supervisor ve solo su zona.
+import Link from "next/link";
 import { requireGestor } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { alcanceDelActor } from "@/lib/data/alcance";
 import { getCentroAlertas, type SeveridadAlerta } from "@/lib/data/centroAlertas";
 import { getVigilanciaCobradores } from "@/lib/data/vigilancia";
+import { AvisarCobrador } from "@/components/admin/AvisarCobrador";
 import { UYU } from "@/lib/format";
 import type { BandaConfianza } from "@/lib/scoreCobrador";
 
@@ -65,7 +67,7 @@ export default async function AlertasPage() {
             return (
               <div key={a.id} className="flex items-start gap-3 rounded-[14px] border border-borde bg-tarjeta p-3.5">
                 <span className="mt-1.5 h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ background: s.dot }} />
-                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className={`rounded-full px-2 py-0.5 text-[10.5px] font-bold ${s.bg} ${s.text}`}>
                       {a.categoria}
@@ -73,6 +75,19 @@ export default async function AlertasPage() {
                     <span className="text-[13.5px] font-bold text-tinta">{a.titulo}</span>
                   </div>
                   <span className="text-[12px] font-medium text-gris">{a.detalle}</span>
+                  {/* Señal → acción: ir a donde se resuelve + avisar al cobrador sin salir. */}
+                  {(a.href || a.cobradorId) && (
+                    <div className="mt-0.5 flex flex-wrap items-center gap-2">
+                      {a.href && (
+                        <Link href={a.href} className="text-[12px] font-bold text-azul hover:underline">
+                          Ver y actuar →
+                        </Link>
+                      )}
+                      {a.cobradorId && (
+                        <AvisarCobrador cobradorId={a.cobradorId} nombre={a.cobradorNombre ?? "cobrador"} />
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -171,6 +186,13 @@ function FilaCobrador({
           ))}
         </ul>
       )}
+      {/* Diagnóstico → acción: entrar al campo del cobrador o avisarle sin salir. */}
+      <div className="flex flex-wrap items-center gap-2 border-t border-linea pt-2.5">
+        <Link href="/admin/campo" className="text-[12px] font-bold text-azul hover:underline">
+          Ver en campo →
+        </Link>
+        <AvisarCobrador cobradorId={c.cobradorId} nombre={c.nombre} />
+      </div>
     </div>
   );
 }
