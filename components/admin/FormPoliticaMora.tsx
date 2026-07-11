@@ -39,7 +39,7 @@ export function FormPoliticaMora({
             <span className="text-[13.5px] font-extrabold text-tinta">Política de mora</span>
             <span className="truncate text-[12px] font-medium text-gris">{describirMora(config)}</span>
           </div>
-          <span className="flex-shrink-0 rounded-full bg-[#F1F3F9] px-3 py-1.5 text-[11.5px] font-bold text-tenue">
+          <span className="flex-shrink-0 rounded-full bg-suave px-3 py-1.5 text-[11.5px] font-bold text-tenue">
             Solo administrador
           </span>
         </div>

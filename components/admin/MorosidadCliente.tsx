@@ -164,7 +164,7 @@ export function MorosidadCliente({
                 type="button"
                 onClick={() => setTipoNota(t)}
                 className={`rounded-full px-2.5 py-1 text-[11.5px] font-bold ${
-                  tipoNota === t ? "bg-[#2453DC] text-white" : "bg-[#F1F3F9] text-gris"
+                  tipoNota === t ? "bg-[#2453DC] text-white" : "bg-suave text-gris"
                 }`}
               >
                 {TIPO_LABEL[t].label}

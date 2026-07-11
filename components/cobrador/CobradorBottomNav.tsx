@@ -1,0 +1,50 @@
+"use client";
+// Barra de navegación INFERIOR del cobrador (mobile-first — la usa a una mano en
+// la calle). Pone los destinos del día al alcance del pulgar y libera el header
+// (antes: 4 íconos de 36px apretados arriba a la derecha). Fija abajo, respeta el
+// safe-area (home indicator); centrada al ancho de la columna (max-w-480).
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+const TABS = [
+  { href: "/cobrador", label: "Ruta", icon: "🗺️" },
+  { href: "/cobrador/chat", label: "Chat", icon: "💬", badge: true },
+  { href: "/cobrador/mis-numeros", label: "Números", icon: "📊" },
+  { href: "/cobrador/notas", label: "Notas", icon: "📝" },
+  { href: "/cobrador/tutorial", label: "Ayuda", icon: "🎓" },
+];
+
+export function CobradorBottomNav({ noLeidos = 0 }: { noLeidos?: number }) {
+  const pathname = usePathname();
+  // "Ruta" solo activa en la home exacta; el resto por prefijo (incluye subrutas).
+  const activo = (href: string) =>
+    href === "/cobrador" ? pathname === "/cobrador" : pathname.startsWith(href);
+
+  return (
+    <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto flex max-w-[480px] border-t border-white/10 bg-[#0F1B3D] pb-safe">
+      {TABS.map((t) => {
+        const on = activo(t.href);
+        return (
+          <Link
+            key={t.href}
+            href={t.href}
+            aria-label={t.label}
+            className={`flex flex-1 flex-col items-center gap-0.5 pt-2 pb-1.5 text-[10px] font-bold active:bg-white/5 ${
+              on ? "text-white" : "text-white/50"
+            }`}
+          >
+            <span className="relative text-[19px] leading-none">
+              {t.icon}
+              {t.badge && noLeidos > 0 && (
+                <span className="absolute -top-1 -right-2 flex h-[15px] min-w-[15px] items-center justify-center rounded-full bg-[#E06A6A] px-1 text-[9px] font-black text-white">
+                  {noLeidos > 9 ? "9+" : noLeidos}
+                </span>
+              )}
+            </span>
+            {t.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}

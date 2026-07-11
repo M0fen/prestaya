@@ -159,7 +159,7 @@ export function CartonDigital({ dias, diaActual, totalDias, unidad = UNIDAD_DEFE
                 type="button"
                 onClick={() => setSel(null)}
                 aria-label="Cerrar detalle"
-                className="text-[16px] leading-none text-gris"
+                className="flex h-11 w-11 items-center justify-center -my-2.5 -mr-2.5 text-[16px] leading-none text-gris active:scale-90"
               >
                 ✕
               </button>

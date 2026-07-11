@@ -53,7 +53,7 @@ export function DetalleVendedor({ m, onClose }: { m: MiembroEquipo; onClose: () 
             type="button"
             onClick={onClose}
             aria-label="Cerrar"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F1F3F9] text-[15px] font-black text-gris"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-suave text-[15px] font-black text-gris active:scale-90"
           >
             ✕
           </button>

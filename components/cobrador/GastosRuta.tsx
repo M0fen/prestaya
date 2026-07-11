@@ -81,7 +81,7 @@ export function GastosRuta({
                 key={c}
                 type="button"
                 onClick={() => setCategoria(c)}
-                className={`rounded-full px-3 py-1.5 text-[12.5px] font-bold transition-colors ${
+                className={`rounded-full px-3 py-2 text-[12.5px] font-bold transition active:scale-95 ${
                   categoria === c ? "bg-[#2453DC] text-white" : "bg-[#EEF1F8] text-gris"
                 }`}
               >
@@ -105,7 +105,7 @@ export function GastosRuta({
               type="button"
               onClick={solicitar}
               disabled={pendiente || montoN <= 0}
-              className="rounded-[12px] bg-[#1FA971] px-4 py-2.5 text-[14px] font-extrabold text-white disabled:opacity-40"
+              className="min-h-11 rounded-[12px] bg-[#1FA971] px-4 py-3 text-[14px] font-extrabold text-white transition-transform active:scale-95 disabled:opacity-40"
             >
               {pendiente ? "…" : "Solicitar"}
             </button>

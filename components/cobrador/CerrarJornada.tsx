@@ -119,7 +119,7 @@ export function CerrarJornada({
             value={gastos}
             onChange={(e) => setGastos(e.target.value.replace(/[^\d]/g, ""))}
             placeholder="0"
-            className="w-full rounded-[11px] border border-[#DCE3F4] px-3 py-2 text-[15px] tabular-nums outline-none focus:border-azul"
+            className="min-h-11 w-full rounded-[11px] border border-[#DCE3F4] px-3 py-3 text-[15px] tabular-nums outline-none focus:border-azul"
           />
         </Campo>
         <Campo label="Efectivo que entrego">
@@ -128,7 +128,7 @@ export function CerrarJornada({
             value={entregado}
             onChange={(e) => setEntregado(e.target.value.replace(/[^\d]/g, ""))}
             placeholder="0"
-            className="w-full rounded-[11px] border border-[#DCE3F4] px-3 py-2 text-[15px] tabular-nums outline-none focus:border-azul"
+            className="min-h-11 w-full rounded-[11px] border border-[#DCE3F4] px-3 py-3 text-[15px] tabular-nums outline-none focus:border-azul"
           />
         </Campo>
       </div>

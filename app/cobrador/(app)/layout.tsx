@@ -6,6 +6,7 @@ import { cerrarSesion } from "@/lib/auth-actions";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getTotalNoLeidos } from "@/lib/data/chat";
 import { SyncEngine } from "@/components/cobrador/SyncEngine";
+import { CobradorBottomNav } from "@/components/cobrador/CobradorBottomNav";
 
 export const dynamic = "force-dynamic";
 
@@ -36,54 +37,22 @@ export default async function CobradorLayout({
               </span>
             </div>
           </Link>
-          <div className="flex flex-shrink-0 items-center gap-1.5">
-            <Link
-              href="/cobrador/chat"
-              aria-label="Chat"
-              className="relative flex h-9 w-9 items-center justify-center rounded-full border border-white/20 text-[15px] hover:bg-white/10"
+          {/* La navegación secundaria (chat/números/notas/ayuda) vive ahora en la
+              barra INFERIOR, al alcance del pulgar. El header solo lleva "Salir". */}
+          <form action={cerrarSesion} className="flex-shrink-0">
+            <button
+              type="submit"
+              className="rounded-full border border-white/20 px-3.5 py-2 text-[12px] font-bold text-white/80 hover:bg-white/10"
             >
-              💬
-              {noLeidos > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#E06A6A] px-1 text-[10px] font-black text-white">
-                  {noLeidos > 9 ? "9+" : noLeidos}
-                </span>
-              )}
-            </Link>
-            <Link
-              href="/cobrador/mis-numeros"
-              aria-label="Mis números"
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 text-[15px] hover:bg-white/10"
-            >
-              📊
-            </Link>
-            <Link
-              href="/cobrador/notas"
-              aria-label="Notas"
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 text-[15px] hover:bg-white/10"
-            >
-              📝
-            </Link>
-            <Link
-              href="/cobrador/tutorial"
-              aria-label="Cómo se usa"
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 text-[15px] hover:bg-white/10"
-            >
-              🎓
-            </Link>
-            <form action={cerrarSesion}>
-              <button
-                type="submit"
-                className="rounded-full border border-white/20 px-3 py-1.5 text-[12px] font-bold text-white/80 hover:bg-white/10"
-              >
-                Salir
-              </button>
-            </form>
-          </div>
+              Salir
+            </button>
+          </form>
         </header>
 
         <SyncEngine />
 
         <main className="flex-1 px-4 pt-4 pb-24">{children}</main>
+        <CobradorBottomNav noLeidos={noLeidos} />
       </div>
     </div>
   );

@@ -370,7 +370,7 @@ function EstadoCobrador({
   if (!disponible) return null;
   if (!rendido) {
     return (
-      <span className="flex-shrink-0 rounded-full bg-[#F1F3F9] px-2.5 py-1 text-[11px] font-bold text-gris">
+      <span className="flex-shrink-0 rounded-full bg-suave px-2.5 py-1 text-[11px] font-bold text-gris">
         En ruta
       </span>
     );

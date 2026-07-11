@@ -71,12 +71,16 @@ export function BannerCarrusel({ anuncios }: { anuncios: Anuncio[] }) {
               type="button"
               aria-label={`Ver anuncio ${idx + 1}`}
               onClick={() => setI(idx)}
-              className="h-2 rounded-full transition-all"
-              style={{
-                width: idx === i ? 18 : 8,
-                background: idx === i ? "#1E47C8" : "#C7D2EC",
-              }}
-            />
+              className="flex h-11 items-center justify-center -my-3 px-1"
+            >
+              <span
+                className="h-2 rounded-full transition-all"
+                style={{
+                  width: idx === i ? 18 : 8,
+                  background: idx === i ? "#1E47C8" : "#C7D2EC",
+                }}
+              />
+            </button>
           ))}
         </div>
       )}
