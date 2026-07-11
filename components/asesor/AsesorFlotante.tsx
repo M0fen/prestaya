@@ -3,7 +3,7 @@
 // la derecha; abre un panel donde el gestor consulta y recibe consejo anclado
 // en los datos reales del negocio (el contexto lo arma el servidor). Respuesta
 // en streaming (token a token). La API key nunca toca el navegador.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 
 interface Msg {
@@ -48,6 +48,29 @@ export function AsesorFlotante() {
   useEffect(() => {
     finRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [mensajes, abierto]);
+
+  // Teclado en mobile: sin esto, el panel flotante anclado abajo queda TAPADO por
+  // el teclado (no ves lo que escribís). Con VisualViewport medimos cuánto ocupa
+  // el teclado y levantamos el panel SOLO lo necesario (--kb) — cómodo y portátil,
+  // sin volverlo full-screen. En desktop VisualViewport no reporta teclado → 0.
+  const [kbInset, setKbInset] = useState(0);
+  useEffect(() => {
+    if (!abierto || typeof window === "undefined") return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const onResize = () => {
+      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      // Umbral: ignora la barra de URL (variación chica), levanta solo por el teclado.
+      setKbInset(inset > 120 ? inset : 0);
+    };
+    onResize();
+    vv.addEventListener("resize", onResize);
+    vv.addEventListener("scroll", onResize);
+    return () => {
+      vv.removeEventListener("resize", onResize);
+      vv.removeEventListener("scroll", onResize);
+    };
+  }, [abierto]);
 
   // El dashboard (u otras vistas) puede pedir abrir el asesor con una consulta
   // ya cargada vía el evento global `aureo:preguntar`. Usamos un ref para
@@ -122,9 +145,12 @@ export function AsesorFlotante() {
 
       {/* Panel */}
       {abierto && (
-        <div className="fixed top-0 right-0 left-0 z-50 flex h-[100dvh] flex-col overflow-hidden bg-white md:inset-auto md:right-4 md:bottom-20 md:h-[70vh] md:max-h-[640px] md:w-[min(420px,calc(100vw-2rem))] md:rounded-[20px] md:border md:border-[#E6EAF4] md:shadow-[0_20px_60px_rgba(15,27,61,0.35)]">
-          {/* Encabezado (respeta el notch en la hoja full-screen de mobile) */}
-          <div className="flex items-center gap-2.5 border-b border-[#EEF1F8] bg-[#0F1B3D] px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:pt-3">
+        <div
+          style={{ "--kb": `${kbInset}px` } as CSSProperties}
+          className="fixed right-3 bottom-[calc(0.75rem+var(--kb,0px))] z-50 flex h-[70dvh] max-h-[min(560px,calc(100dvh-var(--kb,0px)-1.25rem))] w-[min(400px,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-[20px] border border-[#E6EAF4] bg-white shadow-[0_20px_60px_rgba(15,27,61,0.35)] transition-[bottom,max-height] duration-150 md:right-4 md:bottom-20 md:h-[70vh] md:max-h-[640px] md:w-[min(420px,calc(100vw-2rem))]"
+        >
+          {/* Encabezado */}
+          <div className="flex items-center gap-2.5 border-b border-[#EEF1F8] bg-[#0F1B3D] px-4 py-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[linear-gradient(135deg,#2453DC,#13308C)] text-[18px]">
               💡
             </div>
@@ -227,8 +253,8 @@ export function AsesorFlotante() {
             )}
           </div>
 
-          {/* Entrada (respeta el home-indicator en la hoja full-screen de mobile) */}
-          <div className="border-t border-[#EEF1F8] bg-white p-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] md:pb-2.5">
+          {/* Entrada */}
+          <div className="border-t border-[#EEF1F8] bg-white p-2.5">
             <div className="flex items-end gap-2">
               <textarea
                 value={texto}
