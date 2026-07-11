@@ -198,27 +198,32 @@ export default async function DashboardPage({
         </section>
       )}
 
-      {/* Las 6 tarjetas de la operación (orden/nombres de Disapp, para que
-          Mauricio las reconozca). "Capital en calle" = deuda pendiente total. */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <Kpi etiqueta="Total de ventas activas" valor={String(cartera.creditosActivos)} sub="créditos en calle" acento="#1E47C8" />
-        <div className="flex flex-col gap-1 rounded-[16px] border border-borde bg-tarjeta p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-[11.5px] font-bold tracking-wide text-gris uppercase">Recaudo de hoy</span>
-            {serie && serie.tendencia !== 0 && (
-              <span className={`text-[11px] font-bold tabular-nums ${tendPct >= 0 ? "text-verde" : "text-rojo"}`}>
-                {tendPct >= 0 ? "▲" : "▼"} {Math.abs(tendPct)}%
-              </span>
-            )}
-          </div>
-          <span className="text-[23px] leading-tight font-extrabold tabular-nums text-verde">{UYU(recaudacion.hoy)}</span>
-          {serie && <div className="mt-0.5"><Sparkline valores={recaudos} color="#1FA971" alto={30} /></div>}
-          <span className="text-[12px] font-medium text-tenue">Mes: {UYU(recaudacion.mes)}</span>
+      {/* HÉROE: el recaudo del día LIDERA la pantalla (número grande + sparkline).
+          Un solo foco por pantalla: la plata que entró hoy. */}
+      <section className="flex flex-col gap-1.5 rounded-[20px] border border-borde bg-tarjeta p-5 shadow-[0_10px_28px_rgba(19,48,140,0.1)]">
+        <div className="flex items-center justify-between">
+          <span className="text-[12px] font-bold tracking-wide text-gris uppercase">Recaudo de hoy</span>
+          {serie && serie.tendencia !== 0 && (
+            <span className={`rounded-full bg-suave px-2 py-0.5 text-[11.5px] font-bold tabular-nums ${tendPct >= 0 ? "text-verde-osc" : "text-rojo-osc"}`}>
+              {tendPct >= 0 ? "▲" : "▼"} {Math.abs(tendPct)}%
+            </span>
+          )}
         </div>
-        <Kpi etiqueta="Por cobrar hoy" valor={UYU(cartera.porCobrarHoy)} sub="cuotas que vencen hoy" acento="#13308C" />
-        <Kpi etiqueta="Total de clientes" valor={String(cartera.clientesActivos)} sub={`${cartera.deudoresActivos} con crédito activo`} acento="#0F1B3D" />
-        <Kpi etiqueta="Ventas en mora" valor={String(mora.morosos)} sub={`${UYU(mora.monto)} · ${Math.round(mora.moraPct * 100)}% cartera`} acento="#D64545" />
-        <Kpi etiqueta="Capital en calle" valor={UYU(cartera.carteraPorCobrar)} sub="deuda pendiente total" acento="#7A4DD6" />
+        <span className="text-[38px] leading-none font-black tabular-nums tracking-[-0.02em] text-verde">{UYU(recaudacion.hoy)}</span>
+        {serie && <div className="mt-1"><Sparkline valores={recaudos} color="#1FA971" alto={46} /></div>}
+        <span className="text-[12.5px] font-medium text-tenue">
+          Mes: <b className="text-cuerpo tabular-nums">{UYU(recaudacion.mes)}</b>
+        </span>
+      </section>
+
+      {/* Banda secundaria (orden/nombres de Disapp). 2 acentos con significado:
+          verde=plata que entra (héroe), rojo=riesgo (mora); el resto tinta neutra. */}
+      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-5">
+        <Kpi etiqueta="Total de ventas activas" valor={String(cartera.creditosActivos)} sub="créditos en calle" acento="var(--color-tinta)" />
+        <Kpi etiqueta="Por cobrar hoy" valor={UYU(cartera.porCobrarHoy)} sub="cuotas que vencen hoy" acento="var(--color-tinta)" />
+        <Kpi etiqueta="Total de clientes" valor={String(cartera.clientesActivos)} sub={`${cartera.deudoresActivos} con crédito activo`} acento="var(--color-tinta)" />
+        <Kpi etiqueta="Ventas en mora" valor={String(mora.morosos)} sub={`${UYU(mora.monto)} · ${Math.round(mora.moraPct * 100)}% cartera`} acento="var(--color-rojo)" />
+        <Kpi etiqueta="Capital en calle" valor={UYU(cartera.carteraPorCobrar)} sub="deuda pendiente total" acento="var(--color-tinta)" />
       </div>
 
       {/* Liquidación diaria por cobrador */}
@@ -584,7 +589,7 @@ function Kpi({ etiqueta, valor, sub, acento }: { etiqueta: string; valor: string
   return (
     <div className="flex flex-col gap-1 rounded-[16px] border border-borde bg-tarjeta p-4">
       <span className="text-[11.5px] font-bold tracking-wide text-gris uppercase">{etiqueta}</span>
-      <span className="text-[23px] leading-tight font-extrabold tabular-nums" style={{ color: acento }}>{valor}</span>
+      <span className="text-[23px] leading-tight font-extrabold tabular-nums tracking-[-0.02em]" style={{ color: acento }}>{valor}</span>
       <span className="text-[12px] font-medium text-tenue">{sub}</span>
     </div>
   );
@@ -594,7 +599,7 @@ function Tile({ etiqueta, valor, sub, acento = "#0F1B3D" }: { etiqueta: string; 
   return (
     <div className="flex flex-col gap-1 rounded-[13px] bg-suave p-3.5">
       <span className="text-[11px] font-bold tracking-wide text-gris uppercase">{etiqueta}</span>
-      <span className="text-[20px] font-extrabold tabular-nums" style={{ color: acento }}>{valor}</span>
+      <span className="text-[20px] font-extrabold tabular-nums tracking-[-0.02em]" style={{ color: acento }}>{valor}</span>
       <span className="text-[11.5px] font-medium text-tenue">{sub}</span>
     </div>
   );

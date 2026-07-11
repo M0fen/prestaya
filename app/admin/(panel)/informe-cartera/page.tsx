@@ -115,17 +115,17 @@ export default async function InformeCarteraPage({
         <table className="w-full border-collapse text-[12px]">
           <thead>
             <tr className="border-b border-linea text-[10.5px] font-bold tracking-wide text-gris uppercase">
-              <th className="px-2.5 py-2.5 text-left">Ref</th>
-              <th className="px-2.5 py-2.5 text-left">Modalidad</th>
-              <th className="px-2.5 py-2.5 text-left">Vendedor</th>
-              <th className="px-2.5 py-2.5 text-left">Cliente</th>
+              <th className="hidden px-2.5 py-2.5 text-left md:table-cell">Ref</th>
+              <th className="hidden px-2.5 py-2.5 text-left md:table-cell">Modalidad</th>
+              <th className="hidden px-2.5 py-2.5 text-left md:table-cell">Vendedor</th>
+              <th className="sticky left-0 z-[1] bg-tarjeta px-2.5 py-2.5 text-left">Cliente</th>
               <th className="px-2.5 py-2.5 text-right">Venta</th>
-              <th className="px-2.5 py-2.5 text-right">Interés %</th>
-              <th className="px-2.5 py-2.5 text-right">Total</th>
-              <th className="px-2.5 py-2.5 text-right">Saldo Pendiente (a hoy)</th>
+              <th className="hidden px-2.5 py-2.5 text-right md:table-cell">Interés %</th>
+              <th className="hidden px-2.5 py-2.5 text-right md:table-cell">Total</th>
+              <th className="px-2.5 py-2.5 text-right">Saldo</th>
               <th className="px-2.5 py-2.5 text-right">Abonos</th>
-              <th className="px-2.5 py-2.5 text-left">Inicio</th>
-              <th className="px-2.5 py-2.5 text-center">Cuotas</th>
+              <th className="hidden px-2.5 py-2.5 text-left md:table-cell">Inicio</th>
+              <th className="hidden px-2.5 py-2.5 text-center md:table-cell">Cuotas</th>
               <th className="px-2.5 py-2.5 text-center">Estado</th>
             </tr>
           </thead>
@@ -138,25 +138,25 @@ export default async function InformeCarteraPage({
               </tr>
             ) : (
               filasVisibles.map((f) => (
-                <tr key={f.id} className="border-b border-[#F4F6FB]">
-                  <td className="px-2.5 py-2 font-mono text-[10.5px] text-tenue">{f.refCredito ?? "—"}</td>
-                  <td className="px-2.5 py-2 capitalize text-cuerpo">{f.modalidad}</td>
-                  <td className="px-2.5 py-2 text-cuerpo">{f.vendedor ?? "—"}</td>
-                  <td className="px-2.5 py-2">
+                <tr key={f.id} className="border-b border-linea">
+                  <td className="hidden px-2.5 py-2 font-mono text-[10.5px] text-tenue md:table-cell">{f.refCredito ?? "—"}</td>
+                  <td className="hidden px-2.5 py-2 capitalize text-cuerpo md:table-cell">{f.modalidad}</td>
+                  <td className="hidden px-2.5 py-2 text-cuerpo md:table-cell">{f.vendedor ?? "—"}</td>
+                  <td className="sticky left-0 z-[1] bg-tarjeta px-2.5 py-2">
                     <div className="flex flex-col">
                       <span className="font-semibold text-tinta">{f.cliente}</span>
                       <span className="text-[10.5px] text-tenue">{f.documento ?? "—"}</span>
                     </div>
                   </td>
                   <td className="px-2.5 py-2 text-right tabular-nums text-cuerpo">{UYU(f.venta)}</td>
-                  <td className="px-2.5 py-2 text-right tabular-nums text-gris">{Number.isFinite(f.interesPct) ? f.interesPct.toFixed(1) : "0"}%</td>
-                  <td className="px-2.5 py-2 text-right tabular-nums text-cuerpo">{UYU(f.total)}</td>
-                  <td className="px-2.5 py-2 text-right tabular-nums font-extrabold text-[#13308C]">{UYU(f.saldoPte)}</td>
-                  <td className="px-2.5 py-2 text-right tabular-nums text-[#157A50]">{UYU(f.abonos)}</td>
-                  <td className="px-2.5 py-2 text-[10.5px] text-tenue">{fechaCorta(f.fechaInicio)}</td>
-                  <td className="px-2.5 py-2 text-center tabular-nums text-gris">{f.cuotas}</td>
+                  <td className="hidden px-2.5 py-2 text-right tabular-nums text-gris md:table-cell">{Number.isFinite(f.interesPct) ? f.interesPct.toFixed(1) : "0"}%</td>
+                  <td className="hidden px-2.5 py-2 text-right tabular-nums text-cuerpo md:table-cell">{UYU(f.total)}</td>
+                  <td className="px-2.5 py-2 text-right tabular-nums font-extrabold text-azul">{UYU(f.saldoPte)}</td>
+                  <td className="px-2.5 py-2 text-right tabular-nums text-verde-osc">{UYU(f.abonos)}</td>
+                  <td className="hidden px-2.5 py-2 text-[10.5px] text-tenue md:table-cell">{fechaCorta(f.fechaInicio)}</td>
+                  <td className="hidden px-2.5 py-2 text-center tabular-nums text-gris md:table-cell">{f.cuotas}</td>
                   <td className="px-2.5 py-2 text-center">
-                    <span className="rounded-full bg-[#E7F6EF] px-2.5 py-1 text-[10.5px] font-bold text-[#157A50]">
+                    <span className="rounded-full bg-suave px-2.5 py-1 text-[10.5px] font-bold text-verde-osc">
                       Activo
                     </span>
                   </td>

@@ -69,6 +69,8 @@ export function VistaClienteScreen({
   /** Temporada/evento del mes (si el admin lo encendió). */
   temporada?: { nombre: string; emoji: string; meta: number; premio: string } | null;
 }) {
+  // ¿Hay algo promocional/lúdico para la zona "Novedades"? (se agrupa DEBAJO del dinero).
+  const hayNovedades = Boolean(temporada || rifa || anuncios.length > 0 || estrellas || promo || juegoArcade);
   return (
     <div className="flex min-h-screen justify-center bg-fondo text-tinta">
       <div className="flex w-full max-w-[440px] flex-col gap-3 bg-app px-[18px] pt-4 pb-8 shadow-[0_0_60px_rgba(15,27,61,0.08)]">
@@ -93,24 +95,7 @@ export function VistaClienteScreen({
 
         {v.creditoCompletado && <CreditoCompletado />}
 
-        {/* ── Zona principal: temporada → cómo venís → cartón → estrellas ── */}
-
-        {/* Temporada/evento del mes (si el admin lo encendió). */}
-        {temporada && (
-          <TemporadaBanner
-            nombre={temporada.nombre}
-            emoji={temporada.emoji}
-            meta={temporada.meta}
-            premio={temporada.premio}
-          />
-        )}
-
-        {/* Rifa promocional (si el admin la activó y este cliente califica). */}
-        {rifa && <RifaBanner rifa={rifa} />}
-
-        {/* Banner de anuncios, justo debajo de la temporada. Si no hay temporada,
-            queda solo el banner. Si no hay anuncios, no ocupa espacio. */}
-        <BannerCarrusel anuncios={anuncios} />
+        {/* ── TU PROGRESO: cómo venís → cartón (progreso ANTES que el monto, tono amable) ── */}
 
         {/* Cómo venís (caritas, derivadas del cartón; se lee de un vistazo). */}
         <LineaComportamiento dias={v.dias} umbral={umbralCaritas} />
@@ -123,10 +108,8 @@ export function VistaClienteScreen({
           unidad={v.unidad}
         />
 
-        {/* Estrellas: recompensa real por pagar (5 pagos = 1 estrella). */}
-        {estrellas && <EstrellasCliente saldo={estrellas} token={token} />}
-
-        {/* ── Zona financiera: saldo → cuánto falta → próxima → historial ── */}
+        {/* ── TUS NÚMEROS: saldo → cuánto falta → próxima → historial (todo CONTIGUO,
+            sin cortarlo con estrellas/marketing en el medio) ── */}
 
         <ResumenCard
           estadoGeneral={v.estadoGeneral}
@@ -155,13 +138,40 @@ export function VistaClienteScreen({
         {/* Historial de pagos (con % de la cuota cubierto + descuento). */}
         <Historial historial={v.historial} />
 
-        {/* ── Extras (juegos promocionales + arcade) ── */}
+        {/* ── NOVEDADES: TODO lo promocional/lúdico agrupado, DESPUÉS del dinero ── */}
+        {hayNovedades && (
+          <>
+            <div className="mt-2 flex items-center gap-2 px-1">
+              <span className="text-[11px] font-bold tracking-wide text-gris uppercase">Novedades</span>
+              <span className="h-px flex-1 bg-linea" />
+            </div>
 
-        {/* Juegos promocionales (raspadita + quiniela). Sin dinero real. */}
-        {promo && <PromoCliente promo={promo} token={token} />}
+            {/* Temporada/evento del mes (si el admin lo encendió). */}
+            {temporada && (
+              <TemporadaBanner
+                nombre={temporada.nombre}
+                emoji={temporada.emoji}
+                meta={temporada.meta}
+                premio={temporada.premio}
+              />
+            )}
 
-        {/* Espacio de juegos: slot aislado. Solo si el admin lo dejó activo. */}
-        {juegoArcade && <GameSlot juego={juegoArcade} />}
+            {/* Rifa promocional (si el admin la activó y este cliente califica). */}
+            {rifa && <RifaBanner rifa={rifa} />}
+
+            {/* Banner de anuncios del prestamista. */}
+            <BannerCarrusel anuncios={anuncios} />
+
+            {/* Estrellas: recompensa real por pagar (5 pagos = 1 estrella). */}
+            {estrellas && <EstrellasCliente saldo={estrellas} token={token} />}
+
+            {/* Juegos promocionales (raspadita + quiniela). Sin dinero real. */}
+            {promo && <PromoCliente promo={promo} token={token} />}
+
+            {/* Espacio de juegos: slot aislado. Solo si el admin lo dejó activo. */}
+            {juegoArcade && <GameSlot juego={juegoArcade} />}
+          </>
+        )}
 
         {/* Reporte de discrepancia + recordatorio: solo con token (vista real). */}
         {token && <ReportarDiscrepancia token={token} />}
