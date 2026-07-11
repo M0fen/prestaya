@@ -124,13 +124,18 @@ async function resumenCajaCore(
   let movimientos: Record<string, unknown>[] = [];
   if (!(cobradorIds && cobradorIds.length === 0)) {
     try {
-      let query = db.from("movimientos_caja").select("*").gte("registrado_en", desde);
-      if (hasta) query = query.lt("registrado_en", hasta);
-      // Supervisor: solo movimientos de sus cobradores (gastos de su ruta).
-      if (cobradorIds) query = query.in("cobrador_id", cobradorIds);
-      const { data, error } = await query;
-      if (error) throw error;
-      movimientos = (data ?? []).filter((m) => ((m.cuenta as string | null) ?? "operativa") === "operativa");
+      // PAGINADO (igual que los pagos): sin esto PostgREST corta a 1000 filas y la
+      // caja de un mes (desembolsos + gastos de ruta + retiros a escala) saldría
+      // SUBESTIMADA en silencio — es correctitud de plata, no solo latencia.
+      const raw = await traerTodo<Record<string, unknown>>((d, h) => {
+        let query = db.from("movimientos_caja").select("*").gte("registrado_en", desde);
+        if (hasta) query = query.lt("registrado_en", hasta);
+        // Supervisor: solo movimientos de sus cobradores (gastos de su ruta).
+        if (cobradorIds) query = query.in("cobrador_id", cobradorIds);
+        // Orden estable por PK: sin él la paginación puede duplicar/saltear filas.
+        return query.order("id", { ascending: true }).range(d, h);
+      });
+      movimientos = raw.filter((m) => ((m.cuenta as string | null) ?? "operativa") === "operativa");
     } catch (e) {
       if (!tablaFaltante(e)) throw e;
     }

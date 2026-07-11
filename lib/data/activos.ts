@@ -41,7 +41,9 @@ export interface ActivoConPagos {
 // ficha leen el libro de pagos en vivo, y el recaudo del día es query aparte (no
 // se cachea). Best-effort por instancia serverless; el supervisor usa la RPC
 // acotada y nunca toca esto. Ver el path global de getActivosConPagos.
-const CARTERA_TTL_MS = 20_000;
+// 45s: por encima del intervalo de AutoRefresco (40s) para que cada refresco de
+// "En vivo"/Cobranza caiga DENTRO de la ventana y no re-dispare la RPC de ~3,5s.
+const CARTERA_TTL_MS = 45_000;
 let carteraGlobalCache: { data: ActivoConPagos[]; exp: number } | null = null;
 
 export async function getActivosConPagos(

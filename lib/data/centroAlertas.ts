@@ -12,6 +12,7 @@ import { alcanceDelActor, type Alcance } from "./alcance";
 import { getRendicionesDia, type ResumenRendiciones } from "./rendicion";
 import { getControlCobranza, type ControlCobranza } from "./control";
 import { getNoPagosSospechososHoy } from "./noPagoSospechoso";
+import { getResumenCompromisos, type ResumenCompromisos } from "./gestionesCobranza";
 
 /** Desembolso (salida de caja) que dispara alerta por su monto. Configurable a futuro. */
 export const UMBRAL_DESEMBOLSO_ALERTA = 50000;
@@ -45,17 +46,18 @@ export async function getCentroAlertas(
   // Inyección de dependencias (perf): "Mi jornada" ya computa control+rendiciones
   // para el cierre → los pasa acá para no recomputarlos (control es caro: RPC de
   // cartera + paginación de pagos). Sin deps, se comportan como siempre.
-  deps?: { control?: ControlCobranza; rend?: ResumenRendiciones },
+  deps?: { control?: ControlCobranza; rend?: ResumenRendiciones; compromisos?: ResumenCompromisos },
 ): Promise<CentroAlertas> {
   const alcance = alcancePre ?? (await alcanceDelActor());
   const desde = inicioDiaUYIso(hoy);
 
-  const [rend, control, noPagos] = await Promise.all([
+  const [rend, control, noPagos, compromisos] = await Promise.all([
     // Ya acotado por zona (pasamos alcance): antes iba sin alcance y se filtraba
     // después; ahora la consulta ya viene chica.
     deps?.rend ?? getRendicionesDia(db, hoy, alcance),
     deps?.control ?? getControlCobranza(db, hoy, undefined, alcance),
     getNoPagosSospechososHoy(db, hoy, alcance),
+    deps?.compromisos ?? getResumenCompromisos(db, alcance, hoy),
   ]);
 
   // Recorte por zona a SUS cobradores (defensa; si el rend ya vino acotado es un
@@ -148,6 +150,30 @@ export async function getCentroAlertas(
     }
   } catch (e) {
     if (!tablaFaltante(e)) throw e;
+  }
+
+  // 6) Compromisos de pago INCUMPLIDOS (prometió pagar y no pagó) → alta. El
+  //    nombre del cliente se trae en lote (lista chica) para que la alerta sea útil.
+  if (compromisos.incumplidos.length > 0) {
+    const ids = compromisos.incumplidos.map((c) => c.clienteId);
+    const nombre = new Map<string, string>();
+    try {
+      const { data } = await db.from("clientes").select("id, nombre").in("id", ids);
+      for (const c of data ?? []) nombre.set(c.id as string, c.nombre as string);
+    } catch {
+      /* sin nombres: se usa "Cliente" */
+    }
+    for (const c of compromisos.incumplidos) {
+      const pendiente = Math.max(0, c.monto - c.pagadoDesde);
+      alertas.push({
+        id: `compromiso-${c.clienteId}-${c.fecha}`,
+        severidad: "alta",
+        categoria: "Compromiso incumplido",
+        titulo: `${nombre.get(c.clienteId) ?? "Cliente"}: prometió ${UYU(c.monto)} y no pagó`,
+        detalle: `Se comprometió para el ${c.fecha}${c.gestorNombre ? ` · gestión de ${c.gestorNombre}` : ""}. Pendiente ${UYU(pendiente)}.`,
+        href: `/admin/clientes/${c.clienteId}`,
+      });
+    }
   }
 
   const orden: Record<SeveridadAlerta, number> = { alta: 0, media: 1, baja: 2 };

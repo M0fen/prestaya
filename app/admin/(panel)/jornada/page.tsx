@@ -475,7 +475,7 @@ function EnVivo({
           titulo="La zona, ahora"
           bajada="Mirá cómo avanza la ruta mientras los cobradores están en la calle. Lo que dispara señal, arriba."
         />
-        <AutoRefresco segundos={25} />
+        <AutoRefresco segundos={40} />
       </div>
 
       {/* Meta del día: avance vs esperado + cuánto falta. */}

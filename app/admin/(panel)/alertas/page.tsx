@@ -6,7 +6,7 @@ import Link from "next/link";
 import { requireGestor } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { alcanceDelActor } from "@/lib/data/alcance";
-import { getCentroAlertas, type SeveridadAlerta } from "@/lib/data/centroAlertas";
+import { getCentroAlertas, type SeveridadAlerta, type Alerta } from "@/lib/data/centroAlertas";
 import { getVigilanciaCobradores } from "@/lib/data/vigilancia";
 import { AvisarCobrador } from "@/components/admin/AvisarCobrador";
 import { UYU } from "@/lib/format";
@@ -39,6 +39,10 @@ export default async function AlertasPage() {
   ]);
   // Solo los que hay que mirar (no intachables/confiables) primero; el resto abajo.
   const aVigilar = cobradores.filter((c) => c.confianza.banda === "riesgo" || c.confianza.banda === "observar");
+  // Bandeja: las 7 más urgentes a la vista; el resto colapsado (no abruma; ya
+  // vienen ordenadas por severidad).
+  const visibles = centro.alertas.slice(0, 7);
+  const resto = centro.alertas.slice(7);
 
   return (
     <div className="mx-auto flex max-w-[860px] flex-col gap-6">
@@ -55,43 +59,30 @@ export default async function AlertasPage() {
         </div>
       </div>
 
-      {/* Bandeja de alertas del día */}
+      {/* Bandeja de alertas del día (las 7 más urgentes; el resto colapsado). */}
       <section className="flex flex-col gap-2">
         {centro.alertas.length === 0 ? (
           <p className="rounded-[16px] border border-borde bg-tarjeta p-6 text-center text-[13px] font-medium text-verde">
             🎉 Sin alertas hoy. La operación viene limpia.
           </p>
         ) : (
-          centro.alertas.map((a) => {
-            const s = SEV[a.severidad];
-            return (
-              <div key={a.id} className="flex items-start gap-3 rounded-[14px] border border-borde bg-tarjeta p-3.5">
-                <span className="mt-1.5 h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ background: s.dot }} />
-                <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className={`rounded-full px-2 py-0.5 text-[10.5px] font-bold ${s.bg} ${s.text}`}>
-                      {a.categoria}
-                    </span>
-                    <span className="text-[13.5px] font-bold text-tinta">{a.titulo}</span>
-                  </div>
-                  <span className="text-[12px] font-medium text-gris">{a.detalle}</span>
-                  {/* Señal → acción: ir a donde se resuelve + avisar al cobrador sin salir. */}
-                  {(a.href || a.cobradorId) && (
-                    <div className="mt-0.5 flex flex-wrap items-center gap-2">
-                      {a.href && (
-                        <Link href={a.href} className="text-[12px] font-bold text-azul hover:underline">
-                          Ver y actuar →
-                        </Link>
-                      )}
-                      {a.cobradorId && (
-                        <AvisarCobrador cobradorId={a.cobradorId} nombre={a.cobradorNombre ?? "cobrador"} />
-                      )}
-                    </div>
-                  )}
+          <>
+            {visibles.map((a) => (
+              <AlertaCard key={a.id} a={a} />
+            ))}
+            {resto.length > 0 && (
+              <details className="rounded-[14px] border border-borde bg-tarjeta">
+                <summary className="cursor-pointer px-4 py-3 text-[13px] font-bold text-tinta">
+                  Ver {resto.length} alerta{resto.length === 1 ? "" : "s"} más
+                </summary>
+                <div className="flex flex-col gap-2 p-3 pt-0">
+                  {resto.map((a) => (
+                    <AlertaCard key={a.id} a={a} />
+                  ))}
                 </div>
-              </div>
-            );
-          })
+              </details>
+            )}
+          </>
         )}
       </section>
 
@@ -124,6 +115,38 @@ export default async function AlertasPage() {
           </div>
         </details>
       </section>
+    </div>
+  );
+}
+
+/** Tarjeta de una alerta: categoría + título + detalle + acción ("Ver y actuar"
+ *  y "Avisar" al cobrador si aplica). Se reusa en la lista y en el colapsado. */
+function AlertaCard({ a }: { a: Alerta }) {
+  const s = SEV[a.severidad];
+  return (
+    <div className="flex items-start gap-3 rounded-[14px] border border-borde bg-tarjeta p-3.5">
+      <span className="mt-1.5 h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ background: s.dot }} />
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={`rounded-full px-2 py-0.5 text-[10.5px] font-bold ${s.bg} ${s.text}`}>
+            {a.categoria}
+          </span>
+          <span className="text-[13.5px] font-bold text-tinta">{a.titulo}</span>
+        </div>
+        <span className="text-[12px] font-medium text-gris">{a.detalle}</span>
+        {(a.href || a.cobradorId) && (
+          <div className="mt-0.5 flex flex-wrap items-center gap-2">
+            {a.href && (
+              <Link href={a.href} className="text-[12px] font-bold text-azul hover:underline">
+                Ver y actuar →
+              </Link>
+            )}
+            {a.cobradorId && (
+              <AvisarCobrador cobradorId={a.cobradorId} nombre={a.cobradorNombre ?? "cobrador"} />
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

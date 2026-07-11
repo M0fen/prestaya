@@ -78,10 +78,13 @@ async function pagosPorClienteDesde(
   if (clienteIds.length === 0) return porCliente;
 
   // cliente → sus préstamos (cualquier estado: los pagos viven en el préstamo).
+  // Lotes EN PARALELO (antes iban en serie → waterfall en la Apertura de Mi jornada).
   const prestamoDeCliente = new Map<string, string>();
   const clientePorPrestamo = new Map<string, string>();
-  for (const lote of enLotes(clienteIds)) {
-    const { data, error } = await db.from("prestamos").select("id, cliente_id").in("cliente_id", lote);
+  const lotesPrest = await Promise.all(
+    [...enLotes(clienteIds)].map((lote) => db.from("prestamos").select("id, cliente_id").in("cliente_id", lote)),
+  );
+  for (const { data, error } of lotesPrest) {
     if (error) throw error;
     for (const p of data ?? []) {
       prestamoDeCliente.set(p.cliente_id as string, p.id as string);
@@ -91,13 +94,17 @@ async function pagosPorClienteDesde(
   const prestamoIds = [...clientePorPrestamo.keys()];
   if (prestamoIds.length === 0) return porCliente;
 
-  for (const lote of enLotes(prestamoIds)) {
-    const { data, error } = await db
-      .from("pagos")
-      .select("prestamo_id, monto, registrado_en")
-      .eq("anulado", false)
-      .gte("registrado_en", desdeIso)
-      .in("prestamo_id", lote);
+  const lotesPagos = await Promise.all(
+    [...enLotes(prestamoIds)].map((lote) =>
+      db
+        .from("pagos")
+        .select("prestamo_id, monto, registrado_en")
+        .eq("anulado", false)
+        .gte("registrado_en", desdeIso)
+        .in("prestamo_id", lote),
+    ),
+  );
+  for (const { data, error } of lotesPagos) {
     if (error) throw error;
     for (const r of data ?? []) {
       const cid = clientePorPrestamo.get(r.prestamo_id as string);

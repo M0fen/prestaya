@@ -21,19 +21,30 @@ export const dynamic = "force-dynamic";
 
 export default async function RutaPage() {
   const db = await createSupabaseServer();
-  const { items, arqueo } = await getRutaCobrador(db);
-  const usuario = await getUsuarioActual();
-  const jornada = usuario ? await getEstadoJornada(db, usuario.id) : null;
-  const solicitudesGasto = usuario ? await getSolicitudesGastoCobrador(db, usuario.id) : null;
-  const banner = await getBannerCobradorActivo(db);
-
-  // Saludo personalizado (nombre + zona). Da identidad a la app del cobrador.
+  // Tanda 1 (independientes): ruta + usuario + banner. Tanda 2 (necesita usuario):
+  // jornada + gastos + zona. Antes eran ~6 round-trips en SERIE en la primera
+  // pantalla que abre el cobrador en la calle (señal pobre) → ahora 2 latencias.
+  const [{ items, arqueo }, usuario, banner] = await Promise.all([
+    getRutaCobrador(db),
+    getUsuarioActual(),
+    getBannerCobradorActivo(db),
+  ]);
   // El nombre de la zona se resuelve con el cliente ADMIN: la tabla `zonas` está
   // bloqueada por RLS para el cobrador (0 filas), y esto es solo una etiqueta.
-  const zonaNombre =
+  const [jornada, solicitudesGasto, zonaNombre] = await Promise.all([
+    usuario ? getEstadoJornada(db, usuario.id) : Promise.resolve(null),
+    usuario ? getSolicitudesGastoCobrador(db, usuario.id) : Promise.resolve(null),
     usuario?.zona_id
-      ? (await createSupabaseAdmin().from("zonas").select("nombre").eq("id", usuario.zona_id).maybeSingle()).data?.nombre ?? null
-      : null;
+      ? createSupabaseAdmin()
+          .from("zonas")
+          .select("nombre")
+          .eq("id", usuario.zona_id)
+          .maybeSingle()
+          .then((r) => r.data?.nombre ?? null)
+      : Promise.resolve<string | null>(null),
+  ]);
+
+  // Saludo personalizado (nombre + zona). Da identidad a la app del cobrador.
   const horaUY = Number(
     new Intl.DateTimeFormat("en-US", {
       timeZone: "America/Montevideo",

@@ -40,9 +40,13 @@ export default async function PanelLayout({
   // Aviso (no bloqueante) para el admin que todavía no activó 2FA.
   const falta2fa = esAdmin(usuario.rol) && !mfa.tieneFactor;
 
-  const noLeidos = await getTotalNoLeidos(db, usuario);
-  // Gastos de ruta esperando aprobación → badge en la nav (solo el admin aprueba).
-  const gastosPendientes = esAdmin(usuario.rol) ? await contarSolicitudesGastoPendientes(db) : 0;
+  // Badge de no leídos + gastos pendientes: consultas INDEPENDIENTES → en paralelo
+  // (antes en serie; corren en CADA navegación del panel). El MFA queda arriba
+  // porque puede redirigir. Gastos: solo el admin aprueba.
+  const [noLeidos, gastosPendientes] = await Promise.all([
+    getTotalNoLeidos(db, usuario),
+    esAdmin(usuario.rol) ? contarSolicitudesGastoPendientes(db) : Promise.resolve(0),
+  ]);
   const tema = (await cookies()).get("tema")?.value === "oscuro" ? "oscuro" : "claro";
   const iniciales = usuario.nombre
     .split(" ")

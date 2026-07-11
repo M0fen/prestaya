@@ -45,7 +45,6 @@ export const NAV_ITEMS: NavItem[] = [
   // Flujo guiado del día (sobre todo para el supervisor): Apertura/En vivo/Cierre.
   { href: "/admin/jornada", label: "Mi jornada", icon: "🧭", roles: ["admin", "supervisor"], alias: ["jornada", "mi dia", "flujo", "guia del dia", "apertura", "en vivo", "cierre", "supervisor"] },
   // ── Operación diaria (el control del dinero, de un vistazo) ──
-  { href: "/admin/alertas", label: "Centro de alertas", icon: "🚨", grupo: "Operación diaria", roles: ["admin", "supervisor"], alias: ["vigilancia", "fuga", "confianza cobrador", "sospecha", "faltante", "riesgo", "no pago"] },
   { href: "/admin/cierre", label: "Cierre del día", icon: "🌅", grupo: "Operación diaria", roles: ["admin"], alias: ["cierre", "jornada", "operacion", "en vivo", "meta", "proyeccion", "hoy"] },
   { href: "/admin/cobranza", label: "Cobranza", icon: "🛡️", grupo: "Operación diaria", roles: ["admin", "supervisor"], alias: ["mapa", "geo", "cobros"] },
   { href: "/admin/recaudos", label: "Recaudos", icon: "💵", grupo: "Operación diaria", roles: ["admin", "supervisor"], alias: ["pagos", "cobros", "recaudo diario"] },
@@ -54,6 +53,9 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/admin/campo", label: "Control de campo", icon: "🛰️", grupo: "Operación diaria", roles: ["admin", "supervisor"], alias: ["cobradores", "gps", "bitacora", "sospecha", "planchado", "malas mañas"] },
   { href: "/admin/anulaciones", label: "Anulaciones", icon: "🚫", grupo: "Operación diaria", roles: ["admin", "supervisor"], alias: ["anular", "anulacion", "doble registro", "reversar", "pago"] },
   { href: "/admin/gastos", label: "Gastos de ruta", icon: "⛽", grupo: "Operación diaria", roles: ["admin"], alias: ["aprobar gasto", "solicitud", "combustible", "sacar de caja", "egreso cobrador"] },
+  // Centro de alertas: bandeja de vigilancia; va AL FINAL de la operación diaria
+  // (se consulta cuando algo dispara, no es el arranque del día).
+  { href: "/admin/alertas", label: "Centro de alertas", icon: "🚨", grupo: "Operación diaria", roles: ["admin", "supervisor"], alias: ["vigilancia", "fuga", "confianza cobrador", "sospecha", "faltante", "riesgo", "no pago"] },
   // ── Cartera y clientes ──
   { href: "/admin/clientes", label: "Clientes", icon: "👤", grupo: "Cartera y clientes", roles: ["admin", "supervisor"], alias: ["deudores", "cartera"] },
   { href: "/admin/informe-cartera", label: "Ventas Crédito", icon: "💳", grupo: "Cartera y clientes", roles: ["admin"], alias: ["creditos", "cartera", "interes", "utilidad", "deuda", "ventas a hoy", "con intereses", "recaudo", "informe"] },

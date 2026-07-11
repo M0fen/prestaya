@@ -30,16 +30,20 @@ export default async function DetalleClientePage({
   const { id } = await params;
   const { credito } = await searchParams;
   const db = await createSupabaseServer();
-  const usuario = await requireUsuario();
 
-  const cliente = await getClientePorId(db, id);
+  // Independientes (usuario aparte; cliente/activos/notas por id) → en PARALELO
+  // (antes 4 round-trips en serie antes de poder resolver el cartón).
+  const [usuario, cliente, activos, notas] = await Promise.all([
+    requireUsuario(),
+    getClientePorId(db, id),
+    getPrestamosActivosPorCliente(db, id),
+    getNotasCliente(db, id),
+  ]);
   if (!cliente) notFound();
 
   // Un cliente puede tener VARIOS créditos activos (0037). El cobrador elige a
   // cuál imputa; por defecto, el principal (el más nuevo).
-  const activos = await getPrestamosActivosPorCliente(db, id);
   const prestamo = activos.find((p) => p.id === credito) ?? activos[0] ?? null;
-  const notas = await getNotasCliente(db, id);
   // Inicial del avatar con fallback: un cliente importado sin nombre no debe
   // tumbar la ficha (charAt sobre null/undefined tira). "—" si no hay letra.
   const inicial = (cliente.nombre ?? "").trim().charAt(0).toUpperCase() || "—";

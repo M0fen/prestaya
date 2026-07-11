@@ -46,7 +46,7 @@ export default async function CobranzaPage() {
             Cada peso con hora, lugar y trazabilidad.
           </span>
         </div>
-        <AutoRefresco segundos={30} />
+        <AutoRefresco segundos={40} />
       </div>
 
       {/* Resumen (esta pantalla mira SOLO la ruta activa; el total del día está abajo) */}
