@@ -69,9 +69,11 @@ export interface UsoPersona {
 }
 
 export interface EventoUsoVista {
+  usuarioId: string | null;
   nombre: string;
   rol: string;
   seccion: string;
+  path: string;
   creadoEn: string;
 }
 
@@ -175,22 +177,47 @@ export async function getAuditoriaComportamiento(desdeIso: string): Promise<UsoP
   });
 }
 
-/** Actividad reciente global (últimas navegaciones), para el timeline. */
-export async function getActividadReciente(limite = 60): Promise<EventoUsoVista[]> {
+const mapEvento = (r: Record<string, unknown>): EventoUsoVista => ({
+  usuarioId: (r.usuario_id as string | null) ?? null,
+  nombre: (r.usuario_nombre as string | null) ?? "—",
+  rol: (r.rol as string | null) ?? "—",
+  seccion: (r.seccion as string | null) ?? "—",
+  path: (r.path as string | null) ?? "—",
+  creadoEn: r.creado_en as string,
+});
+
+/** Actividad reciente global (últimas navegaciones), para el timeline. Filtrable por rol. */
+export async function getActividadReciente(limite = 120, rol?: string): Promise<EventoUsoVista[]> {
+  const admin = createSupabaseAdmin();
+  try {
+    let q = admin
+      .from("eventos_uso")
+      .select("usuario_id, usuario_nombre, rol, seccion, path, creado_en")
+      .order("creado_en", { ascending: false })
+      .limit(limite);
+    if (rol) q = q.eq("rol", rol);
+    const { data, error } = await q;
+    if (error) throw error;
+    return (data ?? []).map(mapEvento);
+  } catch (e) {
+    if (tablaFaltante(e)) return [];
+    throw e;
+  }
+}
+
+/** Historial COMPLETO de una persona (drill-down): cada navegación con path + hora. */
+export async function getEventosDePersona(usuarioId: string, desdeIso: string, limite = 300): Promise<EventoUsoVista[]> {
   const admin = createSupabaseAdmin();
   try {
     const { data, error } = await admin
       .from("eventos_uso")
-      .select("usuario_nombre, rol, seccion, creado_en")
+      .select("usuario_id, usuario_nombre, rol, seccion, path, creado_en")
+      .eq("usuario_id", usuarioId)
+      .gte("creado_en", desdeIso)
       .order("creado_en", { ascending: false })
       .limit(limite);
     if (error) throw error;
-    return (data ?? []).map((r) => ({
-      nombre: (r.usuario_nombre as string | null) ?? "—",
-      rol: (r.rol as string | null) ?? "—",
-      seccion: (r.seccion as string | null) ?? "—",
-      creadoEn: r.creado_en as string,
-    }));
+    return (data ?? []).map(mapEvento);
   } catch (e) {
     if (tablaFaltante(e)) return [];
     throw e;
