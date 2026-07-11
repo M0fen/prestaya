@@ -17,7 +17,7 @@ export function preguntarAAureo(texto: string) {
   window.dispatchEvent(new CustomEvent("aureo:preguntar", { detail: texto }));
 }
 
-export function AureoInsights({ insights }: { insights: Insight[] }) {
+export function AureoInsights({ insights, titulo = "Aureo ve hoy" }: { insights: Insight[]; titulo?: string }) {
   if (insights.length === 0) return null;
 
   return (
@@ -27,7 +27,7 @@ export function AureoInsights({ insights }: { insights: Insight[] }) {
           💡
         </div>
         <div className="flex flex-col leading-tight">
-          <h2 className="text-[15px] font-extrabold">Aureo ve hoy</h2>
+          <h2 className="text-[15px] font-extrabold">{titulo}</h2>
           <span className="text-[11px] font-medium text-white/50">
             Señales automáticas sobre tus datos reales
           </span>
@@ -45,9 +45,11 @@ export function AureoInsights({ insights }: { insights: Insight[] }) {
             >
               <div className="flex items-start gap-2">
                 <span className="text-[17px] leading-none">{i.icono}</span>
-                <span className="text-[13.5px] font-extrabold text-tinta">{i.titulo}</span>
+                {/* Colores fijos: el fondo de la tarjeta es SIEMPRE claro (aunque el
+                    tema sea oscuro), así que el texto no debe usar tokens que flipean. */}
+                <span className="text-[13.5px] font-extrabold text-[#0F1B3D]">{i.titulo}</span>
               </div>
-              <p className="text-[12.5px] leading-relaxed font-medium text-gris">{i.detalle}</p>
+              <p className="text-[12.5px] leading-relaxed font-medium text-[#5B6478]">{i.detalle}</p>
               {i.pregunta && (
                 <button
                   type="button"

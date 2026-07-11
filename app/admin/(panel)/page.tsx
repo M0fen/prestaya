@@ -7,6 +7,7 @@ import { getResumenFinanciero } from "@/lib/data/asesor";
 import { getSerieRecaudo } from "@/lib/data/series";
 import { getResumenPeriodo, normalizarPeriodo, PERIODOS } from "@/lib/data/periodo";
 import { getRendicionesDia } from "@/lib/data/rendicion";
+import { getActivosConPagos } from "@/lib/data/activos";
 import { alcanceDelActor } from "@/lib/data/alcance";
 import { getLiquidacionDiaria, type LiquidacionDia } from "@/lib/data/liquidacion";
 import { generarInsights } from "@/lib/insights";
@@ -16,6 +17,7 @@ import { Columnas } from "@/components/charts/Columnas";
 import { BarrasComparativas } from "@/components/charts/BarrasComparativas";
 import { Donut } from "@/components/charts/Donut";
 import { AureoInsights } from "@/components/admin/AureoInsights";
+import { GuiaAureo } from "@/components/admin/GuiaAureo";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -38,12 +40,16 @@ export default async function DashboardPage({
   // Alcance del gestor (admin → todo; supervisor → su zona). Acota la franja de
   // "Control del día" (faltantes/sin-rendir) a lo que ESE gestor debe vigilar.
   const alcance = await alcanceDelActor();
+  // Perf: el alcance (para el supervisor implica consultar sus cobradores+clientes)
+  // y la cartera activa (RPC) se resuelven UNA vez y se comparten, en vez de que
+  // cada función los re-resuelva (antes: alcance ×3 + RPC ×2 → dashboard lento).
+  const activos = await getActivosConPagos(db, alcance);
   // Base (siempre): cartera/mora/cobradores YA vienen acotadas a la zona del
   // gestor (supervisor → su zona; admin → todo). El "Movimiento" y la serie salen
   // de RPCs de agregado GLOBAL: se muestran SOLO al dueño (para no mezclar zonas).
   const [resumen, liquidacion, rend] = await Promise.all([
-    getResumenFinanciero(db, hoy),
-    getLiquidacionDiaria(db, hoy),
+    getResumenFinanciero(db, hoy, { alcance, activos }),
+    getLiquidacionDiaria(db, hoy, alcance),
     getRendicionesDia(db, hoy, alcance),
   ]);
   const [serie, mov] = admin
@@ -202,8 +208,10 @@ export default async function DashboardPage({
       {/* Liquidación diaria por cobrador */}
       <LiquidacionDiaria liq={liquidacion} />
 
-      {/* Aureo ve hoy (proactivo) */}
-      <AureoInsights insights={insights} />
+      {/* Aureo ve hoy: la guía del día REAL (IA async, a medida de la zona) +
+          las señales automáticas deterministas debajo. */}
+      <GuiaAureo />
+      <AureoInsights insights={insights} titulo="Además, Aureo nota" />
 
       {/* MOVIMIENTO por período (día/semana/mes/año) — agregado GLOBAL, solo dueño. */}
       {admin && mov && (

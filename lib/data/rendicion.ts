@@ -11,6 +11,7 @@ import type { EstadoRendicion } from "@/lib/rendicion";
 import { getGastosCobradorHoy } from "./gastos";
 import { tablaFaltante } from "./errores";
 import { traerTodo } from "./paginado";
+import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import type { Alcance } from "./alcance";
 
 export interface RendicionDia {
@@ -169,8 +170,11 @@ export async function getRendicionesDia(
   // Recaudado por cobrador hoy (para mostrar a los que faltan rendir). Se PAGINA
   // (con orden estable por id): un día grande puede superar las 1000 filas de
   // PostgREST y truncar los montos en silencio (esto alimenta alertas de dinero).
+  // Se lee con el cliente ADMIN para esquivar el RLS por-fila sobre `pagos` (lento
+  // a escala); el scope va EXPLÍCITO por `registrado_por` (soloCobradores).
+  const adminDb = createSupabaseAdmin();
   const pagos = await traerTodo<{ monto: number; registrado_por: string | null }>((d, h) => {
-    let q = db
+    let q = adminDb
       .from("pagos")
       .select("monto, registrado_por")
       .eq("anulado", false)

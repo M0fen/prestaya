@@ -65,41 +65,34 @@ export async function getLiquidacionDiaria(
     nombre: c.nombre as string,
   }));
 
+  // Perf del supervisor: acotamos los escaneos de HOY a SUS cobradores (antes se
+  // barrían todos y se descartaban en JS). El admin (global) no filtra. Reduce
+  // las filas que el RLS por-fila tiene que evaluar → dashboard del supervisor más
+  // rápido, sin cambiar el resultado (solo se muestran sus cobradores).
+  const soloCob = alcance.global ? null : alcance.cobradorIds;
+
   // Eventos de HOY (paginados con orden estable), en paralelo.
   const [pagos, visitas, movs, prestamosNuevos] = await Promise.all([
-    traerTodo<{ monto: number; registrado_por: string | null }>((d, h) =>
-      db
-        .from("pagos")
-        .select("monto, registrado_por")
-        .eq("anulado", false)
-        .gte("registrado_en", desde)
-        .order("id", { ascending: true })
-        .range(d, h),
-    ),
-    traerTodo<{ cobrador_id: string | null }>((d, h) =>
-      db
-        .from("visitas")
-        .select("cobrador_id")
-        .gte("registrado_en", desde)
-        .order("id", { ascending: true })
-        .range(d, h),
-    ),
-    traerTodo<{ tipo: string; monto: number; cobrador_id: string | null }>((d, h) =>
-      db
-        .from("movimientos_caja")
-        .select("tipo, monto, cobrador_id")
-        .gte("registrado_en", desde)
-        .order("id", { ascending: true })
-        .range(d, h),
-    ),
-    traerTodo<{ cobrador_id: string | null }>((d, h) =>
-      db
-        .from("prestamos")
-        .select("cobrador_id")
-        .gte("creado_en", desde)
-        .order("id", { ascending: true })
-        .range(d, h),
-    ),
+    traerTodo<{ monto: number; registrado_por: string | null }>((d, h) => {
+      let q = db.from("pagos").select("monto, registrado_por").eq("anulado", false).gte("registrado_en", desde);
+      if (soloCob) q = q.in("registrado_por", soloCob);
+      return q.order("id", { ascending: true }).range(d, h);
+    }),
+    traerTodo<{ cobrador_id: string | null }>((d, h) => {
+      let q = db.from("visitas").select("cobrador_id").gte("registrado_en", desde);
+      if (soloCob) q = q.in("cobrador_id", soloCob);
+      return q.order("id", { ascending: true }).range(d, h);
+    }),
+    traerTodo<{ tipo: string; monto: number; cobrador_id: string | null }>((d, h) => {
+      let q = db.from("movimientos_caja").select("tipo, monto, cobrador_id").gte("registrado_en", desde);
+      if (soloCob) q = q.in("cobrador_id", soloCob);
+      return q.order("id", { ascending: true }).range(d, h);
+    }),
+    traerTodo<{ cobrador_id: string | null }>((d, h) => {
+      let q = db.from("prestamos").select("cobrador_id").gte("creado_en", desde);
+      if (soloCob) q = q.in("cobrador_id", soloCob);
+      return q.order("id", { ascending: true }).range(d, h);
+    }),
   ]);
 
   // Rendiciones de hoy: quién ya cerró (degrada si falta 0013).
