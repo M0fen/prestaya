@@ -122,9 +122,9 @@ export function AsesorFlotante() {
 
       {/* Panel */}
       {abierto && (
-        <div className="fixed right-4 bottom-20 z-50 flex h-[70vh] max-h-[640px] w-[min(420px,calc(100vw-2rem))] flex-col overflow-hidden rounded-[20px] border border-[#E6EAF4] bg-white shadow-[0_20px_60px_rgba(15,27,61,0.35)] max-md:bottom-[9rem]">
-          {/* Encabezado */}
-          <div className="flex items-center gap-2.5 border-b border-[#EEF1F8] bg-[#0F1B3D] px-4 py-3">
+        <div className="fixed top-0 right-0 left-0 z-50 flex h-[100dvh] flex-col overflow-hidden bg-white md:inset-auto md:right-4 md:bottom-20 md:h-[70vh] md:max-h-[640px] md:w-[min(420px,calc(100vw-2rem))] md:rounded-[20px] md:border md:border-[#E6EAF4] md:shadow-[0_20px_60px_rgba(15,27,61,0.35)]">
+          {/* Encabezado (respeta el notch en la hoja full-screen de mobile) */}
+          <div className="flex items-center gap-2.5 border-b border-[#EEF1F8] bg-[#0F1B3D] px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:pt-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[linear-gradient(135deg,#2453DC,#13308C)] text-[18px]">
               💡
             </div>
@@ -144,6 +144,14 @@ export function AsesorFlotante() {
               }`}
             >
               🧠 Profundo
+            </button>
+            <button
+              type="button"
+              onClick={() => setAbierto(false)}
+              aria-label="Cerrar"
+              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-[18px] text-white/70 hover:bg-white/10 active:scale-90"
+            >
+              ✕
             </button>
           </div>
 
@@ -219,8 +227,8 @@ export function AsesorFlotante() {
             )}
           </div>
 
-          {/* Entrada */}
-          <div className="border-t border-[#EEF1F8] bg-white p-2.5">
+          {/* Entrada (respeta el home-indicator en la hoja full-screen de mobile) */}
+          <div className="border-t border-[#EEF1F8] bg-white p-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] md:pb-2.5">
             <div className="flex items-end gap-2">
               <textarea
                 value={texto}
@@ -234,13 +242,14 @@ export function AsesorFlotante() {
                 rows={1}
                 placeholder="Preguntá algo sobre el negocio…"
                 disabled={cargando}
-                className="max-h-28 min-h-[40px] flex-1 resize-none rounded-[12px] border border-[#DCE3F4] px-3 py-2 text-[13.5px] outline-none focus:border-azul disabled:opacity-60"
+                // text-[16px]: evita el ZOOM automático de iOS al enfocar (<16px).
+                className="max-h-28 min-h-11 flex-1 resize-none rounded-[12px] border border-[#DCE3F4] px-3 py-2.5 text-[16px] outline-none focus:border-azul disabled:opacity-60"
               />
               <button
                 type="button"
                 onClick={() => preguntar(texto)}
                 disabled={cargando || texto.trim().length === 0}
-                className="flex h-[40px] w-[40px] flex-shrink-0 items-center justify-center rounded-full bg-[#2453DC] text-[16px] text-white disabled:opacity-40"
+                className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-[#2453DC] text-[16px] text-white transition-transform active:scale-90 disabled:opacity-40"
                 aria-label="Enviar"
               >
                 ➤
