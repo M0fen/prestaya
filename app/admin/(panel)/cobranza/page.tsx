@@ -8,6 +8,7 @@ import { getRecaudoHoy } from "@/lib/data/recaudoHoy";
 import { getActivosConPagos } from "@/lib/data/activos";
 import { alcanceDelActor } from "@/lib/data/alcance";
 import { MapaCobranza } from "@/components/admin/MapaCobranza";
+import { AutoRefresco } from "@/components/admin/AutoRefresco";
 import { UYU } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -35,13 +36,16 @@ export default async function CobranzaPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-0.5">
-        <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">
-          Cobranza · control anti-fuga
-        </h1>
-        <span className="text-[13px] font-medium text-gris">
-          Cada peso con hora, lugar y trazabilidad.
-        </span>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-0.5">
+          <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">
+            Cobranza · control anti-fuga
+          </h1>
+          <span className="text-[13px] font-medium text-gris">
+            Cada peso con hora, lugar y trazabilidad.
+          </span>
+        </div>
+        <AutoRefresco segundos={30} />
       </div>
 
       {/* Resumen (esta pantalla mira SOLO la ruta activa; el total del día está abajo) */}

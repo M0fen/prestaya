@@ -1,0 +1,121 @@
+"use client";
+// Cartón del cobrador con REFLEJO OPTIMISTA. El cartón "real" lo calcula el
+// servidor (calcularEstadosCarton) y se pasa acá ya resuelto; este componente
+// solo le suma, EN VIVO, lo que el cobrador acaba de registrar y todavía está en
+// la cola offline (aún no sincronizó). Así, apenas cobra, el día de HOY se marca
+// como pagado/abono con un sello — sin esperar el round-trip al servidor.
+//
+// Money-safe: NO recalcula saldos ni suma montos autoritativos; solo cambia el
+// ESTADO VISUAL del día de hoy (pagado/pendiente), que es idempotente frente al
+// dato del servidor. Una "gracia" mantiene el sello unos segundos tras sincronizar
+// para que el refresco del server tome la posta sin parpadeo.
+import { useEffect, useState, useSyncExternalStore } from "react";
+import type { DiaEstado, EstadoDia } from "@/types/cartones";
+import {
+  pendientes,
+  suscribir,
+  suscribirConfirmado,
+  type OpCobro,
+} from "@/lib/cobrador/colaOffline";
+
+const COLOR: Record<EstadoDia, string> = {
+  pagado: "#1FA971",
+  pendiente: "#E8A317",
+  atrasado: "#E06A6A",
+  futuro: "#EEF1F8",
+};
+
+// Cuánto tiempo se mantiene el sello tras confirmar el sync (cubre el refresco
+// del servidor para que el día no vuelva a "pendiente" un instante).
+const GRACIA_MS = 7000;
+
+const montoDe = (o: OpCobro, cuota: number): number =>
+  o.monto != null && o.monto > 0 ? o.monto : cuota;
+
+export function CartonCobrador({
+  dias,
+  cuota,
+  progresoPct,
+  clienteId,
+  prestamoId,
+}: {
+  dias: DiaEstado[];
+  cuota: number;
+  progresoPct: number;
+  clienteId: string;
+  prestamoId: string;
+}) {
+  const cola = useSyncExternalStore(suscribir, pendientes, () => [] as OpCobro[]);
+  // Ops recién confirmadas (sync OK): se mantienen unos segundos de gracia.
+  const [enGracia, setEnGracia] = useState<OpCobro[]>([]);
+
+  const coincide = (o: OpCobro): boolean =>
+    o.tipo === "pago" &&
+    o.clienteId === clienteId &&
+    (o.prestamoId == null || o.prestamoId === prestamoId);
+
+  useEffect(() => {
+    return suscribirConfirmado((op) => {
+      if (!(op.tipo === "pago" && op.clienteId === clienteId)) return;
+      setEnGracia((prev) => [...prev, op]);
+      setTimeout(() => setEnGracia((prev) => prev.filter((o) => o.id !== op.id)), GRACIA_MS);
+    });
+  }, [clienteId]);
+
+  const enCola = cola.filter(coincide);
+  const hayEnCola = enCola.length > 0;
+  // Monto encolado (pendiente de sync) + en gracia (recién confirmado): decide el
+  // estado visual del día de hoy, sin sumar a ningún total autoritativo.
+  const montoOptimista = [...enCola, ...enGracia.filter(coincide)].reduce(
+    (s, o) => s + montoDe(o, cuota),
+    0,
+  );
+  const idxHoy = dias.findIndex((d) => d.esHoy);
+
+  return (
+    <div className="rounded-[16px] bg-[#F1E8D2] p-3.5">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-[11.5px] font-bold text-[#8A6D1E]">Cartón</span>
+        <span className="text-[11px] font-medium text-[#a98b3e]">{progresoPct}% pagado</span>
+      </div>
+      <div className="grid grid-cols-6 gap-1.5">
+        {dias.map((d, i) => {
+          let estado: EstadoDia = d.estado;
+          let provisional = false;
+          // Overlay SOLO del día de hoy y solo si aún no figura pagado en el server.
+          if (i === idxHoy && montoOptimista > 0 && d.estado !== "pagado") {
+            const totalHoy = d.montoPagado + montoOptimista;
+            estado = totalHoy >= cuota ? "pagado" : "pendiente";
+            provisional = true;
+          }
+          return (
+            <div
+              key={d.dia}
+              className={`relative flex aspect-square items-center justify-center rounded-[9px] text-[11px] font-bold ${
+                provisional ? "py-sello" : ""
+              }`}
+              style={{
+                background: COLOR[estado],
+                color: estado === "futuro" ? "#B3A488" : "#fff",
+                boxShadow: d.esHoy ? "0 0 0 2px #13308C" : "none",
+              }}
+            >
+              {estado === "pagado" ? "✓" : d.dia}
+              {provisional && (
+                <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#13308C] text-[8px] font-black text-white">
+                  ⟳
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {hayEnCola && (
+        <p className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-[#8A6D1E]">
+          <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[#1FA971]" />
+          Tu cobro de hoy quedó registrado · se sincroniza solo.
+        </p>
+      )}
+    </div>
+  );
+}

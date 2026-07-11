@@ -3,7 +3,17 @@
 // contador de intentos y aviso a suscriptores. Junto al test de idempotencia
 // (pagos.idempotencia.test.ts) cubre el camino offline de punta a punta.
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { encolar, quitar, marcarIntento, pendientes, hidratar, suscribir } from "./colaOffline";
+import {
+  encolar,
+  quitar,
+  marcarIntento,
+  pendientes,
+  hidratar,
+  suscribir,
+  parchearGps,
+  confirmar,
+  suscribirConfirmado,
+} from "./colaOffline";
 
 class FakeStorage {
   private m = new Map<string, string>();
@@ -70,6 +80,39 @@ describe("colaOffline", () => {
     const unsub = suscribir(() => n++);
     encolar({ ...opBase });
     expect(n).toBeGreaterThan(0);
+    unsub();
+  });
+
+  it("holdMs retiene la op: holdHasta = deviceTs + holdMs (sin holdMs, undefined)", () => {
+    const conHold = encolar({ ...opBase }, { holdMs: 6000 });
+    expect(conHold.holdHasta).toBe(conHold.deviceTs + 6000);
+    const sinHold = encolar({ ...opBase, clienteId: "c2" });
+    expect(sinHold.holdHasta).toBeUndefined();
+  });
+
+  it("parchearGps adjunta el GPS a una op ya encolada; con ambos null no toca nada", () => {
+    const a = encolar({ ...opBase });
+    parchearGps(a.id, -34.9, -56.2);
+    expect(pendientes()[0].gpsLat).toBe(-34.9);
+    expect(pendientes()[0].gpsLng).toBe(-56.2);
+    parchearGps(a.id, null, null); // lectura fallida: conserva lo anterior
+    expect(pendientes()[0].gpsLat).toBe(-34.9);
+  });
+
+  it("confirmar saca la op y avisa la gracia con la op; quitar (Deshacer) no avisa", () => {
+    const confirmadas: string[] = [];
+    const unsub = suscribirConfirmado((op) => confirmadas.push(op.id));
+
+    const a = encolar({ ...opBase });
+    confirmar(a.id); // éxito de sync
+    expect(pendientes()).toHaveLength(0);
+    expect(confirmadas).toEqual([a.id]);
+
+    const b = encolar({ ...opBase, clienteId: "c2" });
+    quitar(b.id); // Deshacer: nunca llegó al libro → sin gracia
+    expect(pendientes()).toHaveLength(0);
+    expect(confirmadas).toEqual([a.id]); // no se agregó b
+
     unsub();
   });
 });

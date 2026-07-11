@@ -26,6 +26,10 @@ export interface OpCobro {
   /** Hora real del cobro (Date.now() al registrar). */
   deviceTs: number;
   intentos: number;
+  /** No sincronizar antes de este instante (epoch ms). Da la ventana de
+   *  "Deshacer" y el margen para que el GPS asíncrono se adjunte antes de
+   *  enviar. undefined = enviar apenas haya señal (comportamiento clásico). */
+  holdHasta?: number;
 }
 
 const KEY = "py_cola_cobros";
@@ -62,18 +66,30 @@ function guardar(ops: OpCobro[]): void {
 const nuevoId = (): string =>
   globalThis.crypto?.randomUUID?.() ?? `op-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-/** Encola una operación de cobro/no-pago. Devuelve la op creada. */
+/** Encola una operación de cobro/no-pago. Devuelve la op creada.
+ *  `holdMs` retiene la op ese tiempo antes de sincronizar (ventana de Deshacer
+ *  + margen para adjuntar el GPS asíncrono). */
 export function encolar(
-  op: Omit<OpCobro, "id" | "intentos" | "deviceTs"> & { deviceTs?: number },
+  op: Omit<OpCobro, "id" | "intentos" | "deviceTs" | "holdHasta"> & { deviceTs?: number },
+  opts?: { holdMs?: number },
 ): OpCobro {
+  const deviceTs = op.deviceTs ?? Date.now();
   const completa: OpCobro = {
     ...op,
     id: nuevoId(),
     intentos: 0,
-    deviceTs: op.deviceTs ?? Date.now(),
+    deviceTs,
+    holdHasta: opts?.holdMs != null ? deviceTs + opts.holdMs : undefined,
   };
   guardar([...leer(), completa]);
   return completa;
+}
+
+/** Adjunta el GPS a una op ya encolada (llega asíncrono, no bloquea el registro).
+ *  Si no hubo lectura (ambos null) no toca nada: se conserva lo que tenga. */
+export function parchearGps(id: string, lat: number | null, lng: number | null): void {
+  if (lat == null && lng == null) return;
+  guardar(leer().map((o) => (o.id === id ? { ...o, gpsLat: lat, gpsLng: lng } : o)));
 }
 
 export function quitar(id: string): void {
@@ -82,6 +98,29 @@ export function quitar(id: string): void {
 
 export function marcarIntento(id: string): void {
   guardar(leer().map((o) => (o.id === id ? { ...o, intentos: o.intentos + 1 } : o)));
+}
+
+// ── Confirmación con gracia ────────────────────────────────────────────────
+//  Cuando una op se sincroniza OK se saca de la cola, pero avisamos a los
+//  suscriptores (con la op) para que la UI optimista (p. ej. el cartón) la siga
+//  mostrando unos segundos hasta que el refresco del servidor la refleje. Así
+//  no hay parpadeo "pagado → pendiente → pagado" en el traspaso.
+type ConfirmadoCb = (op: OpCobro) => void;
+const confSubs = new Set<ConfirmadoCb>();
+
+export function suscribirConfirmado(cb: ConfirmadoCb): () => void {
+  confSubs.add(cb);
+  return () => {
+    confSubs.delete(cb);
+  };
+}
+
+/** Saca la op de la cola por ÉXITO de sync (no por Deshacer) y avisa la gracia. */
+export function confirmar(id: string): void {
+  const cola = leer();
+  const op = cola.find((o) => o.id === id);
+  guardar(cola.filter((o) => o.id !== id));
+  if (op) for (const cb of confSubs) cb(op);
 }
 
 /** Snapshot estable para useSyncExternalStore. */

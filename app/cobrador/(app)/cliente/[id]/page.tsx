@@ -10,22 +10,15 @@ import { getPagosDePrestamo } from "@/lib/data/pagos";
 import { getNotasCliente } from "@/lib/data/notas";
 import { calcularEstadosCarton } from "@/lib/cartones";
 import { hoyUY } from "@/lib/fecha";
-import type { EstadoDia } from "@/types/cartones";
 import type { Prestamo } from "@/types/db";
 import { UYU } from "@/lib/format";
 import { RegistroCobro } from "@/components/cobrador/RegistroCobro";
+import { CartonCobrador } from "@/components/cobrador/CartonCobrador";
 import { RegistrarCompromiso } from "@/components/cobrador/RegistrarCompromiso";
 import { BeaconFicha } from "@/components/cobrador/BeaconFicha";
 import { NotasCliente } from "@/components/notas/NotasCliente";
 
 export const dynamic = "force-dynamic";
-
-const COLOR: Record<EstadoDia, string> = {
-  pagado: "#1FA971",
-  pendiente: "#E8A317",
-  atrasado: "#E06A6A",
-  futuro: "#EEF1F8",
-};
 
 export default async function DetalleClientePage({
   params,
@@ -197,30 +190,14 @@ async function Detalle({
         </div>
       )}
 
-      {/* Cartón real */}
-      <div className="rounded-[16px] bg-[#F1E8D2] p-3.5">
-        <div className="mb-2 flex items-center justify-between">
-          <span className="text-[11.5px] font-bold text-[#8A6D1E]">Cartón</span>
-          <span className="text-[11px] font-medium text-[#a98b3e]">
-            {r.progresoPct}% pagado
-          </span>
-        </div>
-        <div className="grid grid-cols-6 gap-1.5">
-          {r.dias.map((d) => (
-            <div
-              key={d.dia}
-              className="flex aspect-square items-center justify-center rounded-[9px] text-[11px] font-bold"
-              style={{
-                background: COLOR[d.estado],
-                color: d.estado === "futuro" ? "#B3A488" : "#fff",
-                boxShadow: d.esHoy ? "0 0 0 2px #13308C" : "none",
-              }}
-            >
-              {d.estado === "pagado" ? "✓" : d.dia}
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Cartón real (con reflejo en vivo del cobro recién registrado). */}
+      <CartonCobrador
+        dias={r.dias}
+        cuota={prestamo.cuota_diaria}
+        progresoPct={r.progresoPct}
+        clienteId={clienteId}
+        prestamoId={prestamo.id}
+      />
 
       <RegistroCobro
         clienteId={clienteId}

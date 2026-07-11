@@ -2,13 +2,28 @@
 // Registro de cobro del cobrador — OFFLINE-FIRST. Captura GPS + hora real y
 // encola la operación; el SyncEngine (en el layout) la sincroniza cuando hay
 // señal. Nunca "no anduvo": registra siempre, con o sin conexión.
-import { useState } from "react";
-import { encolar, type OpTipo } from "@/lib/cobrador/colaOffline";
+import { useRef, useState } from "react";
+import { encolar, parchearGps, quitar, type OpCobro, type OpTipo } from "@/lib/cobrador/colaOffline";
 import { MOTIVOS_NOPAGO, type MotivoNoPago } from "@/app/cobrador/(app)/motivos";
 import { UYU } from "@/lib/format";
 import { Comprobante, type DatosComprobante } from "@/components/cobrador/Comprobante";
 
 type Toast = { texto: string; sub?: string; tono: "ok" | "info" } | null;
+
+// Ventana en la que el cobro queda retenido en la cola (no sincroniza): habilita
+// "Deshacer" ante un mis-tap (los pagos NO se editan, solo se anulan) y le da
+// margen al GPS asíncrono para adjuntarse antes de enviar.
+const HOLD_MS = 6000;
+
+// Confirmación háptica: el cobrador "siente" que el cobro entró sin mirar la
+// pantalla (está frente al cliente). Silencioso si el dispositivo no lo soporta.
+function vibrar(patron: number | number[]): void {
+  try {
+    navigator.vibrate?.(patron);
+  } catch {
+    /* no soportado: sin vibración */
+  }
+}
 
 // Fecha+hora y folio en hora de Uruguay (comprobante consistente en toda la app).
 function partesUY(): { fechaHora: string; folio: string } {
@@ -36,7 +51,7 @@ function pedirGps(): Promise<{ lat: number | null; lng: number | null }> {
     navigator.geolocation.getCurrentPosition(
       (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
       () => resolve({ lat: null, lng: null }),
-      { enableHighAccuracy: true, timeout: 6000, maximumAge: 30000 },
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 30000 },
     );
   });
 }
@@ -68,38 +83,60 @@ export function RegistroCobro({
   const [montoAbono, setMontoAbono] = useState("");
   const [ocupado, setOcupado] = useState(false);
   const [comprobante, setComprobante] = useState<DatosComprobante | null>(null);
+  // Op recién encolada, para poder deshacerla desde el comprobante durante el hold.
+  const [undo, setUndo] = useState<{ opId: string; hasta: number } | null>(null);
+  // Anti-doble-registro: un segundo toque instantáneo no encola otro cobro.
+  const bloqueado = useRef(false);
 
   const flash = (t: Exclude<Toast, null>) => {
     setToast(t);
     setTimeout(() => setToast(null), 2800);
   };
 
-  const registrar = async (
-    tipo: OpTipo,
-    extra: { monto: number | null; motivo: string | null },
-  ): Promise<boolean> => {
+  // Reserva el registro por un instante (evita doble-tap) sin bloquear en el GPS.
+  const tomarTurno = (): boolean => {
+    if (bloqueado.current) return false;
+    bloqueado.current = true;
     setOcupado(true);
-    const gps = await pedirGps();
-    encolar({
-      tipo,
-      clienteId,
-      prestamoId,
-      clienteNombre,
-      monto: extra.monto,
-      motivo: extra.motivo,
-      gpsLat: gps.lat,
-      gpsLng: gps.lng,
-    });
-    setOcupado(false);
-    return typeof navigator !== "undefined" && !navigator.onLine;
+    setTimeout(() => {
+      bloqueado.current = false;
+      setOcupado(false);
+    }, 700);
+    return true;
   };
 
-  const cobrar = async (monto: number | null) => {
+  // Encola YA (sin esperar el GPS) y adjunta el GPS cuando llega, en segundo
+  // plano y dentro de la ventana de hold. Antes se bloqueaba hasta 6 s esperando
+  // el GPS frente al cliente; ahora el registro es instantáneo.
+  const registrar = (
+    tipo: OpTipo,
+    extra: { monto: number | null; motivo: string | null },
+  ): { offline: boolean; op: OpCobro } => {
+    const op = encolar(
+      {
+        tipo,
+        clienteId,
+        prestamoId,
+        clienteNombre,
+        monto: extra.monto,
+        motivo: extra.motivo,
+        gpsLat: null,
+        gpsLng: null,
+      },
+      { holdMs: HOLD_MS },
+    );
+    void pedirGps().then((g) => parchearGps(op.id, g.lat, g.lng));
+    return { offline: typeof navigator !== "undefined" && !navigator.onLine, op };
+  };
+
+  const cobrar = (monto: number | null) => {
+    if (!tomarTurno()) return;
     // Dinero SIEMPRE entero: redondeamos ANTES de encolar (nunca un float llega
     // al libro de pagos). El comprobante y el estado usan ese mismo entero.
     const m = monto != null && monto > 0 ? Math.round(monto) : null;
     const montoCobrado = m ?? cuota;
-    const offline = await registrar("pago", { monto: m, motivo: null });
+    const { offline, op } = registrar("pago", { monto: m, motivo: null });
+    vibrar(18);
     setAbono(false);
     setMontoAbono("");
     // Comprobante profesional (recibo con trazabilidad), compartible por WhatsApp.
@@ -115,15 +152,29 @@ export function RegistroCobro({
       fechaHora,
       offline,
     });
+    setUndo({ opId: op.id, hasta: op.holdHasta ?? Date.now() + HOLD_MS });
   };
 
-  const noPago = async (m: MotivoNoPago) => {
-    const offline = await registrar("no_pago", { monto: null, motivo: m });
+  const noPago = (m: MotivoNoPago) => {
+    if (!tomarTurno()) return;
+    const { offline } = registrar("no_pago", { monto: null, motivo: m });
+    vibrar(12);
     setMotivos(false);
     flash({
       texto: `No pago registrado${offline ? " (offline)" : ""}`,
       tono: "info",
     });
+  };
+
+  // Deshacer: saca la op de la cola ANTES de que sincronice (nunca llegó al
+  // libro de pagos). Solo disponible dentro de la ventana de hold.
+  const deshacerCobro = () => {
+    if (!undo) return;
+    quitar(undo.opId);
+    vibrar(30);
+    setUndo(null);
+    setComprobante(null);
+    flash({ texto: "Cobro deshecho", tono: "info" });
   };
 
   const montoAbonoNum = Number(montoAbono);
@@ -245,7 +296,14 @@ export function RegistroCobro({
       )}
 
       {comprobante && (
-        <Comprobante datos={comprobante} onCerrar={() => setComprobante(null)} />
+        <Comprobante
+          datos={comprobante}
+          onCerrar={() => {
+            setComprobante(null);
+            setUndo(null);
+          }}
+          deshacer={undo ? { hasta: undo.hasta, onDeshacer: deshacerCobro } : undefined}
+        />
       )}
 
       {toast && (

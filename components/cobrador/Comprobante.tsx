@@ -4,6 +4,7 @@
 // con trazabilidad"): confirma al cliente y al cobrador qué se pagó, cuándo y a
 // quién. Se puede COMPARTIR por WhatsApp / compartir nativo. Derivado del pago,
 // no toca la base. Funciona offline (se marca "se sincroniza al recuperar señal").
+import { useEffect, useState } from "react";
 import { UYU } from "@/lib/format";
 
 export type DatosComprobante = {
@@ -44,10 +45,28 @@ function textoComprobante(c: DatosComprobante): string {
 export function Comprobante({
   datos,
   onCerrar,
+  deshacer,
 }: {
   datos: DatosComprobante;
   onCerrar: () => void;
+  /** Ventana de "Deshacer" del cobro (mientras la op sigue retenida en cola). */
+  deshacer?: { hasta: number; onDeshacer: () => void };
 }) {
+  // Segundos restantes de la ventana de Deshacer (baja a 0 y desaparece).
+  const [restante, setRestante] = useState(() =>
+    deshacer ? Math.max(0, Math.ceil((deshacer.hasta - Date.now()) / 1000)) : 0,
+  );
+  useEffect(() => {
+    if (!deshacer) return;
+    const t = setInterval(() => {
+      const s = Math.max(0, Math.ceil((deshacer.hasta - Date.now()) / 1000));
+      setRestante(s);
+      if (s <= 0) clearInterval(t);
+    }, 250);
+    return () => clearInterval(t);
+  }, [deshacer]);
+  const puedeDeshacer = Boolean(deshacer) && restante > 0;
+
   const compartir = async () => {
     const texto = textoComprobante(datos);
     // 1) Compartir nativo (elige WhatsApp, etc.) si el dispositivo lo soporta.
@@ -112,6 +131,18 @@ export function Comprobante({
           <p className="mx-5 mb-3 rounded-[10px] bg-[#FFF7E6] px-3 py-2 text-[11.5px] font-medium text-[#9A6B00]">
             Guardado sin conexión: se sincroniza al recuperar señal.
           </p>
+        )}
+
+        {/* Deshacer: red de seguridad ante un mis-tap, mientras el cobro sigue
+            retenido en cola (aún no llegó al libro de pagos). */}
+        {puedeDeshacer && (
+          <button
+            type="button"
+            onClick={deshacer!.onDeshacer}
+            className="mx-5 mb-3 flex w-[calc(100%-2.5rem)] items-center justify-center gap-2 rounded-[10px] border border-dashed border-[#DCE3F4] bg-white px-3 py-2 text-[12px] font-bold text-[#6B7494] active:scale-[0.98]"
+          >
+            ¿Te equivocaste? Deshacer cobro · {restante}s
+          </button>
         )}
 
         {/* Acciones */}

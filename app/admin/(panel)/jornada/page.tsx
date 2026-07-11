@@ -26,6 +26,7 @@ import { fechaISOUY, sumarDiasYmd } from "@/lib/fecha";
 import { BarrasComparativas } from "@/components/charts/BarrasComparativas";
 import { CierrePorZona } from "@/components/admin/CierrePorZona";
 import { AvisarCobrador } from "@/components/admin/AvisarCobrador";
+import { AutoRefresco } from "@/components/admin/AutoRefresco";
 import type { ReactNode } from "react";
 
 export const dynamic = "force-dynamic";
@@ -444,10 +445,13 @@ function EnVivo({
     .sort((a, b) => a.progreso - b.progreso);
   return (
     <div className="flex flex-col gap-4">
-      <Encabezado
-        titulo="La zona, ahora"
-        bajada="Mirá cómo avanza la ruta mientras los cobradores están en la calle. Lo que dispara señal, arriba."
-      />
+      <div className="flex items-start justify-between gap-3">
+        <Encabezado
+          titulo="La zona, ahora"
+          bajada="Mirá cómo avanza la ruta mientras los cobradores están en la calle. Lo que dispara señal, arriba."
+        />
+        <AutoRefresco segundos={25} />
+      </div>
 
       {/* Meta del día: avance vs esperado + cuánto falta. */}
       <section className="rounded-[16px] bg-[linear-gradient(155deg,#173063_0%,#0F1B3D_60%)] p-4 text-white shadow-[0_10px_24px_rgba(15,27,61,0.28)]">
