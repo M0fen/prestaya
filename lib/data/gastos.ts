@@ -46,19 +46,5 @@ export async function getGastosCobradorHoy(
     throw e;
   }
 }
-
-/** Registra un gasto de ruta del cobrador (egreso a su nombre). */
-export async function registrarGastoRutaDb(
-  db: SupabaseClient,
-  input: { cobradorId: string; monto: number; categoria: string | null; descripcion: string | null },
-): Promise<void> {
-  const { error } = await db.from("movimientos_caja").insert({
-    tipo: "egreso",
-    monto: input.monto,
-    categoria: input.categoria,
-    descripcion: input.descripcion,
-    cobrador_id: input.cobradorId,
-    registrado_por: input.cobradorId,
-  });
-  if (error) throw error;
-}
+// El alta de gastos ya no es directa: el cobrador SOLICITA (solicitudes_gasto,
+// 0057) y el admin aprueba → recién ahí se crea el egreso. Ver lib/acciones/gastos.ts.

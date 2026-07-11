@@ -8,10 +8,11 @@ import { getRutaCobrador } from "@/lib/data/ruta";
 import { getBannerCobradorActivo } from "@/lib/data/bannerCobrador";
 import { BannerEquipo } from "@/components/cobrador/BannerEquipo";
 import { getEstadoJornada } from "@/lib/data/rendicion";
-import { getGastosCobradorHoy } from "@/lib/data/gastos";
+import { getSolicitudesGastoCobrador } from "@/lib/data/solicitudesGasto";
 import { getUsuarioActual } from "@/lib/auth";
 import { hoyUY } from "@/lib/fecha";
 import { UYU, meses, diasSemana } from "@/lib/format";
+import { calcularComision } from "@/lib/comision";
 import { ListaRuta, type ItemRutaVista } from "@/components/cobrador/ListaRuta";
 import { GastosRuta } from "@/components/cobrador/GastosRuta";
 import { CerrarJornada } from "@/components/cobrador/CerrarJornada";
@@ -23,7 +24,7 @@ export default async function RutaPage() {
   const { items, arqueo } = await getRutaCobrador(db);
   const usuario = await getUsuarioActual();
   const jornada = usuario ? await getEstadoJornada(db, usuario.id) : null;
-  const gastos = usuario ? await getGastosCobradorHoy(db, usuario.id) : null;
+  const solicitudesGasto = usuario ? await getSolicitudesGastoCobrador(db, usuario.id) : null;
   const banner = await getBannerCobradorActivo(db);
 
   // Saludo personalizado (nombre + zona). Da identidad a la app del cobrador.
@@ -69,6 +70,17 @@ export default async function RutaPage() {
   const avancePct = arqueo.clientes > 0 ? Math.round((resueltos / arqueo.clientes) * 100) : 0;
   const cobroPct = arqueo.esperado > 0 ? Math.min(100, Math.round((arqueo.recaudado / arqueo.esperado) * 100)) : 0;
   const faltanVisitas = Math.max(0, arqueo.clientes - resueltos);
+  // "Mi día": la comisión que YA se ganó hoy (motivación: plata en SU bolsillo).
+  // Base = recaudado autoritativo del servidor (sus pagos de hoy). Solo si tiene %.
+  // `comision_pct` no está en el tipo Usuario → se lee con el cliente admin (como la zona).
+  const comisionPct = usuario
+    ? Number(
+        (await createSupabaseAdmin().from("usuarios").select("comision_pct").eq("id", usuario.id).maybeSingle())
+          .data?.comision_pct ?? 0,
+      )
+    : 0;
+  const recaudadoBase = jornada?.recaudado ?? arqueo.recaudado;
+  const comisionHoy = comisionPct > 0 ? calcularComision(recaudadoBase, comisionPct) : 0;
 
   return (
     <div className="flex flex-col gap-4">
@@ -114,6 +126,15 @@ export default async function RutaPage() {
           <Mini label="Pendientes" valor={String(arqueo.pendientes)} />
           <Mini label="No pago" valor={String(arqueo.noPagos)} tono={arqueo.noPagos > 0 ? "#F0A0A0" : undefined} />
         </div>
+        {/* Comisión ganada hoy: la plata que YA es del cobrador (motivación). */}
+        {comisionPct > 0 && (
+          <div className="mt-3 flex items-center justify-between rounded-[12px] bg-white/10 px-3 py-2.5">
+            <span className="flex items-center gap-1.5 text-[12px] font-semibold text-white/75">
+              💰 Llevás ganado hoy <span className="text-white/40">· {comisionPct}%</span>
+            </span>
+            <span className="text-[17px] font-black tabular-nums text-[#34E0A1]">{UYU(comisionHoy)}</span>
+          </div>
+        )}
       </section>
 
       <div className="flex items-center justify-between px-0.5">
@@ -143,8 +164,8 @@ export default async function RutaPage() {
         <ListaRuta items={vista} />
       )}
 
-      {/* Gastos de ruta del cobrador (egresos que bajan lo que entrega). */}
-      {gastos && !jornada?.yaRendida && <GastosRuta gastos={gastos} />}
+      {/* Gastos de ruta: el cobrador SOLICITA; el admin aprueba (0057). */}
+      {solicitudesGasto && !jornada?.yaRendida && <GastosRuta solicitudes={solicitudesGasto} />}
 
       {/* Cierre de jornada (rendición): esperado vs entregado. */}
       {jornada && (

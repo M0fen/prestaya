@@ -53,6 +53,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/admin/mora", label: "Mora", icon: "⏰", grupo: "Operación diaria", roles: ["admin", "supervisor"], alias: ["atrasos", "morosos", "riesgo", "recargo"] },
   { href: "/admin/campo", label: "Control de campo", icon: "🛰️", grupo: "Operación diaria", roles: ["admin", "supervisor"], alias: ["cobradores", "gps", "bitacora", "sospecha", "planchado", "malas mañas"] },
   { href: "/admin/anulaciones", label: "Anulaciones", icon: "🚫", grupo: "Operación diaria", roles: ["admin", "supervisor"], alias: ["anular", "anulacion", "doble registro", "reversar", "pago"] },
+  { href: "/admin/gastos", label: "Gastos de ruta", icon: "⛽", grupo: "Operación diaria", roles: ["admin"], alias: ["aprobar gasto", "solicitud", "combustible", "sacar de caja", "egreso cobrador"] },
   // ── Cartera y clientes ──
   { href: "/admin/clientes", label: "Clientes", icon: "👤", grupo: "Cartera y clientes", roles: ["admin", "supervisor"], alias: ["deudores", "cartera"] },
   { href: "/admin/informe-cartera", label: "Ventas Crédito", icon: "💳", grupo: "Cartera y clientes", roles: ["admin"], alias: ["creditos", "cartera", "interes", "utilidad", "deuda", "ventas a hoy", "con intereses", "recaudo", "informe"] },

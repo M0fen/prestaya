@@ -53,6 +53,19 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
   const [estadoGeo, setEstadoGeo] = useState<"idle" | "pidiendo" | "ok" | "no">("idle");
   const [verTodos, setVerTodos] = useState(false);
   const [q, setQ] = useState("");
+  const [filtro, setFiltro] = useState<"todos" | "pendiente" | "cobrado" | "no_pago">("todos");
+
+  // Conteos por estado (para las chips) — la pregunta central del cobrador en la
+  // calle es "¿a quién me falta cobrar?".
+  const cuenta = useMemo(
+    () => ({
+      todos: items.length,
+      pendiente: items.filter((i) => i.estadoHoy === "pendiente").length,
+      cobrado: items.filter((i) => i.estadoHoy === "pagado" || i.estadoHoy === "abono").length,
+      no_pago: items.filter((i) => i.estadoHoy === "no_pago").length,
+    }),
+    [items],
+  );
 
   const pedirUbicacion = () => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -86,18 +99,54 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
     return [...base, ...cerrados];
   }, [items, porCercania, origen]);
 
+  // Filtro por estado (chips): recorta la ruta a la categoría elegida.
+  const porEstado =
+    filtro === "todos"
+      ? ordenados
+      : filtro === "cobrado"
+        ? ordenados.filter((i) => i.estadoHoy === "pagado" || i.estadoHoy === "abono")
+        : ordenados.filter((i) => i.estadoHoy === filtro);
+
   // Búsqueda por nombre: si hay término, filtra y muestra TODOS los que matchean.
   const buscando = q.trim().length > 0;
   const filtrados = buscando
-    ? ordenados.filter((i) => norm(i.nombre ?? "").includes(norm(q)))
-    : ordenados;
-  // Plegado: sin búsqueda, solo las primeras TOPE_RUTA paradas (las más
-  // relevantes, ya ordenadas). El resto queda detrás de "Ver los N restantes".
-  const visibles = verTodos || buscando ? filtrados : filtrados.slice(0, TOPE_RUTA);
+    ? porEstado.filter((i) => norm(i.nombre ?? "").includes(norm(q)))
+    : porEstado;
+  // Plegado: solo con "Todos" y sin búsqueda se pliega a TOPE_RUTA; con una chip
+  // activa o buscando, se ve la lista completa de esa categoría.
+  const sinPliegue = buscando || filtro !== "todos";
+  const visibles = verTodos || sinPliegue ? filtrados : filtrados.slice(0, TOPE_RUTA);
   const restantes = filtrados.length - visibles.length;
+
+  const CHIPS: { id: typeof filtro; label: string; n: number }[] = [
+    { id: "todos", label: "Todos", n: cuenta.todos },
+    { id: "pendiente", label: "Pendientes", n: cuenta.pendiente },
+    { id: "cobrado", label: "Cobrados", n: cuenta.cobrado },
+    { id: "no_pago", label: "No pago", n: cuenta.no_pago },
+  ];
 
   return (
     <div className="flex flex-col gap-2">
+      {/* Filtro por estado: la ruta segmentada de un toque. */}
+      <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+        {CHIPS.map((f) => {
+          const activo = filtro === f.id;
+          return (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => setFiltro(f.id)}
+              className={`flex-shrink-0 rounded-full px-3 py-1.5 text-[12px] font-bold tabular-nums transition-transform active:scale-95 ${
+                activo ? "bg-[#2453DC] text-white" : "border border-[#DCE3F4] bg-white text-gris"
+              }`}
+            >
+              {f.label}
+              <span className={activo ? "text-white/85" : "text-[#8A93AD]"}> · {f.n}</span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Buscar cliente por nombre */}
       <input
         type="search"
