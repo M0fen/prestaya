@@ -36,6 +36,14 @@ export interface ActivoConPagos {
   pagos?: { d: number; m: number }[];
 }
 
+// Cache en memoria de la cartera GLOBAL (admin). SOLO el agregado informativo del
+// dashboard (cartera por cobrar / mora), NUNCA datos operativos: el cobrador y la
+// ficha leen el libro de pagos en vivo, y el recaudo del día es query aparte (no
+// se cachea). Best-effort por instancia serverless; el supervisor usa la RPC
+// acotada y nunca toca esto. Ver el path global de getActivosConPagos.
+const CARTERA_TTL_MS = 20_000;
+let carteraGlobalCache: { data: ActivoConPagos[]; exp: number } | null = null;
+
 export async function getActivosConPagos(
   db: SupabaseClient,
   alcance?: Alcance,
@@ -58,10 +66,17 @@ export async function getActivosConPagos(
     }
   }
 
-  // Admin (global) o fallback: cartera completa + recorte por alcance en JS.
+  // Admin (global) o fallback (supervisor sin 0062): cartera COMPLETA. Cache corto
+  // SOLO para el caso global → cargas repetidas del admin (dashboard→jornada→…)
+  // quedan instantáneas, con un desfasaje ≤20s únicamente en ese agregado lento.
+  const ahora = Date.now();
+  if (al.global && carteraGlobalCache && carteraGlobalCache.exp > ahora) {
+    return [...carteraGlobalCache.data];
+  }
   const { data, error } = await db.rpc("app_cartera_activa");
   if (error) throw error;
   const activos = (data ?? []) as ActivoConPagos[];
+  if (al.global) carteraGlobalCache = { data: activos, exp: ahora + CARTERA_TTL_MS };
   return filtrarActivosPorAlcance(activos, al);
 }
 
