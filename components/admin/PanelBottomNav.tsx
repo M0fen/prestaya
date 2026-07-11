@@ -21,10 +21,12 @@ const TABS = [
 export function PanelBottomNav({
   rol,
   noLeidos = 0,
+  gastosPendientes = 0,
   esDev = false,
 }: {
   rol: Rol;
   noLeidos?: number;
+  gastosPendientes?: number;
   esDev?: boolean;
 }) {
   const pathname = usePathname();
@@ -61,8 +63,11 @@ export function PanelBottomNav({
         >
           <span className="relative text-[19px] leading-none">
             ☰
-            {noLeidos > 0 && (
-              <span className="absolute -top-0.5 -right-2 h-2 w-2 rounded-full bg-[#E06A6A]" />
+            {(noLeidos > 0 || gastosPendientes > 0) && (
+              <span
+                className="absolute -top-0.5 -right-2 h-2 w-2 rounded-full"
+                style={{ background: noLeidos > 0 ? "#E06A6A" : "#E8A317" }}
+              />
             )}
           </span>
           Menú
@@ -106,7 +111,8 @@ export function PanelBottomNav({
                         icon={i.icon}
                         label={i.label}
                         activo={activo(i.href)}
-                        badge={i.href === "/admin/chat" ? noLeidos : 0}
+                        badge={i.href === "/admin/chat" ? noLeidos : i.href === "/admin/gastos" ? gastosPendientes : 0}
+                        amber={i.href === "/admin/gastos"}
                         onNav={() => setAbierto(false)}
                       />
                     ))}
@@ -127,6 +133,7 @@ function ItemSheet({
   label,
   activo,
   badge = 0,
+  amber = false,
   onNav,
 }: {
   href: string;
@@ -134,6 +141,7 @@ function ItemSheet({
   label: string;
   activo: boolean;
   badge?: number;
+  amber?: boolean;
   onNav: () => void;
 }) {
   return (
@@ -145,7 +153,10 @@ function ItemSheet({
       <span aria-hidden="true" className="text-[17px]">{icon}</span>
       <span>{label}</span>
       {badge > 0 && (
-        <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-[#E06A6A] px-1.5 text-[10px] font-black text-white">
+        <span
+          className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-black"
+          style={amber ? { background: "#E8A317", color: "#0F1B3D" } : { background: "#E06A6A", color: "#fff" }}
+        >
           {badge > 9 ? "9+" : badge}
         </span>
       )}

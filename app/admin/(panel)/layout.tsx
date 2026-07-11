@@ -11,6 +11,7 @@ import { cerrarSesion } from "@/lib/auth-actions";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { estadoMfa } from "@/lib/seguridad/mfa";
 import { getTotalNoLeidos } from "@/lib/data/chat";
+import { contarSolicitudesGastoPendientes } from "@/lib/data/solicitudesGasto";
 import { AsesorFlotante } from "@/components/asesor/AsesorFlotante";
 import { CommandPalette } from "@/components/admin/CommandPalette";
 import { Toaster } from "@/components/ui/Toaster";
@@ -40,6 +41,8 @@ export default async function PanelLayout({
   const falta2fa = esAdmin(usuario.rol) && !mfa.tieneFactor;
 
   const noLeidos = await getTotalNoLeidos(db, usuario);
+  // Gastos de ruta esperando aprobación → badge en la nav (solo el admin aprueba).
+  const gastosPendientes = esAdmin(usuario.rol) ? await contarSolicitudesGastoPendientes(db) : 0;
   const tema = (await cookies()).get("tema")?.value === "oscuro" ? "oscuro" : "claro";
   const iniciales = usuario.nombre
     .split(" ")
@@ -65,7 +68,7 @@ export default async function PanelLayout({
             </span>
           </div>
         </div>
-        <SidebarNav rol={usuario.rol} noLeidos={noLeidos} esDev={usuario.es_dev} />
+        <SidebarNav rol={usuario.rol} noLeidos={noLeidos} gastosPendientes={gastosPendientes} esDev={usuario.es_dev} />
       </aside>
 
       {/* Contenido */}
@@ -109,7 +112,7 @@ export default async function PanelLayout({
       </div>
 
       {/* Navegación inferior (mobile): el flujo del día + Menú con todo. */}
-      <PanelBottomNav rol={usuario.rol} noLeidos={noLeidos} esDev={usuario.es_dev} />
+      <PanelBottomNav rol={usuario.rol} noLeidos={noLeidos} gastosPendientes={gastosPendientes} esDev={usuario.es_dev} />
 
       {/* Telemetría de uso (0064): registra qué sección abre este usuario. */}
       <RegistroUso />

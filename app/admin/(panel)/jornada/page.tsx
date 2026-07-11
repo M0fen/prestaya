@@ -19,6 +19,7 @@ import { getActivosConPagos } from "@/lib/data/activos";
 import { getControlCobranza, type RankingCobrador } from "@/lib/data/control";
 import { getRendicionesDia } from "@/lib/data/rendicion";
 import { getDesempenoRango, type DesempenoRango } from "@/lib/data/desempeno";
+import { contarSolicitudesGastoPendientes } from "@/lib/data/solicitudesGasto";
 import { alcanceDelActor } from "@/lib/data/alcance";
 import { navVisible } from "@/lib/admin/nav";
 import { UYU, diasSemana, meses } from "@/lib/format";
@@ -170,6 +171,9 @@ export default async function JornadaPage({
     const total = Number(a.cuota_diaria) * Number(a.total_dias);
     return total > 0 && Number(a.pagado) / total >= 0.75;
   }).length;
+  // Gastos de ruta esperando aprobación (solo el admin aprueba): el cobrador está
+  // parado esperando, así que se surface en el hub del día.
+  const gastosPend = usuario.rol === "admin" ? await contarSolicitudesGastoPendientes(db) : 0;
 
   return (
     <div className="flex flex-col gap-5">
@@ -202,6 +206,27 @@ export default async function JornadaPage({
         clientes={cartera.deudoresActivos}
         creditos={cartera.creditosActivos}
       />
+
+      {/* Gastos de ruta esperando: el cobrador está parado esperando la aprobación. */}
+      {gastosPend > 0 && (
+        <Link
+          href="/admin/gastos"
+          className="flex items-center justify-between gap-2 rounded-[14px] border border-[#F0D9A8] panel-ambar px-4 py-3 hover:brightness-[0.98]"
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="text-[18px]">⛽</span>
+            <div className="flex flex-col">
+              <span className="text-[13px] font-extrabold text-tinta">
+                {gastosPend} gasto{gastosPend === 1 ? "" : "s"} de ruta esperando tu aprobación
+              </span>
+              <span className="text-[11.5px] font-medium text-gris">
+                El cobrador está parado esperando — aprobalo o rechazalo.
+              </span>
+            </div>
+          </div>
+          <span className="flex-shrink-0 text-[12px] font-bold text-ambar-osc">Aprobar →</span>
+        </Link>
+      )}
 
       {/* Launchpad: las herramientas del día, todas en un toque (todo en un solo sitio). */}
       <HerramientasDia hrefs={toolHrefs} />

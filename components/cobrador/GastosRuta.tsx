@@ -89,6 +89,21 @@ export function GastosRuta({
               </button>
             ))}
           </div>
+          {/* Montos rápidos: pedir en un toque (los más comunes de ruta). */}
+          <div className="flex flex-wrap gap-1.5">
+            {[500, 1000, 2000, 3000].map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMonto(String(m))}
+                className={`rounded-full px-3 py-1.5 text-[12.5px] font-bold transition active:scale-95 ${
+                  montoN === m ? "bg-[#2453DC] text-white" : "bg-[#EEF1F8] text-gris"
+                }`}
+              >
+                ${m.toLocaleString("es-UY")}
+              </button>
+            ))}
+          </div>
           <div className="flex items-center gap-2">
             <div className="flex flex-1 items-center gap-1 rounded-[12px] border border-[#DCE3F4] px-3 py-2.5">
               <span className="text-[15px] font-bold text-gris">$</span>

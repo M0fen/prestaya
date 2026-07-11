@@ -1,6 +1,7 @@
 "use client";
 // Bandeja de solicitudes de gasto de ruta (solo admin). Aprobar crea el egreso
 // real en la caja; rechazar la cierra sin mover plata. Todo queda auditado.
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { aprobarGastoRuta, rechazarGastoRuta } from "@/lib/acciones/gastos";
@@ -46,9 +47,20 @@ export function SolicitudesGasto({ solicitudes }: { solicitudes: SolicitudGasto[
     );
   }
 
+  const totalPendiente = solicitudes.reduce((acc, x) => acc + x.monto, 0);
+
   return (
     <section className="flex flex-col gap-2.5">
       {error && <p className="rounded-[10px] bg-[#FBE4E2] px-3 py-2 text-[12px] font-bold text-[#C0392B]">{error}</p>}
+
+      {/* Resumen: cuánto efectivo está esperando salir de caja, de un vistazo. */}
+      <div className="flex items-center justify-between rounded-[12px] bg-[#FDF3E2] px-4 py-2.5">
+        <span className="text-[12.5px] font-bold text-[#B9770E]">
+          {solicitudes.length} solicitud{solicitudes.length === 1 ? "" : "es"} esperando tu aprobación
+        </span>
+        <span className="text-[15px] font-extrabold tabular-nums text-[#B9770E]">{UYU(totalPendiente)}</span>
+      </div>
+
       {solicitudes.map((s) => (
         <div key={s.id} className="flex flex-col gap-2.5 rounded-[16px] border border-borde bg-tarjeta p-4">
           <div className="flex items-start justify-between gap-3">
@@ -58,6 +70,10 @@ export function SolicitudesGasto({ solicitudes }: { solicitudes: SolicitudGasto[
                 {s.categoria ?? "Gasto"}
                 {s.descripcion ? ` · ${s.descripcion}` : ""} · {horaDe(s.solicitadoEn)}
               </span>
+              {/* Contexto para decidir: revisar su actividad de campo antes de aprobar. */}
+              <Link href="/admin/campo" className="mt-0.5 w-fit text-[11.5px] font-bold text-azul hover:underline">
+                Ver su campo →
+              </Link>
             </div>
             <span className="flex-shrink-0 text-[18px] font-black tabular-nums text-[#C0392B]">{UYU(s.monto)}</span>
           </div>

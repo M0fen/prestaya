@@ -16,10 +16,34 @@ import { registrarMovimientoCaja } from "@/lib/data/caja";
 import { getSolicitudGasto } from "@/lib/data/solicitudesGasto";
 import { registrarBitacora } from "@/lib/data/bitacora";
 import { registrarAuditoria } from "@/lib/data/auditoria";
+import { enviarMensajeDb } from "@/lib/data/chat";
 
 type Resultado = { ok: true } | { ok: false; error: string };
 
 const CATEGORIAS = new Set(["Combustible", "Comida", "Peaje", "Otro"]);
+const money = (n: number) => `$${Math.round(n).toLocaleString("es-UY")}`;
+
+/** Avisa al cobrador, en SU hilo de chat, cómo quedó su solicitud de gasto.
+ *  Best-effort: si falla, no rompe la aprobación/rechazo (la plata ya se movió).
+ *  Cierra el loop: el cobrador deja de esperar a ciegas parado en la calle. */
+async function avisarCobrador(
+  admin: ReturnType<typeof createSupabaseAdmin>,
+  cobradorId: string,
+  adminId: string,
+  cuerpo: string,
+): Promise<void> {
+  try {
+    await enviarMensajeDb(admin, {
+      ambito: "cobrador",
+      cobradorId,
+      zonaId: null,
+      autorId: adminId,
+      cuerpo,
+    });
+  } catch {
+    /* aviso opcional: la resolución del gasto igual quedó registrada */
+  }
+}
 
 /** (Cobrador) Solicita un gasto de ruta. Queda PENDIENTE de aprobación del admin. */
 export async function solicitarGastoRuta(input: {
@@ -123,7 +147,15 @@ export async function aprobarGastoRuta(input: { solicitudId: string }): Promise<
     entidadId: sol.id,
     detalle: `${sol.cobradorNombre ?? "Cobrador"} · $${sol.monto.toLocaleString("es-UY")} · ${sol.categoria ?? "—"}`,
   });
+  // Cierra el loop con el cobrador (deja de esperar a ciegas).
+  await avisarCobrador(
+    admin,
+    sol.cobradorId,
+    usuario.id,
+    `✅ Aprobé tu gasto de ${money(sol.monto)}${sol.categoria ? ` (${sol.categoria})` : ""}. Ya se descontó de tu caja del día.`,
+  );
   revalidatePath("/admin/gastos");
+  revalidatePath("/cobrador");
   return { ok: true };
 }
 
@@ -158,6 +190,14 @@ export async function rechazarGastoRuta(input: { solicitudId: string; motivo?: s
     entidadId: sol.id,
     detalle: `${sol.cobradorNombre ?? "Cobrador"} · $${sol.monto.toLocaleString("es-UY")}`,
   });
+  const motivoTxt = (input.motivo ?? "").trim();
+  await avisarCobrador(
+    admin,
+    sol.cobradorId,
+    usuario.id,
+    `❌ No pude aprobar tu gasto de ${money(sol.monto)}${sol.categoria ? ` (${sol.categoria})` : ""}.${motivoTxt ? ` Motivo: ${motivoTxt}` : ""}`,
+  );
   revalidatePath("/admin/gastos");
+  revalidatePath("/cobrador");
   return { ok: true };
 }

@@ -16,10 +16,12 @@ import { navAgrupado, type NavItem } from "@/lib/admin/nav";
 export function SidebarNav({
   rol,
   noLeidos = 0,
+  gastosPendientes = 0,
   esDev = false,
 }: {
   rol: Rol;
   noLeidos?: number;
+  gastosPendientes?: number;
   esDev?: boolean;
 }) {
   const pathname = usePathname();
@@ -34,12 +36,13 @@ export function SidebarNav({
           navegación es el PanelBottomNav (barra inferior). */}
       <nav className="hidden flex-col gap-0.5 p-3 md:flex">
         {suelto.map((item) => (
-          <ItemLink key={item.href} item={item} activo={esActivo(item)} noLeidos={noLeidos} />
+          <ItemLink key={item.href} item={item} activo={esActivo(item)} noLeidos={noLeidos} gastosPendientes={gastosPendientes} />
         ))}
         {grupos.map(({ grupo, items }) => {
           const tieneActivo = items.some((i) => esActivo(i));
-          // Chat sin leer dentro de este grupo (para burbujear al encabezado).
+          // Señales dentro del grupo, para burbujear al encabezado si está colapsado.
           const chatOculto = noLeidos > 0 && items.some((i) => i.href === "/admin/chat");
+          const gastosOculto = gastosPendientes > 0 && items.some((i) => i.href === "/admin/gastos");
           return (
             <details key={grupo} open={tieneActivo} className="group mt-1.5">
               <summary className="flex cursor-pointer list-none items-center gap-2 rounded-[10px] px-3 py-2 text-[11px] font-bold tracking-wide text-white/45 uppercase select-none hover:text-white/70">
@@ -47,13 +50,16 @@ export function SidebarNav({
                 {chatOculto && (
                   <span className="h-1.5 w-1.5 rounded-full bg-[#E06A6A] group-open:hidden" />
                 )}
+                {gastosOculto && (
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#E8A317] group-open:hidden" />
+                )}
                 <span aria-hidden="true" className="ml-auto text-[10px] text-white/35 transition-transform group-open:rotate-90">
                   ▶
                 </span>
               </summary>
               <div className="mt-0.5 flex flex-col gap-0.5">
                 {items.map((item) => (
-                  <ItemLink key={item.href} item={item} activo={esActivo(item)} noLeidos={noLeidos} />
+                  <ItemLink key={item.href} item={item} activo={esActivo(item)} noLeidos={noLeidos} gastosPendientes={gastosPendientes} />
                 ))}
               </div>
             </details>
@@ -69,10 +75,12 @@ function ItemLink({
   item,
   activo,
   noLeidos,
+  gastosPendientes,
 }: {
   item: NavItem;
   activo: boolean;
   noLeidos: number;
+  gastosPendientes: number;
 }) {
   if (item.pronto) {
     return (
@@ -105,6 +113,11 @@ function ItemLink({
       {item.href === "/admin/chat" && noLeidos > 0 && (
         <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-[#E06A6A] px-1.5 text-[10px] font-black text-white">
           {noLeidos > 9 ? "9+" : noLeidos}
+        </span>
+      )}
+      {item.href === "/admin/gastos" && gastosPendientes > 0 && (
+        <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-[#E8A317] px-1.5 text-[10px] font-black text-[#0F1B3D]">
+          {gastosPendientes > 9 ? "9+" : gastosPendientes}
         </span>
       )}
     </Link>

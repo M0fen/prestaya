@@ -84,6 +84,22 @@ export async function getSolicitudesGastoPendientes(db: SupabaseClient): Promise
   }
 }
 
+/** Cuántas solicitudes de gasto están PENDIENTES (para el badge de la nav / el
+ *  hub). Solo cuenta, sin traer filas. Degrada a 0 si falta 0057. */
+export async function contarSolicitudesGastoPendientes(db: SupabaseClient): Promise<number> {
+  try {
+    const { count, error } = await db
+      .from("solicitudes_gasto")
+      .select("id", { count: "exact", head: true })
+      .eq("estado", "pendiente");
+    if (error) throw error;
+    return count ?? 0;
+  } catch (e) {
+    if (tablaFaltante(e)) return 0;
+    throw e;
+  }
+}
+
 /** Una solicitud por id (para las acciones de aprobar/rechazar). */
 export async function getSolicitudGasto(db: SupabaseClient, id: string): Promise<SolicitudGasto | null> {
   const { data, error } = await db.from("solicitudes_gasto").select("*").eq("id", id).maybeSingle();
