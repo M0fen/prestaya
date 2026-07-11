@@ -101,9 +101,12 @@ export async function prestamoIdsDelAlcance(
   if (alcance.clienteIds.length === 0) return new Set();
   const admin = createSupabaseAdmin();
   const ids = new Set<string>();
-  // `.in(cliente_id, ...)` EN LOTES (evita la URL demasiado larga de PostgREST).
-  for (const lote of enLotes(alcance.clienteIds)) {
-    const { data, error } = await admin.from("prestamos").select("id").in("cliente_id", lote);
+  // `.in(cliente_id, ...)` EN LOTES (evita la URL demasiado larga de PostgREST),
+  // los lotes EN PARALELO (antes en serie → waterfall al acotar recaudos por zona).
+  const partes = await Promise.all(
+    enLotes(alcance.clienteIds).map((lote) => admin.from("prestamos").select("id").in("cliente_id", lote)),
+  );
+  for (const { data, error } of partes) {
     if (error) throw error;
     for (const p of data ?? []) ids.add((p as { id: string }).id);
   }

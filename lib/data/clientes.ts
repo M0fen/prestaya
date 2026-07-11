@@ -9,6 +9,17 @@ import type { Cliente } from "@/types/db";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { alcanceDelActor, enLotes } from "./alcance";
 
+/** Sanea un término de búsqueda libre antes de un `.or(ilike…)`: neutraliza la
+ *  sintaxis de filtro de PostgREST (coma/paréntesis/comillas/asterisco → espacio)
+ *  y escapa los comodines de LIKE (%, _) para que sea literal. Evita que un input
+ *  inyecte ramas OR en la consulta. Defensa en profundidad (además del alcance+RLS). */
+export function sanitizarTerminoBusqueda(t: string): string {
+  return t
+    .replace(/[,()"*]/g, " ")
+    .replace(/[%_]/g, (m) => `\\${m}`)
+    .trim();
+}
+
 /** Convierte una fila cruda de Supabase en un Cliente tipado. */
 export function mapCliente(r: Record<string, unknown>): Cliente {
   return {
@@ -141,9 +152,8 @@ export async function buscarClientesAdmin(
   let query = db.from("clientes").select("*").eq("activo", true);
   const termino = (q ?? "").trim();
   if (termino.length > 0) {
-    // Escapamos los comodines de LIKE para que la búsqueda sea literal.
-    const t = termino.replace(/[%_]/g, (m) => `\\${m}`);
-    query = query.or(`nombre.ilike.%${t}%,documento.ilike.%${t}%`);
+    const t = sanitizarTerminoBusqueda(termino);
+    if (t) query = query.or(`nombre.ilike.%${t}%,documento.ilike.%${t}%`);
   }
   const { data, error } = await query.order("nombre", { ascending: true }).limit(limite);
   if (error) throw error;
@@ -189,8 +199,8 @@ export async function getClientesListaAdmin(
       .select("id, nombre, documento, telefono, direccion, calificacion, activo, disapp_id, reportado")
       .eq("activo", !opts.archivados);
     if (termino.length > 0) {
-      const t = termino.replace(/[%_]/g, (m) => `\\${m}`);
-      q = q.or(`nombre.ilike.%${t}%,documento.ilike.%${t}%`);
+      const t = sanitizarTerminoBusqueda(termino);
+      if (t) q = q.or(`nombre.ilike.%${t}%,documento.ilike.%${t}%`);
     }
     return q;
   };

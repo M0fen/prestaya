@@ -4,6 +4,7 @@
 //  Supabase Auth (auth.uid → usuarios.auth_user_id). Las consultas del panel
 //  corren como ese usuario (cliente SSR anónimo) y respetan el RLS por rol.
 // ─────────────────────────────────────────────────────────────────────────
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getUsuarioPorAuthId } from "@/lib/data/usuarios";
@@ -11,8 +12,12 @@ import { getZonasDeSupervisor } from "@/lib/data/zonas";
 import { actorDesde, type Actor } from "@/lib/permisos";
 import type { Rol, Usuario } from "@/types/db";
 
-/** Usuario interno logueado, o null si no hay sesión / no es del sistema. */
-export async function getUsuarioActual(): Promise<Usuario | null> {
+/** Usuario interno logueado, o null si no hay sesión / no es del sistema.
+ *  Memoizado por request con React `cache()`: en una misma carga se llama 3-4
+ *  veces (requireUsuario + requireGestor + alcance/actor + telemetría), y cada
+ *  llamada era un round-trip a Auth (getUser) + un SELECT usuarios. Ahora corre
+ *  UNA sola vez por request y las demás reciben el resultado memoizado. */
+export const getUsuarioActual = cache(async (): Promise<Usuario | null> => {
   const db = await createSupabaseServer();
   // getUser() puede LANZAR (o devolver error) si el token está vencido/roto y el
   // refresh falla con 400 "Bad Request". Eso NO es un crash: es "no hay sesión"
@@ -27,7 +32,7 @@ export async function getUsuarioActual(): Promise<Usuario | null> {
   } catch {
     return null;
   }
-}
+});
 
 /** Exige un usuario interno ACTIVO; si no, manda al login. Devuelve el usuario. */
 export async function requireUsuario(): Promise<Usuario> {
@@ -66,11 +71,11 @@ export async function requireDev(): Promise<Usuario> {
  * que supervisa (solo relevante para el supervisor). Devuelve null sin sesión.
  * Es el puente entre la sesión y el núcleo puro `lib/permisos.ts`.
  */
-export async function getActorActual(): Promise<Actor | null> {
+export const getActorActual = cache(async (): Promise<Actor | null> => {
   const u = await getUsuarioActual();
   if (!u || !u.activo) return null;
   return actorDeUsuario(u);
-}
+});
 
 /**
  * Actor a partir de un usuario YA resuelto (evita re-consultar la sesión con

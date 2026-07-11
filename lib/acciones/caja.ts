@@ -7,6 +7,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getUsuarioActual, esGestor } from "@/lib/auth";
+import { alcanceDelActor } from "@/lib/data/alcance";
 import { registrarMovimientoCaja, type TipoMovimiento, type CuentaCaja } from "@/lib/data/caja";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { UYU } from "@/lib/format";
@@ -39,6 +40,17 @@ export async function agregarMovimientoCaja(input: {
   const monto = Math.round(Number(input.monto));
   if (!(monto > 0)) return { ok: false, error: "El monto debe ser mayor a 0." };
 
+  // Separación por zona: un supervisor solo puede atribuir un movimiento a un
+  // cobrador de SU zona (no puede "framear" a otra zona ni inflarle gastos).
+  // Defensa en la acción, reforzada por RLS (0066).
+  const cobradorId = input.cobradorId || null;
+  if (cobradorId && usuario.rol === "supervisor") {
+    const alcance = await alcanceDelActor();
+    if (!alcance.global && !alcance.cobradorIds.includes(cobradorId)) {
+      return { ok: false, error: "Ese cobrador no es de tu zona." };
+    }
+  }
+
   try {
     const db = await createSupabaseServer();
     await registrarMovimientoCaja(db, {
@@ -46,7 +58,7 @@ export async function agregarMovimientoCaja(input: {
       monto,
       categoria: (input.categoria ?? "").trim().slice(0, 60) || null,
       descripcion: (input.descripcion ?? "").trim().slice(0, 200) || null,
-      cobradorId: input.cobradorId || null,
+      cobradorId,
       registradoPor: usuario.id,
       cuenta,
       visible: input.visible ?? true,

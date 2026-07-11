@@ -10,10 +10,17 @@
 
 export type CeldaCsv = string | number | null | undefined;
 
-/** Escapa una celda: envuelve en comillas si tiene ";", comillas o salto. */
+/** Escapa una celda: envuelve en comillas si tiene ";", comillas o salto, y
+ *  neutraliza inyección de fórmulas/DDE. Una celda de TEXTO que empieza con
+ *  `= + - @` (o tab/CR) la ejecuta Excel/Sheets al abrir el .csv (p. ej. un
+ *  cliente llamado `=HYPERLINK(...)`); se antepone `'` para forzarla a texto.
+ *  Los NÚMEROS pasan crudos (los generamos nosotros, y el contador debe poder
+ *  sumarlos). */
 export function csvCampo(v: CeldaCsv): string {
   if (v == null) return "";
-  const s = typeof v === "number" ? String(v) : v;
+  if (typeof v === "number") return String(v);
+  let s = v;
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
   if (/[";\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
   return s;
 }

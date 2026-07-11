@@ -18,6 +18,22 @@ describe("csvCampo", () => {
   });
 });
 
+describe("csvCampo — escudo anti inyección de fórmulas", () => {
+  it("antepone ' al texto que empieza con = + - @", () => {
+    expect(csvCampo("=HYPERLINK(x)")).toBe("'=HYPERLINK(x)");
+    expect(csvCampo("+1234")).toBe("'+1234");
+    expect(csvCampo("-cmd")).toBe("'-cmd");
+    expect(csvCampo("@SUM")).toBe("'@SUM");
+  });
+  it("NO toca los números (el contador debe poder sumar/pivotar)", () => {
+    expect(csvCampo(-500)).toBe("-500");
+    expect(csvCampo(1500)).toBe("1500");
+  });
+  it("combina el escudo con el encomillado si además hay separador", () => {
+    expect(csvCampo("=2;3")).toBe('"\'=2;3"');
+  });
+});
+
 describe("filasACsv", () => {
   it("arma encabezado + filas con ; y CRLF", () => {
     const csv = filasACsv(

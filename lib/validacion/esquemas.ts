@@ -58,7 +58,16 @@ export const reporteFaltaSchema = z.object({
 });
 
 // ── Rutas API del panel ────────────────────────────────────────────────────
-export const busquedaQuery = z.string().trim().min(2).max(80);
+// Solo caracteres de nombre/documento. Bloquea la sintaxis de filtro de PostgREST
+// (coma, paréntesis, dos-puntos, asterisco) que en un `.or(ilike…)` podría inyectar
+// ramas OR. La búsqueda igual queda AND-eada con el alcance + RLS; esto es defensa
+// en profundidad en el borde.
+export const busquedaQuery = z
+  .string()
+  .trim()
+  .min(2)
+  .max(80)
+  .regex(/^[\p{L}\p{N}\s.\-'#ºª]+$/u, "búsqueda con caracteres no permitidos");
 export const reporteTipo = z.enum([
   "cartera",
   "caja",

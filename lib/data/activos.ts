@@ -45,6 +45,10 @@ export interface ActivoConPagos {
 // "En vivo"/Cobranza caiga DENTRO de la ventana y no re-dispare la RPC de ~3,5s.
 const CARTERA_TTL_MS = 45_000;
 let carteraGlobalCache: { data: ActivoConPagos[]; exp: number } | null = null;
+// Cache POR ZONA (supervisor): antes su path no cacheaba y con AutoRefresco 40s
+// re-disparaba `app_cartera_activa_zona` en cada tick. Clave = set de clientes
+// (ordenado) → se invalida solo si hay reasignación. Mismo TTL/semántica que el global.
+const carteraZonaCache = new Map<string, { data: ActivoConPagos[]; exp: number }>();
 
 export async function getActivosConPagos(
   db: SupabaseClient,
@@ -58,10 +62,16 @@ export async function getActivosConPagos(
   // completa + filtro JS si la RPC acotada (0062) aún no corrió.
   if (!al.global) {
     if (al.clienteIds.length === 0) return [];
+    const clave = [...al.clienteIds].sort().join(",");
+    const ahoraZ = Date.now();
+    const hit = carteraZonaCache.get(clave);
+    if (hit && hit.exp > ahoraZ) return [...hit.data];
     try {
       const { data, error } = await db.rpc("app_cartera_activa_zona", { cliente_ids: al.clienteIds });
       if (error) throw error;
-      return (data ?? []) as ActivoConPagos[];
+      const activos = (data ?? []) as ActivoConPagos[];
+      carteraZonaCache.set(clave, { data: activos, exp: ahoraZ + CARTERA_TTL_MS });
+      return activos;
     } catch (e) {
       if (!tablaFaltante(e) && !funcionFaltante(e)) throw e;
       // 0062 sin correr → cae al camino completo de abajo (mismo resultado, más lento).

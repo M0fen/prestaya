@@ -172,15 +172,19 @@ export async function buscarClientePerfil(
   // una URL gigante). Así no pasa que los 10 primeros globales sean de otra zona
   // y parezca que el cliente "no existe" cuando sí está en la suya.
   const alcance = await alcanceDelActor();
+  // Escapa los comodines de LIKE (%, _) para que la búsqueda sea literal. `.ilike`
+  // parametriza el patrón (sin riesgo de inyección de filtro), pero esto evita que
+  // un `%` en el término abra la búsqueda a toda la cartera.
+  const patron = q.replace(/[%_]/g, (m) => `\\${m}`);
   let matches: FilaCli[] = [];
   if (alcance.global) {
-    const { data, error } = await db.from("clientes").select(cols).ilike("nombre", `%${q}%`).eq("activo", true).limit(10);
+    const { data, error } = await db.from("clientes").select(cols).ilike("nombre", `%${patron}%`).eq("activo", true).limit(10);
     if (error) return "No se pudo buscar el cliente.";
     matches = (data ?? []) as FilaCli[];
   } else {
     if (alcance.clienteIds.length === 0) return "No tenés clientes en tu zona todavía.";
     for (const lote of enLotes(alcance.clienteIds)) {
-      const { data, error } = await db.from("clientes").select(cols).ilike("nombre", `%${q}%`).eq("activo", true).in("id", lote).limit(10);
+      const { data, error } = await db.from("clientes").select(cols).ilike("nombre", `%${patron}%`).eq("activo", true).in("id", lote).limit(10);
       if (error) return "No se pudo buscar el cliente.";
       matches.push(...((data ?? []) as FilaCli[]));
       if (matches.length >= 10) break;
