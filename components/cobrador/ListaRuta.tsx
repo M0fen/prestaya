@@ -21,7 +21,13 @@ export interface ItemRutaVista {
   pagadoHoy: number;
   lat: number | null;
   lng: number | null;
+  /** Calificación del cliente (para el orden por prioridad de cobro). */
+  calificacion: string;
 }
+
+// Peso de prioridad: cobrar PRIMERO a los de mayor riesgo (menor peso = antes).
+const PRIO: Record<string, number> = { riesgo: 0, regular: 1, nuevo: 2, bueno: 3, excelente: 4 };
+const pesoPrio = (c: string): number => PRIO[c] ?? 2;
 
 // `barra` = franja de color a la izquierda de la tarjeta (jerarquía de un vistazo).
 const CHIP: Record<EstadoHoy, { label: string; bg: string; fg: string; barra: string }> = {
@@ -49,7 +55,7 @@ const norm = (s: string) =>
 
 export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
   const [origen, setOrigen] = useState<Origen>(null);
-  const [porCercania, setPorCercania] = useState(false);
+  const [modo, setModo] = useState<"cercania" | "prioridad" | "nombre">("cercania");
   const [estadoGeo, setEstadoGeo] = useState<"idle" | "pidiendo" | "ok" | "no">("idle");
   const [verTodos, setVerTodos] = useState(false);
   const [q, setQ] = useState("");
@@ -76,7 +82,6 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
     navigator.geolocation.getCurrentPosition(
       (p) => {
         setOrigen({ lat: p.coords.latitude, lng: p.coords.longitude });
-        setPorCercania(true);
         setEstadoGeo("ok");
       },
       () => setEstadoGeo("no"),
@@ -94,10 +99,15 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
   const ordenados = useMemo(() => {
     const pendientes = items.filter((i) => !cerrado(i.estadoHoy));
     const cerrados = items.filter((i) => cerrado(i.estadoHoy));
-    const base =
-      porCercania && origen ? ordenarPorCercania(pendientes, origen) : pendientes;
+    let base = pendientes;
+    if (modo === "cercania" && origen) base = ordenarPorCercania(pendientes, origen);
+    else if (modo === "prioridad")
+      base = [...pendientes].sort((a, b) => pesoPrio(a.calificacion) - pesoPrio(b.calificacion));
+    // "nombre" (o cercanía sin ubicación) → orden del servidor (por nombre).
     return [...base, ...cerrados];
-  }, [items, porCercania, origen]);
+  }, [items, modo, origen]);
+  // ¿Hay un orden de recorrido significativo (para numerar pasos + camino en Maps)?
+  const ordenActivo = (modo === "cercania" && !!origen) || modo === "prioridad";
 
   // Filtro por estado (chips): recorta la ruta a la categoría elegida.
   const porEstado =
@@ -117,6 +127,21 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
   const sinPliegue = buscando || filtro !== "todos";
   const visibles = verTodos || sinPliegue ? filtrados : filtrados.slice(0, TOPE_RUTA);
   const restantes = filtrados.length - visibles.length;
+
+  // Camino óptimo: link a Google Maps con las primeras ~10 paradas PENDIENTES en
+  // el orden actual como waypoints (la última = destino). Sin dependencias ni backend.
+  const conGps = ordenados.filter((i) => !cerrado(i.estadoHoy) && i.lat != null && i.lng != null).slice(0, 10);
+  const mapsUrl =
+    conGps.length > 0
+      ? (() => {
+          const pts = conGps.map((i) => `${i.lat},${i.lng}`);
+          const destino = pts[pts.length - 1];
+          const waypoints = pts.slice(0, -1).join("|");
+          return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destino)}${
+            waypoints ? `&waypoints=${encodeURIComponent(waypoints)}` : ""
+          }&travelmode=driving`;
+        })()
+      : null;
 
   const CHIPS: { id: typeof filtro; label: string; n: number }[] = [
     { id: "todos", label: "Todos", n: cuenta.todos },
@@ -156,38 +181,50 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
         className="rounded-[12px] border border-[#DCE3F4] bg-white px-3.5 py-2.5 text-[13.5px] outline-none focus:border-azul"
       />
 
-      {/* Barra de orden */}
-      <div className="flex items-center justify-between px-0.5">
-        <span className="text-[12px] font-semibold text-[#8A93AD]">
-          {porCercania && origen
-            ? "Ordenado por cercanía"
-            : "Orden por nombre"}
-        </span>
-        {origen ? (
-          <button
-            type="button"
-            onClick={() => setPorCercania((v) => !v)}
-            className="rounded-full bg-[#EEF3FF] px-3 py-1.5 text-[12px] font-bold text-azul active:scale-95"
+      {/* Orden de la ruta (cercanía / prioridad de cobro / A-Z) + camino en Maps */}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
+        <div className="flex gap-0.5 rounded-full bg-[#EEF1F8] p-0.5">
+          {(
+            [
+              ["cercania", estadoGeo === "pidiendo" ? "📍…" : "📍 Cercanía"],
+              ["prioridad", "⚡ Prioridad"],
+              ["nombre", "A-Z"],
+            ] as const
+          ).map(([id, label]) => {
+            const activo = modo === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => {
+                  if (id === "cercania" && !origen) pedirUbicacion();
+                  setModo(id);
+                }}
+                className={`rounded-full px-2.5 py-1.5 text-[11.5px] font-bold transition-colors ${
+                  activo ? "bg-white text-azul shadow-[0_1px_2px_rgba(26,34,71,0.12)]" : "text-gris"
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+        {mapsUrl && (
+          <a
+            href={mapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-full bg-[#1FA971] px-3 py-1.5 text-[11.5px] font-bold text-white active:scale-95"
             style={{ transition: "transform .1s" }}
           >
-            {porCercania ? "Ver orden original" : "Ordenar por cercanía"}
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={pedirUbicacion}
-            disabled={estadoGeo === "pidiendo"}
-            className="rounded-full bg-[#EEF3FF] px-3 py-1.5 text-[12px] font-bold text-azul active:scale-95 disabled:opacity-50"
-            style={{ transition: "transform .1s" }}
-          >
-            {estadoGeo === "pidiendo" ? "Ubicando…" : "📍 Ordenar por cercanía"}
-          </button>
+            🗺️ Ir en Maps
+          </a>
         )}
       </div>
 
-      {estadoGeo === "no" && (
+      {modo === "cercania" && estadoGeo === "no" && (
         <p className="px-0.5 text-[11px] font-medium text-[#AEB6CC]">
-          Sin ubicación disponible: se mantiene el orden por nombre.
+          Sin ubicación: se usa el orden por nombre. Probá <b>⚡ Prioridad</b> para cobrar primero a los de riesgo.
         </p>
       )}
 
@@ -204,7 +241,7 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
         const inicial = (it.nombre ?? "").trim().charAt(0).toUpperCase() || "—";
         // El nº de paso es el orden de la RUTA; al buscar, `idx` es el índice del
         // filtrado (no el paso real) → se oculta mientras se busca.
-        const mostrarPaso = porCercania && origen && !cerrado(it.estadoHoy) && !buscando;
+        const mostrarPaso = ordenActivo && !cerrado(it.estadoHoy) && !buscando;
         const esCerrado = cerrado(it.estadoHoy);
         // Abono parcial: cuánto le falta para cubrir la cuota de hoy.
         const restaHoy = it.estadoHoy === "abono" ? Math.max(0, it.cuota - it.pagadoHoy) : 0;

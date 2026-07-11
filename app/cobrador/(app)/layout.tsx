@@ -50,6 +50,13 @@ export default async function CobradorLayout({
               )}
             </Link>
             <Link
+              href="/cobrador/mis-numeros"
+              aria-label="Mis números"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 text-[15px] hover:bg-white/10"
+            >
+              📊
+            </Link>
+            <Link
               href="/cobrador/notas"
               aria-label="Notas"
               className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 text-[15px] hover:bg-white/10"

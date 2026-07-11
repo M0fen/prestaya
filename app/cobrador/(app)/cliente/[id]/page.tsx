@@ -14,6 +14,7 @@ import type { EstadoDia } from "@/types/cartones";
 import type { Prestamo } from "@/types/db";
 import { UYU } from "@/lib/format";
 import { RegistroCobro } from "@/components/cobrador/RegistroCobro";
+import { RegistrarCompromiso } from "@/components/cobrador/RegistrarCompromiso";
 import { BeaconFicha } from "@/components/cobrador/BeaconFicha";
 import { NotasCliente } from "@/components/notas/NotasCliente";
 
@@ -231,6 +232,9 @@ async function Detalle({
         saldoActual={r.falta}
         tieneGps={tieneGps}
       />
+
+      {/* Compromiso de pago: el cliente promete pagar en una fecha (mini-CRM). */}
+      <RegistrarCompromiso clienteId={clienteId} prestamoId={prestamo.id} cuota={prestamo.cuota_diaria} />
     </>
   );
 }
