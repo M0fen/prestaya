@@ -16,7 +16,7 @@ import { getCierrePorZona, type ResumenCierreZonas } from "@/lib/data/cierreZona
 import { getCentroAlertas, type Alerta } from "@/lib/data/centroAlertas";
 import { getResumenCompromisos, type ResumenCompromisos } from "@/lib/data/gestionesCobranza";
 import { getActivosConPagos } from "@/lib/data/activos";
-import { getControlCobranza } from "@/lib/data/control";
+import { getControlCobranza, type RankingCobrador } from "@/lib/data/control";
 import { getRendicionesDia } from "@/lib/data/rendicion";
 import { getDesempenoRango, type DesempenoRango } from "@/lib/data/desempeno";
 import { alcanceDelActor } from "@/lib/data/alcance";
@@ -25,6 +25,7 @@ import { UYU, diasSemana, meses } from "@/lib/format";
 import { fechaISOUY, sumarDiasYmd } from "@/lib/fecha";
 import { BarrasComparativas } from "@/components/charts/BarrasComparativas";
 import { CierrePorZona } from "@/components/admin/CierrePorZona";
+import { AvisarCobrador } from "@/components/admin/AvisarCobrador";
 import type { ReactNode } from "react";
 
 export const dynamic = "force-dynamic";
@@ -157,6 +158,12 @@ export default async function JornadaPage({
   const cobradoRuta = cobradores.ranking.reduce((s, c) => s + c.recaudado, 0);
   const avancePct = esperadoTotal > 0 ? Math.min(100, Math.round((cobradoRuta / esperadoTotal) * 100)) : 0;
   const alertasAltas = centro.conteo.alta;
+  // Clientes listos para renovar (avance ≥ 75%) — oportunidad de colocar. Barato:
+  // sale del `activos` YA cargado (pagado/total), sin consultas extra.
+  const renovables = activos.filter((a) => {
+    const total = Number(a.cuota_diaria) * Number(a.total_dias);
+    return total > 0 && Number(a.pagado) / total >= 0.75;
+  }).length;
 
   return (
     <div className="flex flex-col gap-5">
@@ -244,6 +251,7 @@ export default async function JornadaPage({
           floatCalle={floatCalle}
           rendicionesDisponible={cierre.disponible}
           compromisos={compromisos}
+          renovables={renovables}
         />
       )}
       {acto === "vivo" && (
@@ -252,7 +260,7 @@ export default async function JornadaPage({
           esperadoTotal={esperadoTotal}
           avancePct={avancePct}
           recaudadoHoy={recaudacion.hoy}
-          ranking={cobradores.ranking}
+          ranking={control.ranking}
           alertas={centro.alertas}
         />
       )}
@@ -273,6 +281,7 @@ function Apertura({
   floatCalle,
   rendicionesDisponible,
   compromisos,
+  renovables,
 }: {
   moraCriticos: number;
   moraMonto: number;
@@ -284,6 +293,7 @@ function Apertura({
   floatCalle: number;
   rendicionesDisponible: boolean;
   compromisos: ResumenCompromisos;
+  renovables: number;
 }) {
   const hayPendiente = faltantes > 0 || sinRendir > 0;
   const hayCompromisos =
@@ -379,6 +389,27 @@ function Apertura({
         </p>
       </Panel>
 
+      {/* Oportunidad de colocación: clientes que ya casi terminan su crédito. */}
+      {renovables > 0 && (
+        <Link
+          href="/admin/renovaciones"
+          className="flex items-center justify-between gap-2 rounded-[14px] border border-borde bg-suave px-4 py-3 hover:bg-tarjeta"
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="text-[18px]">🔄</span>
+            <div className="flex flex-col">
+              <span className="text-[13px] font-extrabold text-tinta">
+                {renovables} cliente{renovables === 1 ? "" : "s"} listo{renovables === 1 ? "" : "s"} para renovar
+              </span>
+              <span className="text-[11.5px] font-medium text-gris">
+                Avance ≥ 75% — oportunidad de colocar un nuevo crédito.
+              </span>
+            </div>
+          </div>
+          <span className="flex-shrink-0 text-[12px] font-bold text-azul">Renovar →</span>
+        </Link>
+      )}
+
       <Siguiente href="/admin/jornada?acto=vivo" texto="Cuando el equipo salga, seguí en “En vivo”" />
     </div>
   );
@@ -397,9 +428,15 @@ function EnVivo({
   esperadoTotal: number;
   avancePct: number;
   recaudadoHoy: number;
-  ranking: { nombre: string; recaudado: number; esperado: number; progresoPct: number; anomalias: number }[];
+  ranking: RankingCobrador[];
   alertas: Alerta[];
 }) {
+  const faltaMeta = Math.max(0, esperadoTotal - cobradoRuta);
+  // Cobradores que necesitan atención: van por debajo de la mitad de su ruta o
+  // tienen anomalías. Ordenados peor-primero. Cada uno con un aviso a un toque.
+  const atencion = ranking
+    .filter((c) => c.esperado > 0 && (c.progreso < 0.5 || c.anomalias > 0))
+    .sort((a, b) => a.progreso - b.progreso);
   return (
     <div className="flex flex-col gap-4">
       <Encabezado
@@ -407,7 +444,7 @@ function EnVivo({
         bajada="Mirá cómo avanza la ruta mientras los cobradores están en la calle. Lo que dispara señal, arriba."
       />
 
-      {/* Progreso de cobro del día */}
+      {/* Meta del día: avance vs esperado + cuánto falta. */}
       <section className="rounded-[16px] bg-[linear-gradient(155deg,#173063_0%,#0F1B3D_60%)] p-4 text-white shadow-[0_10px_24px_rgba(15,27,61,0.28)]">
         <div className="mb-2 flex items-end justify-between">
           <div className="flex flex-col">
@@ -416,16 +453,43 @@ function EnVivo({
           </div>
           <div className="flex flex-col items-end">
             <span className="text-[12px] font-bold tabular-nums text-white/80">{avancePct}%</span>
-            <span className="text-[11px] font-medium text-white/50">de {UYU(esperadoTotal)}</span>
+            <span className="text-[11px] font-medium text-white/50">meta {UYU(esperadoTotal)}</span>
           </div>
         </div>
         <div className="h-2 w-full overflow-hidden rounded-full bg-white/12">
           <div className="h-full rounded-full bg-[linear-gradient(90deg,#34E0A1,#1FA971)]" style={{ width: `${avancePct}%` }} />
         </div>
-        <p className="mt-2.5 text-[11.5px] font-medium text-white/55">
-          Recaudo total del día (incluye créditos cerrados): {UYU(recaudadoHoy)}.
+        <p className="mt-2.5 text-[11.5px] font-medium text-white/60">
+          {faltaMeta > 0 ? (
+            <>Faltan <b className="text-white">{UYU(faltaMeta)}</b> para la meta del día (si cobran la cuota de cada cliente).</>
+          ) : (
+            <>Meta del día cubierta. 🎯</>
+          )}{" "}
+          Recaudo total (incl. cerrados): {UYU(recaudadoHoy)}.
         </p>
       </section>
+
+      {/* Cobradores que necesitan atención + aviso directo a su chat. */}
+      {atencion.length > 0 && (
+        <Panel titulo="Necesitan atención" href="/admin/campo" cta="Ver control de campo →" tono="rojo">
+          <ul className="flex flex-col gap-2">
+            {atencion.slice(0, 6).map((c) => (
+              <li key={c.cobradorId} className="flex flex-col gap-1.5 rounded-[12px] border border-borde bg-tarjeta px-3 py-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate text-[13px] font-bold text-tinta">{c.nombre}</span>
+                    <span className="text-[11.5px] font-medium text-gris">
+                      {Math.round(c.progreso * 100)}% de la ruta · {UYU(c.recaudado)} de {UYU(c.esperado)}
+                      {c.anomalias > 0 ? ` · ${c.anomalias} anomalía(s)` : ""}
+                    </span>
+                  </div>
+                  <AvisarCobrador cobradorId={c.cobradorId} nombre={c.nombre} />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      )}
 
       {/* Ranking de cobradores */}
       <Panel titulo="Cobradores hoy" href="/admin/cobranza" cta="Ver mapa de cobros →" tono="neutro">
@@ -435,7 +499,7 @@ function EnVivo({
               nombre: c.nombre,
               valor: c.recaudado,
               total: c.esperado,
-              sub: `${c.progresoPct}% de la ruta${c.anomalias > 0 ? ` · ${c.anomalias} anomalía(s)` : ""}`,
+              sub: `${Math.round(c.progreso * 100)}% de la ruta${c.anomalias > 0 ? ` · ${c.anomalias} anomalía(s)` : ""}`,
               alerta: c.anomalias > 0,
             }))}
           />
