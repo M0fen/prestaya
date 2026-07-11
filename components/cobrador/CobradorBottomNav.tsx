@@ -5,13 +5,14 @@
 // safe-area (home indicator); centrada al ancho de la columna (max-w-480).
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Icono, type NombreIcono } from "@/components/Iconos";
 
-const TABS = [
-  { href: "/cobrador", label: "Ruta", icon: "🗺️" },
-  { href: "/cobrador/chat", label: "Chat", icon: "💬", badge: true },
-  { href: "/cobrador/mis-numeros", label: "Números", icon: "📊" },
-  { href: "/cobrador/notas", label: "Notas", icon: "📝" },
-  { href: "/cobrador/tutorial", label: "Ayuda", icon: "🎓" },
+const TABS: { href: string; label: string; icon: NombreIcono; badge?: boolean }[] = [
+  { href: "/cobrador", label: "Ruta", icon: "ruta" },
+  { href: "/cobrador/chat", label: "Chat", icon: "chat", badge: true },
+  { href: "/cobrador/mis-numeros", label: "Números", icon: "numeros" },
+  { href: "/cobrador/notas", label: "Notas", icon: "notas" },
+  { href: "/cobrador/tutorial", label: "Ayuda", icon: "ayuda" },
 ];
 
 export function CobradorBottomNav({ noLeidos = 0 }: { noLeidos?: number }) {
@@ -34,10 +35,10 @@ export function CobradorBottomNav({ noLeidos = 0 }: { noLeidos?: number }) {
             }`}
           >
             {on && <span aria-hidden="true" className="absolute top-0 h-[3px] w-9 rounded-full bg-[#6B8FF7]" />}
-            <span className="relative text-[19px] leading-none">
-              {t.icon}
+            <span className="relative leading-none">
+              <Icono name={t.icon} className="h-[22px] w-[22px]" />
               {t.badge && noLeidos > 0 && (
-                <span className="absolute -top-1 -right-2 flex h-[15px] min-w-[15px] items-center justify-center rounded-full bg-[#E06A6A] px-1 text-[9px] font-black text-white">
+                <span className="absolute -top-1.5 -right-2.5 flex h-[15px] min-w-[15px] items-center justify-center rounded-full bg-[#E06A6A] px-1 text-[9px] font-black text-white">
                   {noLeidos > 9 ? "9+" : noLeidos}
                 </span>
               )}

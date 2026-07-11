@@ -117,20 +117,20 @@ export default async function DesempenoPage({
       </div>
 
       {r.recortado && (
-        <p className="rounded-[12px] border border-[#F0D9A8] panel-ambar px-3.5 py-2.5 text-[12px] font-semibold text-[#9A6A0E]">
+        <p className="rounded-[12px] border border-[#F0D9A8] panel-ambar px-3.5 py-2.5 text-[12px] font-semibold text-ambar-osc">
           El rango pedido superaba {MAX_DIAS_DESEMPENO} días y se acotó a {r.desde} → {r.hasta}.
         </p>
       )}
 
       {/* KPIs del rango */}
       <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
-        <Kpi label="Recaudado" valor={UYU(r.totalRecaudado)} tono="#157A50" />
+        <Kpi label="Recaudado" valor={UYU(r.totalRecaudado)} tono="var(--color-verde-osc)" />
         <Kpi label="Cobros" valor={String(r.totalCobros)} />
         <Kpi label="Cobradores activos" valor={String(r.cobradoresActivos)} />
         <Kpi
           label={r.disponibleRendiciones ? "Entregado" : "Faltantes"}
           valor={r.disponibleRendiciones ? UYU(entregado) : String(faltantes)}
-          tono={r.disponibleRendiciones ? "#1E47C8" : faltantes > 0 ? "#C0392B" : undefined}
+          tono={r.disponibleRendiciones ? "var(--color-azul)" : faltantes > 0 ? "var(--color-rojo-osc)" : undefined}
         />
       </div>
 
@@ -192,7 +192,7 @@ export default async function DesempenoPage({
                     </div>
                   </td>
                   <td className="px-3 py-2.5 text-gris">{c.zonaNombre ?? "—"}</td>
-                  <td className="px-3 py-2.5 text-right font-extrabold tabular-nums text-[#157A50]">{UYU(c.recaudado)}</td>
+                  <td className="px-3 py-2.5 text-right font-extrabold tabular-nums text-verde-osc">{UYU(c.recaudado)}</td>
                   <td className="px-3 py-2.5 text-right tabular-nums text-cuerpo">{c.cobros}</td>
                   <td className="px-3 py-2.5 text-right tabular-nums text-cuerpo">{c.diasActivos}</td>
                   {r.disponibleRendiciones && (
@@ -201,7 +201,7 @@ export default async function DesempenoPage({
                   {r.disponibleRendiciones && (
                     <td className="px-3 py-2.5 text-right tabular-nums">
                       {c.faltantes > 0 ? (
-                        <span className="font-bold text-[#C0392B]">
+                        <span className="font-bold text-rojo-osc">
                           {c.faltantes} · {UYU(c.montoFaltante)}
                         </span>
                       ) : (

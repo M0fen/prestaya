@@ -26,6 +26,15 @@ const BANDA: Record<BandaConfianza, { label: string; color: string }> = {
   observar: { label: "Observar", color: "#E8A317" },
   riesgo: { label: "Riesgo", color: "#D64545" },
 };
+// Color del TEXTO de la banda (sobre tarjeta): tokens que flipean en dark. El
+// `color` de arriba se usa como fondo del avatar (círculo lleno, texto blanco),
+// donde el color saturado va bien en ambos modos.
+const BANDA_TXT: Record<BandaConfianza, string> = {
+  intachable: "var(--color-verde-osc)",
+  confiable: "var(--color-azul)",
+  observar: "var(--color-ambar-osc)",
+  riesgo: "var(--color-rojo-osc)",
+};
 
 export default async function AlertasPage() {
   await requireGestor();
@@ -180,7 +189,7 @@ function FilaCobrador({
           </div>
           <div className="flex flex-col">
             <span className="text-[13.5px] font-bold text-tinta">{c.nombre}</span>
-            <span className="text-[11.5px] font-semibold" style={{ color: b.color }}>
+            <span className="text-[11.5px] font-semibold" style={{ color: BANDA_TXT[c.confianza.banda] }}>
               {b.label}
             </span>
           </div>
@@ -224,7 +233,7 @@ function Mini({ label, valor, alerta = false }: { label: string; valor: string; 
   return (
     <div className="flex flex-col">
       <span className="text-[10px] font-bold uppercase tracking-wide text-tenue">{label}</span>
-      <span className={`text-[13px] font-extrabold tabular-nums ${alerta ? "text-[#C0392B]" : "text-tinta"}`}>
+      <span className={`text-[13px] font-extrabold tabular-nums ${alerta ? "text-rojo-osc" : "text-tinta"}`}>
         {valor}
       </span>
     </div>

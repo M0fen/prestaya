@@ -88,18 +88,18 @@ export default async function MoraPage({
       <FormPoliticaMora config={config} puedeEditar={esAdmin(usuario.rol)} />
 
       {conMora && resumen.recargoTotal > 0 && (
-        <div className="flex items-center justify-between rounded-[12px] bg-[#FDF3E2] px-4 py-2.5">
-          <span className="text-[12.5px] font-bold text-[#B9770E]">Recargo por mora sugerido (cartera en riesgo)</span>
-          <span className="text-[15px] font-extrabold tabular-nums text-[#B9770E]">{UYU(resumen.recargoTotal)}</span>
+        <div className="flex items-center justify-between rounded-[12px] panel-ambar px-4 py-2.5">
+          <span className="text-[12.5px] font-bold text-ambar-osc">Recargo por mora sugerido (cartera en riesgo)</span>
+          <span className="text-[15px] font-extrabold tabular-nums text-ambar-osc">{UYU(resumen.recargoTotal)}</span>
         </div>
       )}
 
       {/* Resumen por nivel */}
       <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
-        <Kpi label="Crítico" valor={resumen.critico} tono={NIVEL.critico} />
-        <Kpi label="Alto" valor={resumen.alto} tono={NIVEL.alto} />
-        <Kpi label="Medio" valor={resumen.medio} tono={NIVEL.medio} />
-        <Kpi label="Deuda en riesgo" valor={UYU(resumen.deudaEnRiesgo)} tono={NIVEL.medio} money />
+        <Kpi label="Crítico" valor={resumen.critico} color="var(--color-rojo-osc)" />
+        <Kpi label="Alto" valor={resumen.alto} color="var(--color-rojo-osc)" />
+        <Kpi label="Medio" valor={resumen.medio} color="var(--color-ambar-osc)" />
+        <Kpi label="Deuda en riesgo" valor={UYU(resumen.deudaEnRiesgo)} money />
       </div>
 
       {/* Morosos: lista negra (marcados) + castigos (incobrables). Persisten
@@ -254,7 +254,7 @@ export default async function MoraPage({
                   <span className="text-[12px] font-medium text-gris">
                     Deuda vencida: {UYU(s.deudaVencida)}
                     {conMora && c.recargoMora > 0 && (
-                      <span className="font-bold text-[#B9770E]"> · +{UYU(c.recargoMora)} mora</span>
+                      <span className="font-bold text-ambar-osc"> · +{UYU(c.recargoMora)} mora</span>
                     )}
                   </span>
                 </div>
@@ -286,7 +286,7 @@ export default async function MoraPage({
         })}
       </div>
 
-      <p className="text-[11px] leading-[1.5] font-medium text-[#AEB6CC]">
+      <p className="text-[11px] leading-[1.5] font-medium text-tenue-2">
         El riesgo se calcula solo con el comportamiento de pago del crédito
         activo (racha de atraso, recencia y tendencia). Es una guía de prioridad
         de cobranza, no se le muestra al cliente.
@@ -301,12 +301,13 @@ const INPUT =
 function Kpi({
   label,
   valor,
-  tono,
+  color,
   money = false,
 }: {
   label: string;
   valor: number | string;
-  tono: { bg: string; fg: string };
+  /** Color del número (token var que flipea en dark). El de "money" usa tinta. */
+  color?: string;
   money?: boolean;
 }) {
   return (
@@ -314,7 +315,7 @@ function Kpi({
       <span className="text-[11px] font-semibold text-tenue">{label}</span>
       <span
         className={`font-extrabold text-tinta tabular-nums ${money ? "text-[16px]" : "text-[22px]"}`}
-        style={money ? undefined : { color: tono.fg }}
+        style={money ? undefined : { color }}
       >
         {valor}
       </span>

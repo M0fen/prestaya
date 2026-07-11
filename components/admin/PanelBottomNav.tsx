@@ -8,14 +8,15 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import type { Rol } from "@/types/db";
 import { navVisible, navAgrupado } from "@/lib/admin/nav";
+import { Icono, type NombreIcono } from "@/components/Iconos";
 
 /** Destinos del flujo diario en la barra inferior (orden = importancia). Se
  *  muestran solo los que el rol puede ver. El 5º slot es siempre "Menú". */
-const TABS = [
-  { href: "/admin", label: "Inicio", icon: "▣" },
-  { href: "/admin/jornada", label: "Jornada", icon: "🧭" },
-  { href: "/admin/cobranza", label: "Cobranza", icon: "🛡️" },
-  { href: "/admin/caja", label: "Caja", icon: "💰" },
+const TABS: { href: string; label: string; icon: NombreIcono }[] = [
+  { href: "/admin", label: "Inicio", icon: "inicio" },
+  { href: "/admin/jornada", label: "Jornada", icon: "jornada" },
+  { href: "/admin/cobranza", label: "Cobranza", icon: "cobranza" },
+  { href: "/admin/caja", label: "Caja", icon: "caja" },
 ];
 
 export function PanelBottomNav({
@@ -50,7 +51,7 @@ export function PanelBottomNav({
               className={`relative flex flex-1 flex-col items-center gap-0.5 pt-2.5 pb-1.5 text-[10px] font-bold ${on ? "text-white" : "text-white/45"}`}
             >
               {on && <span aria-hidden="true" className="absolute top-0 h-[3px] w-9 rounded-full bg-[#6B8FF7]" />}
-              <span className="text-[19px] leading-none">{t.icon}</span>
+              <Icono name={t.icon} className="h-[22px] w-[22px]" />
               {t.label}
             </Link>
           );
@@ -61,11 +62,11 @@ export function PanelBottomNav({
           aria-label="Abrir menú"
           className="flex flex-1 flex-col items-center gap-0.5 pt-2 pb-1.5 text-[10px] font-bold text-white/50"
         >
-          <span className="relative text-[19px] leading-none">
-            ☰
+          <span className="relative leading-none">
+            <Icono name="menu" className="h-[22px] w-[22px]" />
             {(noLeidos > 0 || gastosPendientes > 0) && (
               <span
-                className="absolute -top-0.5 -right-2 h-2 w-2 rounded-full"
+                className="absolute -top-1 -right-1.5 h-2 w-2 rounded-full"
                 style={{ background: noLeidos > 0 ? "#E06A6A" : "#E8A317" }}
               />
             )}

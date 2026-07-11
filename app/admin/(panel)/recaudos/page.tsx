@@ -65,14 +65,14 @@ export default async function RecaudosPage({
   const vsProm = promPrevio > 0 && mesActual ? Math.round((mesActual.recaudado / promPrevio - 1) * 100) : null;
   const calif =
     vsProm == null
-      ? { label: "—", color: "#6B7494" }
+      ? { label: "—", color: "var(--color-gris)" }
       : vsProm >= 10
-        ? { label: "Excelente", color: "#157A50" }
+        ? { label: "Excelente", color: "var(--color-verde-osc)" }
         : vsProm >= -8
-          ? { label: "En línea", color: "#1E47C8" }
+          ? { label: "En línea", color: "var(--color-azul)" }
           : vsProm >= -25
-            ? { label: "Bajo", color: "#B9770E" }
-            : { label: "Muy bajo", color: "#C0392B" };
+            ? { label: "Bajo", color: "var(--color-ambar-osc)" }
+            : { label: "Muy bajo", color: "var(--color-rojo-osc)" };
   const colsMes = serieMes.map((m, i) => ({
     etiqueta: mesLabel(m.mes),
     valor: m.recaudado,
@@ -100,7 +100,7 @@ export default async function RecaudosPage({
         <div className="flex gap-2 print:hidden">
           <a
             href={csvHref}
-            className="inline-flex items-center gap-1.5 rounded-full border border-borde bg-tarjeta px-4 py-2 text-[13px] font-bold text-[#2453DC] hover:bg-suave"
+            className="inline-flex items-center gap-1.5 rounded-full border border-borde bg-tarjeta px-4 py-2 text-[13px] font-bold text-azul hover:bg-suave"
           >
             ⬇️ Exportar CSV
           </a>
@@ -111,7 +111,7 @@ export default async function RecaudosPage({
       {/* Totales */}
       <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3">
         <Kpi label="Total Pagos" valor={`${r.totalPagos}`} />
-        <Kpi label="Monto Total" valor={UYU(r.montoTotal)} tono="#157A50" />
+        <Kpi label="Monto Total" valor={UYU(r.montoTotal)} tono="var(--color-verde-osc)" />
         <Kpi label="Créditos Únicos" valor={`${r.creditosUnicos}`} />
       </div>
 
@@ -127,8 +127,8 @@ export default async function RecaudosPage({
             </div>
             {mesActual && (
               <span
-                className="rounded-full px-2.5 py-1 text-[11.5px] font-bold"
-                style={{ background: `${calif.color}18`, color: calif.color }}
+                className="rounded-full bg-suave px-2.5 py-1 text-[11.5px] font-bold"
+                style={{ color: calif.color }}
                 title="Calificación del mes en curso vs el promedio de los meses previos"
               >
                 {calif.label}
@@ -136,7 +136,7 @@ export default async function RecaudosPage({
               </span>
             )}
           </div>
-          <Columnas datos={colsMes} color="#1FA971" colorHoy="#13308C" />
+          <Columnas datos={colsMes} color="#1FA971" colorHoy="var(--color-azul)" />
         </section>
       )}
 
@@ -192,7 +192,7 @@ export default async function RecaudosPage({
               </tr>
             ) : (
               r.filas.map((f) => (
-                <tr key={f.pagoId} className="border-b border-[#F4F6FB]">
+                <tr key={f.pagoId} className="border-b border-linea">
                   <td className="px-3 py-2.5 font-mono text-[11.5px] text-gris">
                     {f.refCredito ?? "—"}
                   </td>
@@ -207,7 +207,7 @@ export default async function RecaudosPage({
                     {UYU(f.totalCredito)}
                   </td>
                   <td className="px-3 py-2.5 text-cuerpo">{fechaHora(f.fechaIso)}</td>
-                  <td className="px-3 py-2.5 text-right font-extrabold tabular-nums text-[#157A50]">
+                  <td className="px-3 py-2.5 text-right font-extrabold tabular-nums text-verde-osc">
                     {UYU(f.monto)}
                   </td>
                   <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-tinta">
@@ -220,7 +220,7 @@ export default async function RecaudosPage({
         </table>
       </div>
 
-      <p className="text-[11px] leading-[1.5] font-medium text-[#AEB6CC]">
+      <p className="text-[11px] leading-[1.5] font-medium text-tenue-2">
         El saldo pendiente se calcula con el cartón (misma verdad que la ficha del cliente).
         Un crédito histórico/finalizado aparece con "—".
       </p>
