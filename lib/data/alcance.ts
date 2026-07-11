@@ -12,7 +12,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getActorActual } from "@/lib/auth";
-import { alcanceZonas } from "@/lib/permisos";
+import { alcanceZonas, type Actor } from "@/lib/permisos";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 
 export type Alcance =
@@ -49,8 +49,10 @@ export function enLotes<T>(arr: readonly T[], tam = LOTE_IN): T[][] {
  * para resolver los sets de IDs (consultas acotadas por zona, no por-fila sobre
  * toda la base), nunca para devolver datos de negocio.
  */
-export async function alcanceDelActor(): Promise<Alcance> {
-  const actor = await getActorActual();
+export async function alcanceDelActor(actorPre?: Actor | null): Promise<Alcance> {
+  // Reusa el actor ya resuelto por la página (evita otro getUser()); si no se
+  // pasa, lo resuelve como antes.
+  const actor = actorPre === undefined ? await getActorActual() : actorPre;
   if (!actor) return { global: true };
 
   const al = alcanceZonas(actor);

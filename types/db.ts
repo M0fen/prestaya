@@ -20,6 +20,9 @@ export interface Usuario {
   zona_id: string | null;
   /** Desarrollador: es un admin (poder total) + herramientas extra (ver 0034). */
   es_dev: boolean;
+  /** Comisión (%) del cobrador sobre lo recaudado. null/0 = sin comisión. Viene
+   *  en la fila propia (select *); opcional para no romper otros constructores. */
+  comision_pct?: number | null;
   creado_en: string;
   actualizado_en: string;
 }

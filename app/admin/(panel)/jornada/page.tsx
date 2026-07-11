@@ -7,7 +7,7 @@
 //  getRendicionesDia / getCentroAlertas) → un supervisor ve solo lo suyo.
 // ─────────────────────────────────────────────────────────────────────────
 import Link from "next/link";
-import { requireGestor, getActorActual } from "@/lib/auth";
+import { requireGestor, actorDeUsuario } from "@/lib/auth";
 import { puedeVerZona } from "@/lib/permisos";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
@@ -52,7 +52,11 @@ export default async function JornadaPage({
 }) {
   const usuario = await requireGestor();
   const db = await createSupabaseServer();
-  const alcance = await alcanceDelActor();
+  // Sesión leída UNA vez: el actor se deriva del usuario ya resuelto y se reusa
+  // para el alcance (antes: requireGestor + getActorActual + alcanceDelActor → 3×
+  // getUser ≈ 0,5 s).
+  const actor = await actorDeUsuario(usuario);
+  const alcance = await alcanceDelActor(actor);
   // Herramientas del día visibles para este rol (para el launchpad unificado).
   const toolHrefs = new Set(navVisible(usuario.rol, usuario.es_dev).map((i) => i.href));
   const sp = await searchParams;
@@ -109,12 +113,13 @@ export default async function JornadaPage({
   //    control de cobranza y rendiciones) se computan UNA sola vez y se comparten
   //    entre resumen/cierre/alertas (antes cada una se recomputaba → ~2× el tiempo). ──
   const hoy = new Date();
-  const actor = await getActorActual();
-  const activos = await getActivosConPagos(db, alcance);
-  const [control, rend] = await Promise.all([
-    getControlCobranza(db, hoy, activos, alcance),
+  // cartera activa + rendiciones INDEPENDIENTES → EN PARALELO. (actor ya está
+  // resuelto arriba y reusado — sin recargar la sesión.)
+  const [activos, rend] = await Promise.all([
+    getActivosConPagos(db, alcance),
     getRendicionesDia(db, hoy, alcance),
   ]);
+  const control = await getControlCobranza(db, hoy, activos, alcance);
   const [resumen, cierre, centro, compromisos] = await Promise.all([
     getResumenFinanciero(db, hoy, { alcance, activos, control }),
     getCierrePorZona(db, hoy, alcance, rend),

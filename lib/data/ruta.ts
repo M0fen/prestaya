@@ -83,25 +83,18 @@ export async function getRutaCobrador(
   const cliIds = [...new Set((asigRaw ?? []).map((a) => a.cliente_id as string))];
   if (cliIds.length === 0) return { items: [], arqueo: ARQUEO_VACIO };
 
-  const { data: cliRaw, error: eC } = await db
-    .from("clientes")
-    .select("*")
-    .in("id", cliIds)
-    .eq("activo", true)
-    .order("nombre", { ascending: true });
-  if (eC) throw eC;
-  const clientes = (cliRaw ?? []).map(mapCliente);
+  // clientes + créditos activos: ambos dependen solo de cliIds → EN PARALELO.
+  // (Un cliente puede tener VARIOS créditos [0037]: se acumulan TODOS — la cuota
+  // del día y lo cobrado hoy suman los de todos, si no el arqueo subestima.)
+  const [cliRes, presRes] = await Promise.all([
+    db.from("clientes").select("*").in("id", cliIds).eq("activo", true).order("nombre", { ascending: true }),
+    db.from("prestamos").select("id, cliente_id, cuota_diaria").eq("estado", "activo").in("cliente_id", cliIds),
+  ]);
+  if (cliRes.error) throw cliRes.error;
+  if (presRes.error) throw presRes.error;
+  const clientes = (cliRes.data ?? []).map(mapCliente);
   if (clientes.length === 0) return { items: [], arqueo: ARQUEO_VACIO };
-
-  // Créditos activos por cliente. Un cliente puede tener VARIOS (0037): se
-  // acumulan TODOS — la cuota del día y lo cobrado hoy suman los de todos sus
-  // créditos (si no, el arqueo subestima el esperado y pierde pagos del 2º).
-  const { data: presRaw, error: e1 } = await db
-    .from("prestamos")
-    .select("id, cliente_id, cuota_diaria")
-    .eq("estado", "activo")
-    .in("cliente_id", cliIds);
-  if (e1) throw e1;
+  const presRaw = presRes.data;
   const creditosDe = new Map<string, { ids: string[]; cuotaTotal: number; principalId: string }>();
   for (const p of presRaw ?? []) {
     const cid = p.cliente_id as string;
@@ -123,26 +116,19 @@ export async function getRutaCobrador(
   const pagadoPorPrestamo = new Map<string, number>();
   const noPagoPrestamos = new Set<string>();
   if (ids.length > 0) {
-    const { data: pagosRaw, error: e2 } = await db
-      .from("pagos")
-      .select("prestamo_id, monto")
-      .eq("anulado", false)
-      .gte("registrado_en", desde)
-      .in("prestamo_id", ids);
-    if (e2) throw e2;
-    for (const r of pagosRaw ?? [])
+    // Cobros y visitas de HOY: independientes → EN PARALELO.
+    const [pagRes, visRes] = await Promise.all([
+      db.from("pagos").select("prestamo_id, monto").eq("anulado", false).gte("registrado_en", desde).in("prestamo_id", ids),
+      db.from("visitas").select("prestamo_id, resultado").gte("registrado_en", desde).in("prestamo_id", ids),
+    ]);
+    if (pagRes.error) throw pagRes.error;
+    if (visRes.error) throw visRes.error;
+    for (const r of pagRes.data ?? [])
       pagadoPorPrestamo.set(
         r.prestamo_id as string,
         (pagadoPorPrestamo.get(r.prestamo_id as string) ?? 0) + Number(r.monto),
       );
-
-    const { data: visRaw, error: e3 } = await db
-      .from("visitas")
-      .select("prestamo_id, resultado")
-      .gte("registrado_en", desde)
-      .in("prestamo_id", ids);
-    if (e3) throw e3;
-    for (const r of visRaw ?? []) {
+    for (const r of visRes.data ?? []) {
       const res = r.resultado as string;
       if (res !== "pago" && res !== "abono")
         noPagoPrestamos.add(r.prestamo_id as string);

@@ -104,113 +104,142 @@ export async function getVigilanciaCobradores(
     a.diasPago.add(dia);
     a.recaudadoPorDia.set(dia, (a.recaudadoPorDia.get(dia) ?? 0) + monto);
   };
-  try {
-    const { data, error } = await db.rpc("app_vigilancia_pagos", { desde: desdeIso });
-    if (error) throw error;
-    for (const r of (data ?? []) as { cobrador_id: string; dia: string; monto: number; cobros: number }[]) {
-      sumaDia(r.cobrador_id, r.dia as string, Number(r.monto), Number(r.cobros));
-    }
-  } catch {
-    if (cobIds) {
-      // Fallback acotado (supervisor): trae solo los pagos de SUS cobradores.
-      const pagos = await traerTodo<{ registrado_por: string | null; monto: number; registrado_en: string }>(
-        (d, h) =>
-          db.from("pagos").select("registrado_por, monto, registrado_en")
-            .eq("anulado", false).gte("registrado_en", desdeIso).in("registrado_por", cobIds)
-            .order("id", { ascending: true }).range(d, h),
-      );
-      for (const p of pagos) {
-        if (!p.registrado_por) continue;
-        sumaDia(p.registrado_por, diaUY(p.registrado_en), Number(p.monto), 1);
+  // Las 5 lecturas de la ventana son INDEPENDIENTES (solo dependen de cobIds y
+  // fechas) → se lanzan EN PARALELO (antes iban EN SERIE: el tiempo de /admin/
+  // alertas era la SUMA de las 5). Cada una preserva su degradación (tablaFaltante);
+  // el procesamiento a `acc` se hace después, ordenado, sobre los resultados.
+  const pRecaudo: Promise<
+    | { via: "rpc"; rows: { cobrador_id: string; dia: string; monto: number; cobros: number }[] }
+    | { via: "fallback"; rows: { registrado_por: string | null; monto: number; registrado_en: string }[] }
+    | { via: "none" }
+  > = (async () => {
+    try {
+      const { data, error } = await db.rpc("app_vigilancia_pagos", { desde: desdeIso });
+      if (error) throw error;
+      return { via: "rpc", rows: (data ?? []) as { cobrador_id: string; dia: string; monto: number; cobros: number }[] };
+    } catch {
+      if (cobIds) {
+        // Fallback acotado (supervisor): trae solo los pagos de SUS cobradores.
+        const pagos = await traerTodo<{ registrado_por: string | null; monto: number; registrado_en: string }>(
+          (d, h) =>
+            db.from("pagos").select("registrado_por, monto, registrado_en")
+              .eq("anulado", false).gte("registrado_en", desdeIso).in("registrado_por", cobIds)
+              .order("id", { ascending: true }).range(d, h),
+        );
+        return { via: "fallback", rows: pagos };
       }
+      // Admin sin RPC: se omite el recaudo (no se paginan decenas de miles de filas).
+      return { via: "none" };
     }
-    // Admin sin RPC: se omite el recaudo (no se paginan decenas de miles de filas).
+  })();
+
+  const pVisitas = traerTodo<{ cobrador_id: string | null; resultado: string }>((d, h) => {
+    let q = db.from("visitas").select("cobrador_id, resultado").gte("registrado_en", desdeIso);
+    if (cobIds) q = q.in("cobrador_id", cobIds);
+    return q.order("id", { ascending: true }).range(d, h);
+  });
+
+  const pRend: Promise<{ cobrador_id: string; fecha: string; entregado: number; diferencia: number }[]> = (async () => {
+    try {
+      let rq = db.from("rendiciones").select("cobrador_id, fecha, entregado, diferencia").gte("fecha", desdeYmd);
+      if (cobIds) rq = rq.in("cobrador_id", cobIds);
+      const { data, error } = await rq;
+      if (error) throw error;
+      return (data ?? []) as { cobrador_id: string; fecha: string; entregado: number; diferencia: number }[];
+    } catch (e) {
+      if (!tablaFaltante(e)) throw e; // sin 0013: sin datos de rendición
+      return [];
+    }
+  })();
+
+  const pMov: Promise<{ cobrador_id: string | null; tipo: string; monto: number; categoria: string | null }[]> = (async () => {
+    try {
+      let mq = db.from("movimientos_caja").select("cobrador_id, tipo, monto, categoria").gte("registrado_en", desdeIso);
+      if (cobIds) mq = mq.in("cobrador_id", cobIds);
+      const { data, error } = await mq;
+      if (error) throw error;
+      return (data ?? []) as { cobrador_id: string | null; tipo: string; monto: number; categoria: string | null }[];
+    } catch (e) {
+      if (!tablaFaltante(e)) throw e;
+      return [];
+    }
+  })();
+
+  const pBit: Promise<Record<string, unknown>[]> = (async () => {
+    try {
+      return await traerTodo<Record<string, unknown>>((d, h) => {
+        let q = db.from("bitacora")
+          .select("actor_id, fecha_uy, accion, server_ts, gps_lat, gps_lng, gps_denegado, en_zona, cliente_id")
+          .gte("fecha_uy", desdeYmd);
+        if (cobIds) q = q.in("actor_id", cobIds);
+        return q.order("id", { ascending: true }).range(d, h);
+      });
+    } catch (e) {
+      if (!tablaFaltante(e)) throw e;
+      return [];
+    }
+  })();
+
+  const [recaudo, visitas, rendiciones, movimientos, eventos] = await Promise.all([
+    pRecaudo, pVisitas, pRend, pMov, pBit,
+  ]);
+
+  // 1) Recaudo por cobrador y día (RPC 0043 o fallback acotado del supervisor).
+  if (recaudo.via === "rpc") {
+    for (const r of recaudo.rows) sumaDia(r.cobrador_id, r.dia, Number(r.monto), Number(r.cobros));
+  } else if (recaudo.via === "fallback") {
+    for (const p of recaudo.rows) {
+      if (!p.registrado_por) continue;
+      sumaDia(p.registrado_por, diaUY(p.registrado_en), Number(p.monto), 1);
+    }
   }
 
-  // 2) Visitas "no pago" de la ventana.
-  const visitas = await traerTodo<{ cobrador_id: string | null; resultado: string }>(
-    (d, h) => {
-      let q = db.from("visitas").select("cobrador_id, resultado").gte("registrado_en", desdeIso);
-      if (cobIds) q = q.in("cobrador_id", cobIds);
-      return q.order("id", { ascending: true }).range(d, h);
-    },
-  );
+  // 2) Visitas "no pago".
   for (const v of visitas) {
     const id = v.cobrador_id;
     if (!id || !permitido.has(id)) continue;
     if (v.resultado === "no_pago") get(id).noPagos += 1;
   }
 
-  // 3) Rendiciones de la ventana (por fecha).
-  try {
-    let rq = db.from("rendiciones").select("cobrador_id, fecha, entregado, diferencia").gte("fecha", desdeYmd);
-    if (cobIds) rq = rq.in("cobrador_id", cobIds);
-    const { data, error } = await rq;
-    if (error) throw error;
-    for (const r of data ?? []) {
-      const id = r.cobrador_id as string;
-      if (!permitido.has(id)) continue;
-      const a = get(id);
-      const dif = Number(r.diferencia);
-      a.rendido += Number(r.entregado);
-      a.diferenciaAcumulada += dif;
-      a.diasRendidos.add(r.fecha as string);
-      if (dif < 0) { a.faltantes += 1; a.montoFaltante += -dif; }
-      else if (dif > 0) a.sobrantes += 1;
-    }
-  } catch (e) {
-    if (!tablaFaltante(e)) throw e; // sin 0013: sin datos de rendición
+  // 3) Rendiciones (por fecha).
+  for (const r of rendiciones) {
+    const id = r.cobrador_id;
+    if (!permitido.has(id)) continue;
+    const a = get(id);
+    const dif = Number(r.diferencia);
+    a.rendido += Number(r.entregado);
+    a.diferenciaAcumulada += dif;
+    a.diasRendidos.add(r.fecha);
+    if (dif < 0) { a.faltantes += 1; a.montoFaltante += -dif; }
+    else if (dif > 0) a.sobrantes += 1;
   }
 
-  // 4) Movimientos de caja (gastos de RUTA) de la ventana. Se EXCLUYE la categoría
-  //    "Comisión": un pago de comisión al cobrador NO es un gasto de su ruta (y si
-  //    se contara, distorsionaría su cuenta corriente / gastos declarados).
-  try {
-    let mq = db.from("movimientos_caja").select("cobrador_id, tipo, monto, categoria").gte("registrado_en", desdeIso);
-    if (cobIds) mq = mq.in("cobrador_id", cobIds);
-    const { data, error } = await mq;
-    if (error) throw error;
-    for (const m of data ?? []) {
-      const id = m.cobrador_id as string | null;
-      if (!id || !permitido.has(id)) continue;
-      if ((m.tipo as string) === "egreso" && (m.categoria as string | null) !== "Comisión")
-        get(id).gastos += Number(m.monto);
-    }
-  } catch (e) {
-    if (!tablaFaltante(e)) throw e;
+  // 4) Movimientos de caja (gastos de RUTA; se EXCLUYE "Comisión": un pago de
+  //    comisión NO es un gasto de ruta y distorsionaría la cuenta corriente).
+  for (const m of movimientos) {
+    const id = m.cobrador_id;
+    if (!id || !permitido.has(id)) continue;
+    if (m.tipo === "egreso" && m.categoria !== "Comisión") get(id).gastos += Number(m.monto);
   }
 
-  // 5) Bitácora de la ventana → sospecha por día (planchado, fuera de zona, etc.).
-  try {
-    const eventos = await traerTodo<Record<string, unknown>>(
-      (d, h) => {
-        let q = db.from("bitacora")
-          .select("actor_id, fecha_uy, accion, server_ts, gps_lat, gps_lng, gps_denegado, en_zona, cliente_id")
-          .gte("fecha_uy", desdeYmd);
-        if (cobIds) q = q.in("actor_id", cobIds);
-        return q.order("id", { ascending: true }).range(d, h);
-      },
-    );
-    for (const r of eventos) {
-      const id = r.actor_id as string | null;
-      if (!id || !permitido.has(id)) continue;
-      const dia = r.fecha_uy as string;
-      const ev: EventoBitacora = {
-        accion: r.accion as string,
-        serverTs: r.server_ts as string,
-        gpsLat: r.gps_lat == null ? null : Number(r.gps_lat),
-        gpsLng: r.gps_lng == null ? null : Number(r.gps_lng),
-        gpsDenegado: Boolean(r.gps_denegado),
-        enZona: r.en_zona == null ? null : Boolean(r.en_zona),
-        clienteId: (r.cliente_id as string | null) ?? null,
-      };
-      const a = get(id);
-      const arr = a.eventosPorDia.get(dia) ?? [];
-      arr.push(ev);
-      a.eventosPorDia.set(dia, arr);
-    }
-  } catch (e) {
-    if (!tablaFaltante(e)) throw e;
+  // 5) Bitácora → sospecha por día (planchado, fuera de zona, etc.).
+  for (const r of eventos) {
+    const id = r.actor_id as string | null;
+    if (!id || !permitido.has(id)) continue;
+    const dia = r.fecha_uy as string;
+    const ev: EventoBitacora = {
+      accion: r.accion as string,
+      serverTs: r.server_ts as string,
+      gpsLat: r.gps_lat == null ? null : Number(r.gps_lat),
+      gpsLng: r.gps_lng == null ? null : Number(r.gps_lng),
+      gpsDenegado: Boolean(r.gps_denegado),
+      enZona: r.en_zona == null ? null : Boolean(r.en_zona),
+      clienteId: (r.cliente_id as string | null) ?? null,
+    };
+    const a = get(id);
+    const arr = a.eventosPorDia.get(dia) ?? [];
+    arr.push(ev);
+    a.eventosPorDia.set(dia, arr);
   }
 
   // 6) Consolidar por cobrador → señales → confianza + cuenta corriente.

@@ -203,17 +203,28 @@ export async function getEstadoGestionClientes(
   const inicioHoy = `${hoyStr}T00:00:00-03:00`;
 
   const filasPorCliente = new Map<string, { tipo: TipoGestion; monto: number | null; fecha: string | null; creado: string }[]>();
-  for (const lote of enLotes(clienteIds)) {
-    const { data, error } = await db
-      .from("gestiones_cobranza")
-      .select("cliente_id, tipo, monto_compromiso, fecha_compromiso, creado_en")
-      .in("cliente_id", lote)
-      .order("creado_en", { ascending: false });
-    if (error) {
-      if (tablaFaltante(error)) return out; // 0055 sin correr → sin gestiones
-      throw error;
-    }
-    for (const r of data ?? []) {
+  // Lotes de cliente EN PARALELO (antes: en serie → N round-trips en la lista de Mora).
+  let porLote: Record<string, unknown>[][];
+  try {
+    porLote = await Promise.all(
+      enLotes(clienteIds).map((lote) =>
+        db
+          .from("gestiones_cobranza")
+          .select("cliente_id, tipo, monto_compromiso, fecha_compromiso, creado_en")
+          .in("cliente_id", lote)
+          .order("creado_en", { ascending: false })
+          .then(({ data, error }) => {
+            if (error) throw error;
+            return (data ?? []) as Record<string, unknown>[];
+          }),
+      ),
+    );
+  } catch (e) {
+    if (tablaFaltante(e)) return out; // 0055 sin correr → sin gestiones
+    throw e;
+  }
+  for (const data of porLote) {
+    for (const r of data) {
       const cid = r.cliente_id as string;
       const arr = filasPorCliente.get(cid) ?? [];
       arr.push({
@@ -295,7 +306,8 @@ export async function getResumenCompromisos(
       await correr(null);
     } else {
       if (alcance.clienteIds.length === 0) return { venceHoy: [], incumplidos: [], cumplidosHoy: 0, vigentes: 0 };
-      for (const lote of enLotes(alcance.clienteIds)) await correr(lote);
+      await Promise.all(enLotes(alcance.clienteIds).map((lote) => correr(lote))); // lotes en paralelo
+
     }
   } catch (e) {
     if (tablaFaltante(e)) return { venceHoy: [], incumplidos: [], cumplidosHoy: 0, vigentes: 0 }; // 0055 sin correr

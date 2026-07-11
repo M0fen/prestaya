@@ -15,6 +15,7 @@ import { getActivosConPagos, pagosDeActivo } from "./activos";
 import { getConfigMora } from "./moraConfig";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { alcanceDelActor, enLotes, prestamoIdsDelAlcance, type Alcance } from "./alcance";
+import { funcionFaltante, tablaFaltante } from "./errores";
 
 export interface TramoMora {
   /** Etiqueta del tramo, p. ej. "1–7 días". */
@@ -73,6 +74,44 @@ async function contar(
   return count ?? 0;
 }
 
+/** Conteos de zona (finalizados/incobrables/reportes) en UNA RPC agregada (0061,
+ *  bypassa el RLS por-fila). Si la RPC aún no corrió, degrada a conteos por lotes
+ *  EN PARALELO (antes iban en serie: N round-trips por métrica). */
+async function conteosPorZona(
+  db: SupabaseClient,
+  clienteIds: string[],
+): Promise<{ finalizados: number; incobrables: number; reportes: number }> {
+  if (clienteIds.length === 0) return { finalizados: 0, incobrables: 0, reportes: 0 };
+  try {
+    const { data, error } = await db.rpc("app_conteos_zona", { cliente_ids: clienteIds });
+    if (error) throw error;
+    const o = (data ?? {}) as { finalizados?: number; incobrables?: number; reportes?: number };
+    return {
+      finalizados: Number(o.finalizados ?? 0),
+      incobrables: Number(o.incobrables ?? 0),
+      reportes: Number(o.reportes ?? 0),
+    };
+  } catch (e) {
+    // La RPC 0061 aún no corrió → fallback: conteos por lotes, pero EN PARALELO.
+    if (!tablaFaltante(e) && !funcionFaltante(e)) throw e;
+    const admin = createSupabaseAdmin();
+    const porLotes = (
+      tabla: string,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      filtro: (q: any) => any,
+    ): Promise<number> =>
+      Promise.all(
+        enLotes(clienteIds).map((lote) => contar(admin, tabla, (q) => filtro(q).in("cliente_id", lote))),
+      ).then((partes) => partes.reduce((a, b) => a + b, 0));
+    const [finalizados, incobrables, reportes] = await Promise.all([
+      porLotes("prestamos", (q) => q.eq("estado", "finalizado")),
+      porLotes("prestamos", (q) => q.eq("estado", "incobrable")),
+      porLotes("reportes", (q) => q.eq("estado", "nuevo")),
+    ]);
+    return { finalizados, incobrables, reportes };
+  }
+}
+
 /** Calcula todas las métricas del dashboard. `hoy` = referencia del servidor.
  *  `activosPre`: créditos activos ya traídos (para compartir la RPC con mora). */
 export async function getDashboardMetricas(
@@ -112,22 +151,11 @@ export async function getDashboardMetricas(
   } else {
     // Clientes de la zona = los asignados (ya resueltos en el alcance).
     clientesActivos = al.clienteIds.length;
-    // Suma de conteos por lotes de cliente (cada `.in` con ≤150 ids).
-    const contarPorCliente = async (
-      tabla: string,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      filtro: (q: any) => any,
-    ): Promise<number> => {
-      let total = 0;
-      for (const lote of enLotes(al.clienteIds))
-        total += await contar(admin, tabla, (q) => filtro(q).in("cliente_id", lote));
-      return total;
-    };
-    [creditosFinalizados, incobrables, reportesNuevos] = await Promise.all([
-      contarPorCliente("prestamos", (q) => q.eq("estado", "finalizado")),
-      contarPorCliente("prestamos", (q) => q.eq("estado", "incobrable")),
-      contarPorCliente("reportes", (q) => q.eq("estado", "nuevo")),
-    ]);
+    // Conteos de zona en UNA RPC agregada (0061); fallback a lotes EN PARALELO.
+    const c = await conteosPorZona(db, al.clienteIds);
+    creditosFinalizados = c.finalizados;
+    incobrables = c.incobrables;
+    reportesNuevos = c.reportes;
   }
   // Créditos activos = los que ya trajimos (coherente con la cartera/mora de abajo).
   const creditosActivos = activos.length;

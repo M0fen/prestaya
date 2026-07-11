@@ -12,6 +12,7 @@ import { getResumenCaja } from "@/lib/data/caja";
 import { getRecaudoHoy } from "@/lib/data/recaudoHoy";
 import { getRendicionesDia } from "@/lib/data/rendicion";
 import { getTableroMora } from "@/lib/data/mora";
+import { getActivosConPagos } from "@/lib/data/activos";
 import { getMetaMensual } from "@/lib/data/metaOperacion";
 import { hoyUY, diasCobrablesDelMes } from "@/lib/fecha";
 import { UYU, meses, diasSemana } from "@/lib/format";
@@ -26,14 +27,19 @@ export default async function CierrePage() {
   await requireAdmin();
   const db = await createSupabaseServer();
 
+  // Créditos activos UNA sola vez (RPC de cartera) → los comparten mora y recaudo,
+  // evitando que cada uno los re-traiga y, sobre todo, el fallback secuencial
+  // (batch 300) de getRecaudoHoy cuando no recibe el set de activos.
+  const activos = await getActivosConPagos(db);
+  const activosSet = new Set(activos.map((a) => a.id));
   const [dia, mes, caja, rend, mora, meta, rec] = await Promise.all([
     getResumenPeriodo(db, "dia"),
     getResumenPeriodo(db, "mes"),
     getResumenCaja(db, "hoy"),
     getRendicionesDia(db),
-    getTableroMora(db),
+    getTableroMora(db, undefined, activos),
     getMetaMensual(db),
-    getRecaudoHoy(db),
+    getRecaudoHoy(db, undefined, undefined, activosSet),
   ]);
 
   const hoy = hoyUY();

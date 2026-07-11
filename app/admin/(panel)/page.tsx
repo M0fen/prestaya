@@ -53,25 +53,25 @@ export default async function DashboardPage({
   // Base (siempre): cartera/mora/cobradores YA vienen acotadas a la zona del
   // gestor (supervisor → su zona; admin → todo). El "Movimiento" y la serie salen
   // de RPCs de agregado GLOBAL: se muestran SOLO al dueño (para no mezclar zonas).
-  const [resumen, liquidacion, rend] = await Promise.all([
+  // Perf: las 3 tandas (base + serie/mov del dueño + ranking mes/año) son
+  // INDEPENDIENTES entre sí → una sola tanda en paralelo (antes: 3 en cascada).
+  const hoyYmd = fechaISOUY(hoy);
+  const [resumen, liquidacion, rend, serieMov, cobradoresRango] = await Promise.all([
     getResumenFinanciero(db, hoy, { alcance, activos }),
     getLiquidacionDiaria(db, hoy, alcance),
     getRendicionesDia(db, hoy, alcance),
-  ]);
-  const [serie, mov] = admin
-    ? await Promise.all([getSerieRecaudo(db, hoy, 14), getResumenPeriodo(db, periodo, hoy)])
-    : [null, null];
-  // Ranking de cobradores por mes/año (solo si se pidió esa pestaña): agregado
-  // por la RPC (rápido), acotado a la zona del gestor.
-  const hoyYmd = fechaISOUY(hoy);
-  const cobradoresRango =
+    admin
+      ? Promise.all([getSerieRecaudo(db, hoy, 14), getResumenPeriodo(db, periodo, hoy)])
+      : Promise.resolve([null, null] as [null, null]),
     cobsPeriodo === "hoy"
-      ? null
-      : await getDesempenoRango(
+      ? Promise.resolve(null)
+      : getDesempenoRango(
           db,
           { desde: cobsPeriodo === "mes" ? `${hoyYmd.slice(0, 7)}-01` : `${hoyYmd.slice(0, 4)}-01-01`, hasta: hoyYmd },
           alcance,
-        );
+        ),
+  ]);
+  const [serie, mov] = serieMov;
   const reportesNuevos = resumen.reportesNuevos;
 
   const { cartera, recaudacion, mora, cobradores } = resumen;

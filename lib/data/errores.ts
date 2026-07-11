@@ -27,3 +27,15 @@ export function columnaFaltante(e: unknown): boolean {
   if (err?.code === "42703" || err?.code === "PGRST204") return true;
   return /column .* does not exist|could not find the .* column/i.test(err?.message ?? "");
 }
+
+/**
+ * true si el error significa "la función/RPC no existe todavía" (migración sin
+ * aplicar). Cubre Postgres (42883: undefined_function) y PostgREST (PGRST202:
+ * función no encontrada en el schema cache). Lo usan las capas que degradan a un
+ * fallback cuando una RPC nueva aún no fue creada.
+ */
+export function funcionFaltante(e: unknown): boolean {
+  const err = e as { code?: string; message?: string } | null;
+  if (err?.code === "42883" || err?.code === "PGRST202") return true;
+  return /could not find the function|function .* does not exist/i.test(err?.message ?? "");
+}

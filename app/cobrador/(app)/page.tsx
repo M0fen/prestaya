@@ -73,13 +73,9 @@ export default async function RutaPage() {
   const faltanVisitas = Math.max(0, arqueo.clientes - resueltos);
   // "Mi día": la comisión que YA se ganó hoy (motivación: plata en SU bolsillo).
   // Base = recaudado autoritativo del servidor (sus pagos de hoy). Solo si tiene %.
-  // `comision_pct` no está en el tipo Usuario → se lee con el cliente admin (como la zona).
-  const comisionPct = usuario
-    ? Number(
-        (await createSupabaseAdmin().from("usuarios").select("comision_pct").eq("id", usuario.id).maybeSingle())
-          .data?.comision_pct ?? 0,
-      )
-    : 0;
+  // `comision_pct` ya viene en la fila propia (getUsuarioActual → select *), así
+  // que se usa directo, sin un 2º round-trip con el cliente admin.
+  const comisionPct = Number(usuario?.comision_pct ?? 0);
   const recaudadoBase = jornada?.recaudado ?? arqueo.recaudado;
   const comisionHoy = comisionPct > 0 ? calcularComision(recaudadoBase, comisionPct) : 0;
 

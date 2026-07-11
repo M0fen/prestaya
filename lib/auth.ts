@@ -69,6 +69,15 @@ export async function requireDev(): Promise<Usuario> {
 export async function getActorActual(): Promise<Actor | null> {
   const u = await getUsuarioActual();
   if (!u || !u.activo) return null;
+  return actorDeUsuario(u);
+}
+
+/**
+ * Actor a partir de un usuario YA resuelto (evita re-consultar la sesión con
+ * getUser()). Úsalo cuando la página ya tiene el usuario de requireGestor():
+ * la sesión se lee UNA vez, no 2-3. Solo agrega las zonas del supervisor.
+ */
+export async function actorDeUsuario(u: Usuario): Promise<Actor> {
   const zonas = u.rol === "supervisor" ? await getZonasDeSupervisor(await createSupabaseServer(), u.id) : [];
   return actorDesde(u, zonas);
 }
