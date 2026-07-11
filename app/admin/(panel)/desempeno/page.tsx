@@ -4,6 +4,7 @@
 // zona (el supervisor ve la suya). SOLO LECTURA.
 import Link from "next/link";
 import { requireGestor } from "@/lib/auth";
+import { createSupabaseServer } from "@/lib/supabase/server";
 import { getDesempenoRango, MAX_DIAS_DESEMPENO } from "@/lib/data/desempeno";
 import { alcanceDelActor } from "@/lib/data/alcance";
 import { fechaISOUY, sumarDiasYmd } from "@/lib/fecha";
@@ -28,6 +29,7 @@ export default async function DesempenoPage({
   searchParams: Promise<{ desde?: string; hasta?: string }>;
 }) {
   const usuario = await requireGestor();
+  const db = await createSupabaseServer();
   const alcance = await alcanceDelActor();
   const sp = await searchParams;
 
@@ -36,7 +38,7 @@ export default async function DesempenoPage({
   const desde = esYmd(sp.desde) ?? sumarDiasYmd(hoyYmd, -6);
   const hasta = esYmd(sp.hasta) ?? hoyYmd;
 
-  const r = await getDesempenoRango({ desde, hasta }, alcance);
+  const r = await getDesempenoRango(db, { desde, hasta }, alcance);
 
   // Chips de rango rápido (GET, sin JS).
   const primerDelMes = `${hoyYmd.slice(0, 7)}-01`;

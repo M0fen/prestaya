@@ -79,7 +79,7 @@ export default async function JornadaPage({
   // ── HISTORIAL (día pasado): foto de SOLO LECTURA, sin el motor "en vivo" (caro
   //    y solo con sentido para hoy). Reusa la capa de desempeño, acotada a ese día. ──
   if (!esHoy) {
-    const dia = await getDesempenoRango({ desde: fechaYmd, hasta: fechaYmd }, alcance);
+    const dia = await getDesempenoRango(db, { desde: fechaYmd, hasta: fechaYmd }, alcance);
     return (
       <div className="flex flex-col gap-5">
         <header className="flex flex-wrap items-end justify-between gap-2">

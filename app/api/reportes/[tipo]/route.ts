@@ -222,7 +222,7 @@ export async function GET(
     const ymd = (v: string | null) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : fechaHoyUY());
     const desdeYmd = ymd(url.searchParams.get("desde"));
     const hastaYmd = ymd(url.searchParams.get("hasta"));
-    const r = await getDesempenoRango({ desde: desdeYmd, hasta: hastaYmd }, { global: true });
+    const r = await getDesempenoRango(db, { desde: desdeYmd, hasta: hastaYmd }, { global: true });
     return csvResponse(
       `presta-ya_desempeno_${r.desde}_${r.hasta}.csv`,
       ["Cobrador", "Zona", "Recaudado", "Cobros", "Días activos", "Entregado", "Rendiciones", "Faltantes", "Monto faltante"],

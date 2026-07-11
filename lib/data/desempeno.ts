@@ -1,30 +1,29 @@
 // ─────────────────────────────────────────────────────────────────────────
 //  Capa de datos — DESEMPEÑO POR RANGO (historial del admin/supervisor).
-//  Agrega el rendimiento de TODOS los cobradores en un rango [desde, hasta]
-//  (ambos extremos ACOTADOS, a diferencia de las vistas "de hoy" que van de
-//  medianoche hasta ahora): recaudado, # cobros, días activos y — si hubo
-//  rendiciones — entregado/faltantes. Todo del libro de pagos inmutable, nada
-//  se estima. Corre como gestor y se acota por `alcance` (supervisor → su zona).
+//  Agrega el rendimiento de TODOS los cobradores en un rango [desde, hasta]:
+//  recaudado, # cobros, días activos y — si hubo rendiciones — entregado/faltantes.
+//  A ESCALA (mes/año): la suma de pagos la hace la RPC `app_desempeno_rango`
+//  (GROUP BY en SQL, definer, guardada por rol) → milisegundos en vez de traer
+//  cientos de miles de filas a JS. Si 0058 no corrió, degrada a un escaneo con
+//  el cliente admin. El scope por zona lo aplica el alcance (supervisor → su zona).
 // ─────────────────────────────────────────────────────────────────────────
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { diaUYInicioIso, diaUYFinIso, fechaISOUY } from "@/lib/fecha";
 import { traerTodo } from "./paginado";
 import { enLotes, type Alcance } from "./alcance";
 import { tablaFaltante } from "./errores";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 
-/** Tope defensivo: un trimestre. Evita barrer 100k+ pagos si piden un rango enorme. */
-export const MAX_DIAS_DESEMPENO = 92;
+/** Tope defensivo: un año. Con el GROUP BY en SQL, un año es barato. */
+export const MAX_DIAS_DESEMPENO = 366;
 
 export interface DesempenoCobrador {
   cobradorId: string;
   nombre: string;
   zonaNombre: string | null;
-  /** Suma de pagos que ESTE cobrador registró en el rango (por registrado_por). */
   recaudado: number;
   cobros: number;
-  /** Días distintos (UY) en los que registró al menos un cobro. */
   diasActivos: number;
-  /** Efectivo entregado en sus rendiciones del rango (0 si no hay 0013). */
   entregado: number;
   rendiciones: number;
   faltantes: number;
@@ -32,21 +31,20 @@ export interface DesempenoCobrador {
 }
 
 export interface DesempenoRango {
-  desde: string; // "YYYY-MM-DD" (día UY, inclusivo)
-  hasta: string; // "YYYY-MM-DD" (día UY, inclusivo)
-  dias: number; // días calendario del rango
+  desde: string;
+  hasta: string;
+  dias: number;
   totalRecaudado: number;
   totalCobros: number;
   cobradoresActivos: number;
-  cobradores: DesempenoCobrador[]; // ordenados por recaudado desc
+  cobradores: DesempenoCobrador[];
   porZona: { zonaNombre: string; recaudado: number; cobros: number }[];
-  serie: { fecha: string; recaudado: number; cobros: number }[]; // un punto por día
+  serie: { fecha: string; recaudado: number; cobros: number }[];
   disponibleRendiciones: boolean;
-  /** true si el rango pedido superaba el tope y se acotó. */
   recortado: boolean;
 }
 
-// ── Aritmética de fechas "YYYY-MM-DD" en UTC (sin líos de TZ) ───────────────
+// ── Aritmética de fechas "YYYY-MM-DD" en UTC ────────────────────────────────
 const ymdToUTC = (ymd: string): number => {
   const [y, m, d] = ymd.split("-").map(Number);
   return Date.UTC(y, m - 1, d);
@@ -63,16 +61,97 @@ function diasDelRango(desde: string, hasta: string): string[] {
   return out;
 }
 
+interface Aggregado {
+  porCob: Map<string, { recaudado: number; cobros: number; diasActivos: number }>;
+  porDia: Map<string, { recaudado: number; cobros: number }>;
+  totalRecaudado: number;
+  totalCobros: number;
+}
+
+/** Suma de pagos del rango por cobrador y por día. RPC (rápida) con fallback a
+ *  escaneo con admin client si la RPC (0058) todavía no existe. */
+async function agregarPagos(
+  db: SupabaseClient,
+  desdeIso: string,
+  hastaIso: string,
+  soloCob: string[] | null,
+): Promise<Aggregado> {
+  // 1) RPC definer (GROUP BY en SQL). Se llama con el cliente del GESTOR: la RPC
+  //    está guardada por `app_es_gestor()` (con service_role devolvería vacío).
+  try {
+    const { data, error } = await db.rpc("app_desempeno_rango", {
+      desde: desdeIso,
+      hasta: hastaIso,
+      p_cobradores: soloCob,
+    });
+    if (error) throw error;
+    const payload = (data ?? {}) as {
+      por_cobrador?: { cobrador_id: string; recaudado: number; cobros: number; dias_activos: number }[];
+      por_dia?: { fecha: string; recaudado: number; cobros: number }[];
+    };
+    const porCob = new Map<string, { recaudado: number; cobros: number; diasActivos: number }>();
+    let totalRecaudado = 0;
+    let totalCobros = 0;
+    for (const r of payload.por_cobrador ?? []) {
+      const recaudado = Number(r.recaudado);
+      const cobros = Number(r.cobros);
+      porCob.set(r.cobrador_id, { recaudado, cobros, diasActivos: Number(r.dias_activos) });
+      totalRecaudado += recaudado;
+      totalCobros += cobros;
+    }
+    const porDia = new Map<string, { recaudado: number; cobros: number }>();
+    for (const d of payload.por_dia ?? []) porDia.set(d.fecha, { recaudado: Number(d.recaudado), cobros: Number(d.cobros) });
+    return { porCob, porDia, totalRecaudado, totalCobros };
+  } catch (e) {
+    if (!tablaFaltante(e)) throw e; // solo degradamos si la RPC no existe (0058 sin correr)
+  }
+
+  // 2) Fallback: escaneo con el cliente admin (bypassa RLS por-fila). Scope por
+  //    `registrado_por` (soloCob). Igual de exacto, más lento a escala.
+  const admin = createSupabaseAdmin();
+  const pagos = await traerTodo<{ monto: number; registrado_por: string | null; registrado_en: string }>((d, h) => {
+    let q = admin
+      .from("pagos")
+      .select("monto, registrado_por, registrado_en")
+      .eq("anulado", false)
+      .gte("registrado_en", desdeIso)
+      .lt("registrado_en", hastaIso);
+    if (soloCob) q = q.in("registrado_por", soloCob);
+    return q.order("id", { ascending: true }).range(d, h);
+  });
+  const cob = new Map<string, { recaudado: number; cobros: number; dias: Set<string> }>();
+  const porDia = new Map<string, { recaudado: number; cobros: number }>();
+  let totalRecaudado = 0;
+  let totalCobros = 0;
+  for (const p of pagos) {
+    if (!p.registrado_en) continue;
+    const m = Number(p.monto);
+    const diaStr = fechaISOUY(new Date(p.registrado_en));
+    totalRecaudado += m;
+    totalCobros += 1;
+    const dd = porDia.get(diaStr) ?? { recaudado: 0, cobros: 0 };
+    dd.recaudado += m;
+    dd.cobros += 1;
+    porDia.set(diaStr, dd);
+    const cid = p.registrado_por;
+    if (!cid) continue;
+    const a = cob.get(cid) ?? { recaudado: 0, cobros: 0, dias: new Set<string>() };
+    a.recaudado += m;
+    a.cobros += 1;
+    a.dias.add(diaStr);
+    cob.set(cid, a);
+  }
+  const porCob = new Map<string, { recaudado: number; cobros: number; diasActivos: number }>();
+  for (const [k, v] of cob) porCob.set(k, { recaudado: v.recaudado, cobros: v.cobros, diasActivos: v.dias.size });
+  return { porCob, porDia, totalRecaudado, totalCobros };
+}
+
 export async function getDesempenoRango(
-  rango: { desde: string; hasta: string }, // "YYYY-MM-DD"
+  db: SupabaseClient,
+  rango: { desde: string; hasta: string },
   alcance: Alcance,
 ): Promise<DesempenoRango> {
-  // Lecturas con el cliente ADMIN (service_role): el RLS por-fila sobre `pagos`
-  // (158k filas) vuelve lentísima la consulta a escala (medido: 27s vs 0,4s). El
-  // scope se aplica EXPLÍCITO por `alcance` (el supervisor solo ve a SUS cobradores
-  // vía `.in(registrado_por, cobradorIds)`), igual que en alcance.ts / RPC definer.
-  const db = createSupabaseAdmin();
-  // Normaliza (desde ≤ hasta) y clampa al tope defensivo.
+  // Normaliza (desde ≤ hasta) y clampa al tope.
   let desde = rango.desde;
   let hasta = rango.hasta;
   if (diasEntre(desde, hasta) < 0) [desde, hasta] = [hasta, desde];
@@ -82,10 +161,9 @@ export async function getDesempenoRango(
     recortado = true;
   }
   const dias = diasEntre(desde, hasta) + 1;
-
-  const desdeIso = diaUYInicioIso(desde); // inclusivo
-  const hastaIso = diaUYFinIso(hasta); // EXCLUSIVO (inicio del día siguiente)
-  const soloCobradores = alcance.global ? null : alcance.cobradorIds;
+  const desdeIso = diaUYInicioIso(desde);
+  const hastaIso = diaUYFinIso(hasta);
+  const soloCob = alcance.global ? null : alcance.cobradorIds;
 
   const vacio = (): DesempenoRango => ({
     desde,
@@ -100,51 +178,17 @@ export async function getDesempenoRango(
     disponibleRendiciones: true,
     recortado,
   });
-  // Supervisor sin cobradores en su zona → nada que mostrar.
-  if (soloCobradores && soloCobradores.length === 0) return vacio();
+  if (soloCob && soloCob.length === 0) return vacio();
 
-  // 1) Pagos del rango (ambos extremos acotados), paginados con orden estable.
-  //    Es el libro inmutable; se acota por `registrado_por` = cobrador que cobró.
-  const pagos = await traerTodo<{ monto: number; registrado_por: string | null; registrado_en: string }>((d, h) => {
-    let q = db
-      .from("pagos")
-      .select("monto, registrado_por, registrado_en")
-      .eq("anulado", false)
-      .gte("registrado_en", desdeIso)
-      .lt("registrado_en", hastaIso);
-    if (soloCobradores) q = q.in("registrado_por", soloCobradores);
-    return q.order("id", { ascending: true }).range(d, h);
-  });
+  const agg = await agregarPagos(db, desdeIso, hastaIso, soloCob);
 
-  const porCob = new Map<string, { recaudado: number; cobros: number; dias: Set<string> }>();
-  const porDia = new Map<string, { recaudado: number; cobros: number }>();
-  let totalRecaudado = 0;
-  let totalCobros = 0;
-  for (const p of pagos) {
-    if (!p.registrado_en) continue; // sin timestamp no se puede ubicar en el día
-    const m = Number(p.monto);
-    const diaStr = fechaISOUY(new Date(p.registrado_en));
-    totalRecaudado += m;
-    totalCobros += 1;
-    const dd = porDia.get(diaStr) ?? { recaudado: 0, cobros: 0 };
-    dd.recaudado += m;
-    dd.cobros += 1;
-    porDia.set(diaStr, dd);
-    const cid = p.registrado_por as string | null;
-    if (!cid) continue;
-    const a = porCob.get(cid) ?? { recaudado: 0, cobros: 0, dias: new Set<string>() };
-    a.recaudado += m;
-    a.cobros += 1;
-    a.dias.add(diaStr);
-    porCob.set(cid, a);
-  }
-
-  // 2) Rendiciones del rango (columna `fecha` es date → comparación directa).
+  // Rendiciones del rango (admin client; scope por cobrador). Da entregado/faltantes.
+  const admin = createSupabaseAdmin();
   const rendPorCob = new Map<string, { entregado: number; rendiciones: number; faltantes: number; montoFaltante: number }>();
   let disponibleRendiciones = true;
   try {
-    let q = db.from("rendiciones").select("cobrador_id, entregado, diferencia").gte("fecha", desde).lte("fecha", hasta);
-    if (soloCobradores) q = q.in("cobrador_id", soloCobradores);
+    let q = admin.from("rendiciones").select("cobrador_id, entregado, diferencia").gte("fecha", desde).lte("fecha", hasta);
+    if (soloCob) q = q.in("cobrador_id", soloCob);
     const { data, error } = await q;
     if (error) throw error;
     for (const r of data ?? []) {
@@ -164,12 +208,12 @@ export async function getDesempenoRango(
     else throw e;
   }
 
-  // 3) Nombres de cobradores + su zona (para etiquetar y agrupar).
-  const ids = new Set<string>([...porCob.keys(), ...rendPorCob.keys()]);
+  // Nombres + zona de cada cobrador (para etiquetar/agrupar).
+  const ids = new Set<string>([...agg.porCob.keys(), ...rendPorCob.keys()]);
   const nombre = new Map<string, string>();
   const zonaDe = new Map<string, string | null>();
   for (const lote of enLotes([...ids])) {
-    const { data } = await db.from("usuarios").select("id, nombre, zona_id").in("id", lote);
+    const { data } = await admin.from("usuarios").select("id, nombre, zona_id").in("id", lote);
     for (const u of data ?? []) {
       nombre.set(u.id as string, u.nombre as string);
       zonaDe.set(u.id as string, (u.zona_id as string | null) ?? null);
@@ -177,16 +221,16 @@ export async function getDesempenoRango(
   }
   const zonaNombre = new Map<string, string>();
   try {
-    const { data, error } = await db.from("zonas").select("id, nombre");
+    const { data, error } = await admin.from("zonas").select("id, nombre");
     if (error) throw error;
     for (const z of data ?? []) zonaNombre.set(z.id as string, z.nombre as string);
   } catch {
-    /* zonas bloqueadas por RLS para el supervisor con zona → sin etiqueta */
+    /* sin zonas → sin etiqueta */
   }
 
   const cobradores: DesempenoCobrador[] = [...ids]
     .map((cid) => {
-      const a = porCob.get(cid);
+      const a = agg.porCob.get(cid);
       const r = rendPorCob.get(cid);
       const zid = zonaDe.get(cid) ?? null;
       return {
@@ -195,7 +239,7 @@ export async function getDesempenoRango(
         zonaNombre: zid ? zonaNombre.get(zid) ?? null : null,
         recaudado: Math.round(a?.recaudado ?? 0),
         cobros: a?.cobros ?? 0,
-        diasActivos: a?.dias.size ?? 0,
+        diasActivos: a?.diasActivos ?? 0,
         entregado: Math.round(r?.entregado ?? 0),
         rendiciones: r?.rendiciones ?? 0,
         faltantes: r?.faltantes ?? 0,
@@ -218,17 +262,17 @@ export async function getDesempenoRango(
 
   const serie = diasDelRango(desde, hasta).map((f) => ({
     fecha: f,
-    recaudado: Math.round(porDia.get(f)?.recaudado ?? 0),
-    cobros: porDia.get(f)?.cobros ?? 0,
+    recaudado: Math.round(agg.porDia.get(f)?.recaudado ?? 0),
+    cobros: agg.porDia.get(f)?.cobros ?? 0,
   }));
 
   return {
     desde,
     hasta,
     dias,
-    totalRecaudado: Math.round(totalRecaudado),
-    totalCobros,
-    cobradoresActivos: [...porCob.values()].filter((a) => a.cobros > 0).length,
+    totalRecaudado: Math.round(agg.totalRecaudado),
+    totalCobros: agg.totalCobros,
+    cobradoresActivos: [...agg.porCob.values()].filter((a) => a.cobros > 0).length,
     cobradores,
     porZona,
     serie,

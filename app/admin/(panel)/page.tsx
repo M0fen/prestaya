@@ -10,7 +10,9 @@ import { getRendicionesDia } from "@/lib/data/rendicion";
 import { getActivosConPagos } from "@/lib/data/activos";
 import { alcanceDelActor } from "@/lib/data/alcance";
 import { getLiquidacionDiaria, type LiquidacionDia } from "@/lib/data/liquidacion";
+import { getDesempenoRango } from "@/lib/data/desempeno";
 import { generarInsights } from "@/lib/insights";
+import { fechaISOUY } from "@/lib/fecha";
 import { UYU, diasSemana, meses } from "@/lib/format";
 import { Sparkline } from "@/components/charts/Sparkline";
 import { Columnas } from "@/components/charts/Columnas";
@@ -29,13 +31,17 @@ function fechaHoyLarga(d: Date): string {
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ periodo?: string }>;
+  searchParams: Promise<{ periodo?: string; cobs?: string }>;
 }) {
   const usuario = await requireGestor();
   const admin = esAdmin(usuario.rol);
   const hoy = new Date();
   const db = await createSupabaseServer();
-  const periodo = normalizarPeriodo((await searchParams).periodo);
+  const sp = await searchParams;
+  const periodo = normalizarPeriodo(sp.periodo);
+  // "Cobradores": período del ranking (hoy | mes | año). Mes/Año se resuelven con
+  // la RPC de agregación (rápida y acotada a la zona); Hoy usa el control en vivo.
+  const cobsPeriodo = sp.cobs === "mes" || sp.cobs === "anio" ? sp.cobs : "hoy";
 
   // Alcance del gestor (admin → todo; supervisor → su zona). Acota la franja de
   // "Control del día" (faltantes/sin-rendir) a lo que ESE gestor debe vigilar.
@@ -55,6 +61,17 @@ export default async function DashboardPage({
   const [serie, mov] = admin
     ? await Promise.all([getSerieRecaudo(db, hoy, 14), getResumenPeriodo(db, periodo, hoy)])
     : [null, null];
+  // Ranking de cobradores por mes/año (solo si se pidió esa pestaña): agregado
+  // por la RPC (rápido), acotado a la zona del gestor.
+  const hoyYmd = fechaISOUY(hoy);
+  const cobradoresRango =
+    cobsPeriodo === "hoy"
+      ? null
+      : await getDesempenoRango(
+          db,
+          { desde: cobsPeriodo === "mes" ? `${hoyYmd.slice(0, 7)}-01` : `${hoyYmd.slice(0, 4)}-01-01`, hasta: hoyYmd },
+          alcance,
+        );
   const reportesNuevos = resumen.reportesNuevos;
 
   const { cartera, recaudacion, mora, cobradores } = resumen;
@@ -89,6 +106,16 @@ export default async function DashboardPage({
   const recaudos = serie ? serie.dias.map((d) => d.recaudado) : [];
   const tendPct = serie ? Math.round(serie.tendencia * 100) : 0;
   const varPct = mov && mov.variacionPct !== null ? Math.round(mov.variacionPct * 100) : null;
+
+  // Toggle "Cobradores" (Hoy/Mes/Año): links que preservan el período de Movimiento.
+  const cobsHref = (v: "hoy" | "mes" | "anio"): string => {
+    const p = new URLSearchParams();
+    if (periodo !== "dia") p.set("periodo", periodo);
+    if (v !== "hoy") p.set("cobs", v);
+    const qs = p.toString();
+    return qs ? `/admin?${qs}` : "/admin";
+  };
+  const topRango = cobradoresRango ? Math.max(1, ...cobradoresRango.cobradores.map((c) => c.recaudado)) : 1;
 
   return (
     <div className="flex flex-col gap-5 lg:gap-6">
@@ -302,19 +329,54 @@ export default async function DashboardPage({
       {/* Cobradores + mora por antigüedad */}
       <div className="grid gap-3 lg:grid-cols-2">
         <section className="rounded-[16px] border border-borde bg-tarjeta p-5">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-[15px] font-extrabold text-tinta">Cobradores hoy</h2>
-            <Link href="/admin/cobranza" className="text-[12px] font-bold text-azul">Ver control →</Link>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-[15px] font-extrabold text-tinta">Cobradores</h2>
+            {/* Período del ranking: Hoy (control en vivo) / Este mes / Este año. */}
+            <div className="flex rounded-full bg-[#F0F3FA] p-0.5">
+              {([["hoy", "Hoy"], ["mes", "Este mes"], ["anio", "Este año"]] as const).map(([id, label]) => {
+                const activo = cobsPeriodo === id;
+                return (
+                  <Link
+                    key={id}
+                    href={cobsHref(id)}
+                    className={`rounded-full px-3 py-1.5 text-[12px] font-bold transition-colors ${
+                      activo ? "bg-tarjeta text-azul shadow-[0_1px_2px_rgba(26,34,71,0.1)]" : "text-gris hover:text-tinta"
+                    }`}
+                  >
+                    {label}
+                  </Link>
+                );
+              })}
+            </div>
           </div>
-          <BarrasComparativas
-            datos={cobradores.ranking.map((c) => ({
-              nombre: c.nombre,
-              valor: c.recaudado,
-              total: c.esperado,
-              sub: `${c.progresoPct}% de la ruta${c.anomalias > 0 ? ` · ${c.anomalias} anomalía(s)` : ""}`,
-              alerta: c.anomalias > 0,
-            }))}
-          />
+          {cobsPeriodo === "hoy" ? (
+            <BarrasComparativas
+              datos={cobradores.ranking.map((c) => ({
+                nombre: c.nombre,
+                valor: c.recaudado,
+                total: c.esperado,
+                sub: `${c.progresoPct}% de la ruta${c.anomalias > 0 ? ` · ${c.anomalias} anomalía(s)` : ""}`,
+                alerta: c.anomalias > 0,
+              }))}
+            />
+          ) : cobradoresRango && cobradoresRango.cobradores.length > 0 ? (
+            <>
+              <BarrasComparativas
+                datos={cobradoresRango.cobradores.map((c) => ({
+                  nombre: c.nombre,
+                  valor: c.recaudado,
+                  total: topRango,
+                  sub: `${c.cobros} cobros · ${c.diasActivos} día${c.diasActivos === 1 ? "" : "s"} activo${c.diasActivos === 1 ? "" : "s"}`,
+                }))}
+              />
+              <p className="mt-3 text-[11.5px] font-medium text-tenue">
+                Total {cobsPeriodo === "mes" ? "del mes" : "del año"}: {UYU(cobradoresRango.totalRecaudado)} ·{" "}
+                {cobradoresRango.totalCobros} cobros · {cobradoresRango.cobradoresActivos} cobradores
+              </p>
+            </>
+          ) : (
+            <p className="py-6 text-center text-[12.5px] font-medium text-gris">Sin cobros en el período.</p>
+          )}
         </section>
 
         <section className="rounded-[16px] border border-borde bg-tarjeta p-5">
