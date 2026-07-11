@@ -171,7 +171,7 @@ export default async function RecaudosPage({
 
       {/* Tabla */}
       <div className="overflow-x-auto rounded-[16px] border border-borde bg-tarjeta">
-        <table className="w-full border-collapse text-[12.5px]">
+        <table className="w-full min-w-[720px] border-collapse text-[12.5px]">
           <thead>
             <tr className="border-b border-linea text-[11px] font-bold tracking-wide text-gris uppercase">
               <th className="px-3 py-2.5 text-left">Ref Crédito</th>

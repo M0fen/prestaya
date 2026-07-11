@@ -24,7 +24,8 @@ export function EquipoTabla({ miembros }: { miembros: MiembroEquipo[] }) {
   return (
     <>
       <div className="overflow-x-auto rounded-[16px] border border-borde bg-tarjeta">
-        <table className="w-full border-collapse text-[12.5px]">
+        {/* min-w: 10 columnas → en mobile scrollea horizontal en vez de triturarse. */}
+        <table className="w-full min-w-[880px] border-collapse text-[12.5px]">
           <thead>
             <tr className="border-b border-linea text-[11px] font-bold tracking-wide text-gris uppercase">
               <th className="px-3 py-2.5 text-left">Ref</th>

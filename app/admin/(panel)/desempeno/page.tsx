@@ -159,7 +159,7 @@ export default async function DesempenoPage({
             Sin cobros de cobradores en el rango.
           </p>
         ) : (
-          <table className="mt-2 w-full border-collapse text-[12.5px]">
+          <table className="mt-2 w-full min-w-[760px] border-collapse text-[12.5px]">
             <thead>
               <tr className="border-b border-linea text-[11px] font-bold tracking-wide text-gris uppercase">
                 <th className="px-3 py-2.5 text-left">#</th>
