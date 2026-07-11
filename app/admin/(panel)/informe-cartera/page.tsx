@@ -177,7 +177,7 @@ export default async function InformeCarteraPage({
       <p className="text-[11px] leading-[1.6] font-medium text-[#AEB6CC]">
         Todo derivado del cartón real: <b>Ventas Crédito</b> = capital colocado; <b>Con Intereses</b> = total
         a cobrar (interés incluido en la cuota); <b>Utilidad proyectada</b> = Σ del interés por crédito (interés a
-        ganar si todos pagan, sin restar créditos VIP/0%) — es PROYECTADA, no ganancia neta; <b>Recaudo</b> =
+        ganar si todos pagan) — es PROYECTADA, no ganancia neta; <b>Recaudo</b> =
         abonado a hoy; <b>Cartera Pendiente</b> = saldo por cobrar. <b>Saldo Pendiente (a hoy)</b> por fila es esa
         misma deuda a la fecha. <b>Sin filtros</b>, la Cartera Pendiente coincide con el “Capital en calle” del
         dashboard; al filtrar por vendedor o búsqueda, los KPIs son de lo filtrado. El <b>% Recaudo</b> = Recaudo /

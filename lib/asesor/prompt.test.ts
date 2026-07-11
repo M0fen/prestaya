@@ -10,7 +10,6 @@ const RESUMEN: ResumenFinanciero = {
     conIntereses: 650000,
     recaudadoAcumulado: 110000,
     carteraPorCobrar: 390000,
-    carteraVip: 0,
     porCobrarHoy: 1000,
     creditosActivos: 1,
     clientesActivos: 1,

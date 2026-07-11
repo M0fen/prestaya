@@ -31,8 +31,6 @@ export interface ResumenFinanciero {
     /** Abonado acumulado a la cartera activa = "Recaudo". */
     recaudadoAcumulado: number;
     carteraPorCobrar: number;
-    /** Parte VIP/especial de la cartera (créditos grandes que Disapp no reflejaba). */
-    carteraVip: number;
     /** Cuotas que vencen hoy y aún no se saldaron. */
     porCobrarHoy: number;
     creditosActivos: number;
@@ -103,7 +101,6 @@ export async function getResumenFinanciero(
       conIntereses: dash.totalConIntereses,
       recaudadoAcumulado: dash.recaudadoAcumulado,
       carteraPorCobrar: dash.carteraPorCobrar,
-      carteraVip: dash.carteraVip,
       porCobrarHoy: dash.porCobrarHoy,
       creditosActivos: dash.creditosActivos,
       clientesActivos: dash.clientesActivos,
@@ -450,7 +447,7 @@ export function resumenComoTexto(r: ResumenFinanciero): string {
   L.push(`- Total a cobrar con interés (venta bruta): ${UYU(r.cartera.conIntereses)}`);
   L.push(`- Utilidad/interés PROYECTADO (si todos pagan): ${UYU(utilidadProy)} → margen ${pct(margen)} sobre el capital`);
   L.push(`- Recaudado acumulado de la cartera activa: ${UYU(r.cartera.recaudadoAcumulado)}`);
-  L.push(`- Cartera por cobrar (saldo pendiente hoy): ${UYU(r.cartera.carteraPorCobrar)}${r.cartera.carteraVip > 0 ? ` (de eso, VIP/especial: ${UYU(r.cartera.carteraVip)})` : ""}`);
+  L.push(`- Cartera por cobrar (saldo pendiente hoy): ${UYU(r.cartera.carteraPorCobrar)}`);
   L.push(`- Vence hoy y aún sin saldar: ${UYU(r.cartera.porCobrarHoy)}`);
   L.push(`- Créditos activos: ${r.cartera.creditosActivos} · deudores con crédito activo: ${r.cartera.deudoresActivos} · clientes registrados: ${r.cartera.clientesActivos}`);
   L.push(`- Créditos finalizados: ${r.cartera.creditosFinalizados} · incobrables: ${r.cartera.incobrables}`);

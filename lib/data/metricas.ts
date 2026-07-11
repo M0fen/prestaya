@@ -40,10 +40,6 @@ export interface DashboardMetricas {
   recaudadoAcumulado: number;
   /** Saldo total por cobrar de los créditos activos (UYU) = "Cartera Pendiente". */
   carteraPorCobrar: number;
-  /** Parte de la cartera correspondiente a los créditos VIP/especiales (los de
-   *  los cobradores "CARTERA …": clientes grandes que Disapp no reflejaba). El
-   *  resto (carteraPorCobrar − carteraVip) es la cartera OPERATIVA normal. */
-  carteraVip: number;
   /** Cuotas que VENCEN hoy y aún no están saldadas (≠ cartera total). */
   porCobrarHoy: number;
   recaudadoHoy: number;
@@ -178,7 +174,6 @@ export async function getDashboardMetricas(
   let totalConIntereses = 0;
   let recaudadoAcumulado = 0;
   let carteraPorCobrar = 0;
-  let carteraVip = 0;
   let porCobrarHoy = 0;
   let morosos = 0;
   let montoEnMora = 0;
@@ -204,9 +199,6 @@ export async function getDashboardMetricas(
     carteraPorCobrar += r.falta;
     totalConIntereses += r.totalAPagar;
     recaudadoAcumulado += r.totalPagado;
-    // VIP/especial = créditos de los cobradores "CARTERA …" (los 3 grandes que
-    // Disapp no reflejaba). El resto es la cartera operativa normal.
-    if (/^CARTERA\b/i.test(p.cobrador_nombre ?? "")) carteraVip += r.falta;
 
     // "Por cobrar HOY": la cuota que vence hoy y aún no se saldó (lo que el
     // cobrador debería juntar en el día, ≠ cartera total pendiente).
@@ -247,7 +239,6 @@ export async function getDashboardMetricas(
     totalConIntereses,
     recaudadoAcumulado,
     carteraPorCobrar,
-    carteraVip,
     porCobrarHoy,
     recaudadoHoy,
     recaudadoMes,
