@@ -71,6 +71,26 @@ const PATHS: Record<string, React.ReactNode> = {
       <path d="M4 7h16M4 12h16M4 17h16" />
     </>
   ),
+  // Apertura del día (amanecer).
+  apertura: (
+    <>
+      <path d="M17 18a5 5 0 0 0-10 0" />
+      <path d="M12 2v7M4.2 10.2l1.4 1.4M19.8 10.2l-1.4 1.4M1 18h2M21 18h2M23 22H1" />
+      <path d="M8 6l4-4 4 4" />
+    </>
+  ),
+  // En vivo (pulso/actividad).
+  vivo: (
+    <>
+      <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+    </>
+  ),
+  // Cierre del día (luna).
+  cierre: (
+    <>
+      <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z" />
+    </>
+  ),
 };
 
 export type NombreIcono = keyof typeof PATHS;

@@ -5,6 +5,7 @@
 //  degrada a vacío si 0015 aún no corrió.
 // ─────────────────────────────────────────────────────────────────────────
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { inicioDiaUYIso } from "@/lib/fecha";
 import { tablaFaltante } from "./errores";
 
 export interface EntradaAuditoria {
@@ -45,6 +46,16 @@ export interface RegistroAuditoria {
   creadoEn: string;
 }
 
+const mapRegistro = (r: Record<string, unknown>): RegistroAuditoria => ({
+  id: r.id as string,
+  actorNombre: (r.actor_nombre as string | null) ?? "—",
+  accion: r.accion as string,
+  entidad: (r.entidad as string | null) ?? null,
+  entidadId: (r.entidad_id as string | null) ?? null,
+  detalle: (r.detalle as string | null) ?? null,
+  creadoEn: r.creado_en as string,
+});
+
 /** Últimos registros de auditoría (para el panel). Degrada a [] si falta 0015. */
 export async function getAuditoria(
   db: SupabaseClient,
@@ -57,15 +68,33 @@ export async function getAuditoria(
       .order("creado_en", { ascending: false })
       .limit(limite);
     if (error) throw error;
-    return (data ?? []).map((r) => ({
-      id: r.id as string,
-      actorNombre: (r.actor_nombre as string | null) ?? "—",
-      accion: r.accion as string,
-      entidad: (r.entidad as string | null) ?? null,
-      entidadId: (r.entidad_id as string | null) ?? null,
-      detalle: (r.detalle as string | null) ?? null,
-      creadoEn: r.creado_en as string,
-    }));
+    return (data ?? []).map(mapRegistro);
+  } catch (e) {
+    if (tablaFaltante(e)) return [];
+    throw e;
+  }
+}
+
+/** Acciones que ESTE gestor registró HOY — la "bitácora del día" de Mi jornada.
+ *  Descarga la memoria de trabajo: le deja ver de un vistazo lo que ya hizo (avisó,
+ *  registró un compromiso, aprobó un gasto, cerró una zona) para retomar tras una
+ *  interrupción. Degrada a [] si falta 0015. */
+export async function getBitacoraGestorDia(
+  db: SupabaseClient,
+  actorId: string,
+  hoy: Date = new Date(),
+  limite = 25,
+): Promise<RegistroAuditoria[]> {
+  try {
+    const { data, error } = await db
+      .from("auditoria")
+      .select("*")
+      .eq("actor_id", actorId)
+      .gte("creado_en", inicioDiaUYIso(hoy))
+      .order("creado_en", { ascending: false })
+      .limit(limite);
+    if (error) throw error;
+    return (data ?? []).map(mapRegistro);
   } catch (e) {
     if (tablaFaltante(e)) return [];
     throw e;

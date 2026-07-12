@@ -20,23 +20,25 @@ import { getControlCobranza, type RankingCobrador } from "@/lib/data/control";
 import { getRendicionesDia } from "@/lib/data/rendicion";
 import { getDesempenoRango, type DesempenoRango } from "@/lib/data/desempeno";
 import { contarSolicitudesGastoPendientes } from "@/lib/data/solicitudesGasto";
+import { getBitacoraGestorDia, type RegistroAuditoria } from "@/lib/data/auditoria";
 import { alcanceDelActor } from "@/lib/data/alcance";
 import { navVisible } from "@/lib/admin/nav";
-import { UYU, diasSemana, meses } from "@/lib/format";
+import { UYU, diasSemana, meses, horaDe } from "@/lib/format";
 import { fechaISOUY, sumarDiasYmd } from "@/lib/fecha";
 import { BarrasComparativas } from "@/components/charts/BarrasComparativas";
 import { CierrePorZona } from "@/components/admin/CierrePorZona";
 import { AvisarCobrador } from "@/components/admin/AvisarCobrador";
 import { AutoRefresco } from "@/components/admin/AutoRefresco";
+import { Icono, type NombreIcono } from "@/components/Iconos";
 import type { ReactNode } from "react";
 
 export const dynamic = "force-dynamic";
 
 type Acto = "apertura" | "vivo" | "cierre";
-const ACTOS: { id: Acto; n: number; label: string; icon: string; cuando: string }[] = [
-  { id: "apertura", n: 1, label: "Apertura", icon: "🌅", cuando: "temprano" },
-  { id: "vivo", n: 2, label: "En vivo", icon: "🛰️", cuando: "durante el día" },
-  { id: "cierre", n: 3, label: "Cierre", icon: "🌙", cuando: "al cierre" },
+const ACTOS: { id: Acto; n: number; label: string; icon: NombreIcono; cuando: string }[] = [
+  { id: "apertura", n: 1, label: "Apertura", icon: "apertura", cuando: "temprano" },
+  { id: "vivo", n: 2, label: "En vivo", icon: "vivo", cuando: "durante el día" },
+  { id: "cierre", n: 3, label: "Cierre", icon: "cierre", cuando: "al cierre" },
 ];
 
 function horaMontevideo(): number {
@@ -122,11 +124,12 @@ export default async function JornadaPage({
     getRendicionesDia(db, hoy, alcance),
   ]);
   const control = await getControlCobranza(db, hoy, activos, alcance);
-  const [resumen, cierre, centro, compromisos] = await Promise.all([
+  const [resumen, cierre, centro, compromisos, bitacora] = await Promise.all([
     getResumenFinanciero(db, hoy, { alcance, activos, control }),
     getCierrePorZona(db, hoy, alcance, rend),
     getCentroAlertas(db, hoy, alcance, { control, rend }),
     getResumenCompromisos(db, alcance, hoy),
+    getBitacoraGestorDia(db, usuario.id, hoy),
   ]);
   const { cartera, recaudacion, mora, cobradores } = resumen;
   // Zonas que este gestor puede sellar (supervisor de la zona; admin todas).
@@ -164,6 +167,8 @@ export default async function JornadaPage({
   const esperadoTotal = cobradores.ranking.reduce((s, c) => s + c.esperado, 0);
   const cobradoRuta = cobradores.ranking.reduce((s, c) => s + c.recaudado, 0);
   const avancePct = esperadoTotal > 0 ? Math.min(100, Math.round((cobradoRuta / esperadoTotal) * 100)) : 0;
+  // Avance del DÍA para el pulso héroe: recaudado total (incl. cerrados) sobre la meta.
+  const avanceDiaPct = esperadoTotal > 0 ? Math.min(100, Math.round((recaudacion.hoy / esperadoTotal) * 100)) : 0;
   const alertasAltas = centro.conteo.alta;
   // Clientes listos para renovar (avance ≥ 75%) — oportunidad de colocar. Barato:
   // sale del `activos` YA cargado (pagado/total), sin consultas extra.
@@ -205,6 +210,8 @@ export default async function JornadaPage({
         recaudadoHoy={recaudacion.hoy}
         clientes={cartera.deudoresActivos}
         creditos={cartera.creditosActivos}
+        esperadoDia={esperadoTotal}
+        avancePct={avanceDiaPct}
       />
 
       {/* Gastos de ruta esperando: el cobrador está parado esperando la aprobación. */}
@@ -261,8 +268,9 @@ export default async function JornadaPage({
                   </span>
                 )}
               </div>
-              <span className={`text-[14px] font-extrabold ${activo ? "text-tinta" : "text-cuerpo"}`}>
-                {a.icon} {a.label}
+              <span className={`flex items-center gap-1.5 text-[14px] font-extrabold ${activo ? "text-tinta" : "text-cuerpo"}`}>
+                <Icono name={a.icon} className="h-[15px] w-[15px]" />
+                {a.label}
               </span>
               <span className={`text-[10.5px] font-medium ${activo ? "text-azul/70" : "text-tenue"}`}>{a.cuando}</span>
             </Link>
@@ -296,6 +304,9 @@ export default async function JornadaPage({
         />
       )}
       {acto === "cierre" && <Cierre cierre={cierre} cerrables={cerrables} />}
+
+      {/* Bitácora del día: lo que YA hiciste (descarga de memoria + cierre de loop). */}
+      <BitacoraDia entradas={bitacora} />
     </div>
   );
 }
@@ -333,16 +344,33 @@ function Apertura({
   const montoIncumplido = compromisos.incumplidos.reduce((s, c) => s + Math.max(0, c.monto - c.pagadoDesde), 0);
   return (
     <div className="flex flex-col gap-4">
-      <Encabezado
-        titulo="Arrancá el día"
-        bajada="Revisá lo que quedó pendiente y decidí a quién hay que cobrar hoy, antes de que salga el equipo."
-      />
-
-      {/* Instrumentos del supervisor: las acciones del día, a un toque. */}
-      <div className="grid grid-cols-3 gap-2">
-        <AccionRapida href="/admin/chat" icon="💬" label="Avisar al equipo" sub="mensaje a cobradores" />
-        <AccionRapida href="/admin/mora" icon="✍️" label="Registrar gestión" sub="compromiso de pago" />
-        <AccionRapida href="/admin/desempeno" icon="🏆" label="Desempeño" sub="últimos 7 días" />
+      {/* HÉROE del acto: el plan del día EN UN VISTAZO + UNA acción primaria (en vez
+          de tres atajos que competían con el launchpad). Lidera el número que decide
+          el arranque: cuánto hay por cobrar hoy y cuánta mora crítica priorizar. */}
+      <div className="flex flex-col gap-3 rounded-[16px] border border-borde bg-tarjeta p-4">
+        <div className="flex flex-col gap-0.5">
+          <h2 className="text-[16px] font-extrabold tracking-[-0.01em] text-tinta">Arrancá el día</h2>
+          <p className="text-[12.5px] font-medium text-gris">Decidí a quién cobrar hoy antes de que salga el equipo.</p>
+        </div>
+        <div className="flex items-end justify-between gap-3">
+          <div className="flex flex-col">
+            <span className="text-[11px] font-bold uppercase tracking-wide text-gris">Por cobrar hoy</span>
+            <span className="text-[28px] leading-none font-black tabular-nums text-azul">{UYU(porCobrarHoy)}</span>
+            <span className="mt-0.5 text-[11.5px] font-medium text-tenue">{morosos} en mora · {UYU(moraMonto)} vencido</span>
+          </div>
+          {moraCriticos > 0 && (
+            <div className="flex flex-col items-end rounded-[12px] panel-rojo px-3 py-2">
+              <span className="text-[22px] leading-none font-black tabular-nums text-rojo-osc">{moraCriticos}</span>
+              <span className="text-[10.5px] font-bold text-rojo-osc">mora crítica · 16+ días</span>
+            </div>
+          )}
+        </div>
+        <Link
+          href="/admin/mora"
+          className="flex items-center justify-center gap-1.5 rounded-[12px] bg-[#2453DC] px-4 py-2.5 text-[13px] font-bold text-white active:scale-[0.99]"
+        >
+          Ver mora y avisar a cobradores →
+        </Link>
       </div>
 
       {/* Compromisos de pago (mini-CRM) — auto-verificados contra el libro de pagos. */}
@@ -402,23 +430,6 @@ function Apertura({
       ) : (
         <LineaCalma texto={rendicionesDisponible ? "La caja de ayer quedó limpia: sin faltantes ni float en la calle." : "Sin señales de caja abiertas."} />
       )}
-
-      {/* Plan de cobranza del día */}
-      <Panel titulo="A quién cobrar hoy" href="/admin/mora" cta="Ver mora y avisar →" tono="neutro">
-        <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3">
-          <DatoGrande
-            activo={moraCriticos > 0}
-            etiqueta="Mora crítica"
-            valor={String(moraCriticos)}
-            sub={moraCriticos > 0 ? "16+ días · priorizar" : "sin mora crítica"}
-          />
-          <DatoGrande etiqueta="En mora" valor={String(morosos)} sub={`${UYU(moraMonto)} vencido`} />
-          <DatoGrande etiqueta="Por cobrar hoy" valor={UYU(porCobrarHoy)} sub="cuotas que vencen" tono="azul" />
-        </div>
-        <p className="mt-3 text-[12px] font-medium text-gris">
-          Entrá a <b className="text-tinta">Mora</b> para priorizar y dejarle a cada cobrador el mensaje de a quién visitar.
-        </p>
-      </Panel>
 
       {/* Oportunidad de colocación: clientes que ya casi terminan su crédito. */}
       {renovables > 0 && (
@@ -618,7 +629,9 @@ function Cierre({ cierre, cerrables }: { cierre: ResumenCierreZonas; cerrables: 
   );
 }
 
-/* ── Concentrado de la zona (pulso, siempre visible) ───────────────────── */
+/* ── Concentrado de la zona (pulso, siempre visible) ─────────────────────
+   Jerárquico: "Recaudado hoy" LIDERA (número grande + barra de avance, que el
+   ojo estima preattentivamente); los otros 3 quedan secundarios. */
 function ResumenZona({
   capitalEnCalle,
   morosos,
@@ -627,6 +640,8 @@ function ResumenZona({
   recaudadoHoy,
   clientes,
   creditos,
+  esperadoDia,
+  avancePct,
 }: {
   capitalEnCalle: number;
   morosos: number;
@@ -635,18 +650,66 @@ function ResumenZona({
   recaudadoHoy: number;
   clientes: number;
   creditos: number;
+  esperadoDia: number;
+  avancePct: number;
 }) {
   return (
-    <section className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
-      <PulsoTile etiqueta="Capital en calle" valor={UYU(capitalEnCalle)} sub={`${creditos} créditos activos`} color="var(--color-tinta)" />
-      <PulsoTile etiqueta="Recaudado hoy" valor={UYU(recaudadoHoy)} sub="cobrado en tu zona" color="var(--color-verde-osc)" />
-      <PulsoTile
-        etiqueta="En mora"
-        valor={String(morosos)}
-        sub={`${UYU(montoMora)} · ${Math.round(moraPct * 100)}% cartera`}
-        color={morosos > 0 ? "var(--color-rojo-osc)" : "var(--color-tenue)"}
-      />
-      <PulsoTile etiqueta="Clientes" valor={String(clientes)} sub="con crédito activo" color="var(--color-azul)" />
+    <section className="flex flex-col gap-2.5">
+      {/* HÉROE: lo que más importa del día, en grande, con barra de avance. */}
+      <div className="rounded-[16px] border border-borde bg-tarjeta p-4">
+        <div className="flex items-end justify-between gap-3">
+          <div className="flex flex-col">
+            <span className="text-[11px] font-bold uppercase tracking-wide text-gris">Recaudado hoy</span>
+            <span className="text-[30px] leading-none font-black tabular-nums text-verde-osc">{UYU(recaudadoHoy)}</span>
+          </div>
+          <div className="flex flex-col items-end">
+            <span className="text-[14px] font-extrabold tabular-nums text-tinta">{avancePct}%</span>
+            {esperadoDia > 0 && (
+              <span className="text-[11px] font-medium text-tenue">de la meta {UYU(esperadoDia)}</span>
+            )}
+          </div>
+        </div>
+        <div className="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-linea">
+          <div className="h-full rounded-full bg-verde" style={{ width: `${avancePct}%` }} />
+        </div>
+      </div>
+      {/* Secundarios: contexto, sin competir con el héroe. */}
+      <div className="grid grid-cols-3 gap-2.5">
+        <PulsoTile etiqueta="Capital en calle" valor={UYU(capitalEnCalle)} sub={`${creditos} créditos`} color="var(--color-tinta)" />
+        <PulsoTile
+          etiqueta="En mora"
+          valor={String(morosos)}
+          sub={`${UYU(montoMora)} · ${Math.round(moraPct * 100)}%`}
+          color={morosos > 0 ? "var(--color-rojo-osc)" : "var(--color-tenue)"}
+        />
+        <PulsoTile etiqueta="Clientes" valor={String(clientes)} sub="con crédito" color="var(--color-azul)" />
+      </div>
+    </section>
+  );
+}
+
+/* ── Bitácora del día: memoria externa de las acciones del gestor hoy ────── */
+function BitacoraDia({ entradas }: { entradas: RegistroAuditoria[] }) {
+  if (entradas.length === 0) return null;
+  return (
+    <section className="rounded-[16px] border border-borde bg-tarjeta p-4">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-[12px] font-bold uppercase tracking-wide text-gris">Lo que hiciste hoy</span>
+        <span className="text-[11px] font-semibold text-tenue tabular-nums">
+          {entradas.length} {entradas.length === 1 ? "acción" : "acciones"}
+        </span>
+      </div>
+      <ul className="flex flex-col divide-y divide-linea">
+        {entradas.slice(0, 8).map((e) => (
+          <li key={e.id} className="flex items-start gap-2.5 py-2">
+            <span className="w-11 flex-shrink-0 text-[11px] font-semibold text-tenue tabular-nums">{horaDe(e.creadoEn)}</span>
+            <div className="flex min-w-0 flex-col">
+              <span className="text-[12.5px] font-semibold text-tinta">{e.accion}</span>
+              {e.detalle && <span className="truncate text-[11.5px] font-medium text-gris">{e.detalle}</span>}
+            </div>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
@@ -681,36 +744,30 @@ const TOOLS: { href: string; label: string; icon: string }[] = [
 function HerramientasDia({ hrefs }: { hrefs: Set<string> }) {
   const items = TOOLS.filter((t) => hrefs.has(t.href));
   if (items.length === 0) return null;
+  // COLAPSADO por defecto (divulgación progresiva): las herramientas ya viven en
+  // la barra inferior/lateral; acá dejan de competir con el contenido del acto.
   return (
-    <section className="flex flex-col gap-2">
-      <span className="px-0.5 text-[12px] font-bold uppercase tracking-wide text-gris">Herramientas del día</span>
-      <div className="grid grid-cols-4 gap-2 md:grid-cols-8">
+    <details className="group rounded-[14px] border border-borde bg-tarjeta">
+      <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-2.5">
+        <span className="text-[12px] font-bold uppercase tracking-wide text-gris">Herramientas del día</span>
+        <span className="text-[11px] font-semibold text-tenue">
+          <span className="group-open:hidden">{items.length} · abrir ▾</span>
+          <span className="hidden group-open:inline">cerrar ▴</span>
+        </span>
+      </summary>
+      <div className="grid grid-cols-4 gap-2 px-3 pb-3 md:grid-cols-8">
         {items.map((t) => (
           <Link
             key={t.href}
             href={t.href}
-            className="flex flex-col items-center gap-1.5 rounded-[14px] border border-borde bg-tarjeta py-3 transition-transform hover:bg-suave active:scale-95"
+            className="flex flex-col items-center gap-1.5 rounded-[14px] border border-borde bg-suave py-3 transition-transform hover:bg-tarjeta active:scale-95"
           >
-            <span className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-[#EEF3FF] text-[17px]">{t.icon}</span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-azul-suave text-[17px]">{t.icon}</span>
             <span className="text-[11px] font-bold text-cuerpo">{t.label}</span>
           </Link>
         ))}
       </div>
-    </section>
-  );
-}
-
-/* ── Acción rápida del supervisor (instrumento del día) ────────────────── */
-function AccionRapida({ href, icon, label, sub }: { href: string; icon: string; label: string; sub: string }) {
-  return (
-    <Link
-      href={href}
-      className="flex flex-col items-center gap-1 rounded-[14px] border border-borde bg-tarjeta px-2 py-3 text-center transition-transform hover:bg-suave active:scale-95"
-    >
-      <span className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-[#EEF3FF] text-[17px]">{icon}</span>
-      <span className="text-[12px] font-bold text-tinta leading-tight">{label}</span>
-      <span className="text-[10px] font-medium text-tenue leading-tight">{sub}</span>
-    </Link>
+    </details>
   );
 }
 
