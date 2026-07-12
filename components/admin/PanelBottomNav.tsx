@@ -8,7 +8,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import type { Rol } from "@/types/db";
 import { navVisible, navAgrupado } from "@/lib/admin/nav";
-import { Icono, type NombreIcono } from "@/components/Iconos";
+import { Icono, ICONO_NAV, type NombreIcono } from "@/components/Iconos";
 
 /** Destinos del flujo diario en la barra inferior (orden = importancia). Se
  *  muestran solo los que el rol puede ver. El 5º slot es siempre "Menú". */
@@ -151,7 +151,11 @@ function ItemSheet({
       onClick={onNav}
       className={`flex items-center gap-3 rounded-[12px] px-3 py-2.5 text-[14px] font-semibold ${activo ? "bg-white/15 text-white" : "text-white/75 active:bg-white/10"}`}
     >
-      <span aria-hidden="true" className="text-[17px]">{icon}</span>
+      {ICONO_NAV[href] ? (
+        <Icono name={ICONO_NAV[href]} className="h-[18px] w-[18px]" />
+      ) : (
+        <span aria-hidden="true" className="text-[17px]">{icon}</span>
+      )}
       <span>{label}</span>
       {badge > 0 && (
         <span

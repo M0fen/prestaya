@@ -91,6 +91,91 @@ const PATHS: Record<string, React.ReactNode> = {
       <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z" />
     </>
   ),
+  // Mora (reloj).
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7.5V12l3 2" />
+    </>
+  ),
+  // Recaudos (billete).
+  cash: (
+    <>
+      <rect x="2.5" y="6" width="19" height="12" rx="2" />
+      <circle cx="12" cy="12" r="2.4" />
+      <path d="M6 9.5v5M18 9.5v5" />
+    </>
+  ),
+  // Desempeño (medalla).
+  award: (
+    <>
+      <circle cx="12" cy="8.5" r="5.5" />
+      <path d="M8.5 13.2 7 22l5-2.8 5 2.8-1.5-8.8" />
+    </>
+  ),
+  // Alertas (campana).
+  bell: (
+    <>
+      <path d="M18 8.5a6 6 0 0 0-12 0c0 6-2.5 7.5-2.5 7.5h17S18 14.5 18 8.5" />
+      <path d="M13.7 20a2 2 0 0 1-3.4 0" />
+    </>
+  ),
+  // Campo (pin de ubicación / GPS).
+  pin: (
+    <>
+      <path d="M12 21s-6-5.3-6-10a6 6 0 0 1 12 0c0 4.7-6 10-6 10z" />
+      <circle cx="12" cy="11" r="2.4" />
+    </>
+  ),
+  // Renovar (flecha circular).
+  refresh: (
+    <>
+      <path d="M21 12a9 9 0 1 1-2.6-6.4" />
+      <path d="M21 4v4.5h-4.5" />
+    </>
+  ),
+  // Anular (prohibido).
+  ban: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M5.6 5.6 18.4 18.4" />
+    </>
+  ),
+  // Clientes (persona).
+  user: (
+    <>
+      <circle cx="12" cy="8" r="3.8" />
+      <path d="M4.5 20a7.5 7.5 0 0 1 15 0" />
+    </>
+  ),
+  // Gastos (surtidor de combustible).
+  fuel: (
+    <>
+      <path d="M4 21V5a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v16M3 21h11" />
+      <path d="M13 9h3a1.5 1.5 0 0 1 1.5 1.5V16a1.8 1.8 0 0 0 3.5 0V9.5L18 6.5" />
+    </>
+  ),
+};
+
+/** Mapa href → ícono para la nav del panel (sidebar + launchpad). Cubre los ítems
+ *  del día; los demás caen al emoji del ítem (fallback en SidebarNav). */
+export const ICONO_NAV: Record<string, NombreIcono> = {
+  "/admin": "inicio",
+  "/admin/jornada": "jornada",
+  "/admin/alertas": "bell",
+  "/admin/cierre": "apertura",
+  "/admin/cobranza": "cobranza",
+  "/admin/recaudos": "cash",
+  "/admin/caja": "caja",
+  "/admin/mora": "clock",
+  "/admin/campo": "pin",
+  "/admin/anulaciones": "ban",
+  "/admin/gastos": "fuel",
+  "/admin/clientes": "user",
+  "/admin/renovaciones": "refresh",
+  "/admin/desempeno": "award",
+  "/admin/chat": "chat",
+  "/admin/notas": "notas",
 };
 
 export type NombreIcono = keyof typeof PATHS;

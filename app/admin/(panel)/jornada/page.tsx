@@ -29,7 +29,7 @@ import { BarrasComparativas } from "@/components/charts/BarrasComparativas";
 import { CierrePorZona } from "@/components/admin/CierrePorZona";
 import { AvisarCobrador } from "@/components/admin/AvisarCobrador";
 import { AutoRefresco } from "@/components/admin/AutoRefresco";
-import { Icono, type NombreIcono } from "@/components/Iconos";
+import { Icono, ICONO_NAV, type NombreIcono } from "@/components/Iconos";
 import type { ReactNode } from "react";
 
 export const dynamic = "force-dynamic";
@@ -762,7 +762,9 @@ function HerramientasDia({ hrefs }: { hrefs: Set<string> }) {
             href={t.href}
             className="flex flex-col items-center gap-1.5 rounded-[14px] border border-borde bg-suave py-3 transition-transform hover:bg-tarjeta active:scale-95"
           >
-            <span className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-azul-suave text-[17px]">{t.icon}</span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-azul-suave text-azul">
+              <Icono name={ICONO_NAV[t.href] ?? "menu"} className="h-[18px] w-[18px]" />
+            </span>
             <span className="text-[11px] font-bold text-cuerpo">{t.label}</span>
           </Link>
         ))}

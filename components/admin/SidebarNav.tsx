@@ -12,6 +12,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Rol } from "@/types/db";
 import { navAgrupado, type NavItem } from "@/lib/admin/nav";
+import { Icono, ICONO_NAV } from "@/components/Iconos";
 
 export function SidebarNav({
   rol,
@@ -106,9 +107,13 @@ function ItemLink({
         activo ? "bg-white/15 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"
       }`}
     >
-      <span aria-hidden="true" className="text-[15px]">
-        {item.icon}
-      </span>
+      {ICONO_NAV[item.href] ? (
+        <Icono name={ICONO_NAV[item.href]} className="h-4 w-4 flex-shrink-0" />
+      ) : (
+        <span aria-hidden="true" className="text-[15px]">
+          {item.icon}
+        </span>
+      )}
       <span className="whitespace-nowrap">{item.label}</span>
       {item.href === "/admin/chat" && noLeidos > 0 && (
         <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-[#E06A6A] px-1.5 text-[10px] font-black text-white">
