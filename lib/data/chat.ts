@@ -8,7 +8,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AmbitoMensaje, Mensaje, Usuario } from "@/types/db";
 import { cifrar, descifrar } from "@/lib/cripto";
-import { tablaFaltante } from "./errores";
+import { funcionFaltante, tablaFaltante } from "./errores";
 import { getZonas, getZonasDeSupervisor } from "./zonas";
 
 /** Claves estables de canal para las lecturas (badge de no leídos). */
@@ -165,6 +165,30 @@ async function noLeidosPorCanal(
 }
 
 /**
+ * No-leídos por canal. Prefiere la RPC agregada `app_no_leidos` (0067): cuenta en
+ * SQL, O(#canales), respetando el RLS del usuario. Si la RPC no existe todavía,
+ * cae al scan JS (`noLeidosPorCanal`) — 100% reversible. Corre en CADA navegación
+ * (badge del nav en ambos layouts), así que este es el camino más caliente.
+ */
+async function conteoNoLeidos(db: SupabaseClient, usuario: Usuario): Promise<Map<string, number>> {
+  const { data, error } = await db.rpc("app_no_leidos");
+  if (!error) {
+    const m = new Map<string, number>();
+    for (const r of (data ?? []) as { canal: string; n: number }[]) m.set(r.canal, Number(r.n));
+    return m;
+  }
+  if (!funcionFaltante(error)) throw error;
+  // Fallback (0067 sin correr): última lectura por canal + scan de mensajes.
+  const { data: lecturas } = await db
+    .from("chat_lecturas")
+    .select("canal, ultima_lectura")
+    .eq("usuario_id", usuario.id);
+  const leido = new Map<string, string>();
+  for (const l of lecturas ?? []) leido.set(l.canal as string, l.ultima_lectura as string);
+  return noLeidosPorCanal(db, usuario.id, leido);
+}
+
+/**
  * Canales visibles para el usuario, con su conteo de no leídos.
  *  · general: todos. · supervisores: gestores. · zona: admin (todas),
  *    supervisor (las que cubre), cobrador (la suya). · cobrador: gestor ve los
@@ -242,16 +266,8 @@ export async function getCanales(db: SupabaseClient, usuario: Usuario): Promise<
       });
     }
 
-    // Última lectura por canal.
-    const { data: lecturas } = await db
-      .from("chat_lecturas")
-      .select("canal, ultima_lectura")
-      .eq("usuario_id", usuario.id);
-    const leido = new Map<string, string>();
-    for (const l of lecturas ?? []) leido.set(l.canal as string, l.ultima_lectura as string);
-
-    // No-leídos por canal en UNA query (antes: un count por canal → N+1).
-    const conteo = await noLeidosPorCanal(db, usuario.id, leido);
+    // No-leídos por canal (RPC agregada de 0067, o fallback al scan JS).
+    const conteo = await conteoNoLeidos(db, usuario);
     return base.map((c) => ({ ...c, noLeidos: conteo.get(c.key) ?? 0 }));
   } catch (e) {
     if (tablaFaltante(e))
@@ -267,14 +283,7 @@ export async function getCanales(db: SupabaseClient, usuario: Usuario): Promise<
  *  y bucketiza. Antes pasaba por getCanales (~50 counts con muchos cobradores). */
 export async function getTotalNoLeidos(db: SupabaseClient, usuario: Usuario): Promise<number> {
   try {
-    const { data: lecturas, error } = await db
-      .from("chat_lecturas")
-      .select("canal, ultima_lectura")
-      .eq("usuario_id", usuario.id);
-    if (error) throw error;
-    const leido = new Map<string, string>();
-    for (const l of lecturas ?? []) leido.set(l.canal as string, l.ultima_lectura as string);
-    const conteo = await noLeidosPorCanal(db, usuario.id, leido);
+    const conteo = await conteoNoLeidos(db, usuario);
     let total = 0;
     for (const n of conteo.values()) total += n;
     return total;
