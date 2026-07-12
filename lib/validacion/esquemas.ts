@@ -67,7 +67,9 @@ export const busquedaQuery = z
   .trim()
   .min(2)
   .max(80)
-  .regex(/^[\p{L}\p{N}\s.\-'#ºª]+$/u, "búsqueda con caracteres no permitidos");
+  // Acepta puntuación común de nombres/razón social (coma, &, /, paréntesis); la
+  // capa de datos las neutraliza igual antes del `.or(ilike)` (sanitizarTerminoBusqueda).
+  .regex(/^[\p{L}\p{N}\s.,&/()'#ºª-]+$/u, "búsqueda con caracteres no permitidos");
 export const reporteTipo = z.enum([
   "cartera",
   "caja",

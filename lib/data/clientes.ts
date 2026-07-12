@@ -17,6 +17,7 @@ export function sanitizarTerminoBusqueda(t: string): string {
   return t
     .replace(/[,()"*]/g, " ")
     .replace(/[%_]/g, (m) => `\\${m}`)
+    .replace(/\s+/g, " ") // colapsa espacios (p. ej. "García, Juan" → "García Juan")
     .trim();
 }
 

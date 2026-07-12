@@ -20,16 +20,17 @@ try {
 //  · Leaflet: tiles de OpenStreetMap (img).
 //  · PWA: service worker (worker-src) + manifest.
 // Y BLOQUEA: framing (clickjacking), objetos, orígenes de script/red ajenos.
-// NOTA: se quitó 'unsafe-eval' — Next 15 en producción y Leaflet NO lo usan (era
-// del dev-server viejo). Reduce la superficie de XSS. Verificar en el navegador
-// tras deploy que no haya violaciones de CSP en consola.
+// NOTA: 'unsafe-eval' se quita en PRODUCCIÓN (Next 15 prod/Leaflet no lo usan →
+// menos superficie XSS), pero se DEJA en desarrollo: el dev-server de Next envuelve
+// cada módulo en eval() (source maps), y sin él `next dev` no arranca en localhost.
+const enDesarrollo = process.env.NODE_ENV !== "production";
 const csp = [
   "default-src 'self'",
   "base-uri 'self'",
   "object-src 'none'",
   "frame-ancestors 'none'",
   "form-action 'self'",
-  "script-src 'self' 'unsafe-inline'",
+  `script-src 'self' 'unsafe-inline'${enDesarrollo ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://*.tile.openstreetmap.org",
   "font-src 'self' data:",
