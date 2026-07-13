@@ -29,6 +29,8 @@ const RESUMEN: ResumenFinanciero = {
       { tramo: "16+ días", creditos: 1, monto: 320000 },
     ],
     criticos: 1,
+    vencidosCreditos: 0,
+    carteraVencida: 0,
     topRiesgo: [
       {
         nombre: "María Fernanda",

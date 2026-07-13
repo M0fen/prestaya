@@ -8,6 +8,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Pago, Prestamo } from "@/types/db";
 import type { NivelRiesgo, ResultadoAlerta } from "@/types/alerta";
 import { calcularAlertaMora } from "@/lib/alerta";
+import { plazoVencido } from "@/lib/cartones";
 import { calcularRecargoMora, type ConfigMora } from "@/lib/moraCargo";
 import { getConfigMora } from "./moraConfig";
 import { getActivosConPagos, pagosDeActivo } from "./activos";
@@ -37,6 +38,10 @@ export interface TableroMora {
     deudaEnRiesgo: number;
     /** Recargo por mora total sugerido (suma de la cartera en riesgo). */
     recargoTotal: number;
+    /** Créditos activos con el PLAZO ya vencido e impagos (cartera vencida /
+     *  deuda de castigo). Se cuentan aparte: no son alerta temprana. */
+    vencidos: number;
+    carteraVencida: number;
   };
   /** Política de mora vigente (para mostrarla y editarla). */
   config: ConfigMora;
@@ -63,28 +68,34 @@ export async function getTableroMora(
   const activos = activosPre ?? (await getActivosConPagos(db));
 
   const vacio: TableroMora = {
-    resumen: { activos: 0, critico: 0, alto: 0, medio: 0, sano: 0, deudaEnRiesgo: 0, recargoTotal: 0 },
+    resumen: { activos: 0, critico: 0, alto: 0, medio: 0, sano: 0, deudaEnRiesgo: 0, recargoTotal: 0, vencidos: 0, carteraVencida: 0 },
     config,
     enRiesgo: [],
   };
   if (activos.length === 0) return vacio;
 
-  const resumen = { activos: 0, critico: 0, alto: 0, medio: 0, sano: 0, deudaEnRiesgo: 0, recargoTotal: 0 };
+  const resumen = { activos: 0, critico: 0, alto: 0, medio: 0, sano: 0, deudaEnRiesgo: 0, recargoTotal: 0, vencidos: 0, carteraVencida: 0 };
   const enRiesgo: ClienteEnRiesgo[] = [];
 
   for (const p of activos) {
-    const alerta = calcularAlertaMora({
-      prestamo: {
-        cuota_diaria: num(p.cuota_diaria),
-        total_dias: num(p.total_dias),
-        frecuencia: p.frecuencia ?? "diario",
-        fecha_inicio: p.fecha_inicio,
-      },
-      pagos: pagosDeActivo(p),
-      hoy: hoyCal,
-    });
-
+    const cond = {
+      cuota_diaria: num(p.cuota_diaria),
+      total_dias: num(p.total_dias),
+      frecuencia: p.frecuencia ?? "diario",
+      fecha_inicio: p.fecha_inicio,
+    };
     resumen.activos++;
+
+    // Plazo YA vencido → CARTERA VENCIDA (deuda de castigo), no alerta temprana:
+    // no infla el riesgo ni la "deuda en riesgo". Coherente con la mora del
+    // dashboard (metricas.ts): un crédito muerto no es mora del día.
+    if (plazoVencido(cond, hoyCal)) {
+      resumen.vencidos++;
+      resumen.carteraVencida += Math.max(0, num(p.cuota_diaria) * num(p.total_dias) - num(p.pagado ?? 0));
+      continue;
+    }
+
+    const alerta = calcularAlertaMora({ prestamo: cond, pagos: pagosDeActivo(p), hoy: hoyCal });
     resumen[alerta.nivel]++;
 
     if (alerta.nivel === "sano") continue;

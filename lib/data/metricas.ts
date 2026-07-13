@@ -9,7 +9,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Pago, Prestamo } from "@/types/db";
-import { calcularEstadosCarton } from "@/lib/cartones";
+import { calcularEstadosCarton, plazoVencido } from "@/lib/cartones";
 import { hoyUY, inicioDiaUYIso, inicioMesUYIso } from "@/lib/fecha";
 import { getActivosConPagos, pagosDeActivo } from "./activos";
 import { getConfigMora } from "./moraConfig";
@@ -46,9 +46,14 @@ export interface DashboardMetricas {
   recaudadoMes: number;
   /** Créditos activos con al menos un día atrasado. */
   morosos: number;
-  /** Monto vencido e impago (sin contar la cuota de hoy ni futuros). */
+  /** Monto vencido e impago (sin contar la cuota de hoy ni futuros). SOLO de
+   *  créditos EN TÉRMINO (los de plazo vencido van a cartera vencida). */
   montoEnMora: number;
   tramosMora: TramoMora[];
+  /** Créditos activos cuyo PLAZO ya venció y siguen impagos: NO es mora del día,
+   *  es deuda de castigo. Se cuenta aparte para no inflar la mora. */
+  carteraVencidaCreditos: number;
+  carteraVencidaMonto: number;
   reportesNuevos: number;
   anunciosActivos: number;
   /** Instante del cálculo (ISO). */
@@ -177,6 +182,8 @@ export async function getDashboardMetricas(
   let porCobrarHoy = 0;
   let morosos = 0;
   let montoEnMora = 0;
+  let carteraVencidaCreditos = 0;
+  let carteraVencidaMonto = 0;
   const tramos = [
     { tramo: "1–7 días", creditos: 0, monto: 0 },
     { tramo: "8–15 días", creditos: 0, monto: 0 },
@@ -186,16 +193,13 @@ export async function getDashboardMetricas(
 
   for (const p of activos) {
     capitalColocado += Number(p.monto_prestado);
-    const r = calcularEstadosCarton(
-      {
-        cuota_diaria: Number(p.cuota_diaria),
-        total_dias: Number(p.total_dias),
-        frecuencia: p.frecuencia ?? "diario",
-        fecha_inicio: p.fecha_inicio,
-      } as Prestamo,
-      pagosPorPrestamo[p.id] ?? [],
-      hoyCal,
-    );
+    const cond = {
+      cuota_diaria: Number(p.cuota_diaria),
+      total_dias: Number(p.total_dias),
+      frecuencia: p.frecuencia ?? "diario",
+      fecha_inicio: p.fecha_inicio,
+    } as Prestamo;
+    const r = calcularEstadosCarton(cond, pagosPorPrestamo[p.id] ?? [], hoyCal);
     carteraPorCobrar += r.falta;
     totalConIntereses += r.totalAPagar;
     recaudadoAcumulado += r.totalPagado;
@@ -207,7 +211,19 @@ export async function getDashboardMetricas(
       porCobrarHoy += Math.max(0, Number(p.cuota_diaria) - diaHoy.montoPagado);
     }
 
-    // Cuotas vencidas impagas, menos la gracia (día de desembolso + política).
+    // Un crédito cuyo PLAZO ya venció no es "mora del día" (contarlo como tal
+    // acumula cuotas vencidas sin tope): su saldo impago va a CARTERA VENCIDA
+    // (deuda de castigo), aparte. La cartera/recaudo de arriba SÍ lo incluyen
+    // (sigue siendo capital en calle, como en Disapp); solo cambia la mora.
+    if (plazoVencido(cond, hoyCal)) {
+      if (r.falta > 0) {
+        carteraVencidaCreditos++;
+        carteraVencidaMonto += r.falta;
+      }
+      continue;
+    }
+
+    // En término: cuotas vencidas impagas, menos la gracia (desembolso + política).
     const nAtraso = r.dias.filter((d) => d.estado === "atrasado").length;
     const atrasoNeto = nAtraso - graciaMora;
     if (atrasoNeto > 0) {
@@ -245,6 +261,8 @@ export async function getDashboardMetricas(
     morosos,
     montoEnMora,
     tramosMora: tramos,
+    carteraVencidaCreditos,
+    carteraVencidaMonto,
     reportesNuevos,
     anunciosActivos,
     generadoEn: hoy.toISOString(),

@@ -223,11 +223,12 @@ export default async function DashboardPage({
 
       {/* Banda secundaria (orden/nombres de Disapp). 2 acentos con significado:
           verde=plata que entra (héroe), rojo=riesgo (mora); el resto tinta neutra. */}
-      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-6">
         <Kpi etiqueta="Total de ventas activas" valor={String(cartera.creditosActivos)} sub="créditos en calle" acento="var(--color-tinta)" />
         <Kpi etiqueta="Por cobrar hoy" valor={UYU(cartera.porCobrarHoy)} sub="cuotas que vencen hoy" acento="var(--color-tinta)" />
         <Kpi etiqueta="Total de clientes" valor={String(cartera.clientesActivos)} sub={`${cartera.deudoresActivos} con crédito activo`} acento="var(--color-tinta)" />
         <Kpi etiqueta="Ventas en mora" valor={String(mora.morosos)} sub={`${UYU(mora.monto)} · ${Math.round(mora.moraPct * 100)}% cartera`} acento="var(--color-rojo)" />
+        <Kpi etiqueta="Cartera vencida" valor={String(mora.vencidosCreditos)} sub={`${UYU(mora.carteraVencida)} · plazo terminado`} acento="var(--color-ambar-osc)" />
         <Kpi etiqueta="Capital en calle" valor={UYU(cartera.carteraPorCobrar)} sub="deuda pendiente total" acento="var(--color-tinta)" />
       </div>
 

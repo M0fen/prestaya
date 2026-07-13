@@ -2,7 +2,7 @@
 // Cubren: estados de día, totales, próxima cuota, regla de oro de HOY,
 // suma de abonos y la normalización de "hoy" con hora.
 import { describe, expect, it } from "vitest";
-import { calcularEstadosCarton, fechaDeCuota } from "./cartones";
+import { calcularEstadosCarton, fechaDeCuota, plazoVencido } from "./cartones";
 import { parseFecha, toIso } from "./format";
 import type { Pago, Prestamo } from "@/types/db";
 
@@ -211,5 +211,34 @@ describe("calcularEstadosCarton — modalidades (frecuencia)", () => {
     const semanal = calcularEstadosCarton({ ...base, frecuencia: "semanal" }, [], parseFecha("2026-06-03"));
     expect(diario.dias[4].fecha).toBe("2026-06-08"); // +4 días hábiles (saltea dom 07)
     expect(semanal.dias[4].fecha).toBe("2026-07-01"); // +4 semanas
+  });
+});
+
+describe("plazoVencido — cartera vencida vs crédito en término", () => {
+  it("crédito con la última cuota en el pasado → plazo VENCIDO", () => {
+    // 10 cuotas desde 2026-01-01, mirado el 16-jun: terminó hace meses.
+    expect(
+      plazoVencido({ cuota_diaria: 1000, total_dias: 10, fecha_inicio: "2026-01-01" }, HOY),
+    ).toBe(true);
+  });
+
+  it("crédito todavía dentro de su plazo → NO vencido", () => {
+    // 30 cuotas desde 2026-06-10, mirado el 16-jun: sigue corriendo.
+    expect(
+      plazoVencido({ cuota_diaria: 1000, total_dias: 30, fecha_inicio: "2026-06-10" }, HOY),
+    ).toBe(false);
+  });
+
+  it("el DÍA de la última cuota aún es 'en término' (no vencido); un día después, sí", () => {
+    // prestamoBase termina el 2026-07-07 (verificado arriba).
+    const fin = parseFecha("2026-07-07");
+    expect(plazoVencido(prestamoBase, fin)).toBe(false);
+    const finMas1 = parseFecha("2026-07-08");
+    expect(plazoVencido(prestamoBase, finMas1)).toBe(true);
+  });
+
+  it("ignora la hora de 'hoy' (compara por día)", () => {
+    const finConHora = new Date(2026, 6, 7, 23, 30); // 07-jul 23:30 = último día
+    expect(plazoVencido(prestamoBase, finConHora)).toBe(false);
   });
 });

@@ -78,6 +78,23 @@ export function fechaDeCuota(
   return f;
 }
 
+/**
+ * ¿El PLAZO del crédito ya venció? True si HOY es posterior a la fecha de la
+ * ÚLTIMA cuota programada. Un crédito así con saldo impago es CARTERA VENCIDA
+ * (deuda de gestión/castigo), NO "mora del día": si se lo contara como mora
+ * seguiría sumando cuotas vencidas sin tope e infla el número. Respeta el
+ * calendario hábil (Lun–Sáb), igual que el cartón. O(1).
+ */
+export function plazoVencido(prestamo: PrestamoCalc, hoy: Date): boolean {
+  if (prestamo.total_dias < 1) return false;
+  const fin = fechaDeCuota(
+    parseFecha(prestamo.fecha_inicio),
+    prestamo.total_dias - 1,
+    prestamo.frecuencia ?? "diario",
+  );
+  return aMedianoche(hoy).getTime() > aMedianoche(fin).getTime();
+}
+
 /** Campos del pago que el cálculo necesita (ya filtrados: solo vigentes). */
 type PagoCalc = Pick<Pago, "dia_credito" | "monto">;
 

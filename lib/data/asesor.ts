@@ -50,6 +50,10 @@ export interface ResumenFinanciero {
     moraPct: number; // 0..1 sobre la cartera por cobrar
     tramos: { tramo: string; creditos: number; monto: number }[];
     criticos: number;
+    /** Créditos activos de plazo vencido e impagos (cartera vencida / castigo).
+     *  Aparte de la mora del día para no inflarla. */
+    vencidosCreditos: number;
+    carteraVencida: number;
     topRiesgo: {
       nombre: string;
       riesgo: number;
@@ -116,6 +120,8 @@ export async function getResumenFinanciero(
       moraPct,
       tramos: dash.tramosMora,
       criticos: mora.resumen.critico,
+      vencidosCreditos: dash.carteraVencidaCreditos,
+      carteraVencida: dash.carteraVencidaMonto,
       topRiesgo: mora.enRiesgo.slice(0, 6).map((c) => ({
         nombre: c.nombre,
         riesgo: c.alerta.riesgo,
@@ -461,9 +467,11 @@ export function resumenComoTexto(r: ResumenFinanciero): string {
   L.push("");
   L.push(`MORA:`);
   L.push(`- Monto en mora: ${UYU(r.mora.monto)} (${pct(r.mora.moraPct)} de la cartera por cobrar)`);
-  L.push(`- Créditos morosos: ${r.mora.morosos} · en estado crítico: ${r.mora.criticos}`);
+  L.push(`- Créditos morosos (en término): ${r.mora.morosos} · en estado crítico: ${r.mora.criticos}`);
   for (const t of r.mora.tramos)
     L.push(`  · ${t.tramo}: ${t.creditos} crédito(s), ${UYU(t.monto)}`);
+  if (r.mora.vencidosCreditos > 0)
+    L.push(`- Cartera VENCIDA (plazo terminado e impaga — deuda de castigo, NO mora del día): ${UYU(r.mora.carteraVencida)} en ${r.mora.vencidosCreditos} crédito(s)`);
   if (r.mora.topRiesgo.length > 0) {
     L.push(`- Clientes de mayor riesgo:`);
     for (const c of r.mora.topRiesgo)

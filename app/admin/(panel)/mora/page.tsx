@@ -102,6 +102,17 @@ export default async function MoraPage({
         <Kpi label="Deuda en riesgo" valor={UYU(resumen.deudaEnRiesgo)} money />
       </div>
 
+      {/* Cartera vencida: créditos cuyo PLAZO ya terminó e impagos. NO es mora del
+          día (deuda de castigo) — se muestra aparte para no inflar el riesgo. */}
+      {resumen.vencidos > 0 && (
+        <div className="flex items-center justify-between rounded-[12px] panel-ambar px-4 py-2.5">
+          <span className="text-[12.5px] font-bold text-ambar-osc">
+            Cartera vencida · {resumen.vencidos} crédito{resumen.vencidos === 1 ? "" : "s"} de plazo terminado e impagos (gestionar / castigar, aparte de la mora)
+          </span>
+          <span className="text-[15px] font-extrabold tabular-nums text-ambar-osc">{UYU(resumen.carteraVencida)}</span>
+        </div>
+      )}
+
       {/* Morosos: lista negra (marcados) + castigos (incobrables). Persisten
           entre créditos, a diferencia de la alerta temprana de arriba. */}
       {morosos.length > 0 && (
@@ -147,7 +158,9 @@ export default async function MoraPage({
         <p className="rounded-[14px] bg-tarjeta px-4 py-6 text-center text-[13px] font-medium text-gris">
           {resumen.activos === 0
             ? "No hay créditos activos para evaluar."
-            : "Nadie en riesgo hoy: toda la cartera activa está al día. 🎉"}
+            : resumen.vencidos > 0
+              ? "Sin créditos en término en riesgo hoy. (Queda cartera vencida por gestionar, arriba.)"
+              : "Nadie en riesgo hoy: toda la cartera activa está al día. 🎉"}
         </p>
       )}
 
