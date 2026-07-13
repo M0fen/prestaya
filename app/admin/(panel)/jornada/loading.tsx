@@ -1,10 +1,11 @@
 // Skeleton específico de "Mi jornada": dibuja su forma real (pulso héroe + stepper
 // + contenido) para que abrir el hub se sienta instantáneo.
-import { GridSkel, BloqueSkel } from "@/components/admin/Esqueleto";
+import { GridSkel, BloqueSkel, LineaCalida } from "@/components/admin/Esqueleto";
 
 export default function Loading() {
   return (
     <div className="flex flex-col gap-5">
+      <LineaCalida texto="Preparando tu jornada…" />
       {/* Encabezado */}
       <div className="flex flex-col gap-2">
         <BloqueSkel className="h-7 w-52" />

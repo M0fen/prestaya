@@ -3,9 +3,21 @@
 // instantánea (velocidad percibida) porque el esqueleto ya dibuja la forma de la
 // página. Tokens tema-aware (bg-linea) → funciona en claro y oscuro.
 
-/** Bloque gris con latido, base de todos los esqueletos. */
+/** Bloque con latido, base de todos los esqueletos. Neutro del sitio (bg-linea,
+ *  flipea en oscuro). La calidez es el TONO del mensaje, no el color. */
 export function BloqueSkel({ className = "" }: { className?: string }) {
-  return <div className={`animate-pulse rounded-[14px] bg-linea ${className}`} />;
+  return <div className={`animate-pulse rounded-[14px] bg-linea motion-reduce:animate-none ${className}`} />;
+}
+
+/** Línea amable arriba del skeleton: un punto de marca que late + un mensaje corto.
+ *  Calidez por el tono, con el azul del sitio. */
+export function LineaCalida({ texto }: { texto: string }) {
+  return (
+    <div className="flex items-center gap-2 text-[13px] font-semibold text-azul">
+      <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-azul motion-reduce:animate-none" />
+      {texto}
+    </div>
+  );
 }
 
 /** Fila de N tarjetas iguales (para grids de KPIs/tiles). */
