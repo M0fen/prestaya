@@ -41,7 +41,9 @@ export type NavItem = {
 };
 
 export const NAV_ITEMS: NavItem[] = [
-  { href: "/admin", label: "Dashboard", icon: "▣", alias: ["inicio", "tablero", "resumen"] },
+  // Solo el admin gobierna desde acá; el supervisor arranca en "Mi jornada" (y es
+  // redirigido si entra por URL), así que no le mostramos este ítem en el menú.
+  { href: "/admin", label: "Resumen del negocio", icon: "▣", roles: ["admin"], alias: ["dashboard", "inicio", "tablero", "resumen"] },
   // Flujo guiado del día (sobre todo para el supervisor): Apertura/En vivo/Cierre.
   { href: "/admin/jornada", label: "Mi jornada", icon: "🧭", roles: ["admin", "supervisor"], alias: ["jornada", "mi dia", "flujo", "guia del dia", "apertura", "en vivo", "cierre", "supervisor"] },
   // ── Operación diaria (el control del dinero, de un vistazo) ──
@@ -90,12 +92,34 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/admin/uso", label: "Auditoría de uso", icon: "🕵️", grupo: "Configuración", dev: true, alias: ["comportamiento", "capacitacion", "telemetria", "personal", "clics", "actividad", "quien usa", "navegacion", "logins"] },
 ];
 
-/** Ítems visibles para un rol dado (y si es desarrollador, los ítems dev). */
+/** Orden de los dos ítems SUELTOS de arriba, por rol. El supervisor opera desde
+ *  "Mi jornada" (su hub del día) → primero; el admin gobierna desde el "Resumen
+ *  del negocio" (Dashboard) → primero. Lo comparten el sidebar, el command
+ *  palette y la barra inferior mobile para que la jerarquía sea coherente. */
+export function ordenSuelto(rol: Rol): string[] {
+  return rol === "supervisor"
+    ? ["/admin/jornada", "/admin"]
+    : ["/admin", "/admin/jornada"];
+}
+
+/** Ítems visibles para un rol dado (y si es desarrollador, los ítems dev). Los
+ *  dos ítems sueltos de arriba se ordenan según el rol (ver ordenSuelto); el
+ *  resto del menú queda intacto. */
 export function navVisible(rol: Rol, esDev = false): NavItem[] {
-  return NAV_ITEMS.filter((i) => {
+  const items = NAV_ITEMS.filter((i) => {
     if (i.dev) return esDev;
     return !i.roles || i.roles.includes(rol);
   });
+  const orden = ordenSuelto(rol);
+  const rank = (href: string) => {
+    const k = orden.indexOf(href);
+    return k === -1 ? orden.length : k;
+  };
+  const suelto = items
+    .filter((i) => !i.grupo)
+    .sort((a, b) => rank(a.href) - rank(b.href));
+  const conGrupo = items.filter((i) => i.grupo);
+  return [...suelto, ...conGrupo];
 }
 
 /**

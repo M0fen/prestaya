@@ -21,6 +21,7 @@ import { Donut } from "@/components/charts/Donut";
 import { AureoInsights } from "@/components/admin/AureoInsights";
 import { GuiaAureo } from "@/components/admin/GuiaAureo";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,10 @@ export default async function DashboardPage({
   searchParams: Promise<{ periodo?: string; cobs?: string }>;
 }) {
   const usuario = await requireGestor();
+  // Cada rol arranca en SU pantalla: el supervisor opera desde "Mi jornada"
+  // (su hub del día), no desde el Resumen del negocio. Refuerza la jerarquía si
+  // entra por URL directa; el admin sí gobierna desde este dashboard.
+  if (!esAdmin(usuario.rol)) redirect("/admin/jornada");
   const admin = esAdmin(usuario.rol);
   const hoy = new Date();
   const db = await createSupabaseServer();

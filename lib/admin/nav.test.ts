@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { NAV_ITEMS, NAV_GRUPOS, navVisible, navAgrupado } from "./nav";
+import { NAV_ITEMS, NAV_GRUPOS, navVisible, navAgrupado, ordenSuelto } from "./nav";
 
 describe("nav — visibilidad por rol", () => {
   it("el supervisor NO ve ítems solo-admin (Ventas Crédito, Valor, Comisiones)", () => {
@@ -63,5 +63,24 @@ describe("nav — agrupación del sidebar", () => {
     expect(hrefs.has("/admin/zonas")).toBe(false); // solo admin
     expect(hrefs.has("/admin/equipo")).toBe(false); // solo admin
     expect(hrefs.has("/admin/tutorial")).toBe(true); // compartido
+  });
+});
+
+describe("nav — arranque por rol (cada uno en su pantalla)", () => {
+  it("el supervisor NO ve el Resumen del negocio (/admin): arranca en Mi jornada", () => {
+    const { suelto } = navAgrupado("supervisor");
+    const hrefs = suelto.map((i) => i.href);
+    expect(hrefs).not.toContain("/admin");
+    expect(hrefs[0]).toBe("/admin/jornada");
+  });
+
+  it("el admin sí gobierna desde el Resumen del negocio, que va primero", () => {
+    const { suelto } = navAgrupado("admin");
+    expect(suelto.map((i) => i.href)).toEqual(["/admin", "/admin/jornada"]);
+  });
+
+  it("ordenSuelto pone Mi jornada primero para el supervisor y el Dashboard primero para el admin", () => {
+    expect(ordenSuelto("supervisor")[0]).toBe("/admin/jornada");
+    expect(ordenSuelto("admin")[0]).toBe("/admin");
   });
 });

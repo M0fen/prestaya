@@ -7,7 +7,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import type { Rol } from "@/types/db";
-import { navVisible, navAgrupado } from "@/lib/admin/nav";
+import { navVisible, navAgrupado, ordenSuelto } from "@/lib/admin/nav";
 import { Icono, ICONO_NAV, type NombreIcono } from "@/components/Iconos";
 
 /** Destinos del flujo diario en la barra inferior (orden = importancia). Se
@@ -33,7 +33,16 @@ export function PanelBottomNav({
   const pathname = usePathname();
   const [abierto, setAbierto] = useState(false);
   const visibles = new Set(navVisible(rol, esDev).map((i) => i.href));
-  const tabs = TABS.filter((t) => visibles.has(t.href));
+  // Mismo orden por rol que el sidebar: el supervisor ve "Jornada" antes que
+  // "Inicio". Solo reordena esos dos; Cobranza/Caja quedan detrás como están.
+  const orden = ordenSuelto(rol);
+  const rank = (href: string) => {
+    const k = orden.indexOf(href);
+    return k === -1 ? orden.length : k;
+  };
+  const tabs = TABS.filter((t) => visibles.has(t.href)).sort(
+    (a, b) => rank(a.href) - rank(b.href),
+  );
   const { suelto, grupos } = navAgrupado(rol, esDev);
   const activo = (href: string) =>
     href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
