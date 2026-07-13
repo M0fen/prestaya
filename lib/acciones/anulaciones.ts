@@ -55,6 +55,53 @@ async function flipAnulado(pagoId: string, u: Usuario, motivo: string): Promise<
   return !error && (data?.length ?? 0) > 0;
 }
 
+// ── (quien registró) Deshacer dentro de 1 hora ──────────────────────────────
+//  Ventana de AUTO-CORRECCIÓN: quien registró el pago puede deshacerlo sin
+//  aprobación mientras no pase 1 h. Nunca borra el libro: lo marca anulado (con
+//  traza de quién/cuándo). Pasada la hora, hay que ir por la anulación normal.
+const VENTANA_DESHACER_MS = 60 * 60 * 1000; // 1 hora
+
+export async function deshacerPagoAction(input: { pagoId: string }): Promise<Resultado> {
+  const u = await getUsuarioActual();
+  if (!u || !u.activo) return { ok: false, error: "Sesión no válida." };
+
+  // Traigo los datos de control con service_role (necesito registrado_por/_en,
+  // que el RLS del cobrador no siempre deja leer de pagos de otros). La AUTORIZACIÓN
+  // va ABAJO (solo quien lo registró) antes de cualquier escritura.
+  const admin = createSupabaseAdmin();
+  const { data: pago } = await admin
+    .from("pagos")
+    .select("id, registrado_por, registrado_en, anulado")
+    .eq("id", input.pagoId)
+    .maybeSingle();
+  if (!pago) return { ok: false, error: "No se encontró el pago." };
+  if (pago.anulado) return { ok: false, error: "Ese pago ya estaba anulado." };
+
+  // Autorización: SOLO quien lo registró, y SOLO dentro de la ventana de 1 h.
+  if (pago.registrado_por !== u.id)
+    return { ok: false, error: "Solo quien registró el pago puede deshacerlo. Pedí una anulación." };
+  const registradoEn = new Date(pago.registrado_en as string).getTime();
+  if (!Number.isFinite(registradoEn) || Date.now() - registradoEn > VENTANA_DESHACER_MS)
+    return { ok: false, error: "Pasó más de 1 hora: ya no se puede deshacer. Pedí una anulación." };
+
+  const ok = await flipAnulado(input.pagoId, u, "Deshecho por quien lo registró (dentro de 1 h)");
+  if (!ok) return { ok: false, error: "No se pudo deshacer el pago." };
+
+  const db = await createSupabaseServer();
+  const resumen = await getPagoResumen(db, input.pagoId);
+  await registrarAuditoria(db, {
+    actorId: u.id,
+    actorNombre: u.nombre,
+    accion: "Deshizo un pago (dentro de 1 h)",
+    entidad: "pago",
+    entidadId: input.pagoId,
+    detalle: resumen ? `${resumen.clienteNombre}` : "",
+  });
+  if (resumen) revalidatePath(`/admin/clientes/${resumen.clienteId}`);
+  revalidatePath("/cobrador");
+  return { ok: true };
+}
+
 // ── (admin) Anular directo ───────────────────────────────────────────────
 export async function anularPagoDirectoAction(input: {
   pagoId: string;

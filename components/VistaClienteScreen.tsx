@@ -68,8 +68,10 @@ export function VistaClienteScreen({
   /** Temporada/evento del mes (si el admin lo encendió). */
   temporada?: { nombre: string; emoji: string; meta: number; premio: string } | null;
 }) {
-  // ¿Hay algo para la zona "Novedades"? (se agrupa DEBAJO de los pagos). La
-  // raspadita/quiniela (promo) NO entra acá: va suelta DEBAJO del cartón.
+  // Juegos y promociones OCULTOS en la vista de cliente por ahora (flag único,
+  // reversible): raspadita/quiniela + bloque "Novedades" (arcade, temporada,
+  // rifa, anuncios, estrellas). La quiniela reelaborada volverá cuando esté lista.
+  const MOSTRAR_JUEGOS: boolean = false;
   const hayNovedades = Boolean(temporada || rifa || anuncios.length > 0 || estrellas || juegoArcade);
   return (
     <div className="flex min-h-screen justify-center bg-fondo text-tinta">
@@ -130,14 +132,14 @@ export function VistaClienteScreen({
           proxRelativo={v.proxRelativo}
         />
 
-        {/* Raspadita + quiniela: JUSTO DEBAJO del cartón (sin dinero real). */}
-        {promo && <PromoCliente promo={promo} token={token} />}
+        {/* Raspadita + quiniela: JUSTO DEBAJO del cartón (sin dinero real). Oculto por flag. */}
+        {MOSTRAR_JUEGOS && promo && <PromoCliente promo={promo} token={token} />}
 
         {/* Historial de pagos (con % de la cuota cubierto + descuento). */}
         <Historial historial={v.historial} />
 
         {/* ── NOVEDADES: TODO lo promocional/lúdico agrupado, DESPUÉS del dinero ── */}
-        {hayNovedades && (
+        {MOSTRAR_JUEGOS && hayNovedades && (
           <>
             <div className="mt-2 flex items-center gap-2 px-1">
               <span className="text-[11px] font-bold tracking-wide text-gris uppercase">Novedades</span>

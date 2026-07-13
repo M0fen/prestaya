@@ -14,6 +14,7 @@ import type { Prestamo } from "@/types/db";
 import { UYU } from "@/lib/format";
 import { RegistroCobro } from "@/components/cobrador/RegistroCobro";
 import { CartonCobrador } from "@/components/cobrador/CartonCobrador";
+import { CobrosRecientes, type PagoReciente } from "@/components/cobrador/CobrosRecientes";
 import { RegistrarCompromiso } from "@/components/cobrador/RegistrarCompromiso";
 import { BeaconFicha } from "@/components/cobrador/BeaconFicha";
 import { NotasCliente } from "@/components/notas/NotasCliente";
@@ -127,6 +128,7 @@ export default async function DetalleClientePage({
           cliente={cliente}
           prestamo={prestamo}
           cobradorNombre={usuario.nombre}
+          cobradorId={usuario.id}
         />
       )}
 
@@ -146,15 +148,31 @@ async function Detalle({
   cliente,
   prestamo,
   cobradorNombre,
+  cobradorId,
 }: {
   db: Awaited<ReturnType<typeof createSupabaseServer>>;
   clienteId: string;
   cliente: Awaited<ReturnType<typeof getClientePorId>>;
   prestamo: Prestamo;
   cobradorNombre: string;
+  cobradorId: string;
 }) {
   const pagos = await getPagosDePrestamo(db, prestamo.id);
   const r = calcularEstadosCarton(prestamo, pagos, hoyUY());
+
+  // Cobros recientes (últimas 2 h) → permiten "deshacer" dentro de 1 h.
+  const DOS_HORAS = 2 * 60 * 60 * 1000;
+  const ahora = Date.now();
+  const recientes: PagoReciente[] = pagos
+    .filter((p) => p.registrado_en && ahora - new Date(p.registrado_en).getTime() < DOS_HORAS)
+    .sort((a, b) => new Date(b.registrado_en).getTime() - new Date(a.registrado_en).getTime())
+    .slice(0, 6)
+    .map((p) => ({
+      id: p.id,
+      monto: Number(p.monto),
+      registradoEn: p.registrado_en as string,
+      esMio: p.registrado_por === cobradorId,
+    }));
   const cubiertos = r.dias.filter((d) => d.estado === "pagado").length;
   const atrasados = r.dias.filter((d) => d.estado === "atrasado").length;
   const tieneGps = Boolean(cliente?.gps_lat != null && cliente?.gps_lng != null);
@@ -213,6 +231,9 @@ async function Detalle({
         saldoActual={r.falta}
         tieneGps={tieneGps}
       />
+
+      {/* Cobros recientes con "deshacer" dentro de 1 h (auto-corrección). */}
+      <CobrosRecientes pagos={recientes} />
 
       {/* Compromiso de pago: el cliente promete pagar en una fecha (mini-CRM). */}
       <RegistrarCompromiso clienteId={clienteId} prestamoId={prestamo.id} cuota={prestamo.cuota_diaria} />
