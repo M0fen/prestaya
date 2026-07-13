@@ -135,6 +135,10 @@ export function VistaClienteScreen({
         {/* Raspadita + quiniela: JUSTO DEBAJO del cartón (sin dinero real). Oculto por flag. */}
         {MOSTRAR_JUEGOS && promo && <PromoCliente promo={promo} token={token} />}
 
+        {/* Banner de novedades del prestamista (varios, rotan solos). Visible
+            siempre, aunque los juegos estén ocultos. */}
+        <BannerCarrusel anuncios={anuncios} />
+
         {/* Historial de pagos (con % de la cuota cubierto + descuento). */}
         <Historial historial={v.historial} />
 
@@ -158,9 +162,6 @@ export function VistaClienteScreen({
 
             {/* Rifa promocional (si el admin la activó y este cliente califica). */}
             {rifa && <RifaBanner rifa={rifa} />}
-
-            {/* Banner de anuncios del prestamista. */}
-            <BannerCarrusel anuncios={anuncios} />
 
             {/* Estrellas: recompensa real por pagar (5 pagos = 1 estrella). */}
             {estrellas && <EstrellasCliente saldo={estrellas} token={token} />}
