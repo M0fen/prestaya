@@ -36,8 +36,10 @@ export function CartonDigital({ dias, diaActual, totalDias, unidad = UNIDAD_DEFE
   // semana (encabezado L–S + hueco inicial) para que el cartón REFLEJE que el
   // domingo no se cobra. En otras frecuencias, grilla corrida normal.
   const porSemana = unidad.ord === "Día";
-  // Columna de arranque (Lun=0 … Sáb=5) del primer día (nunca es domingo en diario).
-  const offset = porSemana && dias[0] ? (dias[0].diaSemana + 6) % 7 : 0;
+  // Cartón en bloque LIMPIO de 5 filas × 6 (Lun–Sáb): el día 1 arranca
+  // arriba-izquierda, sin hueco de alineación al día de semana. Así el cartón
+  // siempre se ve como 6 casillas por línea (semana de cobro Lun–Sáb).
+  const offset = 0;
 
   return (
     <section className="rounded-[22px] border border-[#ECEFF8] bg-white px-[18px] py-5 shadow-[0_1px_3px_rgba(15,27,61,0.05),0_10px_26px_rgba(15,27,61,0.04)]">

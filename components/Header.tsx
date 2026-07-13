@@ -14,7 +14,7 @@ export function Header({ inicial }: { inicial: string }) {
             Presta Ya
           </span>
           <span className="text-[11px] font-semibold tracking-[0.01em] text-gris">
-            Tu crédito diario
+            Somos tu mejor opción
           </span>
         </div>
       </div>

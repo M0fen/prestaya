@@ -35,6 +35,11 @@ const GRACIA_MS = 7000;
 const montoDe = (o: OpCobro, cuota: number): number =>
   o.monto != null && o.monto > 0 ? o.monto : cuota;
 
+// Monto del abono en formato COMPACTO para la casilla del cartón (poco espacio):
+// 500 → "500", 1.500 → "1.5k", 20.000 → "20k". El detalle exacto vive en la ficha.
+const montoCompacto = (n: number): string =>
+  n >= 1000 ? `${Math.round(n / 100) / 10}k` : `${Math.round(n)}`;
+
 export function CartonCobrador({
   dias,
   cuota,
@@ -94,7 +99,7 @@ export function CartonCobrador({
           return (
             <div
               key={d.dia}
-              className={`relative flex aspect-square items-center justify-center rounded-[14px] text-[11px] font-bold ${
+              className={`relative flex aspect-square flex-col items-center justify-center rounded-[14px] text-[11px] leading-none font-bold ${
                 provisional ? "py-sello" : ""
               }`}
               style={{
@@ -104,7 +109,13 @@ export function CartonCobrador({
                 boxShadow: d.esHoy ? `0 0 0 3px #fff, 0 0 0 6px ${COLOR[estado]}` : "none",
               }}
             >
-              {estado === "pagado" ? "✓" : d.dia}
+              <span>{estado === "pagado" ? "✓" : d.dia}</span>
+              {/* Monto del abono del día (cuánto se pagó), visible de un vistazo. */}
+              {d.montoPagado > 0 && (
+                <span className="mt-[1px] text-[7.5px] font-black tracking-tight tabular-nums opacity-95">
+                  {montoCompacto(d.montoPagado)}
+                </span>
+              )}
               {provisional && (
                 <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#13308C] text-[8px] font-black text-white">
                   ⟳

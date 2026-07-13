@@ -8,7 +8,6 @@ import type { Juego as JuegoArcade } from "@/lib/juegos";
 import type { AjustesJuegoVista } from "@/components/JuegoCliente";
 import type { RecompensaEvaluada } from "@/lib/recompensas";
 import type { SaldoEstrellas } from "@/lib/estrellas";
-import { LineaComportamiento } from "@/components/comportamiento/LineaComportamiento";
 import { EstrellasCliente } from "@/components/estrellas/EstrellasCliente";
 import { PromoCliente, type PromoData } from "@/components/promos/PromoCliente";
 import { TemporadaBanner } from "@/components/gaming/TemporadaBanner";
@@ -69,8 +68,9 @@ export function VistaClienteScreen({
   /** Temporada/evento del mes (si el admin lo encendió). */
   temporada?: { nombre: string; emoji: string; meta: number; premio: string } | null;
 }) {
-  // ¿Hay algo promocional/lúdico para la zona "Novedades"? (se agrupa DEBAJO del dinero).
-  const hayNovedades = Boolean(temporada || rifa || anuncios.length > 0 || estrellas || promo || juegoArcade);
+  // ¿Hay algo para la zona "Novedades"? (se agrupa DEBAJO de los pagos). La
+  // raspadita/quiniela (promo) NO entra acá: va suelta DEBAJO del cartón.
+  const hayNovedades = Boolean(temporada || rifa || anuncios.length > 0 || estrellas || juegoArcade);
   return (
     <div className="flex min-h-screen justify-center bg-fondo text-tinta">
       <div className="flex w-full max-w-[440px] flex-col gap-3 bg-app px-[18px] pt-4 pb-8 shadow-[0_0_60px_rgba(15,27,61,0.08)]">
@@ -94,11 +94,6 @@ export function VistaClienteScreen({
         )}
 
         {v.creditoCompletado && <CreditoCompletado />}
-
-        {/* ── TU PROGRESO: cómo venís → cartón (progreso ANTES que el monto, tono amable) ── */}
-
-        {/* Cómo venís (caritas, derivadas del cartón; se lee de un vistazo). */}
-        <LineaComportamiento dias={v.dias} umbral={umbralCaritas} />
 
         {/* Cartón completo, bien arriba. */}
         <CartonDigital
@@ -135,6 +130,9 @@ export function VistaClienteScreen({
           proxRelativo={v.proxRelativo}
         />
 
+        {/* Raspadita + quiniela: JUSTO DEBAJO del cartón (sin dinero real). */}
+        {promo && <PromoCliente promo={promo} token={token} />}
+
         {/* Historial de pagos (con % de la cuota cubierto + descuento). */}
         <Historial historial={v.historial} />
 
@@ -164,9 +162,6 @@ export function VistaClienteScreen({
 
             {/* Estrellas: recompensa real por pagar (5 pagos = 1 estrella). */}
             {estrellas && <EstrellasCliente saldo={estrellas} token={token} />}
-
-            {/* Juegos promocionales (raspadita + quiniela). Sin dinero real. */}
-            {promo && <PromoCliente promo={promo} token={token} />}
 
             {/* Espacio de juegos: slot aislado. Solo si el admin lo dejó activo. */}
             {juegoArcade && <GameSlot juego={juegoArcade} />}

@@ -16,7 +16,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Presta Ya — Tu crédito diario",
+  title: "Presta Ya — Somos tu mejor opción",
   description: "Estado de cuenta de tu crédito de cobro diario.",
   applicationName: "Presta Ya",
   icons: {

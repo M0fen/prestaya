@@ -9,7 +9,7 @@ import type { MetadataRoute } from "next";
 // ─────────────────────────────────────────────────────────────────────────
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Presta Ya — Tu crédito diario",
+    name: "Presta Ya — Somos tu mejor opción",
     short_name: "Presta Ya",
     description: "Tu crédito de cobro diario, siempre a mano.",
     start_url: "/",
