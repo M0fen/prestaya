@@ -64,11 +64,12 @@ export function FormRenovacion({
     : 0;
   const totalAPagar = cuota * diasNum;
 
-  // Preview del tope (mismo cálculo que el servidor). Dentro del tope → alta
-  // directa para cualquiera; fuera → admin directo / supervisor a aprobación.
+  // Preview del tope (mismo cálculo que el servidor). Dentro del tope del tramo
+  // → alta directa. Sobre el tramo: solo el admin autoriza; el resto queda
+  // BLOQUEADO. El cap de $100.000 bloquea a TODOS (incluido el admin).
   const evalu = valido ? evaluarRenovacion(anterior.monto, montoNum) : null;
-  const iraDirecto = evalu ? evalu.autoAprobable || esAdmin : true;
-  const accionLabel = iraDirecto ? "renovar" : "solicitar";
+  const bloqueado = evalu ? evalu.superaCap || (evalu.excedePct && !esAdmin) : false;
+  const iraDirecto = evalu ? evalu.autoAprobable || (esAdmin && !evalu.superaCap) : true;
 
   const enviar = async () => {
     setOcupado(true);
@@ -123,7 +124,7 @@ export function FormRenovacion({
 
       {moroso && (
         <p className="rounded-[10px] bg-[#FBE4E2] px-3 py-2 text-[12px] font-bold text-[#C0392B]">
-          ⛔ Cliente marcado como MOROSO. Revisá bien antes de {accionLabel}.
+          ⛔ Cliente marcado como MOROSO. Revisá bien antes de dar de alta.
         </p>
       )}
 
@@ -208,18 +209,24 @@ export function FormRenovacion({
         </div>
       )}
 
-      {/* Preview del tope de auto-aprobación */}
+      {/* Preview del tope escalonado + cap */}
       {evalu && (
         <p
           className={`rounded-[10px] px-3 py-2 text-[12px] font-semibold ${
-            iraDirecto ? "bg-[#E4F5EC] text-[#157A50]" : "bg-[#FDF3E2] text-[#8A6D1E]"
+            evalu.autoAprobable
+              ? "bg-[#E4F5EC] text-[#157A50]"
+              : bloqueado
+                ? "bg-[#FBE4E2] text-[#C0392B]"
+                : "bg-[#FDF3E2] text-[#8A6D1E]"
           }`}
         >
           {evalu.autoAprobable
-            ? "✓ Dentro del tope (≤20% y ≤ $100.000): se aprueba al instante."
-            : esAdmin
-              ? `${evalu.motivo} Como admin, lo das de alta directo.`
-              : `${evalu.motivo} Irá a aprobación del administrador.`}
+            ? `✓ Dentro del tope (${evalu.topePct}% para créditos de este monto): se aprueba al instante.`
+            : evalu.superaCap
+              ? `${evalu.motivo} No se puede dar de alta.`
+              : esAdmin
+                ? `${evalu.motivo} Como admin, lo autorizás directo.`
+                : `${evalu.motivo} Solo el administrador puede autorizarlo.`}
         </p>
       )}
 
@@ -246,10 +253,10 @@ export function FormRenovacion({
           <button
             type="button"
             onClick={() => setConfirmar(true)}
-            disabled={!valido || ocupado}
+            disabled={!valido || ocupado || bloqueado}
             className="flex-1 rounded-full bg-[#2453DC] px-4 py-2.5 text-[13px] font-bold text-white disabled:opacity-40"
           >
-            {iraDirecto ? "Revisar y dar de alta" : "Revisar y solicitar"}
+            {bloqueado ? "No permitido" : "Revisar y dar de alta"}
           </button>
         ) : (
           <button
@@ -258,19 +265,13 @@ export function FormRenovacion({
             disabled={ocupado}
             className="flex-1 rounded-full bg-[#1FA971] px-4 py-2.5 text-[13px] font-extrabold text-white disabled:opacity-60"
           >
-            {ocupado
-              ? iraDirecto
-                ? "Creando…"
-                : "Enviando…"
-              : `${iraDirecto ? "Confirmar alta" : "Enviar solicitud"} · ${UYU(montoNum)}`}
+            {ocupado ? "Creando…" : `Confirmar alta · ${UYU(montoNum)}`}
           </button>
         )}
       </div>
       {confirmar && !ocupado && (
         <p className="text-[11px] font-medium text-[#AEB6CC]">
-          {iraDirecto
-            ? "Esto finaliza el crédito actual (saldado) y crea uno nuevo activo."
-            : "Queda pendiente hasta que el administrador la apruebe."}
+          Esto finaliza el crédito actual (saldado) y crea uno nuevo activo.
         </p>
       )}
     </div>

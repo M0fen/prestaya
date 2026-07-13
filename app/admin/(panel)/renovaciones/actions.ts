@@ -15,7 +15,7 @@ import {
   resolverSolicitudDb,
 } from "@/lib/data/solicitudesRenovacion";
 import { getPrestamoPorId } from "@/lib/data/prestamos";
-import { evaluarRenovacion } from "@/lib/renovacion";
+import { evaluarRenovacion, RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { UYU } from "@/lib/format";
 import type { FrecuenciaPrestamo } from "@/types/db";
@@ -60,61 +60,46 @@ export async function renovarCredito(input: {
     return { ok: false, error: "El crédito anterior no está activo." };
   }
   const evalu = evaluarRenovacion(ant.monto_prestado, monto);
-  const puedeDirecto = evalu.autoAprobable || esAdmin(usuario.rol);
+  const admin = esAdmin(usuario.rol);
 
-  if (puedeDirecto) {
-    const res = await crearRenovacion(db, {
-      clienteId: input.clienteId,
-      prestamoAnteriorId: input.prestamoAnteriorId,
-      monto,
-      totalDias,
-      frecuencia: input.frecuencia,
-      creadoPor: usuario.id,
-    });
-    if (!res.ok) return res;
-    await registrarAuditoria(db, {
-      actorId: usuario.id,
-      actorNombre: usuario.nombre,
-      accion: evalu.autoAprobable
-        ? "Renovó crédito (auto, dentro del tope)"
-        : "Renovó crédito (admin, sobre el tope)",
-      entidad: "cliente",
-      entidadId: input.clienteId,
-      detalle: `Nuevo crédito ${UYU(monto)} × ${totalDias} (${input.frecuencia})`,
-    });
-    // El nuevo crédito cambia cartera, mora y renovaciones.
-    revalidatePath("/admin/renovaciones");
-    revalidatePath("/admin/mora");
-    revalidatePath("/admin");
-    return { ok: true, via: evalu.autoAprobable ? "auto" : "admin", prestamoId: res.prestamoId, cuota: res.cuota };
+  // CAP total DURO para TODOS (incluido el admin): ningún crédito supera $100.000.
+  if (evalu.superaCap) {
+    return { ok: false, error: evalu.motivo ?? `El crédito no puede superar ${UYU(RENOVACION_CAP_TOTAL)}.` };
+  }
+  // El tope del tramo (20/15/10%) es DURO para cobrador/supervisor; el admin
+  // puede excederlo (autorización directa). No hay flujo de "solicitud" acá.
+  if (evalu.excedePct && !admin) {
+    return {
+      ok: false,
+      error: `${evalu.motivo ?? "El aumento supera el máximo permitido."} Solo el administrador puede autorizarlo.`,
+    };
   }
 
-  // Fuera del tope y no es admin → solicitud a aprobar.
-  try {
-    await crearSolicitudDb(db, {
-      clienteId: input.clienteId,
-      prestamoAnteriorId: input.prestamoAnteriorId,
-      monto,
-      totalDias,
-      frecuencia: input.frecuencia,
-      solicitadoPor: usuario.id,
-      solicitadoPorNombre: usuario.nombre,
-    });
-    await registrarAuditoria(db, {
-      actorId: usuario.id,
-      actorNombre: usuario.nombre,
-      accion: "Solicitó renovación (supera el tope)",
-      entidad: "cliente",
-      entidadId: input.clienteId,
-      detalle: `${UYU(monto)} × ${totalDias} · ${evalu.motivo ?? ""}`,
-    });
-    revalidatePath("/admin/renovaciones");
-    return { ok: true, via: "solicitud" };
-  } catch (e) {
-    if ((e as { code?: string } | null)?.code === "23505")
-      return { ok: false, error: "Ya hay una solicitud pendiente para este crédito." };
-    return { ok: false, error: "No se pudo enviar la solicitud. ¿Corriste la migración 0029?" };
-  }
+  // Auto-aprobable, o admin excediendo el tope del tramo (alta directa).
+  const res = await crearRenovacion(db, {
+    clienteId: input.clienteId,
+    prestamoAnteriorId: input.prestamoAnteriorId,
+    monto,
+    totalDias,
+    frecuencia: input.frecuencia,
+    creadoPor: usuario.id,
+  });
+  if (!res.ok) return res;
+  await registrarAuditoria(db, {
+    actorId: usuario.id,
+    actorNombre: usuario.nombre,
+    accion: evalu.autoAprobable
+      ? "Renovó crédito (auto, dentro del tope)"
+      : "Renovó crédito (admin, sobre el tope del tramo)",
+    entidad: "cliente",
+    entidadId: input.clienteId,
+    detalle: `Nuevo crédito ${UYU(monto)} × ${totalDias} (${input.frecuencia})`,
+  });
+  // El nuevo crédito cambia cartera, mora y renovaciones.
+  revalidatePath("/admin/renovaciones");
+  revalidatePath("/admin/mora");
+  revalidatePath("/admin");
+  return { ok: true, via: evalu.autoAprobable ? "auto" : "admin", prestamoId: res.prestamoId, cuota: res.cuota };
 }
 
 // ── Flujo de APROBACIÓN (supervisor solicita → admin resuelve) ─────────────

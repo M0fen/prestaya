@@ -5,8 +5,8 @@ import {
   calcularCuotaRenovacion,
   tasaImplicita,
   evaluarRenovacion,
-  RENOVACION_TOPE_PCT,
-  RENOVACION_TOPE_ABS,
+  topeAumentoPct,
+  RENOVACION_CAP_TOTAL,
 } from "./renovacion";
 
 // Anterior: prestó 10.000, cuota 400 × 30 días = 12.000 a pagar → tasa 1.2.
@@ -44,45 +44,66 @@ describe("calcularCuotaRenovacion", () => {
   });
 });
 
-describe("evaluarRenovacion (tope de auto-aprobación)", () => {
+describe("topeAumentoPct (escalonado por tramo del monto anterior)", () => {
+  it("≤ 30.000 → 20%", () => {
+    expect(topeAumentoPct(30000)).toBe(20);
+    expect(topeAumentoPct(10000)).toBe(20);
+  });
+  it("30.001–60.000 → 15%", () => {
+    expect(topeAumentoPct(30001)).toBe(15);
+    expect(topeAumentoPct(60000)).toBe(15);
+  });
+  it("60.001–90.000 → 10%", () => {
+    expect(topeAumentoPct(60001)).toBe(10);
+    expect(topeAumentoPct(90000)).toBe(10);
+  });
+  it("> 90.000 → 0% (ya en el máximo)", () => {
+    expect(topeAumentoPct(90001)).toBe(0);
+    expect(topeAumentoPct(100000)).toBe(0);
+  });
+});
+
+describe("evaluarRenovacion (tramo escalonado + cap $100.000)", () => {
   it("mismo monto o menos → auto-aprobable", () => {
     expect(evaluarRenovacion(50000, 50000).autoAprobable).toBe(true);
     expect(evaluarRenovacion(50000, 40000).autoAprobable).toBe(true);
   });
 
-  it("aumento justo en el 20% → auto-aprobable (borde)", () => {
-    // 50.000 → 60.000 = +20% y +$10.000 (dentro de ambos topes).
-    const e = evaluarRenovacion(50000, 60000);
-    expect(e.autoAprobable).toBe(true);
-    expect(e.aumento).toBe(10000);
-    expect(e.aumentoPct).toBeCloseTo(20, 6);
+  it("tramo ≤30k: +20% en el borde → auto-aprobable; +21% → excede", () => {
+    const ok = evaluarRenovacion(25000, 30000); // +20%
+    expect(ok.autoAprobable).toBe(true);
+    expect(ok.topePct).toBe(20);
+    const no = evaluarRenovacion(25000, 30250); // +21%
+    expect(no.autoAprobable).toBe(false);
+    expect(no.excedePct).toBe(true);
+    expect(no.motivo).toContain("20%");
   });
 
-  it("aumento del 21% → requiere aprobación (supera el %)", () => {
-    const e = evaluarRenovacion(50000, 60500); // +21%
-    expect(e.autoAprobable).toBe(false);
-    expect(e.motivo).toContain(`${RENOVACION_TOPE_PCT}%`);
+  it("tramo 31–60k: máximo +15%", () => {
+    expect(evaluarRenovacion(50000, 57500).autoAprobable).toBe(true); // +15%
+    const no = evaluarRenovacion(50000, 58000); // +16%
+    expect(no.autoAprobable).toBe(false);
+    expect(no.motivo).toContain("15%");
   });
 
-  it("dentro del 20% pero aumento > $100.000 → requiere aprobación (tope absoluto)", () => {
-    // 1.000.000 → 1.100.000 = +10% (ok en %) pero +$100.001 supera el tope abs.
-    const e = evaluarRenovacion(1_000_000, 1_100_001);
+  it("tramo 61–90k: máximo +10%", () => {
+    expect(evaluarRenovacion(80000, 88000).autoAprobable).toBe(true); // +10%
+    expect(evaluarRenovacion(80000, 89000).autoAprobable).toBe(false); // +11,25%
+  });
+
+  it("tramo >90k: sin aumento (0%); mismo monto sí, más no", () => {
+    expect(evaluarRenovacion(95000, 95000).autoAprobable).toBe(true);
+    const no = evaluarRenovacion(95000, 96000);
+    expect(no.autoAprobable).toBe(false);
+    expect(no.topePct).toBe(0);
+  });
+
+  it("CAP $100.000: superar el total marca superaCap (duro para todos)", () => {
+    const e = evaluarRenovacion(90000, 100001);
+    expect(e.superaCap).toBe(true);
     expect(e.autoAprobable).toBe(false);
-    expect(e.aumento).toBe(100001);
     expect(e.motivo).toContain("100.000");
-  });
-
-  it("aumento de exactamente $100.000 dentro del % → auto-aprobable (borde)", () => {
-    // 600.000 → 700.000 = +16,7% y +$100.000 (ambos en el límite).
-    const e = evaluarRenovacion(600000, 700000);
-    expect(e.aumento).toBe(RENOVACION_TOPE_ABS);
-    expect(e.autoAprobable).toBe(true);
-  });
-
-  it("supera ambos topes → motivo menciona los dos", () => {
-    const e = evaluarRenovacion(500000, 900000); // +80% y +$400.000
-    expect(e.autoAprobable).toBe(false);
-    expect(e.motivo).toContain("%");
-    expect(e.motivo).toContain("100.000");
+    // Exactamente en el cap NO lo supera.
+    expect(evaluarRenovacion(90000, RENOVACION_CAP_TOTAL).superaCap).toBe(false);
   });
 });

@@ -41,28 +41,45 @@ export function calcularCuotaRenovacion(
   return Math.round((montoNuevo * factor) / diasNuevo);
 }
 
-// ── Auto-aprobación de renovaciones (tope) ─────────────────────────────────
-//  Una renovación se aprueba SOLA (crea el crédito al instante, sin pasar por el
-//  admin) si el AUMENTO respecto del crédito anterior está DENTRO del tope:
-//    · el monto nuevo no supera al anterior en más de RENOVACION_TOPE_PCT %, y
-//    · el aumento en pesos no supera RENOVACION_TOPE_ABS.
-//  Si se pasa de cualquiera de los dos, requiere aprobación del admin.
+// ── Tope de AUMENTO por tramo + CAP total (money-critical) ─────────────────
+//  Regla de negocio: el aumento MÁXIMO al renovar depende del monto del crédito
+//  ANTERIOR, y ningún crédito puede superar el CAP total:
+//    · anterior ≤ $30.000        → hasta +20%
+//    · anterior $30.001–$60.000  → hasta +15%
+//    · anterior $60.001–$90.000  → hasta +10%
+//    · anterior > $90.000        → sin aumento (ya está cerca del cap)
+//    · CAP TOTAL: ningún crédito supera $100.000.
+//  El % del tramo es DURO para cobrador/supervisor; el ADMIN puede excederlo
+//  (autorización directa). El CAP de $100.000 es DURO para TODOS (incl. admin).
 //  Renovar por el mismo monto o por menos siempre es auto-aprobable.
-export const RENOVACION_TOPE_PCT = 20;
-export const RENOVACION_TOPE_ABS = 100_000;
+export const RENOVACION_CAP_TOTAL = 100_000;
+
+/** Tope de aumento (%) aplicable según el monto del crédito ANTERIOR. Puro. */
+export function topeAumentoPct(montoAnterior: number): number {
+  if (montoAnterior <= 30_000) return 20;
+  if (montoAnterior <= 60_000) return 15;
+  if (montoAnterior <= 90_000) return 10;
+  return 0; // 90.001–100.000: ya en el máximo, sin aumento
+}
 
 export interface EvaluacionRenovacion {
-  /** true = se aprueba automáticamente; false = requiere aprobación del admin. */
+  /** true = dentro del tope del tramo Y del cap → se aprueba sola. */
   autoAprobable: boolean;
   /** Aumento en pesos (nuevo − anterior); negativo si renueva por menos. */
   aumento: number;
   /** Aumento en % sobre el anterior. */
   aumentoPct: number;
-  /** Por qué requiere aprobación (null si es auto-aprobable). */
+  /** Tope de aumento (%) del tramo del monto anterior. */
+  topePct: number;
+  /** El aumento supera el tope del tramo (DURO para no-admin; el admin puede). */
+  excedePct: boolean;
+  /** El monto nuevo supera el cap total $100.000 (DURO para TODOS). */
+  superaCap: boolean;
+  /** Por qué no es auto-aprobable (null si lo es). */
   motivo: string | null;
 }
 
-/** Evalúa si una renovación entra en el tope de auto-aprobación. Puro. */
+/** Evalúa una renovación contra el tope del tramo y el cap total. Puro. */
 export function evaluarRenovacion(
   montoAnterior: number,
   montoNuevo: number,
@@ -70,19 +87,20 @@ export function evaluarRenovacion(
   const aumento = montoNuevo - montoAnterior;
   const aumentoPct =
     montoAnterior > 0 ? (aumento / montoAnterior) * 100 : montoNuevo > 0 ? Infinity : 0;
+  const topePct = topeAumentoPct(montoAnterior);
   // Tolerancia mínima para no rechazar por redondeo (ej. 20.0000001%).
-  const excedePct = aumentoPct > RENOVACION_TOPE_PCT + 1e-6;
-  const excedeAbs = aumento > RENOVACION_TOPE_ABS;
-  const autoAprobable = !excedePct && !excedeAbs;
+  const excedePct = aumentoPct > topePct + 1e-6;
+  const superaCap = montoNuevo > RENOVACION_CAP_TOTAL + 1e-6;
+  const autoAprobable = !excedePct && !superaCap;
 
   const pes = (n: number) => `$${Math.round(n).toLocaleString("es-UY")}`;
   let motivo: string | null = null;
-  if (excedePct && excedeAbs)
-    motivo = `El aumento (${aumentoPct.toFixed(0)}% · +${pes(aumento)}) supera el tope de ${RENOVACION_TOPE_PCT}% y de ${pes(RENOVACION_TOPE_ABS)}.`;
+  if (superaCap) motivo = `El crédito no puede superar ${pes(RENOVACION_CAP_TOTAL)} (tope máximo).`;
   else if (excedePct)
-    motivo = `El aumento de ${aumentoPct.toFixed(0)}% supera el tope de ${RENOVACION_TOPE_PCT}%.`;
-  else if (excedeAbs)
-    motivo = `El aumento de ${pes(aumento)} supera el tope de ${pes(RENOVACION_TOPE_ABS)}.`;
+    motivo =
+      topePct > 0
+        ? `El aumento de ${aumentoPct.toFixed(0)}% supera el máximo de ${topePct}% para créditos de ${pes(montoAnterior)}.`
+        : `Un crédito de ${pes(montoAnterior)} ya no admite aumento (tope ${pes(RENOVACION_CAP_TOTAL)}).`;
 
-  return { autoAprobable, aumento, aumentoPct, motivo };
+  return { autoAprobable, aumento, aumentoPct, topePct, excedePct, superaCap, motivo };
 }

@@ -14,7 +14,7 @@ import { getPrestamoPorId } from "./prestamos";
 import { getHistorialCrediticio } from "./scoring";
 import { calcularEstadosCarton } from "@/lib/cartones";
 import { calcularScore } from "@/lib/scoring";
-import { calcularCuotaRenovacion } from "@/lib/renovacion";
+import { calcularCuotaRenovacion, RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
 import { hoyUY } from "@/lib/fecha";
 import { toIso } from "@/lib/format";
 
@@ -184,6 +184,10 @@ export async function crearRenovacion(
 
   // 1. Validaciones (antes de tocar nada).
   if (!(monto > 0)) return { ok: false, error: "El monto debe ser mayor a 0." };
+  // CAP total DURO (money-critical): ningún crédito supera $100.000, sin importar
+  // el rol ni la ruta (alta directa, admin sobre-tope, o solicitud aprobada).
+  if (monto > RENOVACION_CAP_TOTAL)
+    return { ok: false, error: `El crédito no puede superar $${RENOVACION_CAP_TOTAL.toLocaleString("es-UY")} (tope máximo).` };
   if (!(Number.isInteger(totalDias) && totalDias > 0))
     return { ok: false, error: "La cantidad de cuotas debe ser un entero mayor a 0." };
   if (!FREQ.includes(frecuencia))
