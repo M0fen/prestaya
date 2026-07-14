@@ -10,6 +10,7 @@ import { juegoArcadeDe } from "@/lib/juegoAjustes";
 import { FormAjustesJuego } from "@/components/admin/FormAjustesJuego";
 import { RecompensasManager } from "@/components/admin/RecompensasManager";
 import { GameSlot } from "@/components/GameSlot";
+import { EtiquetaAudiencia } from "@/components/admin/EtiquetaAudiencia";
 
 export const dynamic = "force-dynamic";
 
@@ -38,11 +39,14 @@ export default async function JuegoPage() {
 
   return (
     <div className="mx-auto flex max-w-[640px] flex-col gap-5">
-      <div className="flex flex-col gap-0.5">
-        <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">Zona de juego</h1>
-        <span className="text-[13px] font-medium text-gris">
-          Controlá lo que ven tus clientes: recompensas, temporada y el juego del mes.
-        </span>
+      <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-0.5">
+          <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">Zona de juego</h1>
+          <span className="text-[13px] font-medium text-gris">
+            Controlá lo que ven tus clientes: recompensas, temporada y el juego del mes.
+          </span>
+        </div>
+        <EtiquetaAudiencia audiencia="cliente" nota="el arcade y la temporada están en pausa por ahora" />
       </div>
 
       {ajustes.temporadaActiva && pctAlDia !== null && (

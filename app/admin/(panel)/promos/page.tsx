@@ -6,6 +6,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { getPremiosRaspa, getSegmentosRaspa, getQuinielasAdmin, getParticipaciones } from "@/lib/data/promos";
 import { ganadores as calcularGanadores } from "@/lib/quiniela";
 import { PromosManager, type ResumenQuiniela } from "@/components/admin/PromosManager";
+import { EtiquetaAudiencia } from "@/components/admin/EtiquetaAudiencia";
 
 export const dynamic = "force-dynamic";
 
@@ -36,12 +37,15 @@ export default async function PromosPage() {
 
   return (
     <div className="mx-auto flex max-w-[680px] flex-col gap-5">
-      <div className="flex flex-col gap-0.5">
-        <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">Juegos y sorteos</h1>
-        <span className="text-[13px] font-medium text-gris">
-          Raspaditas y quinielas <b>promocionales</b>: los premios son beneficios de tu crédito,
-          nunca dinero. El resultado lo decide el servidor y queda registrado.
-        </span>
+      <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-0.5">
+          <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">Juegos y sorteos</h1>
+          <span className="text-[13px] font-medium text-gris">
+            Raspaditas y quinielas <b>promocionales</b>: los premios son beneficios de tu crédito,
+            nunca dinero. El resultado lo decide el servidor y queda registrado.
+          </span>
+        </div>
+        <EtiquetaAudiencia audiencia="cliente" />
       </div>
 
       <PromosManager premios={premios} segmentos={segmentos} quinielas={quinielas} resumen={resumen} />

@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getRifa } from "@/lib/data/rifas";
 import { RifaAdmin } from "@/components/admin/RifaAdmin";
+import { EtiquetaAudiencia } from "@/components/admin/EtiquetaAudiencia";
 
 export const dynamic = "force-dynamic";
 
@@ -14,12 +15,15 @@ export default async function RifaPage() {
 
   return (
     <div className="mx-auto flex max-w-[820px] flex-col gap-5">
-      <div className="flex flex-col gap-0.5">
-        <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">Rifa</h1>
-        <span className="text-[13px] font-medium text-gris">
-          Armá una rifa para tus clientes: un banner con tu mensaje y la foto del premio. Podés
-          dirigirla solo a los mejores clientes. El cliente la ve en su pantalla.
-        </span>
+      <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-0.5">
+          <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">Rifa</h1>
+          <span className="text-[13px] font-medium text-gris">
+            Armá una rifa para tus clientes: un banner con tu mensaje y la foto del premio. Podés
+            dirigirla solo a los mejores clientes. El cliente la ve en su pantalla.
+          </span>
+        </div>
+        <EtiquetaAudiencia audiencia="cliente" />
       </div>
 
       <RifaAdmin rifa={rifa} />

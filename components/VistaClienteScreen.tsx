@@ -68,11 +68,12 @@ export function VistaClienteScreen({
   /** Temporada/evento del mes (si el admin lo encendió). */
   temporada?: { nombre: string; emoji: string; meta: number; premio: string } | null;
 }) {
-  // Juegos y promociones OCULTOS en la vista de cliente por ahora (flag único,
-  // reversible): raspadita/quiniela + bloque "Novedades" (arcade, temporada,
-  // rifa, anuncios, estrellas). La quiniela reelaborada volverá cuando esté lista.
+  // Bloque LÚDICO "Novedades" (arcade, temporada, estrellas) oculto por ahora
+  // (flag único, reversible). Lo que el admin usa para COMUNICARSE con el cliente
+  // —anuncios, raspadita/quiniela y RIFA— se muestra siempre que lo active (fuera
+  // de este flag): así "activar" en el panel de verdad llega al cliente.
   const MOSTRAR_JUEGOS: boolean = false;
-  const hayNovedades = Boolean(temporada || rifa || anuncios.length > 0 || estrellas || juegoArcade);
+  const hayNovedades = Boolean(temporada || estrellas || juegoArcade);
   return (
     <div className="flex min-h-screen justify-center bg-fondo text-tinta">
       <div className="flex w-full max-w-[440px] flex-col gap-3 bg-app px-[18px] pt-4 pb-8 shadow-[0_0_60px_rgba(15,27,61,0.08)]">
@@ -139,6 +140,11 @@ export function VistaClienteScreen({
             siempre, aunque los juegos estén ocultos. */}
         <BannerCarrusel anuncios={anuncios} />
 
+        {/* Rifa promocional: se muestra cuando el admin la activa y este cliente
+            califica (soloMejores). Es COMUNICACIÓN al cliente, no un juego → visible
+            aunque el bloque lúdico esté en pausa. */}
+        {rifa && <RifaBanner rifa={rifa} />}
+
         {/* Historial de pagos (con % de la cuota cubierto + descuento). */}
         <Historial historial={v.historial} />
 
@@ -159,9 +165,6 @@ export function VistaClienteScreen({
                 premio={temporada.premio}
               />
             )}
-
-            {/* Rifa promocional (si el admin la activó y este cliente califica). */}
-            {rifa && <RifaBanner rifa={rifa} />}
 
             {/* Estrellas: recompensa real por pagar (5 pagos = 1 estrella). */}
             {estrellas && <EstrellasCliente saldo={estrellas} token={token} />}

@@ -11,16 +11,16 @@ export type Grupo =
   | "Operación diaria"
   | "Cartera y clientes"
   | "Finanzas y análisis"
-  | "Fidelización"
-  | "Comunicación"
+  | "Para tus clientes"
+  | "Para tu equipo"
   | "Configuración";
 
 export const NAV_GRUPOS: Grupo[] = [
   "Operación diaria",
   "Cartera y clientes",
   "Finanzas y análisis",
-  "Fidelización",
-  "Comunicación",
+  "Para tus clientes",
+  "Para tu equipo",
   "Configuración",
 ];
 
@@ -70,17 +70,22 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/admin/desempeno", label: "Desempeño", icon: "🏆", grupo: "Finanzas y análisis", roles: ["admin", "supervisor"], alias: ["historial", "rendimiento", "cobradores", "ranking", "rango", "desde hasta", "por fecha", "de fecha a fecha"] },
   { href: "/admin/capital", label: "Inversión de capital", icon: "🏦", grupo: "Finanzas y análisis", roles: ["admin"], alias: ["capital", "aportes", "inversion"] },
   { href: "/admin/reportes", label: "Reportes", icon: "📨", grupo: "Finanzas y análisis", roles: ["admin"], alias: ["exportar", "csv", "excel", "descargar", "estado de cuenta", "pdf", "respaldo", "backup"] },
-  // ── Fidelización (juegos y comunicación al cliente) ──
-  // Juego/Estrellas/Sorteos = config GLOBAL del negocio y canjes (dinero-adyacente):
-  // solo el dueño (admin). El supervisor no los ve (además su RLS no acota estrellas por zona).
-  { href: "/admin/juego", label: "Zona de juego", icon: "🎮", grupo: "Fidelización", roles: ["admin"], alias: ["gaming", "recompensas", "temporada", "caritas"] },
-  { href: "/admin/estrellas", label: "Estrellas", icon: "⭐", grupo: "Fidelización", roles: ["admin"], alias: ["canjes", "redenciones", "premios"] },
-  { href: "/admin/promos", label: "Juegos y sorteos", icon: "🎟️", grupo: "Fidelización", roles: ["admin"], alias: ["raspadita", "quiniela", "sorteo", "promocion"] },
-  { href: "/admin/rifa", label: "Rifa", icon: "🎁", grupo: "Fidelización", roles: ["admin"], alias: ["premio", "sorteo", "banner", "mejores clientes"] },
-  { href: "/admin/anuncios", label: "Anuncios", icon: "📣", grupo: "Fidelización", roles: ["admin", "supervisor"], alias: ["publicidad", "campanas", "banner", "temporada"] },
-  // ── Comunicación interna ──
-  { href: "/admin/chat", label: "Chat", icon: "💬", grupo: "Comunicación", alias: ["mensajes"] },
-  { href: "/admin/notas", label: "Notas", icon: "📝", grupo: "Comunicación" },
+  // ── Para tus clientes (lo que ve el DEUDOR en su pantalla) ──
+  // Anuncios y Rifa son COMUNICACIÓN al cliente (banners que ve en su pantalla; el
+  // supervisor también publica anuncios). Juego/Sorteos/Estrellas = config lúdica
+  // GLOBAL (dinero-adyacente): solo el dueño (admin); el supervisor no los ve
+  // (además su RLS no acota estrellas por zona).
+  { href: "/admin/anuncios", label: "Anuncios al cliente", icon: "📣", grupo: "Para tus clientes", roles: ["admin", "supervisor"], alias: ["publicidad", "campanas", "banner", "banner cliente", "temporada", "aviso cliente", "novedad"] },
+  { href: "/admin/rifa", label: "Rifa", icon: "🎁", grupo: "Para tus clientes", roles: ["admin"], alias: ["premio", "sorteo", "banner", "mejores clientes", "rifa cliente"] },
+  { href: "/admin/promos", label: "Juegos y sorteos", icon: "🎟️", grupo: "Para tus clientes", roles: ["admin"], alias: ["raspadita", "quiniela", "sorteo", "promocion"] },
+  { href: "/admin/juego", label: "Zona de juego", icon: "🎮", grupo: "Para tus clientes", roles: ["admin"], alias: ["gaming", "recompensas", "temporada", "caritas"] },
+  { href: "/admin/estrellas", label: "Estrellas", icon: "⭐", grupo: "Para tus clientes", roles: ["admin"], alias: ["canjes", "redenciones", "premios"] },
+  // ── Para tu equipo (lo que ven COBRADORES / SUPERVISORES) ──
+  // Banner al equipo = aviso fijo arriba de la app del cobrador (antes escondido
+  // dentro de Chat; ahora tiene entrada propia para que el admin lo encuentre).
+  { href: "/admin/banner-equipo", label: "Banner al equipo", icon: "📢", grupo: "Para tu equipo", roles: ["admin", "supervisor"], alias: ["aviso equipo", "banner cobrador", "mensaje cobradores", "aviso cobrador", "comunicado", "cartel equipo"] },
+  { href: "/admin/chat", label: "Chat", icon: "💬", grupo: "Para tu equipo", alias: ["mensajes", "equipo", "coordinacion"] },
+  { href: "/admin/notas", label: "Notas", icon: "📝", grupo: "Para tu equipo", alias: ["apuntes", "recordatorio"] },
   // ── Configuración ──
   { href: "/admin/zonas", label: "Zonas", icon: "🗺️", grupo: "Configuración", roles: ["admin"], alias: ["territorio", "barrio", "ruta", "sector", "cobradores", "supervisor"] },
   { href: "/admin/equipo", label: "Equipo", icon: "🧑‍🤝‍🧑", grupo: "Configuración", roles: ["admin"], alias: ["permisos", "roles", "supervisora", "esposa", "usuarios"] },

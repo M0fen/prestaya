@@ -3,9 +3,7 @@
 import { requireUsuario, esGestor } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getCanales, getMensajesVista } from "@/lib/data/chat";
-import { getBannersCobrador } from "@/lib/data/bannerCobrador";
 import { ChatVista } from "@/components/chat/ChatVista";
-import { BannerCobradorManager } from "@/components/admin/BannerCobradorManager";
 
 export const dynamic = "force-dynamic";
 
@@ -18,10 +16,7 @@ export default async function ChatAdminPage({
   const usuario = await requireUsuario();
   const db = await createSupabaseServer();
 
-  const [canales, banners] = await Promise.all([
-    getCanales(db, usuario),
-    getBannersCobrador(db),
-  ]);
+  const canales = await getCanales(db, usuario);
   const activo = canales.find((x) => x.key === c) ?? canales[0];
   const mensajes = activo
     ? await getMensajesVista(db, activo.ambito, activo.cobradorId, activo.zonaId, usuario.id)
@@ -36,8 +31,21 @@ export default async function ChatAdminPage({
         </span>
       </div>
 
-      {/* Banner al equipo (aviso a la app del cobrador). */}
-      {esGestor(usuario.rol) && <BannerCobradorManager banners={banners} />}
+      {/* El "Banner al equipo" ahora vive en su propia sección (Para tu equipo);
+          desde acá solo lo señalamos para que se descubra. */}
+      {esGestor(usuario.rol) && (
+        <a
+          href="/admin/banner-equipo"
+          className="flex items-center gap-3 rounded-[14px] border border-linea bg-app px-4 py-3 transition-colors hover:bg-fondo"
+        >
+          <span className="text-[18px]" aria-hidden>📢</span>
+          <span className="flex-1 text-[13px] font-semibold text-tinta">
+            ¿Querés avisarle a <b>todos los cobradores</b> a la vez? Poné un{" "}
+            <b>Banner al equipo</b> arriba de su ruta.
+          </span>
+          <span className="text-[15px] font-bold text-gris" aria-hidden>→</span>
+        </a>
+      )}
 
       <ChatVista
         basePath="/admin/chat"

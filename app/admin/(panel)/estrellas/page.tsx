@@ -6,6 +6,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { getRedencionesPendientes, getHistorialRedenciones } from "@/lib/data/estrellas";
 import { RedencionesManager } from "@/components/admin/RedencionesManager";
 import { RedimirEstrellas } from "@/components/admin/RedimirEstrellas";
+import { EtiquetaAudiencia } from "@/components/admin/EtiquetaAudiencia";
 import { meses } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -27,12 +28,15 @@ export default async function EstrellasPage() {
 
   return (
     <div className="mx-auto flex max-w-[640px] flex-col gap-5">
-      <div className="flex flex-col gap-0.5">
-        <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">Estrellas</h1>
-        <span className="text-[13px] font-medium text-gris">
-          Canjes por aprobar. Cada 5 pagos, el cliente gana una estrella; puede canjear hasta
-          5 por mes. Al aprobar, entregás el premio.
-        </span>
+      <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-0.5">
+          <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">Estrellas</h1>
+          <span className="text-[13px] font-medium text-gris">
+            Canjes por aprobar. Cada 5 pagos, el cliente gana una estrella; puede canjear hasta
+            5 por mes. Al aprobar, entregás el premio.
+          </span>
+        </div>
+        <EtiquetaAudiencia audiencia="cliente" nota="el canje desde la app del cliente está en pausa" />
       </div>
 
       {/* Redención directa del admin (en persona). */}

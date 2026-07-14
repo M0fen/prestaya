@@ -6,6 +6,7 @@ import { requireGestor } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getAnunciosAdmin } from "@/lib/data/anuncios";
 import { AnunciosManager } from "@/components/admin/AnunciosManager";
+import { EtiquetaAudiencia } from "@/components/admin/EtiquetaAudiencia";
 
 export const dynamic = "force-dynamic";
 
@@ -16,11 +17,14 @@ export default async function AnunciosPage() {
 
   return (
     <div className="mx-auto flex max-w-[640px] flex-col gap-5">
-      <div className="flex flex-col gap-0.5">
-        <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">Anuncios</h1>
-        <span className="text-[13px] font-medium text-gris">
-          Comunicale lo que quieras a tus clientes en su pantalla.
-        </span>
+      <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-0.5">
+          <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">Anuncios al cliente</h1>
+          <span className="text-[13px] font-medium text-gris">
+            Comunicale lo que quieras a tus clientes en su pantalla.
+          </span>
+        </div>
+        <EtiquetaAudiencia audiencia="cliente" />
       </div>
 
       {/* Qué podés hacer (para que el admin vea todo el control que tiene). */}

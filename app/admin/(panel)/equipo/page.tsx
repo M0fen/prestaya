@@ -15,7 +15,9 @@ type Cel = "si" | "no" | "campo";
 const PERMISOS: { accion: string; admin: Cel; supervisor: Cel; cobrador: Cel }[] = [
   { accion: "Ver dashboard, clientes, mora y caja", admin: "si", supervisor: "si", cobrador: "no" },
   { accion: "Descargar reportes y respaldo", admin: "si", supervisor: "si", cobrador: "no" },
-  { accion: "Configurar juego, anuncios y promos", admin: "si", supervisor: "si", cobrador: "no" },
+  { accion: "Publicar anuncios y banners al cliente", admin: "si", supervisor: "si", cobrador: "no" },
+  { accion: "Configurar juegos, rifas y sorteos del cliente", admin: "si", supervisor: "no", cobrador: "no" },
+  { accion: "Avisar al equipo (banner al equipo)", admin: "si", supervisor: "si", cobrador: "no" },
   { accion: "Editar la política de mora", admin: "si", supervisor: "no", cobrador: "no" },
   { accion: "Fijar y liquidar comisiones", admin: "si", supervisor: "no", cobrador: "no" },
   { accion: "Gestionar zonas (crear, mover cobradores)", admin: "si", supervisor: "no", cobrador: "no" },
