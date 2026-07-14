@@ -10,6 +10,29 @@ import { getResumenPeriodo, type Periodo } from "./periodo";
 import { calcularComision } from "@/lib/comision";
 import { columnaFaltante } from "./errores";
 import { meses } from "@/lib/format";
+import { diaUYInicioIso, diaUYFinIso } from "@/lib/fecha";
+
+/** Recaudado del período atribuido al DUEÑO DE LA RUTA (`prestamos.cobrador_id`),
+ *  no a quien registró el pago: un cobro de oficina/transferencia igual le paga
+ *  comisión al cobrador de la ruta (regla del negocio). Vía RPC `app_comision_por_ruta`
+ *  (0069). Devuelve null si la RPC no está aún → el llamador cae a la atribución
+ *  previa (por `registrado_por`) sin romperse. `desde`/`hasta` son días UY "YYYY-MM-DD". */
+async function recaudoPorRuta(
+  db: SupabaseClient,
+  desde: string,
+  hasta: string,
+): Promise<Map<string, { recaudado: number; cobros: number }> | null> {
+  const { data, error } = await db.rpc("app_comision_por_ruta", {
+    desde: diaUYInicioIso(desde),
+    hasta: diaUYFinIso(hasta), // fin EXCLUSIVO (inicio del día siguiente)
+  });
+  if (error) return null; // 0069 sin correr → fallback
+  const m = new Map<string, { recaudado: number; cobros: number }>();
+  for (const r of (data ?? []) as { cobrador_id: string | null; recaudado: number; cobros: number }[]) {
+    if (r.cobrador_id) m.set(r.cobrador_id, { recaudado: Number(r.recaudado), cobros: Number(r.cobros) });
+  }
+  return m;
+}
 
 /** Período canónico ("mes:2026-07") → etiqueta legible ("Julio 2026"). */
 export function etiquetaPeriodoKey(key: string): string {
@@ -100,6 +123,10 @@ export interface ResumenComisiones {
   totalLiquidado: number;
   /** false si falta la columna comision_pct (migración 0014 sin correr). */
   disponible: boolean;
+  /** true si el recaudado se atribuyó al DUEÑO DE LA RUTA (RPC 0069); false = aún
+   *  por `registrado_por` (0069 sin correr). Un cobro de oficina cuenta la comisión
+   *  del cobrador de la ruta solo cuando es true. */
+  atribuidoPorRuta: boolean;
 }
 
 export async function getComisionesPeriodo(
@@ -108,7 +135,13 @@ export async function getComisionesPeriodo(
   hoy: Date = new Date(),
 ): Promise<ResumenComisiones> {
   const resumen = await getResumenPeriodo(db, periodo, hoy);
-  const recaudadoDe = new Map(resumen.porCobrador.map((c) => [c.cobradorId, c]));
+  // Recaudado para la comisión: por DUEÑO DE LA RUTA (0069) si la RPC está; si no,
+  // cae a la atribución previa por `registrado_por` (conducta actual, sin romper).
+  const porRuta = await recaudoPorRuta(db, resumen.desde, resumen.hasta);
+  const atribuidoPorRuta = porRuta !== null;
+  const recaudadoDe: Map<string, { recaudado: number; cobros: number }> =
+    porRuta ??
+    new Map(resumen.porCobrador.map((c) => [c.cobradorId, { recaudado: c.recaudado, cobros: c.cobros }]));
 
   // Cobradores activos + su tasa (degrada si no existe la columna).
   let cobs: { id: string; nombre: string; comision_pct: number }[] = [];
@@ -176,12 +209,16 @@ export async function getComisionesPeriodo(
     desde: resumen.desde,
     hasta: resumen.hasta,
     filas,
-    totalRecaudado: resumen.recaudado,
+    // Suma de las filas (no `resumen.recaudado`): las filas son solo cobradores, así
+    // que este total puede ser < recaudo del dashboard (excluye pagos de créditos sin
+    // cobrador y —en fallback— registrados por no-cobradores). Cuadra con lo visible.
+    totalRecaudado: filas.reduce((s, f) => s + f.recaudado, 0),
     totalComision: filas.reduce((s, f) => s + f.comision, 0),
     totalCobros: filas.reduce((s, f) => s + f.cobros, 0),
     periodoKey,
     totalLiquidado: [...liqMap.values()].reduce((s, l) => s + l.monto, 0),
     disponible,
+    atribuidoPorRuta,
   };
 }
 
