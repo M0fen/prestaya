@@ -39,11 +39,14 @@ export function CierrePorZona({
   if (consolidado.zonas.length === 0) return null;
 
   const cerrable = new Set(cerrables);
+  // Operación PLANA (sin zonas): un único bucket sin zona. Se presenta como
+  // "Cierre del día" en vez de "Cierre por zona / Sin zona" (que parece un error).
+  const soloSinZona = consolidado.zonas.length === 1 && !consolidado.zonas[0].zonaId;
 
   return (
     <section className="flex flex-col gap-2.5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-[13px] font-bold text-tinta">Cierre por zona</span>
+        <span className="text-[13px] font-bold text-tinta">{soloSinZona ? "Cierre del día" : "Cierre por zona"}</span>
         <div className="flex flex-wrap items-center gap-1.5">
           <TotalChip label="Entregado" valor={consolidado.totalEntregado} tono="#157A50" />
           {consolidado.totalFaltante > 0 && (
@@ -63,7 +66,9 @@ export function CierrePorZona({
           {/* Encabezado de la zona */}
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex min-w-0 flex-col">
-              <span className="truncate text-[14px] font-extrabold text-tinta">{z.zonaNombre}</span>
+              <span className="truncate text-[14px] font-extrabold text-tinta">
+                {z.zonaId ? z.zonaNombre : "Caja del día"}
+              </span>
               <span className="text-[11px] font-medium text-tenue">
                 {z.rendidos} rindi{z.rendidos === 1 ? "ó" : "eron"}
                 {z.pendientes > 0 ? ` · ${z.pendientes} sin rendir` : ""}

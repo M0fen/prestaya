@@ -118,7 +118,7 @@ const COBRADOR: GuiaTutorial[] = [
         titulo: "Cargá los datos y capturá el GPS de la casa",
         cuerpo:
           "Nombre, documento, teléfono. Muy importante: parado en la puerta, tocá 'Capturar' para guardar la ubicación de la casa.",
-        tip: "Esa ubicación es la que el sistema usa después para chequear que los cobros se hagan cerca del domicilio (geo-cerca). Sin ella, no hay control de zona.",
+        tip: "Esa ubicación es la que el sistema usa después para chequear que los cobros se hagan cerca del domicilio. Sin ella, no hay control por ubicación.",
       },
     ],
   },
@@ -174,7 +174,7 @@ const COBRADOR: GuiaTutorial[] = [
       {
         titulo: "Tus canales",
         cuerpo:
-          "Tenés el canal del Equipo (todos), tu hilo privado con la Oficina, y el canal de tu Zona (vos, tu supervisor y los cobradores de tu zona).",
+          "Tenés el canal del Equipo (todos) y tu hilo privado con la Oficina. Si tu operación usa zonas, además aparece el canal de tu Zona.",
       },
       {
         titulo: "Es privado y queda registrado",
@@ -192,27 +192,26 @@ const SUPERVISOR: GuiaTutorial[] = [
     rol: "supervisor",
     icono: "🚀",
     titulo: "Arrancá acá (primeros pasos)",
-    resumen: "Lo primero que mirás cada mañana como supervisor de tu zona.",
-    enlace: { href: "/admin", texto: "Ir al panel" },
+    resumen: "Lo primero que mirás cada mañana como supervisor.",
+    enlace: { href: "/admin/jornada", texto: "Ir a Mi jornada" },
     pasos: [
       {
-        titulo: "1. Mirá el Dashboard de tu zona",
+        titulo: "1. Arrancá en Mi jornada",
         cuerpo:
-          "El panel abre en el Dashboard: cartera, mora, recaudo y tus cobradores. TODO es de tu zona (no ves otras). Es tu foto del negocio en 5 segundos.",
+          "Tu pantalla abre en 'Mi jornada': un flujo guiado en 3 actos — Apertura (a quién reclamarle hoy), En vivo (cómo va cada cobrador) y Cierre (el cuadre de caja del día). Es tu foto del negocio en 5 segundos.",
       },
       {
         titulo: "2. Revisá el Centro de alertas 🚨",
         cuerpo:
-          "En el menú, 'Centro de alertas' junta lo que hay que vigilar HOY: faltantes de caja, cobradores que no rindieron, 'no pago' sospechoso, cobros fuera de zona. Empezá el día por acá.",
+          "En el menú, 'Centro de alertas' junta lo que hay que vigilar HOY: faltantes de caja, cobradores que no rindieron y 'no pago' sospechoso. Empezá el día por acá.",
         tip: "Abajo del todo está el ranking de CONFIANZA de tus cobradores: a menor puntaje, mirá primero a esa persona.",
       },
       {
-        titulo: "3. Seguí el Cierre del día",
+        titulo: "3. Cerrá la jornada desde Mi jornada",
         cuerpo:
-          "'Cierre del día' te muestra en vivo cómo va cada cobrador: recaudado vs esperado, quién ya rindió y quién falta. Es tu control de la jornada.",
+          "En el acto 'Cierre' de Mi jornada ves en vivo cómo va cada cobrador: recaudado vs esperado, quién ya rindió y quién falta. Es tu control del día.",
       },
     ],
-    // El enlace principal ya va al panel; el resto lo navega desde el menú.
   },
   {
     id: "sup-alertas",
@@ -240,7 +239,7 @@ const SUPERVISOR: GuiaTutorial[] = [
     rol: "supervisor",
     icono: "🔀",
     titulo: "Reasignar un cliente",
-    resumen: "Mover un cliente de un cobrador a otro, dentro de tu zona.",
+    resumen: "Mover un cliente de un cobrador a otro.",
     enlace: { href: "/admin/clientes", texto: "Abrir Clientes" },
     pasos: [
       {
@@ -249,10 +248,10 @@ const SUPERVISOR: GuiaTutorial[] = [
           "Menú → Clientes → tocá el cliente. Bajá hasta la sección 'Cobrador asignado' y elegí a quién se lo pasás en el selector.",
       },
       {
-        titulo: "Solo entre tus cobradores",
+        titulo: "Elegí el nuevo cobrador",
         cuerpo:
-          "Podés mover un cliente entre los cobradores de tu misma zona. Pasarlo a otra zona es potestad del admin.",
-        tip: "Todo cambio queda auditado: quién movió a quién y cuándo.",
+          "Pasás el cliente al cobrador que elijas. Todo cambio queda auditado.",
+        tip: "Queda registrado quién movió a quién y cuándo — el libro de auditoría no se toca.",
       },
     ],
   },
@@ -301,18 +300,23 @@ const SUPERVISOR: GuiaTutorial[] = [
     id: "sup-limites",
     rol: "supervisor",
     icono: "🔒",
-    titulo: "Lo que no ves ni tocás (a propósito)",
-    resumen: "Algunas palancas y datos quedan solo para el dueño.",
+    titulo: "Lo que ves y lo que no tocás (a propósito)",
+    resumen: "Algunas palancas quedan solo para el dueño; otras las ves pero no las cambiás.",
     pasos: [
       {
-        titulo: "No ves los números del dueño",
+        titulo: "Las comisiones las VES, pero no las tocás",
         cuerpo:
-          "Rentabilidad (Valor), utilidad (Informe de cartera), comisiones y reportes son del admin: no te aparecen en el menú. Tampoco datos de otras zonas.",
+          "Comisiones te aparece en el menú (Finanzas): ves cuánto le corresponde a cada cobrador por lo recaudado. Fijar la tasa y liquidar (sacar la plata de caja) es del admin.",
+      },
+      {
+        titulo: "Los números finos del dueño quedan aparte",
+        cuerpo:
+          "Rentabilidad (Valor), utilidad (Ventas Crédito) y reportes son del admin: no te aparecen en el menú.",
       },
       {
         titulo: "No cambiás reglas de plata",
         cuerpo:
-          "Editar la política de mora, fijar/liquidar comisiones o anular pagos directo son del admin.",
+          "Editar la política de mora, fijar/liquidar comisiones o anular un pago directo son del admin.",
         tip: "No es desconfianza: es separar funciones para que ninguna persona sola mueva reglas de plata. Te cuida a vos también.",
       },
     ],
@@ -327,18 +331,18 @@ const ADMIN: GuiaTutorial[] = [
     icono: "🚀",
     titulo: "Arrancá acá (primeros pasos)",
     resumen: "El recorrido de 5 minutos para conocer todo el panel.",
-    enlace: { href: "/admin", texto: "Ir al Dashboard" },
+    enlace: { href: "/admin", texto: "Ir al Resumen del negocio" },
     pasos: [
       {
-        titulo: "1. Dashboard: la foto del negocio",
+        titulo: "1. Resumen del negocio: la foto",
         cuerpo:
-          "El panel abre en el Dashboard: capital en calle, recaudo de hoy/mes, mora, y el movimiento por período. Es tu tablero de mando.",
+          "El panel abre en el 'Resumen del negocio': capital en calle, recaudo de hoy/mes, mora, y el movimiento por período. Es tu tablero de mando.",
       },
       {
-        titulo: "2. Definí Zonas y Equipo",
+        titulo: "2. Dá de alta a tu Equipo",
         cuerpo:
-          "Menú → Zonas: creá territorios y asigná cobradores/supervisores. Menú → Equipo: das de alta usuarios. Esto es el cimiento: sin zonas, los supervisores ven todo.",
-        tip: "Un supervisor SIN zona ve toda la operación (transición). Apenas le asignás una zona, queda acotado a ella.",
+          "Menú → Equipo: das de alta usuarios (admin, supervisor, cobrador). La operación puede correr PLANA (sin zonas): así los supervisores ven todo. Si algún día querés dividir por territorio, en Menú → Zonas creás zonas y asignás cobradores.",
+        tip: "Sin zonas configuradas, un supervisor ve toda la operación. Es válido para arrancar simple.",
       },
       {
         titulo: "3. Vigilá con el Centro de alertas y Aureo",
@@ -358,7 +362,7 @@ const ADMIN: GuiaTutorial[] = [
       {
         titulo: "La bandeja del día",
         cuerpo:
-          "Faltantes de caja, cobradores que no rindieron, 'no pago' sospechoso (cliente cumplidor marcado que no pagó), cobros fuera de zona, float alto y desembolsos grandes. Rojas = urgentes.",
+          "Faltantes de caja, cobradores que no rindieron, 'no pago' sospechoso (cliente cumplidor marcado que no pagó), mucha plata sin rendir y desembolsos grandes. Rojas = urgentes.",
       },
       {
         titulo: "Confianza de cobradores + cuenta corriente",
@@ -371,20 +375,41 @@ const ADMIN: GuiaTutorial[] = [
     id: "adm-zonas",
     rol: "admin",
     icono: "🗺️",
-    titulo: "Zonas y equipo: el cimiento",
-    resumen: "Definí territorios y quién ve qué. Sin esto, los supervisores ven todo.",
+    titulo: "Zonas (opcional): dividir por territorio",
+    resumen: "Si querés, dividís la operación por zonas y acotás qué ve cada supervisor. No es obligatorio.",
     enlace: { href: "/admin/zonas", texto: "Abrir Zonas" },
     pasos: [
       {
-        titulo: "Creá las zonas",
+        titulo: "Cuándo usar zonas",
         cuerpo:
-          "Menú → Zonas → creá cada territorio (barrio, ruta) con nombre y color para reconocerla en el mapa y los chats.",
+          "La operación puede correr PLANA (sin zonas): todos los supervisores ven todo. Las zonas sirven cuando crecés y querés que cada supervisor vea solo su territorio.",
       },
       {
-        titulo: "Asigná cobradores y supervisores",
+        titulo: "Creá las zonas y asigná",
         cuerpo:
-          "Cada cobrador va en UNA zona. A cada supervisor le marcás qué zonas cubre (puede cubrir varias). Desde ese momento, el supervisor solo ve esas zonas.",
+          "Menú → Zonas → creá cada territorio (barrio, ruta) con nombre y color. Cada cobrador va en UNA zona; a cada supervisor le marcás qué zonas cubre. Desde ese momento, el supervisor solo ve esas zonas.",
         tip: "La zona del cliente sale sola del cobrador que lo atiende: no se la asignás a mano.",
+      },
+    ],
+  },
+  {
+    id: "adm-comunicar",
+    rol: "admin",
+    icono: "📣",
+    titulo: "Comunicar: al cliente vs al equipo",
+    resumen: "Dos cosas distintas: lo que ve el DEUDOR en su pantalla y lo que ve tu EQUIPO de cobradores.",
+    enlace: { href: "/admin/anuncios", texto: "Abrir Anuncios al cliente" },
+    pasos: [
+      {
+        titulo: "👥 Para tus CLIENTES",
+        cuerpo:
+          "En el menú, el grupo 'Para tus clientes' junta lo que ve el deudor en su link: 'Anuncios al cliente' (un banner con tu mensaje), 'Rifa', 'Juegos y sorteos' (raspadita/quiniela) y 'Estrellas'. Cada página tiene una etiqueta azul 'Lo ven tus CLIENTES' y una vista previa.",
+      },
+      {
+        titulo: "🧑‍🔧 Para tu EQUIPO",
+        cuerpo:
+          "El grupo 'Para tu equipo' es para los cobradores/supervisores: 'Banner al equipo' pone un aviso fijo arriba de la ruta de TODOS los cobradores (lo ven al abrir su app), y 'Chat' es la coordinación del día. Etiqueta verde 'Lo ve tu EQUIPO'.",
+        tip: "Regla simple: si es una promo o novedad para el que debe, es 'Para tus clientes'. Si es una instrucción para quien cobra, es 'Banner al equipo'.",
       },
     ],
   },

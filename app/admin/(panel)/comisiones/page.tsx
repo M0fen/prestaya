@@ -1,7 +1,7 @@
 // Comisiones por cobrador (gestor): tasa % sobre lo recaudado del período, con
 // liquidación (egreso en caja) y auditoría. Selector Día/Semana/Mes/Año.
 import Link from "next/link";
-import { requireAdmin, esAdmin } from "@/lib/auth";
+import { requireGestor, esAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getComisionesPeriodo, getHistorialLiquidaciones, etiquetaPeriodoKey } from "@/lib/data/comisiones";
 import { normalizarPeriodo, PERIODOS } from "@/lib/data/periodo";
@@ -34,8 +34,10 @@ export default async function ComisionesPage({
 }: {
   searchParams: Promise<{ periodo?: string }>;
 }) {
-  // Solo el dueño: nómina/liquidación de cobradores (dato sensible del admin).
-  const usuario = await requireAdmin();
+  // Gestores: el supervisor VE las comisiones de los cobradores; FIJAR la tasa y
+  // LIQUIDAR (egreso de caja) queda para el admin (las acciones exigen esAdmin en
+  // el server, y la tabla oculta esos botones si no es admin — ver puedeGestionar).
+  const usuario = await requireGestor();
   const periodo = normalizarPeriodo((await searchParams).periodo);
   const db = await createSupabaseServer();
   const [r, historial] = await Promise.all([

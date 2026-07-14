@@ -2,12 +2,12 @@ import { describe, it, expect } from "vitest";
 import { NAV_ITEMS, NAV_GRUPOS, navVisible, navAgrupado, ordenSuelto } from "./nav";
 
 describe("nav — visibilidad por rol", () => {
-  it("el supervisor NO ve ítems solo-admin (Ventas Crédito, Valor, Comisiones)", () => {
+  it("el supervisor NO ve ítems solo-admin (Ventas Crédito, Valor)", () => {
     const hrefs = new Set(navVisible("supervisor").map((i) => i.href));
     expect(hrefs.has("/admin/informe-cartera")).toBe(false);
     expect(hrefs.has("/admin/valor")).toBe(false);
-    expect(hrefs.has("/admin/comisiones")).toBe(false);
-    // pero sí ve lo compartido
+    // pero sí ve lo compartido — incluido Comisiones (solo lectura: no fija ni liquida)
+    expect(hrefs.has("/admin/comisiones")).toBe(true);
     expect(hrefs.has("/admin/mora")).toBe(true);
     expect(hrefs.has("/admin/cobranza")).toBe(true);
   });

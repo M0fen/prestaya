@@ -590,7 +590,7 @@ function Cierre({ cierre, cerrables }: { cierre: ResumenCierreZonas; cerrables: 
     <div className="flex flex-col gap-4">
       <Encabezado
         titulo="Cerrá el día"
-        bajada="Recibí el efectivo de cada cobrador, revisá que cuadre y sellá el cierre de tu zona."
+        bajada="Recibí el efectivo de cada cobrador, revisá que cuadre y cerrá la jornada."
       />
 
       {!cierre.disponible ? (

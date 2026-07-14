@@ -164,7 +164,7 @@ export default async function DesempenoPage({
               <tr className="border-b border-linea text-[11px] font-bold tracking-wide text-gris uppercase">
                 <th className="px-3 py-2.5 text-left">#</th>
                 <th className="px-3 py-2.5 text-left">Cobrador</th>
-                <th className="px-3 py-2.5 text-left">Zona</th>
+                {r.cobradores.some((c) => c.zonaNombre) && <th className="px-3 py-2.5 text-left">Zona</th>}
                 <th className="px-3 py-2.5 text-right">Recaudado</th>
                 <th className="px-3 py-2.5 text-right">Cobros</th>
                 <th className="px-3 py-2.5 text-right">Días</th>
@@ -191,7 +191,9 @@ export default async function DesempenoPage({
                       </Link>
                     </div>
                   </td>
-                  <td className="px-3 py-2.5 text-gris">{c.zonaNombre ?? "—"}</td>
+                  {r.cobradores.some((x) => x.zonaNombre) && (
+                    <td className="px-3 py-2.5 text-gris">{c.zonaNombre ?? "—"}</td>
+                  )}
                   <td className="px-3 py-2.5 text-right font-extrabold tabular-nums text-verde-osc">{UYU(c.recaudado)}</td>
                   <td className="px-3 py-2.5 text-right tabular-nums text-cuerpo">{c.cobros}</td>
                   <td className="px-3 py-2.5 text-right tabular-nums text-cuerpo">{c.diasActivos}</td>
