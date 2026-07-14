@@ -8,6 +8,7 @@ import { getClientePorId } from "@/lib/data/clientes";
 import { getPrestamosActivosPorCliente } from "@/lib/data/prestamos";
 import { getPagosDePrestamo } from "@/lib/data/pagos";
 import { getNotasCliente } from "@/lib/data/notas";
+import { getGestionesCliente, type Gestion } from "@/lib/data/gestionesCobranza";
 import { calcularEstadosCarton } from "@/lib/cartones";
 import { hoyUY } from "@/lib/fecha";
 import type { Prestamo } from "@/types/db";
@@ -160,6 +161,12 @@ async function Detalle({
   const pagos = await getPagosDePrestamo(db, prestamo.id);
   const r = calcularEstadosCarton(prestamo, pagos, hoyUY());
 
+  // Compromiso de pago abierto (mini-CRM) + la nota que dejó el cobrador/gestor,
+  // para confirmarlo desde el cartón. El más reciente con promesa gana.
+  const gestiones = await getGestionesCliente(db, clienteId);
+  const compromiso =
+    gestiones.find((g) => g.montoCompromiso != null && g.fechaCompromiso != null) ?? null;
+
   // Cobros recientes (últimas 2 h) → permiten "deshacer" dentro de 1 h.
   const DOS_HORAS = 2 * 60 * 60 * 1000;
   const ahora = Date.now();
@@ -221,6 +228,9 @@ async function Detalle({
         prestamoId={prestamo.id}
       />
 
+      {/* Compromiso de pago + nota del cobrador, pegado al cartón para confirmarlo. */}
+      {compromiso && <CompromisoCarton compromiso={compromiso} />}
+
       <RegistroCobro
         clienteId={clienteId}
         prestamoId={prestamo.id}
@@ -246,6 +256,46 @@ function Resumen({ label, valor }: { label: string; valor: string }) {
     <div className="flex flex-col gap-0.5 rounded-[14px] bg-white p-3.5 shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
       <span className="text-[11px] font-semibold text-[#8A93AD]">{label}</span>
       <span className="text-[18px] font-extrabold text-tinta tabular-nums">{valor}</span>
+    </div>
+  );
+}
+
+/** Compromiso de pago (mini-CRM) mostrado JUNTO al cartón, con la nota que dejó
+ *  el cobrador/gestor, para confirmarlo de un vistazo. El estado se auto-verifica
+ *  contra el libro de pagos (cumplido/incumplido/vence hoy/vigente). */
+function CompromisoCarton({ compromiso }: { compromiso: Gestion }) {
+  const estado = compromiso.estadoCompromiso;
+  const tono =
+    estado === "cumplido"
+      ? { bg: "#E4F5EC", fg: "#157A50", txt: "Cumplido ✓" }
+      : estado === "incumplido"
+        ? { bg: "#FBE4E2", fg: "#C0392B", txt: "No cumplió" }
+        : estado === "vence_hoy"
+          ? { bg: "#FDF3E2", fg: "#B9770E", txt: "Vence hoy" }
+          : { bg: "#EAF0FF", fg: "#1E47C8", txt: "Vigente" };
+  const [y, m, d] = (compromiso.fechaCompromiso ?? "").split("-");
+  const fechaCorta = y ? `${d}/${m}/${y.slice(2)}` : "";
+  return (
+    <div className="flex flex-col gap-1.5 rounded-[14px] border border-[#E4E8F4] bg-white p-3.5 shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
+      <div className="flex items-center justify-between">
+        <span className="text-[12px] font-bold text-tinta">🤝 Compromiso de pago</span>
+        <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tono.bg, color: tono.fg }}>
+          {tono.txt}
+        </span>
+      </div>
+      <div className="flex items-baseline gap-2">
+        <span className="text-[19px] font-black text-tinta tabular-nums">{UYU(compromiso.montoCompromiso ?? 0)}</span>
+        {fechaCorta && <span className="text-[12.5px] font-medium text-gris">para el {fechaCorta}</span>}
+      </div>
+      {compromiso.resultado && (
+        <p className="rounded-[10px] bg-suave px-3 py-2 text-[12.5px] font-medium text-[#3A445F]">
+          📝 {compromiso.resultado}
+        </p>
+      )}
+      <span className="text-[11px] font-medium text-gris">
+        {compromiso.pagadoDesde > 0 ? `Abonó ${UYU(compromiso.pagadoDesde)} desde la promesa` : "Sin pagos desde la promesa"}
+        {compromiso.gestorNombre ? ` · lo registró ${compromiso.gestorNombre}` : ""}
+      </span>
     </div>
   );
 }
