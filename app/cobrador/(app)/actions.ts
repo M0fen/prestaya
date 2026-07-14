@@ -168,6 +168,7 @@ export async function registrarPagoCobrador(input: {
       { lat: cliente.gps_lat, lng: cliente.gps_lng },
     );
 
+    let duplicado = false;
     try {
       await registrarPago(db, {
         prestamo_id: prestamo.id,
@@ -182,23 +183,28 @@ export async function registrarPagoCobrador(input: {
     } catch (e) {
       // Reintento de una op ya guardada (flush cortado): idempotente → ok.
       if (!esDuplicado(e)) throw e;
+      duplicado = true;
     }
 
-    // Bitácora de campo (best-effort): quién cobró, a quién, cuánto, dónde.
-    await registrarBitacora(db, {
-      actorId: usuario.id,
-      actorNombre: usuario.nombre,
-      rol: usuario.rol,
-      accion: "cobro",
-      clienteId: cliente.id,
-      prestamoId: prestamo.id,
-      monto,
-      gpsLat: gps_lat,
-      gpsLng: gps_lng,
-      gpsDenegado: gps_lat == null || gps_lng == null,
-      enZona: zona ? zona.enZona : null,
-      deviceTs: input.registradoEn ?? null,
-    });
+    // Bitácora de campo SOLO si el pago se creó de verdad. En el reintento
+    // idempotente (23505) NO se registra: si no, un mismo cobro contaría DOBLE
+    // como acto en la auditoría de campo (score de sospecha, /admin/campo).
+    if (!duplicado) {
+      await registrarBitacora(db, {
+        actorId: usuario.id,
+        actorNombre: usuario.nombre,
+        rol: usuario.rol,
+        accion: "cobro",
+        clienteId: cliente.id,
+        prestamoId: prestamo.id,
+        monto,
+        gpsLat: gps_lat,
+        gpsLng: gps_lng,
+        gpsDenegado: gps_lat == null || gps_lng == null,
+        enZona: zona ? zona.enZona : null,
+        deviceTs: input.registradoEn ?? null,
+      });
+    }
 
     revalidatePath("/cobrador");
     revalidatePath(`/cobrador/cliente/${cliente.id}`);

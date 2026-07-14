@@ -14,6 +14,7 @@
 //     cobrador). Monto redondeado a entero (nunca float para dinero).
 //   · Queda en AUDITORÍA (quién, canal, cuánto, a quién).
 // ─────────────────────────────────────────────────────────────────────────
+import { createHash } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { requireGestor } from "@/lib/auth";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
@@ -35,12 +36,28 @@ export type ResultadoPagoPanel =
   | { ok: true; dia: number; monto: number }
   | { ok: false; error: string };
 
+/** op_id DETERMINISTA (uuid v5-like) para idempotencia del pago de panel: dos
+ *  registros del MISMO pago (préstamo+día+monto+canal) dentro del mismo MINUTO
+ *  colisionan en el índice único `uniq_pagos_op` (0006) → no se duplica la plata
+ *  ante doble-submit, retry tras timeout percibido, o dos gestores en paralelo.
+ *  Un segundo pago legítimo cae en OTRO día (FIFO) → distinto op_id → se permite. */
+function opIdDeterminista(...partes: (string | number)[]): string {
+  const b = createHash("sha1").update(partes.join("|")).digest().subarray(0, 16);
+  b[6] = (b[6] & 0x0f) | 0x50; // versión 5
+  b[8] = (b[8] & 0x3f) | 0x80; // variante RFC 4122
+  const x = b.toString("hex");
+  return `${x.slice(0, 8)}-${x.slice(8, 12)}-${x.slice(12, 16)}-${x.slice(16, 20)}-${x.slice(20, 32)}`;
+}
+
 export async function registrarPagoPanel(input: {
   clienteId: string;
   prestamoId?: string | null;
   /** null/omitido → una cuota diaria. */
   monto?: number | null;
   canal?: string | null;
+  /** Nonce de idempotencia generado por el cliente (uuid, estable por-envío):
+   *  deduplica reintentos del MISMO submit sin descartar un 2º pago legítimo. */
+  idempotencyKey?: string | null;
 }): Promise<ResultadoPagoPanel> {
   // Puerta por rol (redirige si no es gestor). Va FUERA del try para no tragarse
   // el redirect como "error genérico".
@@ -83,16 +100,30 @@ export async function registrarPagoPanel(input: {
     const monto = montoPedido != null ? montoPedido : Math.round(prestamo.cuota_diaria);
     if (monto <= 0) return { ok: false, error: "El monto debe ser mayor a 0." };
 
-    await registrarPago(db, {
-      prestamo_id: prestamo.id,
-      dia_credito: dia,
-      monto,
-      registrado_por: usuario.id,
-      gps_lat: null,
-      gps_lng: null,
-      registrado_en: null,
-      op_id: null,
-    });
+    // Idempotencia: nonce del cliente (estable por-envío) si vino y es un uuid
+    // válido; si no, fallback al hash determinista por minuto. El nonce cierra el
+    // borde del minuto y NO descarta un 2º pago idéntico legítimo (nonce nuevo).
+    const nonceOk = typeof input.idempotencyKey === "string" && /^[0-9a-fA-F-]{36}$/.test(input.idempotencyKey);
+    const opId = nonceOk
+      ? (input.idempotencyKey as string)
+      : opIdDeterminista(prestamo.id, dia, monto, input.canal ?? "efectivo", Math.floor(Date.now() / 60000));
+    try {
+      await registrarPago(db, {
+        prestamo_id: prestamo.id,
+        dia_credito: dia,
+        monto,
+        registrado_por: usuario.id,
+        gps_lat: null,
+        gps_lng: null,
+        registrado_en: null,
+        op_id: opId,
+      });
+    } catch (e) {
+      // El índice único frenó un duplicado (doble-submit/retry/dos gestores):
+      // el pago ya quedó registrado → éxito idempotente, sin re-auditar.
+      if ((e as { code?: string } | null)?.code !== "23505") throw e;
+      return { ok: true, dia, monto };
+    }
 
     await registrarAuditoria(db, {
       actorId: usuario.id,

@@ -2,7 +2,7 @@
 // Registrar un pago desde la ficha (admin/supervisor): cobros de oficina /
 // transferencia / pago al supervisor. Abre un mini-form (monto opcional = cuota,
 // + canal) y llama a la server action. El servidor valida permiso por zona.
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { registrarPagoPanel } from "@/lib/acciones/pagosPanel";
 
@@ -28,6 +28,10 @@ export function RegistrarPagoPanel({
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  // Nonce de idempotencia: MISMO valor mientras el envío no tenga éxito (un retry
+  // tras timeout deduplica en el servidor); se RENUEVA al confirmar (un pago nuevo
+  // es una operación nueva y no se descarta aunque sea idéntico).
+  const nonceRef = useRef<string>("");
 
   function enviar() {
     setError(null);
@@ -38,10 +42,12 @@ export function RegistrarPagoPanel({
       setError("Monto inválido.");
       return;
     }
+    if (!nonceRef.current) nonceRef.current = globalThis.crypto.randomUUID();
     startTransition(async () => {
-      const r = await registrarPagoPanel({ clienteId, prestamoId, monto: m, canal });
-      if (!r.ok) setError(r.error);
+      const r = await registrarPagoPanel({ clienteId, prestamoId, monto: m, canal, idempotencyKey: nonceRef.current });
+      if (!r.ok) setError(r.error); // se mantiene el nonce → un reintento deduplica
       else {
+        nonceRef.current = globalThis.crypto.randomUUID(); // próximo pago = nueva operación
         setOk(`✓ Pago de $${r.monto.toLocaleString("es-UY")} registrado (día ${r.dia}).`);
         setMonto("");
         router.refresh();

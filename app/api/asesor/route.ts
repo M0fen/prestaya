@@ -44,6 +44,7 @@ const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
 const MAX_MENSAJES = 12;
 const MAX_LARGO = 2000;
 const MAX_ITERACIONES = 3; // vueltas de herramientas antes de responder
+const INTER_READ_MS = 30_000; // corta un upstream de DeepSeek COLGADO (sin bytes 30s)
 
 interface ChatMsg {
   role: "system" | "user" | "assistant" | "tool";
@@ -65,26 +66,38 @@ async function streamTurno(
   apiKey: string,
   body: Record<string, unknown>,
 ): Promise<{ toolCalls: ToolAcc[]; finish: string | null }> {
-  const upstream = await fetch(DEEPSEEK_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ ...body, stream: true }),
-  });
-  if (!upstream.ok || !upstream.body) throw new Error("upstream");
+  // Watchdog: aborta si DeepSeek no manda NINGÚN byte en INTER_READ_MS. Se
+  // reinicia con cada chunk → una respuesta larga (aunque lenta) no se corta;
+  // solo cae un upstream realmente colgado (que hoy retiene la función serverless).
+  const ac = new AbortController();
+  let watchdog: ReturnType<typeof setTimeout> = setTimeout(() => ac.abort(), INTER_READ_MS);
+  const reataja = () => {
+    clearTimeout(watchdog);
+    watchdog = setTimeout(() => ac.abort(), INTER_READ_MS);
+  };
+  try {
+    const upstream = await fetch(DEEPSEEK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ ...body, stream: true }),
+      signal: ac.signal,
+    });
+    if (!upstream.ok || !upstream.body) throw new Error("upstream");
 
-  const reader = upstream.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  const tools = new Map<number, ToolAcc>();
-  let finish: string | null = null;
+    const reader = upstream.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    const tools = new Map<number, ToolAcc>();
+    let finish: string | null = null;
 
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lineas = buffer.split("\n");
-    buffer = lineas.pop() ?? "";
-    for (const linea of lineas) {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      reataja(); // llegó data → reinicia el watchdog
+      buffer += decoder.decode(value, { stream: true });
+      const lineas = buffer.split("\n");
+      buffer = lineas.pop() ?? "";
+      for (const linea of lineas) {
       const t = linea.trim();
       if (!t.startsWith("data:")) continue;
       const data = t.slice(5).trim();
@@ -119,7 +132,10 @@ async function streamTurno(
       }
     }
   }
-  return { toolCalls: [...tools.values()], finish };
+    return { toolCalls: [...tools.values()], finish };
+  } finally {
+    clearTimeout(watchdog);
+  }
 }
 
 /** Ejecuta una herramienta pedida por el modelo contra la base (como gestor). */
@@ -238,8 +254,15 @@ export async function POST(req: Request): Promise<Response> {
           break;
         }
         controller.close();
-      } catch (e) {
-        controller.error(e);
+      } catch {
+        // Timeout/caída de DeepSeek: cerramos con un aviso amable en vez de dejar
+        // la función serverless colgada o cortar el stream de golpe.
+        try {
+          controller.enqueue(encoder.encode("\n\n⚠️ El asesor tardó demasiado en responder. Probá de nuevo."));
+        } catch {
+          /* el stream ya estaba cerrado */
+        }
+        controller.close();
       }
     },
   });

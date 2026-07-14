@@ -10,6 +10,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { inicioDiaUYIso, inicioMesUYIso } from "@/lib/fecha";
 import { tablaFaltante } from "./errores";
 import { alcanceDelActor } from "./alcance";
+import { getActorActual } from "@/lib/auth";
 import type { CuentaCaja } from "@/types/db";
 
 // Re-export para que los consumidores (acciones) importen el tipo desde acá.
@@ -95,10 +96,18 @@ async function resumenCajaCore(
   // que ellos registraron + movimientos de su ruta); el admin, toda la operación.
   const alcance = await alcanceDelActor();
   const cobradorIds = alcance.global ? null : alcance.cobradorIds;
+  // Registradores cuyos cobros entran en ESTA caja: los cobradores del alcance
+  // + el PROPIO supervisor (el efectivo que él mismo registró desde el panel,
+  // registrado_por = su id). Antes ese efectivo quedaba FUERA de su neto.
+  // Solo si tiene cobradores (un supervisor sin zona válida sigue viendo []).
+  const actor = cobradorIds && cobradorIds.length > 0 ? await getActorActual() : null;
+  const registradores = cobradorIds && cobradorIds.length > 0
+    ? [...new Set([...cobradorIds, ...(actor?.usuarioId ? [actor.usuarioId] : [])])]
+    : cobradorIds;
 
   // 1) Cobros del período (ingreso principal). A ESCALA: se PAGINA (el mes puede
   //    ser >1000 pagos) y el nombre del cliente va EMBEBIDO (evita .in de miles).
-  const pagos = cobradorIds && cobradorIds.length === 0
+  const pagos = registradores && registradores.length === 0
     ? []
     : await traerTodo<{
     monto: number;
@@ -113,8 +122,8 @@ async function resumenCajaCore(
       .eq("anulado", false)
       .gte("registrado_en", desde);
     if (hasta) query = query.lt("registrado_en", hasta);
-    // Supervisor: solo los cobros que registraron SUS cobradores.
-    if (cobradorIds) query = query.in("registrado_por", cobradorIds);
+    // Supervisor: los cobros de SUS cobradores + los que registró él mismo.
+    if (registradores) query = query.in("registrado_por", registradores);
     // Orden estable por PK: sin él la paginación puede duplicar/saltear filas.
     return query.order("id", { ascending: true }).range(d, h);
   });
