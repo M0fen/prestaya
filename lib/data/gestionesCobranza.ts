@@ -7,6 +7,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { enLotes, type Alcance } from "./alcance";
 import { tablaFaltante } from "./errores";
+import { traerTodo } from "./paginado";
 
 export type TipoGestion =
   | "visita"
@@ -78,39 +79,55 @@ async function pagosPorClienteDesde(
   if (clienteIds.length === 0) return porCliente;
 
   // cliente → sus préstamos (cualquier estado: los pagos viven en el préstamo).
-  // Lotes EN PARALELO (antes iban en serie → waterfall en la Apertura de Mi jornada).
+  // Lotes EN PARALELO (antes iban en serie → waterfall en la Apertura de Mi jornada),
+  // cada lote PAGINADO: un cliente con muchas renovaciones podía pasar de 1000
+  // préstamos por lote y truncarse en silencio → pagos sin contar.
   const prestamoDeCliente = new Map<string, string>();
   const clientePorPrestamo = new Map<string, string>();
   const lotesPrest = await Promise.all(
-    [...enLotes(clienteIds)].map((lote) => db.from("prestamos").select("id, cliente_id").in("cliente_id", lote)),
+    enLotes(clienteIds).map((lote) =>
+      traerTodo<{ id: string; cliente_id: string }>((d, h) =>
+        db
+          .from("prestamos")
+          .select("id, cliente_id")
+          .in("cliente_id", lote)
+          .order("id", { ascending: true })
+          .range(d, h),
+      ),
+    ),
   );
-  for (const { data, error } of lotesPrest) {
-    if (error) throw error;
-    for (const p of data ?? []) {
-      prestamoDeCliente.set(p.cliente_id as string, p.id as string);
-      clientePorPrestamo.set(p.id as string, p.cliente_id as string);
+  for (const filas of lotesPrest) {
+    for (const p of filas) {
+      prestamoDeCliente.set(p.cliente_id, p.id);
+      clientePorPrestamo.set(p.id, p.cliente_id);
     }
   }
   const prestamoIds = [...clientePorPrestamo.keys()];
   if (prestamoIds.length === 0) return porCliente;
 
+  // Pagos por lote de préstamos, PAGINADO: 150 préstamos × ~26 cuotas en 30 días
+  // supera 1000 filas → sin paginar, `pagadoDesde` salía corto y un compromiso
+  // efectivamente pagado se marcaba "incumplido". Ordenar por id (columna única).
   const lotesPagos = await Promise.all(
-    [...enLotes(prestamoIds)].map((lote) =>
-      db
-        .from("pagos")
-        .select("prestamo_id, monto, registrado_en")
-        .eq("anulado", false)
-        .gte("registrado_en", desdeIso)
-        .in("prestamo_id", lote),
+    enLotes(prestamoIds).map((lote) =>
+      traerTodo<{ prestamo_id: string; monto: number; registrado_en: string }>((d, h) =>
+        db
+          .from("pagos")
+          .select("prestamo_id, monto, registrado_en")
+          .eq("anulado", false)
+          .gte("registrado_en", desdeIso)
+          .in("prestamo_id", lote)
+          .order("id", { ascending: true })
+          .range(d, h),
+      ),
     ),
   );
-  for (const { data, error } of lotesPagos) {
-    if (error) throw error;
-    for (const r of data ?? []) {
-      const cid = clientePorPrestamo.get(r.prestamo_id as string);
+  for (const filas of lotesPagos) {
+    for (const r of filas) {
+      const cid = clientePorPrestamo.get(r.prestamo_id);
       if (!cid) continue;
       const arr = porCliente.get(cid) ?? [];
-      arr.push({ iso: r.registrado_en as string, monto: Number(r.monto) });
+      arr.push({ iso: r.registrado_en, monto: Number(r.monto) });
       porCliente.set(cid, arr);
     }
   }

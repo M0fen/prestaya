@@ -6,6 +6,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { tablaFaltante } from "./errores";
+import { traerTodo } from "./paginado";
 
 export interface LineaCapital {
   fechaIso: string;
@@ -32,16 +33,20 @@ export async function getMovimientosCapital(
 ): Promise<ResumenCapital> {
   let movimientos: Record<string, unknown>[] = [];
   try {
-    let query = db
-      .from("movimientos_caja")
-      .select("*")
-      .gte("registrado_en", opts.desde)
-      .lt("registrado_en", opts.hasta);
-    if (opts.vendedorId) query = query.eq("cobrador_id", opts.vendedorId);
-    const { data, error } = await query;
-    if (error) throw error;
+    // Paginado: PostgREST corta en 1000 filas y el libro de capital se subcontaba
+    // en silencio (capitalTotal MAL). movimientos_caja es chica (gastos + aportes/
+    // retiros; los cobros viven en `pagos`), así que barrer la ventana es barato.
+    const raw = await traerTodo<Record<string, unknown>>((d, h) => {
+      let query = db
+        .from("movimientos_caja")
+        .select("*")
+        .gte("registrado_en", opts.desde)
+        .lt("registrado_en", opts.hasta);
+      if (opts.vendedorId) query = query.eq("cobrador_id", opts.vendedorId);
+      return query.order("id", { ascending: true }).range(d, h);
+    });
     // cuenta='capital' se filtra en JS: defensivo si 0041 no corrió (columna).
-    movimientos = (data ?? []).filter((m) => (m.cuenta as string | null) === "capital");
+    movimientos = raw.filter((m) => (m.cuenta as string | null) === "capital");
   } catch (e) {
     if (!tablaFaltante(e)) throw e;
   }

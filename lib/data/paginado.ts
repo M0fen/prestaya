@@ -21,6 +21,14 @@ type Respuesta = { data: unknown; error: unknown };
  * faltantes (esto es DINERO). Ordenar por una columna no única no alcanza: los
  * empates rompen igual; agregá `id` como desempate.
  *
+ * ⚠️ ALCANCE de la garantía: el orden único evita repetir/saltear filas sobre un
+ * SNAPSHOT estático. Es paginación por OFFSET (`.range`), NO por cursor: un INSERT
+ * o una anulación que caiga ANTES del cursor durante el barrido puede correr las
+ * filas y duplicar/saltear una de borde (off-by-uno). Es aceptable para LECTURAS
+ * derivadas que se recalculan (mora/compromisos/capital), no para invariantes
+ * estrictos bajo alta concurrencia — para eso haría falta keyset (`id > $ultimo`).
+ * (Además asume `db-max-rows` de PostgREST ≥ `tam`; si fuera menor, cortaría de más.)
+ *
  * Ej:
  *   const filas = await traerTodo<Fila>((d, h) =>
  *     db.from("pagos").select("monto").eq("anulado", false)
