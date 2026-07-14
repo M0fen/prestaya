@@ -132,8 +132,8 @@ export function VistaClienteScreen({
           proxRelativo={v.proxRelativo}
         />
 
-        {/* Raspadita + quiniela: JUSTO DEBAJO del cartón (sin dinero real). Oculto por flag. */}
-        {MOSTRAR_JUEGOS && promo && <PromoCliente promo={promo} token={token} />}
+        {/* Raspadita + quiniela: JUSTO DEBAJO del cartón (sin dinero real). Visible. */}
+        {promo && <PromoCliente promo={promo} token={token} />}
 
         {/* Banner de novedades del prestamista (varios, rotan solos). Visible
             siempre, aunque los juegos estén ocultos. */}
