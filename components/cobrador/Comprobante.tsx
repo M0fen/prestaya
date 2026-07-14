@@ -17,6 +17,10 @@ export type DatosComprobante = {
   tipo: "cuota" | "abono";
   fechaHora: string;
   offline: boolean;
+  /** El cobro NO pudo persistirse en el dispositivo (cuota llena / navegación
+   *  privada): vive solo en memoria. Se muestra en ROJO y en FOREGROUND para que
+   *  el cobrador no lo dé por guardado — mantené señal / reintentá. */
+  noGuardado?: boolean;
 };
 
 // Deja solo dígitos y arma un teléfono uruguayo válido para wa.me (prefijo 598).
@@ -102,8 +106,12 @@ export function Comprobante({
             <span className="text-[15px] font-extrabold">Comprobante de pago</span>
             <span className="text-[11.5px] font-medium text-white/70">Presta Ya</span>
           </div>
-          <span className="ml-auto rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-bold tracking-wide uppercase">
-            ✓ Registrado
+          <span
+            className={`ml-auto rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide uppercase ${
+              datos.noGuardado ? "bg-[#C0392B] text-white" : "bg-white/15"
+            }`}
+          >
+            {datos.noGuardado ? "⚠ No guardado" : "✓ Registrado"}
           </span>
         </div>
 
@@ -127,11 +135,17 @@ export function Comprobante({
           <Fila k="Comprobante" v={datos.folio} mono />
         </dl>
 
-        {datos.offline && (
+        {datos.noGuardado ? (
+          <p className="mx-5 mb-3 rounded-[10px] bg-[#FBE4E2] px-3 py-2.5 text-[11.5px] leading-[1.55] font-semibold text-[#C0392B]">
+            ⚠️ No se pudo guardar en este teléfono (memoria llena o navegación
+            privada). Mantené señal o volvé a registrarlo:{" "}
+            <b>el cobro aún no está a salvo</b>.
+          </p>
+        ) : datos.offline ? (
           <p className="mx-5 mb-3 rounded-[10px] bg-[#FFF7E6] px-3 py-2 text-[11.5px] font-medium text-[#9A6B00]">
             Guardado sin conexión: se sincroniza al recuperar señal.
           </p>
-        )}
+        ) : null}
 
         {/* Deshacer: red de seguridad ante un mis-tap, mientras el cobro sigue
             retenido en cola (aún no llegó al libro de pagos). */}
@@ -145,22 +159,28 @@ export function Comprobante({
           </button>
         )}
 
-        {/* Acciones */}
+        {/* Acciones. Con `noGuardado` NO se ofrece Compartir: el cobro puede no
+            registrarse nunca (memoria llena / privado); entregar un recibo
+            "Gracias por tu pago" sería una discrepancia con el cliente. */}
         <div className="flex gap-2 px-5 pb-5">
-          <button
-            type="button"
-            onClick={compartir}
-            className="flex flex-1 items-center justify-center gap-2 rounded-full bg-[#1FA971] px-4 py-3 text-[14px] font-extrabold text-white active:scale-[0.98]"
-          >
-            <svg viewBox="0 0 24 24" className="h-[17px] w-[17px]" fill="currentColor" aria-hidden="true">
-              <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2Zm5.8 14.16c-.24.68-1.42 1.32-1.95 1.36-.52.05-.99.24-3.35-.7-2.83-1.12-4.63-4.02-4.77-4.21-.14-.19-1.14-1.52-1.14-2.9 0-1.38.72-2.06.98-2.34.24-.26.53-.33.71-.33.18 0 .35 0 .5.01.16.01.38-.06.59.45.24.56.79 1.94.86 2.08.07.14.12.3.02.49-.09.19-.14.3-.28.47-.14.16-.29.36-.42.48-.14.14-.28.29-.12.57.16.28.72 1.19 1.55 1.93 1.06.95 1.96 1.24 2.24 1.38.28.14.44.12.6-.07.19-.21.7-.81.88-1.09.19-.28.37-.23.62-.14.26.09 1.62.77 1.9.91.28.14.46.21.53.32.07.12.07.66-.17 1.34Z" />
-            </svg>
-            Compartir
-          </button>
+          {!datos.noGuardado && (
+            <button
+              type="button"
+              onClick={compartir}
+              className="flex flex-1 items-center justify-center gap-2 rounded-full bg-[#1FA971] px-4 py-3 text-[14px] font-extrabold text-white active:scale-[0.98]"
+            >
+              <svg viewBox="0 0 24 24" className="h-[17px] w-[17px]" fill="currentColor" aria-hidden="true">
+                <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2Zm5.8 14.16c-.24.68-1.42 1.32-1.95 1.36-.52.05-.99.24-3.35-.7-2.83-1.12-4.63-4.02-4.77-4.21-.14-.19-1.14-1.52-1.14-2.9 0-1.38.72-2.06.98-2.34.24-.26.53-.33.71-.33.18 0 .35 0 .5.01.16.01.38-.06.59.45.24.56.79 1.94.86 2.08.07.14.12.3.02.49-.09.19-.14.3-.28.47-.14.16-.29.36-.42.48-.14.14-.28.29-.12.57.16.28.72 1.19 1.55 1.93 1.06.95 1.96 1.24 2.24 1.38.28.14.44.12.6-.07.19-.21.7-.81.88-1.09.19-.28.37-.23.62-.14.26.09 1.62.77 1.9.91.28.14.46.21.53.32.07.12.07.66-.17 1.34Z" />
+              </svg>
+              Compartir
+            </button>
+          )}
           <button
             type="button"
             onClick={onCerrar}
-            className="rounded-full border border-[#DCE3F4] bg-white px-5 py-3 text-[14px] font-bold text-gris active:scale-[0.98]"
+            className={`rounded-full border border-[#DCE3F4] bg-white px-5 py-3 text-[14px] font-bold text-gris active:scale-[0.98] ${
+              datos.noGuardado ? "flex-1" : ""
+            }`}
           >
             Listo
           </button>

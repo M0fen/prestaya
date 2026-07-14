@@ -8,7 +8,7 @@ import { MOTIVOS_NOPAGO, type MotivoNoPago } from "@/app/cobrador/(app)/motivos"
 import { UYU } from "@/lib/format";
 import { Comprobante, type DatosComprobante } from "@/components/cobrador/Comprobante";
 
-type Toast = { texto: string; sub?: string; tono: "ok" | "info" } | null;
+type Toast = { texto: string; sub?: string; tono: "ok" | "info" | "alerta" } | null;
 
 // Ventana en la que el cobro queda retenido en la cola (no sincroniza): habilita
 // "Deshacer" ante un mis-tap (los pagos NO se editan, solo se anulan) y le da
@@ -93,6 +93,16 @@ export function RegistroCobro({
     setTimeout(() => setToast(null), 2800);
   };
 
+  // Aviso money-critical: el registro NO pudo persistirse en el dispositivo
+  // (cuota llena / navegación privada). En memoria sirve para reintentar ahora,
+  // pero si se cierra la app se pierde → hay que avisar, nunca simular éxito.
+  const avisarNoGuardado = () =>
+    flash({
+      texto: "⚠️ No quedó guardado en este teléfono",
+      sub: "Mantené señal o reintentá: aún no está a salvo.",
+      tono: "alerta",
+    });
+
   // Reserva el registro por un instante (evita doble-tap) sin bloquear en el GPS.
   const tomarTurno = (): boolean => {
     if (bloqueado.current) return false;
@@ -111,7 +121,7 @@ export function RegistroCobro({
   const registrar = (
     tipo: OpTipo,
     extra: { monto: number | null; motivo: string | null },
-  ): { offline: boolean; op: OpCobro } => {
+  ): { offline: boolean; op: OpCobro; persistido: boolean } => {
     const op = encolar(
       {
         tipo,
@@ -126,7 +136,11 @@ export function RegistroCobro({
       { holdMs: HOLD_MS },
     );
     void pedirGps().then((g) => parchearGps(op.id, g.lat, g.lng));
-    return { offline: typeof navigator !== "undefined" && !navigator.onLine, op };
+    return {
+      offline: typeof navigator !== "undefined" && !navigator.onLine,
+      op,
+      persistido: op.persistido,
+    };
   };
 
   const cobrar = (monto: number | null) => {
@@ -135,7 +149,7 @@ export function RegistroCobro({
     // al libro de pagos). El comprobante y el estado usan ese mismo entero.
     const m = monto != null && monto > 0 ? Math.round(monto) : null;
     const montoCobrado = m ?? cuota;
-    const { offline, op } = registrar("pago", { monto: m, motivo: null });
+    const { offline, op, persistido } = registrar("pago", { monto: m, motivo: null });
     vibrar(18);
     setAbono(false);
     setMontoAbono("");
@@ -151,19 +165,26 @@ export function RegistroCobro({
       tipo: m != null && m < cuota ? "abono" : "cuota",
       fechaHora,
       offline,
+      // La advertencia va DENTRO del comprobante (foreground): un toast quedaría
+      // TAPADO por este modal y el cobrador daría el cobro por guardado.
+      noGuardado: !persistido,
     });
     setUndo({ opId: op.id, hasta: op.holdHasta ?? Date.now() + HOLD_MS });
   };
 
   const noPago = (m: MotivoNoPago) => {
     if (!tomarTurno()) return;
-    const { offline } = registrar("no_pago", { monto: null, motivo: m });
+    const { offline, persistido } = registrar("no_pago", { monto: null, motivo: m });
     vibrar(12);
     setMotivos(false);
-    flash({
-      texto: `No pago registrado${offline ? " (offline)" : ""}`,
-      tono: "info",
-    });
+    if (!persistido) {
+      avisarNoGuardado();
+    } else {
+      flash({
+        texto: `No pago registrado${offline ? " (offline)" : ""}`,
+        tono: "info",
+      });
+    }
   };
 
   // Deshacer: saca la op de la cola ANTES de que sincronice (nunca llegó al
@@ -310,9 +331,12 @@ export function RegistroCobro({
         <div className="fixed inset-x-0 bottom-24 z-40 flex justify-center px-4" role="status">
           <div
             className="flex items-center gap-2.5 rounded-full px-4 py-2.5 text-white shadow-[0_10px_30px_rgba(0,0,0,0.3)]"
-            style={{ background: toast.tono === "ok" ? "#157A50" : "#13308C" }}
+            style={{
+              background:
+                toast.tono === "ok" ? "#157A50" : toast.tono === "alerta" ? "#C0392B" : "#13308C",
+            }}
           >
-            <span className="text-[15px]">✓</span>
+            <span className="text-[15px]">{toast.tono === "alerta" ? "⚠️" : "✓"}</span>
             <div className="flex flex-col leading-tight">
               <span className="text-[13px] font-bold">{toast.texto}</span>
               {toast.sub && (
