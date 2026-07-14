@@ -89,6 +89,10 @@ export function VistaClienteScreen({
           mejorRacha={v.mejorRacha}
         />
 
+        {/* Banner de bienvenida/novedades del prestamista: ARRIBA DE TODO, de lo
+            PRIMERO que ve el cliente (rota solo si hay varios). Esa es la gracia. */}
+        <BannerCarrusel anuncios={anuncios} />
+
         {reputacion && (
           <Reputacion
             calificacion={reputacion.calificacion}
@@ -127,18 +131,18 @@ export function VistaClienteScreen({
         {/* Cuánto pagar hoy para quedar al día. Solo si hace falta. */}
         {v.necesitaPonerseAlDia && <PonerseAlDia monto={v.montoParaAlDia} />}
 
-        <ProximaCuota
-          cuotaDiaria={v.cuotaDiaria}
-          proxFechaLarga={v.proxFechaLarga}
-          proxRelativo={v.proxRelativo}
-        />
+        {/* Próxima cuota: solo si el crédito sigue abierto y hay una próxima
+            (si no, la tarjeta quedaba vacía en un crédito ya completado). */}
+        {!v.creditoCompletado && v.proxRelativo && (
+          <ProximaCuota
+            cuotaDiaria={v.cuotaDiaria}
+            proxFechaLarga={v.proxFechaLarga}
+            proxRelativo={v.proxRelativo}
+          />
+        )}
 
         {/* Raspadita + quiniela: JUSTO DEBAJO del cartón (sin dinero real). Visible. */}
         {promo && <PromoCliente promo={promo} token={token} />}
-
-        {/* Banner de novedades del prestamista (varios, rotan solos). Visible
-            siempre, aunque los juegos estén ocultos. */}
-        <BannerCarrusel anuncios={anuncios} />
 
         {/* Rifa promocional: se muestra cuando el admin la activa y este cliente
             califica (soloMejores). Es COMUNICACIÓN al cliente, no un juego → visible
