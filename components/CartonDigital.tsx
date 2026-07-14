@@ -27,6 +27,7 @@ const V: Record<EstadoDia, { bg: string; fg: string; label: string }> = {
 
 export function CartonDigital({ dias, diaActual, totalDias, unidad = UNIDAD_DEFECTO }: Props) {
   const [sel, setSel] = useState<number | null>(null);
+  const [verFechas, setVerFechas] = useState(false);
   const diaSel = sel != null ? dias.find((d) => d.dia === sel) ?? null : null;
 
   // Delay escalonado del sello ✓ solo para los días pagados (efecto de entrada).
@@ -61,6 +62,15 @@ export function CartonDigital({ dias, diaActual, totalDias, unidad = UNIDAD_DEFE
         {porSemana ? "Cobro de lunes a sábado (el domingo no se cobra). " : ""}
         Tocá una casilla para ver el detalle.
       </p>
+
+      {/* Ventana aparte con la FECHA de cada cuota (calendario del crédito). */}
+      <button
+        type="button"
+        onClick={() => setVerFechas(true)}
+        className="mt-2 inline-flex w-fit items-center gap-1.5 rounded-full border border-borde bg-suave px-3 py-1.5 text-[12px] font-bold text-azul active:scale-95"
+      >
+        📅 Ver todas las fechas
+      </button>
 
       {/* Encabezado de días de la semana (solo cartón diario, Lun–Sáb). */}
       {porSemana && (
@@ -229,6 +239,49 @@ export function CartonDigital({ dias, diaActual, totalDias, unidad = UNIDAD_DEFE
           </div>
         )}
       </div>
+
+      {/* Ventana aparte: la fecha de CADA cuota del cartón, de un vistazo. */}
+      {verFechas && (
+        <div
+          className="fixed inset-0 z-[70] flex items-end justify-center bg-[#0F1B3D]/45 sm:items-center sm:p-4"
+          onClick={() => setVerFechas(false)}
+        >
+          <div
+            className="flex max-h-[82vh] w-full max-w-[440px] flex-col overflow-hidden rounded-t-[22px] bg-white sm:rounded-[22px]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-linea px-4 py-3">
+              <span className="text-[14px] font-extrabold text-tinta">Fechas de cada {unidad.singular}</span>
+              <button
+                type="button"
+                onClick={() => setVerFechas(false)}
+                aria-label="Cerrar"
+                className="flex h-9 w-9 items-center justify-center text-[18px] leading-none text-gris active:scale-90"
+              >
+                ✕
+              </button>
+            </div>
+            <ul className="flex-1 divide-y divide-[#F2F5FB] overflow-y-auto">
+              {dias.map((d) => (
+                <li key={d.dia} className={`flex items-center gap-3 px-4 py-2.5 ${d.esHoy ? "bg-[#EEF3FF]" : ""}`}>
+                  <span className="w-7 flex-shrink-0 text-right text-[12px] font-bold text-gris tabular-nums">{d.dia}</span>
+                  <span className="min-w-0 flex-1 text-[13px] font-semibold text-tinta">
+                    {d.fechaLarga}
+                    {d.esHoy && <span className="ml-1.5 rounded-full bg-azul px-1.5 py-0.5 text-[9px] font-black text-white">HOY</span>}
+                  </span>
+                  <span className="flex flex-shrink-0 items-center gap-1.5">
+                    <span
+                      className="block h-2.5 w-2.5 rounded-full"
+                      style={{ background: V[d.estado].bg, border: d.estado === "futuro" ? "1px solid #E4E8F4" : undefined }}
+                    />
+                    <span className="text-[11.5px] font-semibold text-gris">{V[d.estado].label}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
