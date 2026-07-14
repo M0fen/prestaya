@@ -16,6 +16,7 @@ import { calcularComision } from "@/lib/comision";
 import { ListaRuta, type ItemRutaVista } from "@/components/cobrador/ListaRuta";
 import { GastosRuta } from "@/components/cobrador/GastosRuta";
 import { CerrarJornada } from "@/components/cobrador/CerrarJornada";
+import { BienvenidaCard } from "@/components/BienvenidaCard";
 
 export const dynamic = "force-dynamic";
 
@@ -101,6 +102,15 @@ export default async function RutaPage() {
           {zonaNombre ? `${zonaNombre} · ` : ""}{fechaLarga}
         </span>
       </div>
+
+      {/* Bienvenida cálida (solo la 1ª vez, se puede cerrar). */}
+      <BienvenidaCard
+        id="cobrador"
+        saludo={`¡Hola, ${primerNombre}! 👋`}
+        titulo="Esta es tu ruta de hoy."
+        cuerpo="Abajo tenés tus clientes y cuánto llevás cobrado. Tocá un cliente para registrar su pago: funciona aunque te quedes sin señal, y podés deshacerlo si te equivocaste."
+        cta={{ href: "/cobrador/tutorial", texto: "Ver cómo se usa" }}
+      />
 
       {/* Banner del equipo (aviso del admin), si hay uno activo. */}
       {banner && <BannerEquipo banner={banner} />}

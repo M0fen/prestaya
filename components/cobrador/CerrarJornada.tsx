@@ -56,11 +56,18 @@ export function CerrarJornada({
     return (
       <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-4">
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-[14px] font-extrabold text-tinta">Jornada cerrada ✓</span>
+          <span className="text-[14px] font-extrabold text-tinta">
+            {yaRendida.estado === "cuadra" ? "¡Bien ahí! Jornada cerrada 🎉" : "Jornada cerrada ✓"}
+          </span>
           <span className="rounded-full px-2.5 py-1 text-[11.5px] font-bold" style={{ background: t.bg, color: t.fg }}>
             {ETIQUETA_ESTADO[yaRendida.estado]}
           </span>
         </div>
+        {yaRendida.estado === "cuadra" && (
+          <p className="mb-2 text-[12.5px] font-medium text-[#4E9E79]">
+            Cuadraste perfecto. Gracias por tu laburo de hoy 💚
+          </p>
+        )}
         <div className="grid grid-cols-2 gap-2 text-[13px]">
           <Fila k="Recaudado" v={UYU(yaRendida.recaudado)} />
           <Fila k="Gastos de ruta" v={UYU(yaRendida.gastos)} />

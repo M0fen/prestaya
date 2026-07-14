@@ -28,6 +28,7 @@ import { fechaISOUY, sumarDiasYmd } from "@/lib/fecha";
 import { BarrasComparativas } from "@/components/charts/BarrasComparativas";
 import { CierrePorZona } from "@/components/admin/CierrePorZona";
 import { AvisarCobrador } from "@/components/admin/AvisarCobrador";
+import { BienvenidaCard } from "@/components/BienvenidaCard";
 import { AutoRefresco } from "@/components/admin/AutoRefresco";
 import { Icono, ICONO_NAV, type NombreIcono } from "@/components/Iconos";
 import type { ReactNode } from "react";
@@ -186,7 +187,7 @@ export default async function JornadaPage({
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div className="flex flex-col gap-0.5">
           <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">
-            {saludo}, {primerNombre}
+            {saludo}, {primerNombre} 👋
           </h1>
           <span className="text-[13px] font-medium text-gris capitalize">
             {zonaNombre ? `Zona ${zonaNombre} · ` : ""}
@@ -197,6 +198,15 @@ export default async function JornadaPage({
           Ver tablero completo →
         </Link>
       </div>
+
+      {/* Bienvenida cálida (solo la 1ª vez, se puede cerrar). */}
+      <BienvenidaCard
+        id="supervisor"
+        saludo={`¡A darle al día, ${primerNombre}! 👋`}
+        titulo="Tu día en 3 momentos."
+        cuerpo="Apertura (a quién reclamarle hoy), En vivo (cómo va cada cobrador) y Cierre (el cuadre de caja). Seguí los pasos y no se te escapa nada."
+        cta={{ href: "/admin/tutorial", texto: "Ver cómo se usa" }}
+      />
 
       {/* Navegación por fecha: revivir la jornada de cualquier día pasado. */}
       <DateBar fechaYmd={fechaYmd} hoyYmd={hoyYmd} />
