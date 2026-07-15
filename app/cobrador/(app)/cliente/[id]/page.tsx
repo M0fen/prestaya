@@ -237,6 +237,7 @@ async function Detalle({
         clienteNombre={cliente?.nombre ?? ""}
         clienteTelefono={cliente?.telefono ?? null}
         cobradorNombre={cobradorNombre}
+        cobradorId={cobradorId}
         cuota={prestamo.cuota_diaria}
         saldoActual={r.falta}
         tieneGps={tieneGps}

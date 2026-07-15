@@ -105,7 +105,7 @@ export function VistaClienteScreen({
         {/* Cartón completo, bien arriba. */}
         <CartonDigital
           dias={v.dias}
-          diaActual={v.diaActual}
+          diaActual={v.diaEnCurso}
           totalDias={v.totalDias}
           unidad={v.unidad}
         />
@@ -122,7 +122,7 @@ export function VistaClienteScreen({
           totalPagado={v.totalPagado}
           progresoTexto={v.progresoTexto}
           montoPrestado={v.montoPrestado}
-          diaActual={v.diaActual}
+          diaActual={v.diaEnCurso}
           totalDias={v.totalDias}
           fechaFinLarga={v.fechaFinLarga}
           unidad={v.unidad}

@@ -28,7 +28,7 @@ import { crearVisita } from "@/lib/data/visitas";
 import { registrarBitacora } from "@/lib/data/bitacora";
 import { calcularEstadosCarton } from "@/lib/cartones";
 import { evaluarZona } from "@/lib/geo";
-import { hoyUY } from "@/lib/fecha";
+import { hoyUY, sellarRegistroEn } from "@/lib/fecha";
 import { validar, cobroSchema, noPagoSchema } from "@/lib/validacion/esquemas";
 
 // ── Censo ────────────────────────────────────────────────────────────────────
@@ -168,6 +168,11 @@ export async function registrarPagoCobrador(input: {
       { lat: cliente.gps_lat, lng: cliente.gps_lng },
     );
 
+    // Día contable sellado con el reloj del SERVIDOR (tolera el reloj mal del
+    // celular): un cobro offline conserva su hora real solo si es del mismo día
+    // UY; si no, se sella con "ahora". Evita faltantes fantasma (ver sellarRegistroEn).
+    const registradoEn = sellarRegistroEn(input.registradoEn);
+
     let duplicado = false;
     try {
       await registrarPago(db, {
@@ -177,7 +182,7 @@ export async function registrarPagoCobrador(input: {
         registrado_por: usuario.id,
         gps_lat,
         gps_lng,
-        registrado_en: input.registradoEn ?? null,
+        registrado_en: registradoEn,
         op_id: input.opId ?? null,
       });
     } catch (e) {
@@ -247,7 +252,7 @@ export async function registrarNoPagoCobrador(input: {
         motivo: m.label,
         gps_lat,
         gps_lng,
-        registrado_en: input.registradoEn ?? null,
+        registrado_en: sellarRegistroEn(input.registradoEn),
         op_id: input.opId ?? null,
       });
     } catch (e) {

@@ -31,6 +31,44 @@ export function inicioDiaUYIso(base: Date = new Date()): string {
   return new Date(s.getTime() + UY_OFFSET_MIN * 60000).toISOString();
 }
 
+// Micro-desfasaje de reloj tolerado hacia el FUTURO (un cobro no puede quedar
+// sellado adelante del servidor más que esto). Fuera de esto = reloj adelantado.
+const TOLERANCIA_FUTURO_MS = 2 * 60 * 1000; // 2 min
+
+/**
+ * Sella la hora CONTABLE de un cobro/visita con el reloj del SERVIDOR, tolerando
+ * el reloj (posiblemente MAL) del dispositivo del cobrador.
+ *
+ * ⚠️ MONEY-CRITICAL. El "día contable" de un pago —y por tanto el arqueo, la caja
+ * y la rendición— NO puede depender de un celular con la fecha corrida: un
+ * teléfono ATRASADO sellaría el cobro "ayer", el arqueo del cobrador lo vería en
+ * $0 y le marcaría un FALTANTE FANTASMA a un cobrador honesto; uno ADELANTADO lo
+ * pondría en el futuro. El libro de pagos es inmutable, así que hay que sellar
+ * bien de entrada.
+ *
+ * Regla: se CONSERVA la hora del dispositivo solo si (a) no está en el futuro más
+ * allá de un micro-desfasaje y (b) cae en el MISMO día calendario de Uruguay que
+ * "ahora" del servidor. Así un cobro OFFLINE legítimo (hecho 10:00, sincronizado
+ * 14:00) conserva su hora real para el comprobante, pero cualquier reloj fuera de
+ * ese margen se sella con "ahora". El día contable JAMÁS difiere del servidor.
+ *
+ * (La bitácora de campo guarda aparte el `device_ts` CRUDO: ahí un reloj mal es
+ * evidencia forense y su día se sella con el `server_ts` de la BD, no con esto.)
+ */
+export function sellarRegistroEn(
+  deviceIso: string | null | undefined,
+  ahora: Date = new Date(),
+): string {
+  if (!deviceIso) return ahora.toISOString();
+  const t = Date.parse(deviceIso);
+  if (!Number.isFinite(t)) return ahora.toISOString();
+  if (t > ahora.getTime() + TOLERANCIA_FUTURO_MS) return ahora.toISOString(); // reloj adelantado
+  const dev = new Date(t);
+  // Mismo día calendario de Uruguay que el servidor → confiable para el día contable.
+  if (fechaISOUY(dev) !== fechaISOUY(ahora)) return ahora.toISOString();
+  return dev.toISOString();
+}
+
 /** Fecha calendario de Uruguay como "YYYY-MM-DD" (coincide con `fecha_uy` de la
  *  bitácora). TZ-independiente. */
 export function fechaISOUY(base: Date = new Date()): string {

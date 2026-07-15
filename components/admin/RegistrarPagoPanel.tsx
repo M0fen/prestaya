@@ -12,6 +12,12 @@ const CANALES = [
   { id: "supervisor", label: "Pago al supervisor" },
 ];
 
+// Nonce de idempotencia con FALLBACK: crypto.randomUUID no existe en navegadores
+// viejos / contextos no seguros → sin esto, tocar "Registrar" lanzaría y no se
+// podría cobrar. El fallback igual es único para deduplicar el reintento.
+const nuevoNonce = (): string =>
+  globalThis.crypto?.randomUUID?.() ?? `pago-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
 export function RegistrarPagoPanel({
   clienteId,
   prestamoId,
@@ -42,12 +48,12 @@ export function RegistrarPagoPanel({
       setError("Monto inválido.");
       return;
     }
-    if (!nonceRef.current) nonceRef.current = globalThis.crypto.randomUUID();
+    if (!nonceRef.current) nonceRef.current = nuevoNonce();
     startTransition(async () => {
       const r = await registrarPagoPanel({ clienteId, prestamoId, monto: m, canal, idempotencyKey: nonceRef.current });
       if (!r.ok) setError(r.error); // se mantiene el nonce → un reintento deduplica
       else {
-        nonceRef.current = globalThis.crypto.randomUUID(); // próximo pago = nueva operación
+        nonceRef.current = nuevoNonce(); // próximo pago = nueva operación
         setOk(`✓ Pago de $${r.monto.toLocaleString("es-UY")} registrado (día ${r.dia}).`);
         setMonto("");
         router.refresh();

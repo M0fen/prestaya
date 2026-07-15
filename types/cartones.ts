@@ -45,8 +45,13 @@ export interface ResultadoCarton {
   falta: number;
   /** Porcentaje entero 0..100. */
   progresoPct: number;
-  /** Día que coincide con hoy (0 si hoy queda fuera del crédito). */
+  /** Día que coincide con hoy (0 si hoy queda fuera del crédito). Se usa para
+   *  imputar el pago y resaltar la celda; NO para el texto de avance. */
   diaActual: number;
+  /** Día "en curso" para MOSTRAR el avance ("Día X/Y"): cuántas cuotas ya
+   *  arrancaron (fecha ≤ hoy), acotado a total_dias. A diferencia de diaActual,
+   *  NO cae a 0 los domingos ni con el plazo vencido (evita "Día 0/30"). */
+  diaEnCurso: number;
   /** true si hay algún día atrasado o pendiente. */
   hayPendiente: boolean;
   /**
@@ -154,6 +159,9 @@ export interface VistaCredito {
   cuotaDiaria: string;
   totalDias: number;
   diaActual: number;
+  /** Día "en curso" para el texto de avance ("Día X/Y"), robusto a domingos y
+   *  plazo vencido (nunca "Día 0/30"). Ver ResultadoCarton.diaEnCurso. */
+  diaEnCurso: number;
   /** Etiquetas de la unidad según la frecuencia (día/semana/quincena/mes). */
   unidad: UnidadFrecuencia;
   estadoGeneral: string;

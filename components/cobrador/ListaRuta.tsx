@@ -23,6 +23,9 @@ export interface ItemRutaVista {
   lng: number | null;
   /** Calificación del cliente (para el orden por prioridad de cobro). */
   calificacion: string;
+  /** Cartera vencida: todos sus créditos activos pasaron el plazo. Visible para
+   *  recuperar, pero fuera del target/orden del día (no cuenta como "pendiente"). */
+  plazoVencido?: boolean;
 }
 
 // Peso de prioridad: cobrar PRIMERO a los de mayor riesgo (menor peso = antes).
@@ -66,7 +69,8 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
   const cuenta = useMemo(
     () => ({
       todos: items.length,
-      pendiente: items.filter((i) => i.estadoHoy === "pendiente").length,
+      // Los de cartera vencida no son "pendientes del día" (coincide con el arqueo).
+      pendiente: items.filter((i) => i.estadoHoy === "pendiente" && !i.plazoVencido).length,
       cobrado: items.filter((i) => i.estadoHoy === "pagado" || i.estadoHoy === "abono").length,
       no_pago: items.filter((i) => i.estadoHoy === "no_pago").length,
     }),
@@ -130,7 +134,7 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
 
   // Camino óptimo: link a Google Maps con las primeras ~10 paradas PENDIENTES en
   // el orden actual como waypoints (la última = destino). Sin dependencias ni backend.
-  const conGps = ordenados.filter((i) => !cerrado(i.estadoHoy) && i.lat != null && i.lng != null).slice(0, 10);
+  const conGps = ordenados.filter((i) => !cerrado(i.estadoHoy) && !i.plazoVencido && i.lat != null && i.lng != null).slice(0, 10);
   const mapsUrl =
     conGps.length > 0
       ? (() => {
@@ -241,7 +245,7 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
         const inicial = (it.nombre ?? "").trim().charAt(0).toUpperCase() || "—";
         // El nº de paso es el orden de la RUTA; al buscar, `idx` es el índice del
         // filtrado (no el paso real) → se oculta mientras se busca.
-        const mostrarPaso = ordenActivo && !cerrado(it.estadoHoy) && !buscando;
+        const mostrarPaso = ordenActivo && !cerrado(it.estadoHoy) && !buscando && !it.plazoVencido;
         const esCerrado = cerrado(it.estadoHoy);
         // Abono parcial: cuánto le falta para cubrir la cuota de hoy.
         const restaHoy = it.estadoHoy === "abono" ? Math.max(0, it.cuota - it.pagadoHoy) : 0;
@@ -285,9 +289,15 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
                 <span className="truncate text-[14.5px] font-bold text-tinta">
                   {it.nombre}
                 </span>
-                <span className="truncate text-[12px] font-medium text-[#8A93AD]">
-                  {it.direccion ?? "Sin dirección"}
-                </span>
+                {it.plazoVencido ? (
+                  <span className="flex items-center gap-1 text-[11px] font-bold text-[#B9770E]">
+                    ⏳ Cartera vencida · a recuperar
+                  </span>
+                ) : (
+                  <span className="truncate text-[12px] font-medium text-[#8A93AD]">
+                    {it.direccion ?? "Sin dirección"}
+                  </span>
+                )}
               </div>
               <div className="flex flex-col items-end gap-1">
                 {it.cuota > 0 && (

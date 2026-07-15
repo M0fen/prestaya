@@ -134,6 +134,12 @@ export function calcularEstadosCarton(
 
   const dias: DiaEstado[] = [];
   let diaActual = 0;
+  // Día "en curso" para el AVANCE que se muestra ("Día X/Y"): el último día cuya
+  // fecha ya llegó (fecha ≤ hoy). A diferencia de diaActual (que es 0 si HOY no es
+  // día de cobro, p. ej. domingo, o si el plazo venció), este refleja el progreso
+  // real: sube de a uno y se queda quieto los domingos, y llega a total_dias al
+  // vencer. Evita el confuso "Día 0/30".
+  let diaEnCurso = 0;
 
   for (let i = 0; i < totalDias; i++) {
     // Fecha calendario de esta cuota (según la frecuencia del crédito).
@@ -146,6 +152,7 @@ export function calcularEstadosCarton(
     const esFuturo = fecha.getTime() > hoyMid.getTime();
     const esHoy = fecha.getTime() === hoyMid.getTime();
     if (esHoy) diaActual = i + 1;
+    if (!esFuturo) diaEnCurso = i + 1; // última cuota cuya fecha ya llegó
 
     // Orden de evaluación CRÍTICO (no reordenar):
     //  1. fecha futura            → futuro
@@ -223,6 +230,7 @@ export function calcularEstadosCarton(
     falta,
     progresoPct,
     diaActual,
+    diaEnCurso,
     hayPendiente,
     montoParaAlDia,
     fechaFin,

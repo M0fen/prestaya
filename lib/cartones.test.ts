@@ -42,6 +42,9 @@ describe("calcularEstadosCarton — totales (caso base)", () => {
   it("día actual = 12", () => {
     expect(r.diaActual).toBe(12);
   });
+  it("día en curso = 12 (en un día de cobro coincide con diaActual)", () => {
+    expect(r.diaEnCurso).toBe(12);
+  });
   it("hay pendientes", () => {
     expect(r.hayPendiente).toBe(true);
   });
@@ -53,6 +56,28 @@ describe("calcularEstadosCarton — totales (caso base)", () => {
   });
   it("fecha de finalización = día 30 (Lun–Sáb → 2026-07-07)", () => {
     expect(r.fechaFin).toBe("2026-07-07");
+  });
+});
+
+describe("diaEnCurso — avance mostrado robusto (domingos y plazo vencido)", () => {
+  it("DOMINGO: diaActual cae a 0, pero diaEnCurso se queda en el día del sábado (no 'Día 0/30')", () => {
+    // 2026-06-07 es domingo. El día de cobro no cae domingo → diaActual = 0.
+    // Días con fecha ≤ domingo: 1(mié 03) 2(jue 04) 3(vie 05) 4(sáb 06) → diaEnCurso = 4.
+    const r = calcularEstadosCarton(prestamoBase, [], parseFecha("2026-06-07"));
+    expect(r.diaActual).toBe(0); // hoy no es día de cobro
+    expect(r.diaEnCurso).toBe(4); // el avance NO se rompe: "Día 4/30"
+  });
+
+  it("PLAZO VENCIDO: pasado el último día, diaEnCurso llega a total_dias (no 0)", () => {
+    // 2026-07-20 es posterior al día 30 (2026-07-07) → diaActual 0, avance completo.
+    const r = calcularEstadosCarton(prestamoBase, [], parseFecha("2026-07-20"));
+    expect(r.diaActual).toBe(0);
+    expect(r.diaEnCurso).toBe(30); // "Día 30/30", no "Día 0/30"
+  });
+
+  it("antes de arrancar (hoy < fecha_inicio): diaEnCurso 0 (el crédito aún no empezó)", () => {
+    const r = calcularEstadosCarton(prestamoBase, [], parseFecha("2026-06-01"));
+    expect(r.diaEnCurso).toBe(0);
   });
 });
 

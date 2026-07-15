@@ -5,9 +5,9 @@
 import { useRouter } from "next/navigation";
 import { useSync } from "@/lib/cobrador/useSync";
 
-export function SyncEngine() {
+export function SyncEngine({ usuarioId }: { usuarioId: string }) {
   const router = useRouter();
-  const { pendientes, online, sincronizando } = useSync(() => router.refresh());
+  const { pendientes, online, sincronizando } = useSync(usuarioId, () => router.refresh());
   const n = pendientes.length;
 
   if (online && n === 0 && !sincronizando) return null;

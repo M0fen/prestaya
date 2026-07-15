@@ -52,5 +52,7 @@ migración `0006` (dedupe exactly-once en el servidor).
   responda `ok`.
 - Un cobro aparece **duplicado**: revisá que el `op_id` viaje en el insert y que
   el índice único de `0006` esté aplicado en la base.
-- Se pierde un cobro offline: revisá `localStorage["py_cola_cobros"]` en el
-  dispositivo (ahí viven los pendientes).
+- Se pierde un cobro offline: revisá `localStorage["py_cola_cobros_u_<idCobrador>"]`
+  en el dispositivo (la cola se particiona POR cobrador para no mezclar cobros en
+  teléfonos compartidos; la clave base `py_cola_cobros` solo guarda ops legacy que
+  se migran al primer usuario que ingresa).

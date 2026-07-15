@@ -33,6 +33,20 @@ export interface OpCobro {
 }
 
 const KEY = "py_cola_cobros";
+
+// ── Partición POR USUARIO ──────────────────────────────────────────────────
+//  La cola se guarda bajo una clave POR cobrador. En un teléfono COMPARTIDO (o
+//  tras cambiar de sesión), los cobros de uno NO se mezclan con los de otro: si
+//  se mezclaran, un flush corriendo bajo la sesión equivocada atribuiría el cobro
+//  —y su comisión— al cobrador que NO fue (el server sella `registrado_por` con
+//  la sesión activa). Con clave por usuario, cada uno solo ve y sincroniza lo
+//  suyo; lo del otro espera bajo su propia clave hasta que vuelva a ingresar.
+//  `null` = clave base (compat con ops pre-partición y con los tests).
+let usuarioActual: string | null = null;
+function claveCola(): string {
+  return usuarioActual ? `${KEY}_u_${usuarioActual}` : KEY;
+}
+
 // Tope de reintentos de sync: tras esto, la op se considera ATASCADA (un error de
 // negocio que no se resuelve solo: p. ej. el crédito se finalizó o se reasignó
 // mientras estaba sin señal). Deja de reintentarse en silencio y NO bloquea el
@@ -59,16 +73,17 @@ function disponible(): boolean {
  *  lectura ni que el próximo `guardar` pise el crudo. NO fusiona ni toca `cache`. */
 function leerStorage(): OpCobro[] {
   if (!disponible()) return [];
+  const clave = claveCola();
   let raw: string | null = null;
   try {
-    raw = window.localStorage.getItem(KEY);
+    raw = window.localStorage.getItem(clave);
     const parsed = raw ? (JSON.parse(raw) as unknown) : [];
     if (!Array.isArray(parsed)) throw new Error("cola corrupta: no es un arreglo");
     return parsed as OpCobro[];
   } catch {
     try {
-      if (raw) window.localStorage.setItem(`${KEY}_corrupta_${Date.now()}`, raw);
-      window.localStorage.setItem(KEY, "[]");
+      if (raw) window.localStorage.setItem(`${clave}_corrupta_${Date.now()}`, raw);
+      window.localStorage.setItem(clave, "[]");
     } catch {
       /* storage no escribible: no hay más que preservar; seguimos en memoria */
     }
@@ -99,7 +114,7 @@ function guardar(ops: OpCobro[]): boolean {
   let persistido = false;
   if (disponible()) {
     try {
-      window.localStorage.setItem(KEY, JSON.stringify(ops));
+      window.localStorage.setItem(claveCola(), JSON.stringify(ops));
       persistido = true;
     } catch {
       persistido = false; // cuota llena / Safari privado: NO sobrevive recarga
@@ -191,6 +206,39 @@ export function hidratar(): OpCobro[] {
   return leer();
 }
 
+/**
+ * Fija el cobrador DUEÑO de la cola en este dispositivo (particiona el storage por
+ * usuario). Llamar al montar la app del cobrador, ANTES de encolar. Idempotente:
+ * si el usuario no cambió, no hace nada. Al cambiar de usuario, resetea el estado
+ * en memoria (pertenecía a la sesión anterior) y re-hidrata desde la clave del
+ * nuevo. Migra UNA vez las ops que hubieran quedado en la clave base (legacy /
+ * pre-partición) a la del usuario, SOLO si la del usuario está vacía (no pisa nada:
+ * en el caso normal de 1 teléfono = 1 cobrador, esas ops son suyas).
+ */
+export function configurarUsuario(id: string | null): void {
+  if (id === usuarioActual) return;
+  usuarioActual = id;
+  // El cache/marcas en memoria eran del contexto anterior: la verdad ahora es la
+  // clave de ESTE usuario en storage.
+  cache = [];
+  soloEnMemoria.clear();
+  if (disponible() && id) {
+    try {
+      const propia = window.localStorage.getItem(claveCola());
+      const base = window.localStorage.getItem(KEY);
+      const propiaVacia = !propia || propia === "[]";
+      if (propiaVacia && base && base !== "[]") {
+        window.localStorage.setItem(claveCola(), base);
+        window.localStorage.removeItem(KEY);
+      }
+    } catch {
+      /* storage no escribible: la cola vive en memoria, no migramos */
+    }
+  }
+  leer(); // hidrata el cache desde la clave del usuario
+  for (const cb of subs) cb(); // avisa: el store re-lee y muestra la cola del usuario
+}
+
 /** SOLO para tests: descarta TODO el estado en memoria (cache + marcas). NO-OP
  *  fuera de `test` — es un footgun money-critical (vaciaría la cola viva), así que
  *  se blinda para que ni siquiera una llamada accidental en prod borre datos. */
@@ -198,6 +246,7 @@ export function _resetParaTests(): void {
   if (process.env.NODE_ENV !== "test") return;
   cache = [];
   soloEnMemoria.clear();
+  usuarioActual = null; // vuelve a la clave base entre tests
 }
 
 export function suscribir(cb: () => void): () => void {

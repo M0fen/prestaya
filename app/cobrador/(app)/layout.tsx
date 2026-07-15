@@ -50,7 +50,7 @@ export default async function CobradorLayout({
           </form>
         </header>
 
-        <SyncEngine />
+        <SyncEngine usuarioId={usuario.id} />
         <RegistroUso />
 
         <main className="flex-1 px-4 pt-4 pb-24">{children}</main>

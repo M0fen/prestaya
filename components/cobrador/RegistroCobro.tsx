@@ -3,7 +3,7 @@
 // encola la operación; el SyncEngine (en el layout) la sincroniza cuando hay
 // señal. Nunca "no anduvo": registra siempre, con o sin conexión.
 import { useRef, useState } from "react";
-import { encolar, parchearGps, quitar, type OpCobro, type OpTipo } from "@/lib/cobrador/colaOffline";
+import { configurarUsuario, encolar, parchearGps, quitar, type OpCobro, type OpTipo } from "@/lib/cobrador/colaOffline";
 import { MOTIVOS_NOPAGO, type MotivoNoPago } from "@/app/cobrador/(app)/motivos";
 import { UYU } from "@/lib/format";
 import { Comprobante, type DatosComprobante } from "@/components/cobrador/Comprobante";
@@ -62,6 +62,7 @@ export function RegistroCobro({
   clienteNombre,
   clienteTelefono = null,
   cobradorNombre,
+  cobradorId,
   cuota,
   saldoActual,
   tieneGps,
@@ -72,6 +73,8 @@ export function RegistroCobro({
   clienteNombre: string;
   clienteTelefono?: string | null;
   cobradorNombre: string;
+  /** Cobrador logueado: particiona la cola offline por usuario (teléfono compartido). */
+  cobradorId: string;
   cuota: number;
   /** Saldo del crédito ANTES de este cobro (para mostrar el restante). */
   saldoActual: number;
@@ -122,6 +125,9 @@ export function RegistroCobro({
     tipo: OpTipo,
     extra: { monto: number | null; motivo: string | null },
   ): { offline: boolean; op: OpCobro; persistido: boolean } => {
+    // Asegura que la cola esté particionada bajo ESTE cobrador antes de encolar
+    // (el SyncEngine también lo hace; esto blinda contra un tap muy temprano).
+    configurarUsuario(cobradorId);
     const op = encolar(
       {
         tipo,

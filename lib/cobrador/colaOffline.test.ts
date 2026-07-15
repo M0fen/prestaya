@@ -13,6 +13,7 @@ import {
   parchearGps,
   confirmar,
   suscribirConfirmado,
+  configurarUsuario,
   _resetParaTests,
 } from "./colaOffline";
 
@@ -157,6 +158,47 @@ describe("colaOffline", () => {
     const op = encolar({ ...opBase });
     expect(op.persistido).toBe(true);
     expect(pendientes()).toHaveLength(1);
+  });
+
+  it("PARTICIÓN por usuario: en un teléfono compartido, un cobrador NO ve ni sincroniza los cobros del otro", () => {
+    const store = new FakeStorage();
+    vi.stubGlobal("window", { localStorage: store });
+
+    // Cobradora A ingresa y encola un cobro.
+    configurarUsuario("cob-A");
+    encolar({ ...opBase, clienteNombre: "Cliente de A" });
+    expect(pendientes()).toHaveLength(1);
+    // Se guarda bajo la clave de A, no en la base.
+    expect(store.getItem("py_cola_cobros_u_cob-A")).toBeTruthy();
+
+    // Cobrador B ingresa en el MISMO teléfono: no ve la cola de A.
+    configurarUsuario("cob-B");
+    expect(pendientes()).toHaveLength(0);
+    encolar({ ...opBase, clienteId: "c9", clienteNombre: "Cliente de B" });
+    expect(pendientes()).toHaveLength(1);
+    expect(pendientes()[0].clienteNombre).toBe("Cliente de B");
+
+    // A vuelve a ingresar: recupera SU cobro intacto (nunca se mezcló ni se perdió).
+    configurarUsuario("cob-A");
+    expect(pendientes()).toHaveLength(1);
+    expect(pendientes()[0].clienteNombre).toBe("Cliente de A");
+  });
+
+  it("migración legacy: ops en la clave base se ADOPTAN al primer usuario (si su clave está vacía)", () => {
+    const store = new FakeStorage();
+    // Ops que quedaron en la clave base antes de la partición (deploy en caliente).
+    store.setItem(
+      "py_cola_cobros",
+      JSON.stringify([{ id: "vieja-1", tipo: "pago", clienteId: "c1", clienteNombre: "Legacy", monto: 300, motivo: null, gpsLat: null, gpsLng: null, deviceTs: 1, intentos: 0 }]),
+    );
+    vi.stubGlobal("window", { localStorage: store });
+
+    configurarUsuario("cob-A");
+    // La op legacy pasó a ser de A y la clave base quedó limpia (no se re-adopta).
+    expect(pendientes()).toHaveLength(1);
+    expect(pendientes()[0].id).toBe("vieja-1");
+    expect(store.getItem("py_cola_cobros")).toBeNull();
+    expect(store.getItem("py_cola_cobros_u_cob-A")).toBeTruthy();
   });
 
   it("confirmar saca la op y avisa la gracia con la op; quitar (Deshacer) no avisa", () => {

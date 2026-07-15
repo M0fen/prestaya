@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   confirmar,
+  configurarUsuario,
   hidratar,
   marcarIntento,
   opAtascada,
@@ -17,7 +18,7 @@ import {
 } from "@/app/cobrador/(app)/actions";
 import type { MotivoNoPago } from "@/app/cobrador/(app)/motivos";
 
-export function useSync(onSynced?: () => void) {
+export function useSync(usuarioId: string | null, onSynced?: () => void) {
   const ops = useSyncExternalStore(suscribir, pendientes, () => []);
   const [online, setOnline] = useState(true);
   const [sincronizando, setSincronizando] = useState(false);
@@ -27,6 +28,9 @@ export function useSync(onSynced?: () => void) {
   onSyncedRef.current = onSynced;
 
   useEffect(() => {
+    // Particiona la cola por cobrador ANTES de hidratar: en un teléfono compartido
+    // cada sesión sincroniza SOLO sus cobros (no los del cobrador anterior).
+    configurarUsuario(usuarioId);
     hidratar();
     setOnline(navigator.onLine);
     const on = () => setOnline(true);
@@ -38,7 +42,7 @@ export function useSync(onSynced?: () => void) {
       window.removeEventListener("offline", off);
       if (holdTimer.current) clearTimeout(holdTimer.current);
     };
-  }, []);
+  }, [usuarioId]);
 
   const flush = useCallback(async () => {
     if (flushing.current || typeof navigator === "undefined" || !navigator.onLine) return;

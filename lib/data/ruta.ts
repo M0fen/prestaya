@@ -4,9 +4,10 @@
 //  (pagado / no pago / pendiente) desde pagos y visitas. Corte de día en UY.
 // ─────────────────────────────────────────────────────────────────────────
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Cliente } from "@/types/db";
+import type { Cliente, FrecuenciaPrestamo } from "@/types/db";
 import { mapCliente } from "./clientes";
-import { inicioDiaUYIso } from "@/lib/fecha";
+import { inicioDiaUYIso, hoyUY } from "@/lib/fecha";
+import { plazoVencido } from "@/lib/cartones";
 
 // "abono" = pagó HOY pero menos que la cuota (abono parcial). Regla del negocio:
 // un abono parcial NO cubre el día → no es "pagado", queda como pendiente-visto.
@@ -18,6 +19,9 @@ export interface ItemRuta {
   cuota: number;
   estadoHoy: EstadoHoy;
   pagadoHoy: number;
+  /** Cliente cuyos créditos activos están TODOS de plazo vencido (cartera vencida):
+   *  visible para recuperar, pero fuera del target del día (no infla "Falta $"). */
+  plazoVencido: boolean;
 }
 
 export interface Arqueo {
@@ -66,6 +70,47 @@ export function estadoHoyDe(
   return "pendiente";
 }
 
+/** Un crédito activo del cliente, con su cuota y si su PLAZO ya venció. */
+export interface CreditoRuta {
+  cuota: number;
+  plazoVencido: boolean;
+}
+
+export interface ClaseClienteRuta {
+  /** Suma de cuota de los créditos EN TÉRMINO (el target de cobro de HOY). */
+  cuotaEnTermino: number;
+  /** Tiene créditos activos pero TODOS de plazo vencido (cartera vencida pura). */
+  soloVencido: boolean;
+  estadoHoy: EstadoHoy;
+  /** Cuenta para el denominador/target del día (los vencidos puros NO). */
+  cuentaEnRuta: boolean;
+}
+
+/**
+ * Reparte los créditos ACTIVOS de un cliente entre "en término" (tienen cuota que
+ * vence hoy → target del día y arqueo) y "vencidos" (cartera vencida: el plazo ya
+ * terminó). Los vencidos puros quedan VISIBLES para recuperar, pero FUERA del
+ * target del día: si se contaran, inflarían "Falta $X" y la "Ruta completa 🎉"
+ * nunca llegaría (el cobrador persigue una cuota que ya no está programada). El
+ * `pagadoHoy` (si recupera algo) se cuenta aparte como recaudo — la plata es plata.
+ */
+export function clasificarClienteRuta(
+  creditos: CreditoRuta[],
+  pagadoHoy: number,
+  esNoPago: boolean,
+): ClaseClienteRuta {
+  const cuotaEnTermino = creditos
+    .filter((c) => !c.plazoVencido)
+    .reduce((s, c) => s + c.cuota, 0);
+  const soloVencido = creditos.length > 0 && cuotaEnTermino === 0;
+  return {
+    cuotaEnTermino,
+    soloVencido,
+    estadoHoy: estadoHoyDe(pagadoHoy, cuotaEnTermino, esNoPago),
+    cuentaEnRuta: !soloVencido,
+  };
+}
+
 /** Ruta del cobrador logueado + arqueo del día (todo scopeado por RLS). */
 export async function getRutaCobrador(
   db: SupabaseClient,
@@ -88,24 +133,40 @@ export async function getRutaCobrador(
   // del día y lo cobrado hoy suman los de todos, si no el arqueo subestima.)
   const [cliRes, presRes] = await Promise.all([
     db.from("clientes").select("*").in("id", cliIds).eq("activo", true).order("nombre", { ascending: true }),
-    db.from("prestamos").select("id, cliente_id, cuota_diaria").eq("estado", "activo").in("cliente_id", cliIds),
+    db
+      .from("prestamos")
+      .select("id, cliente_id, cuota_diaria, total_dias, fecha_inicio, frecuencia")
+      .eq("estado", "activo")
+      .in("cliente_id", cliIds),
   ]);
   if (cliRes.error) throw cliRes.error;
   if (presRes.error) throw presRes.error;
   const clientes = (cliRes.data ?? []).map(mapCliente);
   if (clientes.length === 0) return { items: [], arqueo: ARQUEO_VACIO };
   const presRaw = presRes.data;
-  const creditosDe = new Map<string, { ids: string[]; cuotaTotal: number; principalId: string }>();
+  // Día UY para evaluar el plazo (mismo criterio hábil Lun–Sáb que el cartón).
+  const hoyMid = hoyUY(hoy);
+  const creditosDe = new Map<string, { ids: string[]; creditos: CreditoRuta[]; principalId: string }>();
   for (const p of presRaw ?? []) {
     const cid = p.cliente_id as string;
     const pid = p.id as string;
     const cuota = Number(p.cuota_diaria);
+    // ¿El plazo de ESTE crédito ya venció? (cartera vencida → fuera del target del día)
+    const vencido = plazoVencido(
+      {
+        cuota_diaria: cuota,
+        total_dias: Number(p.total_dias),
+        fecha_inicio: p.fecha_inicio as string,
+        frecuencia: (p.frecuencia as FrecuenciaPrestamo) ?? "diario",
+      },
+      hoyMid,
+    );
     const acc = creditosDe.get(cid);
     if (acc) {
       acc.ids.push(pid);
-      acc.cuotaTotal += cuota;
+      acc.creditos.push({ cuota, plazoVencido: vencido });
     } else {
-      creditosDe.set(cid, { ids: [pid], cuotaTotal: cuota, principalId: pid });
+      creditosDe.set(cid, { ids: [pid], creditos: [{ cuota, plazoVencido: vencido }], principalId: pid });
     }
   }
 
@@ -140,25 +201,39 @@ export async function getRutaCobrador(
   let cobrados = 0;
   let abonos = 0;
   let noPagos = 0;
+  let conRuta = 0; // clientes con crédito EN TÉRMINO (denominador del día; sin zombies)
 
   const items: ItemRuta[] = clientes.map((c) => {
     const cr = creditosDe.get(c.id);
     if (!cr)
-      return { cliente: c, prestamoId: null, cuota: 0, estadoHoy: "sin_credito", pagadoHoy: 0 };
-    esperado += cr.cuotaTotal;
-    // Suma de lo cobrado HOY en TODOS los créditos activos del cliente.
+      return { cliente: c, prestamoId: null, cuota: 0, estadoHoy: "sin_credito", pagadoHoy: 0, plazoVencido: false };
+    // Suma de lo cobrado HOY en TODOS los créditos activos del cliente (incluye
+    // recuperaciones sobre créditos vencidos: la plata cobrada es plata).
     const pagadoHoy = cr.ids.reduce((s, id) => s + (pagadoPorPrestamo.get(id) ?? 0), 0);
     recaudado += pagadoHoy;
     // No-pago si alguno de sus créditos quedó marcado como visita sin cobro.
     const esNoPago = cr.ids.some((id) => noPagoPrestamos.has(id));
-    const estadoHoy = estadoHoyDe(pagadoHoy, cr.cuotaTotal, esNoPago);
-    if (estadoHoy === "pagado") cobrados++;
-    else if (estadoHoy === "abono") abonos++;
-    else if (estadoHoy === "no_pago") noPagos++;
-    return { cliente: c, prestamoId: cr.principalId, cuota: cr.cuotaTotal, estadoHoy, pagadoHoy };
+    const clase = clasificarClienteRuta(cr.creditos, pagadoHoy, esNoPago);
+    // Solo los créditos EN TÉRMINO aportan al target del día y al denominador de
+    // "ruta completa"; los vencidos puros quedan visibles pero fuera de esas cuentas.
+    if (clase.cuentaEnRuta) {
+      esperado += clase.cuotaEnTermino;
+      conRuta += 1;
+      if (clase.estadoHoy === "pagado") cobrados++;
+      else if (clase.estadoHoy === "abono") abonos++;
+      else if (clase.estadoHoy === "no_pago") noPagos++;
+    }
+    return {
+      cliente: c,
+      prestamoId: cr.principalId,
+      cuota: clase.cuotaEnTermino,
+      estadoHoy: clase.estadoHoy,
+      pagadoHoy,
+      plazoVencido: clase.soloVencido,
+    };
   });
 
-  const conCredito = items.filter((i) => i.prestamoId).length;
+  const conCredito = conRuta;
   return {
     items,
     arqueo: {

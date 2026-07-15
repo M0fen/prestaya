@@ -235,6 +235,7 @@ export function construirVistaCliente(params: {
     cuotaDiaria: UYU(prestamo.cuota_diaria),
     totalDias: prestamo.total_dias,
     diaActual: r.diaActual,
+    diaEnCurso: r.diaEnCurso,
     unidad: UNIDADES[prestamo.frecuencia] ?? UNIDADES.diario,
     estadoGeneral,
     estadoDotStyle: {
