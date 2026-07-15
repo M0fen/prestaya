@@ -24,8 +24,115 @@ export interface ResultadoReconciliacion extends ResumenReconciliacion {
 
 const N = (v: unknown) => Math.round(Number(v) || 0);
 
+/** Foto de salud del empalme: totales + cartera recalculada del libro. */
+export async function getSaludEmpalme(db: SupabaseClient): Promise<SaludEmpalme> {
+  const cnt = async (
+    tabla: string,
+    col?: string,
+    val?: string | boolean,
+  ): Promise<number> => {
+    let q = db.from(tabla).select("id", { count: "exact", head: true });
+    if (col !== undefined) q = q.eq(col, val as never);
+    const { count } = await q;
+    return count ?? 0;
+  };
+  const [creditosActivos, creditosFinalizados, creditosTotal, clientes, pagos] = await Promise.all([
+    cnt("prestamos", "estado", "activo"),
+    cnt("prestamos", "estado", "finalizado"),
+    cnt("prestamos"),
+    cnt("clientes", "activo", true),
+    cnt("pagos", "anulado", false),
+  ]);
+  const { data: lp } = await db
+    .from("pagos")
+    .select("registrado_en")
+    .eq("anulado", false)
+    .order("registrado_en", { ascending: false })
+    .limit(1);
+  const ultimoPago = (lp?.[0]?.registrado_en as string | undefined) ?? null;
+
+  // Cartera activa: Σ saldo (cuota×días − pagado_acum) de los activos, paginado.
+  let carteraActiva = 0;
+  for (let desde = 0; ; desde += 1000) {
+    const { data } = await db
+      .from("prestamos")
+      .select("cuota_diaria, total_dias, pagado_acum")
+      .eq("estado", "activo")
+      .order("id", { ascending: true })
+      .range(desde, desde + 999);
+    for (const p of data ?? []) {
+      carteraActiva += Math.max(0, N(p.cuota_diaria) * Number(p.total_dias || 0) - N(p.pagado_acum));
+    }
+    if (!data || data.length < 1000) break;
+  }
+  return { creditosActivos, creditosFinalizados, creditosTotal, clientes, pagos, ultimoPago, carteraActiva };
+}
+
+/** Historial de las últimas corridas de reconciliación (tendencia). Degrada a []. */
+export async function getHistorialReconciliacion(db: SupabaseClient, limite = 14): Promise<CorridaRecon[]> {
+  try {
+    const { data, error } = await db
+      .from("reconciliacion_log")
+      .select("corrida_en, ok, total, criticos, recaudo_libro, origen")
+      .order("corrida_en", { ascending: false })
+      .limit(limite);
+    if (error) throw error;
+    return (data ?? []).map((r) => ({
+      corridaEn: r.corrida_en as string,
+      ok: Boolean(r.ok),
+      total: Number(r.total),
+      criticos: Number(r.criticos),
+      recaudoLibro: N(r.recaudo_libro),
+      origen: (r.origen as string) ?? "cron",
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/** Deja registro de una corrida (append-only). Best-effort: nunca rompe el cron. */
+export async function logReconciliacion(
+  db: SupabaseClient,
+  r: { ok: boolean; total: number; criticos: number; recaudoLibro: number; origen?: string; detalle?: unknown },
+): Promise<void> {
+  try {
+    await db.from("reconciliacion_log").insert({
+      ok: r.ok,
+      total: r.total,
+      criticos: r.criticos,
+      recaudo_libro: r.recaudoLibro,
+      origen: r.origen ?? "cron",
+      detalle: r.detalle ?? null,
+    });
+  } catch {
+    /* la tabla 0073 puede no existir aún: no rompe la corrida */
+  }
+}
+
 /** Una diferencia de dinero con TRAZABILIDAD (quién, cuánto, de qué tipo) — para
  *  que admin/dev revisen cada divergencia del empalme. */
+/** Foto de salud del empalme (totales) — para el panel de trazabilidad. */
+export interface SaludEmpalme {
+  creditosActivos: number;
+  creditosFinalizados: number;
+  creditosTotal: number;
+  clientes: number;
+  pagos: number;
+  ultimoPago: string | null;
+  /** Capital en calle = Σ saldo de créditos activos (recalculado del libro). */
+  carteraActiva: number;
+}
+
+/** Una corrida registrada de reconciliación (historial/tendencia). */
+export interface CorridaRecon {
+  corridaEn: string;
+  ok: boolean;
+  total: number;
+  criticos: number;
+  recaudoLibro: number;
+  origen: string;
+}
+
 export interface DiferenciaEmpalme {
   creditoId: string;
   clienteNombre: string;

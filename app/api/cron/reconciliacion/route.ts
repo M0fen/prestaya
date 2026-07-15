@@ -7,7 +7,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { cronAutorizado } from "@/lib/seguridad/cron";
-import { reconciliarDia } from "@/lib/data/reconciliacion";
+import { reconciliarDia, logReconciliacion } from "@/lib/data/reconciliacion";
 import { getSuscripcionesDeRoles, borrarSuscripcionDb } from "@/lib/data/push";
 import { enviarPush, pushConfigurado } from "@/lib/push/enviar";
 
@@ -31,6 +31,16 @@ export async function GET(req: Request): Promise<Response> {
   if (!r.disponible) {
     return Response.json({ ok: false, motivo: "RPC app_reconciliacion_violaciones sin correr (0071)" });
   }
+
+  // Deja registro de la corrida (historial/tendencia en /admin/empalme).
+  await logReconciliacion(db, {
+    ok: r.ok,
+    total: r.hallazgos.length,
+    criticos: r.criticos,
+    recaudoLibro: r.recaudoLibro,
+    origen: "cron",
+    detalle: r.porInvariante,
+  });
 
   // Alerta SOLO ante lo CRÍTICO: drift del denormalizado (los saldos mienten) o
   // sobre-cobro material (se cobró de más de verdad). El baseline de redondeos no.
