@@ -118,8 +118,10 @@ Contra `creditos_2026-07-15_03-03.xlsx`:
 > recibo). Si abonó menos, poné el monto. Si no pagó, marcá **No pagó** y por qué.
 >
 > **5. Sin señal, seguí trabajando**
-> Si te quedás sin internet, la app **guarda los cobros igual** y los manda solos cuando
-> vuelve la señal. Nunca pierdas un cobro por falta de datos.
+> La app **abre y funciona sin internet**: ves tu última ruta guardada (con un aviso
+> "sin conexión") y podés cobrar. Los cobros **se guardan igual** y se mandan solos
+> cuando vuelve la señal. Nunca pierdas un cobro por falta de datos.
+> *Tip:* abrí la app con señal al empezar el día para cargar tu ruta fresca.
 >
 > **6. Cerrá tu jornada**
 > Al final del día, **Cerrar jornada**: la app te dice cuánto cobraste y cuánto entregar.
