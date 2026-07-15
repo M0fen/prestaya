@@ -8,6 +8,7 @@ import { getClientePorToken } from "@/lib/data/clientes";
 import { getPrestamoActivoPorCliente } from "@/lib/data/prestamos";
 import { UYU, parseFecha, toIso } from "@/lib/format";
 import { fechaDeCuota } from "@/lib/cartones";
+import { hoyUY } from "@/lib/fecha";
 import { tokenValido } from "@/lib/validacion/esquemas";
 
 /** "YYYY-MM-DD" → "YYYYMMDD" (formato de fecha ICS). */
@@ -37,8 +38,10 @@ export async function GET(
   const inicio = parseFecha(prestamo.fecha_inicio);
   const fin = fechaDeCuota(inicio, prestamo.total_dias - 1, prestamo.frecuencia);
 
-  const hoy = new Date();
-  hoy.setHours(0, 0, 0, 0);
+  // "Hoy" es el día de URUGUAY (no la medianoche del runtime, que en Vercel es UTC
+  // → de tarde-noche en UY arrancaba el recordatorio un día tarde). Mismo criterio
+  // que el cartón.
+  const hoy = hoyUY();
   const desde = hoy.getTime() > inicio.getTime() ? hoy : inicio;
   // DTSTART debe coincidir con el BYDAY (Lun–Sáb): si arranca un domingo, al lunes.
   if (desde.getDay() === 0) desde.setDate(desde.getDate() + 1);

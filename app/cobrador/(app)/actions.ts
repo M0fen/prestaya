@@ -46,6 +46,8 @@ export async function relevarCliente(input: {
   notas?: string | null;
   gpsLat?: number | null;
   gpsLng?: number | null;
+  /** Precisión (accuracy, m) del fix GPS del ancla — para la bitácora anti-fuga. */
+  gpsPrecision?: number | null;
   /** Foto del cliente (data URL comprimido). Anti cliente-fantasma. */
   fotoDataUrl?: string | null;
 }): Promise<ResultadoCenso> {
@@ -64,8 +66,17 @@ export async function relevarCliente(input: {
     const telefono = limpiar(input.telefono);
     const direccion = limpiar(input.direccion);
     const notas = limpiar(input.notas)?.slice(0, 500) ?? null;
-    const gps_lat = numeroValido(input.gpsLat);
-    const gps_lng = numeroValido(input.gpsLng);
+    const gpsCrudoLat = numeroValido(input.gpsLat);
+    const gpsCrudoLng = numeroValido(input.gpsLng);
+    // 0,0 es un fix ROTO en Uruguay (lat≈-34, lng≈-56): no se fija como ancla —
+    // regiría la geo-cerca de TODOS los cobros futuros del cliente. El cliente ya lo
+    // filtra; esto blinda el servidor.
+    const anclaValida =
+      gpsCrudoLat != null &&
+      gpsCrudoLng != null &&
+      !(Math.abs(gpsCrudoLat) < 0.5 && Math.abs(gpsCrudoLng) < 0.5);
+    const gps_lat = anclaValida ? gpsCrudoLat : null;
+    const gps_lng = anclaValida ? gpsCrudoLng : null;
 
     const db = createSupabaseAdmin();
 
@@ -114,6 +125,7 @@ export async function relevarCliente(input: {
       detalle: nombre,
       gpsLat: gps_lat,
       gpsLng: gps_lng,
+      gpsPrecision: numeroValido(input.gpsPrecision),
       gpsDenegado: gps_lat == null || gps_lng == null,
     });
 

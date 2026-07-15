@@ -223,7 +223,7 @@ async function Detalle({
       <CartonCobrador
         dias={r.dias}
         cuota={prestamo.cuota_diaria}
-        progresoPct={r.progresoPct}
+        progresoPct={Math.min(100, r.progresoPct)}
         clienteId={clienteId}
         prestamoId={prestamo.id}
       />

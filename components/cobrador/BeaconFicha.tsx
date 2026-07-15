@@ -22,7 +22,9 @@ export function BeaconFicha({ clienteId }: { clienteId: string }) {
     navigator.geolocation.getCurrentPosition(
       (p) => enviar(p.coords.latitude, p.coords.longitude, false),
       () => enviar(null, null, true),
-      { enableHighAccuracy: true, timeout: 6000, maximumAge: 30000 },
+      // maximumAge bajo (8s) para no heredar el fix de otra pantalla como si fuera
+      // fresco (mismo criterio que el cobro); timeout algo más holgado para el lock.
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 8000 },
     );
   }, [clienteId]);
   return null;

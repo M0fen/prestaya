@@ -162,7 +162,9 @@ export function calcularEstadosCarton(
     //  5. día pasado sin pago     → atrasado
     let estado: EstadoDia;
     if (esFuturo) estado = "futuro";
-    else if (pagado >= cuota) estado = "pagado";
+    // `cuota > 0`: un crédito mal cargado con cuota 0 daría `0 >= 0` y pintaría TODOS
+    // los días como "pagado" (parecería saldado/al día). Con la guarda cae a pendiente.
+    else if (cuota > 0 && pagado >= cuota) estado = "pagado";
     else if (pagado > 0) estado = "pendiente";
     else if (esHoy) estado = "pendiente";
     else estado = "atrasado";
@@ -191,8 +193,11 @@ export function calcularEstadosCarton(
     }
   }
 
-  // Fecha de la última cuota del crédito (finalización).
-  const fechaFin = toIso(fechaDeCuota(start, totalDias - 1, frecuencia));
+  // Fecha de la última cuota del crédito (finalización). Guarda para total_dias=0
+  // (crédito inválido): fechaDeCuota(start, -1) daría una fecha basura ANTES del
+  // inicio → se usa el propio inicio.
+  const fechaFin =
+    totalDias > 0 ? toIso(fechaDeCuota(start, totalDias - 1, frecuencia)) : toIso(start);
 
   // Cualquier día atrasado o pendiente rompe el "al día".
   const hayPendiente = dias.some(

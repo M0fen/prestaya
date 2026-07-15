@@ -1,20 +1,49 @@
 "use client";
 // Censo en calle: el cobrador da de alta un cliente nuevo (queda activo y
-// asignado a él). Captura GPS de la casa para la geo-cerca futura.
-import { useState, useTransition } from "react";
+// asignado a él). Captura el GPS de la casa: es el ANCLA de la geo-cerca de TODOS
+// los cobros futuros del cliente, así que se captura SOLA al abrir (antes era un
+// botón manual y el camino más común dejaba el ancla en null) con su precisión.
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { relevarCliente } from "@/app/cobrador/(app)/actions";
 import { CapturaFoto } from "@/components/CapturaFoto";
 
-function pedirGps(): Promise<{ lat: number | null; lng: number | null }> {
+type GpsEstado = "ok" | "denegado" | "timeout" | "sin_fix" | "no_soportado";
+type FixGps = { lat: number | null; lng: number | null; precision: number | null; estado: GpsEstado };
+
+// 0,0 en Uruguay (lat≈-34, lng≈-56) es SIEMPRE un fix roto — algunos chips Android
+// baratos lo emiten. No sirve como ancla (pondría la casa en el Golfo de Guinea →
+// toda geo-cerca futura daría "fuera de zona").
+function gpsUtilizable(g: FixGps | null): g is FixGps & { lat: number; lng: number } {
+  return (
+    !!g && g.lat != null && g.lng != null && !(Math.abs(g.lat) < 0.5 && Math.abs(g.lng) < 0.5)
+  );
+}
+
+// Fix GPS: lat/lng + precisión (accuracy en metros) + estado (para distinguir
+// "denegó permiso" de "no hubo señal"). maximumAge bajo (8s) evita anclar un fix
+// viejo capturado mientras el cobrador caminaba.
+function pedirGps(): Promise<FixGps> {
   return new Promise((resolve) => {
     if (typeof navigator === "undefined" || !navigator.geolocation)
-      return resolve({ lat: null, lng: null });
+      return resolve({ lat: null, lng: null, precision: null, estado: "no_soportado" });
     navigator.geolocation.getCurrentPosition(
-      (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
-      () => resolve({ lat: null, lng: null }),
-      { enableHighAccuracy: true, timeout: 6000, maximumAge: 30000 },
+      (p) =>
+        resolve({
+          lat: p.coords.latitude,
+          lng: p.coords.longitude,
+          precision: Number.isFinite(p.coords.accuracy) ? p.coords.accuracy : null,
+          estado: "ok",
+        }),
+      (err) =>
+        resolve({
+          lat: null,
+          lng: null,
+          precision: null,
+          estado: err.code === 1 ? "denegado" : err.code === 3 ? "timeout" : "sin_fix",
+        }),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 8000 },
     );
   });
 }
@@ -23,16 +52,25 @@ export default function CensarPage() {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [gps, setGps] = useState<{ lat: number | null; lng: number | null } | null>(null);
+  const [gps, setGps] = useState<FixGps | null>(null);
   const [ubicando, setUbicando] = useState(false);
   const [foto, setFoto] = useState<string | null>(null);
 
   const capturarGps = async () => {
     setUbicando(true);
-    const g = await pedirGps();
-    setGps(g);
+    setGps(await pedirGps());
     setUbicando(false);
   };
+
+  // Auto-captura al abrir la pantalla (no depende de que el cobrador se acuerde de
+  // tocar "Capturar"). Puede recapturar si la señal mejora.
+  useEffect(() => {
+    void capturarGps();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const gpsOk = gpsUtilizable(gps);
+  const precisionMala = gpsOk && gps.precision != null && gps.precision > 100;
 
   const enviar = (formData: FormData) =>
     start(async () => {
@@ -47,13 +85,28 @@ export default function CensarPage() {
         telefono: String(formData.get("telefono") ?? "") || null,
         direccion: String(formData.get("direccion") ?? "") || null,
         notas: String(formData.get("notas") ?? "") || null,
-        gpsLat: gps?.lat ?? null,
-        gpsLng: gps?.lng ?? null,
+        // Solo se manda el ancla si es utilizable (nunca 0,0 ni null como ubicación).
+        gpsLat: gpsOk ? gps.lat : null,
+        gpsLng: gpsOk ? gps.lng : null,
+        gpsPrecision: gpsOk ? gps.precision : null,
         fotoDataUrl: foto,
       });
       if (res.ok) router.push(`/cobrador/cliente/${res.id}`);
       else setError(res.error);
     });
+
+  // Texto del estado del GPS (distingue denegó / falló / señal débil).
+  const estadoTexto = ubicando
+    ? "Ubicando…"
+    : gps?.estado === "denegado"
+      ? "Permiso denegado — activá la ubicación del teléfono"
+      : gps?.estado === "no_soportado"
+        ? "Este teléfono no da ubicación"
+        : gps?.estado === "timeout" || gps?.estado === "sin_fix"
+          ? "No se pudo ubicar — reintentá con señal / cielo abierto"
+          : gpsOk
+            ? `✓ Capturada${gps.precision != null ? ` (±${Math.round(gps.precision)} m)` : ""}`
+            : "Tocá para capturar el GPS";
 
   return (
     <div className="flex flex-col gap-4">
@@ -82,33 +135,52 @@ export default function CensarPage() {
         <button
           type="button"
           onClick={capturarGps}
-          className="flex items-center justify-between rounded-[12px] border border-[#DCE3F4] bg-white px-4 py-2.5 text-left"
+          disabled={ubicando}
+          className="flex items-center justify-between rounded-[12px] border border-[#DCE3F4] bg-white px-4 py-2.5 text-left disabled:opacity-70"
         >
-          <span className="flex flex-col">
+          <span className="flex min-w-0 flex-col">
             <span className="text-[13px] font-bold text-tinta">Ubicación de la casa</span>
-            <span className="text-[11.5px] font-medium text-[#8A93AD]">
-              {ubicando
-                ? "Ubicando…"
-                : gps?.lat
-                  ? `✓ ${gps.lat.toFixed(5)}, ${gps.lng!.toFixed(5)}`
-                  : "Tocá para capturar el GPS"}
+            <span
+              className={`text-[11.5px] font-medium ${
+                gps?.estado === "denegado" || gps?.estado === "timeout" || gps?.estado === "sin_fix"
+                  ? "text-[#C0392B]"
+                  : gpsOk
+                    ? "text-[#157A50]"
+                    : "text-[#8A93AD]"
+              }`}
+            >
+              {estadoTexto}
             </span>
           </span>
-          <span className="rounded-full bg-[#EEF3FF] px-3 py-1.5 text-[12px] font-bold text-azul">
-            {gps?.lat ? "Recapturar" : "Capturar"}
+          <span className="flex-shrink-0 rounded-full bg-[#EEF3FF] px-3 py-1.5 text-[12px] font-bold text-azul">
+            {gpsOk ? "Recapturar" : "Reintentar"}
           </span>
         </button>
 
-        {error && (
-          <span className="text-[12.5px] font-semibold text-[#C0392B]">{error}</span>
+        {/* Señal débil: el ancla sirve pero conviene mejorarla (está a la vista). */}
+        {precisionMala && (
+          <span className="text-[11.5px] font-semibold text-[#B9770E]">
+            Señal débil (±{Math.round(gps.precision!)} m). Acercate a la casa y recapturá para
+            una mejor ubicación.
+          </span>
         )}
+        {/* Sin ubicación válida: se puede guardar igual, pero se avisa (la geo-cerca
+            de este cliente quedaría ciega). El botón cambia a "sin ubicación". */}
+        {!gpsOk && !ubicando && gps && (
+          <span className="text-[11.5px] font-medium text-[#8A93AD]">
+            Sin ubicación no se podrá validar la geo-cerca de este cliente. Podés guardar
+            igual, pero mejor reintentá con señal.
+          </span>
+        )}
+
+        {error && <span className="text-[12.5px] font-semibold text-[#C0392B]">{error}</span>}
 
         <button
           type="submit"
           disabled={pending}
           className="rounded-full bg-azul px-5 py-3 text-[14px] font-bold text-white disabled:opacity-60"
         >
-          {pending ? "Guardando…" : "Guardar cliente"}
+          {pending ? "Guardando…" : gpsOk ? "Guardar cliente" : "Guardar sin ubicación"}
         </button>
       </form>
     </div>
