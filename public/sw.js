@@ -1,16 +1,25 @@
 /*
- * Service Worker de Presta Ya — PWA instalable + offline elegante.
+ * Service Worker de Presta Ya — PWA instalable + offline de campo.
  *
- * ⚠️ App de DINERO: NUNCA servimos datos financieros viejos. Por eso:
- *   · Navegaciones (páginas)  → SOLO red. Si estás sin conexión, mostramos una
- *     página "sin conexión" amable; jamás un cartón/saldo cacheado y desactualizado.
- *   · Estáticos versionados    → cache-first (JS/CSS de _next llevan hash inmutable,
- *     íconos, bundles de juegos): cargan al instante y en repeticiones.
+ * ⚠️ App de DINERO. Estrategia por tipo de request:
+ *   · App del COBRADOR (/cobrador*) → NETWORK-FIRST con caché: si hay señal,
+ *     siempre datos frescos (y se guarda copia); sin señal, se sirve la ÚLTIMA
+ *     versión guardada de esa pantalla para que el cobrador PUEDA abrir la app en
+ *     la calle y encolar cobros. Es una decisión deliberada: el cobro de cuota
+ *     diaria es fijo (no depende del saldo vivo), un banner marca "sin conexión",
+ *     y el SERVIDOR re-valida y capa cada cobro al sincronizar (anti sobre-pago).
+ *   · Otras navegaciones (admin/supervisor/cliente) → SOLO red; offline → página
+ *     amable. Nunca se cachea un saldo/cartón "vivo" de esas superficies.
+ *   · Estáticos versionados → cache-first (JS/CSS de _next con hash inmutable,
+ *     íconos, bundles de juegos).
  *   · Supabase / /api / no-GET → NO se tocan (siempre a la red).
+ *
+ * Teléfono compartido: la caché de /cobrador es por URL, no por usuario; el cliente
+ * (CacheRutaGuard) la purga al cambiar de cobrador. La cola de cobros ya es por-usuario.
  *
  * Al cambiar de versión se limpian los caches viejos. Bump CACHE_VER para forzar.
  */
-const CACHE_VER = "presta-ya-v1";
+const CACHE_VER = "presta-ya-v2";
 const OFFLINE_URL = "/offline.html";
 const PRECACHE = [OFFLINE_URL, "/icons/icon-192.png", "/manifest.webmanifest"];
 
@@ -31,6 +40,11 @@ self.addEventListener("activate", (event) => {
       .then(() => self.clients.claim()),
   );
 });
+
+// ¿Es una pantalla de la app del cobrador? (se cachea para abrir OFFLINE)
+function esRutaCobrador(url) {
+  return url.origin === self.location.origin && url.pathname.startsWith("/cobrador");
+}
 
 // ¿Es un estático seguro de cachear? (mismo origen + ruta versionada/inmutable)
 function esEstatico(url) {
@@ -54,8 +68,32 @@ self.addEventListener("fetch", (event) => {
   // Datos dinámicos del servidor: nunca cachear (podrían traer saldos).
   if (url.pathname.startsWith("/api/")) return;
 
-  // Navegaciones (abrir/recargar una página): SOLO red; offline → página amable.
+  // Navegaciones (abrir/recargar una página).
   if (req.mode === "navigate") {
+    // App del cobrador: NETWORK-FIRST con caché. Con señal, red fresca + guardar
+    // copia; sin señal, la última versión de ESA pantalla (o la ruta principal, o
+    // la página offline como último recurso). Así abre en la calle sin conexión.
+    if (esRutaCobrador(url)) {
+      event.respondWith(
+        fetch(req)
+          .then((resp) => {
+            if (resp && resp.status === 200) {
+              const copia = resp.clone();
+              caches.open(CACHE_VER).then((c) => c.put(req, copia));
+            }
+            return resp;
+          })
+          .catch(() =>
+            caches
+              .match(req)
+              .then((hit) => hit || caches.match("/cobrador"))
+              .then((hit) => hit || caches.match(OFFLINE_URL)),
+          ),
+      );
+      return;
+    }
+    // Resto (admin/supervisor/cliente): SOLO red; offline → página amable. Nunca
+    // se cachea un saldo/cartón "vivo" de esas superficies.
     event.respondWith(fetch(req).catch(() => caches.match(OFFLINE_URL)));
     return;
   }

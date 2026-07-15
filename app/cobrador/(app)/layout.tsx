@@ -8,6 +8,8 @@ import { getTotalNoLeidos } from "@/lib/data/chat";
 import { SyncEngine } from "@/components/cobrador/SyncEngine";
 import { CobradorBottomNav } from "@/components/cobrador/CobradorBottomNav";
 import { RegistroUso } from "@/components/RegistroUso";
+import { OfflineBanner } from "@/components/cobrador/OfflineBanner";
+import { CacheRutaGuard } from "@/components/cobrador/CacheRutaGuard";
 
 export const dynamic = "force-dynamic";
 
@@ -50,7 +52,11 @@ export default async function CobradorLayout({
           </form>
         </header>
 
+        {/* Sin conexión: avisa que la ruta es la última guardada (SW network-first). */}
+        <OfflineBanner />
         <SyncEngine usuarioId={usuario.id} />
+        {/* Teléfono compartido: purga la caché de ruta del cobrador anterior. */}
+        <CacheRutaGuard usuarioId={usuario.id} />
         <RegistroUso />
 
         <main className="flex-1 px-4 pt-4 pb-24">{children}</main>
