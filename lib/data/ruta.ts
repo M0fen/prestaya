@@ -26,7 +26,12 @@ export interface ItemRuta {
 
 export interface Arqueo {
   esperado: number;
+  /** Todo lo cobrado hoy en la ruta (incluye recuperaciones de créditos vencidos). */
   recaudado: number;
+  /** Cobrado hoy SOLO sobre cuotas EN TÉRMINO — para el % de avance y "Falta $X"
+   *  (si se usara `recaudado`, una recuperación de deuda vieja mostraría "Completo ✓"
+   *  con cuotas de hoy aún sin cobrar). */
+  recaudadoRuta: number;
   cobrados: number;
   /** Clientes con abono PARCIAL hoy (pagó algo, no cubrió la cuota). */
   abonos: number;
@@ -43,6 +48,7 @@ export interface Ruta {
 const ARQUEO_VACIO: Arqueo = {
   esperado: 0,
   recaudado: 0,
+  recaudadoRuta: 0,
   cobrados: 0,
   abonos: 0,
   pendientes: 0,
@@ -147,7 +153,7 @@ export async function getRutaCobrador(
     db.from("clientes").select("*").in("id", cliIds).eq("activo", true).order("nombre", { ascending: true }),
     db
       .from("prestamos")
-      .select("id, cliente_id, cuota_diaria, total_dias, fecha_inicio, frecuencia")
+      .select("id, cliente_id, cuota_diaria, total_dias, fecha_inicio, frecuencia, pagado_acum")
       .eq("estado", "activo")
       .in("cliente_id", cliIds),
   ]);
@@ -165,6 +171,11 @@ export async function getRutaCobrador(
     const cid = p.cliente_id as string;
     const pid = p.id as string;
     const cuota = Number(p.cuota_diaria);
+    // Crédito SALDADO (pagó todo pero aún no se finalizó/renovó): fuera de la ruta.
+    // Si no, un cliente que ya terminó reaparecía como "pendiente" (inflando "Falta")
+    // o como "cartera vencida · a recuperar" — persiguiendo a alguien que pagó todo.
+    const totalCred = cuota * Number(p.total_dias);
+    if (totalCred > 0 && Number(p.pagado_acum ?? 0) >= totalCred) continue;
     // ¿El plazo de ESTE crédito ya venció? (cartera vencida → fuera del target del día)
     const vencido = plazoVencido(
       {
@@ -208,6 +219,7 @@ export async function getRutaCobrador(
 
   let esperado = 0;
   let recaudado = 0;
+  let recaudadoRuta = 0; // cobrado hoy sobre cuotas EN TÉRMINO (para % y "Falta")
   let cobrados = 0;
   let abonos = 0;
   let noPagos = 0;
@@ -232,6 +244,7 @@ export async function getRutaCobrador(
     // "ruta completa"; los vencidos puros quedan visibles pero fuera de esas cuentas.
     if (clase.cuentaEnRuta) {
       esperado += clase.cuotaEnTermino;
+      recaudadoRuta += clase.pagadoHoyEnTermino;
       conRuta += 1;
       if (clase.estadoHoy === "pagado") cobrados++;
       else if (clase.estadoHoy === "abono") abonos++;
@@ -253,6 +266,7 @@ export async function getRutaCobrador(
     arqueo: {
       esperado,
       recaudado,
+      recaudadoRuta,
       cobrados,
       abonos,
       // Pendientes "puros" = ni cobrados, ni con abono parcial, ni no-pago.

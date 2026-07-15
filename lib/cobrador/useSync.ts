@@ -79,6 +79,7 @@ export function useSync(usuarioId: string | null, onSynced?: () => void) {
                   monto: op.monto,
                   gpsLat: op.gpsLat,
                   gpsLng: op.gpsLng,
+                  gpsPrecision: op.gpsPrecision ?? null,
                   registradoEn,
                   opId: op.id,
                 })
@@ -88,6 +89,7 @@ export function useSync(usuarioId: string | null, onSynced?: () => void) {
                   motivo: (op.motivo ?? "no_estaba") as MotivoNoPago,
                   gpsLat: op.gpsLat,
                   gpsLng: op.gpsLng,
+                  gpsPrecision: op.gpsPrecision ?? null,
                   registradoEn,
                   opId: op.id,
                 });

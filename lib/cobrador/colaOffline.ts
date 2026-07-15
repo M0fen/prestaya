@@ -23,6 +23,9 @@ export interface OpCobro {
   motivo: string | null; // no_pago: id del motivo
   gpsLat: number | null;
   gpsLng: number | null;
+  /** Precisión del fix GPS en metros (accuracy). Anti-fuga: distingue un fix de
+   *  satélite (±5 m) de uno de antena (±800 m). Se adjunta con el GPS (parchearGps). */
+  gpsPrecision?: number | null;
   /** Hora real del cobro (Date.now() al registrar). */
   deviceTs: number;
   intentos: number;
@@ -158,9 +161,18 @@ export function encolar(
 
 /** Adjunta el GPS a una op ya encolada (llega asíncrono, no bloquea el registro).
  *  Si no hubo lectura (ambos null) no toca nada: se conserva lo que tenga. */
-export function parchearGps(id: string, lat: number | null, lng: number | null): void {
+export function parchearGps(
+  id: string,
+  lat: number | null,
+  lng: number | null,
+  precision?: number | null,
+): void {
   if (lat == null && lng == null) return;
-  guardar(leer().map((o) => (o.id === id ? { ...o, gpsLat: lat, gpsLng: lng } : o)));
+  guardar(
+    leer().map((o) =>
+      o.id === id ? { ...o, gpsLat: lat, gpsLng: lng, gpsPrecision: precision ?? null } : o,
+    ),
+  );
 }
 
 export function quitar(id: string): void {

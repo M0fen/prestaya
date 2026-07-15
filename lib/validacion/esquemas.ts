@@ -18,6 +18,9 @@ const fechaISO = z
   .refine((s) => !Number.isNaN(Date.parse(s)), "fecha inválida");
 const lat = z.number().min(-90).max(90);
 const lng = z.number().min(-180).max(180);
+// Precisión del fix GPS en metros (accuracy). Se registra para VERIFICAR la
+// calidad del anti-fuga (un fix de ±800 m no prueba cercanía como uno de ±5 m).
+const precision = z.number().min(0).max(100_000);
 const opId = z.string().min(1).max(200);
 
 // ── Cobrador (input de la calle, muta dinero) ──────────────────────────────
@@ -29,6 +32,7 @@ export const cobroSchema = z.object({
   monto: z.number().positive().max(100_000_000).nullish(),
   gpsLat: lat.nullish(),
   gpsLng: lng.nullish(),
+  gpsPrecision: precision.nullish(),
   registradoEn: fechaISO.nullish(),
   opId: opId.nullish(),
 });
@@ -39,6 +43,7 @@ export const noPagoSchema = z.object({
   motivo: z.enum(["no_estaba", "no_tenia", "se_nego", "reagendado"]),
   gpsLat: lat.nullish(),
   gpsLng: lng.nullish(),
+  gpsPrecision: precision.nullish(),
   registradoEn: fechaISO.nullish(),
   opId: opId.nullish(),
 });

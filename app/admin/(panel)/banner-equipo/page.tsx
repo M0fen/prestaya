@@ -20,7 +20,8 @@ export default async function BannerEquipoPage() {
         <div className="flex flex-col gap-0.5">
           <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">Banner al equipo</h1>
           <span className="text-[13px] font-medium text-gris">
-            Un aviso fijo arriba de la ruta de todos los cobradores. Lo ven al abrir su app.
+            Un aviso fijo arriba de la ruta de tu equipo de cobradores — lo ven apenas abren su app.
+            Usalo para arrancar la jornada, recordar la hora del cierre o felicitarlos por el día. 📢
           </span>
         </div>
         <EtiquetaAudiencia audiencia="equipo" />

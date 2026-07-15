@@ -18,8 +18,9 @@ type Toast = {
 
 // Ventana en la que el cobro queda retenido en la cola (no sincroniza): habilita
 // "Deshacer" ante un mis-tap (los pagos NO se editan, solo se anulan) y le da
-// margen al GPS asíncrono para adjuntarse antes de enviar.
-const HOLD_MS = 6000;
+// margen al GPS asíncrono para adjuntarse antes de enviar. Cubre el timeout del
+// fix GPS (8s) para que la precisión alcance a adjuntarse antes del flush.
+const HOLD_MS = 9000;
 
 // Confirmación háptica: el cobrador "siente" que el cobro entró sin mirar la
 // pantalla (está frente al cliente). Silencioso si el dispositivo no lo soporta.
@@ -50,14 +51,25 @@ function partesUY(): { fechaHora: string; folio: string } {
   return { fechaHora, folio };
 }
 
-function pedirGps(): Promise<{ lat: number | null; lng: number | null }> {
+// Fix GPS: además de lat/lng, capturamos `precision` (accuracy en metros) — antes
+// se pedía alta precisión pero se DESCARTABA, dejando el campo anti-fuga
+// `bitacora.gps_precision` siempre vacío. `maximumAge` bajo (8s, antes 30s) evita
+// sellar un fix viejo como fresco (el cobro de un cliente heredaba la ubicación del
+// anterior); `timeout` más holgado (8s) mejora el lock en frío / offline, que es
+// justo cuando el anti-fuga más importa. El HOLD de la cola cubre el timeout.
+function pedirGps(): Promise<{ lat: number | null; lng: number | null; precision: number | null }> {
   return new Promise((resolve) => {
     if (typeof navigator === "undefined" || !navigator.geolocation)
-      return resolve({ lat: null, lng: null });
+      return resolve({ lat: null, lng: null, precision: null });
     navigator.geolocation.getCurrentPosition(
-      (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
-      () => resolve({ lat: null, lng: null }),
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 30000 },
+      (p) =>
+        resolve({
+          lat: p.coords.latitude,
+          lng: p.coords.longitude,
+          precision: Number.isFinite(p.coords.accuracy) ? p.coords.accuracy : null,
+        }),
+      () => resolve({ lat: null, lng: null, precision: null }),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 8000 },
     );
   });
 }
@@ -153,7 +165,7 @@ export function RegistroCobro({
       },
       { holdMs: HOLD_MS },
     );
-    void pedirGps().then((g) => parchearGps(op.id, g.lat, g.lng));
+    void pedirGps().then((g) => parchearGps(op.id, g.lat, g.lng, g.precision));
     return {
       offline: typeof navigator !== "undefined" && !navigator.onLine,
       op,
@@ -237,7 +249,11 @@ export function RegistroCobro({
   };
 
   const montoAbonoNum = Number(montoAbono);
-  const abonoValido = Number.isFinite(montoAbonoNum) && montoAbonoNum > 0;
+  // Un abono NO puede superar el saldo del crédito: un dedazo ($50.000 a quien debe
+  // $500) metería un sobre-pago en el libro inmutable, que después hay que anular a
+  // mano. Se bloquea (los pagos no se editan; mejor prevenir).
+  const excedeSaldo = montoAbonoNum > saldoActual && saldoActual > 0;
+  const abonoValido = Number.isFinite(montoAbonoNum) && montoAbonoNum > 0 && !excedeSaldo;
 
   return (
     <div className="flex flex-col gap-2.5">
@@ -322,6 +338,12 @@ export function RegistroCobro({
               {ocupado ? "…" : "Registrar abono"}
             </button>
           </div>
+          {/* Aviso: el abono no puede superar el saldo del crédito (anti sobre-pago). */}
+          {excedeSaldo && (
+            <span className="text-[11.5px] font-bold text-[#C0392B] tabular-nums">
+              Es más que el saldo del crédito ({UYU(saldoActual)}). Cobrá como máximo eso.
+            </span>
+          )}
           {/* Pista en vivo: cuánto le queda faltando, o si ya cubre la cuota. */}
           {abonoValido && montoAbonoNum < cuota && (
             <span className="text-[11.5px] font-semibold text-[#B9770E] tabular-nums">

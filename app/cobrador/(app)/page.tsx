@@ -82,7 +82,10 @@ export default async function RutaPage() {
   // total con crédito. El abono parcial NO cuenta como resuelto (falta cubrir).
   const resueltos = arqueo.cobrados + arqueo.noPagos;
   const avancePct = arqueo.clientes > 0 ? Math.round((resueltos / arqueo.clientes) * 100) : 0;
-  const cobroPct = arqueo.esperado > 0 ? Math.min(100, Math.round((arqueo.recaudado / arqueo.esperado) * 100)) : 0;
+  // % y "Falta" se miden sobre lo cobrado EN LA RUTA (cuotas en término), no sobre
+  // el recaudado total (que incluye recuperaciones de deuda vieja) → si no, una
+  // recuperación mostraría "Completo ✓" con cuotas de hoy aún sin cobrar.
+  const cobroPct = arqueo.esperado > 0 ? Math.min(100, Math.round((arqueo.recaudadoRuta / arqueo.esperado) * 100)) : 0;
   const faltanVisitas = Math.max(0, arqueo.clientes - resueltos);
   // "Mi día": la comisión que YA se ganó hoy (motivación: plata en SU bolsillo).
   // Base = recaudado autoritativo del servidor (sus pagos de hoy). Solo si tiene %.
@@ -130,9 +133,9 @@ export default async function RutaPage() {
           <div className="flex flex-col items-end">
             <span className="text-[12px] font-bold text-white/80 tabular-nums">{cobroPct}%</span>
             {/* Lo que FALTA cobrar (accionable) lidera sobre el esperado pasivo. */}
-            {arqueo.esperado - arqueo.recaudado > 0 ? (
+            {arqueo.esperado - arqueo.recaudadoRuta > 0 ? (
               <span className="text-[13px] font-bold tabular-nums text-[#F2C14E]">
-                Falta {UYU(arqueo.esperado - arqueo.recaudado)}
+                Falta {UYU(arqueo.esperado - arqueo.recaudadoRuta)}
               </span>
             ) : (
               <span className="text-[12px] font-bold text-[#34E0A1]">Completo ✓</span>

@@ -134,6 +134,8 @@ export async function registrarPagoCobrador(input: {
   monto?: number | null;
   gpsLat?: number | null;
   gpsLng?: number | null;
+  /** Precisión del fix GPS en metros (accuracy) — para la bitácora anti-fuga. */
+  gpsPrecision?: number | null;
   registradoEn?: string | null;
   opId?: string | null;
 }): Promise<ResultadoCobro> {
@@ -205,6 +207,7 @@ export async function registrarPagoCobrador(input: {
         monto,
         gpsLat: gps_lat,
         gpsLng: gps_lng,
+        gpsPrecision: numeroValido(input.gpsPrecision),
         gpsDenegado: gps_lat == null || gps_lng == null,
         enZona: zona ? zona.enZona : null,
         deviceTs: input.registradoEn ?? null,
@@ -229,6 +232,7 @@ export async function registrarNoPagoCobrador(input: {
   motivo: MotivoNoPago;
   gpsLat?: number | null;
   gpsLng?: number | null;
+  gpsPrecision?: number | null;
   registradoEn?: string | null;
   opId?: string | null;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -271,6 +275,7 @@ export async function registrarNoPagoCobrador(input: {
       detalle: m.label,
       gpsLat: gps_lat,
       gpsLng: gps_lng,
+      gpsPrecision: numeroValido(input.gpsPrecision),
       gpsDenegado: gps_lat == null || gps_lng == null,
       deviceTs: input.registradoEn ?? null,
     });

@@ -151,7 +151,9 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
   const CHIPS: { id: typeof filtro; label: string; n: number }[] = [
     { id: "todos", label: "Todos", n: cuenta.todos },
     { id: "pendiente", label: "Pendientes", n: cuenta.pendiente },
-    { id: "cobrado", label: "Cobrados", n: cuenta.cobrado },
+    // "Con pago" (no "Cobrados") porque incluye los abonos parciales — así no choca
+    // con el arqueo, que separa "Cobrados" de "Abonos".
+    { id: "cobrado", label: "Con pago", n: cuenta.cobrado },
     { id: "no_pago", label: "No pago", n: cuenta.no_pago },
   ];
 
