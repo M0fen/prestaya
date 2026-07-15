@@ -21,11 +21,11 @@ export function SinCreditoActivo({
 
         <section className="rounded-[22px] border border-[#ECEFF8] bg-white px-5 py-8 text-center shadow-[0_1px_3px_rgba(15,27,61,0.05),0_10px_26px_rgba(15,27,61,0.04)]">
           <h2 className="m-0 text-[18px] font-extrabold tracking-[-0.02em] text-tinta">
-            No tienes un crédito activo
+            No tenés un crédito activo
           </h2>
           <p className="mx-auto mt-2 max-w-[260px] text-[13.5px] leading-[1.5] font-medium text-gris">
             En este momento no figura ningún crédito vigente a tu nombre. Si
-            crees que es un error, comunícate con tu oficina.
+            creés que es un error, avisá a tu oficina.
           </p>
         </section>
 

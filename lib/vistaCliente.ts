@@ -144,7 +144,9 @@ export function construirVistaCliente(params: {
     (pagosPorDia[dia] ?? []).map((p) => ({
       hora: horaDe(p.registrado_en),
       monto: UYU(p.monto),
-      quien: p.registrado_por ? (nombresCobrador[p.registrado_por] ?? null) : null,
+      // Regla de la vista de cliente: NO se muestra el cobrador al deudor (protege
+      // al personal de campo). El comprobante lleva hora + monto, sin nombre.
+      quien: null as string | null,
     }));
 
   // Casillas del cartón con su estilo + datos para el detalle al tocar.
@@ -207,7 +209,7 @@ export function construirVistaCliente(params: {
 
   const inicial = (cliente.nombre.trim().charAt(0) || "").toUpperCase();
   const alDia = !r.hayPendiente;
-  const estadoGeneral = alDia ? "Estás al día" : "Tienes pagos pendientes";
+  const estadoGeneral = alDia ? "Estás al día" : "Tenés pagos pendientes";
   const estadoDot = alDia ? "#34E0A1" : "#FFC24B";
 
   // Mensaje de aliento: framing positivo, anclado a un logro (nunca culpa).

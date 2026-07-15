@@ -7,6 +7,7 @@ import {
   confirmar,
   hidratar,
   marcarIntento,
+  opAtascada,
   pendientes,
   suscribir,
 } from "@/lib/cobrador/colaOffline";
@@ -48,7 +49,9 @@ export function useSync(onSynced?: () => void) {
     // flush para cuando venza la más próxima (así se envían solas, sin depender
     // de otro evento). Las ya vencidas se envían ahora.
     const ahora = Date.now();
-    const listas = cola.filter((o) => !o.holdHasta || o.holdHasta <= ahora);
+    // No reintentar las ATASCADAS (agotaron los reintentos): dejan de spamear al
+    // server; el cobrador las resuelve/descarta a mano desde el cierre.
+    const listas = cola.filter((o) => (!o.holdHasta || o.holdHasta <= ahora) && !opAtascada(o));
     const enEspera = cola.filter((o) => o.holdHasta && o.holdHasta > ahora);
     if (enEspera.length > 0) {
       const prox = Math.min(...enEspera.map((o) => o.holdHasta as number)) - ahora;

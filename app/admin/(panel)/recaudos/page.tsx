@@ -1,6 +1,6 @@
 // Recaudos (pagos del día) — réplica de "Recaudos Diario · Pagos de Créditos"
 // de Disapp. SOLO LECTURA. Totales + tabla filtrable por rango, vendedor y texto.
-import { requireGestor } from "@/lib/auth";
+import { requireGestor, esAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getRecaudos } from "@/lib/data/recaudos";
 import { getVendedores } from "@/lib/data/usuarios";
@@ -33,7 +33,8 @@ export default async function RecaudosPage({
   searchParams: Promise<{ desde?: string; hasta?: string; vendedor?: string; q?: string }>;
 }) {
   const sp = await searchParams;
-  await requireGestor();
+  const usuario = await requireGestor();
+  const admin = esAdmin(usuario.rol);
   const db = await createSupabaseServer();
 
   const hoyYmd = fechaISOUY();
@@ -50,12 +51,14 @@ export default async function RecaudosPage({
       q,
     }),
     getVendedores(db),
-    getEstadisticas(db, { meses: 8 }),
+    // El "Rendimiento mensual" es un agregado GLOBAL (toda la empresa): SOLO el
+    // dueño. Para el supervisor no se trae ni se muestra (evita fuga de otra zona).
+    admin ? getEstadisticas(db, { meses: 8 }) : Promise.resolve(null),
   ]);
 
   // Rendimiento mensual: recaudo por mes + calificación del mes en curso vs el
   // promedio de los meses previos (con caveat de que el mes actual es parcial).
-  const serieMes = stats.disponible ? stats.mensual : [];
+  const serieMes = admin && stats?.disponible ? stats.mensual : [];
   const ultMes = serieMes.length - 1;
   const mesActual = serieMes[ultMes];
   const previos = serieMes.slice(0, ultMes);

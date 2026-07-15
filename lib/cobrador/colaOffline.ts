@@ -33,6 +33,13 @@ export interface OpCobro {
 }
 
 const KEY = "py_cola_cobros";
+// Tope de reintentos de sync: tras esto, la op se considera ATASCADA (un error de
+// negocio que no se resuelve solo: p. ej. el crédito se finalizó o se reasignó
+// mientras estaba sin señal). Deja de reintentarse en silencio y NO bloquea el
+// cierre de jornada; el cobrador la ve aparte y puede descartarla.
+export const MAX_INTENTOS_SYNC = 6;
+/** ¿La op agotó los reintentos (atascada, no se va a resolver sola)? */
+export const opAtascada = (o: { intentos?: number }): boolean => (o.intentos ?? 0) >= MAX_INTENTOS_SYNC;
 const subs = new Set<() => void>();
 let cache: OpCobro[] = [];
 // Ids de ops cuyo `guardar` NO logró persistir (cuota / Safari privado): viven

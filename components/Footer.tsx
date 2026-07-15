@@ -37,7 +37,7 @@ export function Footer({ negocio }: { negocio: Negocio }) {
 
       <span className="px-4 text-center text-[11px] leading-[1.5] font-medium text-[#AEB6CC]">
         Esta es una pantalla informativa de tu estado de cuenta. Para cualquier
-        gestión, comunícate directamente con tu oficina.
+        gestión, comunicate directamente con tu oficina.
       </span>
     </footer>
   );

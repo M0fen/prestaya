@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { UYU } from "@/lib/format";
 import { calcularRendicion, ETIQUETA_ESTADO, type EstadoRendicion } from "@/lib/rendicion";
 import { cerrarJornada } from "@/lib/acciones/rendicion";
-import { suscribir, pendientes, hidratar } from "@/lib/cobrador/colaOffline";
+import { suscribir, pendientes, hidratar, quitar, opAtascada } from "@/lib/cobrador/colaOffline";
 import type { RendicionDia } from "@/lib/data/rendicion";
 
 const TONO: Record<EstadoRendicion, { bg: string; fg: string }> = {
@@ -88,8 +88,13 @@ export function CerrarJornada({
   const { esperado, diferencia, estado } = calcularRendicion(recaudado, gastosN, entregadoN);
   const t = TONO[estado];
 
-  // Cobros aún en la cola offline (no subieron): bloquean el cierre.
-  const cobrosPend = ops.filter((o) => o.tipo === "pago");
+  // Cobros en la cola offline que no subieron. SINCRONIZANDO (se reintentan solos)
+  // → bloquean el cierre para no rendir un faltante fantasma. ATASCADOS (agotaron
+  // los reintentos: el crédito se finalizó/reasignó mientras estaba sin señal) →
+  // NO bloquean; se muestran aparte y el cobrador los descarta o re-registra.
+  const cobrosPago = ops.filter((o) => o.tipo === "pago");
+  const cobrosPend = cobrosPago.filter((o) => !opAtascada(o));
+  const cobrosAtascados = cobrosPago.filter((o) => opAtascada(o));
   const montoPend = cobrosPend.reduce((s, o) => s + (o.monto ?? 0), 0);
   const hayColaPendiente = cobrosPend.length > 0;
 
@@ -178,6 +183,34 @@ export function CerrarJornada({
             El recaudado todavía no los incluye. Esperá a tener señal para que suban; si cerrás ahora te
             va a marcar un faltante que no es real.
           </span>
+        </div>
+      )}
+
+      {/* Cobros ATASCADOS: no suben (el crédito se cerró/reasignó). No bloquean el
+          cierre; el cobrador los descarta (y si el cobro fue real, lo re-registra). */}
+      {cobrosAtascados.length > 0 && (
+        <div className="mt-3 flex flex-col gap-2 rounded-[12px] border border-[#F3C0B8] bg-[#FEF6F3] px-3 py-2.5">
+          <span className="flex items-center gap-1.5 text-[12.5px] font-extrabold text-[#C0392B]">
+            ⚠️ {cobrosAtascados.length} cobro{cobrosAtascados.length === 1 ? "" : "s"} no se pudo subir
+          </span>
+          <span className="text-[11.5px] font-medium text-[#9A4436]">
+            Puede que ese crédito se haya cerrado o cambiado de cobrador. Si el cobro fue real, registralo de
+            nuevo en la ficha del cliente. Descartá el que no corresponda para poder cerrar.
+          </span>
+          {cobrosAtascados.map((o) => (
+            <div key={o.id} className="flex items-center justify-between gap-2 border-t border-[#F3D6CF] pt-1.5">
+              <span className="min-w-0 truncate text-[12px] font-semibold text-tinta">
+                {o.clienteNombre} · {o.monto != null ? UYU(o.monto) : "cuota"}
+              </span>
+              <button
+                type="button"
+                onClick={() => quitar(o.id)}
+                className="flex-shrink-0 rounded-full border border-[#D6A79E] px-2.5 py-1 text-[11.5px] font-bold text-[#C0392B] active:scale-95"
+              >
+                Descartar
+              </button>
+            </div>
+          ))}
         </div>
       )}
 

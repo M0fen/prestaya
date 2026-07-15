@@ -26,7 +26,7 @@ describe("construirVistaCliente (demo)", () => {
   });
 
   it("estado general con pendientes", () => {
-    expect(v.estadoGeneral).toBe("Tienes pagos pendientes");
+    expect(v.estadoGeneral).toBe("Tenés pagos pendientes");
     expect(v.progresoTexto).toBe("35%");
     expect(v.alDia).toBe(false);
   });
