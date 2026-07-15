@@ -43,7 +43,12 @@ const prestamos = await traerTodo("prestamos", "id, estado, cuota_diaria, total_
 console.log(`   créditos: ${prestamos.length}`);
 
 // 2) Σ pagos VIGENTES por préstamo (recalculado desde el libro inmutable).
-const sumaPagos = new Map();
+//    IMPORTANTE: se suma en CENTAVOS ENTEROS (monto×100 redondeado) y recién al
+//    final se pasa a pesos. NO se redondea peso-por-peso: eso acumularía error y
+//    daría "drifts" FALSOS contra el trigger 0063, que mantiene pagado_acum como
+//    SUMA NUMÉRICA EXACTA (numeric(14,2)). Así el script coincide con el RPC 0071
+//    (que suma en SQL exacto). Entero → sin float (regla de la casa: nunca float $).
+const sumaCent = new Map();
 let pagosVigentes = 0;
 const idsPrestamo = new Set(prestamos.map((p) => p.id));
 let huerfanos = 0;
@@ -58,7 +63,8 @@ let huerfanos = 0;
       .range(desde, desde + paso - 1);
     if (error) throw error;
     for (const p of data ?? []) {
-      sumaPagos.set(p.prestamo_id, (sumaPagos.get(p.prestamo_id) ?? 0) + N(p.monto));
+      const c = Math.round(Number(p.monto) * 100); // centavos exactos de ESTE pago
+      sumaCent.set(p.prestamo_id, (sumaCent.get(p.prestamo_id) ?? 0) + c);
       if (!idsPrestamo.has(p.prestamo_id)) huerfanos++;
       pagosVigentes++;
     }
@@ -67,14 +73,25 @@ let huerfanos = 0;
 }
 console.log(`   pagos vigentes: ${pagosVigentes}  · huérfanos: ${huerfanos}`);
 
-const creditos = prestamos.map((p) => ({
-  id: p.id,
-  estado: p.estado,
-  pagadoAcum: N(p.pagado_acum),
-  pagosSuma: N(sumaPagos.get(p.id) ?? 0),
-  totalAPagar: N(p.cuota_diaria) * Number(p.total_dias || 0),
-  cuotaDiaria: N(p.cuota_diaria),
-}));
+const creditos = prestamos.map((p) => {
+  const acumPesos = N(p.pagado_acum);
+  const acumCent = Math.round(Number(p.pagado_acum) * 100); // pagado_acum en centavos exactos
+  const sc = sumaCent.get(p.id) ?? 0; // Σ pagos en centavos exactos
+  // Criterio IDÉNTICO al RPC 0071 (`abs(pagado_acum − Σmonto) >= 1`): si el desfase
+  // CRUDO es < 1 peso, es residuo de redondeo histórico del denormalizado (no
+  // corrupción) → se toma consistente. Si es ≥ 1 peso, es drift REAL y se reporta.
+  // pesos = round(Σ centavos / 100): redondeo UNA vez sobre el total exacto (como el
+  // trigger 0063), nunca peso-por-peso (eso daba drifts falsos).
+  const pagosSuma = Math.abs(acumCent - sc) < 100 ? acumPesos : Math.round(sc / 100);
+  return {
+    id: p.id,
+    estado: p.estado,
+    pagadoAcum: acumPesos,
+    pagosSuma,
+    totalAPagar: N(p.cuota_diaria) * Number(p.total_dias || 0),
+    cuotaDiaria: N(p.cuota_diaria),
+  };
+});
 
 // 3) Recaudo de HOY (día de Uruguay, UTC−3) — libro de pagos vs caja.
 const hoyUY = new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10);
