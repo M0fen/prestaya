@@ -7,6 +7,7 @@
 //  crear la suya). Idempotente ante doble cierre (unique cobrador+fecha).
 // ─────────────────────────────────────────────────────────────────────────
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { reportarError } from "@/lib/observabilidad";
 import { getUsuarioActual } from "@/lib/auth";
 import { getEstadoJornada, crearRendicionDb } from "@/lib/data/rendicion";
 import { registrarAuditoria } from "@/lib/data/auditoria";
@@ -73,6 +74,7 @@ export async function cerrarJornada(input: {
     return { ok: true, estado: est, diferencia, esperado };
   } catch (e) {
     if (esDuplicado(e)) return { ok: false, error: "Ya cerraste tu jornada de hoy." };
+    reportarError("cerrarJornada", e);
     return { ok: false, error: "No se pudo cerrar la jornada. Probá de nuevo." };
   }
 }

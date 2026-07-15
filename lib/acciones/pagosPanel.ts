@@ -25,6 +25,7 @@ import { getPagosDePrestamo, registrarPago } from "@/lib/data/pagos";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { calcularEstadosCarton } from "@/lib/cartones";
 import { hoyUY } from "@/lib/fecha";
+import { reportarError } from "@/lib/observabilidad";
 
 export const CANALES_PAGO: Record<string, string> = {
   efectivo: "Efectivo en oficina",
@@ -136,7 +137,8 @@ export async function registrarPagoPanel(input: {
 
     revalidatePath(`/admin/clientes/${clienteId}`);
     return { ok: true, dia, monto };
-  } catch {
+  } catch (e) {
+    reportarError("registrarPagoPanel", e, { clienteId });
     return { ok: false, error: "No pudimos registrar el pago. Probá de nuevo." };
   }
 }

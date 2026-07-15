@@ -6,6 +6,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { reportarError } from "@/lib/observabilidad";
 import { getUsuarioActual, esGestor } from "@/lib/auth";
 import { alcanceDelActor } from "@/lib/data/alcance";
 import { registrarMovimientoCaja, type TipoMovimiento, type CuentaCaja } from "@/lib/data/caja";
@@ -73,7 +74,8 @@ export async function agregarMovimientoCaja(input: {
     revalidatePath("/admin/caja");
     revalidatePath("/admin/capital");
     return { ok: true };
-  } catch {
+  } catch (e) {
+    reportarError("registrarMovimientoCaja", e, { tipo: input.tipo });
     return { ok: false, error: "No se pudo registrar. ¿Corriste la migración 0010?" };
   }
 }

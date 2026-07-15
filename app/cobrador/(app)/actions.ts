@@ -30,6 +30,7 @@ import { calcularEstadosCarton } from "@/lib/cartones";
 import { evaluarZona } from "@/lib/geo";
 import { hoyUY, sellarRegistroEn } from "@/lib/fecha";
 import { validar, cobroSchema, noPagoSchema } from "@/lib/validacion/esquemas";
+import { reportarError } from "@/lib/observabilidad";
 
 // ── Censo ────────────────────────────────────────────────────────────────────
 export type ResultadoCenso =
@@ -217,7 +218,9 @@ export async function registrarPagoCobrador(input: {
     revalidatePath("/cobrador");
     revalidatePath(`/cobrador/cliente/${cliente.id}`);
     return { ok: true, dia, monto, enZona: zona ? zona.enZona : null };
-  } catch {
+  } catch (e) {
+    // Ruta de PLATA: el error deja rastro (nunca se traga en silencio).
+    reportarError("registrarPagoCobrador", e, { clienteId: input.clienteId, opId: input.opId });
     return { ok: false, error: "No pudimos registrar el pago. Probá de nuevo." };
   }
 }
@@ -283,7 +286,8 @@ export async function registrarNoPagoCobrador(input: {
     revalidatePath("/cobrador");
     revalidatePath(`/cobrador/cliente/${input.clienteId}`);
     return { ok: true };
-  } catch {
+  } catch (e) {
+    reportarError("registrarNoPagoCobrador", e, { clienteId: input.clienteId, opId: input.opId });
     return { ok: false, error: "No pudimos registrar. Probá de nuevo." };
   }
 }

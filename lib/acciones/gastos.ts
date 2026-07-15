@@ -10,6 +10,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { reportarError } from "@/lib/observabilidad";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getUsuarioActual } from "@/lib/auth";
 import { registrarMovimientoCaja } from "@/lib/data/caja";
@@ -170,7 +171,8 @@ export async function aprobarGastoRuta(input: { solicitudId: string }): Promise<
       cobradorId: sol.cobradorId,
       registradoPor: usuario.id,
     });
-  } catch {
+  } catch (e) {
+    reportarError("aprobarGastoRuta", e, { solicitudId: sol.id, monto: sol.monto });
     // La caja falló DESPUÉS del candado → revertir a 'pendiente' para no dejar el
     // gasto "aprobado" sin su egreso (si no, quedaría aprobado sin salir de caja).
     await admin

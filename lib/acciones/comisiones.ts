@@ -7,6 +7,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { reportarError } from "@/lib/observabilidad";
 import { getUsuarioActual, esAdmin } from "@/lib/auth";
 import { setComisionPctDb } from "@/lib/data/comisiones";
 import { registrarMovimientoCaja } from "@/lib/data/caja";
@@ -115,7 +116,8 @@ export async function liquidarComision(input: {
     revalidatePath("/admin/caja");
     revalidatePath("/admin/recibos");
     return { ok: true, reciboNumero };
-  } catch {
+  } catch (e) {
+    reportarError("liquidarComision", e, { cobradorId: input.cobradorId, periodoKey: input.periodoKey });
     // La caja falló DESPUÉS del candado → revertir para no dejar "liquidado"
     // sin el egreso (si no, quedaría marcado pagado sin haber salido de caja).
     await db
