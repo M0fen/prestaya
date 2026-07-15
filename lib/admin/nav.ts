@@ -54,7 +54,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/admin/mora", label: "Mora", icon: "⏰", grupo: "Operación diaria", roles: ["admin", "supervisor"], alias: ["atrasos", "morosos", "riesgo", "recargo"] },
   { href: "/admin/campo", label: "Control de campo", icon: "🛰️", grupo: "Operación diaria", roles: ["admin", "supervisor"], alias: ["cobradores", "gps", "bitacora", "sospecha", "planchado", "malas mañas"] },
   { href: "/admin/anulaciones", label: "Anulaciones", icon: "🚫", grupo: "Operación diaria", roles: ["admin", "supervisor"], alias: ["anular", "anulacion", "doble registro", "reversar", "pago"] },
-  { href: "/admin/gastos", label: "Gastos de ruta", icon: "⛽", grupo: "Operación diaria", roles: ["admin"], alias: ["aprobar gasto", "solicitud", "combustible", "sacar de caja", "egreso cobrador"] },
+  { href: "/admin/gastos", label: "Gastos de ruta", icon: "⛽", grupo: "Operación diaria", roles: ["admin", "supervisor"], alias: ["aprobar gasto", "solicitud", "combustible", "sacar de caja", "egreso cobrador"] },
   // Centro de alertas: bandeja de vigilancia; va AL FINAL de la operación diaria
   // (se consulta cuando algo dispara, no es el arranque del día).
   { href: "/admin/alertas", label: "Centro de alertas", icon: "🚨", grupo: "Operación diaria", roles: ["admin", "supervisor"], alias: ["vigilancia", "fuga", "confianza cobrador", "sospecha", "faltante", "riesgo", "no pago"] },

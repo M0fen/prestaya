@@ -64,14 +64,22 @@ export async function getSolicitudesGastoCobrador(
   }
 }
 
-/** Solicitudes PENDIENTES para la bandeja del admin (con nombre del cobrador). */
-export async function getSolicitudesGastoPendientes(db: SupabaseClient): Promise<SolicitudGasto[]> {
+/** Solicitudes PENDIENTES para la bandeja del gestor (con nombre del cobrador).
+ *  `cobradorIds` acota por zona (supervisor); `null`/omitido = todas (admin). Un
+ *  arreglo vacío (supervisor sin cobradores) devuelve [] sin consultar. */
+export async function getSolicitudesGastoPendientes(
+  db: SupabaseClient,
+  cobradorIds?: string[] | null,
+): Promise<SolicitudGasto[]> {
   try {
-    const { data, error } = await db
+    if (cobradorIds && cobradorIds.length === 0) return [];
+    let q = db
       .from("solicitudes_gasto")
       .select("*")
       .eq("estado", "pendiente")
       .order("solicitado_en", { ascending: true });
+    if (cobradorIds) q = q.in("cobrador_id", cobradorIds);
+    const { data, error } = await q;
     if (error) throw error;
     const items = (data ?? []).map(map);
     // Nombre del cobrador (solicitado_por_nombre ya viene, pero reforzamos por id).
@@ -90,12 +98,18 @@ export async function getSolicitudesGastoPendientes(db: SupabaseClient): Promise
 
 /** Cuántas solicitudes de gasto están PENDIENTES (para el badge de la nav / el
  *  hub). Solo cuenta, sin traer filas. Degrada a 0 si falta 0057. */
-export async function contarSolicitudesGastoPendientes(db: SupabaseClient): Promise<number> {
+export async function contarSolicitudesGastoPendientes(
+  db: SupabaseClient,
+  cobradorIds?: string[] | null,
+): Promise<number> {
   try {
-    const { count, error } = await db
+    if (cobradorIds && cobradorIds.length === 0) return 0;
+    let q = db
       .from("solicitudes_gasto")
       .select("id", { count: "exact", head: true })
       .eq("estado", "pendiente");
+    if (cobradorIds) q = q.in("cobrador_id", cobradorIds);
+    const { count, error } = await q;
     if (error) throw error;
     return count ?? 0;
   } catch (e) {

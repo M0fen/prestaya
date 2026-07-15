@@ -187,9 +187,10 @@ export default async function JornadaPage({
     const total = Number(a.cuota_diaria) * Number(a.total_dias);
     return total > 0 && Number(a.pagado) / total >= 0.75;
   }).length;
-  // Gastos de ruta esperando aprobación (solo el admin aprueba): el cobrador está
-  // parado esperando, así que se surface en el hub del día.
-  const gastosPend = usuario.rol === "admin" ? await contarSolicitudesGastoPendientes(db) : 0;
+  // Gastos de ruta esperando aprobación: el cobrador está parado esperando, así que
+  // se surface en el hub del día. El supervisor también los VE (acotados a su zona);
+  // los aprueba el admin.
+  const gastosPend = await contarSolicitudesGastoPendientes(db, alcance.global ? null : alcance.cobradorIds);
 
   return (
     <div className="flex flex-col gap-5">

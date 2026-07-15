@@ -8,7 +8,13 @@ import { MOTIVOS_NOPAGO, type MotivoNoPago } from "@/app/cobrador/(app)/motivos"
 import { UYU } from "@/lib/format";
 import { Comprobante, type DatosComprobante } from "@/components/cobrador/Comprobante";
 
-type Toast = { texto: string; sub?: string; tono: "ok" | "info" | "alerta" } | null;
+type Toast = {
+  texto: string;
+  sub?: string;
+  tono: "ok" | "info" | "alerta";
+  /** Acciones inline (Deshacer / Recibo) para el toast de cobro sin fricción. */
+  acciones?: { deshacer?: () => void; recibo?: () => void };
+} | null;
 
 // Ventana en la que el cobro queda retenido en la cola (no sincroniza): habilita
 // "Deshacer" ante un mis-tap (los pagos NO se editan, solo se anulan) y le da
@@ -86,14 +92,20 @@ export function RegistroCobro({
   const [montoAbono, setMontoAbono] = useState("");
   const [ocupado, setOcupado] = useState(false);
   const [comprobante, setComprobante] = useState<DatosComprobante | null>(null);
+  // ¿Se muestra el comprobante a pantalla completa? Una cuota completa NO lo abre
+  // (toast liviano + recibo on-demand): en una ruta de 40 cobros, 40 modales a
+  // descartar son fricción. El modal queda para ABONOS y para cobros NO guardados.
+  const [modalAbierto, setModalAbierto] = useState(false);
   // Op recién encolada, para poder deshacerla desde el comprobante durante el hold.
   const [undo, setUndo] = useState<{ opId: string; hasta: number } | null>(null);
   // Anti-doble-registro: un segundo toque instantáneo no encola otro cobro.
   const bloqueado = useRef(false);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const flash = (t: Exclude<Toast, null>) => {
+  const flash = (t: Exclude<Toast, null>, ms = 2800) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast(t);
-    setTimeout(() => setToast(null), 2800);
+    toastTimer.current = setTimeout(() => setToast(null), ms);
   };
 
   // Aviso money-critical: el registro NO pudo persistirse en el dispositivo
@@ -155,27 +167,46 @@ export function RegistroCobro({
     // al libro de pagos). El comprobante y el estado usan ese mismo entero.
     const m = monto != null && monto > 0 ? Math.round(monto) : null;
     const montoCobrado = m ?? cuota;
+    const esAbono = m != null && m < cuota;
     const { offline, op, persistido } = registrar("pago", { monto: m, motivo: null });
     vibrar(18);
     setAbono(false);
     setMontoAbono("");
     // Comprobante profesional (recibo con trazabilidad), compartible por WhatsApp.
     const { fechaHora, folio } = partesUY();
+    const saldoRestante = Math.max(0, Math.round(saldoActual) - montoCobrado);
     setComprobante({
       folio,
       clienteNombre,
       clienteTelefono,
       cobradorNombre,
       monto: montoCobrado,
-      saldoRestante: Math.max(0, Math.round(saldoActual) - montoCobrado),
-      tipo: m != null && m < cuota ? "abono" : "cuota",
+      saldoRestante,
+      tipo: esAbono ? "abono" : "cuota",
       fechaHora,
       offline,
       // La advertencia va DENTRO del comprobante (foreground): un toast quedaría
       // TAPADO por este modal y el cobrador daría el cobro por guardado.
       noGuardado: !persistido,
     });
-    setUndo({ opId: op.id, hasta: op.holdHasta ?? Date.now() + HOLD_MS });
+    const hasta = op.holdHasta ?? Date.now() + HOLD_MS;
+    setUndo({ opId: op.id, hasta });
+    // Abono o cobro NO guardado → abrir el comprobante (recibo del parcial / aviso
+    // que hay que ver sí o sí). Cuota completa y guardada → SIN modal: toast liviano
+    // con Deshacer + Recibo on-demand, durante la ventana de "Deshacer".
+    if (esAbono || !persistido) {
+      setModalAbierto(true);
+    } else {
+      flash(
+        {
+          texto: `Cobrado ${UYU(montoCobrado)}${offline ? " (offline)" : ""}`,
+          sub: `Saldo ${UYU(saldoRestante)}`,
+          tono: "ok",
+          acciones: { deshacer: deshacerCobro, recibo: () => { setToast(null); setModalAbierto(true); } },
+        },
+        HOLD_MS,
+      );
+    }
   };
 
   const noPago = (m: MotivoNoPago) => {
@@ -200,6 +231,7 @@ export function RegistroCobro({
     quitar(undo.opId);
     vibrar(30);
     setUndo(null);
+    setModalAbierto(false);
     setComprobante(null);
     flash({ texto: "Cobro deshecho", tono: "info" });
   };
@@ -322,10 +354,11 @@ export function RegistroCobro({
         </div>
       )}
 
-      {comprobante && (
+      {comprobante && modalAbierto && (
         <Comprobante
           datos={comprobante}
           onCerrar={() => {
+            setModalAbierto(false);
             setComprobante(null);
             setUndo(null);
           }}
@@ -349,6 +382,28 @@ export function RegistroCobro({
                 <span className="text-[11px] font-medium text-white/70">{toast.sub}</span>
               )}
             </div>
+            {toast.acciones && (
+              <div className="ml-1.5 flex items-center gap-1.5">
+                {toast.acciones.recibo && (
+                  <button
+                    type="button"
+                    onClick={toast.acciones.recibo}
+                    className="rounded-full bg-white/20 px-2.5 py-1 text-[11.5px] font-bold active:scale-95"
+                  >
+                    Recibo
+                  </button>
+                )}
+                {toast.acciones.deshacer && (
+                  <button
+                    type="button"
+                    onClick={toast.acciones.deshacer}
+                    className="rounded-full bg-white/20 px-2.5 py-1 text-[11.5px] font-bold active:scale-95"
+                  >
+                    Deshacer
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -8,7 +8,14 @@ import { aprobarGastoRuta, rechazarGastoRuta } from "@/lib/acciones/gastos";
 import { UYU, horaDe } from "@/lib/format";
 import type { SolicitudGasto } from "@/lib/data/solicitudesGasto";
 
-export function SolicitudesGasto({ solicitudes }: { solicitudes: SolicitudGasto[] }) {
+export function SolicitudesGasto({
+  solicitudes,
+  puedeAprobar = true,
+}: {
+  solicitudes: SolicitudGasto[];
+  /** Solo el admin aprueba/rechaza; el supervisor VE (botones ocultos). */
+  puedeAprobar?: boolean;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +48,7 @@ export function SolicitudesGasto({ solicitudes }: { solicitudes: SolicitudGasto[
       <section className="rounded-[16px] border border-[#CFEBDD] bg-[#F1FBF6] px-4 py-6 text-center">
         <span className="text-[13px] font-bold text-[#157A50]">Sin solicitudes pendientes. ✓</span>
         <p className="mt-1 text-[12px] font-medium text-[#4E9E79]">
-          Cuando un cobrador pida un gasto, aparece acá para tu aprobación.
+          Cuando un cobrador pida un gasto, aparece acá {puedeAprobar ? "para tu aprobación" : "para que lo sigas"}.
         </p>
       </section>
     );
@@ -56,7 +63,7 @@ export function SolicitudesGasto({ solicitudes }: { solicitudes: SolicitudGasto[
       {/* Resumen: cuánto efectivo está esperando salir de caja, de un vistazo. */}
       <div className="flex items-center justify-between rounded-[12px] bg-[#FDF3E2] px-4 py-2.5">
         <span className="text-[12.5px] font-bold text-[#B9770E]">
-          {solicitudes.length} solicitud{solicitudes.length === 1 ? "" : "es"} esperando tu aprobación
+          {solicitudes.length} solicitud{solicitudes.length === 1 ? "" : "es"} esperando {puedeAprobar ? "tu aprobación" : "aprobación del admin"}
         </span>
         <span className="text-[15px] font-extrabold tabular-nums text-[#B9770E]">{UYU(totalPendiente)}</span>
       </div>
@@ -100,7 +107,12 @@ export function SolicitudesGasto({ solicitudes }: { solicitudes: SolicitudGasto[
             </span>
           )}
 
-          {rechazando === s.id ? (
+          {!puedeAprobar ? (
+            // El supervisor VE la solicitud pero no la resuelve: la aprueba el admin.
+            <span className="w-fit rounded-[10px] bg-[#EEF1F8] px-2.5 py-1.5 text-[11.5px] font-semibold text-gris">
+              Pendiente de aprobación del administrador
+            </span>
+          ) : rechazando === s.id ? (
             <div className="flex flex-col gap-2">
               <input
                 value={motivo}

@@ -212,7 +212,18 @@ export function construirVistaCliente(params: {
 
   const inicial = (cliente.nombre.trim().charAt(0) || "").toUpperCase();
   const alDia = !r.hayPendiente;
-  const estadoGeneral = alDia ? "Estás al día" : "Tenés pagos pendientes";
+  // "Solo hoy": no hay días atrasados ni abonos parciales de días anteriores; lo
+  // único sin cubrir es la cuota de HOY (aún sin cobrar). Es la vivencia diaria
+  // dominante — el cobrador todavía no pasó — y el plural "Tenés pagos pendientes"
+  // exagera y suena a culpa. Texto más gentil (sin alarma), acorde al tono amable.
+  const hayAtraso = r.dias.some((d) => d.estado === "atrasado");
+  const pendNoHoy = r.dias.some((d) => d.estado === "pendiente" && !d.esHoy);
+  const soloHoy = !alDia && !hayAtraso && !pendNoHoy;
+  const estadoGeneral = alDia
+    ? "Estás al día"
+    : soloHoy
+      ? "Te falta la cuota de hoy"
+      : "Tenés pagos pendientes";
   const estadoDot = alDia ? "#34E0A1" : "#FFC24B";
 
   // Mensaje de aliento: framing positivo, anclado a un logro (nunca culpa).
