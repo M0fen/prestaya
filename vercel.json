@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/cierre-dia",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/reconciliacion",
+      "schedule": "0 10 * * *"
     }
   ]
 }
