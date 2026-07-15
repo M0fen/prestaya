@@ -34,12 +34,19 @@ export async function getGastosCobradorHoy(
       .gte("registrado_en", inicioDiaUYIso(hoy))
       .order("registrado_en", { ascending: false });
     if (error) throw error;
-    const items = (data ?? []).map((r) => ({
-      monto: Number(r.monto),
-      categoria: (r.categoria as string | null) ?? null,
-      descripcion: (r.descripcion as string | null) ?? null,
-      registradoEn: r.registrado_en as string,
-    }));
+    const items = (data ?? [])
+      // Excluye la COMISIÓN liquidada: es un egreso a nombre del cobrador
+      // (categoría "Comisión") pero NO es un gasto de ruta. Si contara, bajaría el
+      // "esperado" del cierre y el cobrador entregaría de MENOS → fuga silenciosa
+      // que la rendición marcaría "cuadra ✓". Mismo criterio que lib/data/vigilancia.ts.
+      // (JS: una categoría null se conserva; solo se descarta la "Comisión".)
+      .filter((r) => r.categoria !== "Comisión")
+      .map((r) => ({
+        monto: Number(r.monto),
+        categoria: (r.categoria as string | null) ?? null,
+        descripcion: (r.descripcion as string | null) ?? null,
+        registradoEn: r.registrado_en as string,
+      }));
     return { total: items.reduce((s, g) => s + g.monto, 0), items };
   } catch (e) {
     if (tablaFaltante(e)) return { total: 0, items: [] };

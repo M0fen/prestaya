@@ -164,8 +164,16 @@ export async function registrarPagoCobrador(input: {
       r.dias.find((d) => d.estado === "futuro");
     const dia = objetivo?.dia ?? Math.max(1, r.diaActual);
 
-    const monto =
+    // Anti sobre-pago (money-critical): el libro es INMUTABLE, así que nunca se
+    // registra más de lo que RESTA del crédito. Un botón "cuota completa" sobre un
+    // crédito casi saldado, un dedazo, o un dato viejo desde offline quedarían como
+    // sobre-cobro que después hay que anular a mano y descuadra el arqueo. `r.falta`
+    // es el saldo REAL recalculado del libro (no el denormalizado). Es la última
+    // línea de defensa: el cliente también capa, pero el servidor es la garantía.
+    const solicitado =
       input.monto && input.monto > 0 ? Math.round(input.monto) : prestamo.cuota_diaria;
+    const monto = Math.min(solicitado, r.falta);
+    if (monto <= 0) return { ok: false, error: "Este crédito ya está saldado." };
     const gps_lat = numeroValido(input.gpsLat);
     const gps_lng = numeroValido(input.gpsLng);
 

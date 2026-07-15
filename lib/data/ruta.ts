@@ -244,7 +244,11 @@ export async function getRutaCobrador(
     // "ruta completa"; los vencidos puros quedan visibles pero fuera de esas cuentas.
     if (clase.cuentaEnRuta) {
       esperado += clase.cuotaEnTermino;
-      recaudadoRuta += clase.pagadoHoyEnTermino;
+      // Cap POR CLIENTE: lo que un cliente pagó de MÁS sobre su cuota de hoy (se
+      // puso al día pagando 2 cuotas) NO puede tapar el faltante de OTRO cliente.
+      // Sin el tope, "Falta $" y "Completo ✓" netean y la ruta se ve cerrada con
+      // clientes sin cobrar. El recaudo TOTAL (línea de arriba) sí suma todo.
+      recaudadoRuta += Math.min(clase.pagadoHoyEnTermino, clase.cuotaEnTermino);
       conRuta += 1;
       if (clase.estadoHoy === "pagado") cobrados++;
       else if (clase.estadoHoy === "abono") abonos++;

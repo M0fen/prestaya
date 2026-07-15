@@ -126,8 +126,12 @@ export default async function RutaPage() {
             <span className="text-[11px] font-semibold tracking-wide text-white/70 uppercase">
               Cobrado en tu ruta
             </span>
+            {/* El número grande usa el recaudado AUTORITATIVO del servidor (por
+                quién registró, `jornada.recaudado`) — el MISMO que el cierre te va a
+                pedir entregar. Así el hero y la rendición nunca divergen, y un pago
+                que SALDA un crédito hoy no desaparece del total. */}
             <span className="text-[27px] leading-tight font-black tabular-nums">
-              {UYU(arqueo.recaudado)}
+              {UYU(recaudadoBase)}
             </span>
           </div>
           <div className="flex flex-col items-end">

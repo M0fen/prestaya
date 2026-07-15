@@ -114,6 +114,13 @@ export function RegistroCobro({
   const bloqueado = useRef(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Saldo del crédito ANTES de este cobro, redondeado. La "cuota efectiva" nunca
+  // supera el saldo: en un crédito casi saldado NO se ofrece cobrar la cuota entera
+  // (sería sobre-pago). El servidor igual capa —esta es la señal para el cobrador—.
+  const saldoRedondeado = Math.max(0, Math.round(saldoActual));
+  const cuotaEfectiva = Math.min(cuota, saldoRedondeado);
+  const saldado = saldoRedondeado <= 0;
+
   const flash = (t: Exclude<Toast, null>, ms = 2800) => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast(t);
@@ -178,7 +185,9 @@ export function RegistroCobro({
     // Dinero SIEMPRE entero: redondeamos ANTES de encolar (nunca un float llega
     // al libro de pagos). El comprobante y el estado usan ese mismo entero.
     const m = monto != null && monto > 0 ? Math.round(monto) : null;
-    const montoCobrado = m ?? cuota;
+    // Cuota completa = la cuota efectiva (topada al saldo, anti sobre-pago). El
+    // servidor recalcula y capa contra el saldo real; esto es lo que ve el recibo.
+    const montoCobrado = m ?? cuotaEfectiva;
     const esAbono = m != null && m < cuota;
     const { offline, op, persistido } = registrar("pago", { monto: m, motivo: null });
     vibrar(18);
@@ -252,7 +261,7 @@ export function RegistroCobro({
   // Un abono NO puede superar el saldo del crédito: un dedazo ($50.000 a quien debe
   // $500) metería un sobre-pago en el libro inmutable, que después hay que anular a
   // mano. Se bloquea (los pagos no se editan; mejor prevenir).
-  const excedeSaldo = montoAbonoNum > saldoActual && saldoActual > 0;
+  const excedeSaldo = montoAbonoNum > saldoActual;
   const abonoValido = Number.isFinite(montoAbonoNum) && montoAbonoNum > 0 && !excedeSaldo;
 
   return (
@@ -265,12 +274,16 @@ export function RegistroCobro({
 
       <button
         type="button"
-        disabled={ocupado}
+        disabled={ocupado || saldado}
         onClick={() => cobrar(null)}
         className="rounded-full bg-[#1FA971] px-5 py-3.5 text-[15px] font-extrabold text-white shadow-[0_8px_20px_rgba(31,169,113,0.35)] active:scale-[0.98] disabled:opacity-60"
         style={{ transition: "transform .1s" }}
       >
-        {ocupado ? "Registrando…" : `Registrar pago · ${UYU(cuota)}`}
+        {saldado
+          ? "Crédito saldado ✓"
+          : ocupado
+            ? "Registrando…"
+            : `Registrar pago · ${UYU(cuotaEfectiva)}`}
       </button>
 
       <div className="flex gap-2.5">
