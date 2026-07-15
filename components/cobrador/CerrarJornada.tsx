@@ -34,6 +34,11 @@ export function CerrarJornada({
   // Prellena los gastos con lo que el cobrador ya cargó hoy (puede ajustarlo).
   const [gastos, setGastos] = useState(gastosHoy > 0 ? String(gastosHoy) : "");
   const [entregado, setEntregado] = useState(String(Math.max(0, recaudado - gastosHoy)));
+  // ¿El cobrador tocó los campos a mano? Si NO, el prefijado se re-sincroniza cuando
+  // sube el `recaudado` del servidor (al drenar la cola, `router.refresh` sube el
+  // prop SIN desmontar este componente). Sin esto, `entregado` quedaba en el valor
+  // viejo y el cierre marcaba un FALTANTE FANTASMA justo al terminar de sincronizar.
+  const [editado, setEditado] = useState(false);
   const [notas, setNotas] = useState("");
   const [confirmar, setConfirmar] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +52,13 @@ export function CerrarJornada({
   useEffect(() => {
     hidratar();
   }, []);
+  // Re-sincroniza el prefijado con el recaudado autoritativo del servidor mientras
+  // el cobrador no haya editado los campos (evita el faltante fantasma al cerrar).
+  useEffect(() => {
+    if (editado) return;
+    setGastos(gastosHoy > 0 ? String(gastosHoy) : "");
+    setEntregado(String(Math.max(0, recaudado - gastosHoy)));
+  }, [recaudado, gastosHoy, editado]);
 
   if (!disponible) return null; // se habilita al correr 0013
 
@@ -129,7 +141,7 @@ export function CerrarJornada({
           <input
             inputMode="numeric"
             value={gastos}
-            onChange={(e) => setGastos(e.target.value.replace(/[^\d]/g, ""))}
+            onChange={(e) => { setEditado(true); setGastos(e.target.value.replace(/[^\d]/g, "")); }}
             placeholder="0"
             className="min-h-11 w-full rounded-[11px] border border-[#DCE3F4] px-3 py-3 text-[15px] tabular-nums outline-none focus:border-azul"
           />
@@ -138,7 +150,7 @@ export function CerrarJornada({
           <input
             inputMode="numeric"
             value={entregado}
-            onChange={(e) => setEntregado(e.target.value.replace(/[^\d]/g, ""))}
+            onChange={(e) => { setEditado(true); setEntregado(e.target.value.replace(/[^\d]/g, "")); }}
             placeholder="0"
             className="min-h-11 w-full rounded-[11px] border border-[#DCE3F4] px-3 py-3 text-[15px] tabular-nums outline-none focus:border-azul"
           />

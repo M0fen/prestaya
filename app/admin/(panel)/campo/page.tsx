@@ -56,7 +56,7 @@ export default async function CampoPage({
 
       <p className="text-[11px] leading-[1.5] font-medium text-[#AEB6CC]">
         La bitácora es inmutable (solo se agrega, no se edita ni borra). El cobrador está informado
-        de que sus acciones quedan geolocalizadas. Requiere la migración 0024.
+        de que sus acciones quedan geolocalizadas.
       </p>
     </div>
   );

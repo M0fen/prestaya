@@ -11,7 +11,7 @@ export default function NotFound() {
         </h1>
         <p className="m-0 max-w-[280px] text-[13.5px] leading-[1.5] font-medium text-gris">
           Este enlace no corresponde a ningún cliente o ya no está disponible.
-          Verifica el link o comunícate con tu oficina.
+          Verificá el link o comunicate con tu oficina.
         </p>
       </div>
     </div>

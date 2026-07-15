@@ -163,9 +163,12 @@ export function construirVistaCliente(params: {
     pagos: recibosDia(d.dia),
   }));
 
-  // Historial: días con pago, del más reciente al más antiguo.
+  // Historial: días con pago, del más reciente al más antiguo. Excluimos los días
+  // FUTUROS: si el cliente paga adelantado (o cancela antes), el excedente FIFO
+  // "cae" en cuotas futuras con montoPagado>0 → aparecerían "pagos" con fecha en el
+  // futuro. El historial es de lo YA transcurrido.
   const historial: HistorialItem[] = r.dias
-    .filter((d) => d.montoPagado > 0)
+    .filter((d) => d.montoPagado > 0 && d.estado !== "futuro")
     .reverse()
     .map((d) => ({
       dia: d.dia,
@@ -230,8 +233,10 @@ export function construirVistaCliente(params: {
     totalAPagar: UYU(r.totalAPagar),
     totalPagado: UYU(r.totalPagado),
     falta: UYU(r.falta),
-    progresoTexto: r.progresoPct + "%",
-    progresoPct: r.progresoPct,
+    // Progreso mostrado con tope 100% (un sobrepago no debe mostrar "103%" ni
+    // desbordar la barra). El cálculo interno queda intacto.
+    progresoTexto: Math.min(100, r.progresoPct) + "%",
+    progresoPct: Math.min(100, r.progresoPct),
     cuotaDiaria: UYU(prestamo.cuota_diaria),
     totalDias: prestamo.total_dias,
     diaActual: r.diaActual,
@@ -247,7 +252,7 @@ export function construirVistaCliente(params: {
       background: estadoDot,
     },
     barFillStyle: {
-      width: r.progresoPct + "%",
+      width: Math.min(100, r.progresoPct) + "%",
       height: "100%",
       borderRadius: "999px",
       background: "linear-gradient(90deg,#34E0A1,#1FA971)",

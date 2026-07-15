@@ -15,7 +15,9 @@ export function Historial({ historial }: { historial: HistorialItem[] }) {
   // asomando. Expandido: todas.
   const visibles = verTodos ? historial : historial.slice(0, 3);
   const ocultos = historial.length - 2;
-  const recortar = !verTodos && hayMas;
+  // No recortar mientras haya un comprobante ABIERTO: si no, al tocar uno de los
+  // primeros pagos su detalle (hora, monto) quedaba cortado por el degradado.
+  const recortar = !verTodos && hayMas && abierto == null;
 
   return (
     <section className="flex flex-col gap-2.5">

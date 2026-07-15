@@ -92,7 +92,11 @@ export function CartonCobrador({
           let provisional = false;
           // Overlay SOLO del día de hoy y solo si aún no figura pagado en el server.
           if (i === idxHoy && montoOptimista > 0 && d.estado !== "pagado") {
-            const totalHoy = d.montoPagado + montoOptimista;
+            // MAX (no suma): la op "en gracia" ya está reflejada en `d.montoPagado`
+            // tras el refresco del server; sumarla la contaría DOBLE y un abono
+            // parpadearía "pagado" (verde ✓) unos segundos. Con MAX, el optimista
+            // solo pinta de más mientras el server aún NO refleja el cobro.
+            const totalHoy = Math.max(d.montoPagado, montoOptimista);
             estado = totalHoy >= cuota ? "pagado" : "pendiente";
             provisional = true;
           }

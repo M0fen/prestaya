@@ -126,23 +126,16 @@ export default async function VistaPorToken({
       }
     : null;
 
-  // Nombres de los cobradores que registraron pagos (para mostrar "quién cobró").
-  const cobradorIds = [
-    ...new Set(pagos.map((p) => p.registrado_por).filter((x): x is string => !!x)),
-  ];
-  const nombresCobrador: Record<string, string> = {};
-  if (cobradorIds.length > 0) {
-    const { data: us } = await db.from("usuarios").select("id, nombre").in("id", cobradorIds);
-    for (const u of us ?? []) nombresCobrador[u.id as string] = u.nombre as string;
-  }
-
+  // Regla de la vista de cliente: NO se muestra el cobrador al deudor. Antes se
+  // consultaban los nombres de los cobradores en CADA carga (round-trip inútil +
+  // trampa de re-fuga: si alguien reactiva `quien`, los nombres volverían a viajar).
+  // Se elimina: el comprobante lleva hora + monto, sin nombre.
   const v = construirVistaCliente({
     cliente,
     prestamo,
     pagos,
     negocio: NEGOCIO,
     hoy: hoyUY(),
-    nombresCobrador,
   });
 
   // Zona de juego según la config del admin (ajustes ya leídos arriba).

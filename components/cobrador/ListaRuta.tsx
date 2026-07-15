@@ -119,8 +119,8 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
     filtro === "todos"
       ? ordenados
       : filtro === "cobrado"
-        ? ordenados.filter((i) => i.estadoHoy === "pagado" || i.estadoHoy === "abono")
-        : ordenados.filter((i) => i.estadoHoy === filtro);
+        ? ordenados.filter((i) => (i.estadoHoy === "pagado" || i.estadoHoy === "abono") && !i.plazoVencido)
+        : ordenados.filter((i) => i.estadoHoy === filtro && !i.plazoVencido);
 
   // Búsqueda por nombre: si hay término, filtra y muestra TODOS los que matchean.
   const buscando = q.trim().length > 0;

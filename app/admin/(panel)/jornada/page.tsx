@@ -75,10 +75,20 @@ export default async function JornadaPage({
 
   // Nombre de la zona (etiqueta): `zonas` está bajo RLS para el gestor con zona,
   // así que se resuelve con el cliente admin (igual que en la app del cobrador).
-  const zonaNombre = usuario.zona_id
-    ? (await createSupabaseAdmin().from("zonas").select("nombre").eq("id", usuario.zona_id).maybeSingle()).data
-        ?.nombre ?? null
-    : null;
+  // El SUPERVISOR no tiene `usuarios.zona_id` (su zona vive en `supervisor_zonas`),
+  // así que si supervisa UNA sola zona, la resolvemos desde ahí para el encabezado.
+  const adminZ = createSupabaseAdmin();
+  let zonaNombre: string | null = null;
+  if (usuario.zona_id) {
+    zonaNombre =
+      (await adminZ.from("zonas").select("nombre").eq("id", usuario.zona_id).maybeSingle()).data?.nombre ?? null;
+  } else {
+    const sz = await adminZ.from("supervisor_zonas").select("zona_id").eq("supervisor_id", usuario.id);
+    const zids = (sz.data ?? []).map((r) => r.zona_id as string);
+    if (zids.length === 1) {
+      zonaNombre = (await adminZ.from("zonas").select("nombre").eq("id", zids[0]).maybeSingle()).data?.nombre ?? null;
+    }
+  }
 
   // Etiqueta larga de la fecha elegida.
   const [fy, fm, fd] = fechaYmd.split("-").map(Number);
@@ -194,9 +204,11 @@ export default async function JornadaPage({
             {fechaLarga} · tu jornada en 3 momentos
           </span>
         </div>
-        <Link href="/admin" className="rounded-full border border-borde bg-tarjeta px-3 py-1.5 text-[12.5px] font-bold text-gris">
-          Ver tablero completo →
-        </Link>
+        {usuario.rol === "admin" && (
+          <Link href="/admin" className="rounded-full border border-borde bg-tarjeta px-3 py-1.5 text-[12.5px] font-bold text-gris">
+            Ver tablero completo →
+          </Link>
+        )}
       </div>
 
       {/* Bienvenida cálida (solo la 1ª vez, se puede cerrar). */}

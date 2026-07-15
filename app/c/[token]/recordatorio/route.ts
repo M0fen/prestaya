@@ -7,6 +7,7 @@ import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getClientePorToken } from "@/lib/data/clientes";
 import { getPrestamoActivoPorCliente } from "@/lib/data/prestamos";
 import { UYU, parseFecha, toIso } from "@/lib/format";
+import { fechaDeCuota } from "@/lib/cartones";
 import { tokenValido } from "@/lib/validacion/esquemas";
 
 /** "YYYY-MM-DD" → "YYYYMMDD" (formato de fecha ICS). */
@@ -30,14 +31,17 @@ export async function GET(
   const prestamo = await getPrestamoActivoPorCliente(db, cliente.id);
   if (!prestamo) return new Response("Sin crédito activo", { status: 404 });
 
-  // Rango: desde hoy (o el inicio si aún no empezó) hasta el último día.
+  // Rango: desde hoy (o el inicio si aún no empezó) hasta la ÚLTIMA cuota real.
+  // `fin` se calcula con el cronograma hábil (Lun–Sáb, salta domingos), igual que
+  // el cartón — no sumando días calendario planos (que terminaba ~1 día/semana antes).
   const inicio = parseFecha(prestamo.fecha_inicio);
-  const fin = new Date(inicio);
-  fin.setDate(inicio.getDate() + (prestamo.total_dias - 1));
+  const fin = fechaDeCuota(inicio, prestamo.total_dias - 1, prestamo.frecuencia);
 
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
   const desde = hoy.getTime() > inicio.getTime() ? hoy : inicio;
+  // DTSTART debe coincidir con el BYDAY (Lun–Sáb): si arranca un domingo, al lunes.
+  if (desde.getDay() === 0) desde.setDate(desde.getDate() + 1);
 
   const dtStart = icsDate(toIso(desde)) + "T090000";
   const until = icsDate(toIso(fin)) + "T235959";
@@ -56,7 +60,9 @@ export async function GET(
     `UID:${prestamo.id}@presta-ya`,
     `DTSTAMP:${stamp}`,
     `DTSTART:${dtStart}`,
-    `RRULE:FREQ=DAILY;UNTIL=${until}`,
+    // Cobro de LUNES a SÁBADO (el domingo no se cobra): el recordatorio no debe
+    // avisar los domingos.
+    `RRULE:FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR,SA;UNTIL=${until}`,
     `SUMMARY:Pagar cuota de Presta Ya (${cuota})`,
     "DESCRIPTION:Recordatorio de tu cuota diaria. ¡Seguí al día!",
     "BEGIN:VALARM",
