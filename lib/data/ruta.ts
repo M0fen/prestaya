@@ -70,15 +70,20 @@ export function estadoHoyDe(
   return "pendiente";
 }
 
-/** Un crédito activo del cliente, con su cuota y si su PLAZO ya venció. */
+/** Un crédito activo del cliente: su cuota, lo cobrado HOY en él y si su PLAZO ya venció. */
 export interface CreditoRuta {
   cuota: number;
+  pagadoHoy: number;
   plazoVencido: boolean;
 }
 
 export interface ClaseClienteRuta {
   /** Suma de cuota de los créditos EN TÉRMINO (el target de cobro de HOY). */
   cuotaEnTermino: number;
+  /** Cobrado HOY en créditos EN TÉRMINO (para el ESTADO del cliente y el chip "Abonó"). */
+  pagadoHoyEnTermino: number;
+  /** Cobrado HOY en TODOS los créditos (para el recaudo — la plata es plata). */
+  pagadoHoyTotal: number;
   /** Tiene créditos activos pero TODOS de plazo vencido (cartera vencida pura). */
   soloVencido: boolean;
   estadoHoy: EstadoHoy;
@@ -91,22 +96,29 @@ export interface ClaseClienteRuta {
  * vence hoy → target del día y arqueo) y "vencidos" (cartera vencida: el plazo ya
  * terminó). Los vencidos puros quedan VISIBLES para recuperar, pero FUERA del
  * target del día: si se contaran, inflarían "Falta $X" y la "Ruta completa 🎉"
- * nunca llegaría (el cobrador persigue una cuota que ya no está programada). El
- * `pagadoHoy` (si recupera algo) se cuenta aparte como recaudo — la plata es plata.
+ * nunca llegaría (el cobrador persigue una cuota que ya no está programada).
+ *
+ * ⚠️ El ESTADO del cliente ("¿le cobré la cuota de HOY?") se deriva SOLO del cobro
+ * sobre créditos EN TÉRMINO: si no, una RECUPERACIÓN sobre un crédito vencido (deuda
+ * vieja) marcaría al cliente como "pagado" y el cobrador se saltaría la cuota de hoy
+ * de su crédito vigente → cobro del día perdido. El recaudo (`pagadoHoyTotal`) SÍ
+ * suma todo, porque la plata cobrada es plata.
  */
 export function clasificarClienteRuta(
   creditos: CreditoRuta[],
-  pagadoHoy: number,
   esNoPago: boolean,
 ): ClaseClienteRuta {
-  const cuotaEnTermino = creditos
-    .filter((c) => !c.plazoVencido)
-    .reduce((s, c) => s + c.cuota, 0);
+  const enTermino = creditos.filter((c) => !c.plazoVencido);
+  const cuotaEnTermino = enTermino.reduce((s, c) => s + c.cuota, 0);
+  const pagadoHoyEnTermino = enTermino.reduce((s, c) => s + c.pagadoHoy, 0);
+  const pagadoHoyTotal = creditos.reduce((s, c) => s + c.pagadoHoy, 0);
   const soloVencido = creditos.length > 0 && cuotaEnTermino === 0;
   return {
     cuotaEnTermino,
+    pagadoHoyEnTermino,
+    pagadoHoyTotal,
     soloVencido,
-    estadoHoy: estadoHoyDe(pagadoHoy, cuotaEnTermino, esNoPago),
+    estadoHoy: estadoHoyDe(pagadoHoyEnTermino, cuotaEnTermino, esNoPago),
     cuentaEnRuta: !soloVencido,
   };
 }
@@ -146,7 +158,9 @@ export async function getRutaCobrador(
   const presRaw = presRes.data;
   // Día UY para evaluar el plazo (mismo criterio hábil Lun–Sáb que el cartón).
   const hoyMid = hoyUY(hoy);
-  const creditosDe = new Map<string, { ids: string[]; creditos: CreditoRuta[]; principalId: string }>();
+  // Por crédito guardamos su id (para cruzar con lo cobrado hoy), cuota y si venció.
+  type CredInterno = { id: string; cuota: number; plazoVencido: boolean };
+  const creditosDe = new Map<string, { creditos: CredInterno[]; principalId: string }>();
   for (const p of presRaw ?? []) {
     const cid = p.cliente_id as string;
     const pid = p.id as string;
@@ -162,15 +176,11 @@ export async function getRutaCobrador(
       hoyMid,
     );
     const acc = creditosDe.get(cid);
-    if (acc) {
-      acc.ids.push(pid);
-      acc.creditos.push({ cuota, plazoVencido: vencido });
-    } else {
-      creditosDe.set(cid, { ids: [pid], creditos: [{ cuota, plazoVencido: vencido }], principalId: pid });
-    }
+    if (acc) acc.creditos.push({ id: pid, cuota, plazoVencido: vencido });
+    else creditosDe.set(cid, { creditos: [{ id: pid, cuota, plazoVencido: vencido }], principalId: pid });
   }
 
-  const ids = [...creditosDe.values()].flatMap((c) => c.ids);
+  const ids = [...creditosDe.values()].flatMap((c) => c.creditos.map((x) => x.id));
   const desde = inicioDiaUYIso(hoy);
 
   // Cobros y visitas de HOY.
@@ -207,13 +217,17 @@ export async function getRutaCobrador(
     const cr = creditosDe.get(c.id);
     if (!cr)
       return { cliente: c, prestamoId: null, cuota: 0, estadoHoy: "sin_credito", pagadoHoy: 0, plazoVencido: false };
-    // Suma de lo cobrado HOY en TODOS los créditos activos del cliente (incluye
-    // recuperaciones sobre créditos vencidos: la plata cobrada es plata).
-    const pagadoHoy = cr.ids.reduce((s, id) => s + (pagadoPorPrestamo.get(id) ?? 0), 0);
-    recaudado += pagadoHoy;
     // No-pago si alguno de sus créditos quedó marcado como visita sin cobro.
-    const esNoPago = cr.ids.some((id) => noPagoPrestamos.has(id));
-    const clase = clasificarClienteRuta(cr.creditos, pagadoHoy, esNoPago);
+    const esNoPago = cr.creditos.some((x) => noPagoPrestamos.has(x.id));
+    // Créditos con lo cobrado HOY en CADA uno (para separar recaudo total vs.
+    // cobro sobre la cuota vigente al derivar el estado del cliente).
+    const creditos: CreditoRuta[] = cr.creditos.map((x) => ({
+      cuota: x.cuota,
+      plazoVencido: x.plazoVencido,
+      pagadoHoy: pagadoPorPrestamo.get(x.id) ?? 0,
+    }));
+    const clase = clasificarClienteRuta(creditos, esNoPago);
+    recaudado += clase.pagadoHoyTotal; // incluye recuperaciones de vencidos: la plata es plata
     // Solo los créditos EN TÉRMINO aportan al target del día y al denominador de
     // "ruta completa"; los vencidos puros quedan visibles pero fuera de esas cuentas.
     if (clase.cuentaEnRuta) {
@@ -228,7 +242,7 @@ export async function getRutaCobrador(
       prestamoId: cr.principalId,
       cuota: clase.cuotaEnTermino,
       estadoHoy: clase.estadoHoy,
-      pagadoHoy,
+      pagadoHoy: clase.pagadoHoyEnTermino, // lo cobrado hacia la cuota de HOY (chip "Abonó")
       plazoVencido: clase.soloVencido,
     };
   });

@@ -69,10 +69,11 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
   const cuenta = useMemo(
     () => ({
       todos: items.length,
-      // Los de cartera vencida no son "pendientes del día" (coincide con el arqueo).
+      // La cartera vencida no cuenta en las cuentas del DÍA (coincide con el arqueo,
+      // que la excluye por completo): ni pendiente, ni cobrado, ni no-pago.
       pendiente: items.filter((i) => i.estadoHoy === "pendiente" && !i.plazoVencido).length,
-      cobrado: items.filter((i) => i.estadoHoy === "pagado" || i.estadoHoy === "abono").length,
-      no_pago: items.filter((i) => i.estadoHoy === "no_pago").length,
+      cobrado: items.filter((i) => (i.estadoHoy === "pagado" || i.estadoHoy === "abono") && !i.plazoVencido).length,
+      no_pago: items.filter((i) => i.estadoHoy === "no_pago" && !i.plazoVencido).length,
     }),
     [items],
   );

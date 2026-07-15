@@ -30,7 +30,7 @@ describe("estadoHoyDe — regla del cartón en la lista del cobrador", () => {
 
 describe("clasificarClienteRuta — zombies (plazo vencido) fuera del target del día", () => {
   it("crédito EN TÉRMINO → cuenta en la ruta y aporta su cuota al esperado", () => {
-    const r = clasificarClienteRuta([{ cuota: 100, plazoVencido: false }], 0, false);
+    const r = clasificarClienteRuta([{ cuota: 100, pagadoHoy: 0, plazoVencido: false }], false);
     expect(r.cuotaEnTermino).toBe(100);
     expect(r.soloVencido).toBe(false);
     expect(r.cuentaEnRuta).toBe(true);
@@ -38,24 +38,26 @@ describe("clasificarClienteRuta — zombies (plazo vencido) fuera del target del
   });
 
   it("crédito VENCIDO sin actividad → NO cuenta en la ruta ni en el esperado", () => {
-    const r = clasificarClienteRuta([{ cuota: 100, plazoVencido: true }], 0, false);
+    const r = clasificarClienteRuta([{ cuota: 100, pagadoHoy: 0, plazoVencido: true }], false);
     expect(r.cuotaEnTermino).toBe(0); // no infla "Falta $X"
     expect(r.soloVencido).toBe(true); // cartera vencida pura
     expect(r.cuentaEnRuta).toBe(false); // no bloquea "Ruta completa 🎉"
   });
 
-  it("crédito VENCIDO con recuperación → sigue fuera del target, pero se ve como abono", () => {
-    // El recaudo (pagadoHoy) lo suma el llamador aparte: la plata cobrada es plata.
-    const r = clasificarClienteRuta([{ cuota: 100, plazoVencido: true }], 80, false);
+  it("crédito VENCIDO con recuperación → fuera del target; el recaudo total SÍ la suma", () => {
+    const r = clasificarClienteRuta([{ cuota: 100, pagadoHoy: 80, plazoVencido: true }], false);
     expect(r.soloVencido).toBe(true);
     expect(r.cuentaEnRuta).toBe(false);
-    expect(r.estadoHoy).toBe("abono"); // pagó algo (sobre cuota-en-término 0)
+    expect(r.pagadoHoyTotal).toBe(80); // la plata cobrada es plata
+    expect(r.pagadoHoyEnTermino).toBe(0); // pero NO hacia una cuota de hoy
   });
 
   it("cliente MIXTO (uno en término + uno vencido) → cuenta en ruta con SOLO la cuota vigente", () => {
     const r = clasificarClienteRuta(
-      [{ cuota: 100, plazoVencido: false }, { cuota: 300, plazoVencido: true }],
-      0,
+      [
+        { cuota: 100, pagadoHoy: 0, plazoVencido: false },
+        { cuota: 300, pagadoHoy: 0, plazoVencido: true },
+      ],
       false,
     );
     expect(r.cuotaEnTermino).toBe(100); // el vencido no suma su cuota al esperado
@@ -63,8 +65,24 @@ describe("clasificarClienteRuta — zombies (plazo vencido) fuera del target del
     expect(r.cuentaEnRuta).toBe(true);
   });
 
+  it("REGRESIÓN: recuperar un vencido NO debe marcar 'pagado' la cuota de hoy impaga (cliente mixto)", () => {
+    // Crédito A en término (cuota 100, sin pago hoy) + B vencido (cuota 100, recuperó 100).
+    // El estado del cliente debe seguir mostrando que HOY (crédito A) está impago.
+    const r = clasificarClienteRuta(
+      [
+        { cuota: 100, pagadoHoy: 0, plazoVencido: false }, // A: cuota de hoy impaga
+        { cuota: 100, pagadoHoy: 100, plazoVencido: true }, // B: recuperación de deuda vieja
+      ],
+      false,
+    );
+    expect(r.estadoHoy).toBe("pendiente"); // NO "pagado": el cobrador NO debe saltearlo
+    expect(r.pagadoHoyEnTermino).toBe(0); // la recuperación no cuenta hacia la cuota de hoy
+    expect(r.pagadoHoyTotal).toBe(100); // pero el recaudo del día sí la incluye
+    expect(r.cuentaEnRuta).toBe(true);
+  });
+
   it("sin créditos activos → no es cartera vencida (soloVencido false)", () => {
-    const r = clasificarClienteRuta([], 0, false);
+    const r = clasificarClienteRuta([], false);
     expect(r.soloVencido).toBe(false);
     expect(r.cuentaEnRuta).toBe(true);
     expect(r.cuotaEnTermino).toBe(0);
