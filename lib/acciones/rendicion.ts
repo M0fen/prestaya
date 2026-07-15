@@ -8,6 +8,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { reportarError } from "@/lib/observabilidad";
+import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
 import { getUsuarioActual } from "@/lib/auth";
 import { getEstadoJornada, crearRendicionDb } from "@/lib/data/rendicion";
 import { registrarAuditoria } from "@/lib/data/auditoria";
@@ -31,6 +32,8 @@ export async function cerrarJornada(input: {
 }): Promise<Resultado> {
   const usuario = await getUsuarioActual();
   if (!usuario || !usuario.activo) return { ok: false, error: "Sesión no válida." };
+  const bloqueo = await bloqueoSoloLectura(); // kill switch
+  if (bloqueo) return bloqueo;
 
   const db = await createSupabaseServer();
   const estado = await getEstadoJornada(db, usuario.id);

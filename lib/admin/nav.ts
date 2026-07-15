@@ -70,6 +70,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/admin/desempeno", label: "Desempeño", icon: "🏆", grupo: "Finanzas y análisis", roles: ["admin", "supervisor"], alias: ["historial", "rendimiento", "cobradores", "ranking", "rango", "desde hasta", "por fecha", "de fecha a fecha"] },
   { href: "/admin/capital", label: "Inversión de capital", icon: "🏦", grupo: "Finanzas y análisis", roles: ["admin"], alias: ["capital", "aportes", "inversion"] },
   { href: "/admin/reportes", label: "Reportes", icon: "📨", grupo: "Finanzas y análisis", roles: ["admin"], alias: ["exportar", "csv", "excel", "descargar", "estado de cuenta", "pdf", "respaldo", "backup"] },
+  { href: "/admin/empalme", label: "Empalme y reconciliación", icon: "🔗", grupo: "Finanzas y análisis", roles: ["admin"], alias: ["reconciliacion", "diferencias", "trazabilidad", "kill switch", "solo lectura", "invariantes", "cuadre", "sobre-cobro", "conciliar"] },
   // ── Para tus clientes (lo que ve el DEUDOR en su pantalla) ──
   // Anuncios y Rifa son COMUNICACIÓN al cliente (banners que ve en su pantalla; el
   // supervisor también publica anuncios). Juego/Sorteos/Estrellas = config lúdica

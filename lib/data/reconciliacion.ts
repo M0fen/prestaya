@@ -24,6 +24,117 @@ export interface ResultadoReconciliacion extends ResumenReconciliacion {
 
 const N = (v: unknown) => Math.round(Number(v) || 0);
 
+/** Una diferencia de dinero con TRAZABILIDAD (quién, cuánto, de qué tipo) — para
+ *  que admin/dev revisen cada divergencia del empalme. */
+export interface DiferenciaEmpalme {
+  creditoId: string;
+  clienteNombre: string;
+  estado: string;
+  pagadoAcum: number;
+  pagosSuma: number;
+  totalAPagar: number;
+  /** pagado_acum − Σpagos (≠0 = el denormalizado miente). */
+  drift: number;
+  /** Σpagos − total (>0 = sobre-cobro). */
+  exceso: number;
+  tipo: "drift" | "sobrecobro";
+  /** true = material (grave); false = redondeo/baseline. */
+  material: boolean;
+}
+
+export interface InfoEmpalme {
+  disponible: boolean;
+  diferencias: DiferenciaEmpalme[];
+  totalDiferencias: number;
+  criticas: number;
+  soloLectura: boolean;
+}
+
+/**
+ * Diferencias de dinero del empalme, con nombre de cliente, para el panel de
+ * trazabilidad. Usa el RPC 0071 (solo créditos que violan) + resuelve nombres.
+ */
+export async function getInfoEmpalme(db: SupabaseClient): Promise<InfoEmpalme> {
+  const vacio: InfoEmpalme = {
+    disponible: false,
+    diferencias: [],
+    totalDiferencias: 0,
+    criticas: 0,
+    soloLectura: false,
+  };
+  let filas: Record<string, unknown>[];
+  try {
+    const { data, error } = await db.rpc("app_reconciliacion_violaciones");
+    if (error) throw error;
+    filas = (data ?? []) as Record<string, unknown>[];
+  } catch {
+    return vacio;
+  }
+
+  // Nombres de clientes: crédito → cliente_id → clientes.nombre.
+  const creditoIds = filas.map((r) => r.id as string);
+  const nombre = new Map<string, string>();
+  if (creditoIds.length > 0) {
+    for (let i = 0; i < creditoIds.length; i += 200) {
+      const lote = creditoIds.slice(i, i + 200);
+      const { data: pr } = await db.from("prestamos").select("id, cliente_id").in("id", lote);
+      const cliIds = [...new Set((pr ?? []).map((p) => p.cliente_id as string))];
+      const cliDe = new Map((pr ?? []).map((p) => [p.id as string, p.cliente_id as string]));
+      const { data: cl } = await db.from("clientes").select("id, nombre").in("id", cliIds);
+      const nomCli = new Map((cl ?? []).map((c) => [c.id as string, c.nombre as string]));
+      for (const cid of lote) nombre.set(cid, nomCli.get(cliDe.get(cid) ?? "") ?? "—");
+    }
+  }
+
+  const diferencias: DiferenciaEmpalme[] = filas.map((r) => {
+    const pagadoAcum = N(r.pagado_acum);
+    const pagosSuma = N(r.pagos_suma);
+    const totalAPagar = N(r.total_a_pagar);
+    const cuota = N(r.cuota_diaria);
+    const drift = pagadoAcum - pagosSuma;
+    const exceso = pagosSuma - totalAPagar;
+    const esDrift = Math.abs(drift) >= 1;
+    const materialSobre =
+      exceso >= 1 &&
+      ((cuota > 0 && exceso >= cuota) || (totalAPagar > 0 && exceso >= totalAPagar * 0.05));
+    return {
+      creditoId: r.id as string,
+      clienteNombre: nombre.get(r.id as string) ?? "—",
+      estado: (r.estado as string) ?? "?",
+      pagadoAcum,
+      pagosSuma,
+      totalAPagar,
+      drift,
+      exceso,
+      tipo: esDrift ? "drift" : "sobrecobro",
+      // Un drift del denormalizado siempre es material; un sobre-cobro, según monto.
+      material: esDrift || materialSobre,
+    };
+  });
+  // Más grave primero (drift, luego sobre-cobros materiales, luego el resto).
+  diferencias.sort((a, b) => Number(b.material) - Number(a.material) || Math.abs(b.exceso) - Math.abs(a.exceso));
+
+  let soloLectura = false;
+  try {
+    const { data } = await db
+      .from("feature_flags")
+      .select("activo")
+      .eq("clave", "modo_solo_lectura")
+      .maybeSingle();
+    soloLectura = Boolean(data?.activo);
+  } catch {
+    /* 0072 sin correr: modo normal */
+  }
+
+  return {
+    disponible: true,
+    diferencias,
+    totalDiferencias: diferencias.length,
+    criticas: diferencias.filter((d) => d.material).length,
+    soloLectura,
+  };
+}
+
 /**
  * Corre la reconciliación del día. `caja` opcional: si el caller ya tiene el
  * recaudo de caja, se compara contra el libro (invariante recaudo-consistente).

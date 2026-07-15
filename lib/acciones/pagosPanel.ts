@@ -26,6 +26,7 @@ import { registrarAuditoria } from "@/lib/data/auditoria";
 import { calcularEstadosCarton } from "@/lib/cartones";
 import { hoyUY } from "@/lib/fecha";
 import { reportarError } from "@/lib/observabilidad";
+import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
 
 export const CANALES_PAGO: Record<string, string> = {
   efectivo: "Efectivo en oficina",
@@ -73,6 +74,8 @@ export async function registrarPagoPanel(input: {
     return { ok: false, error: "El monto debe ser un número mayor a 0." };
 
   try {
+    const bloqueo = await bloqueoSoloLectura(); // kill switch
+    if (bloqueo) return bloqueo;
     // Permiso por zona: el supervisor solo su alcance.
     const alcance = await alcanceDelActor();
     if (!alcance.global && !alcance.clienteIds.includes(clienteId))

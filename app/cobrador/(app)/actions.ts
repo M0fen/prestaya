@@ -31,6 +31,7 @@ import { evaluarZona } from "@/lib/geo";
 import { hoyUY, sellarRegistroEn } from "@/lib/fecha";
 import { validar, cobroSchema, noPagoSchema } from "@/lib/validacion/esquemas";
 import { reportarError } from "@/lib/observabilidad";
+import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
 
 // ── Censo ────────────────────────────────────────────────────────────────────
 export type ResultadoCenso =
@@ -145,6 +146,8 @@ export async function registrarPagoCobrador(input: {
   try {
     const usuario = await getUsuarioActual();
     if (!usuario || !usuario.activo) return { ok: false, error: "Sesión no válida." };
+    const bloqueo = await bloqueoSoloLectura(); // kill switch: congela escrituras de plata
+    if (bloqueo) return bloqueo;
 
     const db = await createSupabaseServer();
     const cliente = await getClientePorId(db, input.clienteId);
@@ -243,6 +246,8 @@ export async function registrarNoPagoCobrador(input: {
   try {
     const usuario = await getUsuarioActual();
     if (!usuario || !usuario.activo) return { ok: false, error: "Sesión no válida." };
+    const bloqueo = await bloqueoSoloLectura();
+    if (bloqueo) return bloqueo;
 
     const db = await createSupabaseServer();
     const prestamo = await resolverPrestamo(db, input.clienteId, input.prestamoId);
