@@ -95,6 +95,14 @@ export default async function RutaPage() {
   const recaudadoBase = jornada?.recaudado ?? arqueo.recaudado;
   const comisionHoy = comisionPct > 0 ? calcularComision(recaudadoBase, comisionPct) : 0;
 
+  // Gastos que el cobrador SOLICITÓ pero el admin todavía NO aprobó: no bajan el
+  // "esperado" del cierre (la plata recién sale de caja al aprobar), pero si el
+  // cobrador YA gastó ese efectivo, le saldría un faltante fantasma. Se le AVISA en
+  // el cierre; NO se resta solo (para no debilitar el control anti-fuga).
+  const gastosPendientes = (solicitudesGasto?.items ?? [])
+    .filter((s) => s.estado === "pendiente")
+    .reduce((acc, s) => acc + s.monto, 0);
+
   return (
     <div className="flex flex-col gap-4">
       {/* Saludo personalizado (nombre + zona + fecha). */}
@@ -207,6 +215,7 @@ export default async function RutaPage() {
           recaudado={jornada.recaudado}
           cobrosCantidad={jornada.cobrosCantidad}
           gastosHoy={jornada.gastosHoy}
+          gastosPendientes={gastosPendientes}
           yaRendida={jornada.yaRendida}
           disponible={jornada.disponible}
         />

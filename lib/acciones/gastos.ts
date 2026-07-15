@@ -19,6 +19,7 @@ import { registrarBitacora } from "@/lib/data/bitacora";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { enviarMensajeDb } from "@/lib/data/chat";
 import { CATEGORIAS_GASTO, pideComprobante } from "@/lib/gastosRuta";
+import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
 
 type Resultado = { ok: true } | { ok: false; error: string };
 
@@ -134,6 +135,10 @@ export async function aprobarGastoRuta(input: { solicitudId: string }): Promise<
   if (!usuario || !usuario.activo || usuario.rol !== "admin") {
     return { ok: false, error: "Solo el administrador aprueba gastos." };
   }
+  // Kill switch (modo solo-lectura): aprobar un gasto SACA plata de la caja, así que
+  // durante un freeze de emergencia se congela. Rechazar no mueve plata → queda libre.
+  const bloqueo = await bloqueoSoloLectura();
+  if (bloqueo) return bloqueo;
   const db = await createSupabaseServer();
   const sol = await getSolicitudGasto(db, input.solicitudId);
   if (!sol) return { ok: false, error: "No se encontró la solicitud." };

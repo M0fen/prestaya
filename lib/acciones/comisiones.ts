@@ -13,6 +13,7 @@ import { setComisionPctDb } from "@/lib/data/comisiones";
 import { registrarMovimientoCaja } from "@/lib/data/caja";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { crearReciboDb } from "@/lib/data/recibos";
+import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
 
 type Resultado = { ok: true } | { ok: false; error: string };
 type ResultadoLiquidar = { ok: true; reciboNumero?: number } | { ok: false; error: string };
@@ -56,6 +57,11 @@ export async function liquidarComision(input: {
   const monto = Math.round(Number(input.monto) || 0);
   if (!(monto > 0)) return { ok: false, error: "La comisión es cero." };
   if (!input.periodoKey) return { ok: false, error: "Período inválido." };
+
+  // Kill switch (modo solo-lectura): liquidar comisión SACA plata de la caja → se
+  // congela durante un freeze de emergencia.
+  const bloqueo = await bloqueoSoloLectura();
+  if (bloqueo) return bloqueo;
 
   const db = await createSupabaseServer();
 

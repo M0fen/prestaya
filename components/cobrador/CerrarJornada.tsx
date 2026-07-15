@@ -21,12 +21,16 @@ export function CerrarJornada({
   recaudado,
   cobrosCantidad,
   gastosHoy = 0,
+  gastosPendientes = 0,
   yaRendida,
   disponible,
 }: {
   recaudado: number;
   cobrosCantidad: number;
   gastosHoy?: number;
+  /** Gastos SOLICITADOS pero aún no aprobados: si el cobrador ya sacó esa plata,
+   *  le saldría un faltante. Se AVISA (no se resta solo del prefijado). */
+  gastosPendientes?: number;
   yaRendida: RendicionDia | null;
   disponible: boolean;
 }) {
@@ -160,6 +164,31 @@ export function CerrarJornada({
         <p className="mt-1.5 px-1 text-[11px] font-medium text-[#8A93AD]">
           Incluye {UYU(gastosHoy)} de gastos que cargaste hoy. Podés ajustarlo.
         </p>
+      )}
+
+      {/* Gastos pedidos pero SIN aprobar: no están en el "esperado". Si el cobrador
+          ya gastó esa plata, sin este aviso le saldría un faltante fantasma. Se le
+          ofrece SUMARLOS (decisión suya), nunca se restan solos (control anti-fuga). */}
+      {gastosPendientes > 0 && (
+        <div className="mt-2 flex flex-col items-start gap-1.5 rounded-[12px] border border-[#DCE3F4] bg-[#F7F9FD] px-3 py-2.5">
+          <span className="text-[12px] font-bold text-[#5A6B94]">
+            Tenés {UYU(gastosPendientes)} en gastos pendientes de aprobación.
+          </span>
+          <span className="text-[11.5px] font-medium text-[#8A93AD]">
+            No cuentan en el “Debería entregar” hasta que el admin los apruebe. Si ya
+            sacaste esa plata, sumalos así no te marca un faltante que no es real.
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setEditado(true);
+              setGastos(String(gastosHoy + gastosPendientes));
+            }}
+            className="rounded-full border border-[#C7D2EC] bg-white px-3 py-1.5 text-[11.5px] font-bold text-azul active:scale-95"
+          >
+            Sumar {UYU(gastosPendientes)} a gastos
+          </button>
+        </div>
       )}
 
       {/* A entregar + diferencia en vivo */}

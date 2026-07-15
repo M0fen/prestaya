@@ -217,4 +217,33 @@ describe("colaOffline", () => {
 
     unsub();
   });
+
+  // El op_id va a columnas `uuid` (pagos.op_id / visitas.op_id, 0006). Un id que NO
+  // sea UUID hace fallar el insert con 22P02 (no 23505) → el cobro queda ATASCADO
+  // fuera del libro. Estos tests fijan que el id SIEMPRE tenga formato UUID v4,
+  // incluso en un Android viejo sin crypto.randomUUID.
+  describe("op_id siempre es un UUID válido", () => {
+    const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+    it("con crypto.randomUUID disponible", () => {
+      expect(encolar({ ...opBase }).id).toMatch(UUID_V4);
+    });
+
+    it("fallback sin randomUUID (Android viejo) usando getRandomValues", () => {
+      vi.stubGlobal("crypto", {
+        getRandomValues: (arr: Uint8Array) => {
+          for (let i = 0; i < arr.length; i++) arr[i] = (i * 37 + 11) & 0xff;
+          return arr;
+        },
+      });
+      const id = encolar({ ...opBase }).id;
+      expect(id).toMatch(UUID_V4);
+      expect(id.startsWith("op-")).toBe(false); // ya no el string viejo no-UUID
+    });
+
+    it("último recurso sin crypto: igual arma un UUID v4 con formato válido", () => {
+      vi.stubGlobal("crypto", undefined);
+      expect(encolar({ ...opBase }).id).toMatch(UUID_V4);
+    });
+  });
 });

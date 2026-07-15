@@ -133,8 +133,24 @@ function guardar(ops: OpCobro[]): boolean {
   return persistido;
 }
 
-const nuevoId = (): string =>
-  globalThis.crypto?.randomUUID?.() ?? `op-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+// UUID v4 REAL. Las columnas pagos.op_id / visitas.op_id son de tipo `uuid`: el
+// fallback anterior (`op-${Date.now()}-${Math.random()}`) NO es un UUID válido, así
+// que en un Android sin `crypto.randomUUID` el insert fallaba con 22P02 (no 23505 →
+// no se trataba como duplicado) y TODOS los cobros de ese equipo quedaban atascados
+// FUERA del libro. `getRandomValues` es mucho más viejo y ubicuo; si tampoco está,
+// se arma un v4 con Math.random (último recurso, pero con formato uuid válido).
+function uuidV4(): string {
+  const b = new Uint8Array(16);
+  const c = globalThis.crypto;
+  if (c?.getRandomValues) c.getRandomValues(b);
+  else for (let i = 0; i < 16; i++) b[i] = Math.floor(Math.random() * 256);
+  b[6] = (b[6] & 0x0f) | 0x40; // versión 4
+  b[8] = (b[8] & 0x3f) | 0x80; // variante RFC 4122
+  const h = Array.from(b, (x) => x.toString(16).padStart(2, "0"));
+  return `${h[0]}${h[1]}${h[2]}${h[3]}-${h[4]}${h[5]}-${h[6]}${h[7]}-${h[8]}${h[9]}-${h[10]}${h[11]}${h[12]}${h[13]}${h[14]}${h[15]}`;
+}
+
+const nuevoId = (): string => globalThis.crypto?.randomUUID?.() ?? uuidV4();
 
 /** Op ya encolada + si quedó PERSISTIDA en disco (`persistido=false` ⇒ solo en
  *  memoria: avisar al cobrador y reintentar; no sobrevive cerrar la app). */

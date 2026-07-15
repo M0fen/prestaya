@@ -110,6 +110,11 @@ export function RegistroCobro({
   const [modalAbierto, setModalAbierto] = useState(false);
   // Op recién encolada, para poder deshacerla desde el comprobante durante el hold.
   const [undo, setUndo] = useState<{ opId: string; hasta: number } | null>(null);
+  // Tras un cobro, el botón principal queda en "Cobro registrado ✓" durante el hold:
+  // el cobrador ve el efecto y no re-toca por falta de feedback (un 2º toque encolaría
+  // OTRA cuota con otro op_id → doble cobro). Se libera al vencer el hold o al deshacer.
+  const [cobroReciente, setCobroReciente] = useState(false);
+  const cobroTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Anti-doble-registro: un segundo toque instantáneo no encola otro cobro.
   const bloqueado = useRef(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -191,6 +196,11 @@ export function RegistroCobro({
     const esAbono = m != null && m < cuota;
     const { offline, op, persistido } = registrar("pago", { monto: m, motivo: null });
     vibrar(18);
+    // Bloquea el botón principal por la ventana de hold (evita el doble-cobro por
+    // re-tap cuando el celu tarda en refrescar). Se libera solo o al deshacer.
+    if (cobroTimer.current) clearTimeout(cobroTimer.current);
+    setCobroReciente(true);
+    cobroTimer.current = setTimeout(() => setCobroReciente(false), HOLD_MS);
     setAbono(false);
     setMontoAbono("");
     // Comprobante profesional (recibo con trazabilidad), compartible por WhatsApp.
@@ -251,6 +261,8 @@ export function RegistroCobro({
     if (!undo) return;
     quitar(undo.opId);
     vibrar(30);
+    if (cobroTimer.current) clearTimeout(cobroTimer.current);
+    setCobroReciente(false); // deshecho: se puede volver a cobrar ya
     setUndo(null);
     setModalAbierto(false);
     setComprobante(null);
@@ -274,16 +286,18 @@ export function RegistroCobro({
 
       <button
         type="button"
-        disabled={ocupado || saldado}
+        disabled={ocupado || saldado || cobroReciente}
         onClick={() => cobrar(null)}
         className="rounded-full bg-[#1FA971] px-5 py-3.5 text-[15px] font-extrabold text-white shadow-[0_8px_20px_rgba(31,169,113,0.35)] active:scale-[0.98] disabled:opacity-60"
         style={{ transition: "transform .1s" }}
       >
         {saldado
           ? "Crédito saldado ✓"
-          : ocupado
-            ? "Registrando…"
-            : `Registrar pago · ${UYU(cuotaEfectiva)}`}
+          : cobroReciente
+            ? "Cobro registrado ✓"
+            : ocupado
+              ? "Registrando…"
+              : `Registrar pago · ${UYU(cuotaEfectiva)}`}
       </button>
 
       <div className="flex gap-2.5">
