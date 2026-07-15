@@ -26,6 +26,9 @@ export interface ItemRutaVista {
   /** Cartera vencida: todos sus créditos activos pasaron el plazo. Visible para
    *  recuperar, pero fuera del target/orden del día (no cuenta como "pendiente"). */
   plazoVencido?: boolean;
+  /** Plata recuperada hoy sobre este cliente de cartera vencida (0 = no). Se muestra
+   *  para que el cobrador no lo re-visite (su cobro no cuenta en la cuota del día). */
+  recuperadoHoy?: number;
 }
 
 // Peso de prioridad: cobrar PRIMERO a los de mayor riesgo (menor peso = antes).
@@ -293,9 +296,15 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
                   {it.nombre}
                 </span>
                 {it.plazoVencido ? (
-                  <span className="flex items-center gap-1 text-[11px] font-bold text-[#B9770E]">
-                    ⏳ Cartera vencida · a recuperar
-                  </span>
+                  (it.recuperadoHoy ?? 0) > 0 ? (
+                    <span className="flex items-center gap-1 text-[11px] font-bold text-[#157A50]">
+                      ✓ Recuperaste {UYU(it.recuperadoHoy!)} hoy
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-[11px] font-bold text-[#B9770E]">
+                      ⏳ Cartera vencida · a recuperar
+                    </span>
+                  )
                 ) : (
                   <span className="truncate text-[12px] font-medium text-[#8A93AD]">
                     {it.direccion ?? "Sin dirección"}

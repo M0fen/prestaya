@@ -22,6 +22,10 @@ export interface ItemRuta {
   /** Cliente cuyos créditos activos están TODOS de plazo vencido (cartera vencida):
    *  visible para recuperar, pero fuera del target del día (no infla "Falta $"). */
   plazoVencido: boolean;
+  /** Plata RECUPERADA hoy sobre un cliente de cartera vencida (0 si no aplica). Se
+   *  muestra en la tarjeta para que el cobrador NO vuelva a pasar y cobre de nuevo:
+   *  su cobro no cuenta en la cuota del día, así que sin esto quedaba invisible. */
+  recuperadoHoy: number;
 }
 
 export interface Arqueo {
@@ -228,7 +232,7 @@ export async function getRutaCobrador(
   const items: ItemRuta[] = clientes.map((c) => {
     const cr = creditosDe.get(c.id);
     if (!cr)
-      return { cliente: c, prestamoId: null, cuota: 0, estadoHoy: "sin_credito", pagadoHoy: 0, plazoVencido: false };
+      return { cliente: c, prestamoId: null, cuota: 0, estadoHoy: "sin_credito", pagadoHoy: 0, plazoVencido: false, recuperadoHoy: 0 };
     // No-pago si alguno de sus créditos quedó marcado como visita sin cobro.
     const esNoPago = cr.creditos.some((x) => noPagoPrestamos.has(x.id));
     // Créditos con lo cobrado HOY en CADA uno (para separar recaudo total vs.
@@ -261,6 +265,8 @@ export async function getRutaCobrador(
       estadoHoy: clase.estadoHoy,
       pagadoHoy: clase.pagadoHoyEnTermino, // lo cobrado hacia la cuota de HOY (chip "Abonó")
       plazoVencido: clase.soloVencido,
+      // Recuperación de deuda vieja hoy (solo aplica a cartera vencida pura).
+      recuperadoHoy: clase.soloVencido ? clase.pagadoHoyTotal : 0,
     };
   });
 

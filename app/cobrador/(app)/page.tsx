@@ -76,6 +76,7 @@ export default async function RutaPage() {
     lng: i.cliente.gps_lng,
     calificacion: i.cliente.calificacion,
     plazoVencido: i.plazoVencido,
+    recuperadoHoy: i.recuperadoHoy,
   }));
 
   // Avance de la ruta: clientes "resueltos" hoy (cobrados + no-pago) sobre el
