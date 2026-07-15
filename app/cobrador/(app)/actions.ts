@@ -276,6 +276,7 @@ export async function registrarNoPagoCobrador(input: {
     const m = MOTIVOS_NOPAGO.find((x) => x.id === input.motivo) ?? MOTIVOS_NOPAGO[0];
     const gps_lat = numeroValido(input.gpsLat);
     const gps_lng = numeroValido(input.gpsLng);
+    let duplicado = false;
     try {
       await crearVisita(db, {
         prestamo_id: prestamo.id,
@@ -290,23 +291,28 @@ export async function registrarNoPagoCobrador(input: {
     } catch (e) {
       // Reintento de una op ya guardada (flush cortado): idempotente → ok.
       if (!esDuplicado(e)) throw e;
+      duplicado = true;
     }
 
-    // Bitácora de campo (best-effort).
-    await registrarBitacora(db, {
-      actorId: usuario.id,
-      actorNombre: usuario.nombre,
-      rol: usuario.rol,
-      accion: "no_pago",
-      clienteId: input.clienteId,
-      prestamoId: prestamo.id,
-      detalle: m.label,
-      gpsLat: gps_lat,
-      gpsLng: gps_lng,
-      gpsPrecision: numeroValido(input.gpsPrecision),
-      gpsDenegado: gps_lat == null || gps_lng == null,
-      deviceTs: input.registradoEn ?? null,
-    });
+    // Bitácora de campo SOLO si la visita se creó de verdad (igual que el cobro): en
+    // el reintento idempotente NO se registra, si no una misma visita contaría DOBLE
+    // como acto en la auditoría de campo (score de sospecha, /admin/campo).
+    if (!duplicado) {
+      await registrarBitacora(db, {
+        actorId: usuario.id,
+        actorNombre: usuario.nombre,
+        rol: usuario.rol,
+        accion: "no_pago",
+        clienteId: input.clienteId,
+        prestamoId: prestamo.id,
+        detalle: m.label,
+        gpsLat: gps_lat,
+        gpsLng: gps_lng,
+        gpsPrecision: numeroValido(input.gpsPrecision),
+        gpsDenegado: gps_lat == null || gps_lng == null,
+        deviceTs: input.registradoEn ?? null,
+      });
+    }
 
     revalidatePath("/cobrador");
     revalidatePath(`/cobrador/cliente/${input.clienteId}`);
