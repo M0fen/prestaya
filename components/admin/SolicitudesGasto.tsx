@@ -78,6 +78,28 @@ export function SolicitudesGasto({ solicitudes }: { solicitudes: SolicitudGasto[
             <span className="flex-shrink-0 text-[18px] font-black tabular-nums text-[#C0392B]">{UYU(s.monto)}</span>
           </div>
 
+          {/* Comprobante que adjuntó el cobrador (foto/factura): verificalo antes de aprobar. */}
+          {s.comprobanteUrl ? (
+            <a
+              href={s.comprobanteUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2.5 rounded-[10px] border border-borde bg-suave px-2.5 py-2 hover:bg-[#EEF3FF]"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={s.comprobanteUrl}
+                alt="Comprobante"
+                className="h-12 w-12 flex-shrink-0 rounded-[8px] border border-borde object-cover"
+              />
+              <span className="flex-1 text-[12px] font-bold text-azul">📎 Ver comprobante adjunto →</span>
+            </a>
+          ) : (
+            <span className="w-fit rounded-[10px] bg-[#FBF1DC] px-2.5 py-1.5 text-[11.5px] font-semibold text-[#9A6A0E]">
+              Sin comprobante adjunto
+            </span>
+          )}
+
           {rechazando === s.id ? (
             <div className="flex flex-col gap-2">
               <input

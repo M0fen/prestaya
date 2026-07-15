@@ -18,6 +18,9 @@ export interface SolicitudGasto {
   estado: EstadoSolicitudGasto;
   solicitadoEn: string;
   motivoRechazo: string | null;
+  /** Foto del comprobante/factura que adjuntó el cobrador (0070). null = sin foto
+   *  (solicitudes viejas o entorno sin la migración). */
+  comprobanteUrl: string | null;
 }
 
 function map(r: Record<string, unknown>): SolicitudGasto {
@@ -31,6 +34,7 @@ function map(r: Record<string, unknown>): SolicitudGasto {
     estado: r.estado as EstadoSolicitudGasto,
     solicitadoEn: r.solicitado_en as string,
     motivoRechazo: (r.motivo_rechazo as string | null) ?? null,
+    comprobanteUrl: (r.comprobante_url as string | null) ?? null,
   };
 }
 

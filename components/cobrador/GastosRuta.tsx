@@ -2,13 +2,14 @@
 // Gastos de ruta del cobrador — AHORA con aprobación del admin (0057). El cobrador
 // SOLICITA el gasto ("necesito sacar para X"); queda pendiente hasta que el admin
 // lo apruebe. Recién aprobado sale de la caja y baja el efectivo a entregar.
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { UYU, horaDe } from "@/lib/format";
-import { solicitarGastoRuta } from "@/lib/acciones/gastos";
+import { solicitarGastoRuta, subirComprobanteGasto } from "@/lib/acciones/gastos";
+import { CATEGORIAS_GASTO, pideComprobante, hintComprobante } from "@/lib/gastosRuta";
 import type { SolicitudGasto } from "@/lib/data/solicitudesGasto";
 
-const CATEGORIAS = ["Combustible", "Comida", "Peaje", "Otro"];
+const CATEGORIAS = CATEGORIAS_GASTO;
 
 const ESTADO: Record<SolicitudGasto["estado"], { label: string; bg: string; fg: string }> = {
   pendiente: { label: "Pendiente", bg: "#FDF3E2", fg: "#B9770E" },
@@ -28,19 +29,40 @@ export function GastosRuta({
   const [nota, setNota] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
+  const [comprobante, setComprobante] = useState<string | null>(null);
+  const [subiendo, setSubiendo] = useState(false);
   const [pendiente, startTransition] = useTransition();
 
   const montoN = Math.round(Number(monto) || 0);
+  const requiere = pideComprobante(categoria);
+  const puedeSolicitar = montoN > 0 && !subiendo && (!requiere || !!comprobante);
+
+  // Foto del comprobante: se sube apenas se elige (cámara en el celu) y se guarda
+  // la URL; sin foto válida no se puede solicitar cuando la actividad la exige.
+  const subirFoto = async (e: ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    e.target.value = ""; // permite re-elegir la misma foto
+    if (!f) return;
+    setError(null);
+    setSubiendo(true);
+    const fd = new FormData();
+    fd.append("file", f);
+    const res = await subirComprobanteGasto(fd);
+    setSubiendo(false);
+    if (res.ok) setComprobante(res.url);
+    else setError(res.error);
+  };
 
   const solicitar = () => {
-    if (montoN <= 0) return;
+    if (!puedeSolicitar) return;
     setError(null);
     setOk(false);
     startTransition(async () => {
-      const res = await solicitarGastoRuta({ monto: montoN, categoria, descripcion: nota });
+      const res = await solicitarGastoRuta({ monto: montoN, categoria, descripcion: nota, comprobanteUrl: comprobante });
       if (res.ok) {
         setMonto("");
         setNota("");
+        setComprobante(null);
         setOk(true);
         router.refresh();
       } else setError(res.error);
@@ -104,6 +126,50 @@ export function GastosRuta({
               </button>
             ))}
           </div>
+
+          {/* Comprobante (foto/factura), según la actividad. Obligatorio en
+              combustible/peaje/otro; en comida es opcional. */}
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[11.5px] font-bold text-gris">
+              {hintComprobante(categoria)}
+              {requiere && <span className="text-[#C0392B]"> *</span>}
+            </span>
+            {comprobante ? (
+              <div className="flex items-center gap-2.5">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={comprobante}
+                  alt="Comprobante"
+                  className="h-14 w-14 flex-shrink-0 rounded-[10px] border border-[#DCE3F4] object-cover"
+                />
+                <span className="flex-1 text-[12.5px] font-bold text-[#157A50]">✓ Foto adjunta</span>
+                <button
+                  type="button"
+                  onClick={() => setComprobante(null)}
+                  className="text-[12px] font-bold text-gris underline"
+                >
+                  Cambiar
+                </button>
+              </div>
+            ) : (
+              <label
+                className={`flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-[12px] border border-dashed px-4 py-3 text-[13px] font-bold transition active:scale-[0.99] ${
+                  subiendo ? "border-[#DCE3F4] text-gris" : "border-[#B9C6E8] text-azul"
+                }`}
+              >
+                {subiendo ? "Subiendo…" : "📷 Sacar / adjuntar foto"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={subirFoto}
+                  disabled={subiendo}
+                  className="hidden"
+                />
+              </label>
+            )}
+          </div>
+
           <div className="flex items-center gap-2">
             <div className="flex flex-1 items-center gap-1 rounded-[12px] border border-[#DCE3F4] px-3 py-2.5">
               <span className="text-[15px] font-bold text-gris">$</span>
@@ -119,7 +185,7 @@ export function GastosRuta({
             <button
               type="button"
               onClick={solicitar}
-              disabled={pendiente || montoN <= 0}
+              disabled={pendiente || !puedeSolicitar}
               className="min-h-11 rounded-[12px] bg-[#1FA971] px-4 py-3 text-[14px] font-extrabold text-white transition-transform active:scale-95 disabled:opacity-40"
             >
               {pendiente ? "…" : "Solicitar"}

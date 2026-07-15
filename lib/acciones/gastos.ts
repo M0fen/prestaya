@@ -17,11 +17,14 @@ import { getSolicitudGasto } from "@/lib/data/solicitudesGasto";
 import { registrarBitacora } from "@/lib/data/bitacora";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { enviarMensajeDb } from "@/lib/data/chat";
+import { CATEGORIAS_GASTO, pideComprobante } from "@/lib/gastosRuta";
 
 type Resultado = { ok: true } | { ok: false; error: string };
 
-const CATEGORIAS = new Set(["Combustible", "Comida", "Peaje", "Otro"]);
+const CATEGORIAS = new Set<string>(CATEGORIAS_GASTO);
 const money = (n: number) => `$${Math.round(n).toLocaleString("es-UY")}`;
+/** Solo http(s) (la foto la subió `subirComprobanteGasto` a nuestro bucket). */
+const esUrlComprobante = (s: string | null | undefined) => /^https?:\/\/\S+$/i.test((s ?? "").trim());
 
 /** Avisa al cobrador, en SU hilo de chat, cómo quedó su solicitud de gasto.
  *  Best-effort: si falla, no rompe la aprobación/rechazo (la plata ya se movió).
@@ -45,11 +48,13 @@ async function avisarCobrador(
   }
 }
 
-/** (Cobrador) Solicita un gasto de ruta. Queda PENDIENTE de aprobación del admin. */
+/** (Cobrador) Solicita un gasto de ruta. Queda PENDIENTE de aprobación del admin.
+ *  Según la actividad, EXIGE la foto del comprobante/factura (control anti-fraude). */
 export async function solicitarGastoRuta(input: {
   monto: number;
   categoria?: string | null;
   descripcion?: string | null;
+  comprobanteUrl?: string | null;
 }): Promise<Resultado> {
   const usuario = await getUsuarioActual();
   if (!usuario || !usuario.activo || usuario.rol !== "cobrador") {
@@ -59,6 +64,12 @@ export async function solicitarGastoRuta(input: {
   if (!(monto > 0)) return { ok: false, error: "El monto debe ser mayor a 0." };
   const categoria = CATEGORIAS.has(input.categoria ?? "") ? (input.categoria as string) : "Otro";
   const descripcion = (input.descripcion ?? "").trim().slice(0, 160) || null;
+  // Comprobante: solo aceptamos una URL de NUESTRO bucket; obligatorio según la
+  // actividad (combustible/peaje/otro). Sin foto válida no se puede solicitar.
+  const comprobanteUrl = esUrlComprobante(input.comprobanteUrl) ? (input.comprobanteUrl as string).trim() : null;
+  if (pideComprobante(categoria) && !comprobanteUrl) {
+    return { ok: false, error: "Adjuntá la foto del comprobante o factura para este gasto." };
+  }
 
   try {
     const db = await createSupabaseServer();
@@ -67,10 +78,11 @@ export async function solicitarGastoRuta(input: {
       monto,
       categoria,
       descripcion,
+      comprobante_url: comprobanteUrl,
       solicitado_por: usuario.id,
       solicitado_por_nombre: usuario.nombre,
     });
-    if (error) return { ok: false, error: "No se pudo enviar la solicitud. ¿Corriste la migración 0057?" };
+    if (error) return { ok: false, error: "No se pudo enviar la solicitud. ¿Corriste las migraciones 0057 y 0070?" };
     await registrarBitacora(db, {
       actorId: usuario.id,
       actorNombre: usuario.nombre,
@@ -83,6 +95,35 @@ export async function solicitarGastoRuta(input: {
     return { ok: true };
   } catch {
     return { ok: false, error: "No se pudo enviar la solicitud. Probá de nuevo." };
+  }
+}
+
+/** (Cobrador) Sube la FOTO del comprobante/factura de un gasto y devuelve su URL
+ *  pública (bucket 'anuncios', service_role). Valida tipo y tamaño. La URL después
+ *  viaja en `solicitarGastoRuta`. */
+export async function subirComprobanteGasto(
+  formData: FormData,
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const u = await getUsuarioActual();
+  if (!u || !u.activo || u.rol !== "cobrador") return { ok: false, error: "Solo un cobrador sube el comprobante." };
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) return { ok: false, error: "Elegí una foto." };
+  if (file.size > 5 * 1024 * 1024) return { ok: false, error: "La foto es muy grande (máx. 5 MB)." };
+  const tipos = ["image/png", "image/jpeg", "image/webp"];
+  if (!tipos.includes(file.type)) return { ok: false, error: "Sacá una foto (JPG/PNG/WEBP)." };
+
+  try {
+    const admin = createSupabaseAdmin();
+    const ext = file.type.split("/")[1].replace("jpeg", "jpg");
+    const nombre = `gasto-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const buf = Buffer.from(await file.arrayBuffer());
+    const { error } = await admin.storage.from("anuncios").upload(nombre, buf, { contentType: file.type, upsert: false });
+    if (error) throw error;
+    const { data } = admin.storage.from("anuncios").getPublicUrl(nombre);
+    return { ok: true, url: data.publicUrl };
+  } catch {
+    return { ok: false, error: "No se pudo subir la foto. Probá de nuevo." };
   }
 }
 
