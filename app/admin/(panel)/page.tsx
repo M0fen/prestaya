@@ -514,7 +514,7 @@ function ControlDelDia({
           href="/admin/mora"
           titulo="Mora crítica"
           valor={moraCriticos}
-          sub={moraCriticos > 0 ? "16+ días de atraso" : "sin mora crítica"}
+          sub={moraCriticos > 0 ? "en alto riesgo de castigo" : "sin mora crítica"}
         />
         <ControlTile
           activo={anomalias > 0}

@@ -247,14 +247,21 @@ export default async function JornadaPage({
             <span className="text-[18px]">⛽</span>
             <div className="flex flex-col">
               <span className="text-[13px] font-extrabold text-tinta">
-                {gastosPend} gasto{gastosPend === 1 ? "" : "s"} de ruta esperando tu aprobación
+                {usuario.rol === "admin"
+                  ? `${gastosPend} gasto${gastosPend === 1 ? "" : "s"} de ruta esperando tu aprobación`
+                  : `${gastosPend} gasto${gastosPend === 1 ? "" : "s"} de ruta de tu equipo`}
               </span>
+              {/* El supervisor VE y sigue de cerca; el admin es quien APRUEBA (0057). */}
               <span className="text-[11.5px] font-medium text-gris">
-                El cobrador está parado esperando — aprobalo o rechazalo.
+                {usuario.rol === "admin"
+                  ? "El cobrador está parado esperando — aprobalo o rechazalo."
+                  : "El admin los aprueba; vos los seguís de cerca."}
               </span>
             </div>
           </div>
-          <span className="flex-shrink-0 text-[12px] font-bold text-ambar-osc">Aprobar →</span>
+          <span className="flex-shrink-0 text-[12px] font-bold text-ambar-osc">
+            {usuario.rol === "admin" ? "Aprobar →" : "Ver →"}
+          </span>
         </Link>
       )}
 
