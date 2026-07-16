@@ -95,18 +95,14 @@ export default function CensarPage() {
       else setError(res.error);
     });
 
-  // Texto del estado del GPS (distingue denegó / falló / señal débil).
+  // Para la DEMO: sin mensajes de error de permiso/GPS (nada de "permiso denegado").
+  // La captura sigue igual (auto al abrir + botón Reintentar); solo se muestra el
+  // estado neutro o la captura OK. (Restaurar el detalle denegó/falló post-tutorial.)
   const estadoTexto = ubicando
     ? "Ubicando…"
-    : gps?.estado === "denegado"
-      ? "Permiso denegado — activá la ubicación del teléfono"
-      : gps?.estado === "no_soportado"
-        ? "Este teléfono no da ubicación"
-        : gps?.estado === "timeout" || gps?.estado === "sin_fix"
-          ? "No se pudo ubicar — reintentá con señal / cielo abierto"
-          : gpsOk
-            ? `✓ Capturada${gps.precision != null ? ` (±${Math.round(gps.precision)} m)` : ""}`
-            : "Tocá para capturar el GPS";
+    : gpsOk
+      ? `✓ Capturada${gps.precision != null ? ` (±${Math.round(gps.precision)} m)` : ""}`
+      : "Tocá para capturar la ubicación";
 
   return (
     <div className="flex flex-col gap-4">
@@ -140,15 +136,7 @@ export default function CensarPage() {
         >
           <span className="flex min-w-0 flex-col">
             <span className="text-[13px] font-bold text-tinta">Ubicación de la casa</span>
-            <span
-              className={`text-[11.5px] font-medium ${
-                gps?.estado === "denegado" || gps?.estado === "timeout" || gps?.estado === "sin_fix"
-                  ? "text-[#C0392B]"
-                  : gpsOk
-                    ? "text-[#157A50]"
-                    : "text-[#8A93AD]"
-              }`}
-            >
+            <span className={`text-[11.5px] font-medium ${gpsOk ? "text-[#157A50]" : "text-[#8A93AD]"}`}>
               {estadoTexto}
             </span>
           </span>
@@ -164,15 +152,6 @@ export default function CensarPage() {
             una mejor ubicación.
           </span>
         )}
-        {/* Sin ubicación válida: se puede guardar igual, pero se avisa (la geo-cerca
-            de este cliente quedaría ciega). El botón cambia a "sin ubicación". */}
-        {!gpsOk && !ubicando && gps && (
-          <span className="text-[11.5px] font-medium text-[#8A93AD]">
-            Sin ubicación no se podrá validar la geo-cerca de este cliente. Podés guardar
-            igual, pero mejor reintentá con señal.
-          </span>
-        )}
-
         {error && <span className="text-[12.5px] font-semibold text-[#C0392B]">{error}</span>}
 
         <button
@@ -180,7 +159,7 @@ export default function CensarPage() {
           disabled={pending}
           className="rounded-full bg-azul px-5 py-3 text-[14px] font-bold text-white disabled:opacity-60"
         >
-          {pending ? "Guardando…" : gpsOk ? "Guardar cliente" : "Guardar sin ubicación"}
+          {pending ? "Guardando…" : "Guardar cliente"}
         </button>
       </form>
     </div>

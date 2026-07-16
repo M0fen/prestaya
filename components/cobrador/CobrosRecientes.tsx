@@ -22,8 +22,12 @@ export type PagoReciente = {
 export function CobrosRecientes({ pagos }: { pagos: PagoReciente[] }) {
   const router = useRouter();
   const [ahora, setAhora] = useState<number>(() => Date.now());
-  const [pendiente, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // Deshechos de forma OPTIMISTA: se marcan "Deshecho ✓" al instante y el servidor
+  // + el refresco de la página sincronizan por detrás. Antes el botón quedaba
+  // "Deshaciendo…" hasta que TODO el round-trip + re-fetch terminaba (se sentía lento).
+  const [deshechos, setDeshechos] = useState<Set<string>>(new Set());
 
   // Tick para refrescar la cuenta regresiva de la ventana de 1 h.
   useEffect(() => {
@@ -35,10 +39,16 @@ export function CobrosRecientes({ pagos }: { pagos: PagoReciente[] }) {
 
   const deshacer = (id: string) => {
     setError(null);
+    setDeshechos((s) => new Set(s).add(id)); // efecto inmediato en la UI
     startTransition(async () => {
       const r = await deshacerPagoAction({ pagoId: id });
-      if (!r.ok) setError(r.error);
-      else router.refresh();
+      if (!r.ok) {
+        // Falló: revertir el optimismo y avisar.
+        setDeshechos((s) => { const n = new Set(s); n.delete(id); return n; });
+        setError(r.error);
+      } else {
+        router.refresh(); // el pago ya quedó anulado; el cartón se actualiza por detrás
+      }
     });
   };
 
@@ -53,14 +63,15 @@ export function CobrosRecientes({ pagos }: { pagos: PagoReciente[] }) {
           return (
             <li key={p.id} className="flex items-center justify-between gap-2 text-[13px]">
               <span className="font-bold text-tinta tabular-nums">{UYU(p.monto)}</span>
-              {puede ? (
+              {deshechos.has(p.id) ? (
+                <span className="text-[11px] font-bold text-[#157A50]">Deshecho ✓</span>
+              ) : puede ? (
                 <button
                   type="button"
                   onClick={() => deshacer(p.id)}
-                  disabled={pendiente}
-                  className="rounded-full border border-[#F3C0B8] bg-[#FBE4E2] px-3 py-1.5 text-[12px] font-bold text-[#C0392B] active:scale-95 disabled:opacity-50"
+                  className="rounded-full border border-[#F3C0B8] bg-[#FBE4E2] px-3 py-1.5 text-[12px] font-bold text-[#C0392B] active:scale-95"
                 >
-                  {pendiente ? "Deshaciendo…" : `Deshacer · ${min} min`}
+                  Deshacer · {min} min
                 </button>
               ) : (
                 <span className="text-[11px] font-medium text-gris">
