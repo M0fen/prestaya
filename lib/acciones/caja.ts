@@ -11,6 +11,7 @@ import { getUsuarioActual, esGestor } from "@/lib/auth";
 import { alcanceDelActor } from "@/lib/data/alcance";
 import { registrarMovimientoCaja, type TipoMovimiento, type CuentaCaja } from "@/lib/data/caja";
 import { registrarAuditoria } from "@/lib/data/auditoria";
+import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
 import { UYU } from "@/lib/format";
 
 const TIPOS: TipoMovimiento[] = ["ingreso", "egreso", "desembolso", "retiro"];
@@ -40,6 +41,12 @@ export async function agregarMovimientoCaja(input: {
   }
   const monto = Math.round(Number(input.monto));
   if (!(monto > 0)) return { ok: false, error: "El monto debe ser mayor a 0." };
+
+  // Kill switch (modo solo-lectura): un movimiento de caja MUEVE plata (egresos,
+  // desembolsos, retiros, aportes de capital) → se congela durante un freeze de
+  // emergencia, igual que cobros/comisiones/gastos.
+  const bloqueo = await bloqueoSoloLectura();
+  if (bloqueo) return bloqueo;
 
   // Separación por zona: un supervisor solo puede atribuir un movimiento a un
   // cobrador de SU zona (no puede "framear" a otra zona ni inflarle gastos).

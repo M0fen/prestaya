@@ -17,6 +17,7 @@ import {
 import { getPrestamoPorId } from "@/lib/data/prestamos";
 import { evaluarRenovacion, RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
 import { registrarAuditoria } from "@/lib/data/auditoria";
+import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
 import { UYU } from "@/lib/format";
 import type { FrecuenciaPrestamo } from "@/types/db";
 
@@ -51,6 +52,9 @@ export async function renovarCredito(input: {
   const monto = Math.round(Number(input.monto));
   const totalDias = Math.round(Number(input.totalDias));
   if (!(monto > 0) || !(totalDias > 0)) return { ok: false, error: "Revisá el monto y las cuotas." };
+  // Kill switch: renovar COLOCA capital (crea un crédito nuevo) → congelar en freeze.
+  const bloqueo = await bloqueoSoloLectura();
+  if (bloqueo) return bloqueo;
 
   const db = await createSupabaseServer();
 
@@ -150,6 +154,8 @@ export async function aprobarSolicitud(id: string): Promise<ResultadoAlta> {
   const u = await getUsuarioActual();
   if (!u || !u.activo || !esAdmin(u.rol))
     return { ok: false, error: "Solo el administrador aprueba renovaciones." };
+  const bloqueo = await bloqueoSoloLectura(); // kill switch: aprobar coloca capital
+  if (bloqueo) return bloqueo;
   try {
     const db = await createSupabaseServer();
     const s = await getSolicitudPorId(db, id);

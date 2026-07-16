@@ -27,6 +27,7 @@ import {
   getSolicitudPendienteDePago,
 } from "@/lib/data/anulaciones";
 import { registrarAuditoria } from "@/lib/data/auditoria";
+import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
 import type { Usuario } from "@/types/db";
 
 type Resultado = { ok: true } | { ok: false; error: string };
@@ -64,6 +65,9 @@ const VENTANA_DESHACER_MS = 60 * 60 * 1000; // 1 hora
 export async function deshacerPagoAction(input: { pagoId: string }): Promise<Resultado> {
   const u = await getUsuarioActual();
   if (!u || !u.activo) return { ok: false, error: "Sesión no válida." };
+  // Kill switch: deshacer muta el libro (baja pagado_acum) → congelar en un freeze.
+  const bloqueo = await bloqueoSoloLectura();
+  if (bloqueo) return bloqueo;
 
   // Traigo los datos de control con service_role (necesito registrado_por/_en,
   // que el RLS del cobrador no siempre deja leer de pagos de otros). La AUTORIZACIÓN
@@ -111,6 +115,8 @@ export async function anularPagoDirectoAction(input: {
   if (!ctx) return { ok: false, error: "Sesión no válida." };
   if (!puedeAnularPagoDirecto(ctx.actor))
     return { ok: false, error: "Solo el administrador anula pagos directo." };
+  const bloqueo = await bloqueoSoloLectura(); // kill switch: anular muta el libro
+  if (bloqueo) return bloqueo;
   const motivo = (input.motivo ?? "").trim();
   if (motivo.length < 3) return { ok: false, error: "Escribí el motivo de la anulación." };
 
@@ -180,6 +186,9 @@ export async function solicitarAnulacionAction(input: {
 export async function confirmarAnulacionAction(input: { solicitudId: string }): Promise<Resultado> {
   const ctx = await actorYUsuario();
   if (!ctx) return { ok: false, error: "Sesión no válida." };
+  // Kill switch: confirmar la anulación muta el libro (baja pagado_acum) → congelar.
+  const bloqueo = await bloqueoSoloLectura();
+  if (bloqueo) return bloqueo;
 
   const db = await createSupabaseServer();
   const sol = await getSolicitud(db, input.solicitudId);

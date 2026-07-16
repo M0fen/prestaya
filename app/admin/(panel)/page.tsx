@@ -82,7 +82,11 @@ export default async function DashboardPage({
   const reportesNuevos = resumen.reportesNuevos;
 
   const { cartera, recaudacion, mora, cobradores } = resumen;
-  const alDia = Math.max(0, cartera.carteraPorCobrar - mora.monto);
+  // "Al día" = saldo total − mora EN TÉRMINO − CARTERA VENCIDA (castigo). Antes se
+  // restaba solo la mora en término, así que la cartera vencida (deuda de plazo
+  // terminado) se pintaba VERDE "Al día" → el dueño veía una cartera "sana" que en
+  // realidad es deuda de castigo. Ahora la vencida es su propio gajo.
+  const alDia = Math.max(0, cartera.carteraPorCobrar - mora.monto - mora.carteraVencida);
 
   // ── CONTROL DEL DÍA (anti-fuga, primera plana) ──────────────────────────
   // Las 4 señales de riesgo del dueño, de un vistazo, cada una clickeable a
@@ -423,7 +427,8 @@ export default async function DashboardPage({
             centroEtiqueta="saldo total"
             segmentos={[
               { etiqueta: "Al día", valor: alDia, color: "#1FA971" },
-              { etiqueta: "Vencido (mora)", valor: mora.monto, color: "#E06A6A" },
+              { etiqueta: "En mora", valor: mora.monto, color: "#E8A317" },
+              { etiqueta: "Cartera vencida", valor: mora.carteraVencida, color: "#D64545" },
             ]}
           />
         </section>

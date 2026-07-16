@@ -101,8 +101,12 @@ export async function registrarPagoPanel(input: {
       r.dias.find((d) => d.estado === "futuro");
     const dia = objetivo?.dia ?? Math.max(1, r.diaActual);
 
-    const monto = montoPedido != null ? montoPedido : Math.round(prestamo.cuota_diaria);
-    if (monto <= 0) return { ok: false, error: "El monto debe ser mayor a 0." };
+    const solicitado = montoPedido != null ? montoPedido : Math.round(prestamo.cuota_diaria);
+    // Anti sobre-pago (igual que el cobro del cobrador): nunca registrar más de lo
+    // que RESTA del crédito. `r.falta` es el saldo real recalculado del libro
+    // inmutable. Sin esto, un pago de oficina podía dejar pagado_acum > total.
+    const monto = Math.min(solicitado, r.falta);
+    if (monto <= 0) return { ok: false, error: "Este crédito ya está saldado." };
 
     // Idempotencia: nonce del cliente (estable por-envío) si vino y es un uuid
     // válido; si no, fallback al hash determinista por minuto. El nonce cierra el

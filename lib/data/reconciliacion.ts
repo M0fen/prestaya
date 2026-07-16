@@ -200,21 +200,27 @@ export async function getInfoEmpalme(db: SupabaseClient): Promise<InfoEmpalme> {
     const cuota = N(r.cuota_diaria);
     const drift = pagadoAcum - pagosSuma;
     const exceso = pagosSuma - totalAPagar;
+    const estado = (r.estado as string) ?? "?";
     const esDrift = Math.abs(drift) >= 1;
+    // Sobre-cobro MATERIAL solo en crédito ACTIVO (se está cobrando de más AHORA).
+    // Los de créditos ya finalizados son baseline del empalme → MISMO criterio que
+    // el cron (`reconciliarDia`), para que el panel no marque en rojo lo que el cron
+    // da por sano (antes el panel contaba finalizados y contradecía su propia leyenda).
     const materialSobre =
       exceso >= 1 &&
+      estado === "activo" &&
       ((cuota > 0 && exceso >= cuota) || (totalAPagar > 0 && exceso >= totalAPagar * 0.05));
     return {
       creditoId: r.id as string,
       clienteNombre: nombre.get(r.id as string) ?? "—",
-      estado: (r.estado as string) ?? "?",
+      estado,
       pagadoAcum,
       pagosSuma,
       totalAPagar,
       drift,
       exceso,
       tipo: esDrift ? "drift" : "sobrecobro",
-      // Un drift del denormalizado siempre es material; un sobre-cobro, según monto.
+      // Un drift del denormalizado siempre es material; un sobre-cobro, solo si activo.
       material: esDrift || materialSobre,
     };
   });

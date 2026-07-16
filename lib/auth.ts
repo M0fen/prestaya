@@ -37,7 +37,7 @@ export const getUsuarioActual = cache(async (): Promise<Usuario | null> => {
 /** Exige un usuario interno ACTIVO; si no, manda al login. Devuelve el usuario. */
 export async function requireUsuario(): Promise<Usuario> {
   const u = await getUsuarioActual();
-  if (!u || !u.activo) redirect("/admin/login");
+  if (!u || !u.activo) redirect("/ingresar"); // ruta real de login (no existe /admin/login)
   return u;
 }
 

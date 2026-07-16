@@ -9,7 +9,7 @@
 //  (para que un cron/CI lo detecte).
 // ─────────────────────────────────────────────────────────────────────────
 import { createClient } from "@supabase/supabase-js";
-import { reconciliar, invRecaudoDia, invHuerfanos } from "../lib/reconciliacion.ts";
+import { reconciliar, invHuerfanos } from "../lib/reconciliacion.ts";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -93,36 +93,24 @@ const creditos = prestamos.map((p) => {
   };
 });
 
-// 3) Recaudo de HOY (día de Uruguay, UTC−3) — libro de pagos vs caja.
+// 3) Recaudo de HOY (día de Uruguay, UTC−3) — solo informativo (Σ del libro).
+//    NO se compara contra `movimientos_caja`: ahí NO están los cobros (viven en
+//    `pagos`); esa tabla tiene gastos/desembolsos/retiros, así que compararla contra
+//    el recaudo del libro daba un FALSO "no cuadra" cualquier día con gastos. La
+//    consistencia recaudo↔caja bien hecha (libro vs el componente de cobros de la
+//    caja) es un follow-up; hasta entonces esta invariante no se corre acá.
 const hoyUY = new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10);
 const desdeHoy = `${hoyUY}T00:00:00-03:00`;
 const { data: pagosHoy } = await db.from("pagos").select("monto").eq("anulado", false).gte("registrado_en", desdeHoy);
 const recaudoLibro = (pagosHoy ?? []).reduce((s, p) => s + N(p.monto), 0);
-let recaudoCaja = null;
-try {
-  const { data: mov, error } = await db
-    .from("movimientos_caja")
-    .select("monto, tipo")
-    .gte("creado_en", desdeHoy);
-  if (!error && mov) {
-    // Ingresos de caja del día (los cobros que entraron a la caja).
-    recaudoCaja = mov.filter((m) => (m.tipo ?? "").includes("ingreso") || N(m.monto) > 0)
-      .reduce((s, m) => s + Math.abs(N(m.monto)), 0);
-  }
-} catch { /* movimientos_caja opcional */ }
 
-// 4) Correr las invariantes.
-const extra = [
-  ...invHuerfanos(huerfanos),
-  // Comparo el recaudo del libro con la caja SOLO si hay datos de caja del día.
-  ...(recaudoCaja != null && recaudoCaja > 0 ? invRecaudoDia({ pagos: recaudoLibro, caja: recaudoCaja }) : []),
-];
+// 4) Correr las invariantes de saldo (drift / sobre-cobro / huérfanos).
+const extra = [...invHuerfanos(huerfanos)];
 const r = reconciliar(creditos, extra);
 
 console.log("\n════════ RESULTADO ════════");
 console.log(`créditos verificados: ${r.totalCreditos}`);
-console.log(`recaudo de hoy (${hoyUY}): libro $${recaudoLibro.toLocaleString("es-UY")}` +
-  (recaudoCaja != null ? ` · caja $${recaudoCaja.toLocaleString("es-UY")}` : " · (sin datos de caja)"));
+console.log(`recaudo de hoy (${hoyUY}): libro $${recaudoLibro.toLocaleString("es-UY")} (informativo)`);
 if (r.ok) {
   console.log("\n✅ LA PLATA CUADRA — todas las invariantes OK.");
   process.exit(0);

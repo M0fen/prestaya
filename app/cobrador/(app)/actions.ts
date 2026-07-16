@@ -82,8 +82,9 @@ export async function relevarCliente(input: {
 
     if (documento) {
       const yaExiste = await getClientePorDocumento(db, documento);
-      if (yaExiste)
-        return { ok: false, error: `Ya hay un cliente con ese documento: ${yaExiste.nombre}.` };
+      // No se devuelve el NOMBRE: el chequeo lee cross-zona con service_role, así que
+      // filtrar el nombre dejaría enumerar clientes de otra zona por documento (fuga PII).
+      if (yaExiste) return { ok: false, error: "Ese documento ya está registrado." };
     }
 
     const cliente = await crearClienteCenso(db, {
