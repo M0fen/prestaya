@@ -6,6 +6,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import { cache } from "react";
 import { redirect } from "next/navigation";
+import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getUsuarioPorAuthId } from "@/lib/data/usuarios";
 import { getZonasDeSupervisor } from "@/lib/data/zonas";
@@ -19,17 +20,26 @@ import type { Rol, Usuario } from "@/types/db";
  *  UNA sola vez por request y las demás reciben el resultado memoizado. */
 export const getUsuarioActual = cache(async (): Promise<Usuario | null> => {
   const db = await createSupabaseServer();
-  // getUser() puede LANZAR (o devolver error) si el token está vencido/roto y el
-  // refresh falla con 400 "Bad Request". Eso NO es un crash: es "no hay sesión"
-  // → devolvemos null y las guardas mandan al login. Antes tumbaba la página.
+  // getUser() valida el token CONTRA Auth. Distinguimos:
+  //  · token inválido (4xx) → no hay sesión → null (las guardas mandan al login).
+  //  · BLIP transitorio (red/5xx) → NO deslogueamos: caemos al JWT LOCAL (getSession,
+  //    sin round-trip si no venció) para conservar la sesión durante el hipo de Auth.
+  //  El RLS sigue siendo el gate real (el JWT se valida por firma en cada query).
+  const porSesionLocal = async (): Promise<Usuario | null> => {
+    try {
+      const { data: s } = await db.auth.getSession();
+      return s.session?.user ? await getUsuarioPorAuthId(db, s.session.user.id) : null;
+    } catch {
+      return null;
+    }
+  };
   try {
-    const {
-      data: { user },
-      error,
-    } = await db.auth.getUser();
-    if (error || !user) return null;
-    return await getUsuarioPorAuthId(db, user.id);
-  } catch {
+    const { data, error } = await db.auth.getUser();
+    if (data.user) return await getUsuarioPorAuthId(db, data.user.id);
+    if (error && isAuthRetryableFetchError(error)) return await porSesionLocal();
+    return null;
+  } catch (e) {
+    if (isAuthRetryableFetchError(e)) return await porSesionLocal();
     return null;
   }
 });
