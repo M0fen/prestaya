@@ -90,7 +90,8 @@ function Fila({
         const r1 = await setComisionPct(f.cobradorId, pctN);
         if (!r1.ok) { setError(r1.error); return; }
       }
-      const res = await liquidarComision({ cobradorId: f.cobradorId, nombre: f.nombre, monto: comision, periodo: etiqueta, periodoKey });
+      // El monto y la clave los RECOMPUTA el servidor (no se confían del cliente).
+      const res = await liquidarComision({ cobradorId: f.cobradorId, periodoKey });
       if (res.ok) {
         setOkMsg("Liquidada ✓");
         if (res.reciboNumero) setReciboNum(res.reciboNumero);

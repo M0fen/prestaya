@@ -9,7 +9,8 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { reportarError } from "@/lib/observabilidad";
 import { getUsuarioActual, esAdmin } from "@/lib/auth";
-import { setComisionPctDb } from "@/lib/data/comisiones";
+import { setComisionPctDb, getComisionesPeriodo } from "@/lib/data/comisiones";
+import type { Periodo } from "@/lib/data/periodo";
 import { registrarMovimientoCaja } from "@/lib/data/caja";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { crearReciboDb } from "@/lib/data/recibos";
@@ -44,33 +45,48 @@ export async function setComisionPct(cobradorId: string, pct: number): Promise<R
   }
 }
 
+const PERIODOS: Periodo[] = ["dia", "semana", "mes", "anio"];
+
 export async function liquidarComision(input: {
   cobradorId: string;
-  nombre: string;
-  monto: number;
-  periodo: string; // etiqueta legible (para la descripción)
-  periodoKey: string; // clave canónica (candado idempotente)
+  /** Clave canónica del período (mes:2026-07). El monto y la clave se RECOMPUTAN
+   *  en el servidor; el cliente no envía ni el monto ni una clave arbitraria. */
+  periodoKey: string;
 }): Promise<ResultadoLiquidar> {
   const u = await getUsuarioActual();
   if (!u || !u.activo || !esAdmin(u.rol))
     return { ok: false, error: "Solo el administrador puede liquidar comisiones." };
-  const monto = Math.round(Number(input.monto) || 0);
-  if (!(monto > 0)) return { ok: false, error: "La comisión es cero." };
-  if (!input.periodoKey) return { ok: false, error: "Período inválido." };
-
   // Kill switch (modo solo-lectura): liquidar comisión SACA plata de la caja → se
   // congela durante un freeze de emergencia.
   const bloqueo = await bloqueoSoloLectura();
   if (bloqueo) return bloqueo;
+  if (!input.cobradorId || !input.periodoKey) return { ok: false, error: "Datos inválidos." };
 
   const db = await createSupabaseServer();
+
+  // RECOMPUTAR el monto y la clave SERVER-SIDE (jamás confiar en el cliente): si el
+  // navegador eligiera la clave, el candado unique(cobrador, periodo_key) se evadiría
+  // con un string distinto ("mes:2026-07 " con un espacio → otra fila → DOBLE egreso),
+  // y el monto saldría por lo que enviara el cliente. Se deriva el período de la clave
+  // y se recalcula la comisión autoritativa (recaudo del período × pct, dueño de ruta).
+  const periodo = (input.periodoKey.split(":")[0] ?? "") as Periodo;
+  if (!PERIODOS.includes(periodo)) return { ok: false, error: "Período inválido." };
+  const resumen = await getComisionesPeriodo(db, periodo);
+  if (resumen.periodoKey !== input.periodoKey)
+    return { ok: false, error: "El período cambió. Recargá la página y volvé a intentar." };
+  const fila = resumen.filas.find((f) => f.cobradorId === input.cobradorId);
+  const monto = Math.round(fila?.comision ?? 0);
+  if (!fila || !(monto > 0)) return { ok: false, error: "La comisión es cero." };
+  const nombre = fila.nombre;
+  const periodoKey = resumen.periodoKey; // canónico (no el string del cliente)
+  const periodoLabel = resumen.etiqueta;
 
   // CANDADO: registrar la liquidación ANTES de tocar la caja. El unique
   // (cobrador, período) hace que un segundo intento (doble clic / ya liquidado)
   // falle con 23505 → nunca se paga dos veces la misma comisión.
   const { error: eLiq } = await db.from("comisiones_liquidadas").insert({
     cobrador_id: input.cobradorId,
-    periodo_key: input.periodoKey,
+    periodo_key: periodoKey,
     monto,
     liquidado_por: u.id,
     liquidado_por_nombre: u.nombre,
@@ -86,7 +102,7 @@ export async function liquidarComision(input: {
       tipo: "egreso",
       monto,
       categoria: "Comisión",
-      descripcion: `Comisión ${input.periodo} · ${input.nombre}`,
+      descripcion: `Comisión ${periodoLabel} · ${nombre}`,
       cobradorId: input.cobradorId,
       registradoPor: u.id,
     });
@@ -96,7 +112,7 @@ export async function liquidarComision(input: {
       accion: "Liquidó comisión",
       entidad: "cobrador",
       entidadId: input.cobradorId,
-      detalle: `${input.nombre}: $${monto.toLocaleString("es-UY")} (${input.periodo})`,
+      detalle: `${nombre}: $${monto.toLocaleString("es-UY")} (${periodoLabel})`,
     });
 
     // Emite el comprobante de pago de la comisión (numerado, con monto en letras).
@@ -105,10 +121,10 @@ export async function liquidarComision(input: {
     try {
       const recibo = await crearReciboDb(db, {
         trabajadorId: input.cobradorId,
-        trabajadorNombre: input.nombre,
+        trabajadorNombre: nombre,
         concepto: "Comisión",
         monto,
-        periodo: input.periodo,
+        periodo: periodoLabel,
         nota: null,
         emitidoPor: u.id,
         emitidoPorNombre: u.nombre,
@@ -123,14 +139,14 @@ export async function liquidarComision(input: {
     revalidatePath("/admin/recibos");
     return { ok: true, reciboNumero };
   } catch (e) {
-    reportarError("liquidarComision", e, { cobradorId: input.cobradorId, periodoKey: input.periodoKey });
+    reportarError("liquidarComision", e, { cobradorId: input.cobradorId, periodoKey });
     // La caja falló DESPUÉS del candado → revertir para no dejar "liquidado"
     // sin el egreso (si no, quedaría marcado pagado sin haber salido de caja).
     await db
       .from("comisiones_liquidadas")
       .delete()
       .eq("cobrador_id", input.cobradorId)
-      .eq("periodo_key", input.periodoKey);
+      .eq("periodo_key", periodoKey);
     return { ok: false, error: "No se pudo registrar el egreso. ¿Corriste la migración 0010?" };
   }
 }
