@@ -14,6 +14,18 @@ try {
   /* si la URL no es válida, la CSP queda con 'self' solamente */
 }
 
+// Host de ingest de Sentry (navegador) para la CSP. Se DERIVA del DSN público
+// (formato https://<key>@<host>/<proj> → origin = https://<host>). Sin DSN no
+// suma nada (la CSP no se abre de más). Necesario para que el SDK del navegador
+// pueda POSTear los errores; sin él la CSP bloquearía el envío.
+let sentryHost = "";
+try {
+  const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN || "";
+  if (dsn) sentryHost = new URL(dsn).origin;
+} catch {
+  /* DSN inválido → sin host de Sentry en la CSP */
+}
+
 // Content-Security-Policy. Permite lo que la app REALMENTE usa:
 //  · Next hidrata con scripts/estilos inline → 'unsafe-inline' (sin nonce).
 //  · Supabase: auth (https) + realtime del chat (wss).
@@ -34,7 +46,7 @@ const csp = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://*.tile.openstreetmap.org",
   "font-src 'self' data:",
-  `connect-src 'self'${supabaseHttp ? " " + supabaseHttp : ""}${supabaseWs ? " " + supabaseWs : ""}`,
+  `connect-src 'self'${supabaseHttp ? " " + supabaseHttp : ""}${supabaseWs ? " " + supabaseWs : ""}${sentryHost ? " " + sentryHost : ""}`,
   "worker-src 'self' blob:",
   "manifest-src 'self'",
   "media-src 'self'",
