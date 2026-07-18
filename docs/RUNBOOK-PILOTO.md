@@ -234,11 +234,17 @@ trace, el contexto y avisos por mail/Slack. Sin Sentry, un error de plata queda 
 los logs de Vercel (grepeable por `[PY-ERROR]`, pero hay que ir a buscarlo). Con Sentry,
 te llega el aviso y ves exactamente qué falló, cuántas veces y a quién.
 
-**Estado del código:** ya está TODO cableado y testeado (357 tests). Es **DSN-gated**: sin
-la clave `SENTRY_DSN` es un no-op total (cero impacto). Cuando la ponés, `sentry.server.config.ts`
-inicializa Sentry y **puentea `reportarError`** (los 7 caminos de plata: registrar pago de
-cobro/panel, cierre de jornada, comisión, gasto, movimiento de caja) → cada error de dinero
-sube a Sentry con su contexto. **No hay que tocar código.**
+**Estado del código:** ya está TODO cableado y testeado. Es **DSN-gated**: sin la clave es
+un no-op total (cero impacto, y en el navegador el SDK **ni siquiera entra al bundle**).
+Cuando la ponés se activan las dos mitades, **sin tocar código**:
+- **Servidor** (`sentry.server.config.ts` + `sentry.edge.config.ts`): puentea `reportarError`
+  → los caminos de plata (registrar pago de cobro/panel, cierre de jornada, comisión, gasto,
+  movimiento de caja) suben con su tag `contexto`.
+- **Navegador** (`instrumentation-client.ts`, Batch 7): carga PEREZOSA del SDK y el mismo
+  puente → los límites `error.tsx` de las 3 casas y cualquier acción de plata que falle en
+  el celular del cobrador también dejan rastro.
+- **CSP**: `next.config.mjs` **deriva solo** el host de ingest desde el DSN y lo agrega a
+  `connect-src`. No hay que editar la CSP a mano.
 
 ### Paso a paso (10 minutos, una sola vez)
 1. **Crear cuenta** en <https://sentry.io> (plan free alcanza de sobra para el piloto).
@@ -247,23 +253,33 @@ sube a Sentry con su contexto. **No hay que tocar código.**
 3. **Copiar el DSN** que te muestra: una URL tipo
    `https://abc123@o456.ingest.us.sentry.io/789`.
 4. **Pegarlo en Vercel** → proyecto Presta Ya → *Settings → Environment Variables*:
-   - Nombre: `SENTRY_DSN` · Valor: el DSN · Entornos: **Production** y **Preview**.
-5. **Redeploy** (Vercel → Deployments → Redeploy, o `npx vercel --prod`). La variable se
-   toma al arrancar el server.
-6. **Probar que llega:** provocá un error controlado (por ejemplo, entrá a una ruta de
-   admin con la base momentáneamente mal configurada, o esperá el primer error real) y
-   verificá que aparece en el tablero de Sentry (*Issues*). Con el tag `contexto` vas a ver
-   de qué acción de plata salió.
+   - Nombre: **`NEXT_PUBLIC_SENTRY_DSN`** · Valor: el DSN · Entornos: **Production** y **Preview**.
+   - ⚠️ **Una sola variable alcanza para todo.** El server lee
+     `SENTRY_DSN || NEXT_PUBLIC_SENTRY_DSN`, así que con la `NEXT_PUBLIC_` quedan cubiertos
+     server + edge + navegador + CSP. (Si ponés solo `SENTRY_DSN`, el navegador y la CSP
+     quedan afuera.)
+   - El DSN **no es un secreto**: está diseñado para viajar en el navegador y solo permite
+     ENVIAR eventos, nunca leerlos. Por eso `NEXT_PUBLIC_` acá es correcto y seguro.
+5. **REDEPLOY — obligatorio.** Las `NEXT_PUBLIC_*` se **incrustan en el build**, así que
+   guardar la variable no basta: hay que reconstruir. Vercel → *Deployments* → *Redeploy*
+   **destildando "use existing build cache"**, o `npx vercel --prod`.
+6. **Verificar que tomó** (prueba objetiva, sin provocar errores): pedí los headers de prod
+   y mirá que el host de Sentry ahora aparezca en la CSP:
+   ```
+   curl -sI https://prestaya-blush.vercel.app/ingresar | grep -i content-security-policy
+   ```
+   En `connect-src` tiene que estar `https://oXXXX.ingest.<region>.sentry.io` además de
+   `'self'` y Supabase. Si está, el build tomó la variable y las dos mitades quedaron activas.
+7. **Confirmar la llegada:** en el tablero de Sentry (*Issues*) va a aparecer el primer
+   error real. El tag `contexto` te dice de qué acción de plata salió.
 
 ### Notas
-- **Server-side alcanza para lo crítico.** Los 7 caminos de plata corren en el servidor →
-  con `SENTRY_DSN` ya quedan cubiertos, **sin tocar la CSP**.
-- **Navegador (opcional, después):** para capturar también los errores de UI del navegador
-  hay que (a) crear `instrumentation-client.ts` con `Sentry.init`, y (b) **agregar el host
-  de ingest de Sentry al `connect-src` de la CSP** en `next.config.mjs` (hoy la CSP solo
-  permite `'self'` + Supabase, así que el navegador no podría enviar a Sentry). Es un
-  fast-follow, no bloquea el piloto. (En `todos-carlos.md`.)
+- **Costo:** el plan free tiene tope de eventos/mes; con `tracesSampleRate: 0` solo se
+  mandan ERRORES (no trazas de performance), así que se gasta muy poco.
+- **Peso en el celular del cobrador:** mientras no haya DSN, el SDK no se incluye (First
+  Load JS = 103 kB). Al activarlo, el navegador suma el SDK de Sentry (~30 kB gz) recién
+  cuando la variable existe. Es el precio de ver los errores de campo.
+- **Alertas:** en Sentry → *Alerts*, creá una regla "cuando aparece un issue nuevo → mail".
+  Sin eso hay que entrar a mirar el tablero.
 - **Source maps (stack traces legibles):** opcional. Requiere `withSentryConfig` o subir
   los maps en el build. Para el piloto no hace falta; el contexto + el mensaje ya orientan.
-- **Costo:** el plan free tiene un tope de eventos/mes; con `tracesSampleRate: 0` solo se
-  mandan errores (no trazas de performance), así que se gasta muy poco.
