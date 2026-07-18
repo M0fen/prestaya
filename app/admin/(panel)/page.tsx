@@ -654,7 +654,9 @@ function LiquidacionDiaria({ liq }: { liq: LiquidacionDia }) {
         </div>
         <div className="flex gap-5">
           <div className="flex flex-col items-end">
-            <span className="text-[10.5px] font-bold uppercase tracking-wide text-gris">Recaudo total</span>
+            {/* "En ruta" (por cobrador) para distinguirlo del hero "Recaudo de hoy",
+                que incluye oficina/panel. Antes decía "Recaudo total" y engañaba. */}
+            <span className="text-[10.5px] font-bold uppercase tracking-wide text-gris">Recaudo en ruta</span>
             <span className="text-[16px] font-extrabold tabular-nums text-verde">{UYU(liq.recaudoTotal)}</span>
           </div>
           <div className="flex flex-col items-end">

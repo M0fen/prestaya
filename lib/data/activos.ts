@@ -66,6 +66,7 @@ export async function getActivosConPagos(
     const ahoraZ = Date.now();
     const hit = carteraZonaCache.get(clave);
     if (hit && hit.exp > ahoraZ) return [...hit.data];
+    if (hit) carteraZonaCache.delete(clave); // no acumular claves de zonas viejas (reasignaciones)
     try {
       const { data, error } = await db.rpc("app_cartera_activa_zona", { cliente_ids: al.clienteIds });
       if (error) throw error;
