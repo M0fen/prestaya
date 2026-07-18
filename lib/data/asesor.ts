@@ -18,6 +18,7 @@ import { getPagosDePrestamo } from "./pagos";
 import { getHistorialCrediticio } from "./scoring";
 import { getNotasCliente } from "./notas";
 import { calcularEstadosCarton } from "@/lib/cartones";
+import { sanearTextoLibre } from "@/lib/asesor/sanear";
 import { calcularScore } from "@/lib/scoring";
 import { hoyUY, diasCobrablesProximos } from "@/lib/fecha";
 import { UYU } from "@/lib/format";
@@ -203,14 +204,19 @@ export async function buscarClientePerfil(
   const elegido = data5[0];
   const otros =
     data5.length > 1
-      ? ` (hay ${data5.length - 1} coincidencia(s) más: ${data5.slice(1).map((c) => c.nombre).join(", ")})`
+      ? ` (hay ${data5.length - 1} coincidencia(s) más: ${data5.slice(1).map((c) => sanearTextoLibre(c.nombre, 80)).join(", ")})`
       : "";
 
   const clienteId = elegido.id as string;
   const hoyCal = hoyUY(hoy);
   const L: string[] = [];
-  L.push(`PERFIL DE CLIENTE: ${elegido.nombre}${otros}`);
-  L.push(`- Documento: ${elegido.documento ?? "s/d"} · Tel: ${elegido.telefono ?? "s/d"} · Dir: ${elegido.direccion ?? "s/d"}`);
+  // Texto libre que escribe la gente (nombre/documento/tel/dirección/notas) → SANEADO
+  // antes de entrar al prompt: es la superficie de prompt-injection del asesor.
+  const nombreLimpio = sanearTextoLibre(elegido.nombre, 80);
+  L.push(`PERFIL DE CLIENTE: ${nombreLimpio}${otros}`);
+  L.push(
+    `- Documento: ${sanearTextoLibre(elegido.documento, 40) || "s/d"} · Tel: ${sanearTextoLibre(elegido.telefono, 40) || "s/d"} · Dir: ${sanearTextoLibre(elegido.direccion, 120) || "s/d"}`,
+  );
 
   // Créditos activos + cartón (desde 0037 pueden ser varios).
   const activos = await getPrestamosActivosPorCliente(db, clienteId);
@@ -248,11 +254,13 @@ export async function buscarClientePerfil(
   const notas = await getNotasCliente(db, clienteId);
   if (notas.length > 0) {
     L.push(`- Últimas notas del equipo:`);
-    for (const n of notas.slice(0, 3)) L.push(`  · "${n.cuerpo}" — ${n.autorNombre}`);
+    // Las NOTAS son el vector más expuesto: texto libre y multilínea.
+    for (const n of notas.slice(0, 3))
+      L.push(`  · "${sanearTextoLibre(n.cuerpo, 300)}" — ${sanearTextoLibre(n.autorNombre, 60)}`);
   }
 
   // Id para que el asesor pueda ofrecer el enlace a la ficha (ver prompt).
-  L.push(`ID_FICHA: ${clienteId} | ${elegido.nombre}`);
+  L.push(`ID_FICHA: ${clienteId} | ${nombreLimpio}`);
 
   return L.join("\n");
 }
