@@ -10,6 +10,7 @@ import { BannerEquipo } from "@/components/cobrador/BannerEquipo";
 import { getEstadoJornada } from "@/lib/data/rendicion";
 import { getSolicitudesGastoCobrador } from "@/lib/data/solicitudesGasto";
 import { getUsuarioActual } from "@/lib/auth";
+import { conTimeout } from "@/lib/timeout";
 import { hoyUY } from "@/lib/fecha";
 import { UYU, meses, diasSemana } from "@/lib/format";
 import { calcularComision } from "@/lib/comision";
@@ -20,30 +21,39 @@ import { BienvenidaCard } from "@/components/BienvenidaCard";
 
 export const dynamic = "force-dynamic";
 
+// Tope GENEROSO (22s) del render server-side: un query lento de DB lanza → lo toma
+// el error.tsx del cobrador ("Reintentar, tus cobros están a salvo"), no un skeleton
+// eterno. (La señal del cobro en la calle la maneja el SW; esto es la DB del server.)
+const TOPE_MS = 22_000;
+
 export default async function RutaPage() {
   const db = await createSupabaseServer();
   // Tanda 1 (independientes): ruta + usuario + banner. Tanda 2 (necesita usuario):
   // jornada + gastos + zona. Antes eran ~6 round-trips en SERIE en la primera
   // pantalla que abre el cobrador en la calle (señal pobre) → ahora 2 latencias.
-  const [{ items, arqueo }, usuario, banner] = await Promise.all([
-    getRutaCobrador(db),
-    getUsuarioActual(),
-    getBannerCobradorActivo(db),
-  ]);
+  const [{ items, arqueo }, usuario, banner] = await conTimeout(
+    Promise.all([getRutaCobrador(db), getUsuarioActual(), getBannerCobradorActivo(db)]),
+    TOPE_MS,
+    "cobrador.ruta",
+  );
   // El nombre de la zona se resuelve con el cliente ADMIN: la tabla `zonas` está
   // bloqueada por RLS para el cobrador (0 filas), y esto es solo una etiqueta.
-  const [jornada, solicitudesGasto, zonaNombre] = await Promise.all([
-    usuario ? getEstadoJornada(db, usuario.id) : Promise.resolve(null),
-    usuario ? getSolicitudesGastoCobrador(db, usuario.id) : Promise.resolve(null),
-    usuario?.zona_id
-      ? createSupabaseAdmin()
-          .from("zonas")
-          .select("nombre")
-          .eq("id", usuario.zona_id)
-          .maybeSingle()
-          .then((r) => r.data?.nombre ?? null)
-      : Promise.resolve<string | null>(null),
-  ]);
+  const [jornada, solicitudesGasto, zonaNombre] = await conTimeout(
+    Promise.all([
+      usuario ? getEstadoJornada(db, usuario.id) : Promise.resolve(null),
+      usuario ? getSolicitudesGastoCobrador(db, usuario.id) : Promise.resolve(null),
+      usuario?.zona_id
+        ? createSupabaseAdmin()
+            .from("zonas")
+            .select("nombre")
+            .eq("id", usuario.zona_id)
+            .maybeSingle()
+            .then((r) => r.data?.nombre ?? null)
+        : Promise.resolve<string | null>(null),
+    ]),
+    TOPE_MS,
+    "cobrador.jornada",
+  );
 
   // Saludo personalizado (nombre + zona). Da identidad a la app del cobrador.
   const horaUY = Number(

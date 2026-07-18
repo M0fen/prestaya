@@ -25,6 +25,7 @@ import { getRifaParaCliente } from "@/lib/data/rifas";
 import { cicloUY } from "@/lib/fecha";
 import { juegoArcadeDe } from "@/lib/juegoAjustes";
 import { construirVistaCliente } from "@/lib/vistaCliente";
+import { conTimeout } from "@/lib/timeout";
 import { calcularJuegoCliente } from "@/lib/juegoCliente";
 import { evaluarRecompensas } from "@/lib/recompensas";
 import { hoyUY } from "@/lib/fecha";
@@ -35,6 +36,11 @@ import { SinCreditoActivo } from "@/components/SinCreditoActivo";
 
 // Siempre datos frescos y "hoy" real del servidor: nunca cachear ni prerenderizar.
 export const dynamic = "force-dynamic";
+
+// Tope GENEROSO (22s) del camino crítico del cartón: un query lento lanza → lo toma
+// el error.tsx del cliente (aviso tranquilo, sin alarma). Money-safe: LANZA, jamás
+// muestra un $0/saldo falso. Una carga legítima ni lo roza.
+const TOPE_MS = 22_000;
 
 export default async function VistaPorToken({
   params,
@@ -48,12 +54,19 @@ export default async function VistaPorToken({
   const db = createSupabaseAdmin();
 
   // 1) Validar el token → cliente. Si no existe, 404 (no revelamos nada).
-  const cliente = await getClientePorToken(db, token);
+  //    Camino crítico del cartón (cliente/activos/pagos) con tope de tiempo: un
+  //    cuelgue lanza → lo toma el error.tsx del cliente (aviso tranquilo, sin
+  //    alarma), en vez de dejar al adulto mayor mirando el spinner sin fin.
+  const cliente = await conTimeout(getClientePorToken(db, token), TOPE_MS, "cliente.token");
   if (!cliente) notFound();
 
   // 2) Créditos activos del cliente (desde 0037 pueden ser varios). Se muestra
   //    el elegido (?credito=) o el principal; con un selector si hay más de uno.
-  const activos = await getPrestamosActivosPorCliente(db, cliente.id);
+  const activos = await conTimeout(
+    getPrestamosActivosPorCliente(db, cliente.id),
+    TOPE_MS,
+    "cliente.activos",
+  );
   const prestamo = activos.find((p) => p.id === credito) ?? activos[0] ?? null;
   if (!prestamo) {
     return <SinCreditoActivo nombre={cliente.nombre} negocio={NEGOCIO} />;
@@ -87,7 +100,7 @@ export default async function VistaPorToken({
     ) : null;
 
   // 3) Pagos vigentes + cálculo + render. "hoy" = fecha real del servidor.
-  const pagos = await getPagosDePrestamo(db, prestamo.id);
+  const pagos = await conTimeout(getPagosDePrestamo(db, prestamo.id), TOPE_MS, "cliente.pagos");
 
   // Config del cliente definida por el admin (ciclo de estrellas, umbral caritas).
   const ajustes = await getAjustesJuego(db);

@@ -12,6 +12,7 @@ import { alcanceDelActor } from "@/lib/data/alcance";
 import { getLiquidacionDiaria, type LiquidacionDia } from "@/lib/data/liquidacion";
 import { getDesempenoRango } from "@/lib/data/desempeno";
 import { generarInsights } from "@/lib/insights";
+import { conTimeout } from "@/lib/timeout";
 import { fechaISOUY } from "@/lib/fecha";
 import { UYU, diasSemana, meses } from "@/lib/format";
 import { saludoHora, primerNombre } from "@/lib/saludo";
@@ -56,28 +57,37 @@ export default async function DashboardPage({
   // Perf: el alcance (para el supervisor implica consultar sus cobradores+clientes)
   // y la cartera activa (RPC) se resuelven UNA vez y se comparten, en vez de que
   // cada función los re-resuelva (antes: alcance ×3 + RPC ×2 → dashboard lento).
-  const activos = await getActivosConPagos(db, alcance);
+  // Tope de tiempo GENEROSO (22s): un cuelgue real del RPC/agregado lanza →
+  // lo toma el error.tsx del panel ("Reintentar") en vez de un skeleton eterno.
+  // Money-safe: LANZA, nunca degrada a un $0 falso. Una carga legítima (1-5s) ni
+  // lo roza.
+  const TOPE_MS = 22_000;
+  const activos = await conTimeout(getActivosConPagos(db, alcance), TOPE_MS, "dashboard.activos");
   // Base (siempre): cartera/mora/cobradores YA vienen acotadas a la zona del
   // gestor (supervisor → su zona; admin → todo). El "Movimiento" y la serie salen
   // de RPCs de agregado GLOBAL: se muestran SOLO al dueño (para no mezclar zonas).
   // Perf: las 3 tandas (base + serie/mov del dueño + ranking mes/año) son
   // INDEPENDIENTES entre sí → una sola tanda en paralelo (antes: 3 en cascada).
   const hoyYmd = fechaISOUY(hoy);
-  const [resumen, liquidacion, rend, serieMov, cobradoresRango] = await Promise.all([
-    getResumenFinanciero(db, hoy, { alcance, activos }),
-    getLiquidacionDiaria(db, hoy, alcance),
-    getRendicionesDia(db, hoy, alcance),
-    admin
-      ? Promise.all([getSerieRecaudo(db, hoy, 14), getResumenPeriodo(db, periodo, hoy)])
-      : Promise.resolve([null, null] as [null, null]),
-    cobsPeriodo === "hoy"
-      ? Promise.resolve(null)
-      : getDesempenoRango(
-          db,
-          { desde: cobsPeriodo === "mes" ? `${hoyYmd.slice(0, 7)}-01` : `${hoyYmd.slice(0, 4)}-01-01`, hasta: hoyYmd },
-          alcance,
-        ),
-  ]);
+  const [resumen, liquidacion, rend, serieMov, cobradoresRango] = await conTimeout(
+    Promise.all([
+      getResumenFinanciero(db, hoy, { alcance, activos }),
+      getLiquidacionDiaria(db, hoy, alcance),
+      getRendicionesDia(db, hoy, alcance),
+      admin
+        ? Promise.all([getSerieRecaudo(db, hoy, 14), getResumenPeriodo(db, periodo, hoy)])
+        : Promise.resolve([null, null] as [null, null]),
+      cobsPeriodo === "hoy"
+        ? Promise.resolve(null)
+        : getDesempenoRango(
+            db,
+            { desde: cobsPeriodo === "mes" ? `${hoyYmd.slice(0, 7)}-01` : `${hoyYmd.slice(0, 4)}-01-01`, hasta: hoyYmd },
+            alcance,
+          ),
+    ]),
+    TOPE_MS,
+    "dashboard.resumen",
+  );
   const [serie, mov] = serieMov;
   const reportesNuevos = resumen.reportesNuevos;
 

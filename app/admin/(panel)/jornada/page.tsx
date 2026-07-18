@@ -22,6 +22,7 @@ import { getDesempenoRango, type DesempenoRango } from "@/lib/data/desempeno";
 import { contarSolicitudesGastoPendientes } from "@/lib/data/solicitudesGasto";
 import { getBitacoraGestorDia, type RegistroAuditoria } from "@/lib/data/auditoria";
 import { alcanceDelActor } from "@/lib/data/alcance";
+import { conTimeout } from "@/lib/timeout";
 import { navVisible } from "@/lib/admin/nav";
 import { UYU, diasSemana, meses, horaDe } from "@/lib/format";
 import { fechaISOUY, sumarDiasYmd } from "@/lib/fecha";
@@ -34,6 +35,11 @@ import { Icono, ICONO_NAV, type NombreIcono } from "@/components/Iconos";
 import type { ReactNode } from "react";
 
 export const dynamic = "force-dynamic";
+
+// Tope de tiempo GENEROSO (22s) para la carga de datos: un cuelgue real lanza →
+// lo toma el error.tsx del panel ("Reintentar"), no un skeleton eterno. Money-safe:
+// LANZA, jamás degrada a un $0 falso. Una carga legítima (1-5s) ni lo roza.
+const TOPE_MS = 22_000;
 
 type Acto = "apertura" | "vivo" | "cierre";
 const ACTOS: { id: Acto; n: number; label: string; icon: NombreIcono; cuando: string }[] = [
@@ -98,7 +104,11 @@ export default async function JornadaPage({
   // ── HISTORIAL (día pasado): foto de SOLO LECTURA, sin el motor "en vivo" (caro
   //    y solo con sentido para hoy). Reusa la capa de desempeño, acotada a ese día. ──
   if (!esHoy) {
-    const dia = await getDesempenoRango(db, { desde: fechaYmd, hasta: fechaYmd }, alcance);
+    const dia = await conTimeout(
+      getDesempenoRango(db, { desde: fechaYmd, hasta: fechaYmd }, alcance),
+      TOPE_MS,
+      "jornada.historial",
+    );
     return (
       <div className="flex flex-col gap-5">
         <header className="flex flex-wrap items-end justify-between gap-2">
@@ -130,18 +140,27 @@ export default async function JornadaPage({
   const hoy = new Date();
   // cartera activa + rendiciones INDEPENDIENTES → EN PARALELO. (actor ya está
   // resuelto arriba y reusado — sin recargar la sesión.)
-  const [activos, rend] = await Promise.all([
-    getActivosConPagos(db, alcance),
-    getRendicionesDia(db, hoy, alcance),
-  ]);
-  const control = await getControlCobranza(db, hoy, activos, alcance);
-  const [resumen, cierre, centro, compromisos, bitacora] = await Promise.all([
-    getResumenFinanciero(db, hoy, { alcance, activos, control }),
-    getCierrePorZona(db, hoy, alcance, rend),
-    getCentroAlertas(db, hoy, alcance, { control, rend }),
-    getResumenCompromisos(db, alcance, hoy),
-    getBitacoraGestorDia(db, usuario.id, hoy),
-  ]);
+  const [activos, rend] = await conTimeout(
+    Promise.all([getActivosConPagos(db, alcance), getRendicionesDia(db, hoy, alcance)]),
+    TOPE_MS,
+    "jornada.base",
+  );
+  const control = await conTimeout(
+    getControlCobranza(db, hoy, activos, alcance),
+    TOPE_MS,
+    "jornada.control",
+  );
+  const [resumen, cierre, centro, compromisos, bitacora] = await conTimeout(
+    Promise.all([
+      getResumenFinanciero(db, hoy, { alcance, activos, control }),
+      getCierrePorZona(db, hoy, alcance, rend),
+      getCentroAlertas(db, hoy, alcance, { control, rend }),
+      getResumenCompromisos(db, alcance, hoy),
+      getBitacoraGestorDia(db, usuario.id, hoy),
+    ]),
+    TOPE_MS,
+    "jornada.vivo",
+  );
   const { cartera, recaudacion, mora, cobradores } = resumen;
   // Zonas que este gestor puede sellar (supervisor de la zona; admin todas).
   const cerrables = actor
