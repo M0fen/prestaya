@@ -39,3 +39,41 @@ describe("evaluarZona", () => {
     expect(RADIO_ZONA_M).toBe(120);
   });
 });
+
+describe("evaluarZona · gate de precisión (accuracy)", () => {
+  const casa = { lat: -34.9, lng: -56.16 };
+
+  it("señal MALA cerca del borde → indeterminado (enZona null), NO acusa 'fuera'", () => {
+    // ~133 m (apenas fuera del radio 120 m); con ±50 m el punto real podría estar
+    // dentro → no se afirma nada.
+    const r = evaluarZona({ lat: -34.9012, lng: -56.16, precision: 50 }, casa);
+    expect(r).not.toBeNull();
+    expect(r!.enZona).toBeNull();
+  });
+
+  it("señal BUENA cerca del borde → clasifica igual (fuera)", () => {
+    const r = evaluarZona({ lat: -34.9012, lng: -56.16, precision: 5 }, casa);
+    expect(r!.enZona).toBe(false);
+  });
+
+  it("lejos con señal moderada → sigue 'fuera' (no se pierde la fuga real)", () => {
+    const r = evaluarZona({ lat: -34.95, lng: -56.16, precision: 100 }, casa);
+    expect(r!.enZona).toBe(false);
+  });
+
+  it("dentro con señal mala → indeterminado (no da falso 'en zona')", () => {
+    // ~33 m del domicilio, pero con ±100 m podría caer fuera → null.
+    const r = evaluarZona({ lat: -34.9003, lng: -56.16, precision: 100 }, casa);
+    expect(r!.enZona).toBeNull();
+  });
+
+  it("dentro con señal buena → 'en zona'", () => {
+    const r = evaluarZona({ lat: -34.9003, lng: -56.16, precision: 20 }, casa);
+    expect(r!.enZona).toBe(true);
+  });
+
+  it("sin precisión (fix viejo sin el dato) → evalúa como antes", () => {
+    const r = evaluarZona({ lat: -34.9012, lng: -56.16 }, casa);
+    expect(r!.enZona).toBe(false); // ~133 m > 120 m, clasificación clásica
+  });
+});

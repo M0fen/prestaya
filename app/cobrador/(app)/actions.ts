@@ -193,8 +193,11 @@ export async function registrarPagoCobrador(input: {
     const gps_lat = numeroValido(input.gpsLat);
     const gps_lng = numeroValido(input.gpsLng);
 
+    // La precisión (accuracy) del fix del cobro entra a la geo-cerca: con señal mala
+    // el resultado queda "indeterminado" (enZona=null) en vez de acusar falso "fuera
+    // de zona" a un cobrador honesto.
     const zona = evaluarZona(
-      { lat: gps_lat, lng: gps_lng },
+      { lat: gps_lat, lng: gps_lng, precision: numeroValido(input.gpsPrecision) },
       { lat: cliente.gps_lat, lng: cliente.gps_lng },
     );
 

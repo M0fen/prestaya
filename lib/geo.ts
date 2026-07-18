@@ -32,12 +32,19 @@ const esCoord = (v: number | null | undefined): v is number =>
 
 /**
  * Evalúa la geo-cerca. Devuelve null si falta algún dato (no se puede evaluar).
+ *
+ * `enZona` es de TRES estados: `true` (en zona), `false` (fuera), o `null` cuando
+ * la PRECISIÓN del fix del cobro (accuracy en metros) es tan mala que el punto real
+ * podría caer del otro lado del borde → no se afirma nada. Así un cobrador honesto
+ * con señal pobre no recibe un falso "fuera de zona" (que alimenta score/alertas
+ * anti-fuga), y tampoco se da un falso "en zona" a uno lejano. Sin `precision` (fix
+ * viejo sin el dato) se evalúa como antes.
  */
 export function evaluarZona(
-  cobro: { lat: number | null; lng: number | null } | null,
+  cobro: { lat: number | null; lng: number | null; precision?: number | null } | null,
   casa: { lat: number | null; lng: number | null } | null,
   radio = RADIO_ZONA_M,
-): { enZona: boolean; metros: number } | null {
+): { enZona: boolean | null; metros: number } | null {
   if (!cobro || !casa) return null;
   if (!esCoord(cobro.lat) || !esCoord(cobro.lng) || !esCoord(casa.lat) || !esCoord(casa.lng))
     return null;
@@ -45,5 +52,12 @@ export function evaluarZona(
     { lat: cobro.lat, lng: cobro.lng },
     { lat: casa.lat, lng: casa.lng },
   );
+  // Incertidumbre por precisión: `margen` es la distancia del cobro al anillo del
+  // radio; si la accuracy la supera, el verdadero punto podría estar del otro lado
+  // → indeterminado. (Refinamiento futuro: sumar también la precisión de la casa.)
+  const precision = cobro.precision;
+  if (precision != null && Number.isFinite(precision) && precision > Math.abs(metros - radio)) {
+    return { enZona: null, metros };
+  }
   return { enZona: metros <= radio, metros };
 }
