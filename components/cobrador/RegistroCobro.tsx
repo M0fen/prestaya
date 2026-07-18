@@ -187,8 +187,9 @@ export function RegistroCobro({
 
   const cobrar = (monto: number | null) => {
     if (!tomarTurno()) return;
-    // Dinero SIEMPRE entero: redondeamos ANTES de encolar (nunca un float llega
-    // al libro de pagos). El comprobante y el estado usan ese mismo entero.
+    // Dinero SIEMPRE entero. Un abono tipeado se redondea acá; la "cuota completa"
+    // manda null y el SERVIDOR resuelve el monto (cuota o saldo) y lo redondea
+    // (chokepoint en registrarPago) → nunca entra un float al libro de pagos.
     const m = monto != null && monto > 0 ? Math.round(monto) : null;
     // Cuota completa = la cuota efectiva (topada al saldo, anti sobre-pago). El
     // servidor recalcula y capa contra el saldo real; esto es lo que ve el recibo.

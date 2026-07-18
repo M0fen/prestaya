@@ -187,11 +187,14 @@ export async function getDesempenoRango(
   const rendPorCob = new Map<string, { entregado: number; rendiciones: number; faltantes: number; montoFaltante: number }>();
   let disponibleRendiciones = true;
   try {
-    let q = admin.from("rendiciones").select("cobrador_id, entregado, diferencia").gte("fecha", desde).lte("fecha", hasta);
-    if (soloCob) q = q.in("cobrador_id", soloCob);
-    const { data, error } = await q;
-    if (error) throw error;
-    for (const r of data ?? []) {
+    // Paginado: un rango largo × muchos cobradores supera 1000 rendiciones y
+    // truncaba entregado/faltantes por cobrador.
+    const data = await traerTodo<{ cobrador_id: string; entregado: number; diferencia: number }>((d, h) => {
+      let q = admin.from("rendiciones").select("cobrador_id, entregado, diferencia").gte("fecha", desde).lte("fecha", hasta);
+      if (soloCob) q = q.in("cobrador_id", soloCob);
+      return q.order("id", { ascending: true }).range(d, h);
+    });
+    for (const r of data) {
       const cid = r.cobrador_id as string;
       const dif = Number(r.diferencia);
       const a = rendPorCob.get(cid) ?? { entregado: 0, rendiciones: 0, faltantes: 0, montoFaltante: 0 };

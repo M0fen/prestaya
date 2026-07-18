@@ -56,7 +56,10 @@ export async function registrarPago(
     .insert({
       prestamo_id: pago.prestamo_id,
       dia_credito: pago.dia_credito,
-      monto: pago.monto,
+      // CHOKEPOINT money-critical: el libro es ENTERO. Aunque la cuota_diaria del
+      // import de Disapp fuera fraccionaria (numeric(12,2)), acá se redondea para
+      // que NUNCA entre un float al libro inmutable, venga del cobrador o del panel.
+      monto: Math.round(pago.monto),
       registrado_por: pago.registrado_por ?? null,
       gps_lat: pago.gps_lat ?? null,
       gps_lng: pago.gps_lng ?? null,

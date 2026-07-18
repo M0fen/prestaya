@@ -184,8 +184,11 @@ export async function registrarPagoCobrador(input: {
     // es el saldo REAL recalculado del libro (no el denormalizado). Es la última
     // línea de defensa: el cliente también capa, pero el servidor es la garantía.
     const solicitado =
-      input.monto && input.monto > 0 ? Math.round(input.monto) : prestamo.cuota_diaria;
-    const monto = Math.min(solicitado, r.falta);
+      input.monto && input.monto > 0 ? Math.round(input.monto) : Math.round(prestamo.cuota_diaria);
+    // Redondeo tras el clamp: `r.falta` puede reintroducir una fracción si la cuota
+    // fuera fraccionaria (cuota×días − Σpagos). El monto que se registra y se muestra
+    // en el recibo es SIEMPRE entero (además del chokepoint en registrarPago).
+    const monto = Math.round(Math.min(solicitado, r.falta));
     if (monto <= 0) return { ok: false, error: "Este crédito ya está saldado." };
     const gps_lat = numeroValido(input.gpsLat);
     const gps_lng = numeroValido(input.gpsLng);

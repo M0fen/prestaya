@@ -141,11 +141,11 @@ export async function getVigilanciaCobradores(
 
   const pRend: Promise<{ cobrador_id: string; fecha: string; entregado: number; diferencia: number }[]> = (async () => {
     try {
-      let rq = db.from("rendiciones").select("cobrador_id, fecha, entregado, diferencia").gte("fecha", desdeYmd);
-      if (cobIds) rq = rq.in("cobrador_id", cobIds);
-      const { data, error } = await rq;
-      if (error) throw error;
-      return (data ?? []) as { cobrador_id: string; fecha: string; entregado: number; diferencia: number }[];
+      return await traerTodo<{ cobrador_id: string; fecha: string; entregado: number; diferencia: number }>((d, h) => {
+        let rq = db.from("rendiciones").select("cobrador_id, fecha, entregado, diferencia").gte("fecha", desdeYmd);
+        if (cobIds) rq = rq.in("cobrador_id", cobIds);
+        return rq.order("id", { ascending: true }).range(d, h);
+      });
     } catch (e) {
       if (!tablaFaltante(e)) throw e; // sin 0013: sin datos de rendición
       return [];
@@ -154,11 +154,11 @@ export async function getVigilanciaCobradores(
 
   const pMov: Promise<{ cobrador_id: string | null; tipo: string; monto: number; categoria: string | null }[]> = (async () => {
     try {
-      let mq = db.from("movimientos_caja").select("cobrador_id, tipo, monto, categoria").gte("registrado_en", desdeIso);
-      if (cobIds) mq = mq.in("cobrador_id", cobIds);
-      const { data, error } = await mq;
-      if (error) throw error;
-      return (data ?? []) as { cobrador_id: string | null; tipo: string; monto: number; categoria: string | null }[];
+      return await traerTodo<{ cobrador_id: string | null; tipo: string; monto: number; categoria: string | null }>((d, h) => {
+        let mq = db.from("movimientos_caja").select("cobrador_id, tipo, monto, categoria").gte("registrado_en", desdeIso);
+        if (cobIds) mq = mq.in("cobrador_id", cobIds);
+        return mq.order("id", { ascending: true }).range(d, h);
+      });
     } catch (e) {
       if (!tablaFaltante(e)) throw e;
       return [];

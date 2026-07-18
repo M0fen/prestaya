@@ -12,6 +12,7 @@ import {
   type ResumenReconciliacion,
 } from "@/lib/reconciliacion";
 import { inicioDiaUYIso } from "@/lib/fecha";
+import { traerTodo } from "./paginado";
 
 export interface ResultadoReconciliacion extends ResumenReconciliacion {
   /** false si el RPC 0071 aún no existe en la base. */
@@ -288,12 +289,19 @@ export async function reconciliarDia(
 
   // Recaudo del día (barato: solo hoy) para el chequeo de consistencia libro↔caja.
   const desde = inicioDiaUYIso(hoy);
-  const { data: pg } = await db
-    .from("pagos")
-    .select("monto")
-    .eq("anulado", false)
-    .gte("registrado_en", desde);
-  const recaudoLibro = (pg ?? []).reduce((s, p) => s + N((p as { monto: unknown }).monto), 0);
+  // Paginado: corre GLOBAL desde el cron (service_role); un día con >1000 pagos
+  // truncaba el recaudo logueado y la respuesta del cron. (No se usa el RPC
+  // app_suma_pagos_desde: el cron no es "gestor" y devolvería 0.)
+  const pg = await traerTodo<{ monto: unknown }>((d, h) =>
+    db
+      .from("pagos")
+      .select("monto")
+      .eq("anulado", false)
+      .gte("registrado_en", desde)
+      .order("id", { ascending: true })
+      .range(d, h),
+  );
+  const recaudoLibro = pg.reduce((s, p) => s + N(p.monto), 0);
 
   const extra =
     cajaDelDia != null && cajaDelDia > 0

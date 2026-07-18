@@ -105,7 +105,8 @@ export async function registrarPagoPanel(input: {
     // Anti sobre-pago (igual que el cobro del cobrador): nunca registrar más de lo
     // que RESTA del crédito. `r.falta` es el saldo real recalculado del libro
     // inmutable. Sin esto, un pago de oficina podía dejar pagado_acum > total.
-    const monto = Math.min(solicitado, r.falta);
+    // Redondeo tras el clamp: `r.falta` con cuota fraccionaria reintroduciría decimales.
+    const monto = Math.round(Math.min(solicitado, r.falta));
     if (monto <= 0) return { ok: false, error: "Este crédito ya está saldado." };
 
     // Idempotencia: nonce del cliente (estable por-envío) si vino y es un uuid
