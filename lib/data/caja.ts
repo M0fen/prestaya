@@ -255,6 +255,9 @@ export interface NuevoMovimiento {
   cuenta?: CuentaCaja;
   /** Se ve en la app del cobrador (columna Visible). Default true. */
   visible?: boolean;
+  /** Idempotencia (0074): dos escrituras del MISMO movimiento colisionan en el índice
+   *  único `op_id` → sin doble-egreso. El llamador captura el 23505 como éxito. */
+  opId?: string | null;
 }
 
 export async function registrarMovimientoCaja(
@@ -270,6 +273,7 @@ export async function registrarMovimientoCaja(
     registrado_por: m.registradoPor,
     cuenta: m.cuenta ?? "operativa",
     visible: m.visible ?? true,
+    ...(m.opId ? { op_id: m.opId } : {}),
   });
   if (error) throw error;
 }

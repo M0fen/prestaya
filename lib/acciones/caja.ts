@@ -4,6 +4,7 @@
 //  Gastos, desembolsos, aportes de capital, retiros. Los cobros NO van por acá
 //  (viven en `pagos`). RLS de 0010 exige gestor + autor = uno mismo.
 // ─────────────────────────────────────────────────────────────────────────
+import { createHash } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { reportarError } from "@/lib/observabilidad";
@@ -17,6 +18,21 @@ import { UYU } from "@/lib/format";
 const TIPOS: TipoMovimiento[] = ["ingreso", "egreso", "desembolso", "retiro"];
 type Resultado = { ok: true } | { ok: false; error: string };
 
+const nonceValido = (s: unknown): s is string =>
+  typeof s === "string" && /^[0-9a-fA-F-]{36}$/.test(s);
+
+/** op_id DETERMINISTA (uuid v5-like) para la idempotencia de caja cuando el cliente
+ *  no manda un nonce válido: el MISMO movimiento (tipo+monto+categoría+descripción+
+ *  cobrador+cuenta) dentro del mismo MINUTO colisiona en el índice único (0074) → no
+ *  se duplica ante doble-submit/retry. Un movimiento distinto cae en otra clave. */
+function opIdDeterminista(...partes: (string | number | null)[]): string {
+  const b = createHash("sha1").update(partes.join("|")).digest().subarray(0, 16);
+  b[6] = (b[6] & 0x0f) | 0x50; // versión 5
+  b[8] = (b[8] & 0x3f) | 0x80; // variante RFC 4122
+  const x = b.toString("hex");
+  return `${x.slice(0, 8)}-${x.slice(8, 12)}-${x.slice(12, 16)}-${x.slice(16, 20)}-${x.slice(20, 32)}`;
+}
+
 export async function agregarMovimientoCaja(input: {
   tipo: string;
   monto: number;
@@ -26,6 +42,9 @@ export async function agregarMovimientoCaja(input: {
   /** operativa (default) | capital. La vista de Capital fuerza 'capital'. */
   cuenta?: string;
   visible?: boolean;
+  /** Nonce de idempotencia (uuid, estable por-envío): deduplica reintentos del MISMO
+   *  movimiento sin bloquear uno legítimo idéntico. Sin él, fallback determinista. */
+  idempotencyKey?: string | null;
 }): Promise<Resultado> {
   const usuario = await getUsuarioActual();
   if (!usuario || !usuario.activo || !esGestor(usuario.rol)) {
@@ -59,18 +78,39 @@ export async function agregarMovimientoCaja(input: {
     }
   }
 
+  const categoria = (input.categoria ?? "").trim().slice(0, 60) || null;
+  const descripcion = (input.descripcion ?? "").trim().slice(0, 200) || null;
+  // Idempotencia (0074): nonce del cliente si es un uuid válido; si no, fallback
+  // determinista por minuto. Deduplica el reintento del MISMO movimiento sin bloquear
+  // uno legítimo idéntico (nonce nuevo por envío exitoso).
+  const opId = nonceValido(input.idempotencyKey)
+    ? input.idempotencyKey
+    : opIdDeterminista(input.tipo, monto, categoria ?? "", descripcion ?? "", cobradorId ?? "", cuenta, Math.floor(Date.now() / 60000));
+
   try {
     const db = await createSupabaseServer();
-    await registrarMovimientoCaja(db, {
-      tipo: input.tipo as TipoMovimiento,
-      monto,
-      categoria: (input.categoria ?? "").trim().slice(0, 60) || null,
-      descripcion: (input.descripcion ?? "").trim().slice(0, 200) || null,
-      cobradorId,
-      registradoPor: usuario.id,
-      cuenta,
-      visible: input.visible ?? true,
-    });
+    try {
+      await registrarMovimientoCaja(db, {
+        tipo: input.tipo as TipoMovimiento,
+        monto,
+        categoria,
+        descripcion,
+        cobradorId,
+        registradoPor: usuario.id,
+        cuenta,
+        visible: input.visible ?? true,
+        opId,
+      });
+    } catch (e) {
+      // El índice único op_id frenó un duplicado (doble-submit / retry / dos gestores):
+      // el movimiento YA quedó registrado → éxito idempotente, SIN re-auditar ni re-egresar.
+      if ((e as { code?: string } | null)?.code === "23505") {
+        revalidatePath("/admin/caja");
+        revalidatePath("/admin/capital");
+        return { ok: true };
+      }
+      throw e;
+    }
     await registrarAuditoria(db, {
       actorId: usuario.id,
       actorNombre: usuario.nombre,

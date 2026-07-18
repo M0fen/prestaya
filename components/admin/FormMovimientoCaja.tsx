@@ -5,7 +5,7 @@
 //   cuenta="operativa" (default) → gastos de ruta (pantalla "Caja diaria").
 //   cuenta="capital"             → aportes/retiros del dueño (pantalla "Inversión
 //                                  de capital"), solo Ingreso/Retiro.
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { agregarMovimientoCaja } from "@/lib/acciones/caja";
 
@@ -37,6 +37,10 @@ export function FormMovimientoCaja({ cuenta = "operativa" }: { cuenta?: "operati
   const [visible, setVisible] = useState(true);
   const [pendiente, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // Nonce de idempotencia: estable mientras se reintenta el MISMO movimiento; se
+  // renueva tras un alta exitosa (el próximo movimiento tiene clave nueva). Sin
+  // crypto.randomUUID → null, y el servidor cae al fallback determinista por minuto.
+  const nonceRef = useRef<string | null>(null);
 
   const cats = TIPOS.find((t) => t.id === tipo)!.cats;
   const montoNum = Math.round(Number(monto));
@@ -45,9 +49,11 @@ export function FormMovimientoCaja({ cuenta = "operativa" }: { cuenta?: "operati
   const guardar = () => {
     if (!valido || pendiente) return;
     setError(null);
+    if (!nonceRef.current) nonceRef.current = globalThis.crypto?.randomUUID?.() ?? null;
     startTransition(async () => {
-      const res = await agregarMovimientoCaja({ tipo, monto: montoNum, categoria, descripcion, cuenta, visible });
+      const res = await agregarMovimientoCaja({ tipo, monto: montoNum, categoria, descripcion, cuenta, visible, idempotencyKey: nonceRef.current });
       if (res.ok) {
+        nonceRef.current = null; // próximo movimiento = clave nueva
         setMonto("");
         setDescripcion("");
         setAbierto(false);
