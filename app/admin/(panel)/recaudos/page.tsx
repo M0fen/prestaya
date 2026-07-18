@@ -4,6 +4,7 @@ import { requireGestor, esAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getRecaudos } from "@/lib/data/recaudos";
 import { getVendedores } from "@/lib/data/usuarios";
+import { alcanceDelActor } from "@/lib/data/alcance";
 import { getEstadisticas } from "@/lib/data/estadisticas";
 import { diaUYInicioIso, diaUYFinIso, fechaISOUY } from "@/lib/fecha";
 import { BotonImprimir } from "@/components/admin/BotonImprimir";
@@ -43,6 +44,11 @@ export default async function RecaudosPage({
   const vendedorId = sp.vendedor || null;
   const q = (sp.q ?? "").trim() || null;
 
+  // El dropdown de vendedores se acota a la zona del supervisor (su recaudo ya
+  // viene acotado): sin esto, veía los NOMBRES de cobradores de otras zonas.
+  // Admin → todos. Importa al escalar a varias zonas.
+  const alcance = await alcanceDelActor();
+  const vendedoresScope = alcance.global ? null : alcance.cobradorIds;
   const [r, vendedores, stats] = await Promise.all([
     getRecaudos(db, {
       desde: diaUYInicioIso(desde),
@@ -50,7 +56,7 @@ export default async function RecaudosPage({
       vendedorId,
       q,
     }),
-    getVendedores(db),
+    getVendedores(db, vendedoresScope),
     // El "Rendimiento mensual" es un agregado GLOBAL (toda la empresa): SOLO el
     // dueño. Para el supervisor no se trae ni se muestra (evita fuga de otra zona).
     admin ? getEstadisticas(db, { meses: 8 }) : Promise.resolve(null),

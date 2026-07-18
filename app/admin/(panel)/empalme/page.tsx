@@ -152,7 +152,7 @@ export default async function EmpalmePage() {
                   <th className="px-3 py-2.5">Cliente</th>
                   <th className="px-3 py-2.5">Tipo</th>
                   <th className="px-3 py-2.5">Estado</th>
-                  <th className="px-3 py-2.5 text-right">Saldo app</th>
+                  <th className="px-3 py-2.5 text-right">Pagado (app)</th>
                   <th className="px-3 py-2.5 text-right">Libro (Σpagos)</th>
                   <th className="px-3 py-2.5 text-right">Total</th>
                   <th className="px-3 py-2.5 text-right">Diferencia</th>

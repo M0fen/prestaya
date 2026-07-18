@@ -54,6 +54,16 @@ const NIVEL: Record<NivelRiesgo, string> = {
   sano: "Sano",
 };
 
+// Etiqueta amable del tipo de línea del libro de caja (paridad con la pantalla:
+// lib/data/caja.ts ETIQUETA). Antes el CSV escupía el enum crudo ("egreso").
+const TIPO_LIBRO: Record<string, string> = {
+  cobro: "Cobro",
+  ingreso: "Ingreso",
+  egreso: "Gasto",
+  desembolso: "Desembolso",
+  retiro: "Retiro",
+};
+
 function csvResponse(nombre: string, encabezados: string[], filas: CeldaCsv[][]): Response {
   const cuerpo = conBom(filasACsv(encabezados, filas));
   return new Response(cuerpo, {
@@ -131,7 +141,7 @@ export async function GET(
       ["Fecha y hora", "Tipo", "Concepto", "Visible", "Movimiento", "Monto"],
       r.libro.map((l) => [
         fechaHoraUY(l.fechaIso),
-        l.tipo === "cobro" ? "Cobro" : l.tipo,
+        TIPO_LIBRO[l.tipo] ?? l.tipo,
         l.concepto,
         l.visible ? "Sí" : "No",
         l.signo === 1 ? "Entra" : "Sale",

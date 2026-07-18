@@ -44,16 +44,24 @@ export async function getUsuarioPorAuthId(
  * Vendedores (cobradores + supervisores) ACTIVOS para poblar los <select> de
  * filtro por vendedor (Recaudos, Capital, Informe de cartera). Ordenados por
  * nombre. Corre como gestor (RLS ve todos).
+ *
+ * `soloIds` opcional acota la lista a esos usuarios: en Recaudos, el SUPERVISOR
+ * recibe solo los cobradores de su zona (su recaudo ya viene acotado). Sin él
+ * (admin) = todos. Evita filtrar los NOMBRES de otras zonas en el dropdown.
  */
 export async function getVendedores(
   db: SupabaseClient,
+  soloIds?: string[] | null,
 ): Promise<{ id: string; nombre: string }[]> {
-  const { data, error } = await db
+  // Alcance vacío → sin vendedores (no listar a todos por accidente).
+  if (soloIds && soloIds.length === 0) return [];
+  let q = db
     .from("usuarios")
     .select("id, nombre")
     .eq("activo", true)
-    .in("rol", ["cobrador", "supervisor"])
-    .order("nombre", { ascending: true });
+    .in("rol", ["cobrador", "supervisor"]);
+  if (soloIds) q = q.in("id", soloIds);
+  const { data, error } = await q.order("nombre", { ascending: true });
   if (error) throw error;
   return (data ?? []).map((u) => ({ id: u.id as string, nombre: u.nombre as string }));
 }
