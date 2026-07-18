@@ -42,12 +42,16 @@ describe("permitir (fallback en memoria, sin Upstash)", () => {
 });
 
 describe("ipDesdeHeaders", () => {
-  it("toma la primera IP de x-forwarded-for", () => {
-    const h = new Headers({ "x-forwarded-for": "1.2.3.4, 10.0.0.1" });
-    expect(ipDesdeHeaders(h)).toBe("1.2.3.4");
+  it("PREFIERE x-real-ip (lo setea Vercel, el cliente no lo falsifica)", () => {
+    // Aunque el cliente ANTEPONGA una IP falsa en XFF, gana x-real-ip.
+    const h = new Headers({ "x-forwarded-for": "6.6.6.6, 10.0.0.1", "x-real-ip": "9.9.9.9" });
+    expect(ipDesdeHeaders(h)).toBe("9.9.9.9");
   });
-  it("cae a x-real-ip y luego a 'desconocida'", () => {
-    expect(ipDesdeHeaders(new Headers({ "x-real-ip": "9.9.9.9" }))).toBe("9.9.9.9");
+  it("fallback a XFF: toma el ÚLTIMO (proxy de confianza), no el leftmost falsificable", () => {
+    const h = new Headers({ "x-forwarded-for": "6.6.6.6, 10.0.0.1" });
+    expect(ipDesdeHeaders(h)).toBe("10.0.0.1");
+  });
+  it("sin nada → 'desconocida'", () => {
     expect(ipDesdeHeaders(new Headers())).toBe("desconocida");
   });
 });

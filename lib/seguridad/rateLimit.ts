@@ -89,9 +89,23 @@ export async function permitir(bucket: Bucket, id: string): Promise<boolean> {
   return memoria.permitir(clave, cfg.limite, cfg.ventanaSeg);
 }
 
-/** IP del cliente a partir de los headers (x-forwarded-for). "desconocida" si no hay. */
+/**
+ * IP del cliente a partir de los headers. "desconocida" si no hay.
+ *
+ * SEGURIDAD: Vercel setea `x-real-ip` a la IP REAL del cliente y el cliente NO la
+ * puede falsificar → se prefiere. `x-forwarded-for` es una lista donde el cliente
+ * PUEDE anteponer una IP falsa (el leftmost), lo que evadiría el rate-limit del
+ * login (una IP distinta por request). Por eso, como fallback (dev/local), se toma
+ * el ÚLTIMO valor de XFF —el que agrega el proxy de confianza más cercano—, no el
+ * primero.
+ */
 export function ipDesdeHeaders(h: Headers): string {
+  const real = h.get("x-real-ip");
+  if (real && real.trim()) return real.trim();
   const xff = h.get("x-forwarded-for");
-  if (xff) return xff.split(",")[0]!.trim();
-  return h.get("x-real-ip") ?? "desconocida";
+  if (xff) {
+    const partes = xff.split(",").map((s) => s.trim()).filter(Boolean);
+    if (partes.length) return partes[partes.length - 1]!;
+  }
+  return "desconocida";
 }
