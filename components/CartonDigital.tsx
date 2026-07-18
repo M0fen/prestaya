@@ -33,14 +33,13 @@ export function CartonDigital({ dias, diaActual, totalDias, unidad = UNIDAD_DEFE
   // Delay escalonado del sello ✓ solo para los días pagados (efecto de entrada).
   let indicePagado = 0;
 
-  // En crédito DIARIO el cobro es Lun–Sáb (no domingo): alineamos la grilla a la
-  // semana (encabezado L–S + hueco inicial) para que el cartón REFLEJE que el
-  // domingo no se cobra. En otras frecuencias, grilla corrida normal.
+  // En crédito DIARIO el cobro es Lun–Sáb (no domingo). El cartón es un bloque
+  // LIMPIO de 6 casillas por fila (una "semana" de cobro), con el día 1
+  // arriba-izquierda. NO es un calendario alineado al día de semana real, así que
+  // NO se rotula L–M–M–J–V–S: engañaría si el crédito no arranca un lunes (el día 1
+  // caería bajo "L" igual). La cadencia se dice en texto y las FECHAS exactas están
+  // en "Ver todas las fechas".
   const porSemana = unidad.ord === "Día";
-  // Cartón en bloque LIMPIO de 5 filas × 6 (Lun–Sáb): el día 1 arranca
-  // arriba-izquierda, sin hueco de alineación al día de semana. Así el cartón
-  // siempre se ve como 6 casillas por línea (semana de cobro Lun–Sáb).
-  const offset = 0;
 
   return (
     <section className="rounded-[22px] border border-[#ECEFF8] bg-white px-[18px] py-5 shadow-[0_1px_3px_rgba(15,27,61,0.05),0_10px_26px_rgba(15,27,61,0.04)]">
@@ -72,23 +71,7 @@ export function CartonDigital({ dias, diaActual, totalDias, unidad = UNIDAD_DEFE
         📅 Ver todas las fechas
       </button>
 
-      {/* Encabezado de días de la semana (solo cartón diario, Lun–Sáb). */}
-      {porSemana && (
-        <div className="mt-3 grid grid-cols-6 gap-2">
-          {["L", "M", "M", "J", "V", "S"].map((d, i) => (
-            <span key={i} className="text-center text-[10px] font-black tracking-wide text-[#AEB6CC]">
-              {d}
-            </span>
-          ))}
-        </div>
-      )}
-
-      <div className={`${porSemana ? "mt-1.5" : "mt-3"} grid grid-cols-6 gap-2`}>
-        {/* Huecos iniciales para alinear el día 1 a su columna (Lun–Sáb). */}
-        {porSemana &&
-          Array.from({ length: offset }).map((_, i) => (
-            <div key={`sp${i}`} className="aspect-square" aria-hidden />
-          ))}
+      <div className="mt-3 grid grid-cols-6 gap-2">
         {dias.map((box) => {
           const c = V[box.estado];
           const pagado = box.estado === "pagado";
@@ -267,7 +250,7 @@ export function CartonDigital({ dias, diaActual, totalDias, unidad = UNIDAD_DEFE
                   <span className="w-7 flex-shrink-0 text-right text-[12px] font-bold text-gris tabular-nums">{d.dia}</span>
                   <span className="min-w-0 flex-1 text-[13px] font-semibold text-tinta">
                     {d.fechaLarga}
-                    {d.esHoy && <span className="ml-1.5 rounded-full bg-azul px-1.5 py-0.5 text-[9px] font-black text-white">HOY</span>}
+                    {d.esHoy && <span className="ml-1.5 rounded-full bg-azul px-1.5 py-0.5 text-[10px] font-black text-white">HOY</span>}
                   </span>
                   <span className="flex flex-shrink-0 items-center gap-1.5">
                     <span

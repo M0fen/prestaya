@@ -26,7 +26,7 @@ export function PromoCliente({ promo, token = null }: { promo: PromoData; token?
       {promo.quiniela && (
         <Quiniela token={token} q={promo.quiniela} miNumero={promo.participacionNumero} />
       )}
-      <p className="text-[10px] leading-[1.5] font-medium text-[#AEB6CC]">
+      <p className="text-[11px] leading-[1.5] font-medium text-[#AEB6CC]">
         Juegos promocionales, sin dinero: los premios son beneficios de tu crédito. 🎁
       </p>
     </section>
@@ -97,7 +97,7 @@ function Quiniela({
           </button>
         </div>
       )}
-      {estado === "error" && <p className="mt-2 text-[12px] font-semibold text-[#D64545]">{error}</p>}
+      {estado === "error" && <p className="mt-2 text-[12px] font-semibold text-[#E06A6A]">{error}</p>}
       <p className="mt-2 text-[11px] font-medium text-[#AEB6CC]">
         Participás por estar al día. Números del {q.rangoMin} al {q.rangoMax}.
       </p>

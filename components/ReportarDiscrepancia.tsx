@@ -102,7 +102,7 @@ export function ReportarDiscrepancia({ token }: { token: string }) {
           </label>
 
           {error && (
-            <span className="text-[12.5px] font-semibold text-[#D64545]">
+            <span className="text-[12.5px] font-semibold text-[#E06A6A]">
               {error}
             </span>
           )}

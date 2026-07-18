@@ -5,7 +5,9 @@ import type { JuegoCliente as Juego } from "@/lib/juegoCliente";
 const RACHA_CHIP: Record<string, { label: string; bg: string; fg: string }> = {
   al_dia: { label: "Al día", bg: "#E4F5EC", fg: "#157A50" },
   en_riesgo: { label: "Vas bien, no aflojes", bg: "#FDF0DC", fg: "#B9770E" },
-  rota: { label: "Retomá tu racha", bg: "#FBE4E2", fg: "#C0392B" },
+  // Rojo SUAVE (no el de alarma): el mensaje es de aliento, no de reproche
+  // (regla de tono de la vista cliente — es una deuda, no se culpabiliza).
+  rota: { label: "Retomá tu racha", bg: "#FBE4E2", fg: "#E06A6A" },
 };
 
 export interface AjustesJuegoVista {
@@ -109,7 +111,7 @@ export function JuegoCliente({
             >
               {l.desbloqueado ? l.emoji : "🔒"}
             </div>
-            <span className="max-w-[54px] text-center text-[9px] leading-tight font-semibold text-gris">
+            <span className="max-w-[60px] text-center text-[10px] leading-tight font-semibold text-gris">
               {l.nombre}
             </span>
           </div>

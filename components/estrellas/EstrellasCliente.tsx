@@ -121,7 +121,7 @@ export function EstrellasCliente({
       )}
 
       {estado === "error" && (
-        <p className="text-[12px] font-semibold text-[#D64545]">{error}</p>
+        <p className="text-[12px] font-semibold text-[#E06A6A]">{error}</p>
       )}
     </section>
   );
