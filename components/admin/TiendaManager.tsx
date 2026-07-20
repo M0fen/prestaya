@@ -56,8 +56,8 @@ function Tab({ activo, onClick, children }: { activo: boolean; onClick: () => vo
 
 // ── PRODUCTOS ────────────────────────────────────────────────────────────────
 const PRODUCTO_VACIO: RawProducto = {
-  nombre: "", descripcion: "", categoriaId: null, precio: 0, interesPct: 0, cuotas: 0,
-  frecuencia: "diario", fotos: [], videoUrl: null, activo: true, destacado: false, orden: 0,
+  nombre: "", marca: "", descripcion: "", categoriaId: null, precio: 0, precioAnterior: 0,
+  interesPct: 0, cuotas: 0, frecuencia: "diario", fotos: [], videoUrl: null, activo: true, destacado: false, orden: 0,
 };
 
 function Productos({ productos, categorias }: { productos: Producto[]; categorias: CategoriaProducto[] }) {
@@ -243,7 +243,10 @@ function EditorProducto({
       {/* Datos */}
       <div className="grid gap-2.5 sm:grid-cols-2">
         <Campo label="Nombre">
-          <input value={f.nombre} onChange={(e) => set("nombre", e.target.value)} className={INPUT} placeholder="Ej. Heladera Mademsa" />
+          <input value={f.nombre} onChange={(e) => set("nombre", e.target.value)} className={INPUT} placeholder="Ej. Heladera No Frost 300L" />
+        </Campo>
+        <Campo label="Marca">
+          <input value={f.marca ?? ""} onChange={(e) => set("marca", e.target.value)} className={INPUT} placeholder="Ej. Samsung, LG, Whirlpool" />
         </Campo>
         <Campo label="Categoría">
           <select value={f.categoriaId ?? ""} onChange={(e) => set("categoriaId", e.target.value || null)} className={INPUT}>
@@ -253,6 +256,9 @@ function EditorProducto({
         </Campo>
         <Campo label="Precio (UYU)">
           <input type="number" inputMode="numeric" value={f.precio || ""} onChange={(e) => set("precio", Math.round(Number(e.target.value) || 0))} className={INPUT} />
+        </Campo>
+        <Campo label="Precio antes (opcional, para 'oferta')">
+          <input type="number" inputMode="numeric" value={f.precioAnterior || ""} onChange={(e) => set("precioAnterior", Math.round(Number(e.target.value) || 0))} className={INPUT} placeholder="mayor al precio actual" />
         </Campo>
         <Campo label="% de interés">
           <input type="number" inputMode="decimal" value={f.interesPct || ""} onChange={(e) => set("interesPct", Number(e.target.value) || 0)} className={INPUT} />

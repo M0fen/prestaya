@@ -1,9 +1,9 @@
 "use client";
-// Tienda del CLIENTE dentro del cartón: se siente como una tienda de
-// electrodomésticos en cuotas. Banner del destacado + galería por categorías +
-// modal de detalle con carrusel de fotos/video y "Me interesa" (lead, no crédito).
-// Tono de la vista cliente: aspiracional, legible (adultos mayores), sin alarma.
-import { useState, useTransition } from "react";
+// Vitrina del CLIENTE: se siente como una tienda de electrodomésticos en cuotas.
+// Buscador + chips de categoría + orden + fila de destacados + grilla de catálogo
+// (marca, antes/ahora, "en N cuotas de $X") + modal de detalle con carrusel/video
+// y "Me interesa" (lead, sin generar crédito). Tono cliente: claro, aspiracional.
+import { useState, useMemo, useTransition } from "react";
 import { UYU } from "@/lib/format";
 import { registrarInteres } from "@/app/c/[token]/actions";
 import type { ProductoParaCliente, FrecuenciaProducto } from "@/lib/data/tienda";
@@ -11,37 +11,55 @@ import type { ProductoParaCliente, FrecuenciaProducto } from "@/lib/data/tienda"
 const FREC_LABEL: Record<FrecuenciaProducto, string> = {
   diario: "por día", semanal: "por semana", quincenal: "por quincena", mensual: "por mes",
 };
+type Orden = "destacados" | "menor" | "mayor";
 
-/** Precio final con interés + la cuota (para el framing "en N cuotas de $X"). */
+/** Precio final con interés + la cuota (framing "en N cuotas de $X"). */
 function financiacion(p: ProductoParaCliente) {
   const conInteres = Math.round(p.precio * (1 + p.interesPct / 100));
   const cuota = p.cuotas > 0 ? Math.ceil(conInteres / p.cuotas) : 0;
   return { conInteres, cuota };
 }
+// Quita acentos para que "heladera" matchee "Heladera" y "cafe" matchee "café".
+const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
 export function TiendaCliente({
   productos, token, conEncabezado = true,
 }: {
   productos: ProductoParaCliente[];
   token: string | null;
-  /** Muestra el encabezado "Nuestra tienda" (false cuando la página ya trae uno). */
   conEncabezado?: boolean;
 }) {
   const [abierto, setAbierto] = useState<ProductoParaCliente | null>(null);
-  if (!productos || productos.length === 0) return null;
+  const [q, setQ] = useState("");
+  const [cat, setCat] = useState<string | null>(null);
+  const [orden, setOrden] = useState<Orden>("destacados");
+
+  const categorias = useMemo(() => {
+    const set = new Map<string, number>();
+    for (const p of productos) { const k = p.categoriaNombre ?? "Más productos"; set.set(k, (set.get(k) ?? 0) + 1); }
+    return [...set.entries()].map(([nombre, n]) => ({ nombre, n }));
+  }, [productos]);
+
+  const filtrados = useMemo(() => {
+    const t = norm(q.trim());
+    let r = productos.filter((p) => {
+      if (cat && (p.categoriaNombre ?? "Más productos") !== cat) return false;
+      if (!t) return true;
+      return norm(`${p.nombre} ${p.marca ?? ""} ${p.categoriaNombre ?? ""} ${p.descripcion ?? ""}`).includes(t);
+    });
+    if (orden === "menor") r = [...r].sort((a, b) => a.precio - b.precio);
+    else if (orden === "mayor") r = [...r].sort((a, b) => b.precio - a.precio);
+    else r = [...r].sort((a, b) => Number(b.destacado) - Number(a.destacado));
+    return r;
+  }, [productos, q, cat, orden]);
 
   const destacados = productos.filter((p) => p.destacado);
-  const hero = destacados[0] ?? null;
-  // Agrupar por categoría (respetando el orden de llegada, ya ordenado por el server).
-  const grupos = new Map<string, ProductoParaCliente[]>();
-  for (const p of productos) {
-    const k = p.categoriaNombre ?? "Más productos";
-    (grupos.get(k) ?? grupos.set(k, []).get(k)!).push(p);
-  }
+  const hayFiltro = Boolean(q.trim() || cat);
+
+  if (!productos || productos.length === 0) return null;
 
   return (
-    <section className="mt-2 flex flex-col gap-3">
-      {/* Encabezado de la tienda (se omite si la página ya trae uno) */}
+    <section className="flex flex-col gap-3">
       {conEncabezado && (
         <div className="flex items-center gap-2 px-1">
           <span className="text-[20px]" aria-hidden="true">🛍️</span>
@@ -52,80 +70,134 @@ export function TiendaCliente({
         </div>
       )}
 
-      {/* Banner del destacado */}
-      {hero && (
-        <button
-          type="button"
-          onClick={() => setAbierto(hero)}
-          className="relative overflow-hidden rounded-[20px] text-left shadow-[0_10px_28px_rgba(19,48,140,0.14)] active:scale-[0.99]"
-        >
-          <div className="aspect-[16/10] w-full bg-[#EEF1F8]">
-            {hero.fotos[0] ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={hero.fotos[0]} alt={hero.nombre} className="h-full w-full object-cover" />
-            ) : (
-              <div className="flex h-full items-center justify-center text-[46px]">🧊</div>
-            )}
-          </div>
-          <div className="absolute inset-x-0 bottom-0 bg-[linear-gradient(0deg,rgba(9,17,40,0.9),rgba(9,17,40,0))] px-4 pb-3.5 pt-10">
-            <span className="inline-block rounded-full bg-[#E8A317] px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide text-white">Destacado</span>
-            <p className="mt-1.5 text-[19px] font-extrabold leading-tight text-white">{hero.nombre}</p>
-            <PrecioLinea p={hero} tono="claro" />
-          </div>
-        </button>
-      )}
+      {/* Buscador */}
+      <div className="relative">
+        <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] text-gris">🔎</span>
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Buscar (heladera, LG, TV…)"
+          className="w-full rounded-full border border-[#DCE3F4] bg-white py-2.5 pl-10 pr-4 text-[14px] outline-none focus:border-azul"
+        />
+        {q && (
+          <button type="button" onClick={() => setQ("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[15px] font-bold text-gris">✕</button>
+        )}
+      </div>
 
-      {/* Galería por categorías */}
-      {[...grupos.entries()].map(([cat, items]) => (
-        <div key={cat} className="flex flex-col gap-2">
-          <div className="flex items-center gap-2 px-1 pt-1">
-            <span className="text-[13px] font-extrabold text-tinta">{cat}</span>
-            <span className="h-px flex-1 bg-linea" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {items.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setAbierto(p)}
-                className="flex flex-col overflow-hidden rounded-[16px] border border-[#ECEFF8] bg-white text-left shadow-[0_2px_10px_rgba(15,27,61,0.05)] active:scale-[0.98]"
-              >
-                <div className="aspect-square w-full bg-white">
-                  {p.fotos[0] ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.fotos[0]} alt={p.nombre} className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-[34px]">🛒</div>
-                  )}
-                </div>
+      {/* Chips de categoría (scroll horizontal) */}
+      <div className="-mx-[18px] flex gap-1.5 overflow-x-auto px-[18px] pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <Chip activo={!cat} onClick={() => setCat(null)}>Todos</Chip>
+        {categorias.map((c) => (
+          <Chip key={c.nombre} activo={cat === c.nombre} onClick={() => setCat(cat === c.nombre ? null : c.nombre)}>
+            {c.nombre}
+          </Chip>
+        ))}
+      </div>
+
+      {/* Destacados (solo sin filtro) */}
+      {!hayFiltro && destacados.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <span className="px-1 text-[13px] font-extrabold text-tinta">⭐ Destacados</span>
+          <div className="-mx-[18px] flex gap-3 overflow-x-auto px-[18px] pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {destacados.map((p) => (
+              <button key={p.id} type="button" onClick={() => setAbierto(p)}
+                className="flex w-[160px] shrink-0 flex-col overflow-hidden rounded-[16px] border border-[#ECEFF8] bg-white text-left shadow-[0_2px_10px_rgba(15,27,61,0.05)] active:scale-[0.98]">
+                <Foto p={p} className="aspect-square" />
                 <div className="flex flex-col gap-0.5 px-3 py-2.5">
-                  <span className="line-clamp-2 text-[13.5px] font-bold leading-tight text-tinta">{p.nombre}</span>
-                  <PrecioLinea p={p} tono="oscuro" />
-                  <span className="mt-1 w-fit rounded-full bg-[#EEF3FF] px-2.5 py-1 text-[11.5px] font-bold text-azul">Ver más detalle</span>
+                  {p.marca && <span className="text-[10px] font-bold uppercase tracking-wide text-gris">{p.marca}</span>}
+                  <span className="line-clamp-2 text-[13px] font-bold leading-tight text-tinta">{p.nombre}</span>
+                  <Precio p={p} />
                 </div>
               </button>
             ))}
           </div>
         </div>
-      ))}
+      )}
+
+      {/* Barra de resultados + orden */}
+      <div className="flex items-center justify-between px-1">
+        <span className="text-[12px] font-semibold text-gris">
+          {filtrados.length} {filtrados.length === 1 ? "artículo" : "artículos"}{cat ? ` · ${cat}` : ""}
+        </span>
+        <select value={orden} onChange={(e) => setOrden(e.target.value as Orden)}
+          className="rounded-full border border-[#DCE3F4] bg-white px-3 py-1 text-[12px] font-semibold text-cuerpo outline-none">
+          <option value="destacados">Destacados</option>
+          <option value="menor">Menor precio</option>
+          <option value="mayor">Mayor precio</option>
+        </select>
+      </div>
+
+      {/* Grilla */}
+      {filtrados.length === 0 ? (
+        <div className="flex flex-col items-center gap-1.5 rounded-[16px] border border-[#ECEFF8] bg-white px-6 py-10 text-center">
+          <span className="text-[30px]" aria-hidden="true">🔍</span>
+          <p className="text-[14px] font-bold text-tinta">No encontramos ese artículo</p>
+          <p className="text-[12.5px] font-medium text-gris">Probá con otra palabra o mirá otra categoría.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          {filtrados.map((p) => (
+            <button key={p.id} type="button" onClick={() => setAbierto(p)}
+              className="flex flex-col overflow-hidden rounded-[16px] border border-[#ECEFF8] bg-white text-left shadow-[0_2px_10px_rgba(15,27,61,0.05)] active:scale-[0.98]">
+              <div className="relative">
+                <Foto p={p} className="aspect-square" />
+                {p.precioAnterior > p.precio && (
+                  <span className="absolute left-2 top-2 rounded-full bg-[#D64545] px-2 py-0.5 text-[10px] font-black text-white">OFERTA</span>
+                )}
+              </div>
+              <div className="flex flex-1 flex-col gap-0.5 px-3 py-2.5">
+                {p.marca && <span className="text-[10px] font-bold uppercase tracking-wide text-gris">{p.marca}</span>}
+                <span className="line-clamp-2 text-[13.5px] font-bold leading-tight text-tinta">{p.nombre}</span>
+                <Precio p={p} />
+                <span className="mt-1.5 w-fit rounded-full bg-[#EEF3FF] px-2.5 py-1 text-[11.5px] font-bold text-azul">Ver detalle</span>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      <p className="px-1 pt-1 text-center text-[11px] font-medium text-tenue">
+        Precios de referencia. Tocá "Me interesa" y tu cobrador te pasa el precio y las cuotas para vos. 🙂
+      </p>
 
       {abierto && <DetalleProducto p={abierto} token={token} onClose={() => setAbierto(null)} />}
     </section>
   );
 }
 
-/** Precio + framing en cuotas ("en 12 cuotas de $X por semana"). */
-function PrecioLinea({ p, tono }: { p: ProductoParaCliente; tono: "claro" | "oscuro" }) {
+function Chip({ activo, onClick, children }: { activo: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button type="button" onClick={onClick}
+      className={`shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 text-[12.5px] font-bold ${activo ? "bg-[#1E47C8] text-white" : "border border-[#DCE3F4] bg-white text-cuerpo"}`}>
+      {children}
+    </button>
+  );
+}
+
+function Foto({ p, className = "" }: { p: ProductoParaCliente; className?: string }) {
+  return (
+    <div className={`w-full bg-white ${className}`}>
+      {p.fotos[0] ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={p.fotos[0]} alt={p.nombre} className="h-full w-full object-contain p-1.5" />
+      ) : (
+        <div className="flex h-full items-center justify-center text-[34px]">🛒</div>
+      )}
+    </div>
+  );
+}
+
+/** Precio con "antes" tachado (si hay oferta) + cuota. */
+function Precio({ p }: { p: ProductoParaCliente }) {
   const { cuota } = financiacion(p);
-  const c1 = tono === "claro" ? "text-white" : "text-[#1E47C8]";
-  const c2 = tono === "claro" ? "text-white/85" : "text-gris";
   return (
     <div className="mt-0.5 flex flex-col">
-      <span className={`text-[17px] font-black tabular-nums ${c1}`}>{UYU(p.precio)}</span>
+      <div className="flex items-baseline gap-1.5">
+        <span className="text-[16px] font-black tabular-nums text-[#157A50]">{UYU(p.precio)}</span>
+        {p.precioAnterior > p.precio && <span className="text-[11.5px] font-semibold tabular-nums text-tenue line-through">{UYU(p.precioAnterior)}</span>}
+      </div>
       {p.cuotas > 0 && cuota > 0 && (
-        <span className={`text-[11.5px] font-semibold ${c2}`}>
-          o en {p.cuotas} cuotas de <b className="tabular-nums">{UYU(cuota)}</b> {FREC_LABEL[p.frecuencia]}
-        </span>
+        <span className="text-[11px] font-semibold text-[#1E47C8]">{p.cuotas}× {UYU(cuota)} {FREC_LABEL[p.frecuencia]}</span>
       )}
     </div>
   );
@@ -150,50 +222,41 @@ function DetalleProducto({ p, token, onClose }: { p: ProductoParaCliente; token:
 
   return (
     <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4" onClick={onClose}>
-      <div
-        className="flex max-h-[92vh] w-full max-w-[440px] flex-col overflow-hidden rounded-t-[24px] bg-white sm:rounded-[24px]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Carrusel */}
-        <div className="relative aspect-square w-full shrink-0 bg-[#F4F6FB]">
+      <div className="flex max-h-[92vh] w-full max-w-[440px] flex-col overflow-hidden rounded-t-[24px] bg-white sm:rounded-[24px]" onClick={(e) => e.stopPropagation()}>
+        <div className="relative aspect-square w-full shrink-0 bg-[#F7F9FD]">
           {esVideo ? (
             <video src={p.videoUrl!} controls playsInline className="h-full w-full bg-black object-contain" />
           ) : medios[i] ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={medios[i]} alt={p.nombre} className="h-full w-full object-cover" />
+            <img src={medios[i]} alt={p.nombre} className="h-full w-full object-contain p-2" />
           ) : (
             <div className="flex h-full items-center justify-center text-[52px]">🛍️</div>
           )}
           {total > 1 && (
             <>
-              <button type="button" onClick={() => setI((x) => (x - 1 + total) % total)}
-                className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/85 px-3 py-2 text-[16px] font-black text-tinta shadow">‹</button>
-              <button type="button" onClick={() => setI((x) => (x + 1) % total)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/85 px-3 py-2 text-[16px] font-black text-tinta shadow">›</button>
+              <button type="button" onClick={() => setI((x) => (x - 1 + total) % total)} className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 px-3 py-2 text-[16px] font-black text-tinta shadow">‹</button>
+              <button type="button" onClick={() => setI((x) => (x + 1) % total)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 px-3 py-2 text-[16px] font-black text-tinta shadow">›</button>
               <div className="absolute inset-x-0 bottom-2 flex justify-center gap-1.5">
-                {Array.from({ length: total }).map((_, k) => (
-                  <span key={k} className={`h-1.5 rounded-full transition-all ${k === i ? "w-4 bg-[#1E47C8]" : "w-1.5 bg-white/80"}`} />
-                ))}
+                {Array.from({ length: total }).map((_, k) => <span key={k} className={`h-1.5 rounded-full transition-all ${k === i ? "w-4 bg-[#1E47C8]" : "w-1.5 bg-[#C7D2EC]"}`} />)}
               </div>
             </>
           )}
-          <button type="button" onClick={onClose} className="absolute right-2 top-2 rounded-full bg-white/85 px-3 py-1.5 text-[14px] font-black text-tinta shadow">✕</button>
+          <button type="button" onClick={onClose} className="absolute right-2 top-2 rounded-full bg-white/90 px-3 py-1.5 text-[14px] font-black text-tinta shadow">✕</button>
         </div>
 
-        {/* Detalle */}
         <div className="flex flex-col gap-3 overflow-y-auto px-5 py-4">
           <div className="flex flex-col gap-1">
-            {p.categoriaNombre && <span className="text-[11.5px] font-bold uppercase tracking-wide text-azul">{p.categoriaNombre}</span>}
+            <span className="text-[11.5px] font-bold uppercase tracking-wide text-azul">{[p.marca, p.categoriaNombre].filter(Boolean).join(" · ")}</span>
             <h3 className="text-[21px] font-extrabold leading-tight text-tinta">{p.nombre}</h3>
           </div>
 
-          {/* Precio y financiación — el corazón de la tienda de electro */}
           <div className="flex flex-col gap-1 rounded-[16px] bg-[#F1FBF6] px-4 py-3">
-            <span className="text-[26px] font-black tabular-nums leading-none text-[#157A50]">{UYU(p.precio)}</span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-[26px] font-black tabular-nums leading-none text-[#157A50]">{UYU(p.precio)}</span>
+              {p.precioAnterior > p.precio && <span className="text-[14px] font-semibold tabular-nums text-tenue line-through">{UYU(p.precioAnterior)}</span>}
+            </div>
             {p.cuotas > 0 && cuota > 0 && (
-              <span className="text-[14px] font-semibold text-cuerpo">
-                o en <b>{p.cuotas} cuotas</b> de <b className="tabular-nums text-[#1E47C8]">{UYU(cuota)}</b> {FREC_LABEL[p.frecuencia]}
-              </span>
+              <span className="text-[14px] font-semibold text-cuerpo">o en <b>{p.cuotas} cuotas</b> de <b className="tabular-nums text-[#1E47C8]">{UYU(cuota)}</b> {FREC_LABEL[p.frecuencia]}</span>
             )}
             {p.interesPct > 0 && p.cuotas > 0 && (
               <span className="text-[12px] font-medium text-gris">Total en cuotas: <b className="tabular-nums">{UYU(conInteres)}</b> ({p.interesPct}% de interés)</span>
@@ -202,19 +265,14 @@ function DetalleProducto({ p, token, onClose }: { p: ProductoParaCliente; token:
 
           {p.descripcion && <p className="whitespace-pre-line text-[14px] leading-[1.55] text-cuerpo">{p.descripcion}</p>}
 
-          {/* Me interesa */}
           {estado === "ok" ? (
             <div className="rounded-[14px] bg-[#E4F5EC] px-4 py-3 text-center">
               <p className="text-[15px] font-extrabold text-[#157A50]">¡Listo! 💚</p>
               <p className="text-[13px] font-medium text-[#3E8E67]">Anotamos tu interés. Tu cobrador te va a contar cómo llevártelo.</p>
             </div>
           ) : (
-            <button
-              type="button"
-              onClick={interes}
-              disabled={pend}
-              className="w-full rounded-full bg-[#1E47C8] px-5 py-3.5 text-[16px] font-extrabold text-white shadow-[0_6px_18px_rgba(19,48,140,0.28)] active:scale-[0.99] disabled:opacity-60"
-            >
+            <button type="button" onClick={interes} disabled={pend}
+              className="w-full rounded-full bg-[#1E47C8] px-5 py-3.5 text-[16px] font-extrabold text-white shadow-[0_6px_18px_rgba(19,48,140,0.28)] active:scale-[0.99] disabled:opacity-60">
               {pend ? "Enviando…" : "Me interesa · Quiero saber más"}
             </button>
           )}

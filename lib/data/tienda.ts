@@ -22,10 +22,13 @@ export interface CategoriaProducto {
 export interface Producto {
   id: string;
   nombre: string;
+  marca: string | null;
   descripcion: string | null;
   categoriaId: string | null;
   categoriaNombre: string | null;
   precio: number;
+  /** Precio "antes" (tachado) para framing de oferta. 0 = sin oferta. */
+  precioAnterior: number;
   interesPct: number;
   cuotas: number;
   frecuencia: FrecuenciaProducto;
@@ -74,10 +77,12 @@ function mapProducto(r: Record<string, unknown>): Producto {
   return {
     id: r.id as string,
     nombre: r.nombre as string,
+    marca: (r.marca as string | null) ?? null,
     descripcion: (r.descripcion as string | null) ?? null,
     categoriaId: (r.categoria_id as string | null) ?? null,
     categoriaNombre: cat?.nombre ?? null,
     precio: N(r.precio),
+    precioAnterior: N(r.precio_anterior),
     interesPct: NUM(r.interes_pct),
     cuotas: N(r.cuotas),
     frecuencia: ((r.frecuencia as string) || "diario") as FrecuenciaProducto,
@@ -89,7 +94,8 @@ function mapProducto(r: Record<string, unknown>): Producto {
   };
 }
 
-const COLS = "id, nombre, descripcion, categoria_id, precio, interes_pct, cuotas, frecuencia, fotos, video_url, activo, destacado, orden, categorias_producto(nombre)";
+// `*` (resiliente: si falta una columna nueva de 0077 no rompe) + el nombre de la categoría.
+const COLS = "*, categorias_producto(nombre)";
 
 // ── Categorías ─────────────────────────────────────────────────────────────
 export async function getCategorias(db: SupabaseClient, soloActivas = true): Promise<CategoriaProducto[]> {
@@ -223,9 +229,11 @@ export async function contarSolicitudesNuevas(db: SupabaseClient): Promise<numbe
 // ── Escrituras (llamadas desde las Server Actions) ──────────────────────────
 export interface ProductoInput {
   nombre: string;
+  marca: string | null;
   descripcion: string | null;
   categoriaId: string | null;
   precio: number;
+  precioAnterior: number;
   interesPct: number;
   cuotas: number;
   frecuencia: FrecuenciaProducto;
@@ -238,8 +246,9 @@ export interface ProductoInput {
 
 function rowProducto(p: ProductoInput) {
   return {
-    nombre: p.nombre, descripcion: p.descripcion, categoria_id: p.categoriaId,
-    precio: N(p.precio), interes_pct: NUM(p.interesPct), cuotas: N(p.cuotas), frecuencia: p.frecuencia,
+    nombre: p.nombre, marca: p.marca, descripcion: p.descripcion, categoria_id: p.categoriaId,
+    precio: N(p.precio), precio_anterior: p.precioAnterior > 0 ? N(p.precioAnterior) : null,
+    interes_pct: NUM(p.interesPct), cuotas: N(p.cuotas), frecuencia: p.frecuencia,
     fotos: p.fotos, video_url: p.videoUrl, activo: p.activo, destacado: p.destacado, orden: N(p.orden),
   };
 }

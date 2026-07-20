@@ -36,9 +36,11 @@ const urlSegura = (s: string): string | null => (/^https?:\/\/\S+$/i.test((s ?? 
 export interface RawProducto {
   id?: string | null;
   nombre: string;
+  marca?: string | null;
   descripcion?: string | null;
   categoriaId?: string | null;
   precio: number;
+  precioAnterior?: number | null;
   interesPct: number;
   cuotas: number;
   frecuencia: string;
@@ -55,9 +57,11 @@ function sanearProducto(raw: RawProducto): ProductoInput | null {
   const fotos = (Array.isArray(raw.fotos) ? raw.fotos : []).map(urlSegura).filter((u): u is string => !!u).slice(0, 10);
   return {
     nombre,
+    marca: (raw.marca ?? "").trim().slice(0, 60) || null,
     descripcion: (raw.descripcion ?? "").trim().slice(0, 1000) || null,
     categoriaId: raw.categoriaId && ES_UUID.test(raw.categoriaId) ? raw.categoriaId : null,
     precio: Math.max(0, Math.round(Number(raw.precio) || 0)),
+    precioAnterior: Math.max(0, Math.round(Number(raw.precioAnterior) || 0)),
     interesPct: Math.max(0, Math.min(999, Math.round((Number(raw.interesPct) || 0) * 100) / 100)),
     cuotas: Math.max(0, Math.min(100000, Math.round(Number(raw.cuotas) || 0))),
     frecuencia: FRECUENCIAS.includes(raw.frecuencia as FrecuenciaProducto) ? (raw.frecuencia as FrecuenciaProducto) : "diario",
