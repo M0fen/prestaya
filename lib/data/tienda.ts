@@ -181,6 +181,36 @@ export async function getProductosParaCliente(
   }
 }
 
+/**
+ * El producto DESTACADO para el banner del cartón, con el precio RESUELTO para
+ * este cliente (override si hay, si no el base). El más "arriba" por orden. null
+ * si no hay ninguno destacado activo. Barato: 1 fila + 1 override. Resiliente.
+ */
+export async function getProductoDestacadoParaCliente(
+  db: SupabaseClient,
+  clienteId: string,
+): Promise<ProductoParaCliente | null> {
+  try {
+    const { data, error } = await db.from("productos").select(COLS)
+      .eq("activo", true).eq("destacado", true)
+      .order("orden", { ascending: true }).order("nombre", { ascending: true })
+      .limit(1);
+    if (error) throw error;
+    const row = (data ?? [])[0] as Record<string, unknown> | undefined;
+    if (!row) return null;
+    const p = mapProducto(row);
+    // Override de ESTE cliente para ese producto (unique producto+cliente → maybeSingle).
+    const { data: ov } = await db.from("producto_precio_cliente")
+      .select("precio, interes_pct, cuotas").eq("cliente_id", clienteId).eq("producto_id", p.id).maybeSingle();
+    return ov
+      ? { ...p, precio: N(ov.precio), interesPct: NUM(ov.interes_pct), cuotas: N(ov.cuotas), precioPersonalizado: true }
+      : { ...p, precioPersonalizado: false };
+  } catch (e) {
+    if (tablaFaltante(e)) return null;
+    throw e;
+  }
+}
+
 // ── Precios por cliente (admin) ─────────────────────────────────────────────
 export async function getPreciosDeProducto(db: SupabaseClient, productoId: string): Promise<PrecioCliente[]> {
   const { data, error } = await db.from("producto_precio_cliente")

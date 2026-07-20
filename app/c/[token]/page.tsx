@@ -25,7 +25,7 @@ import { getRifaParaCliente } from "@/lib/data/rifas";
 import { cicloUY } from "@/lib/fecha";
 import { juegoArcadeDe } from "@/lib/juegoAjustes";
 import { construirVistaCliente } from "@/lib/vistaCliente";
-import { hayProductosActivos } from "@/lib/data/tienda";
+import { hayProductosActivos, getProductoDestacadoParaCliente, type ProductoParaCliente } from "@/lib/data/tienda";
 import { conTimeout } from "@/lib/timeout";
 import { calcularJuegoCliente } from "@/lib/juegoCliente";
 import { evaluarRecompensas } from "@/lib/recompensas";
@@ -185,11 +185,16 @@ export default async function VistaPorToken({
   // 4b) Tienda: ¿hay productos activos? (chequeo barato para mostrar el botón "Ir a
   //     la tienda"; el catálogo se carga en la página aparte /c/[token]/tienda).
   //     Resiliente: si falta 0076 o algo falla, no se muestra el botón.
+  //     Si hay tienda, además traemos el DESTACADO (banner del cartón) con el
+  //     precio resuelto para este cliente. Resiliente: nunca rompe la vista.
   let hayTienda = false;
+  let productoDestacado: ProductoParaCliente | null = null;
   try {
     hayTienda = await hayProductosActivos(db);
+    if (hayTienda) productoDestacado = await getProductoDestacadoParaCliente(db, cliente.id);
   } catch {
     hayTienda = false;
+    productoDestacado = null;
   }
 
   // 5) Reputación positiva — resiliente: nunca rompe la vista.
@@ -215,6 +220,7 @@ export default async function VistaPorToken({
       v={v}
       anuncios={anuncios}
       hayTienda={hayTienda}
+      productoDestacado={productoDestacado}
       token={token}
       rifa={rifa}
       creditoSelector={creditoSelector}

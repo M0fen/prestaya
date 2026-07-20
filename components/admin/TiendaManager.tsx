@@ -315,6 +315,9 @@ function EditorProducto({
           Orden <input type="number" value={f.orden} onChange={(e) => set("orden", Math.round(Number(e.target.value) || 0))} className={`${INPUT} w-20`} />
         </label>
       </div>
+      <p className="text-[11.5px] font-medium text-gris">
+        El destacado aparece en la fila “⭐ Destacados” de la tienda; el <b>primero</b> (menor “Orden”) también sale como <b>banner en la cuenta del cliente</b> con “Ver más detalle”.
+      </p>
 
       {error && <span className="text-[12.5px] font-semibold text-[#C0392B]">{error}</span>}
 

@@ -13,8 +13,15 @@ import { NEGOCIO } from "@/lib/negocio";
 export const dynamic = "force-dynamic";
 const TOPE_MS = 22_000;
 
-export default async function TiendaClientePage({ params }: { params: Promise<{ token: string }> }) {
+export default async function TiendaClientePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ token: string }>;
+  searchParams: Promise<{ producto?: string }>;
+}) {
   const { token } = await params;
+  const { producto } = await searchParams;
   const db = createSupabaseAdmin();
   const cliente = await conTimeout(getClientePorToken(db, token), TOPE_MS, "cliente.tienda.token");
   if (!cliente) notFound();
@@ -47,7 +54,7 @@ export default async function TiendaClientePage({ params }: { params: Promise<{ 
             <Link href={`/c/${token}`} className="mt-2 rounded-full bg-[#1E47C8] px-5 py-2.5 text-[14px] font-bold text-white">Volver a mi cuenta</Link>
           </div>
         ) : (
-          <TiendaCliente productos={productos} token={token} conEncabezado={false} />
+          <TiendaCliente productos={productos} token={token} conEncabezado={false} abrirId={producto ?? null} />
         )}
       </div>
     </div>

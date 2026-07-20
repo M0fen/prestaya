@@ -3,6 +3,8 @@
 // ruta real por token (app/c/[token]/page.tsx): misma UI, distinto origen.
 import type { VistaCredito } from "@/types/cartones";
 import type { Anuncio, Calificacion } from "@/types/db";
+import type { ProductoParaCliente } from "@/lib/data/tienda";
+import { TiendaBanner } from "@/components/tienda/TiendaBanner";
 import type { JuegoCliente as Juego } from "@/lib/juegoCliente";
 import type { Juego as JuegoArcade } from "@/lib/juegos";
 import type { AjustesJuegoVista } from "@/components/JuegoCliente";
@@ -33,6 +35,7 @@ export function VistaClienteScreen({
   v,
   anuncios = [],
   hayTienda = false,
+  productoDestacado = null,
   token = null,
   reputacion = null,
   estrellas = null,
@@ -47,6 +50,8 @@ export function VistaClienteScreen({
   anuncios?: Anuncio[];
   /** ¿Hay productos activos? → muestra el botón "Ir a la tienda" (página aparte). */
   hayTienda?: boolean;
+  /** Producto destacado (con precio resuelto para el cliente) → banner del cartón. */
+  productoDestacado?: ProductoParaCliente | null;
   /** Rifa promocional a mostrarle a este cliente (o null). */
   rifa?: RifaVista | null;
   /** Selector de crédito (si el cliente tiene varios activos). Se pinta arriba. */
@@ -156,8 +161,11 @@ export function VistaClienteScreen({
         {/* Historial de pagos (con % de la cuota cubierto + descuento). */}
         <Historial historial={v.historial} />
 
-        {/* TIENDA: botón de entrada (no la galería inline). Lleva a una sección
-            aparte, como una extensión de Presta Ya. Solo si hay productos y token. */}
+        {/* TIENDA: banner del producto destacado (si el admin lo marcó) + botón de
+            entrada al catálogo. Como una extensión de Presta Ya. Solo con token. */}
+        {productoDestacado && token && (
+          <TiendaBanner producto={productoDestacado} token={token} />
+        )}
         {hayTienda && token && (
           <Link
             href={`/c/${token}/tienda`}

@@ -23,13 +23,18 @@ function financiacion(p: ProductoParaCliente) {
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
 export function TiendaCliente({
-  productos, token, conEncabezado = true,
+  productos, token, conEncabezado = true, abrirId = null,
 }: {
   productos: ProductoParaCliente[];
   token: string | null;
   conEncabezado?: boolean;
+  /** Id de producto a abrir directo (deep-link desde el banner del cartón). */
+  abrirId?: string | null;
 }) {
-  const [abierto, setAbierto] = useState<ProductoParaCliente | null>(null);
+  // Si venimos del banner del cartón (?producto=id), abrimos su detalle de una.
+  const [abierto, setAbierto] = useState<ProductoParaCliente | null>(
+    () => (abrirId ? productos.find((p) => p.id === abrirId) ?? null : null),
+  );
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<string | null>(null);
   const [orden, setOrden] = useState<Orden>("destacados");
