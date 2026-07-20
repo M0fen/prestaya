@@ -82,3 +82,32 @@ describe("idempotencia de pagos (op_id)", () => {
     expect(db._filas).toHaveLength(2);
   });
 });
+
+// ── Chokepoint money-critical: el libro de pagos es ENTERO ─────────────────
+//  La cuota importada de Disapp puede ser fraccionaria (numeric(12,2)). Ningún
+//  float debe entrar al libro inmutable: registrarPago redondea a peso ANTES de
+//  insertar, venga del cobrador o del panel. Se fija con test para que un cambio
+//  futuro no vuelva a colar decimales al dinero.
+describe("registrarPago — redondeo del monto a peso entero", () => {
+  it("cuota fraccionaria se redondea (428,57 → 429)", async () => {
+    const db = fakePagosDb();
+    const p = await registrarPago(db, { ...base, monto: 428.57, op_id: "r1" });
+    expect(p.monto).toBe(429);
+    expect(Number.isInteger(p.monto)).toBe(true);
+    expect(db._filas[0].monto).toBe(429); // lo GUARDADO también es entero
+  });
+
+  it("redondea hacia abajo bajo .5 (399,4 → 399) y hacia arriba desde .5 (400,5 → 401)", async () => {
+    const db = fakePagosDb();
+    const abajo = await registrarPago(db, { ...base, monto: 399.4, op_id: "r2" });
+    const arriba = await registrarPago(db, { ...base, monto: 400.5, op_id: "r3" });
+    expect(abajo.monto).toBe(399);
+    expect(arriba.monto).toBe(401);
+  });
+
+  it("un entero exacto queda intacto", async () => {
+    const db = fakePagosDb();
+    const p = await registrarPago(db, { ...base, monto: 500, op_id: "r4" });
+    expect(p.monto).toBe(500);
+  });
+});

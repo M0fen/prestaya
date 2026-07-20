@@ -1,0 +1,265 @@
+// ─────────────────────────────────────────────────────────────────────────
+//  Tests de crearRenovacion — el ALTA REAL del crédito de renovación (escribe
+//  dinero). El núcleo puro de la cuota ya se prueba en lib/renovacion.test.ts;
+//  acá se blindan las GUARDAS de la orquestación money-critical:
+//    · validaciones de entrada (monto/cap/días/frecuencia) ANTES de tocar la BD,
+//    · gate de "crédito anterior activo" y de "saldado" (falta === 0),
+//    · candado de concurrencia (el UPDATE condicional no encuentra el activo),
+//    · compensación (si el insert falla, se reactiva el anterior).
+//  Se usa un doble de Supabase que emula el query-builder encadenado.
+// ─────────────────────────────────────────────────────────────────────────
+import { describe, it, expect } from "vitest";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { crearRenovacion, type AltaRenovacion } from "./renovaciones";
+
+// Crédito anterior canónico: prestó 10.000, cuota 400 × 30 = 12.000 a pagar
+// (tasa 1.2). Saldado ⇔ pagos suman ≥ 12.000.
+function prestamoAnterior(over: Record<string, unknown> = {}) {
+  return {
+    id: "ant-1",
+    cliente_id: "cli-1",
+    cobrador_id: "cob-9",
+    monto_prestado: 10000,
+    cuota_diaria: 400,
+    total_dias: 30,
+    frecuencia: "diario",
+    fecha_inicio: "2026-05-01",
+    estado: "activo",
+    creado_por: null,
+    creado_en: "2026-05-01T00:00:00Z",
+    actualizado_en: "2026-05-01T00:00:00Z",
+    finalizado_en: null,
+    ...over,
+  };
+}
+
+/**
+ * Doble mínimo de Supabase para crearRenovacion. Modela dos tablas en memoria
+ * (`prestamos`, `pagos`) y resuelve la cadena select/insert/update.
+ * Opciones de escenario:
+ *   · failInsert: el insert del nuevo crédito falla (para probar compensación).
+ *   · finalizarTrasLeer: al leer el anterior (getPrestamoPorId) devuelve el
+ *     snapshot ACTIVO pero deja la fila almacenada como 'finalizado', así el
+ *     UPDATE condicional `.eq('estado','activo')` posterior no encuentra nada
+ *     (emula la carrera: otra persona ya lo renovó).
+ */
+function fakeDb(state: {
+  prestamos: Record<string, Record<string, unknown>>;
+  pagos: Record<string, Record<string, unknown>[]>;
+  failInsert?: boolean;
+  finalizarTrasLeer?: boolean;
+  nextInsertId?: string;
+}) {
+  const calls = {
+    inserts: [] as Record<string, unknown>[],
+    updates: [] as { payload: Record<string, unknown>; filtros: [string, unknown][] }[],
+  };
+
+  function makeQuery(table: string) {
+    let op: "select" | "insert" | "update" = "select";
+    let payload: Record<string, unknown> = {};
+    let selectAfterWrite = false;
+    const filtros: [string, unknown][] = [];
+
+    const matches = (row: Record<string, unknown>) =>
+      filtros.every(([c, v]) => row[c] === v);
+
+    function runList() {
+      if (op === "select") {
+        if (table === "prestamos") {
+          return { data: Object.values(state.prestamos).filter(matches), error: null };
+        }
+        if (table === "pagos") {
+          const pid = filtros.find(([c]) => c === "prestamo_id")?.[1] as string;
+          return { data: (state.pagos[pid] ?? []).filter(matches), error: null };
+        }
+      }
+      if (op === "update") {
+        const afectadas = Object.values(state.prestamos).filter(matches);
+        calls.updates.push({ payload, filtros: [...filtros] });
+        for (const r of afectadas) Object.assign(r, payload);
+        return { data: selectAfterWrite ? afectadas.map((r) => ({ id: r.id })) : null, error: null };
+      }
+      if (op === "insert") return runSingle();
+      return { data: null, error: null };
+    }
+
+    function runSingle() {
+      if (op === "select" && table === "prestamos") {
+        const row = Object.values(state.prestamos).filter(matches)[0] ?? null;
+        if (!row) return { data: null, error: null };
+        // getPrestamoPorId (maybeSingle): devuelve un CLON (snapshot) y, si el
+        // escenario lo pide, finaliza la fila real → carrera de concurrencia.
+        const snapshot = { ...row };
+        if (state.finalizarTrasLeer) row.estado = "finalizado";
+        return { data: snapshot, error: null };
+      }
+      if (op === "insert") {
+        if (state.failInsert) return { data: null, error: { message: "insert falló" } };
+        const id = state.nextInsertId ?? "nuevo-1";
+        const fila = { id, ...payload };
+        state.prestamos[id] = fila;
+        calls.inserts.push(fila);
+        return { data: { id }, error: null };
+      }
+      return { data: null, error: null };
+    }
+
+    const api: Record<string, unknown> = {
+      select(_cols?: string) {
+        if (op === "insert" || op === "update") selectAfterWrite = true;
+        return api;
+      },
+      insert(row: Record<string, unknown>) { op = "insert"; payload = row; return api; },
+      update(row: Record<string, unknown>) { op = "update"; payload = row; return api; },
+      eq(col: string, val: unknown) { filtros.push([col, val]); return api; },
+      order() { return api; },
+      limit() { return api; },
+      maybeSingle() { return Promise.resolve(runSingle()); },
+      single() { return Promise.resolve(runSingle()); },
+      then(res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) {
+        return Promise.resolve(runList()).then(res, rej);
+      },
+    };
+    return api;
+  }
+
+  const db = { from: (t: string) => makeQuery(t), _calls: calls };
+  return db as unknown as SupabaseClient & { _calls: typeof calls };
+}
+
+// Crédito saldado: un solo pago que cubre el total (12.000).
+const PAGOS_SALDADO = [{ id: "p1", prestamo_id: "ant-1", dia_credito: 1, monto: 12000, anulado: false }];
+
+const ALTA_OK: AltaRenovacion = {
+  clienteId: "cli-1",
+  prestamoAnteriorId: "ant-1",
+  monto: 10000,
+  totalDias: 30,
+  frecuencia: "diario",
+  creadoPor: "gestor-1",
+};
+const HOY = new Date("2026-07-20T15:00:00Z");
+
+describe("crearRenovacion — validaciones de entrada (sin tocar la BD)", () => {
+  const db = () => fakeDb({ prestamos: {}, pagos: {} });
+
+  it("monto ≤ 0 → error", async () => {
+    const r = await crearRenovacion(db(), { ...ALTA_OK, monto: 0 }, HOY);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/mayor a 0/i);
+  });
+
+  it("monto > CAP ($100.000) → error (duro para todos)", async () => {
+    const r = await crearRenovacion(db(), { ...ALTA_OK, monto: 100001 }, HOY);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/100\.000/);
+  });
+
+  it("cuotas no entero / ≤ 0 → error", async () => {
+    expect((await crearRenovacion(db(), { ...ALTA_OK, totalDias: 0 }, HOY)).ok).toBe(false);
+    expect((await crearRenovacion(db(), { ...ALTA_OK, totalDias: 30.5 }, HOY)).ok).toBe(false);
+  });
+
+  it("frecuencia inválida → error", async () => {
+    const r = await crearRenovacion(
+      db(),
+      { ...ALTA_OK, frecuencia: "cada-luna-llena" as AltaRenovacion["frecuencia"] },
+      HOY,
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/frecuencia/i);
+  });
+});
+
+describe("crearRenovacion — gates sobre el crédito anterior", () => {
+  it("no existe el crédito anterior → error", async () => {
+    const db = fakeDb({ prestamos: {}, pagos: {} });
+    const r = await crearRenovacion(db, ALTA_OK, HOY);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/no está activo/i);
+  });
+
+  it("el anterior es de OTRO cliente → error (no se cruza plata entre clientes)", async () => {
+    const db = fakeDb({ prestamos: { "ant-1": prestamoAnterior({ cliente_id: "otro" }) }, pagos: {} });
+    const r = await crearRenovacion(db, ALTA_OK, HOY);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/no está activo/i);
+  });
+
+  it("el anterior no está activo (finalizado) → error", async () => {
+    const db = fakeDb({ prestamos: { "ant-1": prestamoAnterior({ estado: "finalizado" }) }, pagos: {} });
+    const r = await crearRenovacion(db, ALTA_OK, HOY);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/no está activo/i);
+  });
+
+  it("el anterior NO está saldado (falta > 0) → no se renueva sobre saldo pendiente", async () => {
+    const db = fakeDb({
+      prestamos: { "ant-1": prestamoAnterior() },
+      pagos: { "ant-1": [{ id: "p1", prestamo_id: "ant-1", dia_credito: 1, monto: 5000, anulado: false }] },
+    });
+    const r = await crearRenovacion(db, ALTA_OK, HOY);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/no está saldado/i);
+  });
+});
+
+describe("crearRenovacion — alta exitosa (happy path)", () => {
+  it("saldado → finaliza el anterior, crea el nuevo con la cuota que arrastra la tasa", async () => {
+    const state = {
+      prestamos: { "ant-1": prestamoAnterior() },
+      pagos: { "ant-1": PAGOS_SALDADO },
+      nextInsertId: "nuevo-77",
+    };
+    const db = fakeDb(state);
+    const r = await crearRenovacion(db, ALTA_OK, HOY);
+
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.prestamoId).toBe("nuevo-77");
+      // 10.000 × 1.2 / 30 = 400 (misma tasa que el anterior).
+      expect(r.cuota).toBe(400);
+    }
+    // El anterior quedó finalizado; hay un nuevo crédito activo del mismo cliente.
+    expect(state.prestamos["ant-1"].estado).toBe("finalizado");
+    const nuevo = db._calls.inserts[0];
+    expect(nuevo.cliente_id).toBe("cli-1");
+    expect(nuevo.cobrador_id).toBe("cob-9"); // arrastra el cobrador del anterior
+    expect(nuevo.cuota_diaria).toBe(400);
+    expect(nuevo.estado).toBe("activo");
+    expect(nuevo.creado_por).toBe("gestor-1");
+  });
+});
+
+describe("crearRenovacion — carreras y fallos (money-critical)", () => {
+  it("concurrencia: el UPDATE condicional no encuentra el activo → 'ya fue renovado'", async () => {
+    const state = {
+      prestamos: { "ant-1": prestamoAnterior() },
+      pagos: { "ant-1": PAGOS_SALDADO },
+      finalizarTrasLeer: true, // otra persona lo renovó entre la lectura y el update
+    };
+    const db = fakeDb(state);
+    const r = await crearRenovacion(db, ALTA_OK, HOY);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/ya fue renovado/i);
+    // No se creó ningún crédito nuevo.
+    expect(db._calls.inserts).toHaveLength(0);
+  });
+
+  it("el insert del nuevo falla → compensa reactivando el anterior (no deja al cliente sin crédito)", async () => {
+    const state = {
+      prestamos: { "ant-1": prestamoAnterior() },
+      pagos: { "ant-1": PAGOS_SALDADO },
+      failInsert: true,
+    };
+    const db = fakeDb(state);
+    const r = await crearRenovacion(db, ALTA_OK, HOY);
+
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/se revirtió/i);
+    // Compensación: el anterior volvió a 'activo' y su finalizado_en se limpió.
+    expect(state.prestamos["ant-1"].estado).toBe("activo");
+    expect(state.prestamos["ant-1"].finalizado_en).toBeNull();
+  });
+});

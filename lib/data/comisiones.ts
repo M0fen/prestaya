@@ -99,8 +99,11 @@ export interface FilaComision {
   liquidado: { monto: number; fecha: string } | null;
 }
 
-/** Clave canónica del período para la idempotencia (mes:2026-07, dia:2026-07-09…). */
-function periodoKeyDe(periodo: Periodo, desde: string): string {
+/** Clave canónica del período para la idempotencia (mes:2026-07, dia:2026-07-09…).
+ *  Exportada para test: es la LLAVE del candado anti-doble-pago de comisiones
+ *  (0049). Si dos períodos distintos generaran la misma clave, un cobrador podría
+ *  cobrar dos veces o quedar bloqueado — por eso se fija con test. */
+export function periodoKeyDe(periodo: Periodo, desde: string): string {
   if (periodo === "mes") return `mes:${desde.slice(0, 7)}`;
   if (periodo === "anio") return `anio:${desde.slice(0, 4)}`;
   return `${periodo}:${desde}`; // dia / semana usan el inicio del período
