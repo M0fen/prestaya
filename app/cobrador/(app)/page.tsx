@@ -15,6 +15,7 @@ import { hoyUY } from "@/lib/fecha";
 import { UYU, meses, diasSemana } from "@/lib/format";
 import { calcularComision } from "@/lib/comision";
 import { ListaRuta, type ItemRutaVista } from "@/components/cobrador/ListaRuta";
+import { PrecargarFichas } from "@/components/cobrador/PrecargarFichas";
 import { GastosRuta } from "@/components/cobrador/GastosRuta";
 import { CerrarJornada } from "@/components/cobrador/CerrarJornada";
 import { BienvenidaCard } from "@/components/BienvenidaCard";
@@ -214,7 +215,11 @@ export default async function RutaPage() {
           Todavía no tenés clientes asignados. Usá “+ Censar” para agregar.
         </p>
       ) : (
-        <ListaRuta items={vista} />
+        <>
+          <ListaRuta items={vista} />
+          {/* Pre-carga las fichas de la ruta con señal → se pueden abrir/cobrar offline. */}
+          <PrecargarFichas ids={vista.map((v) => v.id)} />
+        </>
       )}
 
       {/* Gastos de ruta: el cobrador SOLICITA; el admin aprueba (0057). */}

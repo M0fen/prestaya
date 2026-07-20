@@ -19,7 +19,7 @@
  *
  * Al cambiar de versión se limpian los caches viejos. Bump CACHE_VER para forzar.
  */
-const CACHE_VER = "presta-ya-v2";
+const CACHE_VER = "presta-ya-v3";
 const OFFLINE_URL = "/offline.html";
 const PRECACHE = [OFFLINE_URL, "/icons/icon-192.png", "/manifest.webmanifest"];
 
@@ -84,8 +84,11 @@ self.addEventListener("fetch", (event) => {
             return resp;
           })
           .catch(() =>
+            // `ignoreSearch`: la ficha se cacheó con señal (por navegación o por la
+            // precarga) aunque el query varíe → así se ENCUENTRA sin señal, en vez
+            // de caer a la lista de ruta y no poder abrir/cobrar a ese cliente.
             caches
-              .match(req)
+              .match(req, { ignoreSearch: true })
               .then((hit) => hit || caches.match("/cobrador"))
               .then((hit) => hit || caches.match(OFFLINE_URL)),
           ),
@@ -95,6 +98,27 @@ self.addEventListener("fetch", (event) => {
     // Resto (admin/supervisor/cliente): SOLO red; offline → página amable. Nunca
     // se cachea un saldo/cartón "vivo" de esas superficies.
     event.respondWith(fetch(req).catch(() => caches.match(OFFLINE_URL)));
+    return;
+  }
+
+  // Navegación SPA de la app del cobrador (RSC / prefetch / precarga de fichas):
+  // NO son `mode==='navigate'` (son fetch con header RSC, mode 'cors'), así que sin
+  // esto el SW no las cacheaba y una ficha que no se cargó con señal quedaba
+  // inalcanzable offline (la app tiraba al cobrador a la lista). Network-first con
+  // caché: con señal, fresco + copia; sin señal, la copia guardada. Money-safe: el
+  // cobro de cuota es fijo y el servidor re-valida/capa cada cobro al sincronizar.
+  if (esRutaCobrador(url)) {
+    event.respondWith(
+      fetch(req)
+        .then((resp) => {
+          if (resp && resp.status === 200) {
+            const copia = resp.clone();
+            caches.open(CACHE_VER).then((c) => c.put(req, copia));
+          }
+          return resp;
+        })
+        .catch(() => caches.match(req, { ignoreSearch: true })),
+    );
     return;
   }
 
