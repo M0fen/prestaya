@@ -119,7 +119,14 @@ export function construirVistaCliente(params: {
   // coherente con el cálculo del cartón. Cada pago se lista UNA vez, en la cuota
   // donde EMPIEZA a aplicarse (no usamos `dia_credito`: era el dato roto).
   const cuota = prestamo.cuota_diaria;
-  const pagosPorDia: Record<number, typeof pagos> = {};
+  // Distribuir cada pago sobre las cuotas que CUBRE (FIFO), guardando la PORCIÓN que
+  // cae en cada día. Antes el pago se listaba ENTERO en el día donde EMPEZABA: los
+  // días siguientes cubiertos quedaban VERDES sin recibo y el monto no cuadraba con
+  // la cuota (un pago de 2 cuotas mostraba $2.000 en un día de $1.000) — hallazgo #4.
+  // Ahora cada día pagado tiene su comprobante con el monto que le corresponde, y la
+  // suma por día coincide con el `montoPagado` del cartón (misma imputación FIFO).
+  type ReciboDia = { hora: string; monto: number };
+  const recibosPorDia: Record<number, ReciboDia[]> = {};
   {
     const orden = pagos
       .slice()
@@ -127,10 +134,16 @@ export function construirVistaCliente(params: {
     let dia = 1;
     let lleno = 0;
     for (const p of orden) {
-      (pagosPorDia[dia] ??= []).push(p);
+      const hora = horaDe(p.registrado_en);
       let resto = p.monto;
-      while (resto > 0 && cuota > 0 && dia <= prestamo.total_dias) {
+      // Cuota 0 (dato roto) o sin días restantes: todo cae en el día actual.
+      if (cuota <= 0 || dia > prestamo.total_dias) {
+        (recibosPorDia[dia] ??= []).push({ hora, monto: resto });
+        continue;
+      }
+      while (resto > 0 && dia <= prestamo.total_dias) {
         const toma = Math.min(resto, cuota - lleno);
+        (recibosPorDia[dia] ??= []).push({ hora, monto: toma });
         lleno += toma;
         resto -= toma;
         if (lleno >= cuota) {
@@ -138,12 +151,16 @@ export function construirVistaCliente(params: {
           lleno = 0;
         }
       }
+      // Excedente (pagó más que el total del crédito): al último día, como sobrepago.
+      if (resto > 0) {
+        (recibosPorDia[Math.min(dia, prestamo.total_dias)] ??= []).push({ hora, monto: resto });
+      }
     }
   }
   const recibosDia = (dia: number) =>
-    (pagosPorDia[dia] ?? []).map((p) => ({
-      hora: horaDe(p.registrado_en),
-      monto: UYU(p.monto),
+    (recibosPorDia[dia] ?? []).map((rc) => ({
+      hora: rc.hora,
+      monto: UYU(rc.monto),
       // Regla de la vista de cliente: NO se muestra el cobrador al deudor (protege
       // al personal de campo). El comprobante lleva hora + monto, sin nombre.
       quien: null as string | null,
