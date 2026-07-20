@@ -64,11 +64,18 @@ function Productos({ productos, categorias }: { productos: Producto[]; categoria
   const router = useRouter();
   const [editando, setEditando] = useState<RawProducto | null>(null);
   const [pend, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
-  const toggle = (p: Producto) => start(async () => { await alternarProducto(p.id, !p.activo); router.refresh(); });
+  const toggle = (p: Producto) => start(async () => {
+    const r = await alternarProducto(p.id, !p.activo);
+    if (r.ok) router.refresh(); else setError(r.error);
+  });
   const borrar = (p: Producto) => {
     if (!confirm(`¿Borrar "${p.nombre}"?`)) return;
-    start(async () => { await eliminarProducto(p.id); router.refresh(); });
+    start(async () => {
+      const r = await eliminarProducto(p.id);
+      if (r.ok) router.refresh(); else setError(r.error);
+    });
   };
   const abrir = (p?: Producto) =>
     setEditando(p ? { ...p, videoUrl: p.videoUrl } : { ...PRODUCTO_VACIO, orden: productos.length });
@@ -83,6 +90,7 @@ function Productos({ productos, categorias }: { productos: Producto[]; categoria
         className="w-fit rounded-full bg-[#2453DC] px-4 py-2.5 text-[13px] font-bold text-white active:scale-[0.99]">
         + Nuevo producto
       </button>
+      {error && <p className="rounded-[10px] bg-[#FBE4E2] px-3 py-2 text-[12.5px] font-semibold text-[#C0392B]">{error}</p>}
       {productos.length === 0 && (
         <p className="rounded-[14px] border border-borde bg-tarjeta px-4 py-8 text-center text-[13px] font-medium text-gris">
           Todavía no hay productos. Creá el primero para que aparezca en el cartón de tus clientes.
@@ -419,12 +427,18 @@ function Categorias({ categorias }: { categorias: CategoriaProducto[] }) {
   const router = useRouter();
   const [nombre, setNombre] = useState("");
   const [pend, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const correr = (fn: () => Promise<{ ok: true } | { ok: false; error: string }>, luego?: () => void) =>
+    start(async () => {
+      const r = await fn();
+      if (r.ok) { luego?.(); router.refresh(); } else setError(r.error);
+    });
   const crear = () => {
     if (!nombre.trim()) return;
-    start(async () => { await guardarCategoria({ nombre: nombre.trim(), orden: categorias.length, activo: true }); setNombre(""); router.refresh(); });
+    correr(() => guardarCategoria({ nombre: nombre.trim(), orden: categorias.length, activo: true }), () => setNombre(""));
   };
-  const toggle = (c: CategoriaProducto) => start(async () => { await guardarCategoria({ id: c.id, nombre: c.nombre, orden: c.orden, activo: !c.activo }); router.refresh(); });
-  const borrar = (c: CategoriaProducto) => { if (confirm(`¿Borrar la categoría "${c.nombre}"? Los productos quedan sin categoría.`)) start(async () => { await eliminarCategoria(c.id); router.refresh(); }); };
+  const toggle = (c: CategoriaProducto) => correr(() => guardarCategoria({ id: c.id, nombre: c.nombre, orden: c.orden, activo: !c.activo }));
+  const borrar = (c: CategoriaProducto) => { if (confirm(`¿Borrar la categoría "${c.nombre}"? Los productos quedan sin categoría.`)) correr(() => eliminarCategoria(c.id)); };
 
   return (
     <div className="flex flex-col gap-3">
@@ -432,6 +446,7 @@ function Categorias({ categorias }: { categorias: CategoriaProducto[] }) {
         <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nueva categoría (ej. Electrodomésticos)" className={`${INPUT} flex-1`} />
         <button type="button" onClick={crear} disabled={pend} className="rounded-full bg-[#2453DC] px-4 py-2 text-[13px] font-bold text-white">Agregar</button>
       </div>
+      {error && <p className="rounded-[10px] bg-[#FBE4E2] px-3 py-2 text-[12.5px] font-semibold text-[#C0392B]">{error}</p>}
       <div className="flex flex-col gap-1.5">
         {categorias.map((c) => (
           <div key={c.id} className="flex items-center justify-between rounded-[12px] border border-borde bg-tarjeta px-3.5 py-2.5">
