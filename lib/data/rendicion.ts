@@ -26,6 +26,9 @@ export interface RendicionDia {
   estado: EstadoRendicion;
   notas: string | null;
   creadoEn: string;
+  /** Recaudo EN VIVO del cobrador hoy (no el congelado al cerrar). Si es MAYOR que
+   *  `recaudado`, cobró DESPUÉS de rendir → esa plata no entró a esta rendición. */
+  recaudadoVivo?: number;
 }
 
 export interface EstadoJornada {
@@ -201,7 +204,12 @@ export async function getRendicionesDia(
   }
 
   const rendidas = rows
-    .map((r) => ({ ...mapRendicion(r), cobradorNombre: nombre.get(r.cobrador_id as string) ?? "Cobrador" }))
+    .map((r) => {
+      const base = mapRendicion(r);
+      // Recaudo VIVO (no el congelado): si cobró más DESPUÉS de rendir, se ve.
+      const vivo = recaudadoPorCob.get(base.cobradorId)?.recaudado ?? base.recaudado;
+      return { ...base, cobradorNombre: nombre.get(base.cobradorId) ?? "Cobrador", recaudadoVivo: vivo };
+    })
     .sort((a, b) => a.diferencia - b.diferencia); // faltantes primero
   const rendidos = new Set(rendidas.map((r) => r.cobradorId));
 

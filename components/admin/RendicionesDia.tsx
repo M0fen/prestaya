@@ -42,23 +42,34 @@ export function RendicionesDia({ r }: { r: ResumenRendiciones }) {
         <ul className="flex flex-col divide-y divide-linea">
           {r.rendidas.map((x) => {
             const t = TONO[x.estado];
+            // Cobró DESPUÉS de rendir: el recaudo vivo supera el congelado al cerrar.
+            // Esa plata NO entró a esta rendición → se avisa (si no, se ve "Cuadra"
+            // y queda fuera del libro sin señal).
+            const postCierre = Math.max(0, (x.recaudadoVivo ?? x.recaudado) - x.recaudado);
             return (
-              <li key={x.id} className="flex items-center justify-between gap-2 py-2">
-                <div className="flex min-w-0 flex-col">
-                  <span className="truncate text-[13px] font-semibold text-tinta">{x.cobradorNombre}</span>
-                  <span className="text-[11px] font-medium text-tenue">
-                    entregó {UYU(x.entregado)} · esperado {UYU(x.recaudado - x.gastos)}
-                    {x.gastos > 0 ? ` · gastos ${UYU(x.gastos)}` : ""}
+              <li key={x.id} className="flex flex-col gap-1 py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate text-[13px] font-semibold text-tinta">{x.cobradorNombre}</span>
+                    <span className="text-[11px] font-medium text-tenue">
+                      entregó {UYU(x.entregado)} · esperado {UYU(x.recaudado - x.gastos)}
+                      {x.gastos > 0 ? ` · gastos ${UYU(x.gastos)}` : ""}
+                    </span>
+                  </div>
+                  <span
+                    className="flex-shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-bold"
+                    style={{ background: t.bg, color: t.fg }}
+                  >
+                    {x.estado === "cuadra"
+                      ? ETIQUETA_ESTADO.cuadra
+                      : `${x.diferencia < 0 ? "−" : "+"}${UYU(Math.abs(x.diferencia))}`}
                   </span>
                 </div>
-                <span
-                  className="flex-shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-bold"
-                  style={{ background: t.bg, color: t.fg }}
-                >
-                  {x.estado === "cuadra"
-                    ? ETIQUETA_ESTADO.cuadra
-                    : `${x.diferencia < 0 ? "−" : "+"}${UYU(Math.abs(x.diferencia))}`}
-                </span>
+                {postCierre > 1 && (
+                  <span className="rounded-[8px] bg-[#FBF1DC] px-2 py-1 text-[11px] font-bold text-[#9A6A0E]">
+                    ⚠️ Cobró {UYU(postCierre)} DESPUÉS de cerrar — esa plata no entró a esta rendición.
+                  </span>
+                )}
               </li>
             );
           })}

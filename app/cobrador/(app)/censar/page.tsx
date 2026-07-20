@@ -79,20 +79,27 @@ export default function CensarPage() {
         setError("Sacale una foto al cliente para darlo de alta.");
         return;
       }
-      const res = await relevarCliente({
-        nombre: String(formData.get("nombre") ?? ""),
-        documento: String(formData.get("documento") ?? "") || null,
-        telefono: String(formData.get("telefono") ?? "") || null,
-        direccion: String(formData.get("direccion") ?? "") || null,
-        notas: String(formData.get("notas") ?? "") || null,
-        // Solo se manda el ancla si es utilizable (nunca 0,0 ni null como ubicación).
-        gpsLat: gpsOk ? gps.lat : null,
-        gpsLng: gpsOk ? gps.lng : null,
-        gpsPrecision: gpsOk ? gps.precision : null,
-        fotoDataUrl: foto,
-      });
-      if (res.ok) router.push(`/cobrador/cliente/${res.id}`);
-      else setError(res.error);
+      try {
+        const res = await relevarCliente({
+          nombre: String(formData.get("nombre") ?? ""),
+          documento: String(formData.get("documento") ?? "") || null,
+          telefono: String(formData.get("telefono") ?? "") || null,
+          direccion: String(formData.get("direccion") ?? "") || null,
+          notas: String(formData.get("notas") ?? "") || null,
+          // Solo se manda el ancla si es utilizable (nunca 0,0 ni null como ubicación).
+          gpsLat: gpsOk ? gps.lat : null,
+          gpsLng: gpsOk ? gps.lng : null,
+          gpsPrecision: gpsOk ? gps.precision : null,
+          fotoDataUrl: foto,
+        });
+        if (res.ok) router.push(`/cobrador/cliente/${res.id}`);
+        else setError(res.error);
+      } catch {
+        // SIN SEÑAL (o error de red): el censo necesita conexión (sube la foto). NO
+        // dejamos que el error suba al límite (perdería lo tipeado + la foto). Se
+        // avisa y el formulario QUEDA intacto para reintentar cuando haya señal.
+        setError("Parece que no tenés señal. El alta necesita conexión para subir la foto. Cuando tengas señal, tocá “Guardar” de nuevo — no cierres, no se perdió nada.");
+      }
     });
 
   // Texto del estado del GPS (distingue denegó / falló / señal débil).
