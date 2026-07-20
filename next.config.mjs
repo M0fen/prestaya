@@ -44,12 +44,15 @@ const csp = [
   "form-action 'self'",
   `script-src 'self' 'unsafe-inline'${enDesarrollo ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://*.tile.openstreetmap.org",
+  // Supabase Storage sirve las fotos de anuncios/tienda (bucket público) desde el
+  // host de Supabase → tiene que estar en img-src, si no la CSP las bloquea.
+  `img-src 'self' data: blob: https://*.tile.openstreetmap.org${supabaseHttp ? " " + supabaseHttp : ""}`,
   "font-src 'self' data:",
   `connect-src 'self'${supabaseHttp ? " " + supabaseHttp : ""}${supabaseWs ? " " + supabaseWs : ""}${sentryHost ? " " + sentryHost : ""}`,
   "worker-src 'self' blob:",
   "manifest-src 'self'",
-  "media-src 'self'",
+  // Videos de la tienda (bucket público de Supabase).
+  `media-src 'self' blob:${supabaseHttp ? " " + supabaseHttp : ""}`,
   "frame-src 'self'",
   "upgrade-insecure-requests",
 ].join("; ");
