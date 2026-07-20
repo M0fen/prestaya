@@ -34,6 +34,7 @@ import { getConfigScoring } from "@/lib/data/scoringConfig";
 import { calcularScore } from "@/lib/scoring";
 import { numeroValido } from "@/lib/quiniela";
 import { tokenValido } from "@/lib/validacion/esquemas";
+import { getProductoAdmin, crearSolicitudDb, contarSolicitudesRecientesCliente } from "@/lib/data/tienda";
 
 /** Azar del SERVIDOR (no del cliente) para decidir premios. Uniforme en [0,1). */
 function azarServidor(): number {
@@ -46,7 +47,38 @@ function azarServidor(): number {
   }
 }
 
+const ES_UUID_C = /^[0-9a-fA-F-]{36}$/;
+
 export type ResultadoReporte = { ok: true } | { ok: false; error: string };
+
+/**
+ * TIENDA — el cliente toca "Me interesa" en un producto → LEAD para el admin.
+ * Valida el token en el servidor (service_role); NO genera crédito. Rate-limit
+ * suave por cliente. Mismo patrón seguro que reportarFaltaPago.
+ */
+export async function registrarInteres(input: {
+  token: string;
+  productoId: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    if (!tokenValido(input.token)) return { ok: false, error: "Enlace no válido." };
+    if (!ES_UUID_C.test(input.productoId)) return { ok: false, error: "Producto inválido." };
+    const db = createSupabaseAdmin();
+    const cliente = await getClientePorToken(db, input.token);
+    if (!cliente) return { ok: false, error: "Enlace no válido." };
+    const prod = await getProductoAdmin(db, input.productoId);
+    if (!prod || !prod.activo) return { ok: false, error: "Ese producto ya no está disponible." };
+    // Rate-limit: máx. 10 solicitudes en 10 minutos por cliente (anti-spam del link).
+    const desde = new Date(Date.now() - 10 * 60 * 1000);
+    if ((await contarSolicitudesRecientesCliente(db, cliente.id, desde)) >= 10) {
+      return { ok: false, error: "Ya registramos tu interés. Te vamos a contactar." };
+    }
+    await crearSolicitudDb(db, { productoId: prod.id, clienteId: cliente.id, productoNombre: prod.nombre });
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "No se pudo registrar. Probá de nuevo." };
+  }
+}
 
 export async function reportarFaltaPago(input: {
   token: string;

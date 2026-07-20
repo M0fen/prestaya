@@ -1,0 +1,476 @@
+"use client";
+// Gestión de la TIENDA (admin). Tres solapas: Productos (CRUD + fotos/carrusel +
+// video + precio/interés/cuotas + precio POR cliente), Categorías, y Solicitudes
+// (los leads que dejan los clientes). Mobile-first, paleta del sitio.
+import { useState, useTransition, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { UYU } from "@/lib/format";
+import {
+  guardarProducto, alternarProducto, eliminarProducto,
+  guardarCategoria, eliminarCategoria,
+  fijarPrecioCliente, quitarPrecioCliente, preciosDeProducto,
+  resolverSolicitud, subirImagenTienda, crearUrlSubidaTienda,
+  type RawProducto,
+} from "@/lib/acciones/tienda";
+import type {
+  Producto, CategoriaProducto, SolicitudProducto, PrecioCliente, FrecuenciaProducto, EstadoSolicitud,
+} from "@/lib/data/tienda";
+
+const FRECUENCIAS: FrecuenciaProducto[] = ["diario", "semanal", "quincenal", "mensual"];
+const INPUT = "rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[14px] outline-none focus:border-azul";
+
+export function TiendaManager({
+  productos, categorias, solicitudes,
+}: {
+  productos: Producto[];
+  categorias: CategoriaProducto[];
+  solicitudes: SolicitudProducto[];
+}) {
+  const [tab, setTab] = useState<"productos" | "categorias" | "leads">("productos");
+  const nuevas = solicitudes.filter((s) => s.estado === "nueva").length;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap gap-1.5">
+        <Tab activo={tab === "productos"} onClick={() => setTab("productos")}>Productos ({productos.length})</Tab>
+        <Tab activo={tab === "categorias"} onClick={() => setTab("categorias")}>Categorías ({categorias.length})</Tab>
+        <Tab activo={tab === "leads"} onClick={() => setTab("leads")}>
+          Solicitudes{nuevas > 0 ? ` · ${nuevas} nueva${nuevas === 1 ? "" : "s"}` : ""}
+        </Tab>
+      </div>
+      {tab === "productos" && <Productos productos={productos} categorias={categorias} />}
+      {tab === "categorias" && <Categorias categorias={categorias} />}
+      {tab === "leads" && <Leads solicitudes={solicitudes} />}
+    </div>
+  );
+}
+
+function Tab({ activo, onClick, children }: { activo: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button type="button" onClick={onClick}
+      className={`rounded-full px-3.5 py-1.5 text-[12.5px] font-bold ${activo ? "bg-[#2453DC] text-white" : "bg-[#EEF3FF] text-azul"}`}>
+      {children}
+    </button>
+  );
+}
+
+// ── PRODUCTOS ────────────────────────────────────────────────────────────────
+const PRODUCTO_VACIO: RawProducto = {
+  nombre: "", descripcion: "", categoriaId: null, precio: 0, interesPct: 0, cuotas: 0,
+  frecuencia: "diario", fotos: [], videoUrl: null, activo: true, destacado: false, orden: 0,
+};
+
+function Productos({ productos, categorias }: { productos: Producto[]; categorias: CategoriaProducto[] }) {
+  const router = useRouter();
+  const [editando, setEditando] = useState<RawProducto | null>(null);
+  const [pend, start] = useTransition();
+
+  const toggle = (p: Producto) => start(async () => { await alternarProducto(p.id, !p.activo); router.refresh(); });
+  const borrar = (p: Producto) => {
+    if (!confirm(`¿Borrar "${p.nombre}"?`)) return;
+    start(async () => { await eliminarProducto(p.id); router.refresh(); });
+  };
+  const abrir = (p?: Producto) =>
+    setEditando(p ? { ...p, videoUrl: p.videoUrl } : { ...PRODUCTO_VACIO, orden: productos.length });
+
+  if (editando) {
+    return <EditorProducto raw={editando} categorias={categorias} onClose={() => setEditando(null)} />;
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <button type="button" onClick={() => abrir()}
+        className="w-fit rounded-full bg-[#2453DC] px-4 py-2.5 text-[13px] font-bold text-white active:scale-[0.99]">
+        + Nuevo producto
+      </button>
+      {productos.length === 0 && (
+        <p className="rounded-[14px] border border-borde bg-tarjeta px-4 py-8 text-center text-[13px] font-medium text-gris">
+          Todavía no hay productos. Creá el primero para que aparezca en el cartón de tus clientes.
+        </p>
+      )}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {productos.map((p) => (
+          <div key={p.id} className="flex flex-col gap-2 rounded-[16px] border border-borde bg-tarjeta p-3">
+            <div className="relative aspect-[4/3] overflow-hidden rounded-[12px] bg-suave">
+              {p.fotos[0] ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={p.fotos[0]} alt={p.nombre} className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex h-full items-center justify-center text-[28px]">🛍️</div>
+              )}
+              <div className="absolute left-1.5 top-1.5 flex gap-1">
+                {p.destacado && <span className="rounded-full bg-[#FDF0DC] px-2 py-0.5 text-[10px] font-bold text-[#B9770E]">Destacado</span>}
+                {!p.activo && <span className="rounded-full bg-[#F1F3F9] px-2 py-0.5 text-[10px] font-bold text-gris">Pausado</span>}
+              </div>
+              {p.fotos.length > 1 && (
+                <span className="absolute bottom-1.5 right-1.5 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-bold text-white">
+                  {p.fotos.length} fotos
+                </span>
+              )}
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[14px] font-extrabold text-tinta">{p.nombre}</span>
+              <span className="text-[12px] font-medium text-gris">
+                {p.categoriaNombre ?? "Sin categoría"} · {UYU(p.precio)}
+                {p.interesPct > 0 ? ` · ${p.interesPct}%` : ""}
+                {p.cuotas > 0 ? ` · ${p.cuotas} cuotas` : ""}
+              </span>
+            </div>
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              <button type="button" onClick={() => abrir(p)} className="rounded-full border border-borde bg-tarjeta px-3 py-1.5 text-[12px] font-bold text-azul">Editar</button>
+              <button type="button" onClick={() => toggle(p)} disabled={pend}
+                className="rounded-full border border-borde bg-tarjeta px-3 py-1.5 text-[12px] font-bold text-gris">
+                {p.activo ? "Pausar" : "Activar"}
+              </button>
+              <button type="button" onClick={() => borrar(p)} disabled={pend}
+                className="rounded-full border border-[#F3C0B8] bg-white px-3 py-1.5 text-[12px] font-bold text-[#C0392B]">Borrar</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function EditorProducto({
+  raw, categorias, onClose,
+}: {
+  raw: RawProducto;
+  categorias: CategoriaProducto[];
+  onClose: () => void;
+}) {
+  const router = useRouter();
+  const [f, setF] = useState<RawProducto>(raw);
+  const [pend, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [subiendo, setSubiendo] = useState(false);
+  const set = <K extends keyof RawProducto>(k: K, v: RawProducto[K]) => setF((p) => ({ ...p, [k]: v }));
+
+  const guardar = () =>
+    start(async () => {
+      setError(null);
+      const res = await guardarProducto(f);
+      if (res.ok) { onClose(); router.refresh(); } else setError(res.error);
+    });
+
+  const onFotos = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setSubiendo(true); setError(null);
+    const nuevas: string[] = [];
+    for (const file of Array.from(files).slice(0, 10)) {
+      const fd = new FormData(); fd.set("file", file);
+      const r = await subirImagenTienda(fd);
+      if (r.ok) nuevas.push(r.url); else setError(r.error);
+    }
+    if (nuevas.length) setF((p) => ({ ...p, fotos: [...p.fotos, ...nuevas].slice(0, 10) }));
+    setSubiendo(false);
+  };
+
+  const onVideo = async (file: File | null) => {
+    if (!file) return;
+    setSubiendo(true); setError(null);
+    const pre = await crearUrlSubidaTienda({ nombreArchivo: file.name, contentType: file.type });
+    if (!pre.ok) { setError(pre.error); setSubiendo(false); return; }
+    try {
+      const put = await fetch(pre.signedUrl, { method: "PUT", headers: { "content-type": file.type }, body: file });
+      if (!put.ok) throw new Error();
+      set("videoUrl", pre.publicUrl);
+    } catch { setError("No se pudo subir el video. Probá con uno más liviano o pegá la URL."); }
+    setSubiendo(false);
+  };
+
+  const moverFoto = (i: number, dir: -1 | 1) => {
+    setF((p) => {
+      const fotos = [...p.fotos]; const j = i + dir;
+      if (j < 0 || j >= fotos.length) return p;
+      [fotos[i], fotos[j]] = [fotos[j], fotos[i]];
+      return { ...p, fotos };
+    });
+  };
+  const quitarFoto = (i: number) => setF((p) => ({ ...p, fotos: p.fotos.filter((_, k) => k !== i) }));
+
+  return (
+    <div className="flex flex-col gap-4 rounded-[18px] border border-borde bg-tarjeta p-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-[16px] font-extrabold text-tinta">{raw.id ? "Editar producto" : "Nuevo producto"}</h2>
+        <button type="button" onClick={onClose} className="text-[13px] font-bold text-gris">← Volver</button>
+      </div>
+
+      {/* Fotos (carrusel) */}
+      <section className="flex flex-col gap-2">
+        <span className="text-[12px] font-bold uppercase tracking-wide text-gris">Fotos (la 1ª es la portada)</span>
+        <div className="flex flex-wrap gap-2">
+          {f.fotos.map((url, i) => (
+            <div key={url + i} className="relative h-20 w-20 overflow-hidden rounded-[10px] border border-borde">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={url} alt="" className="h-full w-full object-cover" />
+              {i === 0 && <span className="absolute left-0 top-0 bg-[#2453DC] px-1 text-[8px] font-bold text-white">Portada</span>}
+              <div className="absolute inset-x-0 bottom-0 flex justify-between bg-black/45 px-0.5">
+                <button type="button" onClick={() => moverFoto(i, -1)} className="text-[11px] text-white">◀</button>
+                <button type="button" onClick={() => quitarFoto(i)} className="text-[11px] text-white">✕</button>
+                <button type="button" onClick={() => moverFoto(i, 1)} className="text-[11px] text-white">▶</button>
+              </div>
+            </div>
+          ))}
+          <label className="flex h-20 w-20 cursor-pointer items-center justify-center rounded-[10px] border border-dashed border-[#C7D2EC] bg-suave text-[12px] font-bold text-azul">
+            + Foto
+            <input type="file" accept="image/*" multiple hidden onChange={(e) => onFotos(e.target.files)} />
+          </label>
+        </div>
+      </section>
+
+      {/* Video */}
+      <section className="flex flex-col gap-1.5">
+        <span className="text-[12px] font-bold uppercase tracking-wide text-gris">Video (opcional)</span>
+        {f.videoUrl && (
+          <div className="flex items-center gap-2">
+            <video src={f.videoUrl} className="h-16 rounded-[8px]" muted />
+            <button type="button" onClick={() => set("videoUrl", null)} className="text-[12px] font-bold text-[#C0392B]">Quitar</button>
+          </div>
+        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="cursor-pointer rounded-full border border-dashed border-[#C7D2EC] bg-suave px-3 py-1.5 text-[12px] font-bold text-azul">
+            Subir video
+            <input type="file" accept="video/*" hidden onChange={(e) => onVideo(e.target.files?.[0] ?? null)} />
+          </label>
+          <input placeholder="…o pegá una URL de video" defaultValue={f.videoUrl ?? ""}
+            onBlur={(e) => set("videoUrl", e.target.value.trim() || null)} className={`${INPUT} flex-1 min-w-[180px]`} />
+        </div>
+      </section>
+
+      {subiendo && <span className="text-[12px] font-bold text-azul">Subiendo…</span>}
+
+      {/* Datos */}
+      <div className="grid gap-2.5 sm:grid-cols-2">
+        <Campo label="Nombre">
+          <input value={f.nombre} onChange={(e) => set("nombre", e.target.value)} className={INPUT} placeholder="Ej. Heladera Mademsa" />
+        </Campo>
+        <Campo label="Categoría">
+          <select value={f.categoriaId ?? ""} onChange={(e) => set("categoriaId", e.target.value || null)} className={INPUT}>
+            <option value="">Sin categoría</option>
+            {categorias.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+          </select>
+        </Campo>
+        <Campo label="Precio (UYU)">
+          <input type="number" inputMode="numeric" value={f.precio || ""} onChange={(e) => set("precio", Math.round(Number(e.target.value) || 0))} className={INPUT} />
+        </Campo>
+        <Campo label="% de interés">
+          <input type="number" inputMode="decimal" value={f.interesPct || ""} onChange={(e) => set("interesPct", Number(e.target.value) || 0)} className={INPUT} />
+        </Campo>
+        <Campo label="Nº de cuotas">
+          <input type="number" inputMode="numeric" value={f.cuotas || ""} onChange={(e) => set("cuotas", Math.round(Number(e.target.value) || 0))} className={INPUT} />
+        </Campo>
+        <Campo label="Frecuencia">
+          <select value={f.frecuencia} onChange={(e) => set("frecuencia", e.target.value)} className={INPUT}>
+            {FRECUENCIAS.map((x) => <option key={x} value={x}>{x}</option>)}
+          </select>
+        </Campo>
+      </div>
+      <Campo label="Descripción">
+        <textarea value={f.descripcion ?? ""} onChange={(e) => set("descripcion", e.target.value)} rows={3}
+          className={`${INPUT} resize-none`} placeholder="Detalle del producto, medidas, garantía…" />
+      </Campo>
+
+      <div className="flex flex-wrap items-center gap-4">
+        <label className="flex items-center gap-2 text-[13px] font-semibold text-cuerpo">
+          <input type="checkbox" checked={f.activo} onChange={(e) => set("activo", e.target.checked)} /> Visible en la tienda
+        </label>
+        <label className="flex items-center gap-2 text-[13px] font-semibold text-cuerpo">
+          <input type="checkbox" checked={f.destacado} onChange={(e) => set("destacado", e.target.checked)} /> Destacar como banner
+        </label>
+        <label className="flex items-center gap-2 text-[13px] font-semibold text-cuerpo">
+          Orden <input type="number" value={f.orden} onChange={(e) => set("orden", Math.round(Number(e.target.value) || 0))} className={`${INPUT} w-20`} />
+        </label>
+      </div>
+
+      {error && <span className="text-[12.5px] font-semibold text-[#C0392B]">{error}</span>}
+
+      <div className="flex gap-2">
+        <button type="button" onClick={onClose} disabled={pend} className="rounded-full border border-borde bg-tarjeta px-4 py-2.5 text-[13px] font-bold text-gris">Cancelar</button>
+        <button type="button" onClick={guardar} disabled={pend || subiendo}
+          className="flex-1 rounded-full bg-[#1FA971] px-4 py-2.5 text-[13px] font-extrabold text-white disabled:opacity-50">
+          {pend ? "Guardando…" : "Guardar producto"}
+        </button>
+      </div>
+
+      {/* Precio por cliente (solo al editar un producto ya creado) */}
+      {raw.id && <PrecioPorCliente productoId={raw.id} />}
+    </div>
+  );
+}
+
+function PrecioPorCliente({ productoId }: { productoId: string }) {
+  const router = useRouter();
+  const [lista, setLista] = useState<PrecioCliente[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [q, setQ] = useState("");
+  const [resultados, setResultados] = useState<{ id: string; nombre: string }[]>([]);
+  const [sel, setSel] = useState<{ id: string; nombre: string } | null>(null);
+  const [precio, setPrecio] = useState("");
+  const [interes, setInteres] = useState("");
+  const [cuotas, setCuotas] = useState("");
+  const [pend, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const buscarRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const recargar = () => preciosDeProducto(productoId).then((r) => { if (r.ok) setLista(r.precios); setCargando(false); });
+  useEffect(() => { recargar(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [productoId]);
+
+  const buscar = (t: string) => {
+    setQ(t); setSel(null);
+    if (buscarRef.current) clearTimeout(buscarRef.current);
+    if (t.trim().length < 2) { setResultados([]); return; }
+    buscarRef.current = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/buscar-clientes?q=${encodeURIComponent(t.trim())}`);
+        const j = await r.json();
+        setResultados(j.clientes ?? []);
+      } catch { setResultados([]); }
+    }, 250);
+  };
+
+  const agregar = () => {
+    if (!sel || !(Number(precio) > 0)) { setError("Elegí un cliente y poné un precio."); return; }
+    start(async () => {
+      setError(null);
+      const res = await fijarPrecioCliente({
+        productoId, clienteId: sel.id, precio: Number(precio),
+        interesPct: Number(interes) || 0, cuotas: Number(cuotas) || 0,
+      });
+      if (res.ok) { setSel(null); setQ(""); setPrecio(""); setInteres(""); setCuotas(""); setResultados([]); recargar(); router.refresh(); }
+      else setError(res.error);
+    });
+  };
+  const quitar = (id: string) => start(async () => { await quitarPrecioCliente(id); recargar(); router.refresh(); });
+
+  return (
+    <section className="flex flex-col gap-2 rounded-[14px] border border-[#E6EAF4] bg-suave p-3.5">
+      <span className="text-[13px] font-extrabold text-tinta">Precio especial por cliente</span>
+      <span className="text-[11.5px] font-medium text-gris">Fijá otro precio/interés/cuotas para un cliente puntual. Le aparece a él en su cartón.</span>
+
+      {cargando ? <span className="text-[12px] text-gris">Cargando…</span> : lista.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          {lista.map((p) => (
+            <div key={p.id} className="flex items-center justify-between rounded-[10px] border border-borde bg-tarjeta px-3 py-2">
+              <span className="text-[12.5px] font-semibold text-tinta">{p.clienteNombre}</span>
+              <span className="flex items-center gap-2 text-[12px] font-medium text-gris">
+                {UYU(p.precio)}{p.interesPct > 0 ? ` · ${p.interesPct}%` : ""}{p.cuotas > 0 ? ` · ${p.cuotas}c` : ""}
+                <button type="button" onClick={() => quitar(p.id)} disabled={pend} className="font-bold text-[#C0392B]">✕</button>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex flex-col gap-2 rounded-[10px] border border-borde bg-tarjeta p-2.5">
+        <div className="relative">
+          <input value={q} onChange={(e) => buscar(e.target.value)} placeholder="Buscar cliente por nombre…" className={`${INPUT} w-full`} />
+          {resultados.length > 0 && !sel && (
+            <div className="absolute z-10 mt-1 max-h-44 w-full overflow-y-auto rounded-[10px] border border-borde bg-tarjeta shadow-lg">
+              {resultados.map((c) => (
+                <button key={c.id} type="button" onClick={() => { setSel(c); setQ(c.nombre); setResultados([]); }}
+                  className="block w-full px-3 py-2 text-left text-[13px] hover:bg-suave">{c.nombre}</button>
+              ))}
+            </div>
+          )}
+        </div>
+        {sel && (
+          <div className="flex flex-wrap items-end gap-2">
+            <span className="rounded-full bg-[#EEF3FF] px-2.5 py-1 text-[12px] font-bold text-azul">{sel.nombre}</span>
+            <input type="number" placeholder="Precio" value={precio} onChange={(e) => setPrecio(e.target.value)} className={`${INPUT} w-24`} />
+            <input type="number" placeholder="% int." value={interes} onChange={(e) => setInteres(e.target.value)} className={`${INPUT} w-20`} />
+            <input type="number" placeholder="Cuotas" value={cuotas} onChange={(e) => setCuotas(e.target.value)} className={`${INPUT} w-20`} />
+            <button type="button" onClick={agregar} disabled={pend} className="rounded-full bg-[#2453DC] px-3 py-2 text-[12px] font-bold text-white">Fijar</button>
+          </div>
+        )}
+        {error && <span className="text-[11.5px] font-semibold text-[#C0392B]">{error}</span>}
+      </div>
+    </section>
+  );
+}
+
+// ── CATEGORÍAS ─────────────────────────────────────────────────────────────
+function Categorias({ categorias }: { categorias: CategoriaProducto[] }) {
+  const router = useRouter();
+  const [nombre, setNombre] = useState("");
+  const [pend, start] = useTransition();
+  const crear = () => {
+    if (!nombre.trim()) return;
+    start(async () => { await guardarCategoria({ nombre: nombre.trim(), orden: categorias.length, activo: true }); setNombre(""); router.refresh(); });
+  };
+  const toggle = (c: CategoriaProducto) => start(async () => { await guardarCategoria({ id: c.id, nombre: c.nombre, orden: c.orden, activo: !c.activo }); router.refresh(); });
+  const borrar = (c: CategoriaProducto) => { if (confirm(`¿Borrar la categoría "${c.nombre}"? Los productos quedan sin categoría.`)) start(async () => { await eliminarCategoria(c.id); router.refresh(); }); };
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex gap-2">
+        <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nueva categoría (ej. Electrodomésticos)" className={`${INPUT} flex-1`} />
+        <button type="button" onClick={crear} disabled={pend} className="rounded-full bg-[#2453DC] px-4 py-2 text-[13px] font-bold text-white">Agregar</button>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {categorias.map((c) => (
+          <div key={c.id} className="flex items-center justify-between rounded-[12px] border border-borde bg-tarjeta px-3.5 py-2.5">
+            <span className="text-[13.5px] font-semibold text-tinta">{c.nombre}{!c.activo && <span className="ml-2 text-[11px] font-bold text-gris">(oculta)</span>}</span>
+            <div className="flex gap-1.5">
+              <button type="button" onClick={() => toggle(c)} disabled={pend} className="rounded-full border border-borde px-3 py-1 text-[12px] font-bold text-gris">{c.activo ? "Ocultar" : "Mostrar"}</button>
+              <button type="button" onClick={() => borrar(c)} disabled={pend} className="rounded-full border border-[#F3C0B8] px-3 py-1 text-[12px] font-bold text-[#C0392B]">Borrar</button>
+            </div>
+          </div>
+        ))}
+        {categorias.length === 0 && <p className="text-[13px] font-medium text-gris">Sin categorías todavía.</p>}
+      </div>
+    </div>
+  );
+}
+
+// ── SOLICITUDES / LEADS ──────────────────────────────────────────────────────
+const ESTADO_TONO: Record<EstadoSolicitud, { bg: string; fg: string; label: string }> = {
+  nueva: { bg: "#FDF0DC", fg: "#B9770E", label: "Nueva" },
+  contactado: { bg: "#EEF3FF", fg: "#1E47C8", label: "Contactado" },
+  cerrada: { bg: "#E4F5EC", fg: "#157A50", label: "Cerrada" },
+  descartada: { bg: "#F1F3F9", fg: "#6B7494", label: "Descartada" },
+};
+
+function Leads({ solicitudes }: { solicitudes: SolicitudProducto[] }) {
+  const router = useRouter();
+  const [pend, start] = useTransition();
+  const marcar = (id: string, estado: EstadoSolicitud) => start(async () => { await resolverSolicitud(id, estado); router.refresh(); });
+
+  if (solicitudes.length === 0) {
+    return <p className="rounded-[14px] border border-borde bg-tarjeta px-4 py-8 text-center text-[13px] font-medium text-gris">Sin solicitudes todavía. Cuando un cliente toque "Me interesa", aparece acá.</p>;
+  }
+  return (
+    <div className="flex flex-col gap-2">
+      {solicitudes.map((s) => {
+        const t = ESTADO_TONO[s.estado];
+        return (
+          <div key={s.id} className="flex flex-col gap-1.5 rounded-[14px] border border-borde bg-tarjeta p-3.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[14px] font-extrabold text-tinta">{s.clienteNombre}</span>
+              <span className="rounded-full px-2.5 py-0.5 text-[11px] font-bold" style={{ background: t.bg, color: t.fg }}>{t.label}</span>
+            </div>
+            <span className="text-[12.5px] font-medium text-gris">Interesado en: <b className="text-cuerpo">{s.productoNombre}</b></span>
+            <span className="text-[11px] font-medium text-tenue">{new Date(s.creadoEn).toLocaleString("es-UY", { timeZone: "America/Montevideo" })}</span>
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {(["contactado", "cerrada", "descartada"] as EstadoSolicitud[]).map((e) => (
+                <button key={e} type="button" onClick={() => marcar(s.id, e)} disabled={pend || s.estado === e}
+                  className="rounded-full border border-borde bg-tarjeta px-3 py-1 text-[12px] font-bold text-gris disabled:opacity-40">
+                  {ESTADO_TONO[e].label}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function Campo({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="text-[11.5px] font-semibold text-gris">{label}</span>
+      {children}
+    </label>
+  );
+}

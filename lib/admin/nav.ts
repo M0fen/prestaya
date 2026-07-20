@@ -76,6 +76,7 @@ export const NAV_ITEMS: NavItem[] = [
   // supervisor también publica anuncios). Juego/Sorteos/Estrellas = config lúdica
   // GLOBAL (dinero-adyacente): solo el dueño (admin); el supervisor no los ve
   // (además su RLS no acota estrellas por zona).
+  { href: "/admin/tienda", label: "Tienda", icon: "🛍️", grupo: "Para tus clientes", roles: ["admin"], alias: ["productos", "catalogo", "vender", "producto a credito", "solicitudes", "leads", "precio", "articulos"] },
   { href: "/admin/anuncios", label: "Anuncios al cliente", icon: "📣", grupo: "Para tus clientes", roles: ["admin", "supervisor"], alias: ["publicidad", "campanas", "banner", "banner cliente", "temporada", "aviso cliente", "novedad"] },
   { href: "/admin/rifa", label: "Rifa", icon: "🎁", grupo: "Para tus clientes", roles: ["admin"], alias: ["premio", "sorteo", "banner", "mejores clientes", "rifa cliente"] },
   { href: "/admin/promos", label: "Juegos y sorteos", icon: "🎟️", grupo: "Para tus clientes", roles: ["admin"], alias: ["raspadita", "quiniela", "sorteo", "promocion"] },
