@@ -188,6 +188,11 @@ function EditorProducto({
     });
   };
   const quitarFoto = (i: number) => setF((p) => ({ ...p, fotos: p.fotos.filter((_, k) => k !== i) }));
+  const hacerPortada = (i: number) => setF((p) => {
+    if (i === 0) return p;
+    const fotos = [...p.fotos]; const [x] = fotos.splice(i, 1); fotos.unshift(x);
+    return { ...p, fotos };
+  });
 
   return (
     <div className="flex flex-col gap-4 rounded-[18px] border border-borde bg-tarjeta p-4">
@@ -196,27 +201,41 @@ function EditorProducto({
         <button type="button" onClick={onClose} className="text-[13px] font-bold text-gris">← Volver</button>
       </div>
 
-      {/* Fotos (carrusel) */}
+      {/* Fotos (galería / carrusel del producto) */}
       <section className="flex flex-col gap-2">
-        <span className="text-[12px] font-bold uppercase tracking-wide text-gris">Fotos (la 1ª es la portada)</span>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex items-center justify-between">
+          <span className="text-[12px] font-bold uppercase tracking-wide text-gris">Fotos del producto</span>
+          <span className="text-[11px] font-semibold text-tenue">{f.fotos.length}/10 · la portada va primero</span>
+        </div>
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
           {f.fotos.map((url, i) => (
-            <div key={url + i} className="relative h-20 w-20 overflow-hidden rounded-[10px] border border-borde">
+            <div key={url + i} className="relative aspect-square overflow-hidden rounded-[12px] border border-borde bg-white">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={url} alt="" className="h-full w-full object-cover" />
-              {i === 0 && <span className="absolute left-0 top-0 bg-[#2453DC] px-1 text-[8px] font-bold text-white">Portada</span>}
-              <div className="absolute inset-x-0 bottom-0 flex justify-between bg-black/45 px-0.5">
-                <button type="button" onClick={() => moverFoto(i, -1)} className="text-[11px] text-white">◀</button>
-                <button type="button" onClick={() => quitarFoto(i)} className="text-[11px] text-white">✕</button>
-                <button type="button" onClick={() => moverFoto(i, 1)} className="text-[11px] text-white">▶</button>
+              <img src={url} alt="" className="h-full w-full object-contain p-1" />
+              {i === 0 ? (
+                <span className="absolute left-1 top-1 rounded-full bg-[#2453DC] px-2 py-0.5 text-[9px] font-black text-white">PORTADA</span>
+              ) : (
+                <button type="button" onClick={() => hacerPortada(i)}
+                  className="absolute left-1 top-1 rounded-full bg-white/90 px-2 py-0.5 text-[9px] font-bold text-azul shadow">★ Portada</button>
+              )}
+              <button type="button" onClick={() => quitarFoto(i)}
+                className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/55 text-[11px] font-bold text-white">✕</button>
+              <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/45 px-1.5 py-0.5">
+                <button type="button" onClick={() => moverFoto(i, -1)} disabled={i === 0} className="text-[13px] text-white disabled:opacity-30">◀</button>
+                <span className="text-[9px] font-bold text-white/80">#{i + 1}</span>
+                <button type="button" onClick={() => moverFoto(i, 1)} disabled={i === f.fotos.length - 1} className="text-[13px] text-white disabled:opacity-30">▶</button>
               </div>
             </div>
           ))}
-          <label className="flex h-20 w-20 cursor-pointer items-center justify-center rounded-[10px] border border-dashed border-[#C7D2EC] bg-suave text-[12px] font-bold text-azul">
-            + Foto
-            <input type="file" accept="image/*" multiple hidden onChange={(e) => onFotos(e.target.files)} />
-          </label>
+          {f.fotos.length < 10 && (
+            <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-[12px] border border-dashed border-[#C7D2EC] bg-suave text-azul">
+              <span className="text-[22px] leading-none">＋</span>
+              <span className="text-[11px] font-bold">Subir foto</span>
+              <input type="file" accept="image/*" multiple hidden onChange={(e) => onFotos(e.target.files)} />
+            </label>
+          )}
         </div>
+        <span className="text-[11px] font-medium text-tenue">Subí varias (se arma un carrusel). Tocá "★ Portada" para elegir cuál va primero, o ◀▶ para ordenar.</span>
       </section>
 
       {/* Video */}
