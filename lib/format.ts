@@ -36,12 +36,20 @@ export const toIso = (d: Date): string => {
 export const aMedianoche = (d: Date): Date =>
   new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
-/** Hora "HH:mm" (24h) a partir de un timestamp ISO. */
+/** Hora "HH:mm" (24h) en horario de URUGUAY a partir de un timestamp ISO.
+ *  Usa TZ explícita (America/Montevideo): `getHours()` tomaba la TZ del proceso —
+ *  en el server de Vercel es UTC → el comprobante mostraba +3h de la hora real. */
 export const horaDe = (iso: string): string => {
-  const d = new Date(iso);
-  const h = String(d.getHours()).padStart(2, "0");
-  const m = String(d.getMinutes()).padStart(2, "0");
-  return `${h}:${m}`;
+  try {
+    return new Intl.DateTimeFormat("es-UY", {
+      timeZone: "America/Montevideo",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).format(new Date(iso));
+  } catch {
+    return "";
+  }
 };
 
 /** Días de la semana en español, indexados por Date.getDay() (0 = domingo). */

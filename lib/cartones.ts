@@ -164,7 +164,10 @@ export function calcularEstadosCarton(
     if (esFuturo) estado = "futuro";
     // `cuota > 0`: un crédito mal cargado con cuota 0 daría `0 >= 0` y pintaría TODOS
     // los días como "pagado" (parecería saldado/al día). Con la guarda cae a pendiente.
-    else if (cuota > 0 && pagado >= cuota) estado = "pagado";
+    // Tolerancia sub-peso: la cuota puede ser FRACCIONARIA (ej. 8425/24 = 351,04) pero
+    // los pagos se registran ENTEROS (351) → sin esto la casilla nunca llega a "pagado"
+    // y el crédito no cierra JAMÁS. El margen (<1 peso) no deja pasar un abono parcial real.
+    else if (cuota > 0 && pagado >= cuota - 0.5) estado = "pagado";
     else if (pagado > 0) estado = "pendiente";
     else if (esHoy) estado = "pendiente";
     else estado = "atrasado";
