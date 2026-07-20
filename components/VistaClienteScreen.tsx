@@ -26,11 +26,14 @@ import { GameSlot } from "@/components/GameSlot";
 import { Historial } from "@/components/Historial";
 import { ReportarDiscrepancia } from "@/components/ReportarDiscrepancia";
 import { RecordatorioLink } from "@/components/RecordatorioLink";
+import { TiendaCliente } from "@/components/tienda/TiendaCliente";
+import type { ProductoParaCliente } from "@/lib/data/tienda";
 import { Footer } from "@/components/Footer";
 
 export function VistaClienteScreen({
   v,
   anuncios = [],
+  productosTienda = [],
   token = null,
   reputacion = null,
   estrellas = null,
@@ -43,6 +46,8 @@ export function VistaClienteScreen({
 }: {
   v: VistaCredito;
   anuncios?: Anuncio[];
+  /** Productos de la tienda con el precio ya resuelto para este cliente. */
+  productosTienda?: ProductoParaCliente[];
   /** Rifa promocional a mostrarle a este cliente (o null). */
   rifa?: RifaVista | null;
   /** Selector de crédito (si el cliente tiene varios activos). Se pinta arriba. */
@@ -151,6 +156,10 @@ export function VistaClienteScreen({
 
         {/* Historial de pagos (con % de la cuota cubierto + descuento). */}
         <Historial historial={v.historial} />
+
+        {/* TIENDA: productos a crédito. Después del dinero (no lo interrumpe). Se
+            muestra sola si hay productos activos (y precio resuelto para este cliente). */}
+        <TiendaCliente productos={productosTienda} token={token} />
 
         {/* ── NOVEDADES: TODO lo promocional/lúdico agrupado, DESPUÉS del dinero ── */}
         {MOSTRAR_JUEGOS && hayNovedades && (

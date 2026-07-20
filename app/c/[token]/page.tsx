@@ -25,6 +25,7 @@ import { getRifaParaCliente } from "@/lib/data/rifas";
 import { cicloUY } from "@/lib/fecha";
 import { juegoArcadeDe } from "@/lib/juegoAjustes";
 import { construirVistaCliente } from "@/lib/vistaCliente";
+import { getProductosParaCliente, type ProductoParaCliente } from "@/lib/data/tienda";
 import { conTimeout } from "@/lib/timeout";
 import { calcularJuegoCliente } from "@/lib/juegoCliente";
 import { evaluarRecompensas } from "@/lib/recompensas";
@@ -181,6 +182,16 @@ export default async function VistaPorToken({
     anuncios = [];
   }
 
+  // 4b) Tienda: productos activos con el precio RESUELTO para este cliente
+  //     (override por cliente → base). Resiliente: si falta 0076 o algo falla, la
+  //     tienda simplemente no se muestra (nunca rompe el cartón).
+  let productosTienda: ProductoParaCliente[] = [];
+  try {
+    productosTienda = await getProductosParaCliente(db, cliente.id);
+  } catch {
+    productosTienda = [];
+  }
+
   // 5) Reputación positiva — resiliente: nunca rompe la vista.
   let reputacion: {
     calificacion: typeof cliente.calificacion;
@@ -203,6 +214,7 @@ export default async function VistaPorToken({
     <VistaClienteScreen
       v={v}
       anuncios={anuncios}
+      productosTienda={productosTienda}
       token={token}
       rifa={rifa}
       creditoSelector={creditoSelector}
