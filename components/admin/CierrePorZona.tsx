@@ -100,26 +100,34 @@ export function CierrePorZona({
           <ul className="mt-2 flex flex-col divide-y divide-linea">
             {z.cobradores.map((c) => {
               const t = CHIP[c.estado];
+              const postCierre = c.cobroPostCierre ?? 0;
               return (
-                <li key={c.cobradorId} className="flex items-center justify-between gap-2 py-2">
-                  <div className="flex min-w-0 flex-col">
-                    <span className="truncate text-[13px] font-semibold text-tinta">{c.nombre}</span>
-                    <span className="text-[11px] font-medium text-tenue">
+                <li key={c.cobradorId} className="flex flex-col gap-1 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex min-w-0 flex-col">
+                      <span className="truncate text-[13px] font-semibold text-tinta">{c.nombre}</span>
+                      <span className="text-[11px] font-medium text-tenue">
+                        {c.estado === "pendiente"
+                          ? `recaudó ${UYU(c.recaudado)} · sin rendir`
+                          : `entregó ${UYU(c.entregado)} · esperado ${UYU(c.esperado)}`}
+                      </span>
+                    </div>
+                    <span
+                      className="flex-shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-bold"
+                      style={{ background: t.bg, color: t.fg }}
+                    >
                       {c.estado === "pendiente"
-                        ? `recaudó ${UYU(c.recaudado)} · sin rendir`
-                        : `entregó ${UYU(c.entregado)} · esperado ${UYU(c.esperado)}`}
+                        ? "Sin rendir"
+                        : c.estado === "cuadra"
+                          ? "Cuadra ✓"
+                          : `${c.diferencia < 0 ? "−" : "+"}${UYU(Math.abs(c.diferencia))}`}
                     </span>
                   </div>
-                  <span
-                    className="flex-shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-bold"
-                    style={{ background: t.bg, color: t.fg }}
-                  >
-                    {c.estado === "pendiente"
-                      ? "Sin rendir"
-                      : c.estado === "cuadra"
-                        ? "Cuadra ✓"
-                        : `${c.diferencia < 0 ? "−" : "+"}${UYU(Math.abs(c.diferencia))}`}
-                  </span>
+                  {postCierre > 1 && (
+                    <span className="rounded-[8px] bg-[#FBF1DC] px-2 py-1 text-[11px] font-bold text-[#9A6A0E]">
+                      ⚠️ Cobró {UYU(postCierre)} DESPUÉS de cerrar — esa plata no entró a esta rendición.
+                    </span>
+                  )}
                 </li>
               );
             })}

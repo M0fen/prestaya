@@ -95,6 +95,27 @@ export function plazoVencido(prestamo: PrestamoCalc, hoy: Date): boolean {
   return aMedianoche(hoy).getTime() > aMedianoche(fin).getTime();
 }
 
+/**
+ * Cuántas cuotas del crédito tienen su fecha PROGRAMADA <= `hoy` (0..total_dias),
+ * respetando la frecuencia (Lun–Sáb, domingos corridos). Sirve para saber cuánto
+ * DEBERÍA estar pago a hoy SIN recalcular el cartón completo (barato, O(cuotas
+ * vencidas) por el corte temprano: las fechas son crecientes). Clave para que la
+ * RUTA no trate la cuota de un crédito NO-diario como si venciera todos los días.
+ */
+export function cuotasDebidasHasta(prestamo: PrestamoCalc, hoy: Date): number {
+  const total = prestamo.total_dias;
+  if (total < 1) return 0;
+  const inicio = parseFecha(prestamo.fecha_inicio);
+  const frec = prestamo.frecuencia ?? "diario";
+  const hoyMid = aMedianoche(hoy).getTime();
+  let n = 0;
+  for (let i = 0; i < total; i++) {
+    if (aMedianoche(fechaDeCuota(inicio, i, frec)).getTime() <= hoyMid) n++;
+    else break; // fechas crecientes → una vez que la cuota es futura, corto
+  }
+  return n;
+}
+
 /** Campos del pago que el cálculo necesita (ya filtrados: solo vigentes). */
 type PagoCalc = Pick<Pago, "dia_credito" | "monto">;
 

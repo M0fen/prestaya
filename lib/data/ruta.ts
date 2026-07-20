@@ -7,7 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Cliente, FrecuenciaPrestamo } from "@/types/db";
 import { mapCliente } from "./clientes";
 import { inicioDiaUYIso, hoyUY } from "@/lib/fecha";
-import { plazoVencido } from "@/lib/cartones";
+import { plazoVencido, cuotasDebidasHasta } from "@/lib/cartones";
 
 // "abono" = pagó HOY pero menos que la cuota (abono parcial). Regla del negocio:
 // un abono parcial NO cubre el día → no es "pagado", queda como pendiente-visto.
@@ -80,11 +80,43 @@ export function estadoHoyDe(
   return "pendiente";
 }
 
-/** Un crédito activo del cliente: su cuota, lo cobrado HOY en él y si su PLAZO ya venció. */
+/**
+ * Cuota-OBJETIVO de HOY de un crédito (lo que el cobrador debería cobrarle hoy):
+ *  · DIARIO → la cuota fija (target del día, como siempre; el 80% de la cartera).
+ *  · NO-DIARIO (semanal/quincenal/mensual) → lo que falta para estar AL DÍA según
+ *    el cronograma, topeado a una cuota. Es 0 en los días SIN cuota vencida, así el
+ *    crédito no figura "Pendiente" ni suma al "esperado" todos los días (hallazgo #5).
+ * Pura y testeable.
+ */
+export function cuotaObjetivoHoy(
+  c: { cuota: number; totalDias: number; fechaInicio: string; frecuencia: FrecuenciaPrestamo; pagadoAcum: number },
+  hoy: Date,
+): number {
+  if ((c.frecuencia ?? "diario") === "diario") return c.cuota;
+  const totalCred = c.cuota * c.totalDias;
+  const debidas = cuotasDebidasHasta(
+    { cuota_diaria: c.cuota, total_dias: c.totalDias, fecha_inicio: c.fechaInicio, frecuencia: c.frecuencia },
+    hoy,
+  );
+  // ⚠️ `pagadoAcum` debe ser lo pagado ANTES de hoy (el llamador resta el cobro de
+  // hoy): el trigger 0063 lo actualiza en el insert, y si acá se restara el pago de
+  // hoy, `estadoHoyDe`/`recaudadoRuta` lo descontarían DOS veces (cobro a medias se
+  // vería "Cobrado" y el cobrador no iría por el resto).
+  const montoDebido = Math.max(0, Math.min(debidas * c.cuota, totalCred) - c.pagadoAcum);
+  // Tolerancia sub-peso (espejo del cartón): cuota fraccionaria + pagos enteros
+  // dejan un residuo de centavos → sin esto el crédito no llega nunca a 0 (al día).
+  if (montoDebido < 0.5) return 0;
+  return Math.min(c.cuota, montoDebido);
+}
+
+/** Un crédito activo del cliente: su cuota-OBJETIVO de hoy, lo cobrado HOY en él y
+ *  si su PLAZO ya venció. `alDia`: crédito REAL (cuota_diaria>0) en término sin cuota
+ *  vencida hoy (no-diario al día) → distingue "nada que cobrar" de "dato roto". */
 export interface CreditoRuta {
   cuota: number;
   pagadoHoy: number;
   plazoVencido: boolean;
+  alDia?: boolean;
 }
 
 export interface ClaseClienteRuta {
@@ -122,13 +154,22 @@ export function clasificarClienteRuta(
   const cuotaEnTermino = enTermino.reduce((s, c) => s + c.cuota, 0);
   const pagadoHoyEnTermino = enTermino.reduce((s, c) => s + c.pagadoHoy, 0);
   const pagadoHoyTotal = creditos.reduce((s, c) => s + c.pagadoHoy, 0);
-  const soloVencido = creditos.length > 0 && cuotaEnTermino === 0;
+  // "Cartera vencida pura" = NO tiene ningún crédito EN TÉRMINO (todos con plazo
+  // vencido). Antes se detectaba por `cuotaEnTermino === 0`, pero ahora un crédito
+  // NO-diario AL DÍA (sin cuota hoy) también da cuota 0 sin estar vencido → se
+  // confundía con cartera vencida. Con `enTermino.length` se distingue bien.
+  const soloVencido = creditos.length > 0 && enTermino.length === 0;
+  // AL DÍA hoy: TODOS sus créditos en término están al día por cronograma (no-diario
+  // sin cuota vencida hoy) → "pagado" (nada que cobrar), no "pendiente". Se exige el
+  // flag `alDia` (crédito real, cuota_diaria>0) para NO enmascarar un crédito roto
+  // (cuota_diaria 0), que debe seguir visible como pendiente (igual que el cartón).
+  const alDiaHoy = enTermino.length > 0 && enTermino.every((c) => c.alDia === true);
   return {
     cuotaEnTermino,
     pagadoHoyEnTermino,
     pagadoHoyTotal,
     soloVencido,
-    estadoHoy: estadoHoyDe(pagadoHoyEnTermino, cuotaEnTermino, esNoPago),
+    estadoHoy: alDiaHoy ? "pagado" : estadoHoyDe(pagadoHoyEnTermino, cuotaEnTermino, esNoPago),
     cuentaEnRuta: !soloVencido,
   };
 }
@@ -169,30 +210,38 @@ export async function getRutaCobrador(
   // Día UY para evaluar el plazo (mismo criterio hábil Lun–Sáb que el cartón).
   const hoyMid = hoyUY(hoy);
   // Por crédito guardamos su id (para cruzar con lo cobrado hoy), cuota y si venció.
-  type CredInterno = { id: string; cuota: number; plazoVencido: boolean };
+  // Campos CRUDOS del crédito: la cuota-objetivo de hoy se calcula MÁS ABAJO, cuando
+  // ya sabemos lo cobrado HOY por crédito (para restarlo de pagado_acum, que el
+  // trigger 0063 ya lo incluye → si no, el pago de hoy se descontaría dos veces).
+  type CredInterno = {
+    id: string; cuotaDiaria: number; totalDias: number; fechaInicio: string;
+    frecuencia: FrecuenciaPrestamo; pagadoAcum: number; plazoVencido: boolean;
+  };
   const creditosDe = new Map<string, { creditos: CredInterno[]; principalId: string }>();
   for (const p of presRaw ?? []) {
     const cid = p.cliente_id as string;
     const pid = p.id as string;
     const cuota = Number(p.cuota_diaria);
+    const totalDias = Number(p.total_dias);
+    const pagadoAcum = Number(p.pagado_acum ?? 0);
+    const frecuencia = (p.frecuencia as FrecuenciaPrestamo) ?? "diario";
     // Crédito SALDADO (pagó todo pero aún no se finalizó/renovó): fuera de la ruta.
     // Si no, un cliente que ya terminó reaparecía como "pendiente" (inflando "Falta")
     // o como "cartera vencida · a recuperar" — persiguiendo a alguien que pagó todo.
-    const totalCred = cuota * Number(p.total_dias);
-    if (totalCred > 0 && Number(p.pagado_acum ?? 0) >= totalCred) continue;
+    const totalCred = cuota * totalDias;
+    if (totalCred > 0 && pagadoAcum >= totalCred) continue;
     // ¿El plazo de ESTE crédito ya venció? (cartera vencida → fuera del target del día)
     const vencido = plazoVencido(
-      {
-        cuota_diaria: cuota,
-        total_dias: Number(p.total_dias),
-        fecha_inicio: p.fecha_inicio as string,
-        frecuencia: (p.frecuencia as FrecuenciaPrestamo) ?? "diario",
-      },
+      { cuota_diaria: cuota, total_dias: totalDias, fecha_inicio: p.fecha_inicio as string, frecuencia },
       hoyMid,
     );
+    const cred: CredInterno = {
+      id: pid, cuotaDiaria: cuota, totalDias, fechaInicio: p.fecha_inicio as string,
+      frecuencia, pagadoAcum, plazoVencido: vencido,
+    };
     const acc = creditosDe.get(cid);
-    if (acc) acc.creditos.push({ id: pid, cuota, plazoVencido: vencido });
-    else creditosDe.set(cid, { creditos: [{ id: pid, cuota, plazoVencido: vencido }], principalId: pid });
+    if (acc) acc.creditos.push(cred);
+    else creditosDe.set(cid, { creditos: [cred], principalId: pid });
   }
 
   const ids = [...creditosDe.values()].flatMap((c) => c.creditos.map((x) => x.id));
@@ -237,11 +286,27 @@ export async function getRutaCobrador(
     const esNoPago = cr.creditos.some((x) => noPagoPrestamos.has(x.id));
     // Créditos con lo cobrado HOY en CADA uno (para separar recaudo total vs.
     // cobro sobre la cuota vigente al derivar el estado del cliente).
-    const creditos: CreditoRuta[] = cr.creditos.map((x) => ({
-      cuota: x.cuota,
-      plazoVencido: x.plazoVencido,
-      pagadoHoy: pagadoPorPrestamo.get(x.id) ?? 0,
-    }));
+    const creditos: CreditoRuta[] = cr.creditos.map((x) => {
+      const pagadoHoy = pagadoPorPrestamo.get(x.id) ?? 0;
+      // Cuota-OBJETIVO de hoy (frecuencia-aware): diario = cuota fija; no-diario = lo
+      // que falta para estar al día HOY, calculado con lo pagado ANTES de hoy
+      // (pagado_acum − pagadoHoy: el trigger 0063 ya incluyó el cobro de hoy). Así la
+      // cuota-objetivo es ESTABLE intradía y el pago de hoy se descuenta UNA sola vez
+      // (vía pagadoHoy/estadoHoyDe). Diario ignora pagadoAcum → 80% sin cambios (#5).
+      const cuotaHoy = cuotaObjetivoHoy(
+        { cuota: x.cuotaDiaria, totalDias: x.totalDias, fechaInicio: x.fechaInicio, frecuencia: x.frecuencia, pagadoAcum: x.pagadoAcum - pagadoHoy },
+        hoyMid,
+      );
+      return {
+        cuota: cuotaHoy,
+        pagadoHoy,
+        plazoVencido: x.plazoVencido,
+        // Al día por cronograma (crédito REAL: cuota_diaria>0 y total_dias>0): distingue
+        // "nada que cobrar" de un crédito roto (cuota 0 / días 0), que sigue visible como
+        // pendiente. (La BD ya garantiza >0, pero el guard cierra la asimetría defensiva.)
+        alDia: cuotaHoy <= 0.5 && x.cuotaDiaria > 0 && x.totalDias > 0 && !x.plazoVencido,
+      };
+    });
     const clase = clasificarClienteRuta(creditos, esNoPago);
     recaudado += clase.pagadoHoyTotal; // incluye recuperaciones de vencidos: la plata es plata
     // Solo los créditos EN TÉRMINO aportan al target del día y al denominador de

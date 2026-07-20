@@ -24,6 +24,9 @@ export interface RendidaLite {
   entregado: number;
   diferencia: number;
   estado: EstadoRendicion;
+  /** Recaudo EN VIVO (no el congelado al cerrar). Si supera `recaudado`, cobró
+   *  DESPUÉS de rendir → esa plata quedó fuera de esta rendición. */
+  recaudadoVivo?: number;
 }
 
 /** Cobrador que recaudó hoy pero todavía no rindió. */
@@ -47,6 +50,9 @@ export interface CobradorCierre {
   entregado: number;
   /** entregado − esperado (0 si aún no rindió → pendiente, no faltante). */
   diferencia: number;
+  /** Cobró DESPUÉS de rendir (recaudoVivo − recaudado congelado). Esa plata NO
+   *  entró a esta rendición → se avisa (si no, se ve "Cuadra" y queda fuera del libro). */
+  cobroPostCierre?: number;
 }
 
 /** Confirmación del supervisor: cerró y entregó la caja de su zona (0047). */
@@ -135,6 +141,8 @@ export function consolidarPorZona(
   for (const r of rendidas) {
     const z = asegurarZona(cobradorZona.get(r.cobradorId) ?? null);
     const esperado = Math.max(0, Math.round(r.recaudado) - Math.round(r.gastos));
+    // Cobró después de rendir: el recaudo vivo supera el congelado al cerrar.
+    const cobroPostCierre = Math.max(0, Math.round(r.recaudadoVivo ?? r.recaudado) - Math.round(r.recaudado));
     z.cobradores.push({
       cobradorId: r.cobradorId,
       nombre: r.nombre,
@@ -144,6 +152,7 @@ export function consolidarPorZona(
       esperado,
       entregado: r.entregado,
       diferencia: r.diferencia,
+      cobroPostCierre,
     });
     z.totalRecaudado += r.recaudado;
     z.totalEsperado += esperado;

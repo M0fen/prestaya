@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { clasificarClienteRuta, estadoHoyDe } from "./ruta";
+import { clasificarClienteRuta, estadoHoyDe, cuotaObjetivoHoy } from "./ruta";
+import { fechaDeCuota, cuotasDebidasHasta } from "@/lib/cartones";
+import { parseFecha } from "@/lib/format";
 
 describe("estadoHoyDe — regla del cartón en la lista del cobrador", () => {
   it("pagó >= cuota → pagado (día cubierto)", () => {
@@ -86,5 +88,95 @@ describe("clasificarClienteRuta — zombies (plazo vencido) fuera del target del
     expect(r.soloVencido).toBe(false);
     expect(r.cuentaEnRuta).toBe(true);
     expect(r.cuotaEnTermino).toBe(0);
+  });
+});
+
+// ── Frecuencia en la ruta (hallazgo #5): un crédito NO-diario no debe figurar
+//    "Pendiente" ni sumar al esperado TODOS los días. ────────────────────────
+const INICIO = "2026-06-01";
+const semanal = (pagadoAcum: number) => ({
+  cuota: 1000, totalDias: 10, fechaInicio: INICIO, frecuencia: "semanal" as const, pagadoAcum,
+});
+
+describe("cuotaObjetivoHoy — la ruta respeta la frecuencia (#5)", () => {
+  it("DIARIO: siempre la cuota fija (el 80% de la cartera NO cambia)", () => {
+    const d = { cuota: 500, totalDias: 24, fechaInicio: INICIO, frecuencia: "diario" as const, pagadoAcum: 0 };
+    expect(cuotaObjetivoHoy(d, parseFecha("2026-06-15"))).toBe(500);
+    // aun pagado de más (dato raro) el target diario sigue siendo la cuota
+    expect(cuotaObjetivoHoy({ ...d, pagadoAcum: 999999 }, parseFecha("2026-06-15"))).toBe(500);
+  });
+
+  it("SEMANAL al día, en un día SIN cuota → 0 (no figura pendiente a diario)", () => {
+    const c0 = fechaDeCuota(parseFecha(INICIO), 0, "semanal"); // 1ª cuota
+    const medioSemana = new Date(c0);
+    medioSemana.setDate(c0.getDate() + 3); // después de la 1ª, antes de la 2ª (+7)
+    expect(cuotaObjetivoHoy(semanal(1000), medioSemana)).toBe(0); // pagó la 1ª → al día
+  });
+
+  it("SEMANAL el día que vence la 2ª cuota (pagó la 1ª) → una cuota", () => {
+    const c1 = fechaDeCuota(parseFecha(INICIO), 1, "semanal"); // 2ª cuota
+    expect(cuotaObjetivoHoy(semanal(1000), c1)).toBe(1000);
+  });
+
+  it("SEMANAL atrasado (no pagó nada) → target de UNA cuota (como el diario)", () => {
+    const c1 = fechaDeCuota(parseFecha(INICIO), 1, "semanal");
+    expect(cuotaObjetivoHoy(semanal(0), c1)).toBe(1000); // debe 2, pero el target del día es 1
+  });
+
+  it("SEMANAL con cuota FRACCIONARIA al día (pagos enteros) → 0 (tolerancia sub-peso)", () => {
+    // cuota 351,04; pagó 351 por cada una de las 2 cuotas vencidas (702, entero).
+    const frac = { cuota: 351.04, totalDias: 10, fechaInicio: INICIO, frecuencia: "semanal" as const, pagadoAcum: 702 };
+    const c1 = fechaDeCuota(parseFecha(INICIO), 1, "semanal");
+    // residuo = 2*351,04 - 702 = 0,08 (<0,5) → 0, no centavos fantasma
+    expect(cuotaObjetivoHoy(frac, c1)).toBe(0);
+  });
+
+  it("el objetivo se computa con lo pagado ANTES de hoy (evita descontar 2× el pago de hoy)", () => {
+    // El llamador pasa pagadoAcum = acum − pagadoHoy. Si hoy vence la 2ª (pagó la 1ª)
+    // y aún no cobró nada hoy, el objetivo debe ser la cuota ENTERA (1000), no encoger.
+    const c1 = fechaDeCuota(parseFecha(INICIO), 1, "semanal");
+    expect(cuotaObjetivoHoy(semanal(1000), c1)).toBe(1000);
+  });
+
+  it("cuotasDebidasHasta: cuenta las cuotas cuya fecha ya llegó (frecuencia-aware)", () => {
+    const p = { cuota_diaria: 1000, total_dias: 10, fecha_inicio: INICIO, frecuencia: "semanal" as const };
+    const c0 = fechaDeCuota(parseFecha(INICIO), 0, "semanal");
+    const c2 = fechaDeCuota(parseFecha(INICIO), 2, "semanal");
+    expect(cuotasDebidasHasta(p, c0)).toBe(1);
+    expect(cuotasDebidasHasta(p, c2)).toBe(3);
+  });
+});
+
+describe("clasificarClienteRuta — 'al día' (no-diario) NO es cartera vencida", () => {
+  it("crédito EN TÉRMINO al día (cuota-hoy 0, alDia=true) → pagado, cuenta en ruta, NO soloVencido", () => {
+    const clase = clasificarClienteRuta([{ cuota: 0, pagadoHoy: 0, plazoVencido: false, alDia: true }], false);
+    expect(clase.soloVencido).toBe(false);
+    expect(clase.cuentaEnRuta).toBe(true);
+    expect(clase.estadoHoy).toBe("pagado");
+    expect(clase.cuotaEnTermino).toBe(0);
+  });
+
+  it("crédito ROTO (cuota 0 SIN alDia) NO se enmascara: sigue pendiente (visible)", () => {
+    const clase = clasificarClienteRuta([{ cuota: 0, pagadoHoy: 0, plazoVencido: false }], false);
+    expect(clase.estadoHoy).toBe("pendiente"); // no "pagado": el dato roto queda a la vista
+    expect(clase.soloVencido).toBe(false);
+  });
+
+  it("crédito diario en término impago sigue 'pendiente' (sin regresión)", () => {
+    const clase = clasificarClienteRuta([{ cuota: 500, pagadoHoy: 0, plazoVencido: false }], false);
+    expect(clase.estadoHoy).toBe("pendiente");
+    expect(clase.cuotaEnTermino).toBe(500);
+  });
+
+  it("cliente MIXTO: un no-diario al día + un diario pendiente → pendiente (no lo saltea)", () => {
+    const clase = clasificarClienteRuta(
+      [
+        { cuota: 0, pagadoHoy: 0, plazoVencido: false, alDia: true }, // no-diario al día
+        { cuota: 500, pagadoHoy: 0, plazoVencido: false }, // diario impago
+      ],
+      false,
+    );
+    expect(clase.estadoHoy).toBe("pendiente"); // el diario impago manda
+    expect(clase.cuotaEnTermino).toBe(500);
   });
 });
