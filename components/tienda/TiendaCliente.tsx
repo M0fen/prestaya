@@ -19,7 +19,14 @@ function financiacion(p: ProductoParaCliente) {
   return { conInteres, cuota };
 }
 
-export function TiendaCliente({ productos, token }: { productos: ProductoParaCliente[]; token: string | null }) {
+export function TiendaCliente({
+  productos, token, conEncabezado = true,
+}: {
+  productos: ProductoParaCliente[];
+  token: string | null;
+  /** Muestra el encabezado "Nuestra tienda" (false cuando la página ya trae uno). */
+  conEncabezado?: boolean;
+}) {
   const [abierto, setAbierto] = useState<ProductoParaCliente | null>(null);
   if (!productos || productos.length === 0) return null;
 
@@ -34,14 +41,16 @@ export function TiendaCliente({ productos, token }: { productos: ProductoParaCli
 
   return (
     <section className="mt-2 flex flex-col gap-3">
-      {/* Encabezado de la tienda */}
-      <div className="flex items-center gap-2 px-1">
-        <span className="text-[20px]" aria-hidden="true">🛍️</span>
-        <div className="flex flex-col">
-          <span className="text-[16px] font-extrabold tracking-[-0.01em] text-tinta">Nuestra tienda</span>
-          <span className="text-[12.5px] font-medium text-gris">Llevate lo que necesitás, en cuotas cómodas.</span>
+      {/* Encabezado de la tienda (se omite si la página ya trae uno) */}
+      {conEncabezado && (
+        <div className="flex items-center gap-2 px-1">
+          <span className="text-[20px]" aria-hidden="true">🛍️</span>
+          <div className="flex flex-col">
+            <span className="text-[16px] font-extrabold tracking-[-0.01em] text-tinta">Nuestra tienda</span>
+            <span className="text-[12.5px] font-medium text-gris">Llevate lo que necesitás, en cuotas cómodas.</span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Banner del destacado */}
       {hero && (

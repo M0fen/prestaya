@@ -24,16 +24,15 @@ import { ProximaCuota } from "@/components/ProximaCuota";
 import { CartonDigital } from "@/components/CartonDigital";
 import { GameSlot } from "@/components/GameSlot";
 import { Historial } from "@/components/Historial";
+import Link from "next/link";
 import { ReportarDiscrepancia } from "@/components/ReportarDiscrepancia";
 import { RecordatorioLink } from "@/components/RecordatorioLink";
-import { TiendaCliente } from "@/components/tienda/TiendaCliente";
-import type { ProductoParaCliente } from "@/lib/data/tienda";
 import { Footer } from "@/components/Footer";
 
 export function VistaClienteScreen({
   v,
   anuncios = [],
-  productosTienda = [],
+  hayTienda = false,
   token = null,
   reputacion = null,
   estrellas = null,
@@ -46,8 +45,8 @@ export function VistaClienteScreen({
 }: {
   v: VistaCredito;
   anuncios?: Anuncio[];
-  /** Productos de la tienda con el precio ya resuelto para este cliente. */
-  productosTienda?: ProductoParaCliente[];
+  /** ¿Hay productos activos? → muestra el botón "Ir a la tienda" (página aparte). */
+  hayTienda?: boolean;
   /** Rifa promocional a mostrarle a este cliente (o null). */
   rifa?: RifaVista | null;
   /** Selector de crédito (si el cliente tiene varios activos). Se pinta arriba. */
@@ -157,9 +156,21 @@ export function VistaClienteScreen({
         {/* Historial de pagos (con % de la cuota cubierto + descuento). */}
         <Historial historial={v.historial} />
 
-        {/* TIENDA: productos a crédito. Después del dinero (no lo interrumpe). Se
-            muestra sola si hay productos activos (y precio resuelto para este cliente). */}
-        <TiendaCliente productos={productosTienda} token={token} />
+        {/* TIENDA: botón de entrada (no la galería inline). Lleva a una sección
+            aparte, como una extensión de Presta Ya. Solo si hay productos y token. */}
+        {hayTienda && token && (
+          <Link
+            href={`/c/${token}/tienda`}
+            className="flex items-center gap-3 rounded-[18px] bg-[linear-gradient(135deg,#2453DC,#13308C)] px-4 py-3.5 text-white shadow-[0_8px_22px_rgba(19,48,140,0.24)] active:scale-[0.99]"
+          >
+            <span className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-white/15 text-[24px]">🛍️</span>
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="text-[15.5px] font-extrabold leading-tight">Ir a la tienda</span>
+              <span className="text-[12.5px] font-medium text-white/85">Electrodomésticos y más, en cuotas cómodas</span>
+            </span>
+            <span className="text-[20px] font-black">›</span>
+          </Link>
+        )}
 
         {/* ── NOVEDADES: TODO lo promocional/lúdico agrupado, DESPUÉS del dinero ── */}
         {MOSTRAR_JUEGOS && hayNovedades && (

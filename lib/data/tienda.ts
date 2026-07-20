@@ -107,6 +107,19 @@ export async function getCategorias(db: SupabaseClient, soloActivas = true): Pro
   }
 }
 
+/** ¿Hay al menos un producto activo? (barato: count head). Para decidir si mostrar
+ *  el botón "Ir a la tienda" en el cartón sin traer todo el catálogo. */
+export async function hayProductosActivos(db: SupabaseClient): Promise<boolean> {
+  try {
+    const { count, error } = await db.from("productos").select("*", { count: "exact", head: true }).eq("activo", true);
+    if (error) throw error;
+    return (count ?? 0) > 0;
+  } catch (e) {
+    if (tablaFaltante(e)) return false;
+    throw e;
+  }
+}
+
 // ── Productos (admin: todos) ────────────────────────────────────────────────
 export async function getProductosAdmin(db: SupabaseClient): Promise<Producto[]> {
   try {
