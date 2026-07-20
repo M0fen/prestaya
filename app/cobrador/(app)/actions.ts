@@ -140,7 +140,10 @@ export async function relevarCliente(input: {
 // ── Cobro (pago real) ────────────────────────────────────────────────────────
 export type ResultadoCobro =
   | { ok: true; dia: number; monto: number; enZona: boolean | null }
-  | { ok: false; error: string };
+  // `retryable`: el fallo es TEMPORAL (kill switch, error de red/DB, sesión) → la cola
+  // offline NO debe envenenar el cobro (marcarlo "atascado" y pedir descartarlo); hay
+  // que reintentar. Sin la marca, es un fallo PERMANENTE (crédito finalizado/saldado).
+  | { ok: false; error: string; retryable?: boolean };
 
 export async function registrarPagoCobrador(input: {
   clienteId: string;
@@ -158,7 +161,8 @@ export async function registrarPagoCobrador(input: {
   if (!validar(cobroSchema, input).ok) return { ok: false, error: "Datos del cobro inválidos." };
   try {
     const usuario = await getUsuarioActual();
-    if (!usuario || !usuario.activo) return { ok: false, error: "Sesión no válida." };
+    // Sesión: puede ser un blip de auth (no la culpa del cobro) → retryable, no envenena.
+    if (!usuario || !usuario.activo) return { ok: false, error: "Sesión no válida.", retryable: true };
     const bloqueo = await bloqueoSoloLectura(); // kill switch: congela escrituras de plata
     if (bloqueo) return bloqueo;
 
@@ -251,7 +255,8 @@ export async function registrarPagoCobrador(input: {
   } catch (e) {
     // Ruta de PLATA: el error deja rastro (nunca se traga en silencio).
     reportarError("registrarPagoCobrador", e, { clienteId: input.clienteId, opId: input.opId });
-    return { ok: false, error: "No pudimos registrar el pago. Probá de nuevo." };
+    // Error TRANSITORIO (DB/red): retryable → la cola reintenta, NO envenena el cobro.
+    return { ok: false, error: "No pudimos registrar el pago. Probá de nuevo.", retryable: true };
   }
 }
 
@@ -268,11 +273,11 @@ export async function registrarNoPagoCobrador(input: {
   gpsPrecision?: number | null;
   registradoEn?: string | null;
   opId?: string | null;
-}): Promise<{ ok: true } | { ok: false; error: string }> {
+}): Promise<{ ok: true } | { ok: false; error: string; retryable?: boolean }> {
   if (!validar(noPagoSchema, input).ok) return { ok: false, error: "Datos inválidos." };
   try {
     const usuario = await getUsuarioActual();
-    if (!usuario || !usuario.activo) return { ok: false, error: "Sesión no válida." };
+    if (!usuario || !usuario.activo) return { ok: false, error: "Sesión no válida.", retryable: true };
     const bloqueo = await bloqueoSoloLectura();
     if (bloqueo) return bloqueo;
 
@@ -326,7 +331,7 @@ export async function registrarNoPagoCobrador(input: {
     return { ok: true };
   } catch (e) {
     reportarError("registrarNoPagoCobrador", e, { clienteId: input.clienteId, opId: input.opId });
-    return { ok: false, error: "No pudimos registrar. Probá de nuevo." };
+    return { ok: false, error: "No pudimos registrar. Probá de nuevo.", retryable: true };
   }
 }
 

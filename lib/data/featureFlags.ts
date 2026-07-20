@@ -30,11 +30,14 @@ export const escrituraCongelada = cache(async (): Promise<boolean> => {
  * devuelve el resultado de rechazo (mensaje claro) para hacer `return` directo;
  * si no, devuelve null y la acción sigue. Llamar al INICIO de la acción.
  */
-export async function bloqueoSoloLectura(): Promise<{ ok: false; error: string } | null> {
+export async function bloqueoSoloLectura(): Promise<{ ok: false; error: string; retryable: true } | null> {
   if (await escrituraCongelada()) {
     return {
       ok: false,
       error: "El sistema está en modo solo lectura por mantenimiento. Probá de nuevo en unos minutos.",
+      // TEMPORAL: el freeze se levanta. La cola offline del cobrador NO debe envenenar
+      // (marcar "atascado" → descartá) un cobro real por esto — hay que reintentar luego.
+      retryable: true,
     };
   }
   return null;

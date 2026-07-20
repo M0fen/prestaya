@@ -15,6 +15,7 @@ import { registrarMovimientoCaja } from "@/lib/data/caja";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { crearReciboDb } from "@/lib/data/recibos";
 import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
+import { opIdDeterminista, esViolacionUnica } from "@/lib/idempotencia";
 
 type Resultado = { ok: true } | { ok: false; error: string };
 type ResultadoLiquidar = { ok: true; reciboNumero?: number } | { ok: false; error: string };
@@ -97,6 +98,11 @@ export async function liquidarComision(input: {
     return { ok: false, error: "No se pudo liquidar. ¿Corriste la migración 0049?" };
   }
 
+  // op_id DETERMINISTA del egreso: estable por (comisión, cobrador, período). Si el
+  // INSERT commitea pero se pierde la respuesta (timeout/504/red), el reintento
+  // colisiona en el índice único op_id (0074) → NO hay segundo egreso. Sin esto, el
+  // catch de abajo borraba el candado y el reintento pagaba la comisión DOS veces.
+  const opIdEgreso = opIdDeterminista("comision", input.cobradorId, periodoKey);
   try {
     await registrarMovimientoCaja(db, {
       tipo: "egreso",
@@ -105,6 +111,7 @@ export async function liquidarComision(input: {
       descripcion: `Comisión ${periodoLabel} · ${nombre}`,
       cobradorId: input.cobradorId,
       registradoPor: u.id,
+      opId: opIdEgreso,
     });
     await registrarAuditoria(db, {
       actorId: u.id,
@@ -139,9 +146,27 @@ export async function liquidarComision(input: {
     revalidatePath("/admin/recibos");
     return { ok: true, reciboNumero };
   } catch (e) {
+    // Colisión de op_id (23505): el egreso YA existe (un intento previo commiteó y se
+    // perdió la respuesta) → la comisión está liquidada de verdad. Es un reintento
+    // idempotente, NO un fallo: se conserva el candado y se devuelve OK.
+    if (esViolacionUnica(e)) {
+      // El intento fallido no llegó a auditar → dejar rastro ahora (best-effort, no
+      // lanza) para no perder la trazabilidad de una comisión realmente pagada.
+      await registrarAuditoria(db, {
+        actorId: u.id,
+        actorNombre: u.nombre,
+        accion: "Liquidó comisión",
+        entidad: "cobrador",
+        entidadId: input.cobradorId,
+        detalle: `${nombre}: $${monto.toLocaleString("es-UY")} (${periodoLabel})`,
+      });
+      revalidatePath("/admin/comisiones");
+      revalidatePath("/admin/caja");
+      return { ok: true };
+    }
     reportarError("liquidarComision", e, { cobradorId: input.cobradorId, periodoKey });
-    // La caja falló DESPUÉS del candado → revertir para no dejar "liquidado"
-    // sin el egreso (si no, quedaría marcado pagado sin haber salido de caja).
+    // Fallo REAL del egreso (no ambiguo) → revertir el candado para no dejar
+    // "liquidado" sin egreso. El op_id determinista protege igual el reintento.
     await db
       .from("comisiones_liquidadas")
       .delete()

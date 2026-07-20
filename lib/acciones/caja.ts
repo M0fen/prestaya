@@ -4,7 +4,6 @@
 //  Gastos, desembolsos, aportes de capital, retiros. Los cobros NO van por acá
 //  (viven en `pagos`). RLS de 0010 exige gestor + autor = uno mismo.
 // ─────────────────────────────────────────────────────────────────────────
-import { createHash } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { reportarError } from "@/lib/observabilidad";
@@ -13,25 +12,13 @@ import { alcanceDelActor } from "@/lib/data/alcance";
 import { registrarMovimientoCaja, type TipoMovimiento, type CuentaCaja } from "@/lib/data/caja";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
+import { opIdDeterminista, esUuid } from "@/lib/idempotencia";
 import { UYU } from "@/lib/format";
 
 const TIPOS: TipoMovimiento[] = ["ingreso", "egreso", "desembolso", "retiro"];
 type Resultado = { ok: true } | { ok: false; error: string };
 
-const nonceValido = (s: unknown): s is string =>
-  typeof s === "string" && /^[0-9a-fA-F-]{36}$/.test(s);
-
-/** op_id DETERMINISTA (uuid v5-like) para la idempotencia de caja cuando el cliente
- *  no manda un nonce válido: el MISMO movimiento (tipo+monto+categoría+descripción+
- *  cobrador+cuenta) dentro del mismo MINUTO colisiona en el índice único (0074) → no
- *  se duplica ante doble-submit/retry. Un movimiento distinto cae en otra clave. */
-function opIdDeterminista(...partes: (string | number | null)[]): string {
-  const b = createHash("sha1").update(partes.join("|")).digest().subarray(0, 16);
-  b[6] = (b[6] & 0x0f) | 0x50; // versión 5
-  b[8] = (b[8] & 0x3f) | 0x80; // variante RFC 4122
-  const x = b.toString("hex");
-  return `${x.slice(0, 8)}-${x.slice(8, 12)}-${x.slice(12, 16)}-${x.slice(16, 20)}-${x.slice(20, 32)}`;
-}
+const nonceValido = esUuid;
 
 export async function agregarMovimientoCaja(input: {
   tipo: string;

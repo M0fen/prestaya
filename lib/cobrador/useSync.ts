@@ -24,6 +24,7 @@ export function useSync(usuarioId: string | null, onSynced?: () => void) {
   const [sincronizando, setSincronizando] = useState(false);
   const flushing = useRef(false);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reintentoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onSyncedRef = useRef(onSynced);
   onSyncedRef.current = onSynced;
 
@@ -40,7 +41,12 @@ export function useSync(usuarioId: string | null, onSynced?: () => void) {
     return () => {
       window.removeEventListener("online", on);
       window.removeEventListener("offline", off);
-      if (holdTimer.current) clearTimeout(holdTimer.current);
+      // Limpiar Y poner a null: el efecto está keyeado en [usuarioId], y en un
+      // teléfono COMPARTIDO cambia sin desmontar. Si el ref quedara con el handle
+      // viejo (non-null), el gate `!reintentoTimer.current` bloquearía para siempre
+      // el auto-reintento del nuevo cobrador → cobros temporales sin re-sincronizar.
+      if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = null; }
+      if (reintentoTimer.current) { clearTimeout(reintentoTimer.current); reintentoTimer.current = null; }
     };
   }, [usuarioId]);
 
@@ -67,6 +73,7 @@ export function useSync(usuarioId: string | null, onSynced?: () => void) {
     flushing.current = true;
     setSincronizando(true);
     let algunoOk = false;
+    let huboTemporal = false; // un fallo TEMPORAL cortó el flush → reprogramar reintento
     try {
       for (const op of listas) {
         const registradoEn = new Date(op.deviceTs).toISOString();
@@ -98,11 +105,20 @@ export function useSync(usuarioId: string | null, onSynced?: () => void) {
             // mostrando unos segundos hasta que el refresco del server la refleje).
             confirmar(op.id);
             algunoOk = true;
+          } else if (res.retryable) {
+            // Fallo TEMPORAL (kill switch, error de red/DB, sesión): NO envenenar el
+            // cobro. Es sistémico → cortar el flush y reintentar TODO más tarde. Sin
+            // esto, un freeze de emergencia terminaba marcando cobros reales como
+            // "atascados" y el cierre le pedía al cobrador DESCARTARLOS (fuga real).
+            huboTemporal = true;
+            break;
           } else {
-            // Error de negocio (p. ej. sin crédito activo): queda visible.
+            // Error PERMANENTE (crédito finalizado/saldado, datos inválidos): suma al
+            // veneno; tras MAX_INTENTOS se muestra aparte para descartar a mano.
             marcarIntento(op.id);
           }
         } catch {
+          huboTemporal = true;
           break; // se cayó la red: cortar y reintentar más tarde
         }
       }
@@ -110,6 +126,15 @@ export function useSync(usuarioId: string | null, onSynced?: () => void) {
       flushing.current = false;
       setSincronizando(false);
       if (algunoOk) onSyncedRef.current?.();
+      // Reintento programado ante un fallo temporal: así un kill switch / caída
+      // sostenida se reintenta sola cuando se levanta, sin depender de que el
+      // cobrador cargue otro cobro o recargue la app. (Un solo timer a la vez.)
+      if (huboTemporal && !reintentoTimer.current) {
+        reintentoTimer.current = setTimeout(() => {
+          reintentoTimer.current = null;
+          void flush();
+        }, 25_000);
+      }
     }
   }, []);
 

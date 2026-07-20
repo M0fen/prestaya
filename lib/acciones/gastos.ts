@@ -20,6 +20,7 @@ import { registrarAuditoria } from "@/lib/data/auditoria";
 import { enviarMensajeDb } from "@/lib/data/chat";
 import { CATEGORIAS_GASTO, pideComprobante } from "@/lib/gastosRuta";
 import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
+import { opIdDeterminista, esViolacionUnica } from "@/lib/idempotencia";
 
 type Resultado = { ok: true } | { ok: false; error: string };
 
@@ -165,9 +166,13 @@ export async function aprobarGastoRuta(input: { solicitudId: string }): Promise<
   if (eUpd) return { ok: false, error: "No se pudo aprobar el gasto." };
   if (!ganada || ganada.length === 0) return { ok: false, error: "La solicitud ya había sido resuelta." };
 
+  // op_id DETERMINISTA del egreso: estable por solicitud. Si el INSERT commitea pero
+  // se pierde la respuesta, el reintento (que revierte a 'pendiente' y reaprueba)
+  // colisiona en el índice único op_id (0074) → NO hay segundo egreso.
+  const opIdEgreso = opIdDeterminista("gasto", sol.id);
   try {
     // Ganó el candado → recién ahora el gasto es plata real: se crea el egreso a
-    // nombre del cobrador (una sola vez, garantizado por el UPDATE de arriba).
+    // nombre del cobrador (una sola vez, garantizado por el UPDATE + el op_id).
     await registrarMovimientoCaja(admin, {
       tipo: "egreso",
       categoria: sol.categoria ?? "Gasto de ruta",
@@ -175,16 +180,23 @@ export async function aprobarGastoRuta(input: { solicitudId: string }): Promise<
       descripcion: sol.descripcion,
       cobradorId: sol.cobradorId,
       registradoPor: usuario.id,
+      opId: opIdEgreso,
     });
   } catch (e) {
-    reportarError("aprobarGastoRuta", e, { solicitudId: sol.id, monto: sol.monto });
-    // La caja falló DESPUÉS del candado → revertir a 'pendiente' para no dejar el
-    // gasto "aprobado" sin su egreso (si no, quedaría aprobado sin salir de caja).
-    await admin
-      .from("solicitudes_gasto")
-      .update({ estado: "pendiente", resuelto_por: null, resuelto_por_nombre: null, resuelto_en: null })
-      .eq("id", sol.id);
-    return { ok: false, error: "No se pudo crear el egreso en la caja." };
+    // Colisión de op_id (23505): el egreso YA existe (intento previo commiteó y se
+    // perdió la respuesta) → el gasto está pagado. Reintento idempotente: se DEJA
+    // 'aprobada' (no se revierte) y se sigue como éxito.
+    if (!esViolacionUnica(e)) {
+      reportarError("aprobarGastoRuta", e, { solicitudId: sol.id, monto: sol.monto });
+      // Fallo REAL (no ambiguo) → revertir a 'pendiente' para no dejar el gasto
+      // "aprobado" sin su egreso. El op_id protege igual un futuro reintento.
+      await admin
+        .from("solicitudes_gasto")
+        .update({ estado: "pendiente", resuelto_por: null, resuelto_por_nombre: null, resuelto_en: null })
+        .eq("id", sol.id);
+      return { ok: false, error: "No se pudo crear el egreso en la caja." };
+    }
+    // 23505 → egreso ya existente: cae fuera del catch y sigue el flujo normal (auditoría/aviso).
   }
 
   await registrarAuditoria(admin, {

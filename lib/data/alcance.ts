@@ -14,6 +14,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getActorActual } from "@/lib/auth";
 import { alcanceZonas, type Actor } from "@/lib/permisos";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
+import { traerTodo } from "./paginado";
 
 export type Alcance =
   | { global: true }
@@ -103,12 +104,19 @@ export async function prestamoIdsDelAlcance(
   const ids = new Set<string>();
   // `.in(cliente_id, ...)` EN LOTES (evita la URL demasiado larga de PostgREST),
   // los lotes EN PARALELO (antes en serie → waterfall al acotar recaudos por zona).
+  // Cada lote se PAGINA (traerTodo): un lote de clientes con muchos créditos
+  // (activos + finalizados de años) puede pasar las 1000 filas de PostgREST y
+  // truncarse en silencio → faltarían prestamo_ids → el recaudo del supervisor
+  // saldría SUBESTIMADO. Es correctitud de plata, no solo latencia.
   const partes = await Promise.all(
-    enLotes(alcance.clienteIds).map((lote) => admin.from("prestamos").select("id").in("cliente_id", lote)),
+    enLotes(alcance.clienteIds).map((lote) =>
+      traerTodo<{ id: string }>((d, h) =>
+        admin.from("prestamos").select("id").in("cliente_id", lote).order("id", { ascending: true }).range(d, h),
+      ),
+    ),
   );
-  for (const { data, error } of partes) {
-    if (error) throw error;
-    for (const p of data ?? []) ids.add((p as { id: string }).id);
+  for (const filas of partes) {
+    for (const p of filas) ids.add(p.id);
   }
   return ids;
 }
