@@ -23,11 +23,13 @@ export function PanelBottomNav({
   rol,
   noLeidos = 0,
   gastosPendientes = 0,
+  leadsNuevos = 0,
   esDev = false,
 }: {
   rol: Rol;
   noLeidos?: number;
   gastosPendientes?: number;
+  leadsNuevos?: number;
   esDev?: boolean;
 }) {
   const pathname = usePathname();
@@ -73,10 +75,10 @@ export function PanelBottomNav({
         >
           <span className="relative leading-none">
             <Icono name="menu" className="h-[22px] w-[22px]" />
-            {(noLeidos > 0 || gastosPendientes > 0) && (
+            {(noLeidos > 0 || gastosPendientes > 0 || leadsNuevos > 0) && (
               <span
                 className="absolute -top-1 -right-1.5 h-2 w-2 rounded-full"
-                style={{ background: noLeidos > 0 ? "#E06A6A" : "#E8A317" }}
+                style={{ background: noLeidos > 0 ? "#E06A6A" : gastosPendientes > 0 ? "#E8A317" : "#1FA971" }}
               />
             )}
           </span>
@@ -121,8 +123,9 @@ export function PanelBottomNav({
                         icon={i.icon}
                         label={i.label}
                         activo={activo(i.href)}
-                        badge={i.href === "/admin/chat" ? noLeidos : i.href === "/admin/gastos" ? gastosPendientes : 0}
+                        badge={i.href === "/admin/chat" ? noLeidos : i.href === "/admin/gastos" ? gastosPendientes : i.href === "/admin/tienda" ? leadsNuevos : 0}
                         amber={i.href === "/admin/gastos"}
+                        green={i.href === "/admin/tienda"}
                         onNav={() => setAbierto(false)}
                       />
                     ))}
@@ -144,6 +147,7 @@ function ItemSheet({
   activo,
   badge = 0,
   amber = false,
+  green = false,
   onNav,
 }: {
   href: string;
@@ -152,6 +156,7 @@ function ItemSheet({
   activo: boolean;
   badge?: number;
   amber?: boolean;
+  green?: boolean;
   onNav: () => void;
 }) {
   return (
@@ -169,7 +174,7 @@ function ItemSheet({
       {badge > 0 && (
         <span
           className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-black"
-          style={amber ? { background: "#E8A317", color: "#0F1B3D" } : { background: "#E06A6A", color: "#fff" }}
+          style={amber ? { background: "#E8A317", color: "#0F1B3D" } : green ? { background: "#1FA971", color: "#fff" } : { background: "#E06A6A", color: "#fff" }}
         >
           {badge > 9 ? "9+" : badge}
         </span>

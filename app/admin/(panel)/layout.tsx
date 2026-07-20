@@ -12,6 +12,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { estadoMfa } from "@/lib/seguridad/mfa";
 import { getTotalNoLeidos } from "@/lib/data/chat";
 import { contarSolicitudesGastoPendientes } from "@/lib/data/solicitudesGasto";
+import { contarSolicitudesNuevas } from "@/lib/data/tienda";
 import { AsesorFlotante } from "@/components/asesor/AsesorFlotante";
 import { CommandPalette } from "@/components/admin/CommandPalette";
 import { Toaster } from "@/components/ui/Toaster";
@@ -40,12 +41,14 @@ export default async function PanelLayout({
   // Aviso (no bloqueante) para el admin que todavía no activó 2FA.
   const falta2fa = esAdmin(usuario.rol) && !mfa.tieneFactor;
 
-  // Badge de no leídos + gastos pendientes: consultas INDEPENDIENTES → en paralelo
-  // (antes en serie; corren en CADA navegación del panel). El MFA queda arriba
-  // porque puede redirigir. Gastos: solo el admin aprueba.
-  const [noLeidos, gastosPendientes] = await Promise.all([
+  // Badge de no leídos + gastos pendientes + leads de la tienda: consultas
+  // INDEPENDIENTES → en paralelo (antes en serie; corren en CADA navegación del
+  // panel). El MFA queda arriba porque puede redirigir. Gastos y tienda: solo el
+  // admin (aprueba gastos / gobierna la tienda), por eso 0 para el supervisor.
+  const [noLeidos, gastosPendientes, leadsNuevos] = await Promise.all([
     getTotalNoLeidos(db, usuario),
     esAdmin(usuario.rol) ? contarSolicitudesGastoPendientes(db) : Promise.resolve(0),
+    esAdmin(usuario.rol) ? contarSolicitudesNuevas(db) : Promise.resolve(0),
   ]);
   const tema = (await cookies()).get("tema")?.value === "oscuro" ? "oscuro" : "claro";
   const iniciales = usuario.nombre
@@ -72,7 +75,7 @@ export default async function PanelLayout({
             </span>
           </div>
         </div>
-        <SidebarNav rol={usuario.rol} noLeidos={noLeidos} gastosPendientes={gastosPendientes} esDev={usuario.es_dev} />
+        <SidebarNav rol={usuario.rol} noLeidos={noLeidos} gastosPendientes={gastosPendientes} leadsNuevos={leadsNuevos} esDev={usuario.es_dev} />
       </aside>
 
       {/* Contenido */}
@@ -116,7 +119,7 @@ export default async function PanelLayout({
       </div>
 
       {/* Navegación inferior (mobile): el flujo del día + Menú con todo. */}
-      <PanelBottomNav rol={usuario.rol} noLeidos={noLeidos} gastosPendientes={gastosPendientes} esDev={usuario.es_dev} />
+      <PanelBottomNav rol={usuario.rol} noLeidos={noLeidos} gastosPendientes={gastosPendientes} leadsNuevos={leadsNuevos} esDev={usuario.es_dev} />
 
       {/* Telemetría de uso (0064): registra qué sección abre este usuario. */}
       <RegistroUso />
