@@ -9,22 +9,36 @@ import {
   guardarProducto, alternarProducto, eliminarProducto,
   guardarCategoria, eliminarCategoria,
   fijarPrecioCliente, quitarPrecioCliente, preciosDeProducto,
+  fijarPrecioSegmento, quitarPrecioSegmento, segmentosDeProducto,
   resolverSolicitud, subirImagenTienda, crearUrlSubidaTienda,
   type RawProducto,
 } from "@/lib/acciones/tienda";
 import type {
-  Producto, CategoriaProducto, SolicitudProducto, PrecioCliente, FrecuenciaProducto, EstadoSolicitud,
+  Producto, CategoriaProducto, SolicitudProducto, PrecioCliente, PrecioSegmento,
+  FrecuenciaProducto, EstadoSolicitud, TipoSegmento,
 } from "@/lib/data/tienda";
 
 const FRECUENCIAS: FrecuenciaProducto[] = ["diario", "semanal", "quincenal", "mensual"];
 const INPUT = "rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[14px] outline-none focus:border-azul";
 
+/** Opción de zona para el dropdown de "precio por segmento". */
+export type ZonaOpcion = { id: string; nombre: string };
+/** Calificaciones que puede tener un cliente (para el dropdown de segmento). */
+const CALIFICACIONES: { valor: string; label: string }[] = [
+  { valor: "nuevo", label: "Nuevo" },
+  { valor: "excelente", label: "Excelente" },
+  { valor: "bueno", label: "Bueno" },
+  { valor: "regular", label: "Regular" },
+  { valor: "riesgo", label: "Riesgo" },
+];
+
 export function TiendaManager({
-  productos, categorias, solicitudes,
+  productos, categorias, solicitudes, zonas = [],
 }: {
   productos: Producto[];
   categorias: CategoriaProducto[];
   solicitudes: SolicitudProducto[];
+  zonas?: ZonaOpcion[];
 }) {
   const [tab, setTab] = useState<"productos" | "categorias" | "leads">("productos");
   const nuevas = solicitudes.filter((s) => s.estado === "nueva").length;
@@ -38,7 +52,7 @@ export function TiendaManager({
           Solicitudes{nuevas > 0 ? ` · ${nuevas} nueva${nuevas === 1 ? "" : "s"}` : ""}
         </Tab>
       </div>
-      {tab === "productos" && <Productos productos={productos} categorias={categorias} />}
+      {tab === "productos" && <Productos productos={productos} categorias={categorias} zonas={zonas} />}
       {tab === "categorias" && <Categorias categorias={categorias} />}
       {tab === "leads" && <Leads solicitudes={solicitudes} />}
     </div>
@@ -60,7 +74,7 @@ const PRODUCTO_VACIO: RawProducto = {
   interesPct: 0, cuotas: 0, frecuencia: "diario", fotos: [], videoUrl: null, activo: true, destacado: false, orden: 0,
 };
 
-function Productos({ productos, categorias }: { productos: Producto[]; categorias: CategoriaProducto[] }) {
+function Productos({ productos, categorias, zonas }: { productos: Producto[]; categorias: CategoriaProducto[]; zonas: ZonaOpcion[] }) {
   const router = useRouter();
   const [editando, setEditando] = useState<RawProducto | null>(null);
   const [pend, start] = useTransition();
@@ -81,7 +95,7 @@ function Productos({ productos, categorias }: { productos: Producto[]; categoria
     setEditando(p ? { ...p, videoUrl: p.videoUrl } : { ...PRODUCTO_VACIO, orden: productos.length });
 
   if (editando) {
-    return <EditorProducto raw={editando} categorias={categorias} onClose={() => setEditando(null)} />;
+    return <EditorProducto raw={editando} categorias={categorias} zonas={zonas} onClose={() => setEditando(null)} />;
   }
 
   return (
@@ -141,10 +155,11 @@ function Productos({ productos, categorias }: { productos: Producto[]; categoria
 }
 
 function EditorProducto({
-  raw, categorias, onClose,
+  raw, categorias, zonas, onClose,
 }: {
   raw: RawProducto;
   categorias: CategoriaProducto[];
+  zonas: ZonaOpcion[];
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -329,9 +344,101 @@ function EditorProducto({
         </button>
       </div>
 
-      {/* Precio por cliente (solo al editar un producto ya creado) */}
-      {raw.id && <PrecioPorCliente productoId={raw.id} />}
+      {/* Precios especiales (solo al editar un producto ya creado) */}
+      {raw.id && (
+        <>
+          <PrecioPorSegmento productoId={raw.id} zonas={zonas} />
+          <PrecioPorCliente productoId={raw.id} />
+        </>
+      )}
     </div>
+  );
+}
+
+function PrecioPorSegmento({ productoId, zonas }: { productoId: string; zonas: ZonaOpcion[] }) {
+  const router = useRouter();
+  const [lista, setLista] = useState<PrecioSegmento[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [tipo, setTipo] = useState<TipoSegmento>("calificacion");
+  const [valor, setValor] = useState("");
+  const [precio, setPrecio] = useState("");
+  const [interes, setInteres] = useState("");
+  const [cuotas, setCuotas] = useState("");
+  const [pend, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const recargar = () => segmentosDeProducto(productoId).then((r) => { if (r.ok) setLista(r.segmentos); setCargando(false); });
+  useEffect(() => { recargar(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [productoId]);
+
+  // Etiqueta legible de una regla (para la lista): "Calificación · Excelente" / "Zona · Centro".
+  const nombreZona = (id: string) => zonas.find((z) => z.id === id)?.nombre ?? "Zona";
+  const etiqueta = (s: PrecioSegmento) =>
+    s.tipo === "zona" ? `Zona · ${nombreZona(s.valor)}`
+    : `Calificación · ${CALIFICACIONES.find((c) => c.valor === s.valor)?.label ?? s.valor}`;
+
+  const opciones = tipo === "zona" ? zonas.map((z) => ({ valor: z.id, label: z.nombre })) : CALIFICACIONES;
+
+  const agregar = () => {
+    if (!valor) { setError("Elegí a quién aplica (calificación o zona)."); return; }
+    if (!(Number(precio) > 0)) { setError("Poné un precio mayor a 0."); return; }
+    start(async () => {
+      setError(null);
+      const res = await fijarPrecioSegmento({
+        productoId, tipo, valor, precio: Number(precio),
+        interesPct: Number(interes) || 0, cuotas: Number(cuotas) || 0,
+      });
+      if (res.ok) { setValor(""); setPrecio(""); setInteres(""); setCuotas(""); recargar(); router.refresh(); }
+      else setError(res.error);
+    });
+  };
+  const quitar = (id: string) => start(async () => { await quitarPrecioSegmento(id); recargar(); router.refresh(); });
+
+  return (
+    <section className="flex flex-col gap-2 rounded-[14px] border border-[#E6EAF4] bg-suave p-3.5">
+      <span className="text-[13px] font-extrabold text-tinta">Precio especial por segmento</span>
+      <span className="text-[11.5px] font-medium text-gris">
+        Fijá otro precio/interés/cuotas para todo un grupo (por calificación o por zona). Prioridad: un precio por cliente puntual gana sobre el de zona, y el de zona sobre el de calificación.
+      </span>
+
+      {cargando ? <span className="text-[12px] text-gris">Cargando…</span> : lista.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          {lista.map((s) => (
+            <div key={s.id} className="flex items-center justify-between rounded-[10px] border border-borde bg-tarjeta px-3 py-2">
+              <span className="text-[12.5px] font-semibold text-tinta">{etiqueta(s)}</span>
+              <span className="flex items-center gap-2 text-[12px] font-medium text-gris">
+                {UYU(s.precio)}{s.interesPct > 0 ? ` · ${s.interesPct}%` : ""}{s.cuotas > 0 ? ` · ${s.cuotas}c` : ""}
+                <button type="button" onClick={() => quitar(s.id)} disabled={pend} className="font-bold text-[#C0392B]">✕</button>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-end gap-2 rounded-[10px] border border-borde bg-tarjeta p-2.5">
+        <label className="flex flex-col gap-1 text-[11px] font-bold text-gris uppercase">
+          Segmentar por
+          <select value={tipo} onChange={(e) => { setTipo(e.target.value as TipoSegmento); setValor(""); }} className={`${INPUT} w-32`}>
+            <option value="calificacion">Calificación</option>
+            <option value="zona">Zona</option>
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-[11px] font-bold text-gris uppercase">
+          {tipo === "zona" ? "Zona" : "Calificación"}
+          <select value={valor} onChange={(e) => setValor(e.target.value)} className={`${INPUT} w-40`}>
+            <option value="">Elegí…</option>
+            {opciones.map((o) => <option key={o.valor} value={o.valor}>{o.label}</option>)}
+          </select>
+        </label>
+        <input type="number" placeholder="Precio" value={precio} onChange={(e) => setPrecio(e.target.value)} className={`${INPUT} w-24`} />
+        <input type="number" placeholder="% int." value={interes} onChange={(e) => setInteres(e.target.value)} className={`${INPUT} w-20`} />
+        <input type="number" placeholder="Cuotas" value={cuotas} onChange={(e) => setCuotas(e.target.value)} className={`${INPUT} w-20`} />
+        <button type="button" onClick={agregar} disabled={pend} className="rounded-full bg-[#2453DC] px-3 py-2 text-[12px] font-bold text-white">Fijar</button>
+      </div>
+      {tipo === "zona" && zonas.length === 0 && (
+        <span className="text-[11px] font-medium text-gris">No hay zonas cargadas todavía. Creá zonas en Configuración → Zonas.</span>
+      )}
+      {error && <span className="text-[11.5px] font-semibold text-[#C0392B]">{error}</span>}
+    </section>
   );
 }
 

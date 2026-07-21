@@ -15,13 +15,17 @@ import {
   crearProductoDb, actualizarProductoDb, setProductoActivoDb, borrarProductoDb,
   crearCategoriaDb, actualizarCategoriaDb, borrarCategoriaDb,
   setPrecioClienteDb, borrarPrecioClienteDb, resolverSolicitudDb, getPreciosDeProducto,
+  setPrecioSegmentoDb, borrarPrecioSegmentoDb, getSegmentosDeProducto,
   type ProductoInput, type FrecuenciaProducto, type EstadoSolicitud, type PrecioCliente,
+  type PrecioSegmento, type TipoSegmento,
 } from "@/lib/data/tienda";
+import type { Calificacion } from "@/types/db";
 
 type Resultado = { ok: true } | { ok: false; error: string };
 const ES_UUID = /^[0-9a-fA-F-]{36}$/;
 const FRECUENCIAS: FrecuenciaProducto[] = ["diario", "semanal", "quincenal", "mensual"];
 const ESTADOS: EstadoSolicitud[] = ["nueva", "contactado", "cerrada", "descartada"];
+const CALIFICACIONES: Calificacion[] = ["nuevo", "excelente", "bueno", "regular", "riesgo"];
 const BUCKET = "tienda";
 
 async function soloAdmin() {
@@ -204,6 +208,72 @@ export async function quitarPrecioCliente(id: string): Promise<Resultado> {
   try {
     const db = await createSupabaseServer();
     await borrarPrecioClienteDb(db, id);
+    revalidatePath("/admin/tienda");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "No se pudo quitar el precio." };
+  }
+}
+
+// ── Precio por SEGMENTO (calificación / zona) ───────────────────────────────
+const TIPOS_SEG: TipoSegmento[] = ["calificacion", "zona"];
+
+export async function fijarPrecioSegmento(raw: {
+  productoId: string; tipo: string; valor: string; precio: number; interesPct: number; cuotas: number; nota?: string | null;
+}): Promise<Resultado> {
+  const u = await soloAdmin();
+  if (!u) return { ok: false, error: "No tenés permisos." };
+  if (!ES_UUID.test(raw.productoId)) return { ok: false, error: "Producto inválido." };
+  if (!TIPOS_SEG.includes(raw.tipo as TipoSegmento)) return { ok: false, error: "Tipo de segmento inválido." };
+  const tipo = raw.tipo as TipoSegmento;
+  // El `valor` debe ser coherente con el tipo: una calificación válida, o un uuid de zona.
+  const valor = (raw.valor ?? "").trim();
+  if (tipo === "calificacion" && !CALIFICACIONES.includes(valor as Calificacion))
+    return { ok: false, error: "Calificación inválida." };
+  if (tipo === "zona" && !ES_UUID.test(valor)) return { ok: false, error: "Zona inválida." };
+  const precio = Math.max(0, Math.round(Number(raw.precio) || 0));
+  if (!(precio > 0)) return { ok: false, error: "El precio debe ser mayor a 0." };
+  try {
+    const db = await createSupabaseServer();
+    await setPrecioSegmentoDb(db, {
+      productoId: raw.productoId, tipo, valor, precio,
+      interesPct: Math.max(0, Math.min(999, Math.round((Number(raw.interesPct) || 0) * 100) / 100)),
+      cuotas: Math.max(0, Math.round(Number(raw.cuotas) || 0)),
+      nota: (raw.nota ?? "").trim().slice(0, 200) || null, creadoPor: u.id,
+    });
+    await registrarAuditoria(db, {
+      actorId: u.id, actorNombre: u.nombre, accion: "Fijó precio de producto por segmento",
+      entidad: "producto", entidadId: raw.productoId, detalle: `${tipo}:${valor} · $${precio.toLocaleString("es-UY")}`,
+    });
+    revalidatePath("/admin/tienda");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "No se pudo fijar el precio. ¿Corriste la migración 0078?" };
+  }
+}
+
+/** Reglas de precio por segmento de un producto (para el editor). */
+export async function segmentosDeProducto(
+  productoId: string,
+): Promise<{ ok: true; segmentos: PrecioSegmento[] } | { ok: false; error: string }> {
+  const u = await soloAdmin();
+  if (!u) return { ok: false, error: "No tenés permisos." };
+  if (!ES_UUID.test(productoId)) return { ok: false, error: "Producto inválido." };
+  try {
+    const db = await createSupabaseServer();
+    return { ok: true, segmentos: await getSegmentosDeProducto(db, productoId) };
+  } catch {
+    return { ok: false, error: "No se pudieron leer los precios por segmento." };
+  }
+}
+
+export async function quitarPrecioSegmento(id: string): Promise<Resultado> {
+  const u = await soloAdmin();
+  if (!u) return { ok: false, error: "No tenés permisos." };
+  if (!ES_UUID.test(id)) return { ok: false, error: "Registro inválido." };
+  try {
+    const db = await createSupabaseServer();
+    await borrarPrecioSegmentoDb(db, id);
     revalidatePath("/admin/tienda");
     return { ok: true };
   } catch {

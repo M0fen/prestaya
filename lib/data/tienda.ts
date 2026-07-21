@@ -7,10 +7,13 @@
 //  Money: precio/interés son numeric; el precio se maneja como ENTERO UYU en TS.
 // ─────────────────────────────────────────────────────────────────────────
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Calificacion } from "@/types/db";
 import { tablaFaltante } from "./errores";
 
 export type EstadoSolicitud = "nueva" | "contactado" | "cerrada" | "descartada";
 export type FrecuenciaProducto = "diario" | "semanal" | "quincenal" | "mensual";
+/** Qué agrupa a un segmento de clientes para la cuota especial (0078). */
+export type TipoSegmento = "calificacion" | "zona";
 
 export interface CategoriaProducto {
   id: string;
@@ -55,6 +58,39 @@ export interface PrecioCliente {
   interesPct: number;
   cuotas: number;
   nota: string | null;
+}
+
+/** Precio especial de un producto para todo un SEGMENTO (calificación o zona). */
+export interface PrecioSegmento {
+  id: string;
+  productoId: string;
+  tipo: TipoSegmento;
+  /** Calificación literal (excelente/…) o zona_id (uuid), según `tipo`. */
+  valor: string;
+  precio: number;
+  interesPct: number;
+  cuotas: number;
+  nota: string | null;
+}
+
+/** Términos de precio (lo que puede variar por override). */
+type Terminos = { precio: number; interesPct: number; cuotas: number };
+/** De dónde salió el precio resuelto (para saber si es "personalizado"). */
+export type OrigenPrecio = "base" | "calificacion" | "zona" | "individual";
+
+/**
+ * Elige el precio de un producto para un cliente. Prioridad (MÁS ESPECÍFICO gana):
+ *   individual > zona > calificación > base.
+ * Puro y testeable: la resolución de plata no debe depender de la BD.
+ */
+export function resolverPrecioCliente(
+  base: Terminos,
+  overrides: { individual?: Terminos | null; zona?: Terminos | null; calificacion?: Terminos | null },
+): Terminos & { origen: OrigenPrecio } {
+  if (overrides.individual) return { ...overrides.individual, origen: "individual" };
+  if (overrides.zona) return { ...overrides.zona, origen: "zona" };
+  if (overrides.calificacion) return { ...overrides.calificacion, origen: "calificacion" };
+  return { ...base, origen: "base" };
 }
 
 export interface SolicitudProducto {
@@ -145,15 +181,72 @@ export async function getProductoAdmin(db: SupabaseClient, id: string): Promise<
   return data ? mapProducto(data) : null;
 }
 
+/** Cliente para la resolución de precios (id + su calificación). */
+export interface ClientePrecio {
+  id: string;
+  calificacion: Calificacion;
+}
+
+/** Zona del cliente = la del cobrador de su crédito ACTIVO más nuevo (los
+ *  clientes no tienen zona propia; la heredan de su cobrador). null si no tiene
+ *  crédito/cobrador/zona. Resiliente: nunca rompe la vista del cliente. */
+export async function getZonaIdDeCliente(db: SupabaseClient, clienteId: string): Promise<string | null> {
+  try {
+    const { data: pres } = await db.from("prestamos").select("cobrador_id")
+      .eq("cliente_id", clienteId).eq("estado", "activo")
+      .order("fecha_inicio", { ascending: false }).limit(1);
+    const cobradorId = (pres ?? [])[0]?.cobrador_id as string | null | undefined;
+    if (!cobradorId) return null;
+    const { data: u } = await db.from("usuarios").select("zona_id").eq("id", cobradorId).maybeSingle();
+    return (u?.zona_id as string | null) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Overrides de SEGMENTO aplicables a un cliente (por su calificación y zona),
+ *  indexados por producto. La zona del cliente (2 queries) se resuelve SOLO si el
+ *  producto tiene alguna regla por zona → no la pagamos cuando no hace falta.
+ *  Resiliente: si falta 0078, mapa vacío (cae a individual/base). */
+async function overridesSegmento(
+  db: SupabaseClient,
+  calificacion: Calificacion,
+  clienteId: string,
+): Promise<Map<string, { zona?: Terminos; calificacion?: Terminos }>> {
+  const m = new Map<string, { zona?: Terminos; calificacion?: Terminos }>();
+  try {
+    // Reglas por ZONA (de cualquier zona) + reglas por la CALIFICACIÓN de este
+    // cliente, en un solo query. (calificacion es un enum fijo → interpolación segura).
+    const { data, error } = await db.from("producto_precio_segmento")
+      .select("producto_id, tipo, valor, precio, interes_pct, cuotas")
+      .or(`tipo.eq.zona,and(tipo.eq.calificacion,valor.eq.${calificacion})`);
+    if (error) throw error;
+    const filas = data ?? [];
+    // La zona del cliente solo se necesita si hay alguna regla por zona.
+    const zonaId = filas.some((r) => r.tipo === "zona") ? await getZonaIdDeCliente(db, clienteId) : null;
+    for (const r of filas) {
+      const pid = r.producto_id as string;
+      const t: Terminos = { precio: N(r.precio), interesPct: NUM(r.interes_pct), cuotas: N(r.cuotas) };
+      const entry = m.get(pid) ?? {};
+      if (r.tipo === "zona" && zonaId && r.valor === zonaId) entry.zona = t;
+      else if (r.tipo === "calificacion" && r.valor === calificacion) entry.calificacion = t;
+      m.set(pid, entry);
+    }
+  } catch (e) {
+    if (!tablaFaltante(e)) throw e; // otro error real sí se propaga
+  }
+  return m;
+}
+
 // ── Catálogo para el CLIENTE (con precio resuelto por override) ──────────────
 /**
  * Productos ACTIVOS para la vista del cliente, con el precio/interés/cuotas
- * RESUELTOS: si hay override para este cliente se usa ese, si no el base.
+ * RESUELTOS por prioridad: individual > zona > calificación > base.
  * Corre con service_role (la vista del cliente valida el token antes).
  */
 export async function getProductosParaCliente(
   db: SupabaseClient,
-  clienteId: string,
+  cliente: ClientePrecio,
 ): Promise<ProductoParaCliente[]> {
   try {
     const { data, error } = await db.from("productos").select(COLS).eq("activo", true)
@@ -162,18 +255,24 @@ export async function getProductosParaCliente(
     const productos = (data ?? []).map(mapProducto);
     if (productos.length === 0) return [];
 
-    // Overrides de ESTE cliente (pocos): un solo query.
-    const overrides = new Map<string, { precio: number; interesPct: number; cuotas: number }>();
+    // Override INDIVIDUAL de ESTE cliente (pocos): un solo query.
+    const indiv = new Map<string, Terminos>();
     const { data: ov } = await db.from("producto_precio_cliente")
-      .select("producto_id, precio, interes_pct, cuotas").eq("cliente_id", clienteId);
+      .select("producto_id, precio, interes_pct, cuotas").eq("cliente_id", cliente.id);
     for (const o of ov ?? []) {
-      overrides.set(o.producto_id as string, { precio: N(o.precio), interesPct: NUM(o.interes_pct), cuotas: N(o.cuotas) });
+      indiv.set(o.producto_id as string, { precio: N(o.precio), interesPct: NUM(o.interes_pct), cuotas: N(o.cuotas) });
     }
+
+    // Overrides por SEGMENTO (calificación + zona derivada del cobrador, lazy).
+    const seg = await overridesSegmento(db, cliente.calificacion, cliente.id);
+
     return productos.map((p) => {
-      const o = overrides.get(p.id);
-      return o
-        ? { ...p, precio: o.precio, interesPct: o.interesPct, cuotas: o.cuotas, precioPersonalizado: true }
-        : { ...p, precioPersonalizado: false };
+      const s = seg.get(p.id);
+      const r = resolverPrecioCliente(
+        { precio: p.precio, interesPct: p.interesPct, cuotas: p.cuotas },
+        { individual: indiv.get(p.id), zona: s?.zona, calificacion: s?.calificacion },
+      );
+      return { ...p, precio: r.precio, interesPct: r.interesPct, cuotas: r.cuotas, precioPersonalizado: r.origen !== "base" };
     });
   } catch (e) {
     if (tablaFaltante(e)) return [];
@@ -188,7 +287,7 @@ export async function getProductosParaCliente(
  */
 export async function getProductoDestacadoParaCliente(
   db: SupabaseClient,
-  clienteId: string,
+  cliente: ClientePrecio,
 ): Promise<ProductoParaCliente | null> {
   try {
     const { data, error } = await db.from("productos").select(COLS)
@@ -199,12 +298,17 @@ export async function getProductoDestacadoParaCliente(
     const row = (data ?? [])[0] as Record<string, unknown> | undefined;
     if (!row) return null;
     const p = mapProducto(row);
-    // Override de ESTE cliente para ese producto (unique producto+cliente → maybeSingle).
+    // Override INDIVIDUAL de ESTE cliente para ese producto (unique → maybeSingle).
     const { data: ov } = await db.from("producto_precio_cliente")
-      .select("precio, interes_pct, cuotas").eq("cliente_id", clienteId).eq("producto_id", p.id).maybeSingle();
-    return ov
-      ? { ...p, precio: N(ov.precio), interesPct: NUM(ov.interes_pct), cuotas: N(ov.cuotas), precioPersonalizado: true }
-      : { ...p, precioPersonalizado: false };
+      .select("precio, interes_pct, cuotas").eq("cliente_id", cliente.id).eq("producto_id", p.id).maybeSingle();
+    const individual = ov ? { precio: N(ov.precio), interesPct: NUM(ov.interes_pct), cuotas: N(ov.cuotas) } : null;
+    // Overrides por SEGMENTO (misma prioridad que el catálogo).
+    const s = (await overridesSegmento(db, cliente.calificacion, cliente.id)).get(p.id);
+    const r = resolverPrecioCliente(
+      { precio: p.precio, interesPct: p.interesPct, cuotas: p.cuotas },
+      { individual, zona: s?.zona, calificacion: s?.calificacion },
+    );
+    return { ...p, precio: r.precio, interesPct: r.interesPct, cuotas: r.cuotas, precioPersonalizado: r.origen !== "base" };
   } catch (e) {
     if (tablaFaltante(e)) return null;
     throw e;
@@ -222,6 +326,46 @@ export async function getPreciosDeProducto(db: SupabaseClient, productoId: strin
     clienteNombre: (r.clientes as { nombre?: string } | null)?.nombre ?? "Cliente",
     precio: N(r.precio), interesPct: NUM(r.interes_pct), cuotas: N(r.cuotas), nota: (r.nota as string | null) ?? null,
   }));
+}
+
+// ── Precios por SEGMENTO (admin) ────────────────────────────────────────────
+function mapSegmento(r: Record<string, unknown>): PrecioSegmento {
+  return {
+    id: r.id as string, productoId: r.producto_id as string,
+    tipo: r.tipo as TipoSegmento, valor: r.valor as string,
+    precio: N(r.precio), interesPct: NUM(r.interes_pct), cuotas: N(r.cuotas),
+    nota: (r.nota as string | null) ?? null,
+  };
+}
+
+/** Reglas de precio por segmento de un producto (para el editor admin). */
+export async function getSegmentosDeProducto(db: SupabaseClient, productoId: string): Promise<PrecioSegmento[]> {
+  try {
+    const { data, error } = await db.from("producto_precio_segmento")
+      .select("id, producto_id, tipo, valor, precio, interes_pct, cuotas, nota")
+      .eq("producto_id", productoId).order("creado_en", { ascending: false });
+    if (error) throw error;
+    return (data ?? []).map(mapSegmento);
+  } catch (e) {
+    if (tablaFaltante(e)) return [];
+    throw e;
+  }
+}
+
+/** Upsert de una regla de segmento (unique producto+tipo+valor → la pisa). */
+export async function setPrecioSegmentoDb(
+  db: SupabaseClient,
+  p: { productoId: string; tipo: TipoSegmento; valor: string; precio: number; interesPct: number; cuotas: number; nota: string | null; creadoPor: string },
+): Promise<void> {
+  const { error } = await db.from("producto_precio_segmento").upsert({
+    producto_id: p.productoId, tipo: p.tipo, valor: p.valor, precio: N(p.precio),
+    interes_pct: NUM(p.interesPct), cuotas: N(p.cuotas), nota: p.nota, creado_por: p.creadoPor,
+  }, { onConflict: "producto_id,tipo,valor" });
+  if (error) throw error;
+}
+export async function borrarPrecioSegmentoDb(db: SupabaseClient, id: string): Promise<void> {
+  const { error } = await db.from("producto_precio_segmento").delete().eq("id", id);
+  if (error) throw error;
 }
 
 // ── Solicitudes / leads (admin) ─────────────────────────────────────────────

@@ -25,7 +25,7 @@ export default async function TiendaClientePage({
   const db = createSupabaseAdmin();
   const cliente = await conTimeout(getClientePorToken(db, token), TOPE_MS, "cliente.tienda.token");
   if (!cliente) notFound();
-  const productos = await conTimeout(getProductosParaCliente(db, cliente.id), TOPE_MS, "cliente.tienda");
+  const productos = await conTimeout(getProductosParaCliente(db, cliente), TOPE_MS, "cliente.tienda");
 
   return (
     <div className="flex min-h-screen justify-center bg-fondo text-tinta">

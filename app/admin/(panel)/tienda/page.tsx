@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requireGestor, esAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getProductosAdmin, getCategorias, getSolicitudes } from "@/lib/data/tienda";
+import { getZonas } from "@/lib/data/zonas";
 import { TiendaManager } from "@/components/admin/TiendaManager";
 
 export const dynamic = "force-dynamic";
@@ -13,10 +14,11 @@ export default async function TiendaPage() {
   const u = await requireGestor();
   if (!esAdmin(u.rol)) redirect("/admin/jornada"); // la tienda la gobierna el dueño
   const db = await createSupabaseServer();
-  const [productos, categorias, solicitudes] = await Promise.all([
+  const [productos, categorias, solicitudes, zonas] = await Promise.all([
     getProductosAdmin(db),
     getCategorias(db, false),
     getSolicitudes(db),
+    getZonas(db),
   ]);
   return (
     <div className="flex flex-col gap-5">
@@ -27,7 +29,12 @@ export default async function TiendaPage() {
           Publicá productos a crédito con fotos y video. El cliente los ve en su cartón y deja su interés.
         </span>
       </header>
-      <TiendaManager productos={productos} categorias={categorias} solicitudes={solicitudes} />
+      <TiendaManager
+        productos={productos}
+        categorias={categorias}
+        solicitudes={solicitudes}
+        zonas={zonas.map((z) => ({ id: z.id, nombre: z.nombre }))}
+      />
     </div>
   );
 }

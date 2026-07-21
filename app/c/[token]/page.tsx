@@ -191,7 +191,7 @@ export default async function VistaPorToken({
   let productoDestacado: ProductoParaCliente | null = null;
   try {
     hayTienda = await hayProductosActivos(db);
-    if (hayTienda) productoDestacado = await getProductoDestacadoParaCliente(db, cliente.id);
+    if (hayTienda) productoDestacado = await getProductoDestacadoParaCliente(db, cliente);
   } catch {
     hayTienda = false;
     productoDestacado = null;
