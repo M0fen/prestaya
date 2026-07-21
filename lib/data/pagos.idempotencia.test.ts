@@ -11,11 +11,16 @@ import { registrarPago } from "./pagos";
 import type { NuevoPago } from "@/types/db";
 
 /** Doble mínimo de Supabase para `insert().select().single()` que emula el
- *  índice único sobre `op_id` (23505 si el op_id ya existe). */
+ *  índice único sobre `op_id` (23505 si el op_id ya existe). El `rpc()` devuelve
+ *  "función no encontrada" (PGRST202) → registrarPago cae al INSERT plano, que es
+ *  el camino que estos tests ejercitan (y el fallback real si 0079 no corrió). */
 function fakePagosDb() {
   const filas: Record<string, unknown>[] = [];
   const opIds = new Set<string>();
   const db = {
+    rpc() {
+      return Promise.resolve({ data: null, error: { code: "PGRST202" } });
+    },
     from() {
       return {
         insert(row: Record<string, unknown>) {

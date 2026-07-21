@@ -21,7 +21,7 @@ import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { alcanceDelActor } from "@/lib/data/alcance";
 import { getClientePorId } from "@/lib/data/clientes";
 import { getPrestamoActivoPorCliente, getPrestamosActivosPorCliente } from "@/lib/data/prestamos";
-import { getPagosDePrestamo, registrarPago } from "@/lib/data/pagos";
+import { getPagosDePrestamo, registrarPago, esSobrePago } from "@/lib/data/pagos";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { calcularEstadosCarton } from "@/lib/cartones";
 import { hoyUY } from "@/lib/fecha";
@@ -136,8 +136,12 @@ export async function registrarPagoPanel(input: {
     } catch (e) {
       // El índice único frenó un duplicado (doble-submit/retry/dos gestores):
       // el pago ya quedó registrado → éxito idempotente, sin re-auditar.
-      if ((e as { code?: string } | null)?.code !== "23505") throw e;
-      return { ok: true, dia, monto };
+      if ((e as { code?: string } | null)?.code === "23505") return { ok: true, dia, monto };
+      // Sobre-pago rechazado bajo el candado (RPC 0079): otro pago concurrente saldó
+      // el crédito primero → NO se registra (evita el sobre-cobro). Se avisa claro.
+      if (esSobrePago(e))
+        return { ok: false, error: "El crédito ya se saldó (entró otro pago primero). Recargá para ver el estado." };
+      throw e;
     }
 
     await registrarAuditoria(db, {

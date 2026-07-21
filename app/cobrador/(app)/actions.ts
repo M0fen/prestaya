@@ -21,7 +21,7 @@ import {
   getPrestamoActivoPorCliente,
   getPrestamosActivosPorCliente,
 } from "@/lib/data/prestamos";
-import { getPagosDePrestamo, registrarPago } from "@/lib/data/pagos";
+import { getPagosDePrestamo, registrarPago, esSobrePago } from "@/lib/data/pagos";
 import { subirFotoCliente } from "@/lib/data/fotos";
 import type { Prestamo } from "@/types/db";
 import { crearVisita } from "@/lib/data/visitas";
@@ -175,8 +175,11 @@ export async function registrarPagoCobrador(input: {
     // Imputar al primer día no cubierto (o al día de hoy).
     const pagos = await getPagosDePrestamo(db, prestamo.id);
     const r = calcularEstadosCarton(prestamo, pagos, hoyUY());
+    // Tolerancia sub-peso (espejo del cartón): una cuota fraccionaria (351,04) pagada
+    // completa queda en 351 (entero) → sin el −0,5 este día se re-elegiría como
+    // objetivo en vez de avanzar FIFO al día siguiente.
     const objetivo =
-      r.dias.find((d) => d.estado !== "futuro" && d.montoPagado < prestamo.cuota_diaria) ??
+      r.dias.find((d) => d.estado !== "futuro" && d.montoPagado < prestamo.cuota_diaria - 0.5) ??
       r.dias.find((d) => d.esHoy) ??
       r.dias.find((d) => d.estado === "futuro");
     const dia = objetivo?.dia ?? Math.max(1, r.diaActual);
@@ -224,8 +227,16 @@ export async function registrarPagoCobrador(input: {
       });
     } catch (e) {
       // Reintento de una op ya guardada (flush cortado): idempotente → ok.
-      if (!esDuplicado(e)) throw e;
-      duplicado = true;
+      if (esDuplicado(e)) {
+        duplicado = true;
+      } else if (esSobrePago(e)) {
+        // La carrera perdió: otro pago saldó el crédito primero. PERMANENTE (sin
+        // retryable → la cola NO reintenta en loop; se surfacea para reconciliar la
+        // plata física si el cobro fue real). Nunca se descarta ni se duplica el libro.
+        return { ok: false, error: "Este crédito ya se saldó (entró otro pago). Revisá el cartón antes de reintentar." };
+      } else {
+        throw e;
+      }
     }
 
     // Bitácora de campo SOLO si el pago se creó de verdad. En el reintento
