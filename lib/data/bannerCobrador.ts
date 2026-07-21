@@ -14,6 +14,12 @@ export interface BannerCobrador {
   activo: boolean;
   creadoEn: string;
   expiraEn: string | null;
+  // Campos de publicidad/oferta (0080, todos opcionales). Si vienen null, el
+  // banner se muestra como un aviso de texto clásico.
+  titulo: string | null;
+  imagenUrl: string | null;
+  ctaTexto: string | null;
+  ctaUrl: string | null;
 }
 
 function mapBanner(r: Record<string, unknown>): BannerCobrador {
@@ -24,6 +30,10 @@ function mapBanner(r: Record<string, unknown>): BannerCobrador {
     activo: Boolean(r.activo),
     creadoEn: r.creado_en as string,
     expiraEn: (r.expira_en as string | null) ?? null,
+    titulo: (r.titulo as string | null) ?? null,
+    imagenUrl: (r.imagen_url as string | null) ?? null,
+    ctaTexto: (r.cta_texto as string | null) ?? null,
+    ctaUrl: (r.cta_url as string | null) ?? null,
   };
 }
 

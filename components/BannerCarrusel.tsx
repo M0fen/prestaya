@@ -13,6 +13,19 @@ const TEMA_BG: Record<TemaAnuncio, string> = {
   verde: "linear-gradient(135deg,#1FA971,#157A50)",
   ambar: "linear-gradient(135deg,#F0B638,#C9870D)",
   oscuro: "linear-gradient(135deg,#1E2A50,#0F1B3D)",
+  // Publicidad premium (negro + oro), pensado para anunciantes tipo curbe.
+  dorado: "linear-gradient(145deg,#241d10 0%,#14110a 55%,#0a0805 100%)",
+};
+
+// Acentos por tema: color del "eyebrow", del botón y del brillo. El dorado usa
+// oro para que el aviso auspiciado se sienta premium sin dejar de ser legible.
+const ORO = "#E6C67A";
+const ACENTO: Record<TemaAnuncio, { eyebrow: string; ctaBg: string; ctaFg: string; glow: string }> = {
+  azul: { eyebrow: "rgba(255,255,255,0.72)", ctaBg: "#FFFFFF", ctaFg: "#0F1B3D", glow: "rgba(255,255,255,0.08)" },
+  verde: { eyebrow: "rgba(255,255,255,0.72)", ctaBg: "#FFFFFF", ctaFg: "#0F1B3D", glow: "rgba(255,255,255,0.08)" },
+  ambar: { eyebrow: "rgba(255,255,255,0.75)", ctaBg: "#FFFFFF", ctaFg: "#0F1B3D", glow: "rgba(255,255,255,0.10)" },
+  oscuro: { eyebrow: "rgba(255,255,255,0.66)", ctaBg: "#FFFFFF", ctaFg: "#0F1B3D", glow: "rgba(255,255,255,0.07)" },
+  dorado: { eyebrow: ORO, ctaBg: ORO, ctaFg: "#1A1206", glow: "rgba(230,198,122,0.12)" },
 };
 
 const INTERVALO = 5000;
@@ -92,13 +105,19 @@ function Slide({ anuncio }: { anuncio: Anuncio }) {
   // Defensa en profundidad: nunca llevamos un cta_url no confiable a un href.
   const hrefCta = hrefSeguro(anuncio.cta_url);
   const tieneCta = Boolean(anuncio.cta_texto && hrefCta);
+  const acento = ACENTO[anuncio.tema] ?? ACENTO.azul;
+  // Eyebrow configurable: por defecto "Novedad"; publicidad externa usa "Publicidad".
+  const eyebrow = anuncio.etiqueta?.trim() || "Novedad";
   return (
     <div className="w-full flex-shrink-0 px-[7px]" style={{ minWidth: "100%" }}>
       <div
         className="py-shine relative overflow-hidden rounded-[18px] p-[18px] text-white"
         style={{ background: TEMA_BG[anuncio.tema] }}
       >
-        <div className="pointer-events-none absolute -top-[50px] -right-[40px] h-[150px] w-[150px] rounded-full bg-white/[0.08]" />
+        <div
+          className="pointer-events-none absolute -top-[50px] -right-[40px] h-[150px] w-[150px] rounded-full"
+          style={{ background: acento.glow }}
+        />
         <div className="relative flex items-center gap-4">
           {anuncio.imagen_url && (
             // eslint-disable-next-line @next/next/no-img-element
@@ -111,8 +130,11 @@ function Slide({ anuncio }: { anuncio: Anuncio }) {
             />
           )}
           <div className="flex min-w-0 flex-col gap-1">
-            <span className="text-[10.5px] font-extrabold tracking-[0.14em] text-white/[0.72] uppercase">
-              Novedad
+            <span
+              className="text-[10.5px] font-extrabold tracking-[0.14em] uppercase"
+              style={{ color: acento.eyebrow }}
+            >
+              {eyebrow}
             </span>
             <h3 className="m-0 text-[16.5px] leading-[1.2] font-extrabold tracking-[-0.01em]">
               {anuncio.titulo}
@@ -127,7 +149,8 @@ function Slide({ anuncio }: { anuncio: Anuncio }) {
                 href={hrefCta!}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-2 inline-flex w-fit items-center gap-1.5 rounded-full bg-white px-3.5 py-1.5 text-[12.5px] font-bold text-tinta transition-opacity hover:opacity-90"
+                className="mt-2 inline-flex w-fit items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12.5px] font-bold transition-opacity hover:opacity-90"
+                style={{ background: acento.ctaBg, color: acento.ctaFg }}
               >
                 {anuncio.cta_texto}
                 <span aria-hidden="true">→</span>

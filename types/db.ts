@@ -199,8 +199,8 @@ export interface MovimientoCaja {
   visible: boolean;
 }
 
-/** Tema visual del banner de anuncio. */
-export type TemaAnuncio = "azul" | "verde" | "ambar" | "oscuro";
+/** Tema visual del banner de anuncio. "dorado" = negro + oro (publicidad premium). */
+export type TemaAnuncio = "azul" | "verde" | "ambar" | "oscuro" | "dorado";
 
 /** A qué clientes se les muestra el anuncio, según el estado de su crédito. */
 export type SegmentoAnuncio = "todos" | "al_dia" | "con_pendientes";
@@ -212,6 +212,8 @@ export interface Anuncio {
   cta_texto: string | null;
   cta_url: string | null;
   imagen_url: string | null;
+  /** Rótulo del "eyebrow" (por defecto "Novedad"). Para publicidad: "Publicidad". */
+  etiqueta: string | null;
   tema: TemaAnuncio;
   prioridad: number;
   activo: boolean;

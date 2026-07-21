@@ -13,6 +13,7 @@ const TEMAS: { v: TemaAnuncio; label: string }[] = [
   { v: "verde", label: "Verde" },
   { v: "ambar", label: "Ámbar" },
   { v: "oscuro", label: "Oscuro" },
+  { v: "dorado", label: "Dorado (publicidad)" },
 ];
 const SEGMENTOS: { v: SegmentoAnuncio; label: string }[] = [
   { v: "todos", label: "Todos" },
@@ -21,7 +22,7 @@ const SEGMENTOS: { v: SegmentoAnuncio; label: string }[] = [
 ];
 
 const vacio: RawAnuncio = {
-  id: null, titulo: "", cuerpo: "", ctaTexto: "", ctaUrl: "", imagenUrl: "",
+  id: null, titulo: "", cuerpo: "", ctaTexto: "", ctaUrl: "", imagenUrl: "", etiqueta: "",
   tema: "azul", prioridad: 0, activo: true, segmento: "todos", fechaInicio: "", fechaFin: "",
 };
 
@@ -59,7 +60,7 @@ export function AnunciosManager({ anuncios }: { anuncios: Anuncio[] }) {
   const editar = (a: Anuncio) =>
     setForm({
       id: a.id, titulo: a.titulo, cuerpo: a.cuerpo ?? "", ctaTexto: a.cta_texto ?? "",
-      ctaUrl: a.cta_url ?? "", imagenUrl: a.imagen_url ?? "", tema: a.tema,
+      ctaUrl: a.cta_url ?? "", imagenUrl: a.imagen_url ?? "", etiqueta: a.etiqueta ?? "", tema: a.tema,
       prioridad: a.prioridad, activo: a.activo, segmento: a.segmento,
       fechaInicio: aLocal(a.fecha_inicio), fechaFin: aLocal(a.fecha_fin),
     });
@@ -90,7 +91,8 @@ export function AnunciosManager({ anuncios }: { anuncios: Anuncio[] }) {
   const preview: Anuncio = {
     id: "preview", titulo: form.titulo || "Título del anuncio",
     cuerpo: form.cuerpo || null, cta_texto: form.ctaTexto || null, cta_url: form.ctaUrl || null,
-    imagen_url: form.imagenUrl || null, tema: form.tema as TemaAnuncio, prioridad: form.prioridad,
+    imagen_url: form.imagenUrl || null, etiqueta: form.etiqueta || null,
+    tema: form.tema as TemaAnuncio, prioridad: form.prioridad,
     activo: form.activo, segmento: form.segmento as SegmentoAnuncio,
     fecha_inicio: new Date().toISOString(), fecha_fin: null, creado_por: null,
     creado_en: "", actualizado_en: "",
@@ -129,6 +131,9 @@ export function AnunciosManager({ anuncios }: { anuncios: Anuncio[] }) {
             value={form.titulo} onChange={(e) => set("titulo", e.target.value)} />
           <textarea className={`${inputCls} min-h-[60px]`} placeholder="Cuerpo (opcional)" maxLength={240}
             value={form.cuerpo ?? ""} onChange={(e) => set("cuerpo", e.target.value)} />
+          <input className={inputCls} maxLength={24}
+            placeholder='Etiqueta arriba (por defecto "Novedad" · para publicidad: "Publicidad")'
+            value={form.etiqueta ?? ""} onChange={(e) => set("etiqueta", e.target.value)} />
           <div className="grid grid-cols-2 gap-2.5">
             <input className={inputCls} placeholder="Texto del botón (opcional)" maxLength={40}
               value={form.ctaTexto ?? ""} onChange={(e) => set("ctaTexto", e.target.value)} />

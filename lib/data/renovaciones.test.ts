@@ -287,7 +287,7 @@ describe("crearRenovacion — carreras y fallos (money-critical)", () => {
     // El anterior QUEDÓ finalizado (no se reactivó) → no hay duplicado de activos.
     expect(state.prestamos["ant-1"].estado).toBe("finalizado");
     // Existe exactamente el nuevo crédito activo (el que "se perdió").
-    expect(state.prestamos["nuevo-commit"].estado).toBe("activo");
+    expect((state.prestamos as Record<string, { estado: string }>)["nuevo-commit"].estado).toBe("activo");
   });
 });
 

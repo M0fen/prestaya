@@ -21,7 +21,7 @@ import type { SegmentoAnuncio, TemaAnuncio } from "@/types/db";
 
 type Resultado = { ok: true } | { ok: false; error: string };
 
-const TEMAS: TemaAnuncio[] = ["azul", "verde", "ambar", "oscuro"];
+const TEMAS: TemaAnuncio[] = ["azul", "verde", "ambar", "oscuro", "dorado"];
 const SEGMENTOS: SegmentoAnuncio[] = ["todos", "al_dia", "con_pendientes"];
 
 /** Solo http(s) para la imagen (se usa en <img src>). */
@@ -47,6 +47,7 @@ function sanear(raw: RawAnuncio): AnuncioInput | null {
     ctaTexto: (raw.ctaTexto ?? "").trim().slice(0, 40) || null,
     ctaUrl: hrefSeguro((raw.ctaUrl ?? "").trim() || null),
     imagenUrl: imagenSegura(raw.imagenUrl ?? null),
+    etiqueta: (raw.etiqueta ?? "").trim().slice(0, 24) || null,
     tema: TEMAS.includes(raw.tema as TemaAnuncio) ? (raw.tema as TemaAnuncio) : "azul",
     prioridad: Math.max(0, Math.min(999, Math.round(Number(raw.prioridad) || 0))),
     activo: Boolean(raw.activo),
@@ -65,6 +66,7 @@ export interface RawAnuncio {
   ctaTexto?: string | null;
   ctaUrl?: string | null;
   imagenUrl?: string | null;
+  etiqueta?: string | null;
   tema: string;
   prioridad: number;
   activo: boolean;

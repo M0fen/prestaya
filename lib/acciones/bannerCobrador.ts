@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getUsuarioActual, esGestor } from "@/lib/auth";
 import { registrarAuditoria } from "@/lib/data/auditoria";
+import { hrefSeguro } from "@/lib/seguridad";
 import type { TemaBanner } from "@/lib/data/bannerCobrador";
 
 type Resultado = { ok: true } | { ok: false; error: string };
@@ -14,12 +15,23 @@ type Resultado = { ok: true } | { ok: false; error: string };
 const TEMAS: TemaBanner[] = ["azul", "verde", "ambar", "rojo"];
 const ES_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Publica un banner para la app del cobrador. */
+/** Solo http(s) para una imagen que va a un <img src>. */
+function imagenSegura(url: string | null | undefined): string | null {
+  const t = (url ?? "").trim();
+  return /^https?:\/\//i.test(t) ? t : null;
+}
+
+/** Publica un banner para la app del cobrador. Los campos de publicidad
+ *  (titulo/imagen/botón) son opcionales: sin ellos es un aviso de texto. */
 export async function crearBannerCobrador(input: {
   texto: string;
   tema: TemaBanner;
   /** Horas hasta que se apaga solo (0/undefined = sin vencimiento). */
   expiraEnHoras?: number;
+  titulo?: string | null;
+  imagenUrl?: string | null;
+  ctaTexto?: string | null;
+  ctaUrl?: string | null;
 }): Promise<Resultado> {
   const u = await getUsuarioActual();
   if (!u || !u.activo || !esGestor(u.rol)) return { ok: false, error: "No tenés permisos." };
@@ -30,11 +42,16 @@ export async function crearBannerCobrador(input: {
   const horas = Number(input.expiraEnHoras);
   const expira_en =
     Number.isFinite(horas) && horas > 0 ? new Date(Date.now() + horas * 3_600_000).toISOString() : null;
+  // Publicidad opcional (saneada: link seguro, imagen solo http(s)).
+  const titulo = (input.titulo ?? "").trim().slice(0, 60) || null;
+  const imagen_url = imagenSegura(input.imagenUrl);
+  const cta_url = hrefSeguro((input.ctaUrl ?? "").trim() || null);
+  const cta_texto = (input.ctaTexto ?? "").trim().slice(0, 40) || null;
   try {
     const db = await createSupabaseServer();
     const { error } = await db
       .from("banner_cobrador")
-      .insert({ texto, tema, activo: true, creado_por: u.id, expira_en });
+      .insert({ texto, tema, activo: true, creado_por: u.id, expira_en, titulo, imagen_url, cta_texto, cta_url });
     if (error) throw error;
     await registrarAuditoria(db, {
       actorId: u.id,
@@ -47,7 +64,7 @@ export async function crearBannerCobrador(input: {
     revalidatePath("/cobrador");
     return { ok: true };
   } catch {
-    return { ok: false, error: "No se pudo publicar. ¿Corriste la migración 0050?" };
+    return { ok: false, error: "No se pudo publicar. ¿Corriste las migraciones 0050 y 0080?" };
   }
 }
 

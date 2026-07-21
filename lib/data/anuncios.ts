@@ -15,6 +15,7 @@ function mapAnuncio(r: Record<string, unknown>): Anuncio {
     cta_texto: (r.cta_texto as string | null) ?? null,
     cta_url: (r.cta_url as string | null) ?? null,
     imagen_url: (r.imagen_url as string | null) ?? null,
+    etiqueta: (r.etiqueta as string | null) ?? null,
     tema: r.tema as Anuncio["tema"],
     prioridad: Number(r.prioridad),
     activo: r.activo as boolean,
@@ -82,6 +83,7 @@ export interface AnuncioInput {
   ctaTexto: string | null;
   ctaUrl: string | null;
   imagenUrl: string | null;
+  etiqueta: string | null;
   tema: TemaAnuncio;
   prioridad: number;
   activo: boolean;
@@ -97,6 +99,7 @@ function aFila(input: AnuncioInput): Record<string, unknown> {
     cta_texto: input.ctaTexto,
     cta_url: input.ctaUrl,
     imagen_url: input.imagenUrl,
+    etiqueta: input.etiqueta,
     tema: input.tema,
     prioridad: input.prioridad,
     activo: input.activo,
