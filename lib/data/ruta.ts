@@ -7,7 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Cliente, FrecuenciaPrestamo } from "@/types/db";
 import { mapCliente } from "./clientes";
 import { inicioDiaUYIso, hoyUY } from "@/lib/fecha";
-import { plazoVencido, cuotasDebidasHasta } from "@/lib/cartones";
+import { plazoVencido, cuotasDebidasHasta, totalCredito } from "@/lib/cartones";
 
 // "abono" = pagó HOY pero menos que la cuota (abono parcial). Regla del negocio:
 // un abono parcial NO cubre el día → no es "pagado", queda como pendiente-visto.
@@ -232,8 +232,11 @@ export async function getRutaCobrador(
     // Crédito SALDADO (pagó todo pero aún no se finalizó/renovó): fuera de la ruta.
     // Si no, un cliente que ya terminó reaparecía como "pendiente" (inflando "Falta")
     // o como "cartera vencida · a recuperar" — persiguiendo a alguien que pagó todo.
-    const totalCred = cuota * totalDias;
-    if (totalCred > 0 && pagadoAcum >= totalCred) continue;
+    // Tolerancia sub-peso (deuda #30, espejo del cartón/renovación): una cuota
+    // fraccionaria pagada completa deja un residuo de centavos INCOBRABLE → sin el
+    // −0,5 un crédito saldado quedaba en la ruta con "Falta $0,xx" fantasma.
+    const totalCred = totalCredito(cuota, totalDias);
+    if (totalCred > 0 && pagadoAcum >= totalCred - 0.5) continue;
     // ¿El plazo de ESTE crédito ya venció? (cartera vencida → fuera del target del día)
     const vencido = plazoVencido(
       { cuota_diaria: cuota, total_dias: totalDias, fecha_inicio: p.fecha_inicio as string, frecuencia },

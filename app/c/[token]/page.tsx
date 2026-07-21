@@ -17,7 +17,6 @@ import {
 import { getPagosDePrestamo } from "@/lib/data/pagos";
 import { getAnunciosActivos } from "@/lib/data/anuncios";
 import { getAjustesJuego } from "@/lib/data/juegoConfig";
-import { getRecompensasActivas } from "@/lib/data/recompensas";
 import { getSaldoEstrellas } from "@/lib/data/estrellas";
 import { claveCiclo } from "@/lib/estrellas";
 import { getEstadoRaspaCliente, getQuinielaAbierta, getParticipacionCliente } from "@/lib/data/promos";
@@ -28,7 +27,6 @@ import { construirVistaCliente } from "@/lib/vistaCliente";
 import { hayProductosActivos, getProductoDestacadoParaCliente, type ProductoParaCliente } from "@/lib/data/tienda";
 import { conTimeout } from "@/lib/timeout";
 import { calcularJuegoCliente } from "@/lib/juegoCliente";
-import { evaluarRecompensas } from "@/lib/recompensas";
 import { hoyUY } from "@/lib/fecha";
 import type { Anuncio } from "@/types/db";
 import { NEGOCIO } from "@/lib/negocio";
@@ -158,9 +156,6 @@ export default async function VistaPorToken({
     : null;
   const juegoArcade = ajustes.activo ? juegoArcadeDe(ajustes) : null;
 
-  // Recompensas evaluadas contra el juego (resiliente a que 0018 no exista).
-  const recompensas =
-    juego != null ? evaluarRecompensas(await getRecompensasActivas(db), juego) : [];
   const temporada =
     ajustes.activo && ajustes.temporadaActiva && ajustes.temporadaNombre.trim()
       ? {
@@ -228,14 +223,12 @@ export default async function VistaPorToken({
       juego={juego}
       estrellas={estrellas}
       promo={promo}
-      umbralCaritas={ajustes.umbralCaritas}
       juegoAjustes={{
         mensajeBienvenida: ajustes.mensajeBienvenida,
         premioMeta: ajustes.premioMeta,
         mostrarMisiones: ajustes.mostrarMisiones,
       }}
       juegoArcade={juegoArcade}
-      recompensas={recompensas}
       temporada={temporada}
     />
   );

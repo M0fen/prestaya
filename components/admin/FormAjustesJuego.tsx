@@ -181,22 +181,6 @@ export function FormAjustesJuego({
             <option value="credito">Por crédito</option>
           </select>
         </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-[11.5px] font-bold text-tinta">
-            Umbral de la carita roja (días de atraso)
-          </span>
-          <span className="text-[11px] font-medium text-gris">
-            Con esta cantidad de cuotas vencidas, la carita del cliente pasa de naranja a roja.
-          </span>
-          <input
-            type="number"
-            min={1}
-            max={60}
-            value={a.umbralCaritas}
-            onChange={(e) => set("umbralCaritas", Number(e.target.value))}
-            className="mt-1 w-28 rounded-[10px] border border-borde px-3 py-2 text-[14px] outline-none focus:border-azul"
-          />
-        </label>
       </div>
 
       <div className="flex items-center gap-3">

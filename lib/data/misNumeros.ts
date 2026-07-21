@@ -22,8 +22,6 @@ export interface MisNumeros {
 }
 
 /** Fecha UY "YYYY-MM-DD" de un instante ISO. */
-const diaUY = (iso: string): string =>
-  new Intl.DateTimeFormat("en-CA", { timeZone: "America/Montevideo" }).format(new Date(iso));
 
 export async function getMisNumeros(cobradorId: string, hoy: Date = new Date()): Promise<MisNumeros> {
   const admin = createSupabaseAdmin();
@@ -50,7 +48,7 @@ export async function getMisNumeros(cobradorId: string, hoy: Date = new Date()):
   for (const p of pagos) {
     const m = Number(p.monto);
     mesRecaudado += m;
-    const dstr = diaUY(p.registrado_en);
+    const dstr = fechaISOUY(new Date(p.registrado_en));
     dias.add(dstr);
     if (dstr >= desde7Str) semanaRecaudado += m;
   }

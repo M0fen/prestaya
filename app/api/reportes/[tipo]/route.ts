@@ -15,7 +15,7 @@ import { getTableroMora } from "@/lib/data/mora";
 import { getRecaudos } from "@/lib/data/recaudos";
 import { getDesempenoRango } from "@/lib/data/desempeno";
 import { getInformeCartera } from "@/lib/data/informeCartera";
-import { diaUYInicioIso, diaUYFinIso } from "@/lib/fecha";
+import { diaUYInicioIso, diaUYFinIso, fechaISOUY } from "@/lib/fecha";
 import { getComisionesPeriodo } from "@/lib/data/comisiones";
 import { normalizarPeriodo } from "@/lib/data/periodo";
 import { reporteTipo as reporteTipoSchema } from "@/lib/validacion/esquemas";
@@ -25,15 +25,6 @@ import type { NivelRiesgo } from "@/types/alerta";
 export const dynamic = "force-dynamic";
 
 const TZ = "America/Montevideo";
-
-/** Fecha de hoy (Uruguay) en "YYYY-MM-DD" para el nombre del archivo. */
-const fechaHoyUY = (): string =>
-  new Intl.DateTimeFormat("en-CA", {
-    timeZone: TZ,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
 
 /** Instante ISO → "dd/mm/aaaa, HH:mm" en horario de Uruguay. */
 const fechaHoraUY = (iso: string): string =>
@@ -98,7 +89,7 @@ export async function GET(
   }
   const url = new URL(req.url);
   const db = await createSupabaseServer();
-  const fecha = fechaHoyUY();
+  const fecha = fechaISOUY();
 
   if (tipo === "cartera") {
     const filas = await getCarteraExport(db);
@@ -200,7 +191,7 @@ export async function GET(
   }
 
   if (tipo === "recaudos") {
-    const ymd = (v: string | null) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : fechaHoyUY());
+    const ymd = (v: string | null) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : fechaISOUY());
     const desdeYmd = ymd(url.searchParams.get("desde"));
     const hastaYmd = ymd(url.searchParams.get("hasta"));
     const vendedorId = url.searchParams.get("vendedor");
@@ -229,7 +220,7 @@ export async function GET(
   if (tipo === "desempeno") {
     // Historial de desempeño de cobradores por rango. Admin-only (ya gateado
     // arriba) → alcance global. Filas: una por cobrador con actividad/rendición.
-    const ymd = (v: string | null) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : fechaHoyUY());
+    const ymd = (v: string | null) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : fechaISOUY());
     const desdeYmd = ymd(url.searchParams.get("desde"));
     const hastaYmd = ymd(url.searchParams.get("hasta"));
     const r = await getDesempenoRango(db, { desde: desdeYmd, hasta: hastaYmd }, { global: true });

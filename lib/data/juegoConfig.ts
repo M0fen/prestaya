@@ -29,7 +29,6 @@ export async function getAjustesJuego(db: SupabaseClient): Promise<AjustesJuego>
       // Config del cliente (columnas de 0022; si aún no existen, caen al default).
       estrellasCiclo:
         (data.estrellas_ciclo as AjustesJuego["estrellasCiclo"]) ?? AJUSTES_JUEGO_DEFAULT.estrellasCiclo,
-      umbralCaritas: Number(data.umbral_caritas ?? AJUSTES_JUEGO_DEFAULT.umbralCaritas),
     };
   } catch (e) {
     if (tablaFaltante(e)) return AJUSTES_JUEGO_DEFAULT;
@@ -61,7 +60,6 @@ export async function actualizarAjustesJuego(
   const conConfig = {
     ...conTemporada,
     estrellas_ciclo: a.estrellasCiclo,
-    umbral_caritas: a.umbralCaritas,
   };
   // Escalera de compatibilidad: intentá guardar TODO; si faltan columnas de una
   // migración, reintentá con menos (sin perder lo que sí existe).

@@ -36,27 +36,6 @@ export async function getRecompensas(db: SupabaseClient): Promise<RecompensaAdmi
   }
 }
 
-/** Solo las recompensas ACTIVAS, para la vista de cliente. */
-export async function getRecompensasActivas(db: SupabaseClient): Promise<Recompensa[]> {
-  try {
-    const { data, error } = await db
-      .from("recompensas")
-      .select("id, titulo, premio, hito_tipo, hito_valor")
-      .eq("activo", true)
-      .order("orden");
-    if (error) throw error;
-    return (data ?? []).map((r) => ({
-      id: r.id as string,
-      titulo: r.titulo as string,
-      premio: r.premio as string,
-      hitoTipo: r.hito_tipo as HitoTipo,
-      hitoValor: Number(r.hito_valor ?? 0),
-    }));
-  } catch (e) {
-    if (tablaFaltante(e)) return [];
-    throw e;
-  }
-}
 
 export async function crearRecompensa(
   db: SupabaseClient,

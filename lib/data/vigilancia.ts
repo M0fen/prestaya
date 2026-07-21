@@ -12,6 +12,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { traerTodo } from "./paginado";
 import { tablaFaltante } from "./errores";
 import { alcanceDelActor, type Alcance } from "./alcance";
+import { fechaISOUY } from "@/lib/fecha";
 import { calcularConfianzaCobrador, type ResultadoConfianza, type SenalesCobrador } from "@/lib/scoreCobrador";
 import { analizarSospecha, type EventoBitacora } from "@/lib/sospecha";
 
@@ -28,16 +29,6 @@ export interface VigilanciaCobrador {
   saldoSinRendir: number;
   /** Suma de diferencias de rendición (negativo = faltante neto). */
   diferenciaAcumulada: number;
-}
-
-/** "YYYY-MM-DD" en horario de Uruguay de un instante ISO. */
-function diaUY(iso: string): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Montevideo",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date(iso));
 }
 
 interface Acc {
@@ -70,7 +61,7 @@ export async function getVigilanciaCobradores(
 ): Promise<VigilanciaCobrador[]> {
   const ventanaDias = opts.ventanaDias ?? 30;
   const desdeIso = new Date(hoy.getTime() - ventanaDias * 86400000).toISOString();
-  const desdeYmd = diaUY(desdeIso);
+  const desdeYmd = fechaISOUY(new Date(desdeIso));
   const alcance = opts.alcance ?? (await alcanceDelActor());
   const cobIds = alcance.global ? null : alcance.cobradorIds;
 
@@ -190,7 +181,7 @@ export async function getVigilanciaCobradores(
   } else if (recaudo.via === "fallback") {
     for (const p of recaudo.rows) {
       if (!p.registrado_por) continue;
-      sumaDia(p.registrado_por, diaUY(p.registrado_en), Number(p.monto), 1);
+      sumaDia(p.registrado_por, fechaISOUY(new Date(p.registrado_en)), Number(p.monto), 1);
     }
   }
 
@@ -260,7 +251,7 @@ export async function getVigilanciaCobradores(
     let diasSinRendir = 0, saldoSinRendir = 0;
     for (const [dia, monto] of a.recaudadoPorDia) {
       // El día de hoy no cuenta como "sin rendir" (todavía puede rendir).
-      if (dia === diaUY(hoy.toISOString())) continue;
+      if (dia === fechaISOUY(hoy)) continue;
       if (!a.diasRendidos.has(dia)) { diasSinRendir += 1; saldoSinRendir += monto; }
     }
 

@@ -8,6 +8,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { enLotes, type Alcance } from "./alcance";
 import { tablaFaltante } from "./errores";
 import { traerTodo } from "./paginado";
+import { fechaISOUY } from "@/lib/fecha";
 
 export type TipoGestion =
   | "visita"
@@ -44,11 +45,6 @@ export interface NuevaGestion {
   resultado: string | null;
   montoCompromiso: number | null;
   fechaCompromiso: string | null;
-}
-
-/** Fecha de hoy en Uruguay como 'YYYY-MM-DD' (en-CA da ese formato). */
-function hoyStrUY(hoy: Date): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Montevideo" }).format(hoy);
 }
 
 /** Estado de un compromiso a partir de lo prometido y lo efectivamente pagado. */
@@ -187,7 +183,7 @@ export async function getGestionesCliente(
     pagos = mapa.get(clienteId);
   }
 
-  const hoyStr = hoyStrUY(hoy);
+  const hoyStr = fechaISOUY(hoy);
   return filas.map((r) => {
     const monto = r.monto_compromiso != null ? Number(r.monto_compromiso) : null;
     const pagadoDesde = monto != null ? sumaDesde(pagos, r.creado_en as string) : 0;
@@ -223,7 +219,7 @@ export async function getEstadoGestionClientes(
 ): Promise<Map<string, EstadoGestionCliente>> {
   const out = new Map<string, EstadoGestionCliente>();
   if (clienteIds.length === 0) return out;
-  const hoyStr = hoyStrUY(hoy);
+  const hoyStr = fechaISOUY(hoy);
   const inicioHoy = `${hoyStr}T00:00:00-03:00`;
 
   const filasPorCliente = new Map<string, { tipo: TipoGestion; monto: number | null; fecha: string | null; creado: string }[]>();
@@ -299,13 +295,13 @@ export async function getResumenCompromisos(
   alcance: Alcance,
   hoy: Date = new Date(),
 ): Promise<ResumenCompromisos> {
-  const hoyStr = hoyStrUY(hoy);
+  const hoyStr = fechaISOUY(hoy);
   // Ventana: promesas de los últimos 30 días hacia adelante 14. Fuera de eso no
   // es "seguimiento del día".
   const desde = new Date(hoy.getTime() - 30 * 864e5);
   const hasta = new Date(hoy.getTime() + 14 * 864e5);
-  const desdeStr = hoyStrUY(desde);
-  const hastaStr = hoyStrUY(hasta);
+  const desdeStr = fechaISOUY(desde);
+  const hastaStr = fechaISOUY(hasta);
 
   // Traemos los compromisos de la ventana. RLS ya acota a la zona; si hay alcance
   // no-global, además filtramos por clienteIds (en lotes) para no barrer de más.

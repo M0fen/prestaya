@@ -4,16 +4,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { UYU } from "@/lib/format";
+import { fechaISOUY } from "@/lib/fecha";
 import { registrarCompromiso } from "@/lib/acciones/compromisos";
-
-/** "YYYY-MM-DD" de mañana en Uruguay (default sensato para el compromiso). */
-function mananaUY(): string {
-  const m = new Date(Date.now() + 864e5);
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Montevideo" }).format(m);
-}
-function hoyUYStr(): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Montevideo" }).format(new Date());
-}
 
 export function RegistrarCompromiso({
   clienteId,
@@ -27,7 +19,7 @@ export function RegistrarCompromiso({
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
   const [monto, setMonto] = useState("");
-  const [fecha, setFecha] = useState(mananaUY());
+  const [fecha, setFecha] = useState(fechaISOUY(new Date(Date.now() + 864e5)));
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
   const [pendiente, startTransition] = useTransition();
@@ -100,7 +92,7 @@ export function RegistrarCompromiso({
               <input
                 type="date"
                 value={fecha}
-                min={hoyUYStr()}
+                min={fechaISOUY()}
                 onChange={(e) => setFecha(e.target.value)}
                 className="rounded-[11px] border border-[#DCD2F0] bg-white px-3 py-2 text-[13.5px] text-tinta outline-none"
               />

@@ -10,7 +10,6 @@ import { hoyUY, inicioDiaUYIso } from "@/lib/fecha";
 import { toIso, diasSemana } from "@/lib/format";
 
 const DIA_MS = 86_400_000;
-const TZ = "America/Montevideo";
 
 /** Un día de la serie de recaudo. */
 export interface DiaSerie {
@@ -38,15 +37,6 @@ export interface SerieRecaudo {
   tendencia: number;
 }
 
-/** Convierte un ISO instantáneo al día calendario de Uruguay ("YYYY-MM-DD"). */
-function diaUYde(iso: string): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: TZ,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date(iso));
-}
 
 /**
  * Recaudación diaria de los últimos `dias` días (incluye hoy). Agrupa por el

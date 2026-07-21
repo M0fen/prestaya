@@ -8,7 +8,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Pago, Prestamo } from "@/types/db";
 import type { NivelRiesgo, ResultadoAlerta } from "@/types/alerta";
 import { calcularAlertaMora } from "@/lib/alerta";
-import { plazoVencido } from "@/lib/cartones";
+import { plazoVencido, saldoCredito } from "@/lib/cartones";
 import { calcularRecargoMora, type ConfigMora } from "@/lib/moraCargo";
 import { getConfigMora } from "./moraConfig";
 import { getActivosConPagos, pagosDeActivo } from "./activos";
@@ -91,7 +91,7 @@ export async function getTableroMora(
     // dashboard (metricas.ts): un crédito muerto no es mora del día.
     if (plazoVencido(cond, hoyCal)) {
       resumen.vencidos++;
-      resumen.carteraVencida += Math.max(0, num(p.cuota_diaria) * num(p.total_dias) - num(p.pagado ?? 0));
+      resumen.carteraVencida += saldoCredito(num(p.cuota_diaria), num(p.total_dias), num(p.pagado ?? 0));
       continue;
     }
 

@@ -128,6 +128,17 @@ type PagoCalc = Pick<Pago, "dia_credito" | "monto">;
  * @param hoy       fecha de referencia "hoy" (en prod: del servidor). Se
  *                  normaliza a medianoche para comparar solo por día.
  */
+/** Total a pagar de un crédito = cuota × cantidad de cuotas (el interés ya va en la
+ *  cuota). Fórmula canónica, antes reescrita a mano en varios módulos (deuda #9). */
+export const totalCredito = (cuotaDiaria: number, totalDias: number): number =>
+  cuotaDiaria * totalDias;
+
+/** Saldo pendiente = max(0, total − pagado). El caller elige la fuente de `pagado`
+ *  (Σ pagos vigentes o la columna denormalizada `pagado_acum`) y aplica su propio
+ *  redondeo si lo necesita: este helper NO redondea. Canónico (deuda #9). */
+export const saldoCredito = (cuotaDiaria: number, totalDias: number, pagado: number): number =>
+  Math.max(0, totalCredito(cuotaDiaria, totalDias) - pagado);
+
 export function calcularEstadosCarton(
   prestamo: PrestamoCalc,
   pagos: PagoCalc[],
@@ -138,7 +149,7 @@ export function calcularEstadosCarton(
   const frecuencia = prestamo.frecuencia ?? "diario";
 
   // Total a pagar = cuota fija × cantidad de cuotas. El interés ya va en la cuota.
-  const totalAPagar = cuota * totalDias;
+  const totalAPagar = totalCredito(cuota, totalDias);
   const start = parseFecha(prestamo.fecha_inicio);
   // Comparamos por día: descartamos la hora de "hoy" para que `new Date()`
   // (que trae hora) funcione igual que una fecha de medianoche.
@@ -203,7 +214,7 @@ export function calcularEstadosCarton(
   }
 
   // Lo que falta nunca es negativo (si pagó de más, falta = 0).
-  const falta = Math.max(0, totalAPagar - totalPagado);
+  const falta = saldoCredito(cuota, totalDias, totalPagado);
   // Guardia: si el total fuera 0 (préstamo inválido) evitamos NaN/Infinity.
   const progresoPct =
     totalAPagar > 0 ? Math.round((totalPagado / totalAPagar) * 100) : 0;

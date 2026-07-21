@@ -8,7 +8,6 @@ import { TiendaBanner } from "@/components/tienda/TiendaBanner";
 import type { JuegoCliente as Juego } from "@/lib/juegoCliente";
 import type { Juego as JuegoArcade } from "@/lib/juegos";
 import type { AjustesJuegoVista } from "@/components/JuegoCliente";
-import type { RecompensaEvaluada } from "@/lib/recompensas";
 import type { SaldoEstrellas } from "@/lib/estrellas";
 import { EstrellasCliente } from "@/components/estrellas/EstrellasCliente";
 import { PromoCliente, type PromoData } from "@/components/promos/PromoCliente";
@@ -40,7 +39,6 @@ export function VistaClienteScreen({
   reputacion = null,
   estrellas = null,
   promo = null,
-  umbralCaritas,
   juegoArcade = null,
   temporada = null,
   rifa = null,
@@ -66,14 +64,10 @@ export function VistaClienteScreen({
   estrellas?: SaldoEstrellas | null;
   /** Juegos promocionales (raspadita + quiniela). Si es null, no se muestran. */
   promo?: PromoData | null;
-  /** Umbral de días de atraso para la carita roja (lo define el admin). */
-  umbralCaritas?: number;
   /** Config de presentación del juego (mensajes/premio/misiones). */
   juegoAjustes?: AjustesJuegoVista;
   /** Juego arcade elegido por el admin. Si es null, no se muestra el slot. */
   juegoArcade?: JuegoArcade | null;
-  /** Recompensas evaluadas contra el juego del cliente. */
-  recompensas?: RecompensaEvaluada[];
   /** Temporada/evento del mes (si el admin lo encendió). */
   temporada?: { nombre: string; emoji: string; meta: number; premio: string } | null;
 }) {

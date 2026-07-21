@@ -12,6 +12,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { NAV_ITEMS } from "@/lib/admin/nav";
 import { tablaFaltante } from "./errores";
+import { fechaISOUY } from "@/lib/fecha";
 
 // Secciones legibles: las del panel (de nav.ts) + las del cobrador.
 const SECCIONES: { pre: string; label: string }[] = [
@@ -77,13 +78,11 @@ export interface EventoUsoVista {
   creadoEn: string;
 }
 
-const diaUY = (iso: string): string =>
-  new Intl.DateTimeFormat("en-CA", { timeZone: "America/Montevideo" }).format(new Date(iso));
 
 /** Resumen de comportamiento por persona en una ventana (desde ISO). */
 export async function getAuditoriaComportamiento(desdeIso: string): Promise<UsoPersona[]> {
   const admin = createSupabaseAdmin();
-  const desdeYmd = diaUY(desdeIso);
+  const desdeYmd = fechaISOUY(new Date(desdeIso));
 
   // Staff interno activo.
   const { data: staff, error: eStaff } = await admin
@@ -149,7 +148,7 @@ export async function getAuditoriaComportamiento(desdeIso: string): Promise<UsoP
       porUser.set(id, acc);
     }
     acc.vistas += 1;
-    acc.dias.add(diaUY(ev.creado_en));
+    acc.dias.add(fechaISOUY(new Date(ev.creado_en)));
     if (!acc.ultima || ev.creado_en > acc.ultima) acc.ultima = ev.creado_en;
     const s = ev.seccion ?? "—";
     acc.secc.set(s, (acc.secc.get(s) ?? 0) + 1);

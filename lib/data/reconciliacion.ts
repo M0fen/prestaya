@@ -12,6 +12,7 @@ import {
   type ResumenReconciliacion,
 } from "@/lib/reconciliacion";
 import { inicioDiaUYIso } from "@/lib/fecha";
+import { saldoCredito } from "@/lib/cartones";
 import { traerTodo } from "./paginado";
 
 export interface ResultadoReconciliacion extends ResumenReconciliacion {
@@ -62,7 +63,8 @@ export async function getSaludEmpalme(db: SupabaseClient): Promise<SaludEmpalme>
       .order("id", { ascending: true })
       .range(desde, desde + 999);
     for (const p of data ?? []) {
-      carteraActiva += Math.max(0, N(p.cuota_diaria) * Number(p.total_dias || 0) - N(p.pagado_acum));
+      // pagado = columna denormalizada pagado_acum (no Σpagos): se preserva tal cual.
+      carteraActiva += saldoCredito(N(p.cuota_diaria), Number(p.total_dias || 0), N(p.pagado_acum));
     }
     if (!data || data.length < 1000) break;
   }

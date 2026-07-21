@@ -31,8 +31,6 @@ export interface AjustesJuego {
   temporadaPremio: string;
   /** Ciclo del tope de canje de estrellas: por mes o por crédito (0022). */
   estrellasCiclo: "mes" | "credito";
-  /** Días de atraso para que la carita pase de naranja a roja (0022). */
-  umbralCaritas: number;
 }
 
 export const AJUSTES_JUEGO_DEFAULT: AjustesJuego = {
@@ -48,7 +46,6 @@ export const AJUSTES_JUEGO_DEFAULT: AjustesJuego = {
   temporadaMeta: 90,
   temporadaPremio: "",
   estrellasCiclo: "mes",
-  umbralCaritas: 3,
 };
 
 /** Devuelve el juego arcade elegido (o el del mes si el id no existe). */

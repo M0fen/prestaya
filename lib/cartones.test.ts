@@ -2,9 +2,37 @@
 // Cubren: estados de día, totales, próxima cuota, regla de oro de HOY,
 // suma de abonos y la normalización de "hoy" con hora.
 import { describe, expect, it } from "vitest";
-import { calcularEstadosCarton, fechaDeCuota, plazoVencido } from "./cartones";
+import { calcularEstadosCarton, fechaDeCuota, plazoVencido, totalCredito, saldoCredito } from "./cartones";
 import { parseFecha, toIso } from "./format";
 import type { Pago, Prestamo } from "@/types/db";
+
+// Deuda #9: los helpers canónicos deben coincidir con lo que calcula el cartón,
+// para que reemplazar los hand-rewrites (mora/reconciliación/ruta) no mueva ningún
+// número. Se fija la equivalencia, incluida la cuota fraccionaria y el sobre-pago.
+describe("totalCredito / saldoCredito — equivalentes al cartón (deuda #9)", () => {
+  const casos: { cuota: number; dias: number; pagado: number }[] = [
+    { cuota: 20000, dias: 30, pagado: 210000 },   // parcial
+    { cuota: 20000, dias: 30, pagado: 0 },         // nada pagado
+    { cuota: 20000, dias: 30, pagado: 600000 },    // saldado exacto
+    { cuota: 20000, dias: 30, pagado: 999999 },    // sobre-pago → falta 0
+    { cuota: 351.04, dias: 24, pagado: 8424 },     // cuota fraccionaria (Disapp)
+  ];
+  it("totalCredito === carton.totalAPagar y saldoCredito === carton.falta", () => {
+    for (const c of casos) {
+      const pagos = c.pagado > 0 ? [{ dia_credito: 1, monto: c.pagado }] : [];
+      const r = calcularEstadosCarton(
+        { cuota_diaria: c.cuota, total_dias: c.dias, fecha_inicio: "2026-06-03" },
+        pagos,
+        parseFecha("2026-07-03"),
+      );
+      expect(totalCredito(c.cuota, c.dias)).toBe(c.cuota * c.dias);
+      expect(saldoCredito(c.cuota, c.dias, c.pagado)).toBeCloseTo(r.falta, 6);
+    }
+  });
+  it("saldoCredito nunca es negativo (sobre-pago → 0)", () => {
+    expect(saldoCredito(20000, 30, 700000)).toBe(0);
+  });
+});
 
 /** Préstamo base de prueba: 30 días, cuota 20.000, inicia 2026-06-03. */
 const prestamoBase: Pick<Prestamo, "cuota_diaria" | "total_dias" | "fecha_inicio"> =

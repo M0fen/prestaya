@@ -5,7 +5,7 @@
 //  Enchufa el momento de mayor conversión con la decisión de plata.
 // ─────────────────────────────────────────────────────────────────────────
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Cliente, Pago, Prestamo } from "@/types/db";
+import type { Cliente, Prestamo } from "@/types/db";
 import type { ResultadoScore } from "@/types/scoring";
 import { getClientesAsignados } from "./clientes";
 import { getPagosDePrestamo } from "./pagos";
@@ -17,6 +17,13 @@ import { calcularScore } from "@/lib/scoring";
 import { calcularCuotaRenovacion, RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
 import { hoyUY } from "@/lib/fecha";
 import { toIso } from "@/lib/format";
+
+/** Subconjunto de Prestamo que realmente se lee al armar candidatos (evita el
+ *  doble cast `as unknown as Prestamo` sobre un SELECT parcial — deuda #21). */
+type PrestamoRenov = Pick<
+  Prestamo,
+  "id" | "cobrador_id" | "monto_prestado" | "cuota_diaria" | "total_dias" | "frecuencia" | "fecha_inicio"
+>;
 
 /** Datos del crédito actual, base para calcular los términos del próximo. */
 export interface PrestamoAnterior {
@@ -58,16 +65,17 @@ export async function getCandidatosRenovacion(
     .eq("estado", "activo");
   if (error) throw error;
 
-  const prestamoDe = new Map<string, Prestamo>();
+  const prestamoDe = new Map<string, PrestamoRenov>();
   for (const p of presRaw ?? [])
     prestamoDe.set(p.cliente_id as string, {
-      ...(p as Record<string, unknown>),
+      id: p.id as string,
+      cobrador_id: (p.cobrador_id as string | null) ?? null,
       monto_prestado: Number(p.monto_prestado),
       cuota_diaria: Number(p.cuota_diaria),
       total_dias: Number(p.total_dias),
       frecuencia: (p.frecuencia as Prestamo["frecuencia"]) ?? "diario",
-      estado: "activo",
-    } as unknown as Prestamo);
+      fecha_inicio: p.fecha_inicio as string,
+    });
 
   // Total pagado por crédito activo en UNA sola RPC (antes: getPagosDePrestamo
   // por cada uno de ~2.226 clientes con crédito → N+1). El cartón solo usa la
@@ -82,7 +90,7 @@ export async function getCandidatosRenovacion(
   // 1) Pre-candidatos con cálculo BARATO (cartón desde la suma pagada), sin score.
   interface Pre {
     cliente: Cliente;
-    prestamo: Prestamo;
+    prestamo: PrestamoRenov;
     progresoPct: number;
     completo: boolean;
     cuotasFaltantes: number;

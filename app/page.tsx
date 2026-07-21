@@ -10,19 +10,10 @@ import { NEGOCIO } from "@/lib/negocio";
 import { construirVistaCliente } from "@/lib/vistaCliente";
 import { calcularJuegoCliente } from "@/lib/juegoCliente";
 import { AJUSTES_JUEGO_DEFAULT, juegoArcadeDe } from "@/lib/juegoAjustes";
-import { evaluarRecompensas, type Recompensa } from "@/lib/recompensas";
 import { calcularEstrellas } from "@/lib/estrellas";
 import { cicloUY } from "@/lib/fecha";
 import { VistaClienteScreen } from "@/components/VistaClienteScreen";
 import type { Anuncio } from "@/types/db";
-
-// Recompensas de ejemplo para el demo (en prod vienen de Supabase / 0018).
-const recompensasDemo: Recompensa[] = [
-  { id: "r1", titulo: "Primera semana", premio: "Vas de fiar 🌱", hitoTipo: "racha", hitoValor: 7 },
-  { id: "r2", titulo: "Racha de 15", premio: "Descuento en tu próximo crédito", hitoTipo: "racha", hitoValor: 15 },
-  { id: "r3", titulo: "Mes sin atrasos", premio: "Entrás al sorteo del mes", hitoTipo: "mes_al_dia", hitoValor: 0 },
-  { id: "r4", titulo: "Crédito al 100%", premio: "Mejor tasa en tu renovación", hitoTipo: "credito_completo", hitoValor: 0 },
-];
 
 // Anuncios de ejemplo para el demo (en producción vienen de Supabase).
 // Muestran cómo el admin carga eventos y avisos para sus clientes.
@@ -119,7 +110,6 @@ export default function Home() {
         mostrarMisiones: ajustes.mostrarMisiones,
       }}
       juegoArcade={juegoArcadeDe(ajustes)}
-      recompensas={evaluarRecompensas(recompensasDemo, juego)}
       temporada={null}
     />
   );
