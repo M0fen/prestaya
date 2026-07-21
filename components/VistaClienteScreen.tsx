@@ -27,6 +27,7 @@ import { GameSlot } from "@/components/GameSlot";
 import { Historial } from "@/components/Historial";
 import Link from "next/link";
 import { ReportarDiscrepancia } from "@/components/ReportarDiscrepancia";
+import { BotonInstalar } from "@/components/pwa/BotonInstalar";
 import { RecordatorioLink } from "@/components/RecordatorioLink";
 import { Footer } from "@/components/Footer";
 
@@ -203,6 +204,11 @@ export function VistaClienteScreen({
         {/* Reporte de discrepancia + recordatorio: solo con token (vista real). */}
         {token && <ReportarDiscrepancia token={token} />}
         {token && <RecordatorioLink token={token} />}
+
+        {/* Guardar la app en el teléfono (accesibilidad: se abre con un toque). */}
+        <div className="flex justify-center">
+          <BotonInstalar tono="sobreClaro" />
+        </div>
 
         <Footer negocio={v.negocio} />
       </div>

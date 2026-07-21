@@ -1,72 +1,47 @@
 "use client";
-// Banner discreto para INSTALAR la app en el teléfono. Dos caminos:
-//   · Android/Chrome/desktop → capturamos `beforeinstallprompt` y ofrecemos un
-//     botón "Instalar" que dispara el diálogo nativo.
-//   · iPhone/iPad (Safari)   → no existe ese evento; mostramos la instrucción
-//     "Compartir → Agregar a inicio".
-// Se oculta si ya está instalada (standalone) o si el usuario lo descartó.
+// Banner discreto para INSTALAR la app en el teléfono. Aparece solo (primer uso)
+// en cualquier pantalla. Dos caminos según el equipo:
+//   · Android/Chrome/desktop → botón "Instalar" que dispara el diálogo nativo.
+//   · iPhone/iPad (Safari)   → instrucción "Compartir → Agregar a inicio".
+// Se oculta si ya está instalada. Al cerrarlo, se pospone (no para siempre):
+// vuelve a las 2 semanas. Para instalar cuando quieras, además está el botón fijo.
 import { useEffect, useState } from "react";
+import { useInstalacion, lanzarInstalacion } from "@/lib/pwa/instalar";
 
-type PromptInstalacion = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-};
-
-const CLAVE_DESCARTE = "py_pwa_descartado";
+const CLAVE_POSPUESTO = "py_pwa_pospuesto_hasta";
+const DIAS_POSPONER = 14;
 
 export function InstalarApp() {
-  const [prompt, setPrompt] = useState<PromptInstalacion | null>(null);
-  const [esIOS, setEsIOS] = useState(false);
-  const [visible, setVisible] = useState(false);
+  const estado = useInstalacion();
+  const [pospuesto, setPospuesto] = useState(true); // asumimos oculto hasta leer localStorage
 
   useEffect(() => {
-    // Ya instalada (abierta como app): nunca mostrar.
-    const standalone =
-      window.matchMedia?.("(display-mode: standalone)").matches ||
-      // Safari iOS expone navigator.standalone.
-      (window.navigator as unknown as { standalone?: boolean }).standalone === true;
-    if (standalone) return;
-    if (localStorage.getItem(CLAVE_DESCARTE) === "1") return;
-
-    const ua = window.navigator.userAgent;
-    const ios = /iphone|ipad|ipod/i.test(ua) && !/crios|fxios/i.test(ua); // Safari iOS
-    setEsIOS(ios);
-
-    const onBIP = (e: Event) => {
-      e.preventDefault(); // evitamos el mini-infobar automático
-      setPrompt(e as PromptInstalacion);
-      setVisible(true);
-    };
-    window.addEventListener("beforeinstallprompt", onBIP);
-
-    // En iOS no hay evento: mostramos la ayuda tras un instante (si no está instalada).
-    const t = ios ? window.setTimeout(() => setVisible(true), 2500) : undefined;
-
-    return () => {
-      window.removeEventListener("beforeinstallprompt", onBIP);
-      if (t) clearTimeout(t);
-    };
+    try {
+      const hasta = Number(localStorage.getItem(CLAVE_POSPUESTO) || 0);
+      setPospuesto(Date.now() < hasta);
+    } catch {
+      setPospuesto(false);
+    }
   }, []);
 
-  const descartar = () => {
-    setVisible(false);
+  const posponer = () => {
+    setPospuesto(true);
     try {
-      localStorage.setItem(CLAVE_DESCARTE, "1");
+      localStorage.setItem(CLAVE_POSPUESTO, String(Date.now() + DIAS_POSPONER * 86_400_000));
     } catch {
-      /* noop */
+      /* sin localStorage: se oculta en esta sesión igual */
     }
   };
 
   const instalar = async () => {
-    if (!prompt) return;
-    await prompt.prompt();
-    const { outcome } = await prompt.userChoice;
-    setPrompt(null);
-    setVisible(false);
-    if (outcome === "accepted") descartar(); // no volver a ofrecer
+    const r = await lanzarInstalacion();
+    if (r === "accepted") posponer(); // ya está: no volver a ofrecer pronto
   };
 
-  if (!visible) return null;
+  // Solo cuando hay algo real que ofrecer y no fue pospuesto.
+  if (pospuesto) return null;
+  if (estado !== "listo" && estado !== "ios") return null;
+  const esIOS = estado === "ios";
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex justify-center p-3 pb-[max(76px,env(safe-area-inset-bottom))]">
@@ -109,8 +84,8 @@ export function InstalarApp() {
           </button>
         )}
         <button
-          onClick={descartar}
-          aria-label="Cerrar"
+          onClick={posponer}
+          aria-label="Ahora no"
           className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[18px] text-[#9AA3BC] hover:bg-[#F4F6FB]"
         >
           ✕

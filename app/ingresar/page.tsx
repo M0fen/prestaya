@@ -2,6 +2,7 @@
 import { redirect } from "next/navigation";
 import { getUsuarioActual, rutaHome } from "@/lib/auth";
 import { FormIngreso } from "@/components/auth/FormIngreso";
+import { BotonInstalar } from "@/components/pwa/BotonInstalar";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,11 @@ export default async function IngresarPage() {
         </div>
 
         <FormIngreso />
+
+        {/* Instalar la app: siempre a mano para todo el equipo. */}
+        <div className="mt-4 flex justify-center">
+          <BotonInstalar tono="sobreOscuro" />
+        </div>
 
         <p className="mt-5 flex items-center justify-center gap-1.5 text-center text-[11px] font-medium text-white/45">
           <span aria-hidden="true">🔒</span>
