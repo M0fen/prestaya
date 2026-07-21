@@ -7,7 +7,7 @@ import {
   confirmar,
   configurarUsuario,
   hidratar,
-  marcarIntento,
+  marcarAtascada,
   opAtascada,
   pendientes,
   suscribir,
@@ -113,9 +113,14 @@ export function useSync(usuarioId: string | null, onSynced?: () => void) {
             huboTemporal = true;
             break;
           } else {
-            // Error PERMANENTE (crédito finalizado/saldado, datos inválidos): suma al
-            // veneno; tras MAX_INTENTOS se muestra aparte para descartar a mano.
-            marcarIntento(op.id);
+            // Error PERMANENTE (crédito finalizado/saldado/reasignado, datos inválidos):
+            // reintentar daría el MISMO error → se marca ATASCADA de INMEDIATO. Antes se
+            // hacía marcarIntento (intentos→1) y, como un error permanente no cambia
+            // `ops.length`, el auto-flush no volvía a correr → la op quedaba clavada en
+            // intentos=1: bloqueaba el cierre (sigue "pendiente") pero nunca llegaba a
+            // "atascada" (Descartar) → el cobrador quedaba TRABADO. Ahora pasa directo a
+            // atascada: no bloquea y aparece para descartar/re-registrar.
+            marcarAtascada(op.id);
           }
         } catch {
           huboTemporal = true;

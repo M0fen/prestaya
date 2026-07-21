@@ -410,7 +410,7 @@ function Apertura({
           {moraCriticos > 0 && (
             <div className="flex flex-col items-end rounded-[12px] panel-rojo px-3 py-2">
               <span className="text-[22px] leading-none font-black tabular-nums text-rojo-osc">{moraCriticos}</span>
-              <span className="text-[10.5px] font-bold text-rojo-osc">mora crítica · 16+ días</span>
+              <span className="text-[10.5px] font-bold text-rojo-osc">riesgo crítico · visitar hoy</span>
             </div>
           )}
         </div>

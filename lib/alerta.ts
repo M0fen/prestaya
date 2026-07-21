@@ -117,9 +117,15 @@ export function calcularAlertaMora({
   }
   const cumplimientoReciente = exigidoRec > 0 ? cubiertoRec / exigidoRec : 1;
 
+  // Crédito EXACTAMENTE al día (nada vencido, 0 atrasos exigibles). Para un crédito
+  // NO-diario (semanal/quincenal/mensual) `diasSinPagar` crece hasta el próximo
+  // vencimiento aunque pague EN FECHA, así que la recencia por días calendario lo
+  // marcaría "en riesgo" siendo sano. Si está al día no se puntúa recencia.
+  const alDia = deudaVencida <= 0.5 && atrasosTotales === 0;
+
   // ── Señales normalizadas 0..1 (1 = peor) ─────────────────────────────────
   const sRacha = clamp01(rachaAtraso / RACHA_CRITICA);
-  const sRecencia = clamp01(diasSinPagar / RECENCIA_CRITICA);
+  const sRecencia = alDia ? 0 : clamp01(diasSinPagar / RECENCIA_CRITICA);
   const sAtrasos = clamp01(atrasosTotales / ATRASOS_CRITICO);
   const deterioroMag = Math.max(0, cumplimiento - cumplimientoReciente);
   const sDeterioro = clamp01(deterioroMag);
@@ -155,7 +161,7 @@ export function calcularAlertaMora({
       clave: "racha",
       texto: `${rachaAtraso} días seguidos sin cubrir la cuota`,
     });
-  if (diasSinPagar >= 3)
+  if (!alDia && diasSinPagar >= 3)
     motivos.push({
       clave: "recencia",
       texto: ultimoConPago

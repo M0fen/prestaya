@@ -236,6 +236,7 @@ export async function crearRenovacion(
     return { ok: false, error: "El crédito anterior ya fue renovado por otra persona." };
 
   // 3. Insertar el nuevo crédito activo.
+  const fechaInicio = toIso(hoyUY(hoy));
   const alta = await db
     .from("prestamos")
     .insert({
@@ -245,7 +246,7 @@ export async function crearRenovacion(
       cuota_diaria: cuota,
       total_dias: totalDias,
       frecuencia,
-      fecha_inicio: toIso(hoyUY(hoy)),
+      fecha_inicio: fechaInicio,
       estado: "activo",
       creado_por: creadoPor,
     })
@@ -253,7 +254,29 @@ export async function crearRenovacion(
     .single();
 
   if (alta.error || !alta.data) {
-    // Compensación: reactivar el anterior para no dejar al cliente sin crédito.
+    // El insert falló... PERO pudo haber COMMITEADO y perderse la respuesta (timeout
+    // de la función serverless / 504 / corte de red). VERIFICAR antes de compensar: si
+    // el crédito nuevo YA existe, el commit fue exitoso → devolver OK sin reactivar el
+    // anterior. Sin esto, la compensación reactivaba el anterior mientras el nuevo YA
+    // estaba creado → cliente con DOS créditos activos (capital/deuda DUPLICADOS) + el
+    // reintento fabricaba un tercero. Se busca el crédito EXACTO que intentamos crear.
+    const { data: yaCreado } = await db
+      .from("prestamos")
+      .select("id")
+      .eq("cliente_id", clienteId)
+      .eq("estado", "activo")
+      .eq("monto_prestado", monto)
+      .eq("cuota_diaria", cuota)
+      .eq("total_dias", totalDias)
+      .eq("fecha_inicio", fechaInicio)
+      .order("creado_en", { ascending: false })
+      .limit(1);
+    if (yaCreado && yaCreado.length > 0) {
+      // El insert había commiteado: la renovación está hecha. NO compensar (evita el duplicado).
+      return { ok: true, prestamoId: yaCreado[0].id as string, cuota };
+    }
+    // Compensación real: el nuevo NO se creó → reactivar el anterior para no dejar
+    // al cliente sin crédito. (El reintento verá el anterior activo y lo renueva bien.)
     await db
       .from("prestamos")
       .update({ estado: "activo", finalizado_en: null })

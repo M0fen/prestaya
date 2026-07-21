@@ -59,21 +59,29 @@ function mapRendicion(r: Record<string, unknown>): RendicionDia {
   };
 }
 
-/** Recaudado hoy por un cobrador (por `registrado_por`, lo que tiene en mano). */
+/** Recaudado hoy por un cobrador (por `registrado_por`, lo que tiene en mano).
+ *  Se lee con el cliente ADMIN (esquiva la RLS por-fila sobre `pagos`) con el scope
+ *  EXPLÍCITO por `registrado_por`: así el cobrador cuenta SUS propios cobros aunque
+ *  el cliente haya sido REASIGNADO después (la policy pagos_select exige asignación
+ *  activa → bajo su sesión no vería ese pago y su cierre entregaría de menos,
+ *  descuadrando contra el panel del supervisor, que ya lee por admin igual). */
 async function recaudadoHoyDe(
-  db: SupabaseClient,
   cobradorId: string,
   desdeIso: string,
 ): Promise<{ recaudado: number; cobros: number }> {
-  const { data, error } = await db
-    .from("pagos")
-    .select("monto")
-    .eq("anulado", false)
-    .eq("registrado_por", cobradorId)
-    .gte("registrado_en", desdeIso);
-  if (error) throw error;
-  const recaudado = (data ?? []).reduce((s, r) => s + Number(r.monto), 0);
-  return { recaudado, cobros: (data ?? []).length };
+  const admin = createSupabaseAdmin();
+  const data = await traerTodo<{ monto: number }>((d, h) =>
+    admin
+      .from("pagos")
+      .select("monto")
+      .eq("anulado", false)
+      .eq("registrado_por", cobradorId)
+      .gte("registrado_en", desdeIso)
+      .order("id", { ascending: true })
+      .range(d, h),
+  );
+  const recaudado = data.reduce((s, r) => s + Number(r.monto), 0);
+  return { recaudado, cobros: data.length };
 }
 
 /** Estado de la jornada del cobrador logueado (para la pantalla de cierre). */
@@ -82,7 +90,7 @@ export async function getEstadoJornada(
   cobradorId: string,
   hoy: Date = new Date(),
 ): Promise<EstadoJornada> {
-  const { recaudado, cobros } = await recaudadoHoyDe(db, cobradorId, inicioDiaUYIso(hoy));
+  const { recaudado, cobros } = await recaudadoHoyDe(cobradorId, inicioDiaUYIso(hoy));
   const gastos = await getGastosCobradorHoy(db, cobradorId, hoy);
 
   let yaRendida: RendicionDia | null = null;

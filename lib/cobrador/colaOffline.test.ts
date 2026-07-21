@@ -7,6 +7,8 @@ import {
   encolar,
   quitar,
   marcarIntento,
+  marcarAtascada,
+  opAtascada,
   pendientes,
   hidratar,
   suscribir,
@@ -76,6 +78,14 @@ describe("colaOffline", () => {
     const resto = pendientes()[0];
     marcarIntento(resto.id);
     expect(pendientes()[0].intentos).toBe(1);
+  });
+
+  it("marcarAtascada deja la op ATASCADA de inmediato (error permanente → destraba el cierre, deuda #1)", () => {
+    const a = encolar({ ...opBase });
+    expect(opAtascada(pendientes()[0])).toBe(false);
+    marcarAtascada(a.id);
+    // Sin acumular 6 reintentos (que un error permanente no dispara solo): atascada ya.
+    expect(opAtascada(pendientes()[0])).toBe(true);
   });
 
   it("avisa a los suscriptores al cambiar la cola", () => {

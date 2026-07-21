@@ -12,6 +12,8 @@ import { traerTodo } from "./paginado";
 import { getActivosConPagos } from "./activos";
 import { alcanceDelActor, type Alcance } from "./alcance";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
+import { cuotaObjetivoHoy } from "./ruta";
+import { plazoVencido } from "@/lib/cartones";
 
 /** Efectivo por cobrador que dispara alerta de rendición (hasta tener módulo de caja). */
 const LIMITE_FLOAT = 15000;
@@ -72,6 +74,7 @@ export async function getControlCobranza(
   alcancePre?: Alcance,
 ): Promise<ControlCobranza> {
   const desde = inicioDiaUYIso(hoy);
+  const hoyMid = hoyUY(hoy); // medianoche UY, igual que ruta.ts (frecuencia/vencidos)
 
   // A ESCALA: los créditos activos (con cliente/gps/cobrador embebidos) vienen de
   // la RPC `app_cartera_activa` (una fila por crédito). El cobrador de cada
@@ -145,26 +148,59 @@ export async function getControlCobranza(
   };
   for (const c of cobradores) init(c.id);
 
-  // Esperado = suma de cuotas de clientes asignados con préstamo activo.
+  // Acota a los pagos de créditos DENTRO del alcance (activos ya scopeado). Para el
+  // admin no cambia; para el supervisor descarta pagos de otras zonas que el RLS
+  // pudiera dejar pasar. Se computa ANTES del esperado para descontar lo pagado hoy.
+  const pagosScoped = alcance.global
+    ? pagosRaw
+    : pagosRaw.filter((p) => prestamoPorId.has(p.prestamo_id as string));
+  // Lo pagado HOY por crédito: el objetivo frecuencia-aware resta el cobro de hoy
+  // (el trigger 0063 ya lo sumó a `pagado`) para no doble-descontarlo, igual que ruta.ts.
+  const pagadoHoyPorCredito = new Map<string, number>();
+  for (const p of pagosScoped) {
+    const id = p.prestamo_id as string;
+    pagadoHoyPorCredito.set(id, (pagadoHoyPorCredito.get(id) ?? 0) + Number(p.monto));
+  }
+
+  // "asignados" = clientes con crédito activo por cobrador (un cliente con varios
+  // créditos se cuenta UNA vez). Para el conteo de pendientes.
   for (const [clienteId, cobradorId] of cobradorDeCliente) {
-    const pr = prestamoPorCliente.get(clienteId);
-    if (!pr) continue;
-    const a = init(cobradorId);
-    a.esperado += pr.cuota;
-    a.asignados += 1;
+    if (!prestamoPorCliente.has(clienteId)) continue;
+    init(cobradorId).asignados += 1;
+  }
+
+  // ESPERADO del día = suma de la cuota-OBJETIVO de HOY por crédito activo EN TÉRMINO
+  // (frecuencia-aware, excluye la cartera vencida) — la MISMA verdad que ve el cobrador
+  // en su ruta (ruta.ts: cuotaObjetivoHoy + exclusión de plazo vencido). Antes sumaba
+  // cuota_diaria CRUDA de TODOS los activos (incluidos no-diarios que no deben cuota hoy
+  // y créditos de plazo vencido): inflaba el esperado y disparaba falsas alertas
+  // "Necesitan atención" / meta inflada que NO coincidían con la app del cobrador.
+  for (const p of activos) {
+    if (!p.cobrador_id) continue;
+    const credCalc = {
+      cuota_diaria: Number(p.cuota_diaria),
+      total_dias: Number(p.total_dias),
+      fecha_inicio: p.fecha_inicio,
+      frecuencia: p.frecuencia,
+    };
+    if (plazoVencido(credCalc, hoyMid)) continue; // cartera vencida → fuera del target del día
+    const pagadoHoy = pagadoHoyPorCredito.get(p.id) ?? 0;
+    init(p.cobrador_id).esperado += cuotaObjetivoHoy(
+      {
+        cuota: Number(p.cuota_diaria),
+        totalDias: Number(p.total_dias),
+        fechaInicio: p.fecha_inicio,
+        frecuencia: p.frecuencia,
+        pagadoAcum: Number(p.pagado) - pagadoHoy,
+      },
+      hoyMid,
+    );
   }
 
   const alertas: AlertaControl[] = [];
   const puntos: PuntoCobro[] = [];
   let recaudadoHoy = 0;
   let fueraZona = 0;
-
-  // Acota a los pagos de créditos DENTRO del alcance (activos ya scopeado). Para
-  // el admin no cambia (tiene todos los activos); para el supervisor descarta
-  // pagos de otras zonas que el RLS pudiera dejar pasar.
-  const pagosScoped = alcance.global
-    ? pagosRaw
-    : pagosRaw.filter((p) => prestamoPorId.has(p.prestamo_id as string));
 
   for (const p of pagosScoped) {
     const monto = Number(p.monto);
@@ -246,7 +282,7 @@ export async function getControlCobranza(
         cobradorId: c.id,
         nombre: c.nombre,
         recaudado: a.recaudado,
-        esperado: a.esperado,
+        esperado: Math.round(a.esperado),
         cobrados,
         pendientes: Math.max(0, a.asignados - cobrados - a.noPagos),
         anomalias: a.anomalias,

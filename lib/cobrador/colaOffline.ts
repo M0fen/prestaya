@@ -199,6 +199,17 @@ export function marcarIntento(id: string): void {
   guardar(leer().map((o) => (o.id === id ? { ...o, intentos: o.intentos + 1 } : o)));
 }
 
+/** Marca una op como ATASCADA de INMEDIATO (intentos = MAX). Se usa ante un error
+ *  PERMANENTE (crédito finalizado/saldado/reasignado, datos inválidos): reintentar
+ *  daría el MISMO error, así que no tiene sentido esperar a acumular MAX_INTENTOS_SYNC
+ *  reintentos —que un error permanente NO dispara solo (no cambia `ops.length` → el
+ *  auto-flush no re-corre)—, lo que dejaba al cobrador TRABADO: la op bloqueaba el
+ *  cierre (sigue "pendiente", intentos<MAX) pero nunca aparecía en "Descartar". Con
+ *  esto pasa directo a atascada → no bloquea + se puede descartar/re-registrar. */
+export function marcarAtascada(id: string): void {
+  guardar(leer().map((o) => (o.id === id ? { ...o, intentos: MAX_INTENTOS_SYNC } : o)));
+}
+
 // ── Confirmación con gracia ────────────────────────────────────────────────
 //  Cuando una op se sincroniza OK se saca de la cola, pero avisamos a los
 //  suscriptores (con la op) para que la UI optimista (p. ej. el cartón) la siga

@@ -72,4 +72,21 @@ describe("calcularAlertaMora", () => {
     expect(r.senales.rachaAtraso).toBe(0);
     expect(r.nivel).toBe("sano");
   });
+
+  it("crédito NO-DIARIO al día NO se marca en riesgo por recencia (deuda #5)", () => {
+    // Semanal, cuota 1000, inicio 12-may. Cuotas: 12may,19may,26may,02jun,09jun(=5),
+    // 16jun(=6, futura). Al 15-jun pagó las 5 exigibles EN FECHA (última 09-jun) → AL DÍA,
+    // pero pasaron ~6 días desde el pago (normal en semanal). Antes: recencia por días
+    // calendario (6/7) lo marcaba 'medio'; ahora, al estar al día, no puntúa recencia.
+    const hoy = new Date(2026, 5, 15); // 15 jun 2026 (entre la cuota 5 y la 6)
+    const r = calcularAlertaMora({
+      prestamo: { cuota_diaria: 1000, total_dias: 8, fecha_inicio: "2026-05-12", frecuencia: "semanal" },
+      pagos: pagosDias(rango(5)),
+      hoy,
+    });
+    expect(r.senales.deudaVencida).toBe(0);
+    expect(r.senales.atrasosTotales).toBe(0);
+    expect(r.senales.diasSinPagar).toBeGreaterThanOrEqual(5);
+    expect(r.nivel).toBe("sano");
+  });
 });

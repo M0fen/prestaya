@@ -139,7 +139,7 @@ export default async function CierrePage() {
               tono="rojo"
               titulo={`${mora.resumen.critico} crédito${mora.resumen.critico === 1 ? "" : "s"} en mora crítica`}
               href="/admin/mora"
-              nota="Mora crítica = 16+ días de atraso: el capital MÁS en riesgo. Tocá para ver la lista priorizada y disparar la cobranza."
+              nota="Riesgo crítico = el puntaje de mora más alto (a quién visitar hoy): el capital MÁS en riesgo. Tocá para ver la lista priorizada y disparar la cobranza."
             >
               {`${mora.resumen.alto} en alerta alta · deuda vencida en TODA la cartera en riesgo (crítico+alto+medio): ${UYU(mora.resumen.deudaEnRiesgo)}`}
             </Alerta>

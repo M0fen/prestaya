@@ -47,6 +47,7 @@ function fakeDb(state: {
   prestamos: Record<string, Record<string, unknown>>;
   pagos: Record<string, Record<string, unknown>[]>;
   failInsert?: boolean;
+  insertCommitsButErrors?: boolean;
   finalizarTrasLeer?: boolean;
   nextInsertId?: string;
 }) {
@@ -95,11 +96,16 @@ function fakeDb(state: {
         return { data: snapshot, error: null };
       }
       if (op === "insert") {
-        if (state.failInsert) return { data: null, error: { message: "insert falló" } };
+        // failInsert puro: no crea nada (fallo real). insertCommitsButErrors: CREA la
+        // fila (commit ok) pero devuelve error → simula timeout/504 con respuesta perdida.
+        if (state.failInsert && !state.insertCommitsButErrors)
+          return { data: null, error: { message: "insert falló" } };
         const id = state.nextInsertId ?? "nuevo-1";
         const fila = { id, ...payload };
         state.prestamos[id] = fila;
         calls.inserts.push(fila);
+        if (state.insertCommitsButErrors)
+          return { data: null, error: { message: "commit ok, respuesta perdida" } };
         return { data: { id }, error: null };
       }
       return { data: null, error: null };
@@ -261,6 +267,27 @@ describe("crearRenovacion — carreras y fallos (money-critical)", () => {
     // Compensación: el anterior volvió a 'activo' y su finalizado_en se limpió.
     expect(state.prestamos["ant-1"].estado).toBe("activo");
     expect(state.prestamos["ant-1"].finalizado_en).toBeNull();
+  });
+
+  it("COMMIT-PERDIDO: el insert 'falla' pero el crédito YA se creó → OK, NO compensa, NO duplica", async () => {
+    // timeout/504: el INSERT commiteó (el crédito nuevo existe) pero la respuesta se
+    // perdió → alta.error truthy. Verificar-antes-de-compensar debe encontrar el nuevo
+    // y devolver ok SIN reactivar el anterior (si no → cliente con DOS activos = duplicado).
+    const state = {
+      prestamos: { "ant-1": prestamoAnterior() },
+      pagos: { "ant-1": PAGOS_SALDADO },
+      insertCommitsButErrors: true,
+      nextInsertId: "nuevo-commit",
+    };
+    const db = fakeDb(state);
+    const r = await crearRenovacion(db, ALTA_OK, HOY);
+
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.prestamoId).toBe("nuevo-commit");
+    // El anterior QUEDÓ finalizado (no se reactivó) → no hay duplicado de activos.
+    expect(state.prestamos["ant-1"].estado).toBe("finalizado");
+    // Existe exactamente el nuevo crédito activo (el que "se perdió").
+    expect(state.prestamos["nuevo-commit"].estado).toBe("activo");
   });
 });
 
