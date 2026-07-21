@@ -109,6 +109,48 @@ export function periodoKeyDe(periodo: Periodo, desde: string): string {
   return `${periodo}:${desde}`; // dia / semana usan el inicio del período
 }
 
+/**
+ * Rango de fechas [desde, hasta] (día UY "YYYY-MM-DD") que CUBRE una periodo_key
+ * canónica (dia/semana/mes/anio). Sirve para detectar SOLAPAMIENTO entre cadencias
+ * al liquidar comisiones: día ⊂ semana ⊂ mes ⊂ año comparten recaudo, y el candado
+ * unique(cobrador, periodo_key) solo frena la MISMA clave, no las que se cruzan.
+ * Pura y testeable. Devuelve null si la clave no es reconocible.
+ */
+export function rangoDePeriodoKey(key: string): { desde: string; hasta: string } | null {
+  const [tipo, valor] = (key ?? "").split(":");
+  if (!valor) return null;
+  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+  if (tipo === "dia") {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(valor)) return null;
+    return { desde: valor, hasta: valor };
+  }
+  if (tipo === "semana") {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(valor)) return null;
+    const fin = new Date(new Date(`${valor}T00:00:00Z`).getTime() + 6 * 86400000);
+    return { desde: valor, hasta: fmt(fin) }; // semana = 7 días desde el inicio
+  }
+  if (tipo === "mes") {
+    if (!/^\d{4}-\d{2}$/.test(valor)) return null;
+    const [y, m] = valor.split("-").map(Number);
+    const ultimo = new Date(Date.UTC(y, m, 0)).getUTCDate(); // último día del mes m (1-indexado)
+    return { desde: `${valor}-01`, hasta: `${valor}-${String(ultimo).padStart(2, "0")}` };
+  }
+  if (tipo === "anio") {
+    if (!/^\d{4}$/.test(valor)) return null;
+    return { desde: `${valor}-01-01`, hasta: `${valor}-12-31` };
+  }
+  return null;
+}
+
+/** ¿Se solapan dos rangos de fechas [desde,hasta] (strings YYYY-MM-DD, comparables
+ *  lexicográficamente)? Comparten al menos un día. */
+export function rangosSeSolapan(
+  a: { desde: string; hasta: string },
+  b: { desde: string; hasta: string },
+): boolean {
+  return a.desde <= b.hasta && b.desde <= a.hasta;
+}
+
 export interface ResumenComisiones {
   periodo: Periodo;
   etiqueta: string;

@@ -74,7 +74,11 @@ export function estadoHoyDe(
   cuota: number,
   esNoPago: boolean,
 ): EstadoHoy {
-  if (cuota > 0 && pagadoHoy >= cuota) return "pagado";
+  // Tolerancia sub-peso (espejo del cartón, cartones.ts): la cuota importada de
+  // Disapp puede ser fraccionaria (351,04) y el pago se asienta entero (351). Sin
+  // el −0,5 un cobro COMPLETO se vería "abono" y la ruta nunca mostraría "Ruta
+  // completa 🎉" ni cuadraría el arqueo del cobrador.
+  if (cuota > 0 && pagadoHoy >= cuota - 0.5) return "pagado";
   if (pagadoHoy > 0) return "abono"; // pagó algo pero no cubrió la cuota
   if (esNoPago) return "no_pago";
   return "pendiente";

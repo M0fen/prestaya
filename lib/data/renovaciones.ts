@@ -199,7 +199,12 @@ export async function crearRenovacion(
 
   const pagos = await getPagosDePrestamo(db, ant.id);
   const r = calcularEstadosCarton(ant, pagos, hoyUY(hoy));
-  if (r.falta > 0)
+  // Alinear con el LIBRO ENTERO: una cuota importada fraccionaria (351,04) pagada
+  // completa deja un residuo de centavos (falta ∈ (0, 0.5)) que es INCOBRABLE
+  // (registrarPago redondea → el resto no se puede cobrar). El cartón ya lo da por
+  // saldado (tolerancia −0,5); sin esto la renovación quedaría bloqueada para
+  // siempre. Un residuo ≥ 0,5 sí es cobrable → sigue exigiendo saldarlo antes.
+  if (Math.round(r.falta) > 0)
     return { ok: false, error: "El crédito actual todavía no está saldado." };
 
   // La cuota arrastra la tasa del crédito anterior (mismo cálculo que el form).

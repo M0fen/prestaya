@@ -9,7 +9,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { reportarError } from "@/lib/observabilidad";
 import { getUsuarioActual, esAdmin } from "@/lib/auth";
-import { setComisionPctDb, getComisionesPeriodo } from "@/lib/data/comisiones";
+import { setComisionPctDb, getComisionesPeriodo, rangoDePeriodoKey, rangosSeSolapan } from "@/lib/data/comisiones";
 import type { Periodo } from "@/lib/data/periodo";
 import { registrarMovimientoCaja } from "@/lib/data/caja";
 import { registrarAuditoria } from "@/lib/data/auditoria";
@@ -81,6 +81,29 @@ export async function liquidarComision(input: {
   const nombre = fila.nombre;
   const periodoKey = resumen.periodoKey; // canónico (no el string del cliente)
   const periodoLabel = resumen.etiqueta;
+
+  // GUARDIA ANTI-SOLAPAMIENTO (money-critical): el candado unique(cobrador, período)
+  // solo frena la MISMA clave. Como día ⊂ semana ⊂ mes ⊂ año comparten recaudo,
+  // liquidar 'dia:2026-07-10' y luego 'mes:2026-07' pagaría DOS VECES la comisión
+  // del día 10. Acá rechazamos si el cobrador YA tiene liquidado un período cuyo
+  // rango se cruza con el que se intenta (excluida la misma clave, que la maneja el
+  // unique de abajo con su propio mensaje).
+  const nuevoRango = { desde: resumen.desde, hasta: resumen.hasta };
+  const { data: yaLiquidadas, error: eYa } = await db
+    .from("comisiones_liquidadas")
+    .select("periodo_key")
+    .eq("cobrador_id", input.cobradorId);
+  if (eYa) return { ok: false, error: "No se pudo verificar. ¿Corriste la migración 0049?" };
+  for (const l of yaLiquidadas ?? []) {
+    const key = l.periodo_key as string;
+    if (key === periodoKey) continue; // misma clave → la maneja el candado unique
+    const r = rangoDePeriodoKey(key);
+    if (r && rangosSeSolapan(r, nuevoRango))
+      return {
+        ok: false,
+        error: "Ese recaudo ya se comisionó en otra cadencia (día/semana/mes/año). Elegí una sola.",
+      };
+  }
 
   // CANDADO: registrar la liquidación ANTES de tocar la caja. El unique
   // (cobrador, período) hace que un segundo intento (doble clic / ya liquidado)

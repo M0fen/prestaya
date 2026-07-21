@@ -263,3 +263,31 @@ describe("crearRenovacion — carreras y fallos (money-critical)", () => {
     expect(state.prestamos["ant-1"].finalizado_en).toBeNull();
   });
 });
+
+describe("crearRenovacion — saldado con tolerancia sub-peso (crédito importado fraccionario)", () => {
+  // Cuota importada de Disapp fraccionaria; el libro es ENTERO (registrarPago
+  // redondea). Un residuo < 0,5 es INCOBRABLE y el cartón ya lo da por saldado:
+  // el gate de renovación debe alinearse (Math.round(falta) > 0), si no bloquea
+  // para siempre la renovación de clientes que pagaron todo.
+  it("residuo < 0,5 (incobrable) cuenta como SALDADO → deja renovar", async () => {
+    // cuota 100,02 × 10 = 1000,2 a pagar; pagó 1000 (10 cuotas enteras) → falta 0,2.
+    const state = {
+      prestamos: { "ant-1": prestamoAnterior({ monto_prestado: 1000, cuota_diaria: 100.02, total_dias: 10 }) },
+      pagos: { "ant-1": [{ id: "p1", prestamo_id: "ant-1", dia_credito: 1, monto: 1000, anulado: false }] },
+      nextInsertId: "nuevo-frac",
+    };
+    const r = await crearRenovacion(fakeDb(state), ALTA_OK, HOY);
+    expect(r.ok).toBe(true);
+  });
+
+  it("residuo ≥ 0,5 (todavía cobrable) sigue bloqueando la renovación", async () => {
+    // cuota 100,6 × 10 = 1006 a pagar; pagó 1000 → falta 6 (cobrable) → NO saldado.
+    const state = {
+      prestamos: { "ant-1": prestamoAnterior({ monto_prestado: 1000, cuota_diaria: 100.6, total_dias: 10 }) },
+      pagos: { "ant-1": [{ id: "p1", prestamo_id: "ant-1", dia_credito: 1, monto: 1000, anulado: false }] },
+    };
+    const r = await crearRenovacion(fakeDb(state), ALTA_OK, HOY);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/no está saldado/i);
+  });
+});

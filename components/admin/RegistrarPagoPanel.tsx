@@ -13,10 +13,18 @@ const CANALES = [
 ];
 
 // Nonce de idempotencia con FALLBACK: crypto.randomUUID no existe en navegadores
-// viejos / contextos no seguros → sin esto, tocar "Registrar" lanzaría y no se
-// podría cobrar. El fallback igual es único para deduplicar el reintento.
-const nuevoNonce = (): string =>
-  globalThis.crypto?.randomUUID?.() ?? `pago-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+// viejos / contextos no seguros. El fallback debe ser un UUID VÁLIDO (36 chars) —
+// el servidor descarta un nonce con otro formato y cae al op_id determinista por
+// minuto, que con cuota fraccionaria podía tragarse un 2º pago legítimo del mismo
+// minuto. Un uuid v4 válido → cada envío distinto tiene su propio op_id.
+const nuevoNonce = (): string => {
+  const c = globalThis.crypto;
+  if (c?.randomUUID) return c.randomUUID();
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (ch) => {
+    const r = (Math.random() * 16) | 0;
+    return (ch === "x" ? r : (r & 0x3) | 0x8).toString(16);
+  });
+};
 
 export function RegistrarPagoPanel({
   clienteId,

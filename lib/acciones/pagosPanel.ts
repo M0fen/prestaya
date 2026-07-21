@@ -95,8 +95,14 @@ export async function registrarPagoPanel(input: {
     // Imputar al primer día no cubierto (FIFO), o a hoy, o al primer futuro.
     const pagos = await getPagosDePrestamo(db, prestamo.id);
     const r = calcularEstadosCarton(prestamo, pagos, hoyUY());
+    // Tolerancia sub-peso (espejo del cartón): con cuota fraccionaria (351,04) un
+    // día pagado COMPLETO queda en 351 (entero). Sin el −0,5 este día se re-elegiría
+    // como objetivo para siempre → un 2º pago del mismo minuto reusaría día/monto y
+    // colisionaría en el op_id determinista (23505 tratado como éxito) → una cuota
+    // pagada en efectivo no entraría al libro. Con el −0,5 el objetivo avanza al día
+    // siguiente (FIFO) → op_id distinto → el 2º pago se registra bien.
     const objetivo =
-      r.dias.find((d) => d.estado !== "futuro" && d.montoPagado < prestamo.cuota_diaria) ??
+      r.dias.find((d) => d.estado !== "futuro" && d.montoPagado < prestamo.cuota_diaria - 0.5) ??
       r.dias.find((d) => d.esHoy) ??
       r.dias.find((d) => d.estado === "futuro");
     const dia = objetivo?.dia ?? Math.max(1, r.diaActual);

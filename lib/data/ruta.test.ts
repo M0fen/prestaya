@@ -16,6 +16,14 @@ describe("estadoHoyDe — regla del cartón en la lista del cobrador", () => {
     expect(estadoHoyDe(40, 100, true)).toBe("abono");
   });
 
+  it("cuota FRACCIONARIA cobrada completa → pagado (tolerancia sub-peso, espejo del cartón)", () => {
+    // Cuota importada de Disapp 351,04; el pago se asienta entero (351). Sin la
+    // tolerancia −0,5 se veía "abono" y la ruta nunca mostraba "Ruta completa".
+    expect(estadoHoyDe(351, 351.04, false)).toBe("pagado");
+    // un abono real por debajo del margen sigue siendo abono (no lo enmascara)
+    expect(estadoHoyDe(350, 351.04, false)).toBe("abono");
+  });
+
   it("no pagó nada + visita no-pago → no_pago", () => {
     expect(estadoHoyDe(0, 100, true)).toBe("no_pago");
   });

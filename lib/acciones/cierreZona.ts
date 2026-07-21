@@ -8,6 +8,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
 import { getUsuarioActual, getActorActual } from "@/lib/auth";
 import { puedeVerZona } from "@/lib/permisos";
 import { registrarAuditoria } from "@/lib/data/auditoria";
@@ -34,6 +35,13 @@ export async function confirmarCierreZona(input: {
   const puede =
     actor.rol === "admin" || (actor.rol === "supervisor" && puedeVerZona(actor, input.zonaId));
   if (!puede) return { ok: false, error: "No podés cerrar esta zona." };
+
+  // Kill switch: el cierre de zona es una escritura de custodia de efectivo
+  // (registro autoritativo de handoff + unique por zona/día). Durante un freeze
+  // NO debe congelarse un cierre —quedaría bloqueado el resto del día por el
+  // unique, con totales de una ventana incierta—. Igual que cerrarJornada.
+  const bloqueo = await bloqueoSoloLectura();
+  if (bloqueo) return bloqueo;
 
   const db = await createSupabaseServer();
 

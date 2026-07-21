@@ -181,8 +181,17 @@ export function CerrarJornada({
           <button
             type="button"
             onClick={() => {
+              const nuevoGastos = gastosHoy + gastosPendientes;
+              // Si el cobrador aún NO tocó los campos, el `entregado` sigue en el
+              // prefijado bruto (recaudado − gastosHoy). Al declarar que ya gastó
+              // estos pendientes, su efectivo a entregar cae igual → bajamos ambos
+              // en espejo (como el prefijado de gastosHoy) para que CUADRE, no que
+              // quede un sobrante fantasma con un entregado sobre-declarado. Si ya
+              // escribió su efectivo real, NO lo pisamos (respeta su conteo físico;
+              // el campo sigue editable y la diferencia se ve en vivo).
+              if (!editado) setEntregado(String(Math.max(0, recaudado - nuevoGastos)));
               setEditado(true);
-              setGastos(String(gastosHoy + gastosPendientes));
+              setGastos(String(nuevoGastos));
             }}
             className="rounded-full border border-[#C7D2EC] bg-white px-3 py-1.5 text-[11.5px] font-bold text-azul active:scale-95"
           >
