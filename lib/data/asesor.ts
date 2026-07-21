@@ -115,6 +115,11 @@ export async function getResumenFinanciero(
     },
     recaudacion: { hoy: dash.recaudadoHoy, mes: dash.recaudadoMes },
     reportesNuevos: dash.reportesNuevos,
+    // ⚠️ DOS LENTES DISTINTAS A PROPÓSITO (no unificar — deuda #7): `monto`/`morosos`/
+    // `tramos` = mora CONTABLE con gracia (metricas.ts, cuotas enteras, KPI de plata y
+    // dona); `criticos`/`topRiesgo` = PRIORIDAD DE RIESGO ponderada por puntaje (alerta.ts,
+    // a quién visitar). Miden cosas diferentes y sus números NO coinciden — colapsarlos en
+    // una sola fuente cambiaría un número que el dueño ya reconcilió contra Disapp.
     mora: {
       monto: dash.montoEnMora,
       morosos: dash.morosos,

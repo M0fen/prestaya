@@ -12,7 +12,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { inicioDiaUYIso, hoyUY } from "@/lib/fecha";
 import { toIso } from "@/lib/format";
 import { traerTodo } from "./paginado";
-import { alcanceDelActor, type Alcance } from "./alcance";
+import { alcanceDelActor, prestamoIdsDelAlcance, type Alcance } from "./alcance";
 
 export interface RecaudoHoy {
   /** Fecha calendario de Uruguay (YYYY-MM-DD). */
@@ -45,26 +45,36 @@ export async function getRecaudoHoy(
   const desde = inicioDiaUYIso(hoy);
   const hasta = hoy.toISOString(); // "hoy hasta ahora" (igual que el resto del panel)
 
-  // Alcance: admin ve TODO; el supervisor solo lo que registraron SUS cobradores
-  // (así el total es consistente con su Cobranza acotada, no el global).
+  // Alcance por CRÉDITO (canónico, consistente con cartera/mora/dashboard — deuda #8):
+  // el supervisor cuenta los pagos sobre los créditos de SUS clientes, sin importar
+  // quién los registró (un pago de OFICINA/PANEL sobre un crédito de la zona SÍ cuenta,
+  // igual que en el Dashboard). Antes se filtraba por `registrado_por` → Cobranza quedaba
+  // por debajo del Dashboard para el supervisor. Admin (global) → sin filtro.
   const alcance = alcancePre ?? (await alcanceDelActor());
-  const soloCobradores = alcance.global ? null : alcance.cobradorIds;
+  const zonaCreditos = alcance.global ? null : await prestamoIdsDelAlcance(alcance);
+  if (zonaCreditos && zonaCreditos.size === 0) {
+    return {
+      fecha: toIso(hoyUY(hoy)),
+      total: 0, cobros: 0, cobradores: 0,
+      enRuta: 0, cobrosRuta: 0, enCerrados: 0, cobrosCerrados: 0,
+    };
+  }
 
   // Todos los pagos NO anulados de hoy (paginado, orden estable). Es el libro
   // inmutable: esto NO se estima, se suma tal cual quedó registrado en la calle.
-  const pagos =
-    soloCobradores && soloCobradores.length === 0
-      ? []
-      : await traerTodo<{ prestamo_id: string; monto: number; registrado_por: string | null }>((d, h) => {
-          let q = db
-            .from("pagos")
-            .select("prestamo_id, monto, registrado_por")
-            .eq("anulado", false)
-            .gte("registrado_en", desde)
-            .lte("registrado_en", hasta);
-          if (soloCobradores) q = q.in("registrado_por", soloCobradores);
-          return q.order("id", { ascending: true }).range(d, h);
-        });
+  // El scope por-crédito no se pone en la query (miles de ids → URL larga de PostgREST):
+  // se traen los pagos del día y se filtran por el set de la zona en memoria.
+  const pagosRaw = await traerTodo<{ prestamo_id: string; monto: number; registrado_por: string | null }>((d, h) =>
+    db
+      .from("pagos")
+      .select("prestamo_id, monto, registrado_por")
+      .eq("anulado", false)
+      .gte("registrado_en", desde)
+      .lte("registrado_en", hasta)
+      .order("id", { ascending: true })
+      .range(d, h),
+  );
+  const pagos = zonaCreditos ? pagosRaw.filter((p) => zonaCreditos.has(p.prestamo_id)) : pagosRaw;
 
   // Estado del crédito de cada pago (para partir ruta vs cerrados). Si el caller
   // nos pasó el set de créditos activos, clasificamos con él (0 consultas); si no,
