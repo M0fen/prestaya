@@ -27,6 +27,25 @@ describe("opIdDeterminista", () => {
   });
 });
 
+describe("esUuid — validador ÚNICO y estricto (no acepta basura)", () => {
+  it("acepta un UUID canónico (v4 del cliente, v5 determinista), case-insensitive", () => {
+    expect(esUuid("3f2504e0-4f89-41d3-9a0c-0305e82c3301")).toBe(true);
+    expect(esUuid("3F2504E0-4F89-41D3-9A0C-0305E82C3301")).toBe(true);
+    expect(esUuid(opIdDeterminista("gasto", "x"))).toBe(true);
+  });
+  it("RECHAZA la basura que colaba el regex laxo `[0-9a-fA-F-]{36}`", () => {
+    expect(esUuid("------------------------------------")).toBe(false); // 36 guiones
+    expect(esUuid("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")).toBe(false); // 36 hex sin estructura
+    expect(esUuid("3f2504e04f8941d39a0c0305e82c3301----")).toBe(false); // guiones mal ubicados
+  });
+  it("rechaza no-strings y largos incorrectos", () => {
+    expect(esUuid(null)).toBe(false);
+    expect(esUuid(undefined)).toBe(false);
+    expect(esUuid(12345)).toBe(false);
+    expect(esUuid("3f2504e0-4f89-41d3-9a0c-0305e82c33")).toBe(false); // corto
+  });
+});
+
 describe("esViolacionUnica", () => {
   it("reconoce el 23505 de Postgres (venga como venga de postgrest)", () => {
     expect(esViolacionUnica({ code: PG_UNIQUE_VIOLATION })).toBe(true);

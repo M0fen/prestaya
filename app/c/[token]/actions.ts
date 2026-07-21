@@ -35,6 +35,7 @@ import { calcularScore } from "@/lib/scoring";
 import { numeroValido } from "@/lib/quiniela";
 import { tokenValido } from "@/lib/validacion/esquemas";
 import { getProductoAdmin, crearSolicitudDb, contarSolicitudesRecientesCliente } from "@/lib/data/tienda";
+import { esUuid } from "@/lib/idempotencia";
 
 /** Azar del SERVIDOR (no del cliente) para decidir premios. Uniforme en [0,1). */
 function azarServidor(): number {
@@ -46,8 +47,6 @@ function azarServidor(): number {
     return Math.random();
   }
 }
-
-const ES_UUID_C = /^[0-9a-fA-F-]{36}$/;
 
 export type ResultadoReporte = { ok: true } | { ok: false; error: string };
 
@@ -62,7 +61,7 @@ export async function registrarInteres(input: {
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     if (!tokenValido(input.token)) return { ok: false, error: "Enlace no válido." };
-    if (!ES_UUID_C.test(input.productoId)) return { ok: false, error: "Producto inválido." };
+    if (!esUuid(input.productoId)) return { ok: false, error: "Producto inválido." };
     const db = createSupabaseAdmin();
     const cliente = await getClientePorToken(db, input.token);
     if (!cliente) return { ok: false, error: "Enlace no válido." };

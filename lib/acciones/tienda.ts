@@ -11,6 +11,7 @@ import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getUsuarioActual, esAdmin } from "@/lib/auth";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { hrefSeguro } from "@/lib/seguridad";
+import { esUuid } from "@/lib/idempotencia";
 import {
   crearProductoDb, actualizarProductoDb, setProductoActivoDb, borrarProductoDb,
   crearCategoriaDb, actualizarCategoriaDb, borrarCategoriaDb,
@@ -22,7 +23,6 @@ import {
 import type { Calificacion } from "@/types/db";
 
 type Resultado = { ok: true } | { ok: false; error: string };
-const ES_UUID = /^[0-9a-fA-F-]{36}$/;
 const FRECUENCIAS: FrecuenciaProducto[] = ["diario", "semanal", "quincenal", "mensual"];
 const ESTADOS: EstadoSolicitud[] = ["nueva", "contactado", "cerrada", "descartada"];
 const CALIFICACIONES: Calificacion[] = ["nuevo", "excelente", "bueno", "regular", "riesgo"];
@@ -63,7 +63,7 @@ function sanearProducto(raw: RawProducto): ProductoInput | null {
     nombre,
     marca: (raw.marca ?? "").trim().slice(0, 60) || null,
     descripcion: (raw.descripcion ?? "").trim().slice(0, 1000) || null,
-    categoriaId: raw.categoriaId && ES_UUID.test(raw.categoriaId) ? raw.categoriaId : null,
+    categoriaId: raw.categoriaId && esUuid(raw.categoriaId) ? raw.categoriaId : null,
     precio: Math.max(0, Math.round(Number(raw.precio) || 0)),
     precioAnterior: Math.max(0, Math.round(Number(raw.precioAnterior) || 0)),
     interesPct: Math.max(0, Math.min(999, Math.round((Number(raw.interesPct) || 0) * 100) / 100)),
@@ -101,7 +101,7 @@ export async function guardarProducto(raw: RawProducto): Promise<Resultado> {
 export async function alternarProducto(id: string, activo: boolean): Promise<Resultado> {
   const u = await soloAdmin();
   if (!u) return { ok: false, error: "No tenés permisos." };
-  if (!ES_UUID.test(id)) return { ok: false, error: "Producto inválido." };
+  if (!esUuid(id)) return { ok: false, error: "Producto inválido." };
   try {
     const db = await createSupabaseServer();
     await setProductoActivoDb(db, id, activo);
@@ -115,7 +115,7 @@ export async function alternarProducto(id: string, activo: boolean): Promise<Res
 export async function eliminarProducto(id: string): Promise<Resultado> {
   const u = await soloAdmin();
   if (!u) return { ok: false, error: "No tenés permisos." };
-  if (!ES_UUID.test(id)) return { ok: false, error: "Producto inválido." };
+  if (!esUuid(id)) return { ok: false, error: "Producto inválido." };
   try {
     const db = await createSupabaseServer();
     await borrarProductoDb(db, id);
@@ -147,7 +147,7 @@ export async function guardarCategoria(raw: { id?: string | null; nombre: string
 export async function eliminarCategoria(id: string): Promise<Resultado> {
   const u = await soloAdmin();
   if (!u) return { ok: false, error: "No tenés permisos." };
-  if (!ES_UUID.test(id)) return { ok: false, error: "Categoría inválida." };
+  if (!esUuid(id)) return { ok: false, error: "Categoría inválida." };
   try {
     const db = await createSupabaseServer();
     await borrarCategoriaDb(db, id); // productos.categoria_id → null (on delete set null)
@@ -164,7 +164,7 @@ export async function fijarPrecioCliente(raw: {
 }): Promise<Resultado> {
   const u = await soloAdmin();
   if (!u) return { ok: false, error: "No tenés permisos." };
-  if (!ES_UUID.test(raw.productoId) || !ES_UUID.test(raw.clienteId)) return { ok: false, error: "Datos inválidos." };
+  if (!esUuid(raw.productoId) || !esUuid(raw.clienteId)) return { ok: false, error: "Datos inválidos." };
   const precio = Math.max(0, Math.round(Number(raw.precio) || 0));
   if (!(precio > 0)) return { ok: false, error: "El precio debe ser mayor a 0." };
   try {
@@ -192,7 +192,7 @@ export async function preciosDeProducto(
 ): Promise<{ ok: true; precios: PrecioCliente[] } | { ok: false; error: string }> {
   const u = await soloAdmin();
   if (!u) return { ok: false, error: "No tenés permisos." };
-  if (!ES_UUID.test(productoId)) return { ok: false, error: "Producto inválido." };
+  if (!esUuid(productoId)) return { ok: false, error: "Producto inválido." };
   try {
     const db = await createSupabaseServer();
     return { ok: true, precios: await getPreciosDeProducto(db, productoId) };
@@ -204,7 +204,7 @@ export async function preciosDeProducto(
 export async function quitarPrecioCliente(id: string): Promise<Resultado> {
   const u = await soloAdmin();
   if (!u) return { ok: false, error: "No tenés permisos." };
-  if (!ES_UUID.test(id)) return { ok: false, error: "Registro inválido." };
+  if (!esUuid(id)) return { ok: false, error: "Registro inválido." };
   try {
     const db = await createSupabaseServer();
     await borrarPrecioClienteDb(db, id);
@@ -223,14 +223,14 @@ export async function fijarPrecioSegmento(raw: {
 }): Promise<Resultado> {
   const u = await soloAdmin();
   if (!u) return { ok: false, error: "No tenés permisos." };
-  if (!ES_UUID.test(raw.productoId)) return { ok: false, error: "Producto inválido." };
+  if (!esUuid(raw.productoId)) return { ok: false, error: "Producto inválido." };
   if (!TIPOS_SEG.includes(raw.tipo as TipoSegmento)) return { ok: false, error: "Tipo de segmento inválido." };
   const tipo = raw.tipo as TipoSegmento;
   // El `valor` debe ser coherente con el tipo: una calificación válida, o un uuid de zona.
   const valor = (raw.valor ?? "").trim();
   if (tipo === "calificacion" && !CALIFICACIONES.includes(valor as Calificacion))
     return { ok: false, error: "Calificación inválida." };
-  if (tipo === "zona" && !ES_UUID.test(valor)) return { ok: false, error: "Zona inválida." };
+  if (tipo === "zona" && !esUuid(valor)) return { ok: false, error: "Zona inválida." };
   const precio = Math.max(0, Math.round(Number(raw.precio) || 0));
   if (!(precio > 0)) return { ok: false, error: "El precio debe ser mayor a 0." };
   try {
@@ -258,7 +258,7 @@ export async function segmentosDeProducto(
 ): Promise<{ ok: true; segmentos: PrecioSegmento[] } | { ok: false; error: string }> {
   const u = await soloAdmin();
   if (!u) return { ok: false, error: "No tenés permisos." };
-  if (!ES_UUID.test(productoId)) return { ok: false, error: "Producto inválido." };
+  if (!esUuid(productoId)) return { ok: false, error: "Producto inválido." };
   try {
     const db = await createSupabaseServer();
     return { ok: true, segmentos: await getSegmentosDeProducto(db, productoId) };
@@ -270,7 +270,7 @@ export async function segmentosDeProducto(
 export async function quitarPrecioSegmento(id: string): Promise<Resultado> {
   const u = await soloAdmin();
   if (!u) return { ok: false, error: "No tenés permisos." };
-  if (!ES_UUID.test(id)) return { ok: false, error: "Registro inválido." };
+  if (!esUuid(id)) return { ok: false, error: "Registro inválido." };
   try {
     const db = await createSupabaseServer();
     await borrarPrecioSegmentoDb(db, id);
@@ -285,7 +285,7 @@ export async function quitarPrecioSegmento(id: string): Promise<Resultado> {
 export async function resolverSolicitud(id: string, estado: string, nota?: string | null): Promise<Resultado> {
   const u = await getUsuarioActual();
   if (!u || !u.activo || (u.rol !== "admin" && u.rol !== "supervisor")) return { ok: false, error: "No tenés permisos." };
-  if (!ES_UUID.test(id) || !ESTADOS.includes(estado as EstadoSolicitud)) return { ok: false, error: "Datos inválidos." };
+  if (!esUuid(id) || !ESTADOS.includes(estado as EstadoSolicitud)) return { ok: false, error: "Datos inválidos." };
   try {
     const db = await createSupabaseServer();
     await resolverSolicitudDb(db, id, estado as EstadoSolicitud, u.id, (nota ?? "").trim().slice(0, 200) || null);

@@ -14,8 +14,8 @@
 //     cobrador). Monto redondeado a entero (nunca float para dinero).
 //   · Queda en AUDITORÍA (quién, canal, cuánto, a quién).
 // ─────────────────────────────────────────────────────────────────────────
-import { createHash } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { opIdDeterminista, esUuid } from "@/lib/idempotencia";
 import { requireGestor } from "@/lib/auth";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { alcanceDelActor } from "@/lib/data/alcance";
@@ -38,18 +38,11 @@ export type ResultadoPagoPanel =
   | { ok: true; dia: number; monto: number }
   | { ok: false; error: string };
 
-/** op_id DETERMINISTA (uuid v5-like) para idempotencia del pago de panel: dos
- *  registros del MISMO pago (préstamo+día+monto+canal) dentro del mismo MINUTO
- *  colisionan en el índice único `uniq_pagos_op` (0006) → no se duplica la plata
- *  ante doble-submit, retry tras timeout percibido, o dos gestores en paralelo.
- *  Un segundo pago legítimo cae en OTRO día (FIFO) → distinto op_id → se permite. */
-function opIdDeterminista(...partes: (string | number)[]): string {
-  const b = createHash("sha1").update(partes.join("|")).digest().subarray(0, 16);
-  b[6] = (b[6] & 0x0f) | 0x50; // versión 5
-  b[8] = (b[8] & 0x3f) | 0x80; // variante RFC 4122
-  const x = b.toString("hex");
-  return `${x.slice(0, 8)}-${x.slice(8, 12)}-${x.slice(12, 16)}-${x.slice(16, 20)}-${x.slice(20, 32)}`;
-}
+// op_id DETERMINISTA (uuid v5-like) para idempotencia del pago de panel: dos
+// registros del MISMO pago (préstamo+día+monto+canal) dentro del mismo MINUTO
+// colisionan en el índice único `uniq_pagos_op` (0006) → no se duplica la plata.
+// Un 2º pago legítimo cae en OTRO día (FIFO) → distinto op_id → se permite. Se usa
+// el núcleo compartido `opIdDeterminista` (antes había una copia local — deuda #13).
 
 export async function registrarPagoPanel(input: {
   clienteId: string;
@@ -66,7 +59,7 @@ export async function registrarPagoPanel(input: {
   const usuario = await requireGestor();
 
   const clienteId = String(input.clienteId ?? "");
-  if (!/^[0-9a-fA-F-]{36}$/.test(clienteId)) return { ok: false, error: "Cliente inválido." };
+  if (!esUuid(clienteId)) return { ok: false, error: "Cliente inválido." };
   const canalLabel = CANALES_PAGO[input.canal ?? "efectivo"] ?? CANALES_PAGO.efectivo;
   const montoPedido =
     input.monto == null ? null : Number.isFinite(input.monto) ? Math.round(input.monto) : NaN;
@@ -118,7 +111,7 @@ export async function registrarPagoPanel(input: {
     // Idempotencia: nonce del cliente (estable por-envío) si vino y es un uuid
     // válido; si no, fallback al hash determinista por minuto. El nonce cierra el
     // borde del minuto y NO descarta un 2º pago idéntico legítimo (nonce nuevo).
-    const nonceOk = typeof input.idempotencyKey === "string" && /^[0-9a-fA-F-]{36}$/.test(input.idempotencyKey);
+    const nonceOk = esUuid(input.idempotencyKey);
     const opId = nonceOk
       ? (input.idempotencyKey as string)
       : opIdDeterminista(prestamo.id, dia, monto, input.canal ?? "efectivo", Math.floor(Date.now() / 60000));

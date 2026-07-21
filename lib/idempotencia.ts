@@ -19,9 +19,12 @@ export function esViolacionUnica(e: unknown): boolean {
   return (e as { code?: string } | null)?.code === PG_UNIQUE_VIOLATION;
 }
 
-/** ¿Es un uuid con formato válido (para aceptar un nonce del cliente)? */
+/** Validador ÚNICO de UUID (formato canónico 8-4-4-4-12). Estricto a propósito:
+ *  el `/^[0-9a-fA-F-]{36}$/` anterior aceptaba basura (36 guiones, hex sin estructura).
+ *  Se usa para IDs de entidad y para aceptar el nonce del cliente. Case-insensitive. */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export function esUuid(s: unknown): s is string {
-  return typeof s === "string" && /^[0-9a-fA-F-]{36}$/.test(s);
+  return typeof s === "string" && UUID_RE.test(s);
 }
 
 /**
