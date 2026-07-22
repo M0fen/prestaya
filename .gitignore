@@ -17,6 +17,7 @@ backups-demo/
 
 # Log reversible de consolidación de asignaciones (artefacto local)
 scripts/_consolidacion_revert_*.json
+scripts/_import_zc_revert_*.json
 
 # Exports de Disapp (datos, no van al repo) + reportes de mutation testing
 creditos_*.xlsx
