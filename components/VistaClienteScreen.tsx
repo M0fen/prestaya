@@ -80,7 +80,7 @@ export function VistaClienteScreen({
   const hayNovedades = Boolean(temporada || estrellas || juegoArcade);
   return (
     <div className="flex min-h-screen justify-center bg-fondo text-tinta">
-      <div className="flex w-full max-w-[440px] flex-col gap-3 bg-app px-[18px] pt-4 pb-8 shadow-[0_0_60px_rgba(15,27,61,0.08)]">
+      <div className="flex w-full max-w-[440px] flex-col gap-2.5 bg-app px-[18px] pt-3.5 pb-6 shadow-[0_0_60px_rgba(15,27,61,0.08)]">
         <Header inicial={v.inicial} />
         <Saludo nombre={v.nombre} />
 
@@ -96,6 +96,25 @@ export function VistaClienteScreen({
         {/* Banner de bienvenida/novedades del prestamista: ARRIBA DE TODO, de lo
             PRIMERO que ve el cliente (rota solo si hay varios). Esa es la gracia. */}
         <BannerCarrusel anuncios={anuncios} />
+
+        {/* TIENDA a PRIMER VISTAZO (comercial): banner del producto destacado (si
+            el admin lo marcó) + entrada al catálogo, arriba de todo. Solo vista real. */}
+        {productoDestacado && token && (
+          <TiendaBanner producto={productoDestacado} token={token} />
+        )}
+        {hayTienda && token && (
+          <Link
+            href={`/c/${token}/tienda`}
+            className="flex items-center gap-3 rounded-[18px] bg-[linear-gradient(135deg,#2453DC,#13308C)] px-4 py-3.5 text-white shadow-[0_8px_22px_rgba(19,48,140,0.24)] active:scale-[0.99]"
+          >
+            <span className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-white/15 text-[24px]">🛍️</span>
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="text-[15.5px] font-extrabold leading-tight">Ir a la tienda</span>
+              <span className="text-[12.5px] font-medium text-white/85">Electrodomésticos y más, en cuotas cómodas</span>
+            </span>
+            <span className="text-[20px] font-black">›</span>
+          </Link>
+        )}
 
         {reputacion && (
           <Reputacion
@@ -155,25 +174,6 @@ export function VistaClienteScreen({
 
         {/* Historial de pagos (con % de la cuota cubierto + descuento). */}
         <Historial historial={v.historial} />
-
-        {/* TIENDA: banner del producto destacado (si el admin lo marcó) + botón de
-            entrada al catálogo. Como una extensión de Presta Ya. Solo con token. */}
-        {productoDestacado && token && (
-          <TiendaBanner producto={productoDestacado} token={token} />
-        )}
-        {hayTienda && token && (
-          <Link
-            href={`/c/${token}/tienda`}
-            className="flex items-center gap-3 rounded-[18px] bg-[linear-gradient(135deg,#2453DC,#13308C)] px-4 py-3.5 text-white shadow-[0_8px_22px_rgba(19,48,140,0.24)] active:scale-[0.99]"
-          >
-            <span className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-white/15 text-[24px]">🛍️</span>
-            <span className="flex min-w-0 flex-1 flex-col">
-              <span className="text-[15.5px] font-extrabold leading-tight">Ir a la tienda</span>
-              <span className="text-[12.5px] font-medium text-white/85">Electrodomésticos y más, en cuotas cómodas</span>
-            </span>
-            <span className="text-[20px] font-black">›</span>
-          </Link>
-        )}
 
         {/* ── NOVEDADES: TODO lo promocional/lúdico agrupado, DESPUÉS del dinero ── */}
         {MOSTRAR_JUEGOS && hayNovedades && (
