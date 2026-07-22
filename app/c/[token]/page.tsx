@@ -8,8 +8,10 @@
 // ─────────────────────────────────────────────────────────────────────────
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { after } from "next/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getClientePorToken } from "@/lib/data/clientes";
+import { marcarAccesoVisto } from "@/lib/data/acceso";
 import {
   getPrestamosActivosPorCliente,
   contarCreditosPagados,
@@ -60,6 +62,12 @@ export default async function VistaPorToken({
   //    alarma), en vez de dejar al adulto mayor mirando el spinner sin fin.
   const cliente = await conTimeout(getClientePorToken(db, token), TOPE_MS, "cliente.token");
   if (!cliente) notFound();
+
+  // 1b) ALTA: sella la PRIMERA vez que el cliente abre su cartón — la única
+  //     prueba real de que el link llegó (el cobrador ve "ya usa la app"). Un
+  //     solo UPDATE en la vida del cliente y va DESPUÉS de responder (`after`):
+  //     no le agrega ni un ms a la carga del cartón, y nunca la rompe.
+  if (!cliente.acceso_visto_en) after(() => marcarAccesoVisto(db, cliente.id));
 
   // 2) Créditos activos del cliente (desde 0037 pueden ser varios). Se muestra
   //    el elegido (?credito=) o el principal; con un selector si hay más de uno.

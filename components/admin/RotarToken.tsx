@@ -2,6 +2,7 @@
 // Link de acceso del cliente + botón "Regenerar" (SOLO admin). Al rotar, el
 // link anterior deja de servir. Muestra la URL para copiar/compartir.
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { rotarTokenAction } from "@/lib/acciones/token";
 
 export function RotarToken({ clienteId, token }: { clienteId: string; token: string }) {
@@ -9,6 +10,7 @@ export function RotarToken({ clienteId, token }: { clienteId: string; token: str
   const [copiado, setCopiado] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const router = useRouter();
 
   const url = typeof window !== "undefined" ? `${window.location.origin}/c/${actual}` : `/c/${actual}`;
 
@@ -27,8 +29,12 @@ export function RotarToken({ clienteId, token }: { clienteId: string; token: str
     setError(null);
     startTransition(async () => {
       const r = await rotarTokenAction(clienteId);
-      if (r.ok) setActual(r.token);
-      else setError(r.error);
+      if (r.ok) {
+        setActual(r.token);
+        // El QR de abajo se arma en el servidor con el token: hay que
+        // re-renderizar la página o quedaría mostrando el link viejo.
+        router.refresh();
+      } else setError(r.error);
     });
   }
 

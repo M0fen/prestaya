@@ -87,6 +87,13 @@ export interface Cliente {
   /** Número de registro correlativo (0081). Sus últimos 3 dígitos son el número
    *  de la suerte de la quiniela. null si la migración aún no corrió. */
   numero_registro: number | null;
+  // ── Alta en la app (0084) ──────────────────────────────────────────────
+  /** Cuándo el cobrador le compartió su link/QR. Lo declara el cobrador. */
+  acceso_entregado_en: string | null;
+  /** Quién se lo entregó (usuarios.id). */
+  acceso_entregado_por: string | null;
+  /** Primera vez que el CLIENTE abrió su cartón: la prueba real del alta. */
+  acceso_visto_en: string | null;
   creado_en: string;
   actualizado_en: string;
 }

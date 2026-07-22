@@ -13,6 +13,8 @@ import { AnularPago } from "@/components/admin/AnularPago";
 import { RegistrarPagoPanel } from "@/components/admin/RegistrarPagoPanel";
 import { ReasignarCliente, type CobradorOpcion } from "@/components/admin/ReasignarCliente";
 import { RotarToken } from "@/components/admin/RotarToken";
+import { AccesoQrCliente } from "@/components/admin/AccesoQrCliente";
+import { urlCartonCliente } from "@/lib/urlApp";
 import { ToggleReportado } from "@/components/admin/ToggleReportado";
 import { FotoClienteAdmin } from "@/components/admin/FotoClienteAdmin";
 import { urlFirmadaFoto } from "@/lib/data/fotos";
@@ -208,6 +210,14 @@ export default async function FichaClientePage({
 
       {/* Link de acceso del cliente + regenerar (solo admin) */}
       {puedeAnular && <RotarToken clienteId={id} token={cliente.token_acceso} />}
+
+      {/* El MISMO QR que entrega el cobrador + estado del alta del cliente. */}
+      <AccesoQrCliente
+        nombre={cliente.nombre}
+        url={await urlCartonCliente(cliente.token_acceso)}
+        acceso={cliente}
+      />
+
 
       {/* Evolución del score en el tiempo (derivada, mensual) */}
       <ScoreEvolucion serie={evolucion} />

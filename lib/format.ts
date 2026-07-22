@@ -52,6 +52,23 @@ export const horaDe = (iso: string): string => {
   }
 };
 
+/** Sello corto en hora de Uruguay: "22/07 · 14:05". Para constancias livianas
+ *  (entrega del link, primera visita del cliente). "" si la fecha es inválida. */
+export const fechaHoraUY = (iso: string | null | undefined): string => {
+  if (!iso) return "";
+  try {
+    const f = new Intl.DateTimeFormat("es-UY", {
+      timeZone: "America/Montevideo",
+      day: "2-digit",
+      month: "2-digit",
+    }).format(new Date(iso));
+    const h = horaDe(iso);
+    return h ? `${f} · ${h}` : f;
+  } catch {
+    return "";
+  }
+};
+
 /** Días de la semana en español, indexados por Date.getDay() (0 = domingo). */
 export const diasSemana = [
   "domingo",

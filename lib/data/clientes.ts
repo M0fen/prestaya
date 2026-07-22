@@ -46,6 +46,10 @@ export function mapCliente(r: Record<string, unknown>): Cliente {
     foto_path: (r.foto_path as string | null | undefined) ?? null,
     // Defensivo: si 0081 aún no corrió, viene undefined → null.
     numero_registro: r.numero_registro == null ? null : Number(r.numero_registro),
+    // Alta en la app (0084); defensivo si aún no corrió la migración.
+    acceso_entregado_en: (r.acceso_entregado_en as string | null | undefined) ?? null,
+    acceso_entregado_por: (r.acceso_entregado_por as string | null | undefined) ?? null,
+    acceso_visto_en: (r.acceso_visto_en as string | null | undefined) ?? null,
     creado_en: r.creado_en as string,
     actualizado_en: r.actualizado_en as string,
   };

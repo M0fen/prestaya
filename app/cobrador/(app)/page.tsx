@@ -115,6 +115,12 @@ export default async function RutaPage() {
     .filter((s) => s.estado === "pendiente")
     .reduce((acc, s) => acc + s.monto, 0);
 
+  // Altas: clientes de la ruta que todavía NO recibieron el link de su cartón.
+  // Sale de `items` (ya cargados) → sin query extra en la pantalla de la calle.
+  const sinAlta = items.filter(
+    (i) => !i.cliente.acceso_visto_en && !i.cliente.acceso_entregado_en,
+  ).length;
+
   return (
     <div className="flex flex-col gap-4">
       {/* Saludo personalizado (nombre + zona + fecha). */}
@@ -190,6 +196,32 @@ export default async function RutaPage() {
           </div>
         )}
       </section>
+
+      {/* Campaña de ALTAS: aparece solo mientras queden clientes sin su cartón,
+          y desaparece sola cuando están todos entregados. */}
+      {sinAlta > 0 && (
+        <Link
+          href="/cobrador/altas"
+          className="flex items-center gap-3 rounded-[14px] border border-[#DCE6FB] bg-white px-3.5 py-3 shadow-[0_1px_3px_rgba(26,34,71,0.05)] active:scale-[0.99]"
+        >
+          <span aria-hidden="true" className="text-[20px]">
+            📱
+          </span>
+          <div className="flex min-w-0 flex-1 flex-col">
+            <span className="text-[13px] font-extrabold text-tinta">
+              {sinAlta === 1
+                ? "1 cliente todavía no tiene su cartón"
+                : `${sinAlta} clientes todavía no tienen su cartón`}
+            </span>
+            <span className="text-[11.5px] font-medium text-gris">
+              Mostrales el código QR y lo ven en su teléfono
+            </span>
+          </div>
+          <span className="flex-shrink-0 rounded-full bg-[#1E47C8] px-3 py-1.5 text-[12px] font-bold text-white">
+            Ver
+          </span>
+        </Link>
+      )}
 
       <div className="flex items-center justify-between px-0.5">
         <div className="flex flex-col">

@@ -21,6 +21,7 @@ const SECCIONES: { pre: string; label: string }[] = [
   { pre: "/cobrador/cliente", label: "Ficha de cliente (cobrador)" },
   { pre: "/cobrador/mis-numeros", label: "Mis números (cobrador)" },
   { pre: "/cobrador/censar", label: "Censar cliente (cobrador)" },
+  { pre: "/cobrador/altas", label: "Altas / entrega de cartones (cobrador)" },
   { pre: "/cobrador/notas", label: "Notas (cobrador)" },
   { pre: "/cobrador/chat", label: "Chat (cobrador)" },
   { pre: "/cobrador/tutorial", label: "Tutorial (cobrador)" },

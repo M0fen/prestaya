@@ -20,6 +20,8 @@ import { CobrosRecientes, type PagoReciente } from "@/components/cobrador/Cobros
 import { RegistrarCompromiso } from "@/components/cobrador/RegistrarCompromiso";
 import { BeaconFicha } from "@/components/cobrador/BeaconFicha";
 import { NotasCliente } from "@/components/notas/NotasCliente";
+import { AvisoAlta } from "@/components/cobrador/AvisoAlta";
+import { estadoAlta } from "@/lib/data/acceso";
 
 export const dynamic = "force-dynamic";
 
@@ -94,6 +96,9 @@ export default async function DetalleClientePage({
           </a>
         )}
       </div>
+
+      {/* ¿Ya tiene su link del cartón? Entrega del QR / WhatsApp (alta en la app). */}
+      <AvisoAlta clienteId={id} estado={estadoAlta(cliente)} />
 
       {/* Selector de crédito: solo si el cliente tiene MÁS DE UNO activo. */}
       {activos.length > 1 && prestamo && (

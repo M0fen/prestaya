@@ -19,6 +19,7 @@
     "@upstash/redis": "^1.38.0",
     "leaflet": "^1.9.4",
     "next": "^15.1.6",
+    "qrcode-generator": "^2.0.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "web-push": "^3.6.7",

@@ -62,6 +62,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/admin/clientes", label: "Clientes", icon: "👤", grupo: "Cartera y clientes", roles: ["admin", "supervisor"], alias: ["deudores", "cartera"] },
   { href: "/admin/informe-cartera", label: "Ventas Crédito", icon: "💳", grupo: "Cartera y clientes", roles: ["admin"], alias: ["creditos", "cartera", "interes", "utilidad", "deuda", "ventas a hoy", "con intereses", "recaudo", "informe"] },
   { href: "/admin/renovaciones", label: "Renovaciones", icon: "🔄", grupo: "Cartera y clientes", roles: ["admin", "supervisor"], alias: ["renovar", "recredito"] },
+  { href: "/admin/altas", label: "Altas en la app", icon: "📱", grupo: "Cartera y clientes", roles: ["admin", "supervisor"], alias: ["qr", "codigo qr", "link cliente", "acceso cliente", "carton", "dar de alta", "onboarding", "entrega"] },
   { href: "/admin/scoring", label: "Scoring", icon: "🧮", grupo: "Cartera y clientes", roles: ["admin"], alias: ["riesgo", "modelo", "puntaje", "credit score", "pesos", "umbrales"] },
   // ── Finanzas y análisis ──
   { href: "/admin/estadisticas", label: "Estadísticas", icon: "📈", grupo: "Finanzas y análisis", roles: ["admin"], alias: ["stats", "crecimiento", "cohortes", "tendencias", "colocacion", "distribucion", "comportamiento", "metricas"] },
