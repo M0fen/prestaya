@@ -6,6 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { tablaFaltante, columnaFaltante } from "@/lib/data/errores";
 import { contarPagosVigentesCliente } from "@/lib/data/estrellas";
 import { raspaditasDisponibles, type PremioRaspa, type SegmentoRaspa } from "@/lib/raspadita";
+import { traerTodo } from "@/lib/data/paginado";
 
 // ── Raspaditas: premios ────────────────────────────────────────────────────
 
@@ -284,17 +285,22 @@ export async function crearQuinielaDb(
   db: SupabaseClient,
   input: { titulo: string; rangoMin: number; rangoMax: number; premioTexto: string },
 ): Promise<void> {
-  // Una sola quiniela ABIERTA a la vez: cerramos las que sigan abiertas (sin
-  // sorteo) antes de abrir la nueva, así el cliente siempre ve la vigente.
-  await db.from("quinielas").update({ estado: "cerrada" }).eq("estado", "abierta");
-  const { error } = await db.from("quinielas").insert({
-    titulo: input.titulo,
-    rango_min: input.rangoMin,
-    rango_max: input.rangoMax,
-    premio_texto: input.premioTexto,
-    estado: "abierta",
-  });
-  if (error) throw error;
+  // Una sola quiniela ABIERTA a la vez: cerramos las abiertas antes de abrir la
+  // nueva. El índice único parcial (0082) lo garantiza a nivel BD; si dos gestores
+  // abren a la vez, el 2º insert choca 23505 → reintentamos una vez (cerrar+abrir).
+  for (let intento = 0; intento < 2; intento++) {
+    await db.from("quinielas").update({ estado: "cerrada" }).eq("estado", "abierta");
+    const { error } = await db.from("quinielas").insert({
+      titulo: input.titulo,
+      rango_min: input.rangoMin,
+      rango_max: input.rangoMax,
+      premio_texto: input.premioTexto,
+      estado: "abierta",
+    });
+    if (!error) return;
+    if ((error as { code?: string }).code === "23505" && intento === 0) continue;
+    throw error;
+  }
 }
 
 export async function cerrarQuinielaDb(
@@ -321,26 +327,31 @@ export async function getParticipaciones(
   quinielaId: string,
 ): Promise<GanadorQuiniela[]> {
   try {
-    const { data, error } = await db
-      .from("quiniela_participaciones")
-      .select("cliente_id, numero")
-      .eq("quiniela_id", quinielaId);
-    if (error) throw error;
-    const filas = data ?? [];
-    const ids = [...new Set(filas.map((r) => (r as { cliente_id: string }).cliente_id))];
+    // Paginado (traerTodo): una quiniela es GLOBAL y puede superar 1000
+    // participaciones → sin paginar, PostgREST corta en 1000 (orden arbitrario) y
+    // el sorteo omitiría ganadores + subcontaría participantes. Con .order estable.
+    const filas = await traerTodo<{ cliente_id: string; numero: number }>((d, h) =>
+      db
+        .from("quiniela_participaciones")
+        .select("cliente_id, numero")
+        .eq("quiniela_id", quinielaId)
+        .order("id", { ascending: true })
+        .range(d, h),
+    );
+    const ids = [...new Set(filas.map((r) => r.cliente_id))];
+    // Nombres por lotes (≤500): con >1000 participantes, un solo .in() volvería a
+    // toparse con el límite de filas / largo de URL.
     const nombres = new Map<string, string>();
-    if (ids.length > 0) {
-      const { data: cs } = await db.from("clientes").select("id, nombre").in("id", ids);
+    for (let i = 0; i < ids.length; i += 500) {
+      const lote = ids.slice(i, i + 500);
+      const { data: cs } = await db.from("clientes").select("id, nombre").in("id", lote);
       for (const c of cs ?? []) nombres.set((c as { id: string }).id, (c as { nombre: string }).nombre);
     }
-    return filas.map((r) => {
-      const row = r as { cliente_id: string; numero: number };
-      return {
-        clienteId: row.cliente_id,
-        clienteNombre: nombres.get(row.cliente_id) ?? "—",
-        numero: Number(row.numero),
-      };
-    });
+    return filas.map((row) => ({
+      clienteId: row.cliente_id,
+      clienteNombre: nombres.get(row.cliente_id) ?? "—",
+      numero: Number(row.numero),
+    }));
   } catch (e) {
     if (tablaFaltante(e)) return [];
     throw e;

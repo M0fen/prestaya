@@ -9,6 +9,20 @@ import { useState, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { agregarMovimientoCaja } from "@/lib/acciones/caja";
 
+// Nonce de idempotencia con FALLBACK a un UUID v4 válido (mismo criterio que
+// RegistrarPagoPanel): sin crypto.randomUUID el servidor descartaría un nonce mal
+// formado y caería al op_id determinista POR MINUTO, que podía tragarse un 2º
+// movimiento idéntico del mismo minuto (23505 → "ok" sin insertar). Con UUID
+// válido, cada envío exitoso tiene su propia clave.
+const nuevoNonce = (): string => {
+  const c = globalThis.crypto;
+  if (c?.randomUUID) return c.randomUUID();
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (ch) => {
+    const r = (Math.random() * 16) | 0;
+    return (ch === "x" ? r : (r & 0x3) | 0x8).toString(16);
+  });
+};
+
 type Tipo = { id: "egreso" | "desembolso" | "ingreso" | "retiro"; label: string; cats: string[] };
 
 // Categorías operativas alineadas a Disapp (Arriendo, Recargas, Gasolina/Gas,
@@ -38,8 +52,7 @@ export function FormMovimientoCaja({ cuenta = "operativa" }: { cuenta?: "operati
   const [pendiente, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   // Nonce de idempotencia: estable mientras se reintenta el MISMO movimiento; se
-  // renueva tras un alta exitosa (el próximo movimiento tiene clave nueva). Sin
-  // crypto.randomUUID → null, y el servidor cae al fallback determinista por minuto.
+  // renueva tras un alta exitosa (el próximo movimiento tiene clave nueva).
   const nonceRef = useRef<string | null>(null);
 
   const cats = TIPOS.find((t) => t.id === tipo)!.cats;
@@ -49,7 +62,7 @@ export function FormMovimientoCaja({ cuenta = "operativa" }: { cuenta?: "operati
   const guardar = () => {
     if (!valido || pendiente) return;
     setError(null);
-    if (!nonceRef.current) nonceRef.current = globalThis.crypto?.randomUUID?.() ?? null;
+    if (!nonceRef.current) nonceRef.current = nuevoNonce();
     startTransition(async () => {
       const res = await agregarMovimientoCaja({ tipo, monto: montoNum, categoria, descripcion, cuenta, visible, idempotencyKey: nonceRef.current });
       if (res.ok) {

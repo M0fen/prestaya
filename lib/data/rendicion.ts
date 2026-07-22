@@ -206,9 +206,13 @@ export async function getRendicionesDia(
   // Nombres de cobradores.
   const ids = new Set<string>([...recaudadoPorCob.keys(), ...rows.map((r) => r.cobrador_id as string)]);
   const nombre = new Map<string, string>();
+  const esCobrador = new Set<string>();
   if (ids.size > 0) {
-    const { data } = await db.from("usuarios").select("id, nombre").in("id", [...ids]);
-    for (const u of data ?? []) nombre.set(u.id as string, u.nombre as string);
+    const { data } = await db.from("usuarios").select("id, nombre, rol").in("id", [...ids]);
+    for (const u of data ?? []) {
+      nombre.set(u.id as string, u.nombre as string);
+      if (u.rol === "cobrador") esCobrador.add(u.id as string);
+    }
   }
 
   const rendidas = rows
@@ -221,8 +225,11 @@ export async function getRendicionesDia(
     .sort((a, b) => a.diferencia - b.diferencia); // faltantes primero
   const rendidos = new Set(rendidas.map((r) => r.cobradorId));
 
+  // Solo COBRADORES quedan como "sin rendir": un gestor (admin/supervisor) que
+  // cobra en la oficina ya deja esa plata en la caja central, no la rinde en ruta
+  // → contarlo lo mostraba como faltante-fantasma e inflaba "por rendir".
   const pendientes = [...recaudadoPorCob.entries()]
-    .filter(([id]) => !rendidos.has(id))
+    .filter(([id]) => !rendidos.has(id) && esCobrador.has(id))
     .map(([id, v]) => ({ cobradorId: id, nombre: nombre.get(id) ?? "Cobrador", recaudado: v.recaudado, cobros: v.cobros }))
     .sort((a, b) => b.recaudado - a.recaudado);
 

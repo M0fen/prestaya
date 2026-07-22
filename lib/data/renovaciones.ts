@@ -65,9 +65,13 @@ export async function getCandidatosRenovacion(
     .eq("estado", "activo");
   if (error) throw error;
 
-  const prestamoDe = new Map<string, PrestamoRenov>();
-  for (const p of presRaw ?? [])
-    prestamoDe.set(p.cliente_id as string, {
+  // Agrupamos TODOS los créditos activos por cliente. Indexar por cliente_id con
+  // set() perdía todos menos el último → los 94 clientes multi-crédito (0037 quitó
+  // la regla "un activo por cliente") quedaban con créditos avanzados sin evaluar.
+  const prestamosDe = new Map<string, PrestamoRenov[]>();
+  for (const p of presRaw ?? []) {
+    const arr = prestamosDe.get(p.cliente_id as string) ?? [];
+    arr.push({
       id: p.id as string,
       cobrador_id: (p.cobrador_id as string | null) ?? null,
       monto_prestado: Number(p.monto_prestado),
@@ -76,6 +80,8 @@ export async function getCandidatosRenovacion(
       frecuencia: (p.frecuencia as Prestamo["frecuencia"]) ?? "diario",
       fecha_inicio: p.fecha_inicio as string,
     });
+    prestamosDe.set(p.cliente_id as string, arr);
+  }
 
   // Total pagado por crédito activo en UNA sola RPC (antes: getPagosDePrestamo
   // por cada uno de ~2.226 clientes con crédito → N+1). El cartón solo usa la
@@ -97,19 +103,21 @@ export async function getCandidatosRenovacion(
   }
   const pre: Pre[] = [];
   for (const cliente of clientes) {
-    const prestamo = prestamoDe.get(cliente.id);
-    if (!prestamo) continue;
-    const pagos = [{ dia_credito: 1, monto: pagadoDe.get(prestamo.id) ?? 0 }];
-    const r = calcularEstadosCarton(prestamo, pagos, hoyCal);
-    if (r.progresoPct / 100 < umbral) continue; // aún lejos de renovar
-    const cuotasCubiertas = r.dias.filter((d) => d.estado === "pagado").length;
-    pre.push({
-      cliente,
-      prestamo,
-      progresoPct: r.progresoPct,
-      completo: r.falta === 0,
-      cuotasFaltantes: Math.max(0, prestamo.total_dias - cuotasCubiertas),
-    });
+    // Evaluamos CADA crédito activo del cliente (no solo uno): un multi-crédito
+    // puede tener un crédito avanzado listo para renovar y otro recién arrancado.
+    for (const prestamo of prestamosDe.get(cliente.id) ?? []) {
+      const pagos = [{ dia_credito: 1, monto: pagadoDe.get(prestamo.id) ?? 0 }];
+      const r = calcularEstadosCarton(prestamo, pagos, hoyCal);
+      if (r.progresoPct / 100 < umbral) continue; // aún lejos de renovar
+      const cuotasCubiertas = r.dias.filter((d) => d.estado === "pagado").length;
+      pre.push({
+        cliente,
+        prestamo,
+        progresoPct: r.progresoPct,
+        completo: r.falta === 0,
+        cuotasFaltantes: Math.max(0, prestamo.total_dias - cuotasCubiertas),
+      });
+    }
   }
 
   // 2) Los más avanzados primero; el SCORE histórico (caro: 1 + N queries por

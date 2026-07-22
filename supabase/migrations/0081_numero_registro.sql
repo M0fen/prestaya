@@ -19,7 +19,9 @@ with orden as (
   where numero_registro is null
 )
 update clientes c
-set numero_registro = 1000 + o.rn
+-- Base = el máximo ya asignado (o 1000 en la 1ª corrida) → re-ejecutable sin
+-- colisionar con el índice único: los nuevos NULL siguen del último número.
+set numero_registro = coalesce((select max(c2.numero_registro) from clientes c2), 1000) + o.rn
 from orden o
 where c.id = o.id and c.numero_registro is null;
 
