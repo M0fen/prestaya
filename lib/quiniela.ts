@@ -15,6 +15,26 @@ export interface RangoQuiniela {
   max: number;
 }
 
+/** El número de la suerte es de 3 dígitos: 000 a 999. Rango fijo de la quiniela. */
+export const RANGO_SUERTE: RangoQuiniela = { min: 0, max: 999 };
+
+/**
+ * Número de la suerte del cliente = los ÚLTIMOS 3 dígitos de su número de
+ * registro (000–999). Asignado, NO elegido. Devuelve null si no tiene registro.
+ */
+export function numeroSuerte(numeroRegistro: number | null | undefined): number | null {
+  if (numeroRegistro == null) return null;
+  const n = Number(numeroRegistro);
+  if (!Number.isFinite(n)) return null;
+  return Math.abs(Math.trunc(n)) % 1000;
+}
+
+/** Formatea el número de la suerte a 3 dígitos con ceros a la izquierda ("42" → "042"). */
+export function formatearSuerte(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(Number(n))) return "—";
+  return String(Math.abs(Math.trunc(Number(n))) % 1000).padStart(3, "0");
+}
+
 /** Valida que el número elegido esté dentro del rango de la quiniela. */
 export function numeroValido(numero: number, rango: RangoQuiniela): boolean {
   return (

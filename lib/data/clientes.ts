@@ -44,6 +44,8 @@ export function mapCliente(r: Record<string, unknown>): Cliente {
     ciudad: (r.ciudad as string | null | undefined) ?? null,
     direccion_secundaria: (r.direccion_secundaria as string | null | undefined) ?? null,
     foto_path: (r.foto_path as string | null | undefined) ?? null,
+    // Defensivo: si 0081 aún no corrió, viene undefined → null.
+    numero_registro: r.numero_registro == null ? null : Number(r.numero_registro),
     creado_en: r.creado_en as string,
     actualizado_en: r.actualizado_en as string,
   };

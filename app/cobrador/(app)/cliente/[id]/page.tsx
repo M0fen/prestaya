@@ -10,6 +10,7 @@ import { getPagosDePrestamo } from "@/lib/data/pagos";
 import { getNotasCliente } from "@/lib/data/notas";
 import { getGestionesCliente, type Gestion } from "@/lib/data/gestionesCobranza";
 import { calcularEstadosCarton } from "@/lib/cartones";
+import { formatearSuerte } from "@/lib/quiniela";
 import { hoyUY } from "@/lib/fecha";
 import type { Prestamo } from "@/types/db";
 import { UYU } from "@/lib/format";
@@ -76,6 +77,11 @@ export default async function DetalleClientePage({
           <span className="truncate text-[12.5px] font-medium text-gris">
             {cliente.direccion ?? "Sin dirección"}
           </span>
+          {cliente.numero_registro != null && (
+            <span className="mt-1 w-fit rounded-full bg-[#EEF3FF] px-2 py-0.5 text-[10.5px] font-bold text-[#1E47C8] tabular-nums">
+              Registro N.º {cliente.numero_registro} · 🍀 {formatearSuerte(cliente.numero_registro)}
+            </span>
+          )}
         </div>
         {mapsUrl && (
           <a

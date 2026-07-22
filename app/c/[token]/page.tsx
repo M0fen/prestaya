@@ -20,6 +20,8 @@ import { getAjustesJuego } from "@/lib/data/juegoConfig";
 import { getSaldoEstrellas } from "@/lib/data/estrellas";
 import { claveCiclo } from "@/lib/estrellas";
 import { getEstadoRaspaCliente, getQuinielaAbierta, getParticipacionCliente } from "@/lib/data/promos";
+import { numeroSuerte } from "@/lib/quiniela";
+import { calcularEstadosCarton } from "@/lib/cartones";
 import { getRifaParaCliente } from "@/lib/data/rifas";
 import { cicloUY } from "@/lib/fecha";
 import { juegoArcadeDe } from "@/lib/juegoAjustes";
@@ -117,9 +119,14 @@ export default async function VistaPorToken({
     getEstadoRaspaCliente(db, cliente.id),
     getQuinielaAbierta(db),
   ]);
-  const participacionNumero = quiniela
-    ? await getParticipacionCliente(db, quiniela.id, cliente.id)
-    : null;
+  // Quiniela: el número es ASIGNADO (últimos 3 del número de registro). Participa
+  // por estar AL DÍA (sin días atrasados; la cuota de hoy sin cobrar no descalifica).
+  const participando = quiniela
+    ? (await getParticipacionCliente(db, quiniela.id, cliente.id)) != null
+    : false;
+  const alDiaQuiniela = !calcularEstadosCarton(prestamo, pagos, hoyUY()).dias.some(
+    (d) => d.estado === "atrasado",
+  );
   // Los juegos (raspadita + quiniela) se muestran SOLO si la zona de juego está
   // activa (admin → /admin/juego). Apagándola se ocultan todos los juegos.
   const promo = ajustes.activo
@@ -130,11 +137,11 @@ export default async function VistaPorToken({
               id: quiniela.id,
               titulo: quiniela.titulo,
               premioTexto: quiniela.premioTexto,
-              rangoMin: quiniela.rangoMin,
-              rangoMax: quiniela.rangoMax,
+              miNumero: numeroSuerte(cliente.numero_registro),
+              alDia: alDiaQuiniela,
+              participando,
             }
           : null,
-        participacionNumero,
       }
     : null;
 

@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PremioRaspa, SegmentoRaspa } from "@/lib/raspadita";
 import type { Quiniela } from "@/lib/data/promos";
+import { formatearSuerte } from "@/lib/quiniela";
 import {
   guardarPremioRaspa,
   eliminarPremioRaspa,
@@ -17,7 +18,10 @@ import {
 
 export interface ResumenQuiniela {
   count: number;
+  /** Solo los ganadores (los que coinciden con el número sorteado). */
   ganadores: { nombre: string; numero: number }[];
+  /** Todos los participantes con su número (para la lista plegable). */
+  participantes: { nombre: string; numero: number }[];
 }
 
 export function PromosManager({
@@ -113,6 +117,21 @@ export function PromosManager({
       {/* ── Quiniela ── */}
       <section className="flex flex-col gap-3">
         <h2 className="text-[15px] font-extrabold text-tinta">🍀 Quiniela</h2>
+
+        {/* Explicador del flujo de la quiniela */}
+        <div className="flex flex-col gap-2 rounded-[16px] border border-[#D9E4FF] bg-[#EEF3FF] p-4">
+          <span className="text-[14px] font-extrabold text-[#1E47C8]">🍀 Cómo funciona la quiniela</span>
+          <ol className="flex flex-col gap-1.5 text-[12.5px] font-medium text-cuerpo">
+            <li><b>1.</b> Cada cliente tiene su <b>número de la suerte</b>: los <b>últimos 3 dígitos</b> de su número de registro. No lo elige (se le asigna).</li>
+            <li><b>2.</b> Participa <b>automáticamente</b> quien está <b>al día</b> (sin días atrasados) y tiene crédito activo.</li>
+            <li><b>3.</b> Abrís una quiniela con un <b>título</b> y un <b>premio</b> (beneficio, sin dinero).</li>
+            <li><b>4.</b> Para <b>cerrar</b>: cargás el <b>número ganador</b> (000 a 999) o tocás <b>“Al azar”</b> → ganan los clientes cuyo número coincide.</li>
+          </ol>
+          <p className="rounded-[10px] bg-white/70 px-3 py-2 text-[11.5px] font-semibold text-[#3A4664]">
+            Solo puede haber <b>una quiniela abierta</b> a la vez. Se muestra al cliente si la <b>Zona de juego</b> está encendida (en “Zona de juego”).
+          </p>
+        </div>
+
         <NuevaQuiniela onDone={() => router.refresh()} />
         <div className="flex flex-col gap-2">
           {quinielas.length === 0 && (
@@ -297,13 +316,12 @@ function SegmentoFila({
 function NuevaQuiniela({ onDone }: { onDone: () => void }) {
   const [titulo, setTitulo] = useState("");
   const [premioTexto, setPremio] = useState("");
-  const [min, setMin] = useState(0);
-  const [max, setMax] = useState(99);
   const [ocupado, setOcupado] = useState(false);
 
   const crear = async () => {
     setOcupado(true);
-    const r = await crearQuiniela({ titulo, premioTexto, rangoMin: min, rangoMax: max });
+    // El número es siempre de 3 dígitos (000–999): los últimos 3 del registro.
+    const r = await crearQuiniela({ titulo, premioTexto, rangoMin: 0, rangoMax: 999 });
     setOcupado(false);
     if (r.ok) { setTitulo(""); setPremio(""); onDone(); }
   };
@@ -316,12 +334,7 @@ function NuevaQuiniela({ onDone }: { onDone: () => void }) {
       <input className={inputCls} placeholder="Premio (beneficio, sin dinero)" value={premioTexto}
         onChange={(e) => setPremio(e.target.value)} />
       <div className="flex items-center gap-2">
-        <label className="flex items-center gap-1 text-[11px] font-semibold text-gris">
-          Del <input type="number" className={`${inputCls} w-16`} value={min} onChange={(e) => setMin(Number(e.target.value))} />
-        </label>
-        <label className="flex items-center gap-1 text-[11px] font-semibold text-gris">
-          al <input type="number" className={`${inputCls} w-16`} value={max} onChange={(e) => setMax(Number(e.target.value))} />
-        </label>
+        <span className="text-[11px] font-medium text-tenue">Números del 000 al 999 (últimos 3 del registro).</span>
         <button onClick={crear} disabled={ocupado || !titulo.trim() || !premioTexto.trim()}
           className="ml-auto rounded-full bg-azul px-4 py-2 text-[13px] font-bold text-white disabled:opacity-50">
           Abrir
@@ -332,14 +345,18 @@ function NuevaQuiniela({ onDone }: { onDone: () => void }) {
 }
 
 function QuinielaFila({ q, resumen, onDone }: { q: Quiniela; resumen?: ResumenQuiniela; onDone: () => void }) {
-  const [ganador, setGanador] = useState<number>(q.numeroGanador ?? q.rangoMin);
+  const [ganador, setGanador] = useState<number>(q.numeroGanador ?? 0);
   const [ocupado, setOcupado] = useState(false);
+  const [verParticipantes, setVerParticipantes] = useState(false);
   const count = resumen?.count ?? 0;
 
+  const acotar = (n: number) => Math.min(999, Math.max(0, Math.round(Number(n) || 0)));
+
   const cerrar = async () => {
-    if (!confirm(`Sortear "${q.titulo}" con el número ${ganador}. ¿Confirmás?`)) return;
+    const g = acotar(ganador);
+    if (!confirm(`Sortear "${q.titulo}" con el número ${formatearSuerte(g)}. Esto la CIERRA. ¿Confirmás?`)) return;
     setOcupado(true);
-    await cerrarQuiniela({ id: q.id, rangoMin: q.rangoMin, rangoMax: q.rangoMax, numeroGanador: ganador });
+    await cerrarQuiniela({ id: q.id, rangoMin: 0, rangoMax: 999, numeroGanador: g });
     setOcupado(false);
     onDone();
   };
@@ -351,17 +368,45 @@ function QuinielaFila({ q, resumen, onDone }: { q: Quiniela; resumen?: ResumenQu
         <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${q.estado === "abierta" ? "bg-[#E7F7EF] text-[#157A50]" : "bg-linea text-gris"}`}>
           {q.estado}
         </span>
-        <span className="ml-auto text-[11.5px] font-medium text-gris">{count} participante{count === 1 ? "" : "s"}</span>
+        <button
+          type="button"
+          onClick={() => setVerParticipantes((v) => !v)}
+          className="ml-auto text-[11.5px] font-bold text-azul hover:underline"
+        >
+          {count} participante{count === 1 ? "" : "s"}
+        </button>
       </div>
-      <span className="text-[12px] font-medium text-gris">Premio: {q.premioTexto} · números {q.rangoMin}–{q.rangoMax}</span>
+      <span className="text-[12px] font-medium text-gris">Premio: {q.premioTexto} · números 000–999</span>
+
+      {/* Lista de participantes (nombre + su número), plegable */}
+      {verParticipantes && (
+        <div className="max-h-[180px] overflow-y-auto rounded-[10px] border border-borde bg-suave p-2">
+          {resumen && resumen.participantes.length > 0 ? (
+            <ul className="flex flex-col gap-0.5">
+              {resumen.participantes.map((g, i) => (
+                <li key={i} className="flex items-center justify-between text-[12px]">
+                  <span className="text-cuerpo">{g.nombre}</span>
+                  <span className="font-bold text-tinta tabular-nums">{formatearSuerte(g.numero)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <span className="text-[11.5px] font-medium text-gris">Todavía no hay participantes.</span>
+          )}
+        </div>
+      )}
 
       {q.estado === "abierta" ? (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <label className="flex items-center gap-1 text-[11px] font-semibold text-gris">
             N.º ganador
-            <input type="number" min={q.rangoMin} max={q.rangoMax} className={`${inputCls} w-20`}
-              value={ganador} onChange={(e) => setGanador(Number(e.target.value))} />
+            <input type="number" min={0} max={999} className={`${inputCls} w-20 tabular-nums`}
+              value={ganador} onChange={(e) => setGanador(acotar(Number(e.target.value)))} />
           </label>
+          <button type="button" onClick={() => setGanador(Math.floor(Math.random() * 1000))}
+            className="rounded-full border border-borde bg-tarjeta px-3 py-1.5 text-[12px] font-bold text-azul hover:bg-suave">
+            🎲 Al azar
+          </button>
           <button onClick={cerrar} disabled={ocupado}
             className="ml-auto rounded-full bg-[#1FA971] px-4 py-1.5 text-[12.5px] font-bold text-white disabled:opacity-50">
             Sortear y cerrar
@@ -369,10 +414,10 @@ function QuinielaFila({ q, resumen, onDone }: { q: Quiniela; resumen?: ResumenQu
         </div>
       ) : (
         <div className="rounded-[10px] bg-suave p-2.5">
-          <span className="text-[12.5px] font-bold text-tinta">Número ganador: {q.numeroGanador ?? "—"}</span>
-          {resumen && resumen.ganadores.length > 0 ? (
+          <span className="text-[12.5px] font-bold text-tinta">Número ganador: {formatearSuerte(q.numeroGanador)}</span>
+          {resumen && resumen.ganadores.filter((g) => g.numero === q.numeroGanador).length > 0 ? (
             <p className="mt-1 text-[12px] font-medium text-[#157A50]">
-              🏆 {resumen.ganadores.map((g) => g.nombre).join(", ")}
+              🏆 {resumen.ganadores.filter((g) => g.numero === q.numeroGanador).map((g) => g.nombre).join(", ")}
             </p>
           ) : (
             <p className="mt-1 text-[12px] font-medium text-gris">Sin ganadores esta vez.</p>

@@ -84,6 +84,9 @@ export interface Cliente {
   direccion_secundaria: string | null;
   /** Ruta de la foto en Storage (bucket privado, 0044). null = sin foto. */
   foto_path: string | null;
+  /** Número de registro correlativo (0081). Sus últimos 3 dígitos son el número
+   *  de la suerte de la quiniela. null si la migración aún no corrió. */
+  numero_registro: number | null;
   creado_en: string;
   actualizado_en: string;
 }

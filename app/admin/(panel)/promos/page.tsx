@@ -31,6 +31,7 @@ export default async function PromosPage() {
         ganadores: parts
           .filter((p) => winnerIds.includes(p.clienteId))
           .map((p) => ({ nombre: p.clienteNombre, numero: p.numero })),
+        participantes: parts.map((p) => ({ nombre: p.clienteNombre, numero: p.numero })),
       };
     }),
   );

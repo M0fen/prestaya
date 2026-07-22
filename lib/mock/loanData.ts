@@ -38,6 +38,7 @@ export const clienteMock: Cliente = {
   ciudad: "Montevideo",
   direccion_secundaria: null,
   foto_path: null,
+  numero_registro: 1042, // demo: número de la suerte 042
   creado_en: "2026-06-03T00:00:00Z",
   actualizado_en: "2026-06-03T00:00:00Z",
 };

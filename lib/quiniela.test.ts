@@ -1,7 +1,7 @@
 // Tests del núcleo PURO de la quiniela (promocional). Validación de número y
 // cálculo de ganadores. Sin dinero real en ninguna parte.
 import { describe, it, expect } from "vitest";
-import { numeroValido, normalizarNumero, ganadores } from "./quiniela";
+import { numeroValido, normalizarNumero, ganadores, numeroSuerte, formatearSuerte } from "./quiniela";
 
 const rango = { min: 0, max: 99 };
 
@@ -35,5 +35,30 @@ describe("ganadores", () => {
     ];
     expect(ganadores(parts, 7)).toEqual(["A", "C"]);
     expect(ganadores(parts, 99)).toEqual([]);
+  });
+});
+
+describe("numeroSuerte (últimos 3 dígitos del número de registro)", () => {
+  it("toma los últimos 3 dígitos", () => {
+    expect(numeroSuerte(1042)).toBe(42);   // registro 1042 → 042
+    expect(numeroSuerte(1000)).toBe(0);     // → 000
+    expect(numeroSuerte(1999)).toBe(999);
+    expect(numeroSuerte(13579)).toBe(579);
+  });
+  it("null/indefinido/NaN → null (sin registro aún)", () => {
+    expect(numeroSuerte(null)).toBeNull();
+    expect(numeroSuerte(undefined)).toBeNull();
+    expect(numeroSuerte(Number.NaN)).toBeNull();
+  });
+});
+
+describe("formatearSuerte (3 dígitos con ceros)", () => {
+  it("rellena con ceros a la izquierda", () => {
+    expect(formatearSuerte(42)).toBe("042");
+    expect(formatearSuerte(0)).toBe("000");
+    expect(formatearSuerte(999)).toBe("999");
+  });
+  it("null → guion", () => {
+    expect(formatearSuerte(null)).toBe("—");
   });
 });

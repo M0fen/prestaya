@@ -102,9 +102,8 @@ export default function DemoVistaCliente() {
         raspaDisponibles: 1,
         quiniela: {
           id: "demo", titulo: "Quiniela de julio", premioTexto: "1 día de gracia",
-          rangoMin: 0, rangoMax: 99,
+          miNumero: 42, alDia: true, participando: false,
         },
-        participacionNumero: null,
       }}
       juegoAjustes={{
         mensajeBienvenida: ajustes.mensajeBienvenida,

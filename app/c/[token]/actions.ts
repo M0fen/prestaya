@@ -32,7 +32,7 @@ import {
 import { getHistorialCrediticio } from "@/lib/data/scoring";
 import { getConfigScoring } from "@/lib/data/scoringConfig";
 import { calcularScore } from "@/lib/scoring";
-import { numeroValido } from "@/lib/quiniela";
+import { numeroSuerte } from "@/lib/quiniela";
 import { tokenValido } from "@/lib/validacion/esquemas";
 import { getProductoAdmin, crearSolicitudDb, contarSolicitudesRecientesCliente } from "@/lib/data/tienda";
 import { esUuid } from "@/lib/idempotencia";
@@ -235,12 +235,13 @@ export async function jugarRaspadita(input: { token: string }): Promise<Resultad
 }
 
 // ── Quiniela (PROMOCIONAL, sin dinero) ─────────────────────────────────────
-// El cliente elige un número por estar AL DÍA. El premio es un BENEFICIO
-// simbólico; el sorteo lo carga el admin. Sin apuesta ni pago en efectivo.
+// El número de la suerte es ASIGNADO: los últimos 3 dígitos del número de
+// registro del cliente. Participa por estar AL DÍA (no elige, no apuesta plata).
+// El premio es un BENEFICIO simbólico; el sorteo lo carga el admin. Idempotente:
+// si ya está participando, devuelve ok con su mismo número (se autollama al abrir).
 export async function participarQuiniela(input: {
   token: string;
-  numero: number;
-}): Promise<{ ok: true } | { ok: false; error: string }> {
+}): Promise<{ ok: true; numero: number } | { ok: false; error: string }> {
   try {
     if (!tokenValido(input.token)) return { ok: false, error: "Enlace no válido." };
     const db = createSupabaseAdmin();
@@ -250,35 +251,36 @@ export async function participarQuiniela(input: {
     const quiniela = await getQuinielaAbierta(db);
     if (!quiniela) return { ok: false, error: "No hay una quiniela abierta ahora." };
 
+    // El número es ASIGNADO (últimos 3 del registro), no elegido por el cliente.
+    const miNumero = numeroSuerte(cliente.numero_registro);
+    if (miNumero == null) return { ok: false, error: "Todavía no tenés número de la suerte." };
+
     // Entrada por estar AL DÍA (no se apuesta dinero).
     const prestamo = await getPrestamoActivoPorCliente(db, cliente.id);
     if (!prestamo) return { ok: false, error: "Necesitás un crédito activo para participar." };
     const pagos = await getPagosDePrestamo(db, prestamo.id);
     const carton = calcularEstadosCarton(prestamo, pagos, hoyUY());
     if (carton.dias.some((d) => d.estado === "atrasado"))
-      return { ok: false, error: "Ponete al día y participás. ¡Te esperamos! 💙" };
+      return { ok: false, error: "Ponete al día y tu número entra al sorteo. 💙" };
 
-    if (!numeroValido(input.numero, { min: quiniela.rangoMin, max: quiniela.rangoMax }))
-      return { ok: false, error: `Elegí un número entre ${quiniela.rangoMin} y ${quiniela.rangoMax}.` };
-
+    // Idempotente: ya participando → ok con su número (asignado, siempre el mismo).
     const yaTiene = await getParticipacionCliente(db, quiniela.id, cliente.id);
-    if (yaTiene != null) return { ok: false, error: `Ya participaste con el número ${yaTiene}.` };
+    if (yaTiene != null) return { ok: true, numero: yaTiene };
 
     try {
       await participarQuinielaDb(db, {
         quinielaId: quiniela.id,
         clienteId: cliente.id,
-        numero: Math.round(input.numero),
+        numero: miNumero,
       });
     } catch (e) {
-      // Carrera: dos envíos casi simultáneos → el índice único (quiniela,cliente)
-      // rechaza el segundo (23505). Mensaje amable en vez de error genérico.
-      if ((e as { code?: string } | null)?.code === "23505")
-        return { ok: false, error: "Ya estás participando en esta quiniela." };
+      // Carrera: dos autollamados casi simultáneos → el índice único rechaza el
+      // segundo (23505). Es ok: ya quedó participando con su número.
+      if ((e as { code?: string } | null)?.code === "23505") return { ok: true, numero: miNumero };
       throw e;
     }
-    return { ok: true };
+    return { ok: true, numero: miNumero };
   } catch {
-    return { ok: false, error: "No pudimos registrar tu número. Probá más tarde." };
+    return { ok: false, error: "No pudimos registrarte en el sorteo. Probá más tarde." };
   }
 }
