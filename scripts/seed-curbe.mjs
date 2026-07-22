@@ -56,8 +56,8 @@ async function main() {
   // 2) Cliente — anuncio del carrusel (tema dorado + etiqueta "Publicidad").
   const anuncio = {
     id: ID_ANUNCIO,
-    titulo: "curbe — perfumería y oro 18k",
-    cuerpo: "Esencias inspiradas y oro italiano 18k. Perfumes 50ml desde $890.",
+    titulo: "curbe — perfumería inspirada",
+    cuerpo: "Perfumes inspirados de alta duración. 30ml $890 · 50ml $1090.",
     cta_texto: "Ver curbe",
     cta_url: LINK,
     imagen_url: imagenUrl,
@@ -76,8 +76,8 @@ async function main() {
   // 3) Cobrador — oferta para compartir (texto client-facing → se ve bien al enviarlo).
   const banner = {
     id: ID_BANNER,
-    titulo: "curbe — perfumería y oro 18k",
-    texto: "Perfumes inspirados y oro italiano 18k, desde $890. Mirá la tienda 👇",
+    titulo: "curbe — perfumería inspirada",
+    texto: "Perfumes inspirados de alta duración. 30ml $890 y 50ml $1090. Mirá la tienda 👇",
     tema: "azul", // la tarjeta de oferta usa su propio look dorado; el tema no aplica
     activo: true,
     creado_por: null,

@@ -23,13 +23,15 @@ function financiacion(p: ProductoParaCliente) {
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
 export function TiendaCliente({
-  productos, token, conEncabezado = true, abrirId = null,
+  productos, token, conEncabezado = true, abrirId = null, preview = false,
 }: {
   productos: ProductoParaCliente[];
   token: string | null;
   conEncabezado?: boolean;
   /** Id de producto a abrir directo (deep-link desde el banner del cartón). */
   abrirId?: string | null;
+  /** Vista previa del admin: se ve igual pero "Me interesa" queda desactivado. */
+  preview?: boolean;
 }) {
   // Si venimos del banner del cartón (?producto=id), abrimos su detalle de una.
   const [abierto, setAbierto] = useState<ProductoParaCliente | null>(
@@ -165,7 +167,7 @@ export function TiendaCliente({
         Precios de referencia. Tocá "Me interesa" y tu cobrador te pasa el precio y las cuotas para vos. 🙂
       </p>
 
-      {abierto && <DetalleProducto p={abierto} token={token} onClose={() => setAbierto(null)} />}
+      {abierto && <DetalleProducto p={abierto} token={token} preview={preview} onClose={() => setAbierto(null)} />}
     </section>
   );
 }
@@ -208,7 +210,7 @@ function Precio({ p }: { p: ProductoParaCliente }) {
   );
 }
 
-function DetalleProducto({ p, token, onClose }: { p: ProductoParaCliente; token: string | null; onClose: () => void }) {
+function DetalleProducto({ p, token, onClose, preview = false }: { p: ProductoParaCliente; token: string | null; onClose: () => void; preview?: boolean }) {
   const [i, setI] = useState(0);
   const [pend, start] = useTransition();
   const [estado, setEstado] = useState<"idle" | "ok" | "error">("idle");
@@ -270,7 +272,11 @@ function DetalleProducto({ p, token, onClose }: { p: ProductoParaCliente; token:
 
           {p.descripcion && <p className="whitespace-pre-line text-[14px] leading-[1.55] text-cuerpo">{p.descripcion}</p>}
 
-          {estado === "ok" ? (
+          {preview ? (
+            <div className="w-full rounded-full bg-[#EEF3FF] px-5 py-3.5 text-center text-[14px] font-bold text-azul">
+              Vista previa · así lo ve tu cliente
+            </div>
+          ) : estado === "ok" ? (
             <div className="rounded-[14px] bg-[#E4F5EC] px-4 py-3 text-center">
               <p className="text-[15px] font-extrabold text-[#157A50]">¡Listo! 💚</p>
               <p className="text-[13px] font-medium text-[#3E8E67]">Anotamos tu interés. Tu cobrador te va a contar cómo llevártelo.</p>
@@ -281,7 +287,7 @@ function DetalleProducto({ p, token, onClose }: { p: ProductoParaCliente; token:
               {pend ? "Enviando…" : "Me interesa · Quiero saber más"}
             </button>
           )}
-          {estado === "error" && msg && <p className="text-center text-[12.5px] font-semibold text-[#E06A6A]">{msg}</p>}
+          {!preview && estado === "error" && msg && <p className="text-center text-[12.5px] font-semibold text-[#E06A6A]">{msg}</p>}
           <p className="pb-1 text-center text-[11px] font-medium text-tenue">Sin compromiso. Te contactamos para darte los detalles.</p>
         </div>
       </div>
