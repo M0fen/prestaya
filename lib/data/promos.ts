@@ -284,6 +284,9 @@ export async function crearQuinielaDb(
   db: SupabaseClient,
   input: { titulo: string; rangoMin: number; rangoMax: number; premioTexto: string },
 ): Promise<void> {
+  // Una sola quiniela ABIERTA a la vez: cerramos las que sigan abiertas (sin
+  // sorteo) antes de abrir la nueva, así el cliente siempre ve la vigente.
+  await db.from("quinielas").update({ estado: "cerrada" }).eq("estado", "abierta");
   const { error } = await db.from("quinielas").insert({
     titulo: input.titulo,
     rango_min: input.rangoMin,
