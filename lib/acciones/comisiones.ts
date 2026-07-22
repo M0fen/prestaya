@@ -9,7 +9,8 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { reportarError } from "@/lib/observabilidad";
 import { getUsuarioActual, esAdmin } from "@/lib/auth";
-import { setComisionPctDb, getComisionesPeriodo, rangoDePeriodoKey, rangosSeSolapan } from "@/lib/data/comisiones";
+import { setComisionPctDb, getComisionesPeriodo, rangoDePeriodoKey, rangosSeSolapan, rangoPgDePeriodo } from "@/lib/data/comisiones";
+import { columnaFaltante } from "@/lib/data/errores";
 import type { Periodo } from "@/lib/data/periodo";
 import { registrarMovimientoCaja } from "@/lib/data/caja";
 import { registrarAuditoria } from "@/lib/data/auditoria";
@@ -105,19 +106,33 @@ export async function liquidarComision(input: {
       };
   }
 
-  // CANDADO: registrar la liquidación ANTES de tocar la caja. El unique
-  // (cobrador, período) hace que un segundo intento (doble clic / ya liquidado)
-  // falle con 23505 → nunca se paga dos veces la misma comisión.
-  const { error: eLiq } = await db.from("comisiones_liquidadas").insert({
+  // CANDADO: registrar la liquidación ANTES de tocar la caja. Dos candados:
+  //  · unique(cobrador, periodo_key) → frena el doble clic / misma clave (23505).
+  //  · EXCLUDE de rango (0083) → cierra la CARRERA entre cadencias solapadas
+  //    (día ⊂ mes) que la guardia JS de arriba no ve cuando corren a la vez (23P01).
+  const filaLiq = {
     cobrador_id: input.cobradorId,
     periodo_key: periodoKey,
     monto,
     liquidado_por: u.id,
     liquidado_por_nombre: u.nombre,
-  });
+  };
+  const rangoPg = rangoPgDePeriodo(resumen.desde, resumen.hasta);
+  let eLiq = (await db.from("comisiones_liquidadas").insert({ ...filaLiq, periodo_rango: rangoPg })).error;
+  if (eLiq && columnaFaltante(eLiq)) {
+    // 0083 aún no corrió (falta la columna periodo_rango) → degradar sin el rango:
+    // la guardia JS de arriba sigue cubriendo el caso secuencial, sin romper la liquidación.
+    eLiq = (await db.from("comisiones_liquidadas").insert(filaLiq)).error;
+  }
   if (eLiq) {
-    if ((eLiq as { code?: string }).code === "23505")
+    const code = (eLiq as { code?: string }).code;
+    if (code === "23505")
       return { ok: false, error: "Esa comisión ya se liquidó en este período." };
+    if (code === "23P01")
+      return {
+        ok: false,
+        error: "Ese recaudo ya se comisionó en otra cadencia (día/semana/mes/año). Elegí una sola.",
+      };
     return { ok: false, error: "No se pudo liquidar. ¿Corriste la migración 0049?" };
   }
 

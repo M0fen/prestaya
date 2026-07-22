@@ -6,7 +6,7 @@
 //  Por eso la forma canónica de la clave se fija con test.
 // ─────────────────────────────────────────────────────────────────────────
 import { describe, it, expect } from "vitest";
-import { periodoKeyDe, rangoDePeriodoKey, rangosSeSolapan } from "./comisiones";
+import { periodoKeyDe, rangoDePeriodoKey, rangosSeSolapan, rangoPgDePeriodo } from "./comisiones";
 
 describe("periodoKeyDe — clave canónica del período (candado 0049)", () => {
   it("mes → usa año-mes (ignora el día): mes:YYYY-MM", () => {
@@ -82,5 +82,24 @@ describe("rangosSeSolapan — guardia anti-doble-comisión (día ⊂ mes)", () =
   });
   it("un día de agosto NO se solapa con julio → false", () => {
     expect(rangosSeSolapan(rangoDePeriodoKey("dia:2026-08-01")!, mes)).toBe(false);
+  });
+});
+
+describe("rangoPgDePeriodo — daterange [desde, finExclusivo) para el EXCLUDE (0083)", () => {
+  it("día → upper EXCLUSIVO = día siguiente (dos días adyacentes NO se tocan)", () => {
+    expect(rangoPgDePeriodo("2026-07-10", "2026-07-10")).toBe("[2026-07-10,2026-07-11)");
+    // el 10 y el 11 son rangos [10,11) y [11,12): NO comparten punto → sin doble comisión.
+    expect(rangoPgDePeriodo("2026-07-11", "2026-07-11")).toBe("[2026-07-11,2026-07-12)");
+  });
+  it("mes → [YYYY-MM-01, primer día del mes siguiente)", () => {
+    const m = rangoDePeriodoKey("mes:2026-07")!;
+    expect(rangoPgDePeriodo(m.desde, m.hasta)).toBe("[2026-07-01,2026-08-01)");
+  });
+  it("año → [YYYY-01-01, año siguiente 01-01)", () => {
+    const a = rangoDePeriodoKey("anio:2026")!;
+    expect(rangoPgDePeriodo(a.desde, a.hasta)).toBe("[2026-01-01,2027-01-01)");
+  });
+  it("fin de mes con salto de año (dic → ene) bien calculado", () => {
+    expect(rangoPgDePeriodo("2026-12-31", "2026-12-31")).toBe("[2026-12-31,2027-01-01)");
   });
 });

@@ -142,6 +142,17 @@ export function rangoDePeriodoKey(key: string): { desde: string; hasta: string }
   return null;
 }
 
+/** daterange de Postgres `[desde, finExclusivo)` para el constraint EXCLUDE (0083).
+ *  desde/hasta son días UY INCLUSIVOS "YYYY-MM-DD"; el upper se hace EXCLUSIVO
+ *  (+1 día en UTC, sin DST) para que dos días adyacentes NO se solapen pero
+ *  día ⊂ mes SÍ — la MISMA semántica que rangosSeSolapan, pero atómica en la BD. */
+export function rangoPgDePeriodo(desde: string, hasta: string): string {
+  const finExcl = new Date(new Date(`${hasta}T00:00:00Z`).getTime() + 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  return `[${desde},${finExcl})`;
+}
+
 /** ¿Se solapan dos rangos de fechas [desde,hasta] (strings YYYY-MM-DD, comparables
  *  lexicográficamente)? Comparten al menos un día. */
 export function rangosSeSolapan(
