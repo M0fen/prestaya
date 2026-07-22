@@ -1,0 +1,18 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "Mutation testing de los archivos de PLATA puros: mide si los tests realmente ATRAPAN bugs (no solo cobertura). Ver docs/MUTATION-TESTING.md.",
+  "packageManager": "npm",
+  "testRunner": "vitest",
+  "reporters": ["clear-text", "html", "progress"],
+  "coverageAnalysis": "perTest",
+  "concurrency": 4,
+  "timeoutMS": 20000,
+  "mutate": [
+    "lib/cartones.ts",
+    "lib/comision.ts",
+    "lib/reconciliacion.ts",
+    "lib/idempotencia.ts",
+    "lib/quiniela.ts",
+    "lib/data/comisiones.ts"
+  ]
+}
