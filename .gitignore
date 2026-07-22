@@ -24,3 +24,4 @@ creditos_*.xlsx
 *.xlsx
 /reports
 .stryker-tmp/
+reporte-*.html
