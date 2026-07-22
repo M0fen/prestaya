@@ -48,6 +48,39 @@ describe("invSobrecobro — nunca pagado > total", () => {
     const h = invSobrecobro([credito({ pagosSuma: 32000, totalAPagar: 30000, cuotaDiaria: 1000 })]);
     expect(h[0].severidad).toBe("critico"); // exceso 2000 ≥ cuota 1000
   });
+  it("borde: exceso EXACTAMENTE = una cuota → material (≥, no >)", () => {
+    // exceso 1000 == cuota 1000 → debe ser MATERIAL (crítico). Fija el `>=`.
+    const h = invSobrecobro([credito({ pagosSuma: 31000, totalAPagar: 30000, cuotaDiaria: 1000 })]);
+    expect(h[0].severidad).toBe("critico");
+  });
+  it("rama del 5%: exceso < cuota pero ≥ 5% del total → material (crédito de pocas cuotas grandes)", () => {
+    // total 100000, cuota 50000 (2 cuotas). exceso 6000: < cuota 50000 PERO ≥ 5% (5000).
+    // Sin la 2ª rama del OR quedaría 'medio'; debe ser 'critico'.
+    const h = invSobrecobro([credito({ pagosSuma: 106000, totalAPagar: 100000, cuotaDiaria: 50000 })]);
+    expect(h).toHaveLength(1);
+    expect(h[0].severidad).toBe("critico");
+  });
+  it("rama del 5% al borde: exceso == 5% exacto → material", () => {
+    const h = invSobrecobro([credito({ pagosSuma: 105000, totalAPagar: 100000, cuotaDiaria: 50000 })]);
+    expect(h[0].severidad).toBe("critico"); // exceso 5000 == 5% de 100000
+  });
+  it("cuotaDiaria = 0 (dato roto): igual detecta material por la rama del 5%", () => {
+    // Sin cuota válida, la 1ª rama (cuotaDiaria>0) no aplica; la 2ª (5%) sí.
+    const h = invSobrecobro([credito({ pagosSuma: 110000, totalAPagar: 100000, cuotaDiaria: 0 })]);
+    expect(h[0].severidad).toBe("critico");
+  });
+  it("exceso EXACTAMENTE 1 (tolerancia de drift) → se reporta (medio)", () => {
+    const h = invSobrecobro([credito({ pagosSuma: 30001, totalAPagar: 30000, cuotaDiaria: 1000 })]);
+    expect(h).toHaveLength(1);
+    expect(h[0].severidad).toBe("medio");
+  });
+  it("el detalle dice MATERIAL vs redondeo según el caso", () => {
+    const mat = invSobrecobro([credito({ pagosSuma: 32000, totalAPagar: 30000, cuotaDiaria: 1000 })]);
+    expect(mat[0].detalle).toContain("MATERIAL");
+    expect(mat[0].detalle).toContain("exceso 2000");
+    const red = invSobrecobro([credito({ pagosSuma: 30500, totalAPagar: 30000, cuotaDiaria: 1000 })]);
+    expect(red[0].detalle).toContain("redondeo");
+  });
 });
 
 describe("invRecaudoDia — las tres vistas del recaudo coinciden", () => {
@@ -69,8 +102,14 @@ describe("invHuerfanos", () => {
   it("0 huérfanos → sin hallazgos", () => {
     expect(invHuerfanos(0)).toHaveLength(0);
   });
-  it("N>0 huérfanos → hallazgo crítico", () => {
-    expect(invHuerfanos(3)[0].severidad).toBe("critico");
+  it("N>0 huérfanos → hallazgo crítico con el conteo en el detalle", () => {
+    const h = invHuerfanos(3);
+    expect(h[0].severidad).toBe("critico");
+    expect(h[0].invariante).toBe("sin-huerfanos");
+    expect(h[0].detalle).toContain("3");
+  });
+  it("cantidad negativa (no debería pasar) → sin hallazgos", () => {
+    expect(invHuerfanos(-1)).toHaveLength(0);
   });
 });
 
@@ -93,5 +132,18 @@ describe("reconciliar — resumen global", () => {
     expect(r.porInvariante["pagado_acum==Σpagos"]).toBe(1);
     expect(r.porInvariante["recaudo-consistente"]).toBe(1);
     expect(r.peorSeveridad).toBe("critico");
+  });
+  it("la peor severidad gana AUNQUE aparezca DESPUÉS de una menor (fija el orden de ORDEN_SEV)", () => {
+    // Primero un sobre-cobro MEDIO, después un huérfano CRÍTICO (extra, va al final).
+    // Si ORDEN_SEV no ordenara bien, quedaría 'medio' (el primero) → este test lo mata.
+    const r = reconciliar(
+      [credito({ id: "c1", pagosSuma: 30500, totalAPagar: 30000, cuotaDiaria: 1000 })], // medio
+      invHuerfanos(2), // crítico, agregado DESPUÉS
+    );
+    expect(r.peorSeveridad).toBe("critico");
+  });
+  it("solo hallazgos ALTOS → peorSeveridad='alto' (no salta a crítico ni baja a medio)", () => {
+    const r = reconciliar([credito()], invRecaudoDia({ pagos: 100000, caja: 90000 }));
+    expect(r.peorSeveridad).toBe("alto");
   });
 });

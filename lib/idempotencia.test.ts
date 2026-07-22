@@ -44,6 +44,14 @@ describe("esUuid — validador ÚNICO y estricto (no acepta basura)", () => {
     expect(esUuid(12345)).toBe(false);
     expect(esUuid("3f2504e0-4f89-41d3-9a0c-0305e82c33")).toBe(false); // corto
   });
+  it("valida CADA segmento por su largo exacto (8-4-4-4-12)", () => {
+    // Un dígito de más/menos en cualquier grupo → inválido (fija los cuantificadores).
+    expect(esUuid("3f2504e0x-4f89-41d3-9a0c-0305e82c3301")).toBe(false); // 1er grupo 9
+    expect(esUuid("3f2504e0-4f8-41d3-9a0c-0305e82c3301")).toBe(false); // 2º grupo 3
+    expect(esUuid("3f2504e0-4f89-41d3-9a0c-0305e82c33012")).toBe(false); // último grupo 13
+    expect(esUuid("3f2504e0-4f89-41d3-9a0c-0305e82c3301 ")).toBe(false); // espacio final
+    expect(esUuid("z3f2504e-4f89-41d3-9a0c-0305e82c3301")).toBe(false); // char no-hex
+  });
 });
 
 describe("esViolacionUnica", () => {
