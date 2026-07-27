@@ -4,6 +4,7 @@
 // el estado del modal abierto.
 import { useState } from "react";
 import type { MiembroEquipo } from "@/types/equipo";
+import type { Rol } from "@/types/db";
 import { DetalleVendedor } from "./DetalleVendedor";
 
 function fechaCorta(iso: string | null): string {
@@ -18,8 +19,20 @@ function fechaCorta(iso: string | null): string {
   }).format(d);
 }
 
-export function EquipoTabla({ miembros }: { miembros: MiembroEquipo[] }) {
+export function EquipoTabla({
+  miembros,
+  viewerRol,
+}: {
+  miembros: MiembroEquipo[];
+  /** Rol del que mira: define si puede restablecer accesos (server-side manda). */
+  viewerRol?: Rol;
+}) {
   const [sel, setSel] = useState<MiembroEquipo | null>(null);
+
+  // admin → puede resetear a cualquiera; supervisor → solo a cobradores (que la
+  // RLS ya acota a su zona). El servidor revalida igual.
+  const puedeResetear = (m: MiembroEquipo) =>
+    viewerRol === "admin" || (viewerRol === "supervisor" && m.rol === "cobrador");
 
   return (
     <>
@@ -90,7 +103,9 @@ export function EquipoTabla({ miembros }: { miembros: MiembroEquipo[] }) {
         </table>
       </div>
 
-      {sel && <DetalleVendedor m={sel} onClose={() => setSel(null)} />}
+      {sel && (
+        <DetalleVendedor m={sel} onClose={() => setSel(null)} puedeResetear={puedeResetear(sel)} />
+      )}
     </>
   );
 }

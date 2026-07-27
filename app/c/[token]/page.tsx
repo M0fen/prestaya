@@ -40,6 +40,22 @@ import { SinCreditoActivo } from "@/components/SinCreditoActivo";
 // Siempre datos frescos y "hoy" real del servidor: nunca cachear ni prerenderizar.
 export const dynamic = "force-dynamic";
 
+// Enlaza el manifest POR CLIENTE (ver ./manifest.webmanifest/route.ts), que
+// reemplaza al global: si el cliente instala la app desde acá, el ícono abre SU
+// cartón y no el login del equipo. `manifest` es un campo escalar de metadata:
+// el valor de la página pisa al del app/manifest.ts global → un solo <link>.
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ token: string }>;
+}) {
+  const { token } = await params;
+  return {
+    title: "Mi cartón — Presta Ya",
+    manifest: `/c/${encodeURIComponent(token)}/manifest.webmanifest`,
+  };
+}
+
 // Tope GENEROSO (22s) del camino crítico del cartón: un query lento lanza → lo toma
 // el error.tsx del cliente (aviso tranquilo, sin alarma). Money-safe: LANZA, jamás
 // muestra un $0/saldo falso. Una carga legítima ni lo roza.

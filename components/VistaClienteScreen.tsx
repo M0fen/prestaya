@@ -14,6 +14,7 @@ import { PromoCliente, type PromoData } from "@/components/promos/PromoCliente";
 import { TemporadaBanner } from "@/components/gaming/TemporadaBanner";
 import { Header } from "@/components/Header";
 import { Saludo } from "@/components/Saludo";
+import { BienvenidaCliente } from "@/components/BienvenidaCliente";
 import { Reputacion } from "@/components/Reputacion";
 import { CreditoCompletado } from "@/components/CreditoCompletado";
 import { Aliento } from "@/components/Aliento";
@@ -83,6 +84,10 @@ export function VistaClienteScreen({
       <div className="flex w-full max-w-[440px] flex-col gap-2.5 bg-app px-[18px] pt-3.5 pb-6 shadow-[0_0_60px_rgba(15,27,61,0.08)]">
         <Header inicial={v.inicial} />
         <Saludo nombre={v.nombre} />
+
+        {/* Bienvenida la 1ª vez (solo vista real): "es solo para mirar". Baja la
+            ansiedad del adulto mayor que abre su cartón por primera vez. */}
+        {token && <BienvenidaCliente />}
 
         {creditoSelector}
 

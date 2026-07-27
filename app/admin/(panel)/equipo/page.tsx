@@ -1,7 +1,7 @@
 // Equipo y permisos (solo ADMIN). Lista el equipo y documenta qué puede hacer
 // cada rol. Los permisos sensibles (mora, comisiones, anular pagos) se aplican
 // además en el servidor (requireAdmin / esAdmin en cada acción).
-import { requireAdmin } from "@/lib/auth";
+import { requireGestor, esAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getZonas } from "@/lib/data/zonas";
 import { getEquipoDetallado } from "@/lib/data/equipo";
@@ -33,9 +33,15 @@ export default async function EquipoPage({
   searchParams: Promise<{ q?: string }>;
 }) {
   const { q } = await searchParams;
-  await requireAdmin();
+  const usuario = await requireGestor();
+  const admin = esAdmin(usuario.rol);
   const db = await createSupabaseServer();
-  const [miembros, zonas] = await Promise.all([getEquipoDetallado(db), getZonas(db)]);
+  // La lista viene ya acotada por RLS: el supervisor ve gestores + los cobradores
+  // de SU zona (0060). Las zonas solo hacen falta para el alta (admin).
+  const [miembros, zonas] = await Promise.all([
+    getEquipoDetallado(db),
+    admin ? getZonas(db) : Promise.resolve([]),
+  ]);
 
   // Buscador (GET) por nombre / email / documento.
   const termino = (q ?? "").trim().toLowerCase();
@@ -53,12 +59,14 @@ export default async function EquipoPage({
       <div className="flex flex-col gap-0.5">
         <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">Equipo y permisos</h1>
         <span className="text-[13px] font-medium text-gris">
-          Quién es quién y qué puede hacer cada uno. Las acciones sensibles quedan solo para vos (admin).
+          {admin
+            ? "Quién es quién y qué puede hacer cada uno. Las acciones sensibles quedan solo para vos (admin)."
+            : "Tu equipo. Si un cobrador olvidó su contraseña, tocá su fila y restablecé su acceso."}
         </span>
       </div>
 
-      {/* Alta de usuarios (= "Crear Vendedor") */}
-      <NuevoUsuario zonas={zonas} />
+      {/* Alta de usuarios (= "Crear Vendedor"): solo admin. */}
+      {admin && <NuevoUsuario zonas={zonas} />}
 
       {/* Vendedores (lista estilo Disapp) */}
       <section className="flex flex-col gap-2">
@@ -79,7 +87,7 @@ export default async function EquipoPage({
             </button>
           </form>
         </div>
-        <EquipoTabla miembros={filtrados} />
+        <EquipoTabla miembros={filtrados} viewerRol={usuario.rol} />
         <p className="text-[10.5px] font-medium text-[#AEB6CC]">
           "Conectado" es un proxy honesto: indica login en las últimas 24 h (no presencia en vivo).
           "Dispositivos" = suscripciones push activas del usuario.

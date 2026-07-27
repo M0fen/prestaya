@@ -2,6 +2,7 @@
 import { redirect } from "next/navigation";
 import { getUsuarioActual, rutaHome } from "@/lib/auth";
 import { FormIngreso } from "@/components/auth/FormIngreso";
+import { AyudaIngreso } from "@/components/auth/AyudaIngreso";
 import { BotonInstalar } from "@/components/pwa/BotonInstalar";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +34,9 @@ export default async function IngresarPage() {
         </div>
 
         <FormIngreso />
+
+        {/* Ayuda para quien no puede entrar (clave/email) — el chat no le sirve. */}
+        <AyudaIngreso />
 
         {/* Instalar la app: siempre a mano para todo el equipo. */}
         <div className="mt-4 flex justify-center">

@@ -3,6 +3,7 @@
 import { requireUsuario } from "@/lib/auth";
 import { guiasPara, rolesVisiblesPara } from "@/lib/tutorial/contenido";
 import { Tutorial } from "@/components/tutorial/Tutorial";
+import { ContactoOficina } from "@/components/cobrador/ContactoOficina";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,9 @@ export default async function TutorialCobradorPage() {
           Guía rápida para tu día a día. Tocá cada tarjeta para ver los pasos.
         </span>
       </div>
+      {/* Ayuda humana directa, arriba de las guías: si algo no anda en la calle. */}
+      <ContactoOficina />
+
       <Tutorial guias={guias} roles={roles} base="/cobrador" />
     </div>
   );

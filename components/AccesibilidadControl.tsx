@@ -36,16 +36,16 @@ export function AccesibilidadControl() {
     }
   }, [contraste]);
 
-  // Superficies internas no usan este control de la vista de cliente.
-  if (
-    pathname?.startsWith("/admin") ||
-    pathname?.startsWith("/cobrador") ||
-    pathname?.startsWith("/ingresar")
-  )
-    return null;
+  // El panel del admin (escritorio) y el login no usan este control.
+  // El COBRADOR sí (adultos, letra chica en la calle): se muestra levantado por
+  // encima de su barra inferior para no taparla.
+  if (pathname?.startsWith("/admin") || pathname?.startsWith("/ingresar")) return null;
+  const esCobrador = pathname?.startsWith("/cobrador");
 
   return (
-    <div className="fixed right-3 bottom-3 z-50 flex items-center gap-1.5">
+    <div
+      className={`fixed right-3 z-50 flex items-center gap-1.5 ${esCobrador ? "bottom-24" : "bottom-3"}`}
+    >
       <button
         type="button"
         onClick={() => setFont((f) => (f + 1) % 3)}

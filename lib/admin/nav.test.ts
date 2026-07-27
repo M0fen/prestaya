@@ -61,8 +61,16 @@ describe("nav — agrupación del sidebar", () => {
     const config = grupos.find((g) => g.grupo === "Configuración");
     const hrefs = new Set(config?.items.map((i) => i.href) ?? []);
     expect(hrefs.has("/admin/zonas")).toBe(false); // solo admin
-    expect(hrefs.has("/admin/equipo")).toBe(false); // solo admin
     expect(hrefs.has("/admin/tutorial")).toBe(true); // compartido
+  });
+
+  it("el supervisor SÍ ve Equipo (para restablecer el acceso de sus cobradores)", () => {
+    // La lista viene acotada por RLS (0060): ve a sus cobradores + gestores; el
+    // alta de usuarios queda solo para el admin (guard en la página + server).
+    const { grupos } = navAgrupado("supervisor");
+    const config = grupos.find((g) => g.grupo === "Configuración");
+    const hrefs = new Set(config?.items.map((i) => i.href) ?? []);
+    expect(hrefs.has("/admin/equipo")).toBe(true);
   });
 });
 

@@ -4,6 +4,7 @@
 // botón "Editar" queda como acción pronto (no inventa backend nuevo).
 import type { MiembroEquipo } from "@/types/equipo";
 import type { Rol } from "@/types/db";
+import { RestablecerAcceso } from "./RestablecerAcceso";
 
 // Etiquetas de rol (locales: no importamos lib/auth, que es server-side).
 const ETIQUETA_ROL: Record<Rol, string> = {
@@ -27,7 +28,17 @@ function fechaHora(iso: string | null): string {
   }).format(d);
 }
 
-export function DetalleVendedor({ m, onClose }: { m: MiembroEquipo; onClose: () => void }) {
+export function DetalleVendedor({
+  m,
+  onClose,
+  puedeResetear = false,
+}: {
+  m: MiembroEquipo;
+  onClose: () => void;
+  /** ¿El que mira puede restablecer el acceso de este miembro? (admin, o
+   *  supervisor para cobradores de su zona). La autorización real es server-side. */
+  puedeResetear?: boolean;
+}) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
@@ -86,16 +97,16 @@ export function DetalleVendedor({ m, onClose }: { m: MiembroEquipo; onClose: () 
           <Fila k="Último acceso" v={fechaHora(m.ultimoAccesoIso)} />
         </dl>
 
-        <div className="mt-4 flex justify-end">
-          <button
-            type="button"
-            disabled
-            title="Edición de vendedor: pronto"
-            className="cursor-not-allowed rounded-full border border-borde bg-tarjeta px-4 py-2 text-[13px] font-bold text-[#AEB6CC]"
-          >
-            Editar vendedor (pronto)
-          </button>
-        </div>
+        {/* Restablecer acceso: si el que mira puede (admin, o supervisor para
+            un cobrador de su zona). Cubre el hueco de "olvidé mi contraseña". */}
+        {puedeResetear && (
+          <div className="mt-4 border-t border-linea pt-4">
+            <span className="mb-2 block text-[11px] font-bold tracking-wide text-gris uppercase">
+              Acceso
+            </span>
+            <RestablecerAcceso usuarioId={m.id} nombre={m.nombre} telefono={m.telefono} />
+          </div>
+        )}
       </div>
     </div>
   );
