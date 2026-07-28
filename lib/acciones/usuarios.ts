@@ -11,6 +11,7 @@ import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getUsuarioActual, esAdmin } from "@/lib/auth";
 import { registrarAuditoria } from "@/lib/data/auditoria";
+import { reportarError } from "@/lib/observabilidad";
 
 const schema = z.object({
   nombre: z.string().trim().min(2).max(80),
@@ -82,4 +83,63 @@ export async function crearUsuarioAction(
   });
   revalidatePath("/admin/equipo");
   return { ok: true };
+}
+
+/**
+ * ACTIVAR / DAR DE BAJA a un usuario (SOLO admin). Offboarding: `activo=false`
+ * corta TODO acceso a la app (requireUsuario y getUsuarioActual rechazan a los
+ * inactivos) y ADEMÁS se banea el login en Supabase Auth (invalida sus sesiones y
+ * le impide volver a entrar con su clave). Reversible: reactivar quita el baneo.
+ * Guardas: no podés darte de baja a vos mismo (evita el auto-lockout).
+ */
+export async function setUsuarioActivo(
+  input: { usuarioId: string; activo: boolean },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const actor = await getUsuarioActual();
+  if (!actor || !actor.activo || !esAdmin(actor.rol))
+    return { ok: false, error: "Solo el administrador puede activar o dar de baja usuarios." };
+  if (input.usuarioId === actor.id)
+    return { ok: false, error: "No podés cambiar tu propio estado (evita quedar sin acceso)." };
+
+  try {
+    const admin = createSupabaseAdmin();
+    // Traer el usuario (nombre + su login de auth) antes de tocar nada.
+    const { data: u, error: eSel } = await admin
+      .from("usuarios")
+      .select("id, nombre, rol, auth_user_id")
+      .eq("id", input.usuarioId)
+      .maybeSingle();
+    if (eSel || !u) return { ok: false, error: "No se encontró el usuario." };
+
+    // 1) Estado en la app (fuente de verdad del acceso: lo checan requireUsuario /
+    //    getUsuarioActual). Es lo que efectivamente bloquea/permite todo.
+    const { error: eUpd } = await admin.from("usuarios").update({ activo: input.activo }).eq("id", input.usuarioId);
+    if (eUpd) return { ok: false, error: "No se pudo cambiar el estado del usuario." };
+
+    // 2) Login en Supabase Auth: banear al dar de baja (invalida sesiones + impide
+    //    reingreso), quitar el baneo al reactivar. Best-effort: si falla, el paso 1 ya
+    //    bloquea la app; se deja rastro para revisarlo, no se revierte el estado.
+    const authId = (u as { auth_user_id: string | null }).auth_user_id;
+    if (authId) {
+      const { error: eBan } = await admin.auth.admin.updateUserById(authId, {
+        ban_duration: input.activo ? "none" : "876000h", // ~100 años = baja efectiva
+      });
+      if (eBan) reportarError("setUsuarioActivo.ban", eBan, { usuarioId: input.usuarioId, activo: input.activo });
+    }
+
+    const db = await createSupabaseServer();
+    await registrarAuditoria(db, {
+      actorId: actor.id,
+      actorNombre: actor.nombre,
+      accion: input.activo ? "Reactivó a un usuario" : "Dio de baja a un usuario",
+      entidad: "usuario",
+      entidadId: input.usuarioId,
+      detalle: `${(u as { nombre: string }).nombre} · ${(u as { rol: string }).rol}`,
+    });
+    revalidatePath("/admin/equipo");
+    return { ok: true };
+  } catch (e) {
+    reportarError("setUsuarioActivo", e, { usuarioId: input.usuarioId });
+    return { ok: false, error: "No se pudo cambiar el estado. Probá de nuevo." };
+  }
 }

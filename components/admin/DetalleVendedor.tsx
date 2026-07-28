@@ -5,6 +5,7 @@
 import type { MiembroEquipo } from "@/types/equipo";
 import type { Rol } from "@/types/db";
 import { RestablecerAcceso } from "./RestablecerAcceso";
+import { BajaUsuario } from "./BajaUsuario";
 
 // Etiquetas de rol (locales: no importamos lib/auth, que es server-side).
 const ETIQUETA_ROL: Record<Rol, string> = {
@@ -32,12 +33,15 @@ export function DetalleVendedor({
   m,
   onClose,
   puedeResetear = false,
+  puedeDarBaja = false,
 }: {
   m: MiembroEquipo;
   onClose: () => void;
   /** ¿El que mira puede restablecer el acceso de este miembro? (admin, o
    *  supervisor para cobradores de su zona). La autorización real es server-side. */
   puedeResetear?: boolean;
+  /** ¿Puede dar de baja / reactivar? Solo admin (offboarding). Server-side manda. */
+  puedeDarBaja?: boolean;
 }) {
   return (
     <div
@@ -99,12 +103,15 @@ export function DetalleVendedor({
 
         {/* Restablecer acceso: si el que mira puede (admin, o supervisor para
             un cobrador de su zona). Cubre el hueco de "olvidé mi contraseña". */}
-        {puedeResetear && (
-          <div className="mt-4 border-t border-linea pt-4">
-            <span className="mb-2 block text-[11px] font-bold tracking-wide text-gris uppercase">
+        {(puedeResetear || puedeDarBaja) && (
+          <div className="mt-4 flex flex-col gap-3 border-t border-linea pt-4">
+            <span className="block text-[11px] font-bold tracking-wide text-gris uppercase">
               Acceso
             </span>
-            <RestablecerAcceso usuarioId={m.id} nombre={m.nombre} telefono={m.telefono} />
+            {puedeResetear && (
+              <RestablecerAcceso usuarioId={m.id} nombre={m.nombre} telefono={m.telefono} />
+            )}
+            {puedeDarBaja && <BajaUsuario usuarioId={m.id} nombre={m.nombre} activo={m.activo} />}
           </div>
         )}
       </div>

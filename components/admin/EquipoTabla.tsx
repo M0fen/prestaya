@@ -104,7 +104,7 @@ export function EquipoTabla({
       </div>
 
       {sel && (
-        <DetalleVendedor m={sel} onClose={() => setSel(null)} puedeResetear={puedeResetear(sel)} />
+        <DetalleVendedor m={sel} onClose={() => setSel(null)} puedeResetear={puedeResetear(sel)} puedeDarBaja={viewerRol === "admin"} />
       )}
     </>
   );
