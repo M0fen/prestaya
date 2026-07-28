@@ -5,6 +5,7 @@
 import { revalidatePath } from "next/cache";
 import { getUsuarioActual } from "@/lib/auth";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
+import { registrarAuditoria } from "@/lib/data/auditoria";
 import { reportarError } from "@/lib/observabilidad";
 
 export async function setModoSoloLectura(
@@ -28,6 +29,15 @@ export async function setModoSoloLectura(
         { onConflict: "clave" },
       );
     if (error) throw error;
+    // La palanca MÁS grave del sistema (congela toda la plata) debe quedar en el
+    // rastro: quién la activó/desactivó y cuándo. Antes era invisible en /admin/auditoria.
+    await registrarAuditoria(db, {
+      actorId: u.id,
+      actorNombre: u.nombre,
+      accion: activo ? "Activó el modo solo-lectura (congeló la plata)" : "Desactivó el modo solo-lectura (reanudó la operación)",
+      entidad: "feature_flag",
+      entidadId: "modo_solo_lectura",
+    });
     revalidatePath("/admin");
     return { ok: true };
   } catch (e) {

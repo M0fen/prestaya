@@ -26,8 +26,17 @@ type Resultado = { ok: true } | { ok: false; error: string };
 
 const CATEGORIAS = new Set<string>(CATEGORIAS_GASTO);
 const money = (n: number) => `$${Math.round(n).toLocaleString("es-UY")}`;
-/** Solo http(s) (la foto la subió `subirComprobanteGasto` a nuestro bucket). */
-const esUrlComprobante = (s: string | null | undefined) => /^https?:\/\/\S+$/i.test((s ?? "").trim());
+const SUPA_URL = (process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "").replace(/\/$/, "");
+/** Acepta SOLO una URL pública de NUESTRO bucket de Supabase (no cualquier http):
+ *  la foto la subió `subirComprobanteGasto` y devuelve exactamente ese prefijo. Evita
+ *  que un cliente manipulado guarde un "comprobante" externo que el panel renderiza
+ *  como <img> (comprobante falso / carga de recurso ajeno). Sin env (dev): no rompe. */
+function esUrlComprobante(s: string | null | undefined): boolean {
+  const url = (s ?? "").trim();
+  if (!url) return false;
+  if (SUPA_URL) return url.startsWith(`${SUPA_URL}/storage/v1/object/public/`);
+  return /^https?:\/\/\S+$/i.test(url);
+}
 
 /** Avisa al cobrador, en SU hilo de chat, cómo quedó su solicitud de gasto.
  *  Best-effort: si falla, no rompe la aprobación/rechazo (la plata ya se movió).
@@ -231,7 +240,11 @@ export async function rechazarGastoRuta(input: { solicitudId: string; motivo?: s
   if (sol.estado !== "pendiente") return { ok: false, error: "Esa solicitud ya fue resuelta." };
 
   const admin = createSupabaseAdmin();
-  await admin
+  // CANDADO atómico (igual que aprobar): el UPDATE con guardia `.eq('estado','pendiente')`
+  // + `.select` verifica que ESTA llamada haya ganado. Sin esto, un aprobar concurrente
+  // que ya flipeó a 'aprobada' dejaba pasar el rechazo igual → auditoría con AMBOS eventos
+  // y el cobrador recibía ✅ y ❌ sobre la misma solicitud (contradicción de la traza).
+  const { data: rechazada, error: eRech } = await admin
     .from("solicitudes_gasto")
     .update({
       estado: "rechazada",
@@ -241,7 +254,10 @@ export async function rechazarGastoRuta(input: { solicitudId: string; motivo?: s
       motivo_rechazo: (input.motivo ?? "").trim() || null,
     })
     .eq("id", sol.id)
-    .eq("estado", "pendiente");
+    .eq("estado", "pendiente")
+    .select("id");
+  if (eRech) return { ok: false, error: "No se pudo rechazar el gasto." };
+  if (!rechazada || rechazada.length === 0) return { ok: false, error: "La solicitud ya había sido resuelta." };
   await registrarAuditoria(admin, {
     actorId: usuario.id,
     actorNombre: usuario.nombre,

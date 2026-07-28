@@ -240,7 +240,7 @@ export default async function CajaPage({
 
       <p className="text-[11px] leading-[1.5] font-medium text-tenue-2">
         Los cobros entran automáticamente desde la calle (tabla de pagos, inmutable). Acá se cargan
-        gastos, desembolsos, aportes y retiros OPERATIVOS. El balance = entradas − retiros.
+        gastos, desembolsos, aportes y retiros OPERATIVOS. El balance = entradas − egresos.
       </p>
     </div>
   );

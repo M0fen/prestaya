@@ -43,10 +43,11 @@ export default async function JuegoPage() {
         <div className="flex flex-col gap-0.5">
           <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">Zona de juego</h1>
           <span className="text-[13px] font-medium text-gris">
-            Controlá lo que ven tus clientes: recompensas, temporada y el juego del mes.
+            Encendé la zona de juego (raspadita y quiniela) para tus clientes. El arcade, la
+            temporada y las misiones se preparan acá, pero todavía no se muestran en el cartón.
           </span>
         </div>
-        <EtiquetaAudiencia audiencia="cliente" nota="el arcade y la temporada están en pausa por ahora" />
+        <EtiquetaAudiencia audiencia="cliente" nota="hoy el cliente solo ve la raspadita y la quiniela; el arcade y la temporada están en pausa" />
       </div>
 
       {ajustes.temporadaActiva && pctAlDia !== null && (

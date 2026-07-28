@@ -12,6 +12,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { estadoMfa } from "@/lib/seguridad/mfa";
 import { getTotalNoLeidos } from "@/lib/data/chat";
 import { contarSolicitudesGastoPendientes } from "@/lib/data/solicitudesGasto";
+import { alcanceDelActor } from "@/lib/data/alcance";
 import { contarSolicitudesNuevas } from "@/lib/data/tienda";
 import { AsesorFlotante } from "@/components/asesor/AsesorFlotante";
 import { CommandPalette } from "@/components/admin/CommandPalette";
@@ -43,11 +44,14 @@ export default async function PanelLayout({
 
   // Badge de no leídos + gastos pendientes + leads de la tienda: consultas
   // INDEPENDIENTES → en paralelo (antes en serie; corren en CADA navegación del
-  // panel). El MFA queda arriba porque puede redirigir. Gastos y tienda: solo el
-  // admin (aprueba gastos / gobierna la tienda), por eso 0 para el supervisor.
+  // panel). El MFA queda arriba porque puede redirigir. GASTOS: el admin ve todos;
+  // el supervisor los de SU zona (para enterarse de lo que espera aprobación —antes
+  // su badge quedaba en 0 aunque tuviera solicitudes). Tienda (leads): sigue admin-only.
+  const alcance = await alcanceDelActor();
+  const cobIdsGasto = alcance.global ? null : alcance.cobradorIds;
   const [noLeidos, gastosPendientes, leadsNuevos] = await Promise.all([
     getTotalNoLeidos(db, usuario),
-    esAdmin(usuario.rol) ? contarSolicitudesGastoPendientes(db) : Promise.resolve(0),
+    esGestor(usuario.rol) ? contarSolicitudesGastoPendientes(db, cobIdsGasto) : Promise.resolve(0),
     esAdmin(usuario.rol) ? contarSolicitudesNuevas(db) : Promise.resolve(0),
   ]);
   const tema = (await cookies()).get("tema")?.value === "oscuro" ? "oscuro" : "claro";

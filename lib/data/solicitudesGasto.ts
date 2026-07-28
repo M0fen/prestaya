@@ -21,6 +21,9 @@ export interface SolicitudGasto {
   /** Foto del comprobante/factura que adjuntó el cobrador (0070). null = sin foto
    *  (solicitudes viejas o entorno sin la migración). */
   comprobanteUrl: string | null;
+  /** Quién resolvió (aprobó/rechazó) y cuándo. null si aún pendiente. Traza anti-fraude. */
+  resueltoPorNombre: string | null;
+  resueltoEn: string | null;
 }
 
 function map(r: Record<string, unknown>): SolicitudGasto {
@@ -35,6 +38,8 @@ function map(r: Record<string, unknown>): SolicitudGasto {
     solicitadoEn: r.solicitado_en as string,
     motivoRechazo: (r.motivo_rechazo as string | null) ?? null,
     comprobanteUrl: (r.comprobante_url as string | null) ?? null,
+    resueltoPorNombre: (r.resuelto_por_nombre as string | null) ?? null,
+    resueltoEn: (r.resuelto_en as string | null) ?? null,
   };
 }
 
@@ -114,6 +119,40 @@ export async function contarSolicitudesGastoPendientes(
     return count ?? 0;
   } catch (e) {
     if (tablaFaltante(e)) return 0;
+    throw e;
+  }
+}
+
+/** Historial de gastos RESUELTOS (aprobados/rechazados) para el admin: recupera la
+ *  evidencia anti-fraude que antes desaparecía al resolver (comprobante, quién y
+ *  cuándo). Ordenado del más reciente. `cobradorIds` acota por zona (supervisor);
+ *  null = todos (admin). Degrada a [] si falta 0057. */
+export async function getSolicitudesGastoResueltas(
+  db: SupabaseClient,
+  cobradorIds?: string[] | null,
+  limite = 100,
+): Promise<SolicitudGasto[]> {
+  try {
+    if (cobradorIds && cobradorIds.length === 0) return [];
+    let q = db
+      .from("solicitudes_gasto")
+      .select("*")
+      .in("estado", ["aprobada", "rechazada"])
+      .order("resuelto_en", { ascending: false })
+      .limit(limite);
+    if (cobradorIds) q = q.in("cobrador_id", cobradorIds);
+    const { data, error } = await q;
+    if (error) throw error;
+    const items = (data ?? []).map(map);
+    const ids = [...new Set(items.map((i) => i.cobradorId))];
+    if (ids.length > 0) {
+      const { data: us } = await db.from("usuarios").select("id, nombre").in("id", ids);
+      const nombre = new Map((us ?? []).map((u) => [u.id as string, u.nombre as string]));
+      for (const i of items) i.cobradorNombre = nombre.get(i.cobradorId) ?? i.cobradorNombre;
+    }
+    return items;
+  } catch (e) {
+    if (tablaFaltante(e)) return [];
     throw e;
   }
 }

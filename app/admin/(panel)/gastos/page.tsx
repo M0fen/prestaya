@@ -3,9 +3,10 @@
 // (crea el egreso) o rechaza. Recién aprobado el gasto sale de la caja.
 import { requireGestor, esAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { getSolicitudesGastoPendientes } from "@/lib/data/solicitudesGasto";
+import { getSolicitudesGastoPendientes, getSolicitudesGastoResueltas } from "@/lib/data/solicitudesGasto";
 import { alcanceDelActor } from "@/lib/data/alcance";
 import { SolicitudesGasto } from "@/components/admin/SolicitudesGasto";
+import { HistorialGastos } from "@/components/admin/HistorialGastos";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,11 @@ export default async function GastosPage() {
   const db = await createSupabaseServer();
   // El supervisor ve SOLO los gastos de sus cobradores (acotado por zona).
   const alcance = await alcanceDelActor();
-  const pendientes = await getSolicitudesGastoPendientes(db, alcance.global ? null : alcance.cobradorIds);
+  const cobIds = alcance.global ? null : alcance.cobradorIds;
+  const [pendientes, resueltos] = await Promise.all([
+    getSolicitudesGastoPendientes(db, cobIds),
+    getSolicitudesGastoResueltas(db, cobIds),
+  ]);
 
   return (
     <div className="mx-auto flex max-w-[820px] flex-col gap-5">
@@ -28,6 +33,9 @@ export default async function GastosPage() {
         </span>
       </div>
       <SolicitudesGasto solicitudes={pendientes} puedeAprobar={admin} />
+      {/* Historial: recupera la evidencia (comprobante, quién/cuándo resolvió) que
+          antes desaparecía al aprobar/rechazar. Trazabilidad anti-fraude a posteriori. */}
+      <HistorialGastos resueltos={resueltos} />
     </div>
   );
 }

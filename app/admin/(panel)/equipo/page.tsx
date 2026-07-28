@@ -23,7 +23,7 @@ const PERMISOS: { accion: string; admin: Cel; supervisor: Cel; cobrador: Cel }[]
   { accion: "Gestionar zonas (crear, mover cobradores)", admin: "si", supervisor: "no", cobrador: "no" },
   { accion: "Anular un pago directo", admin: "si", supervisor: "no", cobrador: "no" },
   { accion: "Solicitar / confirmar anulación (doble registro)", admin: "si", supervisor: "si", cobrador: "no" },
-  { accion: "Reasignar cliente entre cobradores (misma zona)", admin: "si", supervisor: "si", cobrador: "no" },
+  { accion: "Reasignar cliente entre cobradores (el supervisor, dentro de su zona; el admin, sin límite)", admin: "si", supervisor: "si", cobrador: "no" },
   { accion: "Registrar cobros y visitas en ruta", admin: "no", supervisor: "no", cobrador: "campo" },
 ];
 
