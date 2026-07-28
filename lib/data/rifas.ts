@@ -8,6 +8,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { tablaFaltante } from "./errores";
 import type { Calificacion } from "@/types/db";
+import type { ClienteSegmentable, DefinicionSegmento } from "@/lib/segmentos";
+import { clienteEnSegmento } from "@/lib/segmentos";
 
 export const BUCKET_RIFAS = "rifas";
 const MAX_BYTES = 4_000_000;
@@ -25,6 +27,8 @@ export interface Rifa {
   /** URL pública de la foto del premio (si tiene). */
   fotoUrl: string | null;
   soloMejores: boolean;
+  /** Audiencia rica (0089). Si está, MANDA sobre soloMejores. null = usa soloMejores. */
+  segmentoDef: DefinicionSegmento | null;
   activo: boolean;
 }
 
@@ -39,6 +43,7 @@ function mapRifa(r: Record<string, unknown>): Rifa {
     fotoPath,
     fotoUrl: fotoPath ? urlPublicaRifa(fotoPath) : null,
     soloMejores: (r.solo_mejores as boolean) ?? true,
+    segmentoDef: (r.segmento_def as DefinicionSegmento | null) ?? null,
     activo: (r.activo as boolean) ?? false,
   };
 }
@@ -66,16 +71,18 @@ export async function getRifa(db: SupabaseClient): Promise<Rifa | null> {
 }
 
 /**
- * La rifa a MOSTRARLE a un cliente según su calificación: null si no hay rifa
- * activa o si es dirigida a "mejores" y el cliente no lo es.
+ * La rifa a MOSTRARLE a un cliente: null si no hay rifa activa o si su AUDIENCIA no
+ * lo incluye. Si la rifa tiene `segmentoDef` (audiencia rica 0089) MANDA sobre el
+ * viejo `soloMejores`; si no, cae a la regla previa (todos, o solo excelente/bueno).
  */
 export async function getRifaParaCliente(
   db: SupabaseClient,
-  calificacion: Calificacion,
+  cliente: ClienteSegmentable,
 ): Promise<Rifa | null> {
   const rifa = await getRifa(db);
   if (!rifa || !rifa.activo) return null;
-  if (rifa.soloMejores && !MEJORES.has(calificacion)) return null;
+  if (rifa.segmentoDef) return clienteEnSegmento(cliente, rifa.segmentoDef) ? rifa : null;
+  if (rifa.soloMejores && !(cliente.calificacion && MEJORES.has(cliente.calificacion))) return null;
   return rifa;
 }
 
@@ -90,6 +97,7 @@ export async function guardarRifaDb(
     premioTexto: string | null;
     botonTexto: string;
     soloMejores: boolean;
+    segmentoDef: DefinicionSegmento | null;
     activo: boolean;
   },
 ): Promise<string> {
@@ -99,6 +107,7 @@ export async function guardarRifaDb(
     premio_texto: input.premioTexto,
     boton_texto: input.botonTexto,
     solo_mejores: input.soloMejores,
+    segmento_def: input.segmentoDef,
     activo: input.activo,
     actualizado_en: new Date().toISOString(),
   };

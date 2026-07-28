@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getPremiosRaspa, getSegmentosRaspa, getQuinielasAdmin, getParticipaciones } from "@/lib/data/promos";
 import { getAjustesJuego } from "@/lib/data/juegoConfig";
+import { getZonas } from "@/lib/data/zonas";
 import { ganadores as calcularGanadores } from "@/lib/quiniela";
 import { PromosManager, type ResumenQuiniela } from "@/components/admin/PromosManager";
 import { ToggleJuegos } from "@/components/admin/ToggleJuegos";
@@ -16,11 +17,12 @@ export const dynamic = "force-dynamic";
 export default async function PromosPage() {
   await requireAdmin();
   const db = await createSupabaseServer();
-  const [premios, segmentos, quinielas, ajustes] = await Promise.all([
+  const [premios, segmentos, quinielas, ajustes, zonas] = await Promise.all([
     getPremiosRaspa(db, false),
     getSegmentosRaspa(db, false),
     getQuinielasAdmin(db),
     getAjustesJuego(db),
+    getZonas(db),
   ]);
 
   // Datos para el preview "así lo ve el cliente".
@@ -77,7 +79,7 @@ export default async function PromosPage() {
         hayRaspa={hayRaspa}
       />
 
-      <PromosManager premios={premios} segmentos={segmentos} quinielas={quinielas} resumen={resumen} />
+      <PromosManager premios={premios} segmentos={segmentos} quinielas={quinielas} resumen={resumen} zonas={zonas.map((z) => ({ id: z.id, nombre: z.nombre }))} />
 
       <p className="text-[11px] leading-[1.5] font-medium text-tenue-2">
         Marco legal: en Uruguay el juego de azar por dinero lo regula el Estado. Estas funciones son

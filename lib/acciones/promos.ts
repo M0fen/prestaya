@@ -19,6 +19,7 @@ import {
 } from "@/lib/data/promos";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { normalizarNumero } from "@/lib/quiniela";
+import { normalizarSegmento, esSegmentoTodos, type DefinicionSegmento } from "@/lib/segmentos";
 
 type Resultado = { ok: true } | { ok: false; error: string };
 
@@ -140,6 +141,8 @@ export async function crearQuiniela(input: {
   rangoMin: number;
   rangoMax: number;
   premioTexto: string;
+  /** Audiencia (0089): solo estos clientes participan. null/vacío = todos los al día. */
+  segmentoDef?: DefinicionSegmento | null;
 }): Promise<Resultado> {
   const u = await gestor();
   if (!u) return { ok: false, error: "No tenés permisos." };
@@ -148,9 +151,11 @@ export async function crearQuiniela(input: {
   if (!titulo || !premioTexto) return { ok: false, error: "Completá título y premio." };
   const min = Math.max(0, Math.round(Number(input.rangoMin) || 0));
   const max = Math.max(min + 1, Math.round(Number(input.rangoMax) || 99));
+  const defRaw = normalizarSegmento(input.segmentoDef ?? {});
+  const segmentoDef = esSegmentoTodos(defRaw) ? null : defRaw;
   try {
     const db = await createSupabaseServer();
-    await crearQuinielaDb(db, { titulo, rangoMin: min, rangoMax: max, premioTexto });
+    await crearQuinielaDb(db, { titulo, rangoMin: min, rangoMax: max, premioTexto, segmentoDef });
     await registrarAuditoria(db, {
       actorId: u.id, actorNombre: u.nombre,
       accion: "Abrió quiniela", entidad: "promo", detalle: `${titulo} (${min}–${max})`,

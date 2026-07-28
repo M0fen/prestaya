@@ -8,6 +8,8 @@
 // ─────────────────────────────────────────────────────────────────────────
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Calificacion } from "@/types/db";
+import type { DefinicionSegmento } from "@/lib/segmentos";
+import { clienteEnSegmento } from "@/lib/segmentos";
 import { tablaFaltante } from "./errores";
 
 export type EstadoSolicitud = "nueva" | "contactado" | "cerrada" | "descartada";
@@ -41,6 +43,9 @@ export interface Producto {
   activo: boolean;
   destacado: boolean;
   orden: number;
+  /** Visibilidad por audiencia (0089): null = visible para todos. Si está, solo lo
+   *  ven los clientes que matchean (clienteEnSegmento). */
+  segmentoDef: DefinicionSegmento | null;
 }
 
 /** Producto con el PRECIO RESUELTO para un cliente (override o base). */
@@ -127,6 +132,7 @@ function mapProducto(r: Record<string, unknown>): Producto {
     activo: Boolean(r.activo),
     destacado: Boolean(r.destacado),
     orden: N(r.orden),
+    segmentoDef: (r.segmento_def as DefinicionSegmento | null) ?? null,
   };
 }
 
@@ -252,8 +258,24 @@ export async function getProductosParaCliente(
     const { data, error } = await db.from("productos").select(COLS).eq("activo", true)
       .order("orden", { ascending: true }).order("nombre", { ascending: true });
     if (error) throw error;
-    const productos = (data ?? []).map(mapProducto);
+    let productos = (data ?? []).map(mapProducto);
     if (productos.length === 0) return [];
+
+    // VISIBILIDAD por audiencia (0089): un producto con segmento_def solo lo ven los
+    // clientes que matchean. Solo se paga la consulta de zona si algún producto está
+    // segmentado (si ninguno lo está → conducta previa, todos los productos visibles).
+    if (productos.some((p) => p.segmentoDef)) {
+      const zonaId = await getZonaIdDeCliente(db, cliente.id);
+      const clienteSeg = {
+        id: cliente.id,
+        calificacion: cliente.calificacion,
+        zonaId,
+        cobradorId: null,
+        alDia: true, // la tienda no calcula el cartón; la visibilidad va por calificación/zona
+      };
+      productos = productos.filter((p) => !p.segmentoDef || clienteEnSegmento(clienteSeg, p.segmentoDef));
+      if (productos.length === 0) return [];
+    }
 
     // Override INDIVIDUAL de ESTE cliente (pocos): un solo query.
     const indiv = new Map<string, Terminos>();
@@ -290,14 +312,21 @@ export async function getProductoDestacadoParaCliente(
   cliente: ClientePrecio,
 ): Promise<ProductoParaCliente | null> {
   try {
+    // Se traen los destacados (hasta 5) y se elige el primero VISIBLE para el cliente
+    // (un destacado segmentado no debe mostrarse a quien no pertenece a su audiencia).
     const { data, error } = await db.from("productos").select(COLS)
       .eq("activo", true).eq("destacado", true)
       .order("orden", { ascending: true }).order("nombre", { ascending: true })
-      .limit(1);
+      .limit(5);
     if (error) throw error;
-    const row = (data ?? [])[0] as Record<string, unknown> | undefined;
-    if (!row) return null;
-    const p = mapProducto(row);
+    let destacados = ((data ?? []) as Record<string, unknown>[]).map(mapProducto);
+    if (destacados.some((p) => p.segmentoDef)) {
+      const zonaId = await getZonaIdDeCliente(db, cliente.id);
+      const clienteSeg = { id: cliente.id, calificacion: cliente.calificacion, zonaId, cobradorId: null, alDia: true };
+      destacados = destacados.filter((p) => !p.segmentoDef || clienteEnSegmento(clienteSeg, p.segmentoDef));
+    }
+    const p = destacados[0];
+    if (!p) return null;
     // Override INDIVIDUAL de ESTE cliente para ese producto (unique → maybeSingle).
     const { data: ov } = await db.from("producto_precio_cliente")
       .select("precio, interes_pct, cuotas").eq("cliente_id", cliente.id).eq("producto_id", p.id).maybeSingle();
@@ -416,6 +445,8 @@ export interface ProductoInput {
   activo: boolean;
   destacado: boolean;
   orden: number;
+  /** Visibilidad por audiencia (0089). null = visible para todos. */
+  segmentoDef: DefinicionSegmento | null;
 }
 
 function rowProducto(p: ProductoInput) {
@@ -424,6 +455,7 @@ function rowProducto(p: ProductoInput) {
     precio: N(p.precio), precio_anterior: p.precioAnterior > 0 ? N(p.precioAnterior) : null,
     interes_pct: NUM(p.interesPct), cuotas: N(p.cuotas), frecuencia: p.frecuencia,
     fotos: p.fotos, video_url: p.videoUrl, activo: p.activo, destacado: p.destacado, orden: N(p.orden),
+    segmento_def: p.segmentoDef,
   };
 }
 

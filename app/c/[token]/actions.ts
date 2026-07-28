@@ -11,6 +11,7 @@ import { getPrestamoActivoPorCliente } from "@/lib/data/prestamos";
 import { crearReporte, contarReportesRecientes } from "@/lib/data/reportes";
 import { getSaldoEstrellas, crearSolicitudRedencion } from "@/lib/data/estrellas";
 import { validarRedencion, claveCiclo } from "@/lib/estrellas";
+import { clienteEnSegmento } from "@/lib/segmentos";
 import { getAjustesJuego } from "@/lib/data/juegoConfig";
 import { cicloUY, hoyUY } from "@/lib/fecha";
 import { getPagosDePrestamo } from "@/lib/data/pagos";
@@ -262,6 +263,24 @@ export async function participarQuiniela(input: {
     const carton = calcularEstadosCarton(prestamo, pagos, hoyUY());
     if (carton.dias.some((d) => d.estado === "atrasado"))
       return { ok: false, error: "Ponete al día y tu número entra al sorteo. 💙" };
+
+    // AUDIENCIA (0089): si la quiniela está acotada a un segmento, solo participa
+    // quien pertenece. Defensa en profundidad (el cartón ya la oculta fuera de audiencia,
+    // pero un cliente manipulado no debe poder auto-inscribirse). Misma definición de
+    // "al día" que el display (sin atrasados NI pendientes) para no contradecirse.
+    if (quiniela.segmentoDef) {
+      let zonaId: string | null = null;
+      if (prestamo.cobrador_id) {
+        const { data: cob } = await db.from("usuarios").select("zona_id").eq("id", prestamo.cobrador_id).maybeSingle();
+        zonaId = (cob as { zona_id: string | null } | null)?.zona_id ?? null;
+      }
+      const alDia = !carton.dias.some((d) => d.estado === "atrasado" || d.estado === "pendiente");
+      const enAudiencia = clienteEnSegmento(
+        { id: cliente.id, calificacion: cliente.calificacion, zonaId, cobradorId: prestamo.cobrador_id ?? null, alDia },
+        quiniela.segmentoDef,
+      );
+      if (!enAudiencia) return { ok: false, error: "Esta quiniela no está disponible para vos." };
+    }
 
     // Idempotente: ya participando → ok con su número (asignado, siempre el mismo).
     const yaTiene = await getParticipacionCliente(db, quiniela.id, cliente.id);

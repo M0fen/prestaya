@@ -6,6 +6,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PremioRaspa, SegmentoRaspa } from "@/lib/raspadita";
 import type { Quiniela } from "@/lib/data/promos";
+import type { DefinicionSegmento } from "@/lib/segmentos";
+import { SelectorSegmento } from "@/components/admin/SelectorSegmento";
 import { formatearSuerte, numeroGanadorAlAzar } from "@/lib/quiniela";
 import {
   guardarPremioRaspa,
@@ -31,11 +33,13 @@ export function PromosManager({
   segmentos,
   quinielas,
   resumen,
+  zonas = [],
 }: {
   premios: PremioRaspa[];
   segmentos: SegmentoRaspa[];
   quinielas: Quiniela[];
   resumen: Record<string, ResumenQuiniela>;
+  zonas?: { id: string; nombre: string }[];
 }) {
   const router = useRouter();
   const refrescar = () => router.refresh();
@@ -134,7 +138,7 @@ export function PromosManager({
           </p>
         </div>
 
-        <NuevaQuiniela onDone={() => router.refresh()} />
+        <NuevaQuiniela onDone={() => router.refresh()} zonas={zonas} />
         <div className="flex flex-col gap-2">
           {quinielas.length === 0 && (
             <p className="rounded-[14px] bg-tarjeta p-4 text-center text-[13px] font-medium text-gris">
@@ -315,17 +319,18 @@ function SegmentoFila({
   );
 }
 
-function NuevaQuiniela({ onDone }: { onDone: () => void }) {
+function NuevaQuiniela({ onDone, zonas = [] }: { onDone: () => void; zonas?: { id: string; nombre: string }[] }) {
   const [titulo, setTitulo] = useState("");
   const [premioTexto, setPremio] = useState("");
+  const [segmentoDef, setSegmentoDef] = useState<DefinicionSegmento | null>(null);
   const [ocupado, setOcupado] = useState(false);
 
   const crear = async () => {
     setOcupado(true);
     // El número es siempre de 3 dígitos (000–999): los últimos 3 del registro.
-    const r = await crearQuiniela({ titulo, premioTexto, rangoMin: 0, rangoMax: 999 });
+    const r = await crearQuiniela({ titulo, premioTexto, rangoMin: 0, rangoMax: 999, segmentoDef });
     setOcupado(false);
-    if (r.ok) { setTitulo(""); setPremio(""); onDone(); }
+    if (r.ok) { setTitulo(""); setPremio(""); setSegmentoDef(null); onDone(); }
   };
 
   return (
@@ -335,6 +340,8 @@ function NuevaQuiniela({ onDone }: { onDone: () => void }) {
         onChange={(e) => setTitulo(e.target.value)} />
       <input className={inputCls} placeholder="Premio (beneficio, sin dinero)" value={premioTexto}
         onChange={(e) => setPremio(e.target.value)} />
+      {/* Audiencia (0089): quiénes participan. Vacío = todos los que estén al día. */}
+      <SelectorSegmento value={segmentoDef} onChange={setSegmentoDef} zonas={zonas} />
       <div className="flex items-center gap-2">
         <span className="text-[11px] font-medium text-tenue">Números del 000 al 999 (últimos 3 del registro).</span>
         <button onClick={crear} disabled={ocupado || !titulo.trim() || !premioTexto.trim()}

@@ -35,10 +35,14 @@ export function SelectorSegmento({
   value,
   onChange,
   zonas = [],
+  sinEstado = false,
 }: {
   value: DefinicionSegmento | null;
   onChange: (def: DefinicionSegmento) => void;
   zonas?: { id: string; nombre: string }[];
+  /** Oculta el "estado del crédito" (p. ej. en la tienda, donde no se calcula el
+   *  cartón del cliente y la visibilidad se define por calificación/zona). */
+  sinEstado?: boolean;
 }) {
   const def: DefinicionSegmento = value ?? {};
   const cal = def.calificaciones ?? [];
@@ -72,21 +76,23 @@ export function SelectorSegmento({
         </div>
       </div>
 
-      <div className="flex flex-col gap-1">
-        <span className="text-[11px] font-semibold text-gris">Estado del crédito</span>
-        <div className="flex flex-wrap gap-1.5">
-          {ESTADOS.map((e) => (
-            <button
-              key={e.v}
-              type="button"
-              onClick={() => emit({ estadoCredito: e.v })}
-              className={chip(estado === e.v)}
-            >
-              {e.label}
-            </button>
-          ))}
+      {!sinEstado && (
+        <div className="flex flex-col gap-1">
+          <span className="text-[11px] font-semibold text-gris">Estado del crédito</span>
+          <div className="flex flex-wrap gap-1.5">
+            {ESTADOS.map((e) => (
+              <button
+                key={e.v}
+                type="button"
+                onClick={() => emit({ estadoCredito: e.v })}
+                className={chip(estado === e.v)}
+              >
+                {e.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {zonas.length > 0 && (
         <div className="flex flex-col gap-1">

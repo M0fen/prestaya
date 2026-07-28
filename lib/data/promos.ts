@@ -3,6 +3,7 @@
 //  si 0021 no corrió, degrada a vacío. Promocional: sin dinero real (ver 0021).
 // ─────────────────────────────────────────────────────────────────────────
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { DefinicionSegmento } from "@/lib/segmentos";
 import { tablaFaltante, columnaFaltante } from "@/lib/data/errores";
 import { contarPagosVigentesCliente } from "@/lib/data/estrellas";
 import { raspaditasDisponibles, type PremioRaspa, type SegmentoRaspa } from "@/lib/raspadita";
@@ -204,6 +205,8 @@ export interface Quiniela {
   sorteoEn: string | null;
   /** cliente_ids que el admin forzó como ganadores (0090). [] si la col no existe. */
   ganadoresForzados: string[];
+  /** Audiencia (0089): solo estos clientes participan/ven. null = todos los al día. */
+  segmentoDef: DefinicionSegmento | null;
 }
 
 function mapQuiniela(r: Record<string, unknown>): Quiniela {
@@ -217,6 +220,7 @@ function mapQuiniela(r: Record<string, unknown>): Quiniela {
     numeroGanador: r.numero_ganador == null ? null : Number(r.numero_ganador),
     sorteoEn: (r.sorteo_en as string | null) ?? null,
     ganadoresForzados: Array.isArray(r.ganadores_forzados) ? (r.ganadores_forzados as string[]) : [],
+    segmentoDef: (r.segmento_def as DefinicionSegmento | null) ?? null,
   };
 }
 
@@ -287,7 +291,7 @@ export async function participarQuinielaDb(
 
 export async function crearQuinielaDb(
   db: SupabaseClient,
-  input: { titulo: string; rangoMin: number; rangoMax: number; premioTexto: string },
+  input: { titulo: string; rangoMin: number; rangoMax: number; premioTexto: string; segmentoDef?: DefinicionSegmento | null },
 ): Promise<void> {
   // Una sola quiniela ABIERTA a la vez: cerramos las abiertas antes de abrir la
   // nueva. El índice único parcial (0082) lo garantiza a nivel BD; si dos gestores
@@ -299,6 +303,7 @@ export async function crearQuinielaDb(
       rango_min: input.rangoMin,
       rango_max: input.rangoMax,
       premio_texto: input.premioTexto,
+      segmento_def: input.segmentoDef ?? null,
       estado: "abierta",
     });
     if (!error) return;

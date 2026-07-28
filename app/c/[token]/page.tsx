@@ -29,6 +29,7 @@ import { conTimeout } from "@/lib/timeout";
 import { hoyUY } from "@/lib/fecha";
 import type { Anuncio } from "@/types/db";
 import type { ClienteSegmentable } from "@/lib/segmentos";
+import { clienteEnSegmento } from "@/lib/segmentos";
 import { NEGOCIO } from "@/lib/negocio";
 import { VistaClienteScreen } from "@/components/VistaClienteScreen";
 import { SinCreditoActivo } from "@/components/SinCreditoActivo";
@@ -141,12 +142,51 @@ export default async function VistaPorToken({
   const alDiaQuiniela = !calcularEstadosCarton(prestamo, pagos, hoyUY()).dias.some(
     (d) => d.estado === "atrasado",
   );
+  // Vista del cliente (cartón). NO se muestra el cobrador al deudor: el comprobante
+  // lleva hora + monto, sin nombre (evita la re-fuga si alguien reactivara `quien`).
+  const v = construirVistaCliente({
+    cliente,
+    prestamo,
+    pagos,
+    negocio: NEGOCIO,
+    hoy: hoyUY(),
+  });
+
+  // 4) AUDIENCIA del cliente (0089): calificación + zona del cobrador + estado. La
+  //    usan anuncios, rifa y la QUINIELA para targetear por rango de personas. Se
+  //    arma UNA vez (la zona del cobrador es una consulta barata). Resiliente: zona null.
+  const alDiaAnuncio = v.estadoGeneral === "Estás al día";
+  let zonaCliente: string | null = null;
+  try {
+    if (prestamo.cobrador_id) {
+      const { data: cob } = await db
+        .from("usuarios")
+        .select("zona_id")
+        .eq("id", prestamo.cobrador_id)
+        .maybeSingle();
+      zonaCliente = (cob as { zona_id: string | null } | null)?.zona_id ?? null;
+    }
+  } catch {
+    zonaCliente = null;
+  }
+  const clienteSeg: ClienteSegmentable = {
+    id: cliente.id,
+    calificacion: cliente.calificacion,
+    zonaId: zonaCliente,
+    cobradorId: prestamo.cobrador_id ?? null,
+    alDia: alDiaAnuncio,
+  };
+
   // Los juegos (raspadita + quiniela) se muestran SOLO si la zona de juego está
-  // activa (admin → /admin/juego). Apagándola se ocultan todos los juegos.
+  // activa (admin → /admin/juego). La quiniela además respeta su AUDIENCIA (0089):
+  // si tiene segmento_def, solo participa/ve quien pertenece a ese rango de personas.
+  const quinielaEnAudiencia = quiniela
+    ? !quiniela.segmentoDef || clienteEnSegmento(clienteSeg, quiniela.segmentoDef)
+    : false;
   const promo = ajustes.activo
     ? {
         raspaDisponibles: raspa.disponibles,
-        quiniela: quiniela
+        quiniela: quiniela && quinielaEnAudiencia
           ? {
               id: quiniela.id,
               titulo: quiniela.titulo,
@@ -159,42 +199,9 @@ export default async function VistaPorToken({
       }
     : null;
 
-  // Regla de la vista de cliente: NO se muestra el cobrador al deudor. Antes se
-  // consultaban los nombres de los cobradores en CADA carga (round-trip inútil +
-  // trampa de re-fuga: si alguien reactiva `quien`, los nombres volverían a viajar).
-  // Se elimina: el comprobante lleva hora + monto, sin nombre.
-  const v = construirVistaCliente({
-    cliente,
-    prestamo,
-    pagos,
-    negocio: NEGOCIO,
-    hoy: hoyUY(),
-  });
-
-  // 4) Banner de anuncios — RESILIENTE: si algo falla (o aún no existe la
-  //    tabla), el crédito se muestra igual. El banner nunca rompe la vista.
-  //    La AUDIENCIA del anuncio (0089) puede ser por calificación/zona/cobrador/
-  //    estado/individual, así que se arma el ClienteSegmentable de este cliente.
-  const alDiaAnuncio = v.estadoGeneral === "Estás al día";
+  // Banner de anuncios — RESILIENTE: si algo falla, el crédito se muestra igual.
   let anuncios: Anuncio[] = [];
   try {
-    // Zona del cobrador asignado (para el targeting por zona). Barato y resiliente.
-    let zonaId: string | null = null;
-    if (prestamo.cobrador_id) {
-      const { data: cob } = await db
-        .from("usuarios")
-        .select("zona_id")
-        .eq("id", prestamo.cobrador_id)
-        .maybeSingle();
-      zonaId = (cob as { zona_id: string | null } | null)?.zona_id ?? null;
-    }
-    const clienteSeg: ClienteSegmentable = {
-      id: cliente.id,
-      calificacion: cliente.calificacion,
-      zonaId,
-      cobradorId: prestamo.cobrador_id ?? null,
-      alDia: alDiaAnuncio,
-    };
     anuncios = await getAnunciosActivos(db, clienteSeg);
   } catch {
     anuncios = [];
@@ -231,7 +238,7 @@ export default async function VistaPorToken({
 
   // Rifa promocional: se muestra si el admin la activó y este cliente califica
   // (dirigida a los mejores clientes, según su calificación).
-  const rifa = await getRifaParaCliente(db, cliente.calificacion);
+  const rifa = await getRifaParaCliente(db, clienteSeg);
 
   return (
     <VistaClienteScreen

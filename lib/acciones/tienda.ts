@@ -12,6 +12,7 @@ import { getUsuarioActual, esAdmin } from "@/lib/auth";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { hrefSeguro } from "@/lib/seguridad";
 import { esUuid } from "@/lib/idempotencia";
+import { normalizarSegmento, esSegmentoTodos, type DefinicionSegmento } from "@/lib/segmentos";
 import {
   crearProductoDb, actualizarProductoDb, setProductoActivoDb, borrarProductoDb,
   crearCategoriaDb, actualizarCategoriaDb, borrarCategoriaDb,
@@ -53,12 +54,15 @@ export interface RawProducto {
   activo: boolean;
   destacado: boolean;
   orden: number;
+  /** Visibilidad por audiencia (0089). null/vacío = visible para todos. */
+  segmentoDef?: DefinicionSegmento | null;
 }
 
 function sanearProducto(raw: RawProducto): ProductoInput | null {
   const nombre = (raw.nombre ?? "").trim().slice(0, 100);
   if (!nombre) return null;
   const fotos = (Array.isArray(raw.fotos) ? raw.fotos : []).map(urlSegura).filter((u): u is string => !!u).slice(0, 10);
+  const defRaw = normalizarSegmento(raw.segmentoDef ?? {});
   return {
     nombre,
     marca: (raw.marca ?? "").trim().slice(0, 60) || null,
@@ -74,6 +78,7 @@ function sanearProducto(raw: RawProducto): ProductoInput | null {
     activo: Boolean(raw.activo),
     destacado: Boolean(raw.destacado),
     orden: Math.max(0, Math.min(9999, Math.round(Number(raw.orden) || 0))),
+    segmentoDef: esSegmentoTodos(defRaw) ? null : defRaw,
   };
 }
 

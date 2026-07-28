@@ -9,6 +9,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { getUsuarioActual, esAdmin } from "@/lib/auth";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { guardarRifaDb, subirFotoRifa } from "@/lib/data/rifas";
+import { normalizarSegmento, esSegmentoTodos, type DefinicionSegmento } from "@/lib/segmentos";
 
 type Resultado = { ok: true } | { ok: false; error: string };
 
@@ -19,6 +20,8 @@ export async function guardarRifa(input: {
   premioTexto: string | null;
   botonTexto: string;
   soloMejores: boolean;
+  /** Audiencia rica (0089). Si viene con reglas, MANDA sobre soloMejores. */
+  segmentoDef?: DefinicionSegmento | null;
   activo: boolean;
   /** Foto del premio (data URL comprimido). Opcional: si no viene, no se toca. */
   fotoDataUrl?: string | null;
@@ -31,6 +34,9 @@ export async function guardarRifa(input: {
   const premioTexto = (input.premioTexto ?? "").trim().slice(0, 200) || null;
   const botonTexto = (input.botonTexto ?? "").trim().slice(0, 30) || "Ver premio";
 
+  const defRaw = normalizarSegmento(input.segmentoDef ?? {});
+  const segmentoDef = esSegmentoTodos(defRaw) ? null : defRaw;
+
   try {
     const db = await createSupabaseServer();
     const id = await guardarRifaDb(db, {
@@ -40,6 +46,7 @@ export async function guardarRifa(input: {
       premioTexto,
       botonTexto,
       soloMejores: Boolean(input.soloMejores),
+      segmentoDef,
       activo: Boolean(input.activo),
     });
     // Foto del premio (si el admin cargó una nueva).

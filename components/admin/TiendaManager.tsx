@@ -5,6 +5,7 @@
 import { useState, useTransition, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { UYU } from "@/lib/format";
+import { SelectorSegmento } from "@/components/admin/SelectorSegmento";
 import {
   guardarProducto, alternarProducto, eliminarProducto,
   guardarCategoria, eliminarCategoria,
@@ -333,6 +334,18 @@ function EditorProducto({
       <p className="text-[11.5px] font-medium text-gris">
         El destacado aparece en la fila “⭐ Destacados” de la tienda; el <b>primero</b> (menor “Orden”) también sale como <b>banner en la cuenta del cliente</b> con “Ver más detalle”.
       </p>
+
+      {/* Visibilidad por audiencia (0089): quién VE el producto. Sin "estado del
+          crédito" (la tienda no calcula el cartón) → por calificación / zona. */}
+      <div className="flex flex-col gap-1">
+        <span className="text-[13px] font-semibold text-cuerpo">¿Quién lo ve?</span>
+        <SelectorSegmento
+          value={f.segmentoDef ?? null}
+          onChange={(d) => set("segmentoDef", d)}
+          zonas={zonas}
+          sinEstado
+        />
+      </div>
 
       {error && <span className="text-[12.5px] font-semibold text-[#C0392B]">{error}</span>}
 

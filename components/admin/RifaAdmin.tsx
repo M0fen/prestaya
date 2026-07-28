@@ -5,19 +5,26 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CapturaFoto } from "@/components/CapturaFoto";
 import { RifaBanner } from "@/components/RifaBanner";
+import { SelectorSegmento } from "@/components/admin/SelectorSegmento";
 import { guardarRifa } from "@/lib/acciones/rifas";
 import type { Rifa } from "@/lib/data/rifas";
+import type { DefinicionSegmento } from "@/lib/segmentos";
 
 const input =
   "rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[14px] text-tinta outline-none focus:border-azul";
 
-export function RifaAdmin({ rifa }: { rifa: Rifa | null }) {
+export function RifaAdmin({ rifa, zonas = [] }: { rifa: Rifa | null; zonas?: { id: string; nombre: string }[] }) {
   const router = useRouter();
   const [titulo, setTitulo] = useState(rifa?.titulo ?? "Gran rifa de fin de mes");
   const [mensaje, setMensaje] = useState(rifa?.mensaje ?? "");
   const [premioTexto, setPremioTexto] = useState(rifa?.premioTexto ?? "");
   const [botonTexto, setBotonTexto] = useState(rifa?.botonTexto ?? "Ver premio");
-  const [soloMejores, setSoloMejores] = useState(rifa?.soloMejores ?? true);
+  // Audiencia (0089): reemplaza el viejo "solo mejores". Si la rifa no tiene
+  // segmento_def pero sí soloMejores, se inicializa con calificación excelente/bueno
+  // (equivalente exacto) para no perder la config previa al migrar a la nueva UI.
+  const [segmentoDef, setSegmentoDef] = useState<DefinicionSegmento | null>(
+    rifa?.segmentoDef ?? (rifa?.soloMejores ? { calificaciones: ["excelente", "bueno"] } : null),
+  );
   const [activo, setActivo] = useState(rifa?.activo ?? false);
   const [fotoDataUrl, setFotoDataUrl] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
@@ -34,7 +41,9 @@ export function RifaAdmin({ rifa }: { rifa: Rifa | null }) {
       mensaje,
       premioTexto: premioTexto || null,
       botonTexto,
-      soloMejores,
+      // segmento_def es la fuente de verdad de la audiencia; soloMejores queda superado.
+      soloMejores: false,
+      segmentoDef,
       activo,
       fotoDataUrl,
     });
@@ -90,12 +99,8 @@ export function RifaAdmin({ rifa }: { rifa: Rifa | null }) {
             etiqueta="Foto del premio"
           />
 
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={soloMejores} onChange={(e) => setSoloMejores(e.target.checked)} />
-            <span className="text-[13px] font-semibold text-tinta">
-              Mostrar solo a los mejores clientes (excelente/bueno)
-            </span>
-          </label>
+          <SelectorSegmento value={segmentoDef} onChange={setSegmentoDef} zonas={zonas} />
+
           <label className="flex items-center gap-2">
             <input type="checkbox" checked={activo} onChange={(e) => setActivo(e.target.checked)} />
             <span className="text-[13px] font-semibold text-tinta">Rifa activa (visible para los clientes)</span>
