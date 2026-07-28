@@ -72,7 +72,7 @@ export function FormPoliticaMora({
           <span className="text-[13.5px] font-extrabold text-tinta">Política de mora</span>
           <span className="truncate text-[12px] font-medium text-gris">{describirMora(config)}</span>
         </div>
-        <span className="flex-shrink-0 rounded-full bg-[#EEF3FF] px-3 py-1.5 text-[12px] font-bold text-azul">
+        <span className="flex-shrink-0 rounded-full bg-azul-suave px-3 py-1.5 text-[12px] font-bold text-azul">
           {abierto ? "Cerrar" : "Configurar"}
         </span>
       </button>
@@ -86,7 +86,7 @@ export function FormPoliticaMora({
                 type="button"
                 onClick={() => setModo(m.id)}
                 className={`flex flex-col gap-0.5 rounded-[12px] border px-3 py-2.5 text-left transition-colors ${
-                  modo === m.id ? "border-azul bg-[#EEF3FF]" : "border-[#E3EAFB] bg-tarjeta"
+                  modo === m.id ? "border-azul bg-azul-suave" : "border-campo bg-tarjeta"
                 }`}
               >
                 <span className="text-[12.5px] font-bold text-tinta">{m.label}</span>
@@ -122,7 +122,7 @@ export function FormPoliticaMora({
               {pendiente ? "Guardando…" : "Guardar política"}
             </button>
             {okMsg && <span className="text-[12px] font-bold text-verde">{okMsg}</span>}
-            {error && <span className="text-[12px] font-bold text-[#C0392B]">{error}</span>}
+            {error && <span className="text-[12px] font-bold text-rojo-osc">{error}</span>}
           </div>
 
           <p className="text-[11px] leading-[1.5] font-medium text-tenue-2">

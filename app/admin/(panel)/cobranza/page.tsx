@@ -82,7 +82,7 @@ export default async function CobranzaPage() {
       <section className="flex flex-col gap-2.5 rounded-[16px] border border-borde bg-tarjeta p-5">
         <div className="flex items-center justify-between">
           <h2 className="text-[15px] font-extrabold text-tinta">Alertas de fuga</h2>
-          <span className="rounded-full bg-[#FCE8E8] px-2.5 py-0.5 text-[11.5px] font-bold text-[#C0392B]">
+          <span className="rounded-full bg-rojo-suave px-2.5 py-0.5 text-[11.5px] font-bold text-rojo-osc">
             {alertas.length}
           </span>
         </div>
@@ -128,7 +128,7 @@ export default async function CobranzaPage() {
                 <span className="text-[13px] font-black text-tenue">#{i + 1}</span>
                 <span className="flex-1 text-[13.5px] font-bold text-tinta">{r.nombre}</span>
                 {r.anomalias > 0 && (
-                  <span className="rounded-full bg-[#FCE8E8] px-2 py-0.5 text-[10.5px] font-bold text-[#C0392B]">
+                  <span className="rounded-full bg-rojo-suave px-2 py-0.5 text-[10.5px] font-bold text-rojo-osc">
                     {r.anomalias} ⚠
                   </span>
                 )}

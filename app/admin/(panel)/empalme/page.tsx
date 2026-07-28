@@ -63,9 +63,9 @@ export default async function EmpalmePage() {
 
       {/* ── ESTADO DE RECONCILIACIÓN ── */}
       {!info.disponible ? (
-        <section className="rounded-[16px] border border-[#F0D9A8] bg-[#FEFBF3] px-4 py-6 text-center">
-          <span className="text-[13px] font-bold text-[#9A6A0E]">Reconciliación no disponible.</span>
-          <p className="mt-1 text-[12px] font-medium text-[#9A6A0E]">Falta correr la migración 0071 (RPC de reconciliación).</p>
+        <section className="rounded-[16px] panel-ambar px-4 py-6 text-center">
+          <span className="text-[13px] font-bold text-ambar-osc">Reconciliación no disponible.</span>
+          <p className="mt-1 text-[12px] font-medium text-ambar-osc">Falta correr la migración 0071 (RPC de reconciliación).</p>
         </section>
       ) : (
         <section className="flex flex-col gap-2">
@@ -73,12 +73,12 @@ export default async function EmpalmePage() {
           <div
             className="flex items-center justify-between rounded-[14px] border px-4 py-3"
             style={{
-              borderColor: info.criticas === 0 ? "#CFEBDD" : "#F3C0B8",
-              background: info.criticas === 0 ? "#F1FBF6" : "#FEF6F3",
+              borderColor: info.criticas === 0 ? "var(--color-verde-osc)" : "var(--color-rojo-osc)",
+              background: info.criticas === 0 ? "var(--color-verde-suave)" : "var(--color-rojo-suave)",
             }}
           >
             <div className="flex flex-col">
-              <span className="text-[14px] font-extrabold" style={{ color: info.criticas === 0 ? "#157A50" : "#C0392B" }}>
+              <span className="text-[14px] font-extrabold" style={{ color: info.criticas === 0 ? "var(--color-verde-osc)" : "var(--color-rojo-osc)" }}>
                 {info.criticas === 0
                   ? info.totalDiferencias === 0
                     ? "✅ La plata cuadra: cero diferencias."
@@ -89,7 +89,7 @@ export default async function EmpalmePage() {
                 {info.totalDiferencias} diferencia(s) en total · {info.totalDiferencias - info.criticas} de redondeo (baseline)
               </span>
             </div>
-            <span className="text-[26px] font-black tabular-nums" style={{ color: info.criticas === 0 ? "#1FA971" : "#C0392B" }}>
+            <span className="text-[26px] font-black tabular-nums" style={{ color: info.criticas === 0 ? "var(--color-verde-osc)" : "var(--color-rojo-osc)" }}>
               {info.criticas}
             </span>
           </div>
@@ -119,7 +119,7 @@ export default async function EmpalmePage() {
                     <td className="px-3 py-2.5">
                       <span
                         className="rounded-full px-2 py-0.5 text-[10.5px] font-bold"
-                        style={{ background: c.criticos === 0 ? "#E4F5EC" : "#FBE4E2", color: c.criticos === 0 ? "#157A50" : "#C0392B" }}
+                        style={{ background: c.criticos === 0 ? "var(--color-verde-suave)" : "var(--color-rojo-suave)", color: c.criticos === 0 ? "var(--color-verde-osc)" : "var(--color-rojo-osc)" }}
                       >
                         {c.criticos === 0 ? "Sano" : "Atención"}
                       </span>
@@ -172,7 +172,7 @@ export default async function EmpalmePage() {
                       <td className="px-3 py-2.5">
                         <span
                           className="rounded-full px-2 py-0.5 text-[10.5px] font-bold"
-                          style={{ background: d.material ? "#FBE4E2" : "#EEF1F8", color: d.material ? "#C0392B" : "#6B7494" }}
+                          style={{ background: d.material ? "var(--color-rojo-suave)" : "var(--color-suave)", color: d.material ? "var(--color-rojo-osc)" : "var(--color-gris)" }}
                         >
                           {d.tipo === "drift" ? "Saldo≠libro" : "Sobre-cobro"}{d.material ? " · material" : " · redondeo"}
                         </span>

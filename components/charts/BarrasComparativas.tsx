@@ -48,7 +48,7 @@ export function BarrasComparativas({
                 <span className="text-[#AEB6CC]"> / {UYU(d.total)}</span>
               </span>
             </div>
-            <div className="h-2 overflow-hidden rounded-full bg-[#EDF1F9]">
+            <div className="h-2 overflow-hidden rounded-full bg-linea">
               <div
                 className="h-full rounded-full transition-[width] duration-700 ease-out"
                 style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${c}, ${c}CC)` }}

@@ -86,8 +86,8 @@ export default async function CierrePage() {
           <b>anula</b> dejando registro de quién y por qué. Es autoritativo del servidor, no del teléfono del cobrador.
         </p>
         <div className="mt-2.5 flex flex-wrap gap-2">
-          <Desglose label="En ruta (créditos activos)" valor={rec.enRuta} sub={`${rec.cobrosRuta} cobros`} tono="#157A50" />
-          <Desglose label="En créditos ya cerrados" valor={rec.enCerrados} sub={`${rec.cobrosCerrados} cobros`} tono="#B9770E" />
+          <Desglose label="En ruta (créditos activos)" valor={rec.enRuta} sub={`${rec.cobrosRuta} cobros`} tono="var(--color-verde-osc)" />
+          <Desglose label="En créditos ya cerrados" valor={rec.enCerrados} sub={`${rec.cobrosCerrados} cobros`} tono="var(--color-ambar-osc)" />
         </div>
         {rec.enCerrados > 0 && (
           <p className="mt-2 text-[11.5px] leading-[1.5] font-medium text-tenue">
@@ -113,7 +113,7 @@ export default async function CierrePage() {
                 items={faltantes.map((f) => ({
                   nombre: f.cobradorNombre ?? "Cobrador",
                   valor: `falta ${UYU(Math.abs(f.diferencia))}`,
-                  tono: "#C0392B",
+                  tono: "var(--color-rojo-osc)",
                 }))}
               />
             </Alerta>
@@ -129,7 +129,7 @@ export default async function CierrePage() {
                 items={rend.pendientes.map((p) => ({
                   nombre: p.nombre,
                   valor: `${UYU(p.recaudado)} en mano`,
-                  tono: "#B9770E",
+                  tono: "var(--color-ambar-osc)",
                 }))}
               />
             </Alerta>
@@ -159,8 +159,8 @@ export default async function CierrePage() {
         </div>
         <p className="mb-3 text-[11.5px] leading-[1.55] font-medium text-gris">
           Cada cobrador con lo que <b>recaudó hoy</b> (del libro de pagos) y su estado de cierre de jornada:{" "}
-          <b className="text-[#157A50]">Cuadra</b> (entregó lo esperado),{" "}
-          <b className="text-[#C0392B]">Faltante</b> / <b className="text-azul">Sobrante</b> (diferencia al rendir), o{" "}
+          <b className="text-verde-osc">Cuadra</b> (entregó lo esperado),{" "}
+          <b className="text-rojo-osc">Faltante</b> / <b className="text-azul">Sobrante</b> (diferencia al rendir), o{" "}
           <b className="text-gris">En ruta</b> (todavía no cerró: el efectivo sigue en la calle). El "esperado" =
           recaudado − gastos de ruta declarados.
         </p>
@@ -218,7 +218,7 @@ export default async function CierrePage() {
               <span className="text-gris">
                 Meta del mes: <b className="text-tinta tabular-nums">{UYU(meta)}</b>
               </span>
-              <span className={proyAlcanzaMeta ? "text-verde" : "text-[#B9770E]"}>
+              <span className={proyAlcanzaMeta ? "text-verde" : "text-ambar-osc"}>
                 {proyAlcanzaMeta
                   ? `A este ritmo la superás por ${UYU(brechaMeta)} 🎯`
                   : `A este ritmo te faltarían ${UYU(-brechaMeta)}`}
@@ -266,7 +266,7 @@ function Kpi({
       <span className="text-[11px] font-bold tracking-wide text-gris uppercase">{label}</span>
       <span
         className={`mt-1 text-[19px] font-extrabold tabular-nums ${
-          alerta ? "text-[#C0392B]" : fuerte ? "text-azul" : "text-tinta"
+          alerta ? "text-rojo-osc" : fuerte ? "text-azul" : "text-tinta"
         }`}
       >
         {valor}
@@ -329,8 +329,8 @@ function Alerta({
 }) {
   const c =
     tono === "rojo"
-      ? { bg: "#FBE9E7", bd: "#F3C0B8", fg: "#C0392B" }
-      : { bg: "#FDF3E2", bd: "#F0D9A8", fg: "#B9770E" };
+      ? { bg: "var(--color-rojo-suave)", bd: "var(--color-rojo-osc)", fg: "var(--color-rojo-osc)" }
+      : { bg: "var(--color-ambar-suave)", bd: "var(--color-ambar-osc)", fg: "var(--color-ambar-osc)" };
   const cuerpo = (
     <>
       <div className="flex items-center justify-between gap-2">

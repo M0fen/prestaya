@@ -60,7 +60,7 @@ export default async function InformeCarteraPage({
         <div className="flex gap-2 print:hidden">
           <a
             href={csvHref}
-            className="inline-flex items-center gap-1.5 rounded-full border border-borde bg-tarjeta px-4 py-2 text-[13px] font-bold text-[#2453DC] hover:bg-suave"
+            className="inline-flex items-center gap-1.5 rounded-full border border-borde bg-tarjeta px-4 py-2 text-[13px] font-bold text-azul-claro hover:bg-suave"
           >
             ⬇️ Exportar CSV
           </a>
@@ -69,21 +69,21 @@ export default async function InformeCarteraPage({
       </div>
 
       {/* Contador de créditos (como Disapp). */}
-      <span className="w-fit rounded-[12px] bg-[#EEF3FF] px-3.5 py-2 text-[13px] font-bold text-azul">
+      <span className="w-fit rounded-[12px] bg-azul-suave px-3.5 py-2 text-[13px] font-bold text-azul">
         📄 Cantidad de créditos activos: {r.filas.length.toLocaleString("es-UY")}
       </span>
 
       {/* KPIs (Ventas Crédito de Disapp) + Utilidad/margen (dato del dueño). */}
       <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 lg:grid-cols-6">
         <Kpi label="Ventas Crédito" valor={UYU(r.totalVenta)} sub="capital colocado" />
-        <Kpi label="Con Intereses" valor={UYU(r.totalConIntereses)} tono="#157A50" sub="total a cobrar" />
-        <Kpi label="Utilidad proyectada" valor={UYU(r.utilidadProyectada)} tono="#1FA971" sub={`margen ${margen}%`} />
-        <Kpi label="Recaudo" valor={UYU(r.totalRecaudado)} tono="#1E47C8" sub="abonado a hoy" />
-        <Kpi label="Cartera Pendiente" valor={UYU(r.deudaTotalAHoy)} tono="#B9770E" sub="saldo por cobrar" />
+        <Kpi label="Con Intereses" valor={UYU(r.totalConIntereses)} tono="var(--color-verde-osc)" sub="total a cobrar" />
+        <Kpi label="Utilidad proyectada" valor={UYU(r.utilidadProyectada)} tono="var(--color-verde-osc)" sub={`margen ${margen}%`} />
+        <Kpi label="Recaudo" valor={UYU(r.totalRecaudado)} tono="var(--color-azul)" sub="abonado a hoy" />
+        <Kpi label="Cartera Pendiente" valor={UYU(r.deudaTotalAHoy)} tono="var(--color-ambar-osc)" sub="saldo por cobrar" />
         <Kpi
           label="% Recaudo"
           valor={`${r.totalConIntereses > 0 ? Math.round((r.totalRecaudado / r.totalConIntereses) * 1000) / 10 : 0}%`}
-          tono="#C0392B"
+          tono="var(--color-rojo-osc)"
           sub="recaudo / total"
         />
       </div>

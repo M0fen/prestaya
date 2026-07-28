@@ -173,7 +173,7 @@ export default async function DashboardPage({
           {reportesNuevos > 0 && (
             <Link
               href="/admin/clientes"
-              className="rounded-full bg-[#FCE8E8] px-3 py-1.5 text-[12.5px] font-bold text-[#C0392B]"
+              className="rounded-full bg-rojo-suave px-3 py-1.5 text-[12.5px] font-bold text-rojo-osc"
             >
               {reportesNuevos} reporte(s) sin atender
             </Link>
@@ -185,7 +185,7 @@ export default async function DashboardPage({
             href="/admin/alertas"
             className={`rounded-full px-3 py-1.5 text-[12.5px] font-bold ${
               senalesRiesgo > 0
-                ? "bg-[#FBE4E2] text-[#C0392B]"
+                ? "bg-rojo-suave text-rojo-osc"
                 : "border border-borde bg-tarjeta text-gris"
             }`}
           >
@@ -297,8 +297,8 @@ export default async function DashboardPage({
 
         {/* Tiles del período */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <div className="flex flex-col gap-1 rounded-[13px] bg-[#F1FBF6] p-3.5">
-            <span className="text-[11px] font-bold tracking-wide text-[#157A50] uppercase">Recaudado</span>
+          <div className="flex flex-col gap-1 rounded-[13px] bg-verde-suave p-3.5">
+            <span className="text-[11px] font-bold tracking-wide text-verde-osc uppercase">Recaudado</span>
             <span className="text-[20px] font-extrabold tabular-nums text-verde">{UYU(mov.recaudado)}</span>
             <div className="flex items-center gap-1.5">
               {varPct === null ? (
@@ -481,9 +481,9 @@ function ControlDelDia({
   // Todo en orden: reconocerlo, sin ocupar espacio ni gritar.
   if (!hayRiesgo) {
     return (
-      <section className="flex items-center gap-2.5 rounded-[14px] border border-[#CFEBDD] bg-[#F1FBF6] px-4 py-3">
+      <section className="flex items-center gap-2.5 rounded-[14px] border border-[#CFEBDD] bg-verde-suave px-4 py-3">
         <span className="text-[16px]">🛡️</span>
-        <span className="text-[13px] font-bold text-[#157A50]">Control del día: todo en orden.</span>
+        <span className="text-[13px] font-bold text-verde-osc">Control del día: todo en orden.</span>
         <span className="text-[12px] font-medium text-[#4E9E79]">
           {rendicionesDisponible
             ? "Sin faltantes de caja, todos rindieron, sin mora crítica ni anomalías."
@@ -494,12 +494,12 @@ function ControlDelDia({
   }
 
   return (
-    <section className="flex flex-col gap-2.5 rounded-[16px] border border-[#F3C9BF] bg-[#FEF6F3] p-4">
+    <section className="flex flex-col gap-2.5 rounded-[16px] border panel-rojo p-4">
       <div className="flex items-center justify-between">
         <span className="flex items-center gap-2 text-[14px] font-extrabold text-tinta">
           🛡️ Control del día
         </span>
-        <Link href="/admin/alertas" className="text-[12px] font-bold text-[#C0392B]">
+        <Link href="/admin/alertas" className="text-[12px] font-bold text-rojo-osc">
           Centro de alertas →
         </Link>
       </div>
@@ -557,9 +557,9 @@ function ControlTile({
 }) {
   const c = activo
     ? tono === "rojo"
-      ? { bg: "#FFFFFF", bd: "#F3C0B8", fg: "#C0392B" }
-      : { bg: "#FFFFFF", bd: "#F0D9A8", fg: "#B9770E" }
-    : { bg: "#FBFCFE", bd: "#E7ECF5", fg: "#8A93AC" };
+      ? { bg: "var(--color-tarjeta)", bd: "var(--color-rojo-osc)", fg: "var(--color-rojo-osc)" }
+      : { bg: "var(--color-tarjeta)", bd: "var(--color-ambar-osc)", fg: "var(--color-ambar-osc)" }
+    : { bg: "var(--color-suave)", bd: "var(--color-borde)", fg: "var(--color-tenue)" };
   return (
     <Link
       href={href}
@@ -600,7 +600,7 @@ function AccesoRapido({ admin }: { admin: boolean }) {
             href={i.href}
             className="flex min-w-[92px] flex-1 flex-col items-center gap-1.5 rounded-[16px] border border-borde bg-tarjeta px-3 py-3 text-center hover:bg-suave"
           >
-            <span className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-[#EEF3FF] text-[17px]">
+            <span className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-azul-suave text-[17px]">
               {i.icon}
             </span>
             <span className="text-[11.5px] font-bold text-cuerpo leading-tight">{i.label}</span>
@@ -645,7 +645,7 @@ function Mini({ etiqueta, valor, alerta = false }: { etiqueta: string; valor: nu
   return (
     <div className="flex items-center justify-between rounded-[13px] border border-borde bg-tarjeta px-4 py-3">
       <span className="text-[12.5px] font-semibold text-gris">{etiqueta}</span>
-      <span className={`text-[18px] font-extrabold tabular-nums ${alerta ? "text-[#C0392B]" : "text-tinta"}`}>{valor}</span>
+      <span className={`text-[18px] font-extrabold tabular-nums ${alerta ? "text-rojo-osc" : "text-tinta"}`}>{valor}</span>
     </div>
   );
 }
@@ -711,8 +711,8 @@ function LiquidacionDiaria({ liq }: { liq: LiquidacionDia }) {
                   <span
                     className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
                       f.estado === "cerrada"
-                        ? "bg-[#E7F6EF] text-[#157A50]"
-                        : "bg-[#FBF1DC] text-[#9A6A0E]"
+                        ? "bg-verde-suave text-verde-osc"
+                        : "bg-ambar-suave text-ambar-osc"
                     }`}
                   >
                     {f.estado === "cerrada" ? "Cerrada" : "Abierta"}

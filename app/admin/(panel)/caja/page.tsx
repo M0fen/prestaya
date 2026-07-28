@@ -30,12 +30,14 @@ function fechaHora(iso: string | null | undefined): string {
   return `${d.getDate()} ${meses[d.getMonth()].slice(0, 3)} ${horaDe(iso)}`;
 }
 
+// Tokens (var CSS) → flipean en oscuro. El monto de cada línea del libro se pinta
+// con estos; hardcodeados quedaban oscuros-sobre-oscuro (invisibles) en modo oscuro.
 const COLOR_LINEA: Record<LineaLibro["tipo"], string> = {
-  cobro: "#1FA971",
-  ingreso: "#1FA971",
-  egreso: "#C0392B",
-  desembolso: "#C0562B",
-  retiro: "#B9770E",
+  cobro: "var(--color-verde-osc)",
+  ingreso: "var(--color-verde-osc)",
+  egreso: "var(--color-rojo-osc)",
+  desembolso: "var(--color-rojo-osc)",
+  retiro: "var(--color-ambar-osc)",
 };
 
 export default async function CajaPage({
@@ -83,7 +85,7 @@ export default async function CajaPage({
         <div className="flex gap-2 print:hidden">
           <a
             href={csvHref}
-            className="inline-flex items-center gap-1.5 rounded-full border border-borde bg-tarjeta px-4 py-2 text-[13px] font-bold text-[#2453DC] hover:bg-suave"
+            className="inline-flex items-center gap-1.5 rounded-full border border-borde bg-tarjeta px-4 py-2 text-[13px] font-bold text-azul-claro hover:bg-suave"
           >
             ⬇️ Exportar CSV
           </a>
@@ -104,7 +106,7 @@ export default async function CajaPage({
           <p>
             <b className="text-tinta">2. Rendición del cobrador.</b> Al cerrar su jornada declara gastos y efectivo
             entregado. El sistema calcula <b>esperado = recaudado − gastos</b> y la <b>diferencia</b>:{" "}
-            <b className="text-[#157A50]">cuadra</b>, <b className="text-[#C0392B]">faltante</b> o{" "}
+            <b className="text-verde-osc">cuadra</b>, <b className="text-rojo-osc">faltante</b> o{" "}
             <b className="text-azul">sobrante</b> (ver "Cierre por zona" abajo).
           </p>
           <p>
@@ -143,9 +145,9 @@ export default async function CajaPage({
       {/* 3 tarjetas (como Disapp). En mobile van a 2 col para que el monto no se
           recorte/superponga en pantallas angostas (~360px). */}
       <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3">
-        <Kpi label="Balance operativo" valor={UYU(r.neto)} tono={r.neto >= 0 ? "#157A50" : "#C0392B"} />
-        <Kpi label="Total Entradas" valor={UYU(r.ingresosTotal)} tono="#157A50" />
-        <Kpi label="Total Egresos" valor={UYU(r.egresosTotal)} tono="#C0392B" />
+        <Kpi label="Balance operativo" valor={UYU(r.neto)} tono={r.neto >= 0 ? "var(--color-verde-osc)" : "var(--color-rojo-osc)"} />
+        <Kpi label="Total Entradas" valor={UYU(r.ingresosTotal)} tono="var(--color-verde-osc)" />
+        <Kpi label="Total Egresos" valor={UYU(r.egresosTotal)} tono="var(--color-rojo-osc)" />
       </div>
       <p className="-mt-2 text-[11px] leading-[1.5] font-medium text-tenue-2">
         <b>Balance = Entradas − Egresos</b> (contable/devengado). Entradas incluye los cobros del día aunque parte
@@ -217,7 +219,7 @@ export default async function CajaPage({
                   <td className="px-3 py-2.5 text-[11.5px] text-tenue">{fechaHora(l.fechaIso)}</td>
                   <td className="px-3 py-2.5 text-center">
                     {l.visible ? (
-                      <span className="text-[11px] font-bold text-[#157A50]">Sí</span>
+                      <span className="text-[11px] font-bold text-verde-osc">Sí</span>
                     ) : (
                       <span className="text-[11px] font-bold text-tenue">No</span>
                     )}

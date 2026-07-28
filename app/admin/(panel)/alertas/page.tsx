@@ -19,8 +19,8 @@ export const dynamic = "force-dynamic";
 const TOPE_MS = 22_000;
 
 const SEV: Record<SeveridadAlerta, { label: string; bg: string; text: string; dot: string }> = {
-  alta: { label: "Alta", bg: "bg-[#FBE4E2]", text: "text-[#C0392B]", dot: "#D64545" },
-  media: { label: "Media", bg: "bg-[#FDF3E2]", text: "text-[#8A6D1E]", dot: "#E8A317" },
+  alta: { label: "Alta", bg: "bg-rojo-suave", text: "text-rojo-osc", dot: "#D64545" },
+  media: { label: "Media", bg: "bg-ambar-suave", text: "text-ambar-osc", dot: "#E8A317" },
   baja: { label: "Baja", bg: "bg-suave", text: "text-gris", dot: "#8A93AD" },
 };
 

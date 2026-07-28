@@ -92,7 +92,7 @@ export default async function PanelLayout({
           <div className="flex items-center gap-3">
             <ModoOscuro inicial={tema === "oscuro"} />
             <CommandPalette rol={usuario.rol} esDev={usuario.es_dev} />
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#EEF3FF] text-[13px] font-extrabold text-azul">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-azul-suave text-[13px] font-extrabold text-azul">
               {iniciales}
             </div>
             <form action={cerrarSesion}>
@@ -109,7 +109,7 @@ export default async function PanelLayout({
         {falta2fa && (
           <Link
             href="/admin/seguridad"
-            className="print:hidden flex items-center gap-2 border-b border-[#F0E2A8] bg-[#FFF8E6] px-5 py-2.5 text-[12.5px] font-bold text-[#8A6D1E] hover:bg-[#FFF3D6]"
+            className="print:hidden flex items-center gap-2 border-b panel-ambar px-5 py-2.5 text-[12.5px] font-bold text-ambar-osc hover:opacity-90"
           >
             🔐 Activá la verificación en dos pasos para blindar tu cuenta de administrador →
           </Link>

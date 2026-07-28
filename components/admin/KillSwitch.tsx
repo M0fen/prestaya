@@ -27,8 +27,8 @@ export function KillSwitch({ activo }: { activo: boolean }) {
     <section
       className="rounded-[16px] border p-4"
       style={{
-        borderColor: activo ? "#F3C0B8" : "#E6EAF4",
-        background: activo ? "#FEF6F3" : "#fff",
+        borderColor: activo ? "var(--color-rojo-osc)" : "var(--color-borde)",
+        background: activo ? "var(--color-rojo-suave)" : "var(--color-tarjeta)",
       }}
     >
       <div className="flex items-start justify-between gap-3">
@@ -44,7 +44,7 @@ export function KillSwitch({ activo }: { activo: boolean }) {
         </div>
       </div>
 
-      {error && <p className="mt-2 text-[12px] font-bold text-[#C0392B]">{error}</p>}
+      {error && <p className="mt-2 text-[12px] font-bold text-rojo-osc">{error}</p>}
 
       {activo ? (
         <button
@@ -60,13 +60,13 @@ export function KillSwitch({ activo }: { activo: boolean }) {
           type="button"
           disabled={pending}
           onClick={() => setConfirmar(true)}
-          className="mt-3 rounded-[12px] border border-[#D6A79E] px-4 py-2.5 text-[13.5px] font-bold text-[#C0392B] disabled:opacity-60"
+          className="mt-3 rounded-[12px] border border-rojo-osc px-4 py-2.5 text-[13.5px] font-bold text-rojo-osc disabled:opacity-60"
         >
           Congelar escrituras de plata
         </button>
       ) : (
-        <div className="mt-3 flex flex-col gap-2 rounded-[12px] bg-[#FBE4E2] p-3">
-          <span className="text-[12.5px] font-bold text-[#C0392B]">
+        <div className="mt-3 flex flex-col gap-2 rounded-[12px] bg-rojo-suave p-3">
+          <span className="text-[12.5px] font-bold text-rojo-osc">
             Vas a frenar TODOS los cobros del sistema. Solo hacelo ante una corrupción de datos.
           </span>
           <div className="flex gap-2">
@@ -74,7 +74,7 @@ export function KillSwitch({ activo }: { activo: boolean }) {
               type="button"
               disabled={pending}
               onClick={() => setConfirmar(false)}
-              className="flex-1 rounded-[10px] border border-[#DCE3F4] py-2 text-[13px] font-bold text-gris"
+              className="flex-1 rounded-[10px] border border-campo py-2 text-[13px] font-bold text-gris"
             >
               Cancelar
             </button>

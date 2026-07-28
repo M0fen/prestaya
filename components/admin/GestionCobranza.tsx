@@ -20,10 +20,10 @@ const TIPOS: { id: TipoGestion; label: string; icon: string }[] = [
 ];
 
 const ESTADO_COMP: Record<EstadoCompromiso, { label: string; icon: string; bg: string; fg: string }> = {
-  cumplido: { label: "Cumplió", icon: "✓", bg: "#E4F5EC", fg: "#157A50" },
-  vence_hoy: { label: "Vence hoy", icon: "⏳", bg: "#FDF3E2", fg: "#B9770E" },
-  incumplido: { label: "Incumplió", icon: "✕", bg: "#FBE4E2", fg: "#C0392B" },
-  vigente: { label: "Vigente", icon: "•", bg: "#EAF0FF", fg: "#1E47C8" },
+  cumplido: { label: "Cumplió", icon: "✓", bg: "var(--color-verde-suave)", fg: "var(--color-verde-osc)" },
+  vence_hoy: { label: "Vence hoy", icon: "⏳", bg: "var(--color-ambar-suave)", fg: "var(--color-ambar-osc)" },
+  incumplido: { label: "Incumplió", icon: "✕", bg: "var(--color-rojo-suave)", fg: "var(--color-rojo-osc)" },
+  vigente: { label: "Vigente", icon: "•", bg: "var(--color-azul-suave)", fg: "var(--color-azul)" },
 };
 
 const ICONO_TIPO: Record<TipoGestion, string> = {
@@ -178,7 +178,7 @@ function ModalGestion({
                     type="button"
                     onClick={() => setTipo(t.id)}
                     className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-bold transition-colors ${
-                      activo ? "border-azul bg-[#EEF3FF] text-azul" : "border-borde bg-tarjeta text-gris hover:bg-suave"
+                      activo ? "border-azul bg-azul-suave text-azul" : "border-borde bg-tarjeta text-gris hover:bg-suave"
                     }`}
                   >
                     <span>{t.icon}</span> {t.label}
@@ -200,7 +200,7 @@ function ModalGestion({
               type="button"
               onClick={() => setConCompromiso((v) => !v)}
               className={`flex items-center justify-between rounded-[12px] border px-3.5 py-2.5 text-left transition-colors ${
-                conCompromiso ? "border-[#1FA971] bg-[#F1FBF6]" : "border-dashed border-borde bg-app hover:bg-suave"
+                conCompromiso ? "border-verde-osc bg-verde-suave" : "border-dashed border-borde bg-app hover:bg-suave"
               }`}
             >
               <span className="flex items-center gap-2 text-[13px] font-bold text-tinta">
@@ -212,7 +212,7 @@ function ModalGestion({
             </button>
 
             {conCompromiso && (
-              <div className="flex flex-col gap-2.5 rounded-[12px] bg-[#F1FBF6] p-3">
+              <div className="flex flex-col gap-2.5 rounded-[12px] bg-verde-suave p-3">
                 <div className="flex items-center gap-2">
                   <span className="text-[12px] font-bold text-[#157A50]">$</span>
                   <input
@@ -222,7 +222,7 @@ function ModalGestion({
                     placeholder="Monto prometido"
                     // text fijo oscuro (no el token text-tinta, que en modo oscuro
                     // se aclara a casi-blanco y desaparecía sobre el input blanco).
-                    className="min-w-0 flex-1 rounded-[10px] border border-[#BFE6D3] bg-white px-3 py-2 text-[14px] font-bold tabular-nums text-[#0F1B3D] focus:border-[#1FA971] focus:outline-none"
+                    className="min-w-0 flex-1 rounded-[10px] border border-[#BFE6D3] bg-white px-3 py-2 text-[14px] font-bold tabular-nums text-[#0F1B3D] focus:border-verde-osc focus:outline-none"
                   />
                 </div>
                 <div className="flex flex-wrap gap-1.5">

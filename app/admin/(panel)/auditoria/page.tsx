@@ -57,7 +57,7 @@ export default async function AuditoriaPage() {
         <ul className="flex flex-col divide-y divide-linea overflow-hidden rounded-[16px] border border-borde bg-tarjeta">
           {registros.map((r) => (
             <li key={r.id} className="flex items-start gap-3 p-3.5">
-              <span className="mt-0.5 text-[16px]">{iconoDe(r.accion)}</span>
+              <span className="mt-0.5 text-[16px] text-tenue">{iconoDe(r.accion)}</span>
               <div className="flex min-w-0 flex-1 flex-col">
                 <span className="text-[13.5px] font-bold text-tinta">
                   {r.accion}

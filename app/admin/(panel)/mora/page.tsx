@@ -20,11 +20,12 @@ export const dynamic = "force-dynamic";
 // Un agregado colgado LANZA → error.tsx del panel ("Reintentar"), no un 504.
 const TOPE_MS = 22_000;
 
+// Tintes por token (var CSS): en oscuro flipean solos a superficie oscura + texto claro.
 const NIVEL: Record<NivelRiesgo, { label: string; bg: string; fg: string }> = {
-  critico: { label: "Crítico", bg: "#FBE4E2", fg: "#C0392B" },
-  alto: { label: "Alto", bg: "#FDECE0", fg: "#C0562B" },
-  medio: { label: "Medio", bg: "#FDF3E2", fg: "#B9770E" },
-  sano: { label: "Al día", bg: "#E4F5EC", fg: "#157A50" },
+  critico: { label: "Crítico", bg: "var(--color-rojo-suave)", fg: "var(--color-rojo-osc)" },
+  alto: { label: "Alto", bg: "var(--color-rojo-suave)", fg: "var(--color-rojo-osc)" },
+  medio: { label: "Medio", bg: "var(--color-ambar-suave)", fg: "var(--color-ambar-osc)" },
+  sano: { label: "Al día", bg: "var(--color-verde-suave)", fg: "var(--color-verde-osc)" },
 };
 
 const TENDENCIA: Record<TendenciaMora, string> = {
@@ -146,12 +147,12 @@ export default async function MoraPage({
                 </div>
                 <div className="flex flex-shrink-0 gap-1.5">
                   {m.marcado && (
-                    <span className="rounded-full bg-[#FBE4E2] px-2.5 py-1 text-[11px] font-bold text-[#C0392B]">
+                    <span className="rounded-full bg-rojo-suave px-2.5 py-1 text-[11px] font-bold text-rojo-osc">
                       Lista negra
                     </span>
                   )}
                   {m.incobrables > 0 && (
-                    <span className="rounded-full bg-[#FDECE0] px-2.5 py-1 text-[11px] font-bold text-[#C0562B]">
+                    <span className="rounded-full bg-rojo-suave px-2.5 py-1 text-[11px] font-bold text-rojo-osc">
                       Castigo
                     </span>
                   )}
@@ -353,10 +354,10 @@ function GestionEstadoChip({ estado }: { estado?: EstadoGestionCliente }) {
     const c = estado.compromiso;
     const tono =
       c.estado === "incumplido"
-        ? { bg: "#FBE4E2", fg: "#C0392B", txt: "incumplió" }
+        ? { bg: "var(--color-rojo-suave)", fg: "var(--color-rojo-osc)", txt: "incumplió" }
         : c.estado === "vence_hoy"
-          ? { bg: "#FDF3E2", fg: "#B9770E", txt: "vence hoy" }
-          : { bg: "#EAF0FF", fg: "#1E47C8", txt: "vigente" };
+          ? { bg: "var(--color-ambar-suave)", fg: "var(--color-ambar-osc)", txt: "vence hoy" }
+          : { bg: "var(--color-azul-suave)", fg: "var(--color-azul)", txt: "vigente" };
     return (
       <span className="rounded-full px-2.5 py-1 text-[11px] font-bold tabular-nums" style={{ background: tono.bg, color: tono.fg }}>
         🤝 {UYU(c.monto)} · {tono.txt}
@@ -364,7 +365,7 @@ function GestionEstadoChip({ estado }: { estado?: EstadoGestionCliente }) {
     );
   }
   if (estado.gestionadoHoy)
-    return <span className="rounded-full bg-[#E4F5EC] px-2.5 py-1 text-[11px] font-bold text-[#157A50]">✓ Gestionado hoy</span>;
+    return <span className="rounded-full bg-verde-suave px-2.5 py-1 text-[11px] font-bold text-verde-osc">✓ Gestionado hoy</span>;
   return null;
 }
 
@@ -372,7 +373,7 @@ function Chip({ texto, activo }: { texto: string; activo: boolean }) {
   return (
     <span
       className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-        activo ? "bg-[#FBE4E2] text-[#C0392B]" : "bg-linea text-tenue"
+        activo ? "bg-rojo-suave text-rojo-osc" : "bg-linea text-tenue"
       }`}
     >
       {texto}

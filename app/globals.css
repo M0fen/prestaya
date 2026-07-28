@@ -32,6 +32,17 @@
   --color-tenue-2: #aeb6cc; /* texto terciario (más claro que tenue) */
   --color-notif: #e06a6a; /* punto/badge de notificación (rojo suave) */
 
+  /* Tintes de PÍLDORA / panel de estado: fondo suave en claro; en oscuro (abajo)
+     pasan a una superficie oscura teñida. El TEXTO de la píldora va con el par
+     -osc (verde/ámbar/rojo-osc), que ya trae su flip → legible en ambos temas.
+     Colapsan ~18 tintes casi-idénticos hardcodeados por archivo en UN canónico
+     por color. Verificado visualmente en claro y oscuro (screenshots del panel). */
+  --color-verde-suave: #e7f6ef;
+  --color-ambar-suave: #fdf3e2;
+  --color-rojo-suave: #fbe4e2;
+  --color-violeta-suave: #f2f0fa; /* tinte del badge "Nuevo" (calificación) */
+  --color-violeta-osc: #7a4dd6; /* texto violeta sobre claro */
+
   /* Elevación: UNA base azul (rgba 15,27,61). shadow-brand para CTAs azules. */
   --shadow-sm: 0 1px 2px rgba(15, 27, 61, 0.05);
   --shadow-md: 0 6px 20px rgba(15, 27, 61, 0.1);
@@ -67,6 +78,13 @@
   --color-azul-suave: #222c44;
   --color-campo: #333e5c;
   --color-tenue-2: #6b7593;
+  /* Tintes de píldora en oscuro: superficie teñida oscura. El texto -osc (dark:
+     verde #5fd0a0 / ámbar #e6c06a / rojo #f4a79b) contrasta bien sobre estos. */
+  --color-verde-suave: #172a22;
+  --color-ambar-suave: #2b230f;
+  --color-rojo-suave: #3a1e1d;
+  --color-violeta-suave: #241f33;
+  --color-violeta-osc: #b39df5;
 }
 /* Alto contraste + oscuro: sube el secundario. */
 [data-tema="oscuro"] html[data-contraste="1"],

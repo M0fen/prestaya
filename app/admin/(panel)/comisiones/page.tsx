@@ -82,7 +82,7 @@ export default async function ComisionesPage({
       </div>
 
       {!r.disponible && (
-        <p className="rounded-[12px] bg-[#FEF9EE] px-3.5 py-2.5 text-[12.5px] font-medium text-[#B7791F]">
+        <p className="rounded-[12px] bg-ambar-suave px-3.5 py-2.5 text-[12.5px] font-medium text-ambar-osc">
           Para fijar comisiones, corré la migración{" "}
           <code className="rounded bg-tarjeta px-1 font-mono text-[11.5px]">0014_comisiones.sql</code>. Mientras
           tanto la tasa queda en 0%.
@@ -110,7 +110,7 @@ export default async function ComisionesPage({
             {r.filas.filter((f) => f.recaudado > 0).length} con cobros
           </span>
         </div>
-        <div className="flex flex-col gap-0.5 rounded-[14px] border border-[#DCE6FB] bg-[#F4F7FF] p-4">
+        <div className="flex flex-col gap-0.5 rounded-[14px] border border-[#DCE6FB] bg-azul-suave p-4">
           <span className="text-[11px] font-bold tracking-wide text-azul uppercase">A liquidar</span>
           <span className="text-[19px] font-extrabold tabular-nums text-verde">{UYU(aLiquidar)}</span>
           <span className="text-[11px] font-medium text-tenue">

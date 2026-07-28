@@ -14,11 +14,12 @@ import type { EstadoDia } from "@/types/cartones";
 
 export const dynamic = "force-dynamic";
 
+// Tintes por token (var CSS): flipean en oscuro (superficie oscura + texto claro).
 const ESTADO: Record<EstadoDia, { label: string; bg: string; fg: string }> = {
-  pagado: { label: "Pagado", bg: "#E4F5EC", fg: "#157A50" },
-  pendiente: { label: "Parcial", bg: "#FDF3E2", fg: "#B9770E" },
-  atrasado: { label: "Atrasado", bg: "#FBE4E2", fg: "#C0392B" },
-  futuro: { label: "Futuro", bg: "#F1F3F9", fg: "#8A93AD" },
+  pagado: { label: "Pagado", bg: "var(--color-verde-suave)", fg: "var(--color-verde-osc)" },
+  pendiente: { label: "Parcial", bg: "var(--color-ambar-suave)", fg: "var(--color-ambar-osc)" },
+  atrasado: { label: "Atrasado", bg: "var(--color-rojo-suave)", fg: "var(--color-rojo-osc)" },
+  futuro: { label: "Futuro", bg: "var(--color-suave)", fg: "var(--color-tenue)" },
 };
 
 function fechaLarga(iso: string): string {

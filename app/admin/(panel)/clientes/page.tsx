@@ -13,11 +13,11 @@ export const dynamic = "force-dynamic";
 const LIMITE = 60;
 
 const BANDA: Record<Calificacion, { label: string; bg: string; fg: string }> = {
-  excelente: { label: "Excelente", bg: "#E4F5EC", fg: "#157A50" },
-  bueno: { label: "Bueno", bg: "#EAF0FF", fg: "#1E47C8" },
-  regular: { label: "Regular", bg: "#FDF3E2", fg: "#B9770E" },
-  riesgo: { label: "Riesgo", bg: "#FBE4E2", fg: "#C0392B" },
-  nuevo: { label: "Nuevo", bg: "#F2F0FA", fg: "#7A4DD6" },
+  excelente: { label: "Excelente", bg: "var(--color-verde-suave)", fg: "var(--color-verde-osc)" },
+  bueno: { label: "Bueno", bg: "var(--color-azul-suave)", fg: "var(--color-azul)" },
+  regular: { label: "Regular", bg: "var(--color-ambar-suave)", fg: "var(--color-ambar-osc)" },
+  riesgo: { label: "Riesgo", bg: "var(--color-rojo-suave)", fg: "var(--color-rojo-osc)" },
+  nuevo: { label: "Nuevo", bg: "var(--color-violeta-suave)", fg: "var(--color-violeta-osc)" },
 };
 
 export default async function ClientesPage({
@@ -54,7 +54,7 @@ export default async function ClientesPage({
               no se ofrece desde el panel para no duplicar el flujo. */}
           <a
             href="/api/reportes/clientes"
-            className="inline-flex items-center gap-1.5 rounded-full border border-borde bg-tarjeta px-4 py-2 text-[13px] font-bold text-[#2453DC] hover:bg-suave"
+            className="inline-flex items-center gap-1.5 rounded-full border border-borde bg-tarjeta px-4 py-2 text-[13px] font-bold text-azul-claro hover:bg-suave"
           >
             ⬇️ Exportar CSV
           </a>
@@ -88,8 +88,8 @@ export default async function ClientesPage({
       {clientes.length > 0 && (
         <div className="flex flex-wrap items-center gap-2.5">
           <Resumen etiqueta="Mostrados" valor={clientes.length} />
-          <Resumen etiqueta="Con crédito activo" valor={conCredito} acento="#1FA971" />
-          <Resumen etiqueta="Reportados" valor={reportadosN} acento={reportadosN > 0 ? "#C0392B" : undefined} />
+          <Resumen etiqueta="Con crédito activo" valor={conCredito} acento="var(--color-verde-osc)" />
+          <Resumen etiqueta="Reportados" valor={reportadosN} acento={reportadosN > 0 ? "var(--color-rojo-osc)" : undefined} />
           <div className="ml-auto flex flex-wrap gap-1.5">
             {(Object.keys(BANDA) as Calificacion[])
               .filter((k) => porBanda[k])
@@ -144,7 +144,7 @@ export default async function ClientesPage({
                     </td>
                     <td className="px-3 py-2.5 text-center">
                       {c.reportado ? (
-                        <span className="text-[11px] font-bold text-[#C0392B]">Sí</span>
+                        <span className="text-[11px] font-bold text-rojo-osc">Sí</span>
                       ) : (
                         <span className="text-[11px] font-bold text-tenue">No</span>
                       )}
