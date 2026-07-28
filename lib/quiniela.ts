@@ -53,14 +53,29 @@ export interface ParticipacionMin {
   numero: number;
 }
 
-/** Devuelve los clientes ganadores (los que eligieron el número sorteado). */
+/**
+ * Clientes ganadores = los que tienen el número sorteado UNIÓN los FORZADOS por el
+ * admin (modalidad mixta 0090). El sorteo por número se conserva (comunicar "salió
+ * el 042"); `forzados` deja al admin garantizar que gane una persona puntual aparte.
+ * Se dedup (un forzado que además tenía el número no aparece dos veces). Solo se
+ * consideran forzados que SEAN participantes reales (no se puede premiar a quien no jugó).
+ * `forzados` vacío = conducta previa (solo gana el número).
+ */
 export function ganadores(
   participaciones: ParticipacionMin[],
   numeroGanador: number,
+  forzados: readonly string[] = [],
 ): string[] {
-  return participaciones
-    .filter((p) => p.numero === numeroGanador)
-    .map((p) => p.clienteId);
+  const forz = new Set(forzados);
+  const participantes = new Set(participaciones.map((p) => p.clienteId));
+  const gana = new Set<string>();
+  for (const p of participaciones) {
+    if (p.numero === numeroGanador) gana.add(p.clienteId);
+  }
+  for (const id of forz) {
+    if (participantes.has(id)) gana.add(id); // solo si realmente participó
+  }
+  return [...gana];
 }
 
 /**

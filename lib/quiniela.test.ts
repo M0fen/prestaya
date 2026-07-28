@@ -36,6 +36,22 @@ describe("ganadores", () => {
     expect(ganadores(parts, 7)).toEqual(["A", "C"]);
     expect(ganadores(parts, 99)).toEqual([]);
   });
+
+  it("modalidad mixta: FORZAR una persona la hace ganar aunque no tenga el número", () => {
+    const parts = [
+      { clienteId: "A", numero: 7 },
+      { clienteId: "B", numero: 13 },
+      { clienteId: "C", numero: 7 },
+    ];
+    // Sale el 7 (ganan A y C) y además el admin fuerza a B → B gana igual.
+    expect(new Set(ganadores(parts, 7, ["B"]))).toEqual(new Set(["A", "C", "B"]));
+    // Forzar a alguien que YA tenía el número no lo duplica.
+    expect(ganadores(parts, 7, ["A"]).sort()).toEqual(["A", "C"]);
+    // Forzar a quien NO participó no lo premia (no se puede premiar a quien no jugó).
+    expect(ganadores(parts, 99, ["Z"])).toEqual([]);
+    // Solo forzados (número que nadie tiene): gana únicamente el forzado real.
+    expect(ganadores(parts, 500, ["B"])).toEqual(["B"]);
+  });
 });
 
 describe("numeroGanadorAlAzar — sortea ENTRE participantes (siempre hay ganador)", () => {
