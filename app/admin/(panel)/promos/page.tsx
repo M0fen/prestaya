@@ -4,8 +4,10 @@
 import { requireAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getPremiosRaspa, getSegmentosRaspa, getQuinielasAdmin, getParticipaciones } from "@/lib/data/promos";
+import { getAjustesJuego } from "@/lib/data/juegoConfig";
 import { ganadores as calcularGanadores } from "@/lib/quiniela";
 import { PromosManager, type ResumenQuiniela } from "@/components/admin/PromosManager";
+import { ToggleJuegos } from "@/components/admin/ToggleJuegos";
 import { EtiquetaAudiencia } from "@/components/admin/EtiquetaAudiencia";
 
 export const dynamic = "force-dynamic";
@@ -13,10 +15,11 @@ export const dynamic = "force-dynamic";
 export default async function PromosPage() {
   await requireAdmin();
   const db = await createSupabaseServer();
-  const [premios, segmentos, quinielas] = await Promise.all([
+  const [premios, segmentos, quinielas, ajustes] = await Promise.all([
     getPremiosRaspa(db, false),
     getSegmentosRaspa(db, false),
     getQuinielasAdmin(db),
+    getAjustesJuego(db),
   ]);
 
   // Resumen por quiniela: cantidad de participantes + ganadores (si ya se sorteó).
@@ -48,6 +51,10 @@ export default async function PromosPage() {
         </div>
         <EtiquetaAudiencia audiencia="cliente" />
       </div>
+
+      {/* On/off de los juegos, co-locado con lo que se configura (antes vivía en
+          "Zona de juego", otra pantalla). Si está apagado, el cliente no ve nada. */}
+      <ToggleJuegos inicial={ajustes.activo} />
 
       <PromosManager premios={premios} segmentos={segmentos} quinielas={quinielas} resumen={resumen} />
 

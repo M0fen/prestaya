@@ -6,12 +6,42 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getUsuarioActual, esAdmin } from "@/lib/auth";
-import { actualizarAjustesJuego } from "@/lib/data/juegoConfig";
+import { actualizarAjustesJuego, getAjustesJuego } from "@/lib/data/juegoConfig";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { JUEGOS } from "@/lib/juegos";
 import type { AjustesJuego } from "@/lib/juegoAjustes";
 
 type Resultado = { ok: true } | { ok: false; error: string };
+
+/**
+ * On/off de los juegos que ve el cliente (quiniela + raspadita). Es el MISMO
+ * interruptor `activo` de los ajustes, pero co-locado en /admin/promos (donde el
+ * admin configura los juegos) → antes había que ir a otra pantalla ("Zona de
+ * juego") para prenderlos. Lee los ajustes actuales y solo cambia `activo`,
+ * preservando el resto. Solo admin.
+ */
+export async function setJuegosVisiblesAction(activo: boolean): Promise<Resultado> {
+  const usuario = await getUsuarioActual();
+  if (!usuario || !usuario.activo || !esAdmin(usuario.rol)) {
+    return { ok: false, error: "No tenés permisos." };
+  }
+  try {
+    const db = await createSupabaseServer();
+    const actuales = await getAjustesJuego(db);
+    await actualizarAjustesJuego(db, { ...actuales, activo: Boolean(activo) });
+    await registrarAuditoria(db, {
+      actorId: usuario.id,
+      actorNombre: usuario.nombre,
+      accion: activo ? "Mostró los juegos al cliente" : "Ocultó los juegos al cliente",
+      entidad: "gaming",
+    });
+    revalidatePath("/admin/promos");
+    revalidatePath("/admin/para-clientes");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "No se pudo guardar. Probá de nuevo." };
+  }
+}
 
 export async function guardarAjustesJuego(input: AjustesJuego): Promise<Resultado> {
   const usuario = await getUsuarioActual();

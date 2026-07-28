@@ -34,6 +34,10 @@ export type NavItem = {
   roles?: Rol[];
   /** Deshabilitado (en el roadmap): se muestra pero no navega. */
   pronto?: boolean;
+  /** Fuera del menú lateral/mobile, pero SIGUE en el buscador (Cmd+K) y accesible
+   *  por link directo. Para features "avanzadas / en pausa" que no queremos en la
+   *  navegación principal pero tampoco borrar. */
+  oculto?: boolean;
   /** Solo visible para desarrolladores (es_dev). */
   dev?: boolean;
   /** Sinónimos para la búsqueda del command palette. */
@@ -77,12 +81,15 @@ export const NAV_ITEMS: NavItem[] = [
   // supervisor también publica anuncios). Juego/Sorteos/Estrellas = config lúdica
   // GLOBAL (dinero-adyacente): solo el dueño (admin); el supervisor no los ve
   // (además su RLS no acota estrellas por zona).
+  { href: "/admin/para-clientes", label: "Resumen", icon: "🎯", grupo: "Para tus clientes", roles: ["admin"], alias: ["para tus clientes", "hub", "que ve el cliente", "carton", "resumen cliente", "vitrina"] },
   { href: "/admin/tienda", label: "Tienda", icon: "🛍️", grupo: "Para tus clientes", roles: ["admin"], alias: ["productos", "catalogo", "vender", "producto a credito", "solicitudes", "leads", "precio", "articulos"] },
   { href: "/admin/anuncios", label: "Anuncios al cliente", icon: "📣", grupo: "Para tus clientes", roles: ["admin", "supervisor"], alias: ["publicidad", "campanas", "banner", "banner cliente", "temporada", "aviso cliente", "novedad"] },
   { href: "/admin/rifa", label: "Rifa", icon: "🎁", grupo: "Para tus clientes", roles: ["admin"], alias: ["premio", "sorteo", "banner", "mejores clientes", "rifa cliente"] },
   { href: "/admin/promos", label: "Juegos y sorteos", icon: "🎟️", grupo: "Para tus clientes", roles: ["admin"], alias: ["raspadita", "quiniela", "sorteo", "promocion"] },
-  { href: "/admin/juego", label: "Zona de juego", icon: "🎮", grupo: "Para tus clientes", roles: ["admin"], alias: ["gaming", "recompensas", "temporada", "caritas"] },
   { href: "/admin/estrellas", label: "Estrellas", icon: "⭐", grupo: "Para tus clientes", roles: ["admin"], alias: ["canjes", "redenciones", "premios"] },
+  // Zona de juego: fuera del menú (arcade/temporada en pausa); accesible desde el
+  // hub "Para tus clientes" y el buscador. El on/off de los juegos vive en /promos.
+  { href: "/admin/juego", label: "Zona de juego", icon: "🎮", grupo: "Para tus clientes", roles: ["admin"], oculto: true, alias: ["gaming", "recompensas", "temporada", "arcade", "misiones"] },
   // ── Para tu equipo (lo que ven COBRADORES / SUPERVISORES) ──
   // Banner al equipo = aviso fijo arriba de la app del cobrador (antes escondido
   // dentro de Chat; ahora tiene entrada propia para que el admin lo encuentre).
@@ -131,14 +138,16 @@ export function navVisible(rol: Rol, esDev = false): NavItem[] {
 }
 
 /**
- * Navegación agrupada para el sidebar de escritorio: el Dashboard suelto arriba
- * y luego cada sección con sus ítems visibles. Solo devuelve grupos con ítems.
+ * Navegación agrupada para el sidebar de escritorio y el menú mobile: el
+ * Dashboard suelto arriba y luego cada sección con sus ítems visibles. Solo
+ * devuelve grupos con ítems. Los ítems `oculto` NO aparecen acá (sí en el
+ * buscador, vía navVisible) — para features avanzadas / en pausa.
  */
 export function navAgrupado(
   rol: Rol,
   esDev = false,
 ): { suelto: NavItem[]; grupos: { grupo: Grupo; items: NavItem[] }[] } {
-  const visibles = navVisible(rol, esDev);
+  const visibles = navVisible(rol, esDev).filter((i) => !i.oculto);
   const suelto = visibles.filter((i) => !i.grupo);
   const grupos = NAV_GRUPOS.map((grupo) => ({
     grupo,

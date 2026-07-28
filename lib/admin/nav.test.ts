@@ -40,11 +40,24 @@ describe("nav — agrupación del sidebar", () => {
     for (const g of grupos) expect(g.items.length).toBeGreaterThan(0);
   });
 
-  it("agrupado(admin) cubre exactamente los mismos ítems que navVisible (sin perder ni duplicar)", () => {
+  it("agrupado(admin) cubre navVisible EXCEPTO los ítems `oculto` (que solo van al buscador)", () => {
     const { suelto, grupos } = navAgrupado("admin", true);
     const agrupados = [...suelto, ...grupos.flatMap((g) => g.items)].map((i) => i.href).sort();
-    const visibles = navVisible("admin", true).map((i) => i.href).sort();
-    expect(agrupados).toEqual(visibles);
+    // navVisible incluye los ocultos (para el Cmd+K); navAgrupado los excluye.
+    const visiblesSinOcultos = navVisible("admin", true)
+      .filter((i) => !i.oculto)
+      .map((i) => i.href)
+      .sort();
+    expect(agrupados).toEqual(visiblesSinOcultos);
+  });
+
+  it("los ítems `oculto` (p. ej. Zona de juego) NO están en el menú pero SÍ en el buscador", () => {
+    const { grupos } = navAgrupado("admin", true);
+    const enMenu = new Set(grupos.flatMap((g) => g.items).map((i) => i.href));
+    const enBuscador = new Set(navVisible("admin", true).map((i) => i.href));
+    expect(enMenu.has("/admin/juego")).toBe(false); // fuera del menú
+    expect(enBuscador.has("/admin/juego")).toBe(true); // pero encontrable en Cmd+K
+    expect(enMenu.has("/admin/para-clientes")).toBe(true); // el hub sí está en el menú
   });
 
   it("todo ítem (salvo los sueltos destacados) declara un grupo válido", () => {
