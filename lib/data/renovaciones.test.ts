@@ -50,6 +50,12 @@ function fakeDb(state: {
   insertCommitsButErrors?: boolean;
   finalizarTrasLeer?: boolean;
   nextInsertId?: string;
+  // ── RPC atómico (0087) ──
+  // Por defecto (sin rpcPresente) el .rpc devuelve 42883 → crearRenovacion cae al camino
+  // de 2 requests, así los tests que no lo piden ejercitan el FALLBACK (conducta previa).
+  rpcPresente?: boolean;
+  rpcConcurrencia?: boolean; // el gate estado='activo' del RPC ve 0 filas → P0410
+  rpcCommitPerdido?: boolean; // el RPC commiteó pero la respuesta se perdió (timeout/504)
 }) {
   const calls = {
     inserts: [] as Record<string, unknown>[],
@@ -130,7 +136,41 @@ function fakeDb(state: {
     return api;
   }
 
-  const db = { from: (t: string) => makeQuery(t), _calls: calls };
+  // .rpc('renovar_credito_seguro', ...) — emula la sección crítica atómica del 0087.
+  // Sin rpcPresente devuelve 42883 (RPC ausente) → el llamador usa el fallback.
+  function rpc(fn: string, params: Record<string, unknown>) {
+    if (fn !== "renovar_credito_seguro" || !state.rpcPresente)
+      return Promise.resolve({ data: null, error: { code: "42883" } });
+    const antId = params.p_prestamo_anterior_id as string;
+    const ant = state.prestamos[antId];
+    // Gate estado='activo': si no está activo (o el escenario fuerza la carrera) → P0410.
+    if (!ant || ant.estado !== "activo" || state.rpcConcurrencia)
+      return Promise.resolve({ data: null, error: { code: "P0410" } });
+    // Atómico: finalizar el anterior + insertar el nuevo (o los dos o ninguno).
+    ant.estado = "finalizado";
+    ant.finalizado_en = "2026-07-20T15:00:00Z";
+    const id = state.nextInsertId ?? "nuevo-rpc";
+    const fila = {
+      id,
+      cliente_id: params.p_cliente_id,
+      cobrador_id: ant.cobrador_id,
+      monto_prestado: params.p_monto,
+      cuota_diaria: params.p_cuota,
+      total_dias: params.p_total_dias,
+      frecuencia: params.p_frecuencia,
+      fecha_inicio: params.p_fecha_inicio,
+      estado: "activo",
+      creado_por: params.p_creado_por,
+    };
+    state.prestamos[id] = fila;
+    calls.inserts.push(fila);
+    // Commit-perdido: el crédito quedó creado pero la respuesta se pierde (error sin code PG).
+    if (state.rpcCommitPerdido)
+      return Promise.resolve({ data: null, error: { message: "timeout, respuesta perdida" } });
+    return Promise.resolve({ data: fila, error: null });
+  }
+
+  const db = { from: (t: string) => makeQuery(t), rpc, _calls: calls };
   return db as unknown as SupabaseClient & { _calls: typeof calls };
 }
 
@@ -316,5 +356,69 @@ describe("crearRenovacion — saldado con tolerancia sub-peso (crédito importad
     const r = await crearRenovacion(fakeDb(state), ALTA_OK, HOY);
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toMatch(/no está saldado/i);
+  });
+});
+
+describe("crearRenovacion — camino ATÓMICO (RPC 0087 presente)", () => {
+  it("happy: finaliza el anterior + crea el nuevo en un solo paso, misma cuota", async () => {
+    const state = {
+      prestamos: { "ant-1": prestamoAnterior() },
+      pagos: { "ant-1": PAGOS_SALDADO },
+      rpcPresente: true,
+      nextInsertId: "nuevo-atomico",
+    };
+    const db = fakeDb(state);
+    const r = await crearRenovacion(db, ALTA_OK, HOY);
+
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.prestamoId).toBe("nuevo-atomico");
+      expect(r.cuota).toBe(400); // arrastra la tasa 1.2 del anterior
+    }
+    // El anterior quedó finalizado y el nuevo activo — ambos por el RPC (no por el fallback).
+    expect(state.prestamos["ant-1"].estado).toBe("finalizado");
+    expect((state.prestamos as Record<string, { estado: string }>)["nuevo-atomico"].estado).toBe("activo");
+    const nuevo = db._calls.inserts[0];
+    expect(nuevo.cliente_id).toBe("cli-1");
+    expect(nuevo.cobrador_id).toBe("cob-9"); // arrastra el cobrador del anterior
+    expect(nuevo.creado_por).toBe("gestor-1");
+    // El fallback NO corrió: no hubo ningún UPDATE de finalización por la vía de 2 pasos.
+    expect(db._calls.updates).toHaveLength(0);
+  });
+
+  it("concurrencia: el gate del RPC ve el anterior ya finalizado (P0410) → 'ya fue renovado'", async () => {
+    const state = {
+      prestamos: { "ant-1": prestamoAnterior() },
+      pagos: { "ant-1": PAGOS_SALDADO },
+      rpcPresente: true,
+      rpcConcurrencia: true, // otra transacción lo renovó bajo el advisory lock
+    };
+    const db = fakeDb(state);
+    const r = await crearRenovacion(db, ALTA_OK, HOY);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/ya fue renovado/i);
+    expect(db._calls.inserts).toHaveLength(0);
+    // NO cae al fallback tras un P0410 (sería un segundo intento de finalizar).
+    expect(db._calls.updates).toHaveLength(0);
+  });
+
+  it("COMMIT-PERDIDO del RPC: commiteó pero se perdió la respuesta → OK, NO duplica", async () => {
+    // El RPC finalizó+insertó (atómico, ya commiteado) pero la respuesta se perdió.
+    // buscarRenovacion debe encontrar el nuevo crédito y devolver ok (sin fabricar otro).
+    const state = {
+      prestamos: { "ant-1": prestamoAnterior() },
+      pagos: { "ant-1": PAGOS_SALDADO },
+      rpcPresente: true,
+      rpcCommitPerdido: true,
+      nextInsertId: "nuevo-rpc-cp",
+    };
+    const db = fakeDb(state);
+    const r = await crearRenovacion(db, ALTA_OK, HOY);
+
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.prestamoId).toBe("nuevo-rpc-cp");
+    expect(state.prestamos["ant-1"].estado).toBe("finalizado"); // no se reactivó
+    // Se creó exactamente uno (el del RPC); el fallback no fabricó un segundo.
+    expect(db._calls.inserts).toHaveLength(1);
   });
 });

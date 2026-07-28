@@ -235,6 +235,44 @@ export async function crearRenovacion(
   if (!(cuota > 0))
     return { ok: false, error: "La cuota calculada es inválida (revisar monto/días)." };
 
+  const fechaInicio = toIso(hoyUY(hoy));
+
+  // 2+3. Camino ATÓMICO (RPC 0087): finaliza el anterior + inserta el nuevo en UNA
+  //      transacción → o commitean los dos o ninguno. Cierra la ventana donde el
+  //      cliente quedaba sin crédito activo (server muerto entre los dos pasos) y la
+  //      compensación que podía fallar. El gate `estado='activo'` + advisory lock del
+  //      RPC serializan dos renovaciones concurrentes del mismo crédito. Si la 0087 aún
+  //      no corrió (42883/PGRST202), cae al camino de 2 requests de abajo (sin regresión).
+  const rpc = await db.rpc("renovar_credito_seguro", {
+    p_prestamo_anterior_id: ant.id,
+    p_cliente_id: clienteId,
+    p_monto: monto,
+    p_cuota: cuota,
+    p_total_dias: totalDias,
+    p_frecuencia: frecuencia,
+    p_fecha_inicio: fechaInicio,
+    p_creado_por: creadoPor,
+  });
+  if (!rpc.error && rpc.data) {
+    return { ok: true, prestamoId: (rpc.data as { id: string }).id, cuota };
+  }
+  if (rpc.error) {
+    const code = (rpc.error as { code?: string }).code;
+    // El gate del RPC vio el anterior ya finalizado → otra persona lo renovó primero.
+    if (code === "P0410")
+      return { ok: false, error: "El crédito anterior ya fue renovado por otra persona." };
+    // RPC presente pero falló por otra causa. Como todo el RPC es atómico, no hay estado
+    // a medias que compensar; PERO pudo haber COMMITEADO y perderse la respuesta
+    // (timeout/504) → verificar si el nuevo crédito YA existe antes de reportar fallo.
+    if (code !== "42883" && code !== "PGRST202") {
+      const ya = await buscarRenovacion(db, { clienteId, monto, cuota, totalDias, fechaInicio });
+      if (ya) return { ok: true, prestamoId: ya, cuota };
+      return { ok: false, error: "No se pudo crear el crédito de renovación." };
+    }
+    // 42883 / PGRST202 → la 0087 no está: sigue al camino de 2 requests (conducta previa).
+  }
+
+  // ── FALLBACK (0087 sin correr): 2 requests + compensación (conducta previa) ──
   // 2. Finalizar el anterior (solo si sigue activo: evita doble renovación).
   const fin = await db
     .from("prestamos")
@@ -247,7 +285,6 @@ export async function crearRenovacion(
     return { ok: false, error: "El crédito anterior ya fue renovado por otra persona." };
 
   // 3. Insertar el nuevo crédito activo.
-  const fechaInicio = toIso(hoyUY(hoy));
   const alta = await db
     .from("prestamos")
     .insert({
@@ -271,20 +308,10 @@ export async function crearRenovacion(
     // anterior. Sin esto, la compensación reactivaba el anterior mientras el nuevo YA
     // estaba creado → cliente con DOS créditos activos (capital/deuda DUPLICADOS) + el
     // reintento fabricaba un tercero. Se busca el crédito EXACTO que intentamos crear.
-    const { data: yaCreado } = await db
-      .from("prestamos")
-      .select("id")
-      .eq("cliente_id", clienteId)
-      .eq("estado", "activo")
-      .eq("monto_prestado", monto)
-      .eq("cuota_diaria", cuota)
-      .eq("total_dias", totalDias)
-      .eq("fecha_inicio", fechaInicio)
-      .order("creado_en", { ascending: false })
-      .limit(1);
-    if (yaCreado && yaCreado.length > 0) {
+    const ya = await buscarRenovacion(db, { clienteId, monto, cuota, totalDias, fechaInicio });
+    if (ya) {
       // El insert había commiteado: la renovación está hecha. NO compensar (evita el duplicado).
-      return { ok: true, prestamoId: yaCreado[0].id as string, cuota };
+      return { ok: true, prestamoId: ya, cuota };
     }
     // Compensación real: el nuevo NO se creó → reactivar el anterior para no dejar
     // al cliente sin crédito. (El reintento verá el anterior activo y lo renueva bien.)
@@ -305,4 +332,28 @@ export async function crearRenovacion(
   }
 
   return { ok: true, prestamoId: alta.data.id as string, cuota };
+}
+
+/**
+ * Busca el crédito EXACTO que una renovación intentó crear (mismo cliente, monto,
+ * cuota, días y fecha de inicio, aún activo). Confirma el caso COMMIT-PERDIDO: el
+ * insert commiteó pero la respuesta se perdió (timeout/504) → devolvemos el crédito
+ * existente en vez de compensar/fallar y fabricar un duplicado. Devuelve su id o null.
+ */
+async function buscarRenovacion(
+  db: SupabaseClient,
+  k: { clienteId: string; monto: number; cuota: number; totalDias: number; fechaInicio: string },
+): Promise<string | null> {
+  const { data } = await db
+    .from("prestamos")
+    .select("id")
+    .eq("cliente_id", k.clienteId)
+    .eq("estado", "activo")
+    .eq("monto_prestado", k.monto)
+    .eq("cuota_diaria", k.cuota)
+    .eq("total_dias", k.totalDias)
+    .eq("fecha_inicio", k.fechaInicio)
+    .order("creado_en", { ascending: false })
+    .limit(1);
+  return data && data.length > 0 ? (data[0].id as string) : null;
 }
