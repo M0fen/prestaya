@@ -18,10 +18,12 @@ import {
 
 export interface ResumenQuiniela {
   count: number;
-  /** Solo los ganadores (los que coinciden con el número sorteado). */
-  ganadores: { nombre: string; numero: number }[];
-  /** Todos los participantes con su número (para la lista plegable). */
-  participantes: { nombre: string; numero: number }[];
+  /** Ganadores YA resueltos = los del número sorteado + los forzados por el admin. */
+  ganadores: { clienteId: string; nombre: string; numero: number }[];
+  /** Todos los participantes con su número (para la lista plegable / forzar ganador). */
+  participantes: { clienteId: string; nombre: string; numero: number }[];
+  /** cliente_ids que el admin forzó como ganadores (0090). */
+  ganadoresForzados: string[];
 }
 
 export function PromosManager({
@@ -348,9 +350,19 @@ function QuinielaFila({ q, resumen, onDone }: { q: Quiniela; resumen?: ResumenQu
   const [ganador, setGanador] = useState<number>(q.numeroGanador ?? 0);
   const [ocupado, setOcupado] = useState(false);
   const [verParticipantes, setVerParticipantes] = useState(false);
+  // cliente_ids que el admin fuerza como ganadores, además del número (0090).
+  const [forzados, setForzados] = useState<Set<string>>(new Set());
   const count = resumen?.count ?? 0;
+  const abierta = q.estado === "abierta";
 
   const acotar = (n: number) => Math.min(999, Math.max(0, Math.round(Number(n) || 0)));
+  const toggleForzado = (id: string) =>
+    setForzados((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
 
   // Sortea al azar entre los NÚMEROS de los participantes reales → garantiza
   // ganador (ver numeroGanadorAlAzar). Solo precarga el campo; cerrar es aparte.
@@ -362,18 +374,25 @@ function QuinielaFila({ q, resumen, onDone }: { q: Quiniela; resumen?: ResumenQu
 
   const cerrar = async () => {
     const g = acotar(ganador);
-    if (!confirm(`Sortear "${q.titulo}" con el número ${formatearSuerte(g)}. Esto la CIERRA. ¿Confirmás?`)) return;
+    const nForz = forzados.size;
+    const msg =
+      `Cerrar "${q.titulo}". Ganan los del número ${formatearSuerte(g)}` +
+      (nForz ? ` MÁS ${nForz} persona${nForz === 1 ? "" : "s"} que elegiste a mano` : "") +
+      `. Esto la CIERRA. ¿Confirmás?`;
+    if (!confirm(msg)) return;
     setOcupado(true);
-    await cerrarQuiniela({ id: q.id, rangoMin: 0, rangoMax: 999, numeroGanador: g });
+    await cerrarQuiniela({ id: q.id, rangoMin: 0, rangoMax: 999, numeroGanador: g, forzados: [...forzados] });
     setOcupado(false);
     onDone();
   };
+
+  const forzadosSet = new Set(resumen?.ganadoresForzados ?? []);
 
   return (
     <div className="flex flex-col gap-2 rounded-[14px] border border-borde bg-tarjeta p-3">
       <div className="flex items-center gap-2">
         <span className="text-[13.5px] font-bold text-tinta">{q.titulo}</span>
-        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${q.estado === "abierta" ? "bg-[#E7F7EF] text-[#157A50]" : "bg-linea text-gris"}`}>
+        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${abierta ? "bg-verde-suave text-verde-osc" : "bg-linea text-gris"}`}>
           {q.estado}
         </span>
         <button
@@ -386,25 +405,54 @@ function QuinielaFila({ q, resumen, onDone }: { q: Quiniela; resumen?: ResumenQu
       </div>
       <span className="text-[12px] font-medium text-gris">Premio: {q.premioTexto} · números 000–999</span>
 
-      {/* Lista de participantes (nombre + su número), plegable */}
+      {/* Lista de participantes. Con la quiniela ABIERTA, tocar una persona la
+          marca ⭐ como ganadora forzada (además del número). */}
       {verParticipantes && (
-        <div className="max-h-[180px] overflow-y-auto rounded-[10px] border border-borde bg-suave p-2">
-          {resumen && resumen.participantes.length > 0 ? (
-            <ul className="flex flex-col gap-0.5">
-              {resumen.participantes.map((g, i) => (
-                <li key={i} className="flex items-center justify-between text-[12px]">
-                  <span className="text-cuerpo">{g.nombre}</span>
-                  <span className="font-bold text-tinta tabular-nums">{formatearSuerte(g.numero)}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <span className="text-[11.5px] font-medium text-gris">Todavía no hay participantes.</span>
+        <div className="flex flex-col gap-1">
+          {abierta && count > 0 && (
+            <span className="px-0.5 text-[11px] font-semibold text-azul">
+              Tocá una persona para que gane sí o sí (⭐), además del número sorteado.
+            </span>
           )}
+          <div className="max-h-[200px] overflow-y-auto rounded-[10px] border border-borde bg-suave p-2">
+            {resumen && resumen.participantes.length > 0 ? (
+              <ul className="flex flex-col gap-0.5">
+                {resumen.participantes.map((g) => {
+                  const marcado = forzados.has(g.clienteId);
+                  const contenido = (
+                    <>
+                      <span className={`truncate ${marcado ? "font-bold text-ambar-osc" : "text-cuerpo"}`}>
+                        {marcado ? "⭐ " : ""}
+                        {g.nombre}
+                      </span>
+                      <span className="font-bold text-tinta tabular-nums">{formatearSuerte(g.numero)}</span>
+                    </>
+                  );
+                  return abierta ? (
+                    <li key={g.clienteId}>
+                      <button
+                        type="button"
+                        onClick={() => toggleForzado(g.clienteId)}
+                        className={`flex w-full items-center justify-between gap-2 rounded-[7px] px-1.5 py-1 text-left text-[12px] transition-colors ${marcado ? "bg-ambar-suave" : "hover:bg-tarjeta"}`}
+                      >
+                        {contenido}
+                      </button>
+                    </li>
+                  ) : (
+                    <li key={g.clienteId} className="flex items-center justify-between px-1.5 py-1 text-[12px]">
+                      {contenido}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <span className="text-[11.5px] font-medium text-gris">Todavía no hay participantes.</span>
+            )}
+          </div>
         </div>
       )}
 
-      {q.estado === "abierta" ? (
+      {abierta ? (
         <div className="flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-2">
             {/* "Sortear ganador" elige al azar ENTRE los participantes → siempre
@@ -415,7 +463,7 @@ function QuinielaFila({ q, resumen, onDone }: { q: Quiniela; resumen?: ResumenQu
               onClick={sortearGanador}
               disabled={count === 0}
               title={count === 0 ? "No hay participantes para sortear todavía." : undefined}
-              className="rounded-full bg-[#1E47C8] px-4 py-1.5 text-[12.5px] font-bold text-white disabled:opacity-40"
+              className="rounded-full bg-azul px-4 py-1.5 text-[12.5px] font-bold text-white disabled:opacity-40"
             >
               🎲 Sortear un ganador
             </button>
@@ -425,7 +473,7 @@ function QuinielaFila({ q, resumen, onDone }: { q: Quiniela; resumen?: ResumenQu
                 value={ganador} onChange={(e) => setGanador(acotar(Number(e.target.value)))} />
             </label>
             <button onClick={cerrar} disabled={ocupado}
-              className="ml-auto rounded-full bg-[#1FA971] px-4 py-1.5 text-[12.5px] font-bold text-white disabled:opacity-50">
+              className="ml-auto rounded-full bg-verde-osc px-4 py-1.5 text-[12.5px] font-bold text-white disabled:opacity-50">
               Cerrar con {formatearSuerte(ganador)}
             </button>
           </div>
@@ -433,14 +481,15 @@ function QuinielaFila({ q, resumen, onDone }: { q: Quiniela; resumen?: ResumenQu
             {count === 0
               ? "Cuando haya participantes al día vas a poder sortear."
               : `“Sortear un ganador” elige al azar entre los ${count} participante${count === 1 ? "" : "s"} (siempre gana alguien).`}
+            {forzados.size > 0 && ` · ${forzados.size} elegido${forzados.size === 1 ? "" : "s"} a mano ⭐`}
           </span>
         </div>
       ) : (
         <div className="rounded-[10px] bg-suave p-2.5">
           <span className="text-[12.5px] font-bold text-tinta">Número ganador: {formatearSuerte(q.numeroGanador)}</span>
-          {resumen && resumen.ganadores.filter((g) => g.numero === q.numeroGanador).length > 0 ? (
-            <p className="mt-1 text-[12px] font-medium text-[#157A50]">
-              🏆 {resumen.ganadores.filter((g) => g.numero === q.numeroGanador).map((g) => g.nombre).join(", ")}
+          {resumen && resumen.ganadores.length > 0 ? (
+            <p className="mt-1 text-[12px] font-medium text-verde-osc">
+              🏆 {resumen.ganadores.map((g) => `${g.nombre}${forzadosSet.has(g.clienteId) ? " ⭐" : ""}`).join(", ")}
             </p>
           ) : (
             <p className="mt-1 text-[12px] font-medium text-gris">Sin ganadores esta vez.</p>

@@ -202,6 +202,8 @@ export interface Quiniela {
   estado: "abierta" | "cerrada";
   numeroGanador: number | null;
   sorteoEn: string | null;
+  /** cliente_ids que el admin forzó como ganadores (0090). [] si la col no existe. */
+  ganadoresForzados: string[];
 }
 
 function mapQuiniela(r: Record<string, unknown>): Quiniela {
@@ -214,6 +216,7 @@ function mapQuiniela(r: Record<string, unknown>): Quiniela {
     estado: r.estado as Quiniela["estado"],
     numeroGanador: r.numero_ganador == null ? null : Number(r.numero_ganador),
     sorteoEn: (r.sorteo_en as string | null) ?? null,
+    ganadoresForzados: Array.isArray(r.ganadores_forzados) ? (r.ganadores_forzados as string[]) : [],
   };
 }
 
@@ -308,10 +311,16 @@ export async function cerrarQuinielaDb(
   db: SupabaseClient,
   id: string,
   numeroGanador: number,
+  ganadoresForzados: string[] = [],
 ): Promise<void> {
   const { error } = await db
     .from("quinielas")
-    .update({ estado: "cerrada", numero_ganador: numeroGanador, sorteo_en: new Date().toISOString() })
+    .update({
+      estado: "cerrada",
+      numero_ganador: numeroGanador,
+      ganadores_forzados: ganadoresForzados,
+      sorteo_en: new Date().toISOString(),
+    })
     .eq("id", id);
   if (error) throw error;
 }

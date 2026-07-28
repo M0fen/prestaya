@@ -32,14 +32,23 @@ export default async function PromosPage() {
   await Promise.all(
     quinielas.map(async (q) => {
       const parts = await getParticipaciones(db, q.id);
+      // Ganadores = número sorteado ∪ forzados por el admin (modalidad mixta 0090).
       const winnerIds =
-        q.numeroGanador != null ? calcularGanadores(parts.map((p) => ({ clienteId: p.clienteId, numero: p.numero })), q.numeroGanador) : [];
+        q.numeroGanador != null
+          ? calcularGanadores(
+              parts.map((p) => ({ clienteId: p.clienteId, numero: p.numero })),
+              q.numeroGanador,
+              q.ganadoresForzados,
+            )
+          : [];
+      const winnerSet = new Set(winnerIds);
       resumen[q.id] = {
         count: parts.length,
         ganadores: parts
-          .filter((p) => winnerIds.includes(p.clienteId))
-          .map((p) => ({ nombre: p.clienteNombre, numero: p.numero })),
-        participantes: parts.map((p) => ({ nombre: p.clienteNombre, numero: p.numero })),
+          .filter((p) => winnerSet.has(p.clienteId))
+          .map((p) => ({ clienteId: p.clienteId, nombre: p.clienteNombre, numero: p.numero })),
+        participantes: parts.map((p) => ({ clienteId: p.clienteId, nombre: p.clienteNombre, numero: p.numero })),
+        ganadoresForzados: q.ganadoresForzados,
       };
     }),
   );

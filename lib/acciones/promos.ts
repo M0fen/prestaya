@@ -15,6 +15,7 @@ import {
   borrarSegmentoRaspaDb,
   crearQuinielaDb,
   cerrarQuinielaDb,
+  getParticipaciones,
 } from "@/lib/data/promos";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { normalizarNumero } from "@/lib/quiniela";
@@ -166,17 +167,28 @@ export async function cerrarQuiniela(input: {
   rangoMin: number;
   rangoMax: number;
   numeroGanador: number;
+  /** cliente_ids que el admin FUERZA como ganadores, además del número (0090). */
+  forzados?: string[];
 }): Promise<Resultado> {
   const u = await gestor();
   if (!u) return { ok: false, error: "No tenés permisos." };
   const numero = normalizarNumero(input.numeroGanador, { min: input.rangoMin, max: input.rangoMax });
   try {
     const db = await createSupabaseServer();
-    await cerrarQuinielaDb(db, input.id, numero);
+    // Solo se puede forzar a quien REALMENTE participó (no se premia a quien no jugó).
+    // Se intersecta contra las participaciones reales antes de guardar.
+    let forzados: string[] = [];
+    const pedidos = [...new Set((input.forzados ?? []).filter((s) => typeof s === "string" && s))];
+    if (pedidos.length > 0) {
+      const parts = await getParticipaciones(db, input.id);
+      const participantes = new Set(parts.map((p) => p.clienteId));
+      forzados = pedidos.filter((id) => participantes.has(id));
+    }
+    await cerrarQuinielaDb(db, input.id, numero, forzados);
     await registrarAuditoria(db, {
       actorId: u.id, actorNombre: u.nombre,
       accion: "Cerró quiniela (sorteo)", entidad: "promo", entidadId: input.id,
-      detalle: `Número ganador: ${numero}`,
+      detalle: `Número ganador: ${numero}${forzados.length ? ` · ${forzados.length} ganador(es) forzado(s)` : ""}`,
     });
     revalidatePath("/admin/promos");
     return { ok: true };
