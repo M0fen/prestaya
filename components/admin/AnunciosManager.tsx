@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import type { Anuncio, TemaAnuncio, SegmentoAnuncio } from "@/types/db";
 import { BannerCarrusel } from "@/components/BannerCarrusel";
 import { guardarAnuncio, alternarAnuncio, eliminarAnuncio, subirImagenAnuncio, type RawAnuncio } from "@/lib/acciones/anuncios";
+import { estadoPublicacion } from "@/lib/publicacion";
+import { EstadoBadge } from "@/components/admin/EstadoBadge";
 
 const TEMAS: { v: TemaAnuncio; label: string }[] = [
   { v: "azul", label: "Azul" },
@@ -25,6 +27,24 @@ const vacio: RawAnuncio = {
   id: null, titulo: "", cuerpo: "", ctaTexto: "", ctaUrl: "", imagenUrl: "", etiqueta: "",
   tema: "azul", prioridad: 0, activo: true, segmento: "todos", fechaInicio: "", fechaFin: "",
 };
+
+/** Fecha corta local ("DD/MM"). "" si es vacía/ilegible. */
+function fechaCorta(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/** Ventana de fechas legible para la fila: "Siempre" / "Hasta 31/07" / "Desde 01/08" / "01/08–31/08". */
+function ventanaCorta(desde: string | null, hasta: string | null): string {
+  const d = fechaCorta(desde);
+  const h = fechaCorta(hasta);
+  if (!d && !h) return "Siempre";
+  if (d && h) return `${d}–${h}`;
+  if (h) return `Hasta ${h}`;
+  return `Desde ${d}`;
+}
 
 /** ISO → valor para <input datetime-local> ("YYYY-MM-DDTHH:mm"). */
 function aLocal(iso: string | null): string {
@@ -64,6 +84,17 @@ export function AnunciosManager({ anuncios }: { anuncios: Anuncio[] }) {
       prioridad: a.prioridad, activo: a.activo, segmento: a.segmento,
       fechaInicio: aLocal(a.fecha_inicio), fechaFin: aLocal(a.fecha_fin),
     });
+
+  // Duplicar: carga el formulario con los datos del anuncio pero SIN id (crea uno
+  // nuevo) y sin fechas (para relanzar una campaña de temporada sin retipear todo).
+  const duplicar = (a: Anuncio) => {
+    setForm({
+      id: null, titulo: a.titulo, cuerpo: a.cuerpo ?? "", ctaTexto: a.cta_texto ?? "",
+      ctaUrl: a.cta_url ?? "", imagenUrl: a.imagen_url ?? "", etiqueta: a.etiqueta ?? "", tema: a.tema,
+      prioridad: a.prioridad, activo: true, segmento: a.segmento, fechaInicio: "", fechaFin: "",
+    });
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const guardar = async () => {
     setOcupado(true);
@@ -218,30 +249,44 @@ export function AnunciosManager({ anuncios }: { anuncios: Anuncio[] }) {
             Todavía no hay anuncios. Creá el primero arriba.
           </p>
         ) : (
-          anuncios.map((a) => (
-            <div key={a.id} className="flex items-center gap-3 rounded-[14px] border border-borde bg-tarjeta p-3">
-              <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[13px] font-black text-white"
-                style={{ background: a.activo ? "#1FA971" : "#AEB6CC" }}>
-                {a.prioridad}
-              </span>
-              <div className="flex min-w-0 flex-1 flex-col">
+          anuncios.map((a) => {
+            const estado = estadoPublicacion({ activo: a.activo, desde: a.fecha_inicio, hasta: a.fecha_fin });
+            return (
+            <div key={a.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[14px] border border-borde bg-tarjeta p-3">
+              {a.imagen_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={a.imagen_url} alt="" className="h-9 w-9 flex-shrink-0 rounded-[10px] object-cover" />
+              ) : (
+                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[10px] bg-[#EEF3FF] text-[12px] font-black text-azul tabular-nums"
+                  title="Prioridad (mayor = primero)">
+                  {a.prioridad}
+                </span>
+              )}
+              <div className="flex min-w-0 flex-1 basis-[160px] flex-col">
                 <span className="truncate text-[13.5px] font-bold text-tinta">{a.titulo}</span>
                 <span className="text-[11.5px] font-medium text-gris">
-                  {a.segmento === "todos" ? "Todos" : a.segmento === "al_dia" ? "Al día" : "Con pendientes"}
-                  {a.activo ? "" : " · inactivo"}
+                  {a.segmento === "todos" ? "Todos los clientes" : a.segmento === "al_dia" ? "Solo al día" : "Solo con pendientes"}
+                  {" · "}{ventanaCorta(a.fecha_inicio, a.fecha_fin)}
                 </span>
               </div>
-              <button onClick={() => toggle(a)} className="rounded-full border border-borde px-2.5 py-1 text-[11.5px] font-bold text-gris hover:bg-suave">
-                {a.activo ? "Pausar" : "Activar"}
-              </button>
-              <button onClick={() => editar(a)} className="rounded-full border border-borde px-2.5 py-1 text-[11.5px] font-bold text-azul hover:bg-suave">
-                Editar
-              </button>
-              <button onClick={() => borrar(a)} aria-label="Borrar" className="text-[15px] text-[#C7D2EC] hover:text-[#D64545]">
-                ✕
-              </button>
+              <EstadoBadge estado={estado} />
+              <div className="flex items-center gap-1.5">
+                <button onClick={() => toggle(a)} className="rounded-full border border-borde px-2.5 py-1 text-[11.5px] font-bold text-gris hover:bg-suave">
+                  {a.activo ? "Pausar" : "Activar"}
+                </button>
+                <button onClick={() => editar(a)} className="rounded-full border border-borde px-2.5 py-1 text-[11.5px] font-bold text-azul hover:bg-suave">
+                  Editar
+                </button>
+                <button onClick={() => duplicar(a)} title="Duplicar para relanzar" className="rounded-full border border-borde px-2.5 py-1 text-[11.5px] font-bold text-gris hover:bg-suave">
+                  Duplicar
+                </button>
+                <button onClick={() => borrar(a)} aria-label="Borrar" className="text-[15px] text-[#C7D2EC] hover:text-[#D64545]">
+                  ✕
+                </button>
+              </div>
             </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

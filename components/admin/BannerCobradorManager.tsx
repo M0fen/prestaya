@@ -6,10 +6,12 @@
 //    la comparte con su cliente en un toque (0080).
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { crearBannerCobrador, desactivarBannerCobrador } from "@/lib/acciones/bannerCobrador";
+import { crearBannerCobrador, actualizarBannerCobrador, desactivarBannerCobrador } from "@/lib/acciones/bannerCobrador";
 import { subirImagenAnuncio } from "@/lib/acciones/anuncios";
 import { BannerEquipo } from "@/components/cobrador/BannerEquipo";
 import type { BannerCobrador, TemaBanner } from "@/lib/data/bannerCobrador";
+import { estadoPublicacion } from "@/lib/publicacion";
+import { EstadoBadge } from "@/components/admin/EstadoBadge";
 
 const TEMAS: { id: TemaBanner; label: string; bg: string; fg: string; bd: string }[] = [
   { id: "azul", label: "Info", bg: "#E9F0FF", fg: "#1E47C8", bd: "#C6D6FB" },
@@ -29,6 +31,7 @@ const VENCE = [
 export function BannerCobradorManager({ banners }: { banners: BannerCobrador[] }) {
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
+  const [editandoId, setEditandoId] = useState<string | null>(null);
   const [texto, setTexto] = useState("");
   const [tema, setTema] = useState<TemaBanner>("azul");
   const [horas, setHoras] = useState(0);
@@ -44,8 +47,11 @@ export function BannerCobradorManager({ banners }: { banners: BannerCobrador[] }
 
   const activos = banners.filter((b) => b.activo);
   const esOferta = Boolean(titulo.trim() || imagenUrl.trim() || ctaUrl.trim());
+  // Una oferta no necesita texto; un aviso de texto sí (mínimo 3).
+  const puedePublicar = esOferta || texto.trim().length >= 3;
 
   const limpiar = () => {
+    setEditandoId(null);
     setTexto("");
     setTitulo("");
     setImagenUrl("");
@@ -53,6 +59,20 @@ export function BannerCobradorManager({ banners }: { banners: BannerCobrador[] }
     setCtaUrl("");
     setTema("azul");
     setHoras(0);
+  };
+
+  /** Carga el formulario con un banner. Si `comoNuevo`, duplica (sin id). */
+  const cargar = (b: BannerCobrador, comoNuevo = false) => {
+    setEditandoId(comoNuevo ? null : b.id);
+    setTexto(b.texto ?? "");
+    setTitulo(b.titulo ?? "");
+    setImagenUrl(b.imagenUrl ?? "");
+    setCtaTexto(b.ctaTexto ?? "");
+    setCtaUrl(b.ctaUrl ?? "");
+    setTema(b.tema);
+    setHoras(0);
+    setError(null);
+    setAbierto(true);
   };
 
   const subirImagen = async (file: File | null) => {
@@ -68,18 +88,21 @@ export function BannerCobradorManager({ banners }: { banners: BannerCobrador[] }
   };
 
   const publicar = () => {
-    if (texto.trim().length < 3 || pendiente) return;
+    if (!puedePublicar || pendiente) return;
     setError(null);
+    const payload = {
+      texto,
+      tema,
+      expiraEnHoras: horas,
+      titulo: titulo.trim() || null,
+      imagenUrl: imagenUrl.trim() || null,
+      ctaTexto: ctaTexto.trim() || null,
+      ctaUrl: ctaUrl.trim() || null,
+    };
     startTransition(async () => {
-      const res = await crearBannerCobrador({
-        texto,
-        tema,
-        expiraEnHoras: horas,
-        titulo: titulo.trim() || null,
-        imagenUrl: imagenUrl.trim() || null,
-        ctaTexto: ctaTexto.trim() || null,
-        ctaUrl: ctaUrl.trim() || null,
-      });
+      const res = editandoId
+        ? await actualizarBannerCobrador({ id: editandoId, ...payload })
+        : await crearBannerCobrador(payload);
       if (res.ok) {
         limpiar();
         setAbierto(false);
@@ -136,6 +159,9 @@ export function BannerCobradorManager({ banners }: { banners: BannerCobrador[] }
 
       {abierto && (
         <div className="flex flex-col gap-2.5 rounded-[12px] bg-suave p-3">
+          {editandoId && (
+            <span className="text-[12px] font-bold text-[#1E47C8]">✏️ Editando un banner activo</span>
+          )}
           <textarea
             value={texto}
             maxLength={240}
@@ -230,20 +256,27 @@ export function BannerCobradorManager({ banners }: { banners: BannerCobrador[] }
             </div>
           )}
 
-          <select
-            value={horas}
-            onChange={(e) => setHoras(Number(e.target.value))}
-            className="w-fit rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[12.5px] outline-none focus:border-azul"
-          >
-            {VENCE.map((v) => (
-              <option key={v.horas} value={v.horas}>
-                {v.label}
-              </option>
-            ))}
-          </select>
+          <div className="flex flex-col gap-1">
+            <select
+              value={horas}
+              onChange={(e) => setHoras(Number(e.target.value))}
+              className="w-fit rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[12.5px] outline-none focus:border-azul"
+            >
+              {VENCE.map((v) => (
+                <option key={v.horas} value={v.horas}>
+                  {v.label}
+                </option>
+              ))}
+            </select>
+            {editandoId && (
+              <span className="text-[10.5px] font-medium text-tenue">
+                Al guardar, el vencimiento se cuenta de nuevo desde ahora.
+              </span>
+            )}
+          </div>
 
           {/* Vista previa (tal como la ve el cobrador) */}
-          {texto.trim() && (
+          {(texto.trim() || esOferta) && (
             <div className="rounded-[12px] bg-[#EAEEF7] p-3">
               <span className="mb-2 block text-[10px] font-bold tracking-wide text-gris uppercase">
                 Vista previa
@@ -276,10 +309,16 @@ export function BannerCobradorManager({ banners }: { banners: BannerCobrador[] }
             <button
               type="button"
               onClick={publicar}
-              disabled={pendiente || texto.trim().length < 3}
+              disabled={pendiente || !puedePublicar}
               className="flex-1 rounded-full bg-[#1FA971] px-4 py-2 text-[12.5px] font-extrabold text-white disabled:opacity-40"
             >
-              {pendiente ? "Publicando…" : esOferta ? "Publicar oferta" : "Publicar aviso"}
+              {pendiente
+                ? "Guardando…"
+                : editandoId
+                  ? "Guardar cambios"
+                  : esOferta
+                    ? "Publicar oferta"
+                    : "Publicar aviso"}
             </button>
           </div>
         </div>
@@ -294,26 +333,47 @@ export function BannerCobradorManager({ banners }: { banners: BannerCobrador[] }
           {activos.map((b) => {
             const t = temaDe(b.tema);
             const oferta = Boolean(b.ctaUrl || b.imagenUrl || b.titulo);
+            const estado = estadoPublicacion({ activo: b.activo, hasta: b.expiraEn });
             return (
               <div
                 key={b.id}
-                className="flex items-center gap-2 rounded-[10px] border px-3 py-2"
+                className="flex flex-wrap items-center gap-2 rounded-[10px] border px-3 py-2"
                 style={oferta ? { background: "#FBF6E9", borderColor: "#EAD9AE" } : { background: t.bg, borderColor: t.bd }}
               >
                 <span
-                  className="flex-1 text-[12.5px] font-semibold"
+                  className="min-w-0 flex-1 basis-[140px] truncate text-[12.5px] font-semibold"
                   style={{ color: oferta ? "#8A6A1F" : t.fg }}
                 >
                   {oferta ? `🎁 ${b.titulo || b.texto}` : b.texto}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => apagar(b.id)}
-                  disabled={pendiente}
-                  className="flex-shrink-0 rounded-full bg-white/70 px-2.5 py-1 text-[11px] font-bold text-gris disabled:opacity-40"
-                >
-                  Apagar
-                </button>
+                <EstadoBadge estado={estado} />
+                <div className="flex flex-shrink-0 items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => cargar(b)}
+                    disabled={pendiente}
+                    className="rounded-full bg-white/70 px-2.5 py-1 text-[11px] font-bold text-azul disabled:opacity-40"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => cargar(b, true)}
+                    disabled={pendiente}
+                    title="Duplicar para relanzar"
+                    className="rounded-full bg-white/70 px-2.5 py-1 text-[11px] font-bold text-gris disabled:opacity-40"
+                  >
+                    Duplicar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => apagar(b.id)}
+                    disabled={pendiente}
+                    className="rounded-full bg-white/70 px-2.5 py-1 text-[11px] font-bold text-gris disabled:opacity-40"
+                  >
+                    Apagar
+                  </button>
+                </div>
               </div>
             );
           })}

@@ -1,7 +1,7 @@
 // Tests del núcleo PURO de la quiniela (promocional). Validación de número y
 // cálculo de ganadores. Sin dinero real en ninguna parte.
 import { describe, it, expect } from "vitest";
-import { numeroValido, normalizarNumero, ganadores, numeroSuerte, formatearSuerte } from "./quiniela";
+import { numeroValido, normalizarNumero, ganadores, numeroSuerte, formatearSuerte, numeroGanadorAlAzar } from "./quiniela";
 
 const rango = { min: 0, max: 99 };
 
@@ -35,6 +35,42 @@ describe("ganadores", () => {
     ];
     expect(ganadores(parts, 7)).toEqual(["A", "C"]);
     expect(ganadores(parts, 99)).toEqual([]);
+  });
+});
+
+describe("numeroGanadorAlAzar — sortea ENTRE participantes (siempre hay ganador)", () => {
+  it("sin participantes → null (no se puede sortear)", () => {
+    expect(numeroGanadorAlAzar([])).toBeNull();
+  });
+
+  it("SIEMPRE devuelve un número que ALGUIEN tiene (nunca 'sin ganador')", () => {
+    const nums = [42, 7, 999, 500];
+    // Barremos todo el rango de aleatorio(): cualquier valor cae en un participante.
+    for (const r of [0, 0.24, 0.25, 0.5, 0.74, 0.99]) {
+      const g = numeroGanadorAlAzar(nums, () => r);
+      expect(nums).toContain(g);
+    }
+  });
+
+  it("mapea el azar al índice correcto", () => {
+    const nums = [10, 20, 30, 40];
+    expect(numeroGanadorAlAzar(nums, () => 0)).toBe(10); // primer índice
+    expect(numeroGanadorAlAzar(nums, () => 0.5)).toBe(30); // mitad
+    expect(numeroGanadorAlAzar(nums, () => 0.999)).toBe(40); // último
+  });
+
+  it("aleatorio()==1 (borde) no se sale del arreglo", () => {
+    expect(numeroGanadorAlAzar([5, 6, 7], () => 1)).toBe(7);
+  });
+
+  it("el número sorteado siempre produce ≥1 ganador con ganadores()", () => {
+    const parts = [
+      { clienteId: "A", numero: 42 },
+      { clienteId: "B", numero: 7 },
+      { clienteId: "C", numero: 42 },
+    ];
+    const g = numeroGanadorAlAzar(parts.map((p) => p.numero), () => 0); // → 42
+    expect(ganadores(parts, g!).length).toBeGreaterThanOrEqual(1);
   });
 });
 

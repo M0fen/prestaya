@@ -35,18 +35,20 @@ export async function crearBannerCobrador(input: {
 }): Promise<Resultado> {
   const u = await getUsuarioActual();
   if (!u || !u.activo || !esGestor(u.rol)) return { ok: false, error: "No tenés permisos." };
-  const texto = (input.texto ?? "").trim();
-  if (texto.length < 3) return { ok: false, error: "Escribí el aviso (mínimo 3 caracteres)." };
-  if (texto.length > 240) return { ok: false, error: "Máximo 240 caracteres." };
-  const tema: TemaBanner = TEMAS.includes(input.tema) ? input.tema : "azul";
-  const horas = Number(input.expiraEnHoras);
-  const expira_en =
-    Number.isFinite(horas) && horas > 0 ? new Date(Date.now() + horas * 3_600_000).toISOString() : null;
   // Publicidad opcional (saneada: link seguro, imagen solo http(s)).
   const titulo = (input.titulo ?? "").trim().slice(0, 60) || null;
   const imagen_url = imagenSegura(input.imagenUrl);
   const cta_url = hrefSeguro((input.ctaUrl ?? "").trim() || null);
   const cta_texto = (input.ctaTexto ?? "").trim().slice(0, 40) || null;
+  // Una OFERTA (título/imagen/botón) NO necesita texto; un aviso de texto sí.
+  const esOferta = Boolean(titulo || imagen_url || cta_url);
+  const texto = (input.texto ?? "").trim();
+  if (!esOferta && texto.length < 3) return { ok: false, error: "Escribí el aviso (mínimo 3 caracteres)." };
+  if (texto.length > 240) return { ok: false, error: "Máximo 240 caracteres." };
+  const tema: TemaBanner = TEMAS.includes(input.tema) ? input.tema : "azul";
+  const horas = Number(input.expiraEnHoras);
+  const expira_en =
+    Number.isFinite(horas) && horas > 0 ? new Date(Date.now() + horas * 3_600_000).toISOString() : null;
   try {
     const db = await createSupabaseServer();
     const { error } = await db
@@ -65,6 +67,58 @@ export async function crearBannerCobrador(input: {
     return { ok: true };
   } catch {
     return { ok: false, error: "No se pudo publicar. ¿Corriste las migraciones 0050 y 0080?" };
+  }
+}
+
+/** Edita un banner existente (arreglar un typo sin borrar y rehacer). Reaplica
+ *  el vencimiento desde AHORA (0 = sin vencimiento). Mismas reglas que crear. */
+export async function actualizarBannerCobrador(input: {
+  id: string;
+  texto: string;
+  tema: TemaBanner;
+  expiraEnHoras?: number;
+  titulo?: string | null;
+  imagenUrl?: string | null;
+  ctaTexto?: string | null;
+  ctaUrl?: string | null;
+}): Promise<Resultado> {
+  const u = await getUsuarioActual();
+  if (!u || !u.activo || !esGestor(u.rol)) return { ok: false, error: "No tenés permisos." };
+  if (!ES_UUID.test(input.id)) return { ok: false, error: "Banner inválido." };
+
+  const titulo = (input.titulo ?? "").trim().slice(0, 60) || null;
+  const imagen_url = imagenSegura(input.imagenUrl);
+  const cta_url = hrefSeguro((input.ctaUrl ?? "").trim() || null);
+  const cta_texto = (input.ctaTexto ?? "").trim().slice(0, 40) || null;
+  // Una OFERTA (tiene título/imagen/botón) no necesita texto; un aviso de texto sí.
+  const esOferta = Boolean(titulo || imagen_url || cta_url);
+  const texto = (input.texto ?? "").trim();
+  if (!esOferta && texto.length < 3) return { ok: false, error: "Escribí el aviso (mínimo 3 caracteres)." };
+  if (texto.length > 240) return { ok: false, error: "Máximo 240 caracteres." };
+  const tema: TemaBanner = TEMAS.includes(input.tema) ? input.tema : "azul";
+  const horas = Number(input.expiraEnHoras);
+  const expira_en =
+    Number.isFinite(horas) && horas > 0 ? new Date(Date.now() + horas * 3_600_000).toISOString() : null;
+
+  try {
+    const db = await createSupabaseServer();
+    const { error } = await db
+      .from("banner_cobrador")
+      .update({ texto, tema, expira_en, titulo, imagen_url, cta_texto, cta_url, activo: true })
+      .eq("id", input.id);
+    if (error) throw error;
+    await registrarAuditoria(db, {
+      actorId: u.id,
+      actorNombre: u.nombre,
+      accion: "Editó banner al equipo",
+      entidad: "banner_cobrador",
+      entidadId: input.id,
+    });
+    revalidatePath("/admin/chat");
+    revalidatePath("/cobrador");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "No se pudo guardar el cambio. Probá de nuevo." };
   }
 }
 

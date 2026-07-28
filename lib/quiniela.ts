@@ -62,3 +62,23 @@ export function ganadores(
     .filter((p) => p.numero === numeroGanador)
     .map((p) => p.clienteId);
 }
+
+/**
+ * Sortea AL AZAR el número ganador ENTRE LOS PARTICIPANTES REALES (no en todo el
+ * 000–999). Así siempre hay al menos un ganador: sortear en el espacio completo,
+ * con pocos participantes, casi siempre caía en un número que nadie tenía →
+ * "sin ganadores", lo que confunde a quien cierra la quiniela.
+ *
+ * Cada PERSONA tiene la misma chance (elige un participante al azar y usa su
+ * número); si varios comparten ese número, ganan todos (es lo esperado).
+ * Devuelve null si no hay participantes. `aleatorio` se inyecta para testear.
+ */
+export function numeroGanadorAlAzar(
+  numeros: readonly number[],
+  aleatorio: () => number = Math.random,
+): number | null {
+  if (numeros.length === 0) return null;
+  const i = Math.floor(aleatorio() * numeros.length);
+  // Acotar el índice por si `aleatorio()` devuelve exactamente 1 (defensivo).
+  return numeros[Math.min(i, numeros.length - 1)];
+}

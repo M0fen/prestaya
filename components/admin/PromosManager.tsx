@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PremioRaspa, SegmentoRaspa } from "@/lib/raspadita";
 import type { Quiniela } from "@/lib/data/promos";
-import { formatearSuerte } from "@/lib/quiniela";
+import { formatearSuerte, numeroGanadorAlAzar } from "@/lib/quiniela";
 import {
   guardarPremioRaspa,
   eliminarPremioRaspa,
@@ -352,6 +352,14 @@ function QuinielaFila({ q, resumen, onDone }: { q: Quiniela; resumen?: ResumenQu
 
   const acotar = (n: number) => Math.min(999, Math.max(0, Math.round(Number(n) || 0)));
 
+  // Sortea al azar entre los NÚMEROS de los participantes reales → garantiza
+  // ganador (ver numeroGanadorAlAzar). Solo precarga el campo; cerrar es aparte.
+  const sortearGanador = () => {
+    const nums = resumen?.participantes.map((p) => p.numero) ?? [];
+    const elegido = numeroGanadorAlAzar(nums);
+    if (elegido != null) setGanador(elegido);
+  };
+
   const cerrar = async () => {
     const g = acotar(ganador);
     if (!confirm(`Sortear "${q.titulo}" con el número ${formatearSuerte(g)}. Esto la CIERRA. ¿Confirmás?`)) return;
@@ -397,20 +405,35 @@ function QuinielaFila({ q, resumen, onDone }: { q: Quiniela; resumen?: ResumenQu
       )}
 
       {q.estado === "abierta" ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="flex items-center gap-1 text-[11px] font-semibold text-gris">
-            N.º ganador
-            <input type="number" min={0} max={999} className={`${inputCls} w-20 tabular-nums`}
-              value={ganador} onChange={(e) => setGanador(acotar(Number(e.target.value)))} />
-          </label>
-          <button type="button" onClick={() => setGanador(Math.floor(Math.random() * 1000))}
-            className="rounded-full border border-borde bg-tarjeta px-3 py-1.5 text-[12px] font-bold text-azul hover:bg-suave">
-            🎲 Al azar
-          </button>
-          <button onClick={cerrar} disabled={ocupado}
-            className="ml-auto rounded-full bg-[#1FA971] px-4 py-1.5 text-[12.5px] font-bold text-white disabled:opacity-50">
-            Sortear y cerrar
-          </button>
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* "Sortear ganador" elige al azar ENTRE los participantes → siempre
+                sale alguien (antes sorteaba en 000–999 y casi siempre no ganaba
+                nadie). El campo manual queda para cargar un número específico. */}
+            <button
+              type="button"
+              onClick={sortearGanador}
+              disabled={count === 0}
+              title={count === 0 ? "No hay participantes para sortear todavía." : undefined}
+              className="rounded-full bg-[#1E47C8] px-4 py-1.5 text-[12.5px] font-bold text-white disabled:opacity-40"
+            >
+              🎲 Sortear un ganador
+            </button>
+            <label className="flex items-center gap-1 text-[11px] font-semibold text-gris">
+              o cargá el N.º
+              <input type="number" min={0} max={999} className={`${inputCls} w-20 tabular-nums`}
+                value={ganador} onChange={(e) => setGanador(acotar(Number(e.target.value)))} />
+            </label>
+            <button onClick={cerrar} disabled={ocupado}
+              className="ml-auto rounded-full bg-[#1FA971] px-4 py-1.5 text-[12.5px] font-bold text-white disabled:opacity-50">
+              Cerrar con {formatearSuerte(ganador)}
+            </button>
+          </div>
+          <span className="text-[11px] font-medium text-tenue">
+            {count === 0
+              ? "Cuando haya participantes al día vas a poder sortear."
+              : `“Sortear un ganador” elige al azar entre los ${count} participante${count === 1 ? "" : "s"} (siempre gana alguien).`}
+          </span>
         </div>
       ) : (
         <div className="rounded-[10px] bg-suave p-2.5">
