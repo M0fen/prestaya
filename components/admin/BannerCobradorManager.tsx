@@ -377,7 +377,7 @@ export function BannerCobradorManager({ banners }: { banners: BannerCobrador[] }
                     disabled={pendiente}
                     className="rounded-full bg-white/70 px-2.5 py-1 text-[11px] font-bold text-gris disabled:opacity-40"
                   >
-                    Apagar
+                    Pausar
                   </button>
                 </div>
               </div>

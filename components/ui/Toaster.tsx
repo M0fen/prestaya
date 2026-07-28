@@ -56,8 +56,8 @@ export function Toaster() {
                 cerrar(t.id);
               }
             }}
-            className={`toast-in pointer-events-auto flex w-full max-w-[380px] items-start gap-2.5 overflow-hidden rounded-[14px] border border-[#E6EAF4] bg-white p-3 pl-3.5 shadow-[0_12px_30px_rgba(19,48,140,0.16)] ${
-              clickable ? "cursor-pointer hover:border-[#DCE3F4]" : ""
+            className={`toast-in pointer-events-auto flex w-full max-w-[380px] items-start gap-2.5 overflow-hidden rounded-[14px] border border-borde bg-tarjeta p-3 pl-3.5 shadow-[0_12px_30px_rgba(19,48,140,0.16)] ${
+              clickable ? "cursor-pointer hover:border-campo" : ""
             }`}
             style={{ borderLeft: `4px solid ${est.barra}` }}
           >
@@ -66,9 +66,9 @@ export function Toaster() {
             </span>
             <div className="min-w-0 flex-1">
               {t.titulo && (
-                <p className="text-[13px] font-extrabold text-[#0F1B3D]">{t.titulo}</p>
+                <p className="text-[13px] font-extrabold text-tinta">{t.titulo}</p>
               )}
-              <p className="text-[12.5px] leading-[1.4] font-medium text-[#6B7494]">
+              <p className="text-[12.5px] leading-[1.4] font-medium text-gris">
                 {t.mensaje}
               </p>
             </div>
@@ -78,7 +78,7 @@ export function Toaster() {
                 cerrar(t.id);
               }}
               aria-label="Cerrar aviso"
-              className="-mt-0.5 -mr-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[15px] text-[#9AA3BC] hover:bg-[#F4F6FB]"
+              className="-mt-0.5 -mr-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[15px] text-tenue hover:bg-suave"
             >
               ✕
             </button>

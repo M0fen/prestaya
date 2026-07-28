@@ -219,13 +219,13 @@ export default async function DashboardPage({
           </div>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
             <Mini2 etiqueta="Ventas Crédito" valor={UYU(cartera.capitalColocado)} />
-            <Mini2 etiqueta="Con Intereses" valor={UYU(cartera.conIntereses)} color="#157A50" />
-            <Mini2 etiqueta="Recaudo" valor={UYU(cartera.recaudadoAcumulado)} color="#1E47C8" />
-            <Mini2 etiqueta="Cartera Pendiente" valor={UYU(cartera.carteraPorCobrar)} color="#B9770E" />
+            <Mini2 etiqueta="Con Intereses" valor={UYU(cartera.conIntereses)} color="var(--color-verde-osc)" />
+            <Mini2 etiqueta="Recaudo" valor={UYU(cartera.recaudadoAcumulado)} color="var(--color-azul)" />
+            <Mini2 etiqueta="Cartera Pendiente" valor={UYU(cartera.carteraPorCobrar)} color="var(--color-ambar-osc)" />
             <Mini2
               etiqueta="% Recaudo"
               valor={`${cartera.conIntereses > 0 ? Math.round((cartera.recaudadoAcumulado / cartera.conIntereses) * 1000) / 10 : 0}%`}
-              color="#C0392B"
+              color="var(--color-rojo-osc)"
             />
           </div>
         </section>
@@ -612,7 +612,7 @@ function AccesoRapido({ admin }: { admin: boolean }) {
 }
 
 /** Mini-estadística compacta para el resumen de cartera. */
-function Mini2({ etiqueta, valor, color = "#0F1B3D" }: { etiqueta: string; valor: string; color?: string }) {
+function Mini2({ etiqueta, valor, color = "var(--color-tinta)" }: { etiqueta: string; valor: string; color?: string }) {
   return (
     <div className="flex flex-col gap-0.5 rounded-[13px] bg-suave p-3">
       <span className="text-[10.5px] font-bold uppercase tracking-wide text-tenue">{etiqueta}</span>
@@ -631,7 +631,7 @@ function Kpi({ etiqueta, valor, sub, acento }: { etiqueta: string; valor: string
   );
 }
 
-function Tile({ etiqueta, valor, sub, acento = "#0F1B3D" }: { etiqueta: string; valor: string; sub: string; acento?: string }) {
+function Tile({ etiqueta, valor, sub, acento = "var(--color-tinta)" }: { etiqueta: string; valor: string; sub: string; acento?: string }) {
   return (
     <div className="flex flex-col gap-1 rounded-[13px] bg-suave p-3.5">
       <span className="text-[11px] font-bold tracking-wide text-gris uppercase">{etiqueta}</span>

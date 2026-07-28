@@ -100,10 +100,10 @@ export default async function EmpalmePage() {
       {historial.length > 0 && (
         <section className="flex flex-col gap-2">
           <h2 className="px-0.5 text-[15px] font-extrabold text-tinta">Historial (últimas corridas)</h2>
-          <div className="overflow-x-auto rounded-[14px] border border-[#E6EAF4] bg-white">
+          <div className="overflow-x-auto rounded-[14px] border border-borde bg-tarjeta">
             <table className="w-full min-w-[520px] text-[12.5px]">
               <thead>
-                <tr className="border-b border-[#EEF1F8] text-left text-[11px] font-bold tracking-wide text-gris uppercase">
+                <tr className="border-b border-linea text-left text-[11px] font-bold tracking-wide text-gris uppercase">
                   <th className="px-3 py-2.5">Cuándo</th>
                   <th className="px-3 py-2.5">Resultado</th>
                   <th className="px-3 py-2.5 text-right">Críticas</th>
@@ -114,7 +114,7 @@ export default async function EmpalmePage() {
               </thead>
               <tbody>
                 {historial.map((c, i) => (
-                  <tr key={i} className="border-b border-[#F2F5FB] last:border-0">
+                  <tr key={i} className="border-b border-linea last:border-0">
                     <td className="px-3 py-2.5 font-medium text-tinta capitalize">{soloFecha(c.corridaEn)}</td>
                     <td className="px-3 py-2.5">
                       <span
@@ -124,7 +124,7 @@ export default async function EmpalmePage() {
                         {c.criticos === 0 ? "Sano" : "Atención"}
                       </span>
                     </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums" style={{ color: c.criticos === 0 ? "#6B7494" : "#C0392B" }}>{c.criticos}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums" style={{ color: c.criticos === 0 ? "var(--color-gris)" : "var(--color-rojo-osc)" }}>{c.criticos}</td>
                     <td className="px-3 py-2.5 text-right tabular-nums text-gris">{c.total}</td>
                     <td className="px-3 py-2.5 text-right tabular-nums text-tinta">{UYU(c.recaudoLibro)}</td>
                     <td className="px-3 py-2.5 text-gris">{c.origen}</td>
@@ -145,10 +145,10 @@ export default async function EmpalmePage() {
               {info.criticas} materiales · {info.totalDiferencias - info.criticas} de redondeo
             </span>
           </div>
-          <div className="overflow-x-auto rounded-[14px] border border-[#E6EAF4] bg-white">
+          <div className="overflow-x-auto rounded-[14px] border border-borde bg-tarjeta">
             <table className="w-full min-w-[820px] text-[12.5px]">
               <thead>
-                <tr className="border-b border-[#EEF1F8] text-left text-[11px] font-bold tracking-wide text-gris uppercase">
+                <tr className="border-b border-linea text-left text-[11px] font-bold tracking-wide text-gris uppercase">
                   <th className="px-3 py-2.5">Cliente</th>
                   <th className="px-3 py-2.5">Tipo</th>
                   <th className="px-3 py-2.5">Estado</th>
@@ -162,12 +162,12 @@ export default async function EmpalmePage() {
                 {info.diferencias.map((d) => {
                   const dif = d.tipo === "drift" ? d.drift : d.exceso;
                   return (
-                    <tr key={d.creditoId} className="border-b border-[#F2F5FB] last:border-0">
+                    <tr key={d.creditoId} className="border-b border-linea last:border-0">
                       <td className="px-3 py-2.5">
                         <a href={`/admin/clientes?credito=${d.creditoId}`} className="font-bold text-azul hover:underline">
                           {d.clienteNombre}
                         </a>
-                        <span className="ml-1 text-[10.5px] text-[#AEB6CC]">#{d.creditoId.slice(0, 8)}</span>
+                        <span className="ml-1 text-[10.5px] text-tenue-2">#{d.creditoId.slice(0, 8)}</span>
                       </td>
                       <td className="px-3 py-2.5">
                         <span
@@ -181,7 +181,7 @@ export default async function EmpalmePage() {
                       <td className="px-3 py-2.5 text-right tabular-nums text-tinta">{UYU(d.pagadoAcum)}</td>
                       <td className="px-3 py-2.5 text-right tabular-nums text-tinta">{UYU(d.pagosSuma)}</td>
                       <td className="px-3 py-2.5 text-right tabular-nums text-gris">{UYU(d.totalAPagar)}</td>
-                      <td className="px-3 py-2.5 text-right font-bold tabular-nums" style={{ color: d.material ? "#C0392B" : "#9A6A0E" }}>
+                      <td className="px-3 py-2.5 text-right font-bold tabular-nums" style={{ color: d.material ? "var(--color-rojo-osc)" : "var(--color-ambar-osc)" }}>
                         {dif > 0 ? "+" : ""}{UYU(dif)}
                       </td>
                     </tr>
@@ -194,14 +194,14 @@ export default async function EmpalmePage() {
       )}
 
       {/* ── LEYENDA / CÓMO LEER ESTO ── */}
-      <section className="rounded-[14px] border border-[#E6EAF4] bg-[#F7F9FD] p-4">
+      <section className="rounded-[14px] border border-borde bg-suave p-4">
         <h3 className="mb-1.5 text-[13px] font-extrabold text-tinta">Cómo leer esto</h3>
         <ul className="flex flex-col gap-1.5 text-[12px] leading-[1.5] font-medium text-gris">
           <li><b className="text-tinta">Saldo≠libro</b>: el saldo denormalizado de la app no coincide con la suma real de pagos. Siempre a revisar (los saldos/cartera dependen de que sea exacto).</li>
           <li><b className="text-tinta">Sobre-cobro</b>: el crédito registra más pagos que su total. <b>Material</b> (≥1 cuota o ≥5% del total) merece mirada; <b>redondeo</b> es ruido pre-existente del empalme original — casi todos de créditos ya finalizados, no afecta el piloto.</li>
           <li><b className="text-tinta">Kill switch</b>: congela TODAS las escrituras de plata al instante (sin redeploy) si detectás corrupción. Reactivalo cuando esté resuelto.</li>
-          <li>Corrida manual y exhaustiva: <code className="rounded bg-white px-1 py-0.5 text-[11px]">node --env-file=.env.local scripts/reconciliacion.mjs</code></li>
-          <li>Comparar vs Disapp (shadow-mode): <code className="rounded bg-white px-1 py-0.5 text-[11px]">python scripts/shadow-disapp.py</code></li>
+          <li>Corrida manual y exhaustiva: <code className="rounded bg-suave px-1 py-0.5 text-[11px]">node --env-file=.env.local scripts/reconciliacion.mjs</code></li>
+          <li>Comparar vs Disapp (shadow-mode): <code className="rounded bg-suave px-1 py-0.5 text-[11px]">python scripts/shadow-disapp.py</code></li>
         </ul>
       </section>
     </div>
@@ -210,7 +210,7 @@ export default async function EmpalmePage() {
 
 function Kpi({ label, valor, chico, ancho }: { label: string; valor: string; chico?: boolean; ancho?: boolean }) {
   return (
-    <div className={`flex flex-col gap-0.5 rounded-[14px] border border-[#E6EAF4] bg-white px-3.5 py-3 ${ancho ? "col-span-2 sm:col-span-2" : ""}`}>
+    <div className={`flex flex-col gap-0.5 rounded-[14px] border border-borde bg-tarjeta px-3.5 py-3 ${ancho ? "col-span-2 sm:col-span-2" : ""}`}>
       <span className="text-[11px] font-bold tracking-wide text-gris uppercase">{label}</span>
       <span className={`${chico ? "text-[15px]" : "text-[20px]"} font-black tabular-nums text-tinta`}>{valor}</span>
     </div>
