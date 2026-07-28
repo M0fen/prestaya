@@ -8,15 +8,16 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 type Row = Record<string, unknown>;
 
-/** Trae TODAS las filas de una tabla, en páginas de 1000. */
-async function traerTodo(
+/** Pagina una tabla en bloques de 1000, EMITIENDO cada página (sin acumular).
+ *  Base tanto de traerTodo (junta todo) como del export por streaming (procesa y
+ *  descarta página a página → memoria acotada aunque la tabla crezca sin techo). */
+async function* paginar(
   db: SupabaseClient,
   tabla: string,
   columnas: string,
   orden?: { col: string; asc?: boolean },
-): Promise<Row[]> {
+): AsyncGenerator<Row[]> {
   const TAM = 1000;
-  const out: Row[] = [];
   for (let desde = 0; ; desde += TAM) {
     let q = db.from(tabla).select(columnas);
     if (orden) q = q.order(orden.col, { ascending: orden.asc ?? true });
@@ -26,9 +27,21 @@ async function traerTodo(
     const { data, error } = await q.range(desde, desde + TAM - 1);
     if (error) throw error;
     const filas = (data ?? []) as unknown as Row[];
-    out.push(...filas);
+    if (filas.length) yield filas;
     if (filas.length < TAM) break;
   }
+}
+
+/** Trae TODAS las filas de una tabla, en páginas de 1000. Para tablas ACOTADAS
+ *  (clientes, préstamos, usuarios): el libro de pagos usa el streaming de abajo. */
+async function traerTodo(
+  db: SupabaseClient,
+  tabla: string,
+  columnas: string,
+  orden?: { col: string; asc?: boolean },
+): Promise<Row[]> {
+  const out: Row[] = [];
+  for await (const pagina of paginar(db, tabla, columnas, orden)) out.push(...pagina);
   return out;
 }
 
@@ -73,13 +86,19 @@ export interface FilaPagoExport {
   cobrador: string;
 }
 
-/** Libro de pagos COMPLETO (incluye anulados, marcados). Del más reciente. */
-export async function getPagosExport(db: SupabaseClient): Promise<FilaPagoExport[]> {
-  const [pagos, prestamos, clientes, usuarios] = await Promise.all([
-    traerTodo(db, "pagos", "prestamo_id, dia_credito, monto, anulado, registrado_por, registrado_en", {
-      col: "registrado_en",
-      asc: false,
-    }),
+/**
+ * Libro de pagos COMPLETO (incluye anulados, marcados), del más reciente, EN
+ * PÁGINAS. El historial de pagos crece todos los días para siempre; cargarlo
+ * entero a memoria (más el CSV entero como string) revienta la función a escala.
+ * Este generador carga UNA vez los lookups ACOTADOS (clientes/créditos/usuarios)
+ * y luego pagina el libro emitiendo página a página → memoria acotada. El endpoint
+ * hace stream de cada página al archivo sin materializar todo el CSV.
+ */
+export async function* streamPagosExport(
+  db: SupabaseClient,
+): AsyncGenerator<FilaPagoExport[]> {
+  // Lookups acotados (crecen con clientes/créditos, no con el historial de pagos).
+  const [prestamos, clientes, usuarios] = await Promise.all([
     traerTodo(db, "prestamos", "id, cliente_id"),
     traerTodo(db, "clientes", "id, nombre, documento"),
     traerTodo(db, "usuarios", "id, nombre"),
@@ -96,7 +115,7 @@ export async function getPagosExport(db: SupabaseClient): Promise<FilaPagoExport
   const nombreUsuario = new Map<string, string>();
   for (const u of usuarios) nombreUsuario.set(u.id as string, (u.nombre as string) ?? "");
 
-  return pagos.map((p) => {
+  const mapear = (p: Row): FilaPagoExport => {
     const cliId = clienteDePrestamo.get(p.prestamo_id as string);
     const cli = cliId ? clienteDe.get(cliId) : undefined;
     return {
@@ -104,9 +123,27 @@ export async function getPagosExport(db: SupabaseClient): Promise<FilaPagoExport
       cliente: cli?.nombre ?? "",
       documento: cli?.documento ?? "",
       dia: Number(p.dia_credito),
+      // El libro es ENTERO: se redondea al exportar igual que al registrar.
       monto: Math.round(Number(p.monto)),
       anulado: Boolean(p.anulado),
       cobrador: p.registrado_por ? (nombreUsuario.get(p.registrado_por as string) ?? "") : "",
     };
-  });
+  };
+
+  for await (const pagina of paginar(
+    db,
+    "pagos",
+    "prestamo_id, dia_credito, monto, anulado, registrado_por, registrado_en",
+    { col: "registrado_en", asc: false },
+  )) {
+    yield pagina.map(mapear);
+  }
+}
+
+/** Libro de pagos COMPLETO como arreglo (junta el streaming). Se conserva por
+ *  compatibilidad; el endpoint usa el generador directo para no materializarlo. */
+export async function getPagosExport(db: SupabaseClient): Promise<FilaPagoExport[]> {
+  const out: FilaPagoExport[] = [];
+  for await (const pagina of streamPagosExport(db)) out.push(...pagina);
+  return out;
 }

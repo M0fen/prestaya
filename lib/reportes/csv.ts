@@ -25,13 +25,21 @@ export function csvCampo(v: CeldaCsv): string {
   return s;
 }
 
+/** Una línea CSV: celdas escapadas unidas por ";" (sin salto al final). Es la
+ *  unidad que reusa tanto el armado en memoria como el streaming por página. */
+export function csvLinea(cols: CeldaCsv[]): string {
+  return cols.map(csvCampo).join(";");
+}
+
 /** Arma un CSV (encabezado + filas) con saltos CRLF (estándar de Excel). */
 export function filasACsv(encabezados: string[], filas: CeldaCsv[][]): string {
-  const linea = (cols: CeldaCsv[]) => cols.map(csvCampo).join(";");
-  return [linea(encabezados), ...filas.map(linea)].join("\r\n");
+  return [csvLinea(encabezados), ...filas.map(csvLinea)].join("\r\n");
 }
+
+/** BOM UTF-8: Excel lo necesita para abrir los acentos (José, Ñ) correctamente. */
+export const BOM = "﻿";
 
 /** Antepone el BOM UTF-8 para que Excel abra los acentos correctamente. */
 export function conBom(csv: string): string {
-  return "﻿" + csv;
+  return BOM + csv;
 }

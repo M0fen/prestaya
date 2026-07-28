@@ -7,9 +7,9 @@
 // ─────────────────────────────────────────────────────────────────────────
 import { getUsuarioActual, esAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { filasACsv, conBom, type CeldaCsv } from "@/lib/reportes/csv";
+import { filasACsv, conBom, csvLinea, BOM, type CeldaCsv } from "@/lib/reportes/csv";
 import { getCarteraExport } from "@/lib/data/cartera";
-import { getClientesExport, getPagosExport } from "@/lib/data/exportacion";
+import { getClientesExport, streamPagosExport } from "@/lib/data/exportacion";
 import { getResumenCaja, getResumenCajaRango, type PeriodoCaja } from "@/lib/data/caja";
 import { getTableroMora } from "@/lib/data/mora";
 import { getRecaudos } from "@/lib/data/recaudos";
@@ -180,14 +180,39 @@ export async function GET(
   }
 
   if (tipo === "pagos") {
-    const filas = await getPagosExport(db);
-    return csvResponse(
-      `presta-ya_pagos_${fecha}.csv`,
-      ["Fecha y hora", "Cliente", "Documento", "Día", "Monto", "Anulado", "Cobrador"],
-      filas.map((f) => [
-        fechaHoraUY(f.fechaIso), f.cliente, f.documento, f.dia, f.monto, f.anulado ? "sí" : "no", f.cobrador,
-      ]),
-    );
+    // El libro de pagos crece sin techo: se hace STREAMING por páginas (BOM +
+    // encabezado, luego cada página) en vez de materializar todo el CSV en memoria.
+    // La salida en bytes es idéntica a conBom(filasACsv(...)): BOM + header + \r\n + filas.
+    const encabezados = ["Fecha y hora", "Cliente", "Documento", "Día", "Monto", "Anulado", "Cobrador"];
+    const enc = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        try {
+          controller.enqueue(enc.encode(BOM + csvLinea(encabezados)));
+          for await (const pagina of streamPagosExport(db)) {
+            let chunk = "";
+            for (const f of pagina) {
+              chunk += "\r\n" + csvLinea([
+                fechaHoraUY(f.fechaIso), f.cliente, f.documento, f.dia, f.monto, f.anulado ? "sí" : "no", f.cobrador,
+              ]);
+            }
+            if (chunk) controller.enqueue(enc.encode(chunk));
+          }
+          controller.close();
+        } catch (e) {
+          // Aborta el stream (el cliente ve un archivo truncado/error, no un CSV
+          // a medias que parezca completo). No hay estado que revertir: es lectura.
+          controller.error(e);
+        }
+      },
+    });
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="presta-ya_pagos_${fecha}.csv"`,
+        "Cache-Control": "no-store",
+      },
+    });
   }
 
   if (tipo === "recaudos") {
