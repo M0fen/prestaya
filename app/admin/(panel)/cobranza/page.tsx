@@ -7,12 +7,16 @@ import { getControlCobranza, type Severidad } from "@/lib/data/control";
 import { getRecaudoHoy } from "@/lib/data/recaudoHoy";
 import { getActivosConPagos } from "@/lib/data/activos";
 import { alcanceDelActor } from "@/lib/data/alcance";
+import { conTimeout } from "@/lib/timeout";
 import { MapaCobranza } from "@/components/admin/MapaCobranza";
 import { AutoRefresco } from "@/components/admin/AutoRefresco";
 import { AvisarCobrador } from "@/components/admin/AvisarCobrador";
 import { UYU } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
+
+// Un agregado colgado LANZA → error.tsx del panel ("Reintentar"), no un 504.
+const TOPE_MS = 22_000;
 
 const SEV: Record<Severidad, { bg: string; fg: string; dot: string }> = {
   alta: { bg: "#FDECEA", fg: "#C0392B", dot: "#E74C3C" },
@@ -28,12 +32,16 @@ export default async function CobranzaPage() {
   // Perf: la cartera activa (RPC) se trae UNA vez y se comparte: el control la usa
   // para el mapa/ranking y el recaudo para clasificar ruta/cerrados sin re-consultar
   // estados. Antes el control la traía y el recaudo consultaba `prestamos.estado` aparte.
-  const activos = await getActivosConPagos(db, alcance);
+  const activos = await conTimeout(getActivosConPagos(db, alcance), TOPE_MS, "admin.cobranza.activos");
   const activosIds = new Set(activos.map((a) => a.id));
-  const [{ resumen, ranking, alertas, mapaCobros }, rec] = await Promise.all([
-    getControlCobranza(db, undefined, activos, alcance),
-    getRecaudoHoy(db, undefined, alcance, activosIds),
-  ]);
+  const [{ resumen, ranking, alertas, mapaCobros }, rec] = await conTimeout(
+    Promise.all([
+      getControlCobranza(db, undefined, activos, alcance),
+      getRecaudoHoy(db, undefined, alcance, activosIds),
+    ]),
+    TOPE_MS,
+    "admin.cobranza",
+  );
 
   return (
     <div className="flex flex-col gap-6">

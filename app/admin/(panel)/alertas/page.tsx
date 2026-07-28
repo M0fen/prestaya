@@ -8,11 +8,15 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { alcanceDelActor } from "@/lib/data/alcance";
 import { getCentroAlertas, type SeveridadAlerta, type Alerta } from "@/lib/data/centroAlertas";
 import { getVigilanciaCobradores } from "@/lib/data/vigilancia";
+import { conTimeout } from "@/lib/timeout";
 import { AvisarCobrador } from "@/components/admin/AvisarCobrador";
 import { UYU } from "@/lib/format";
 import type { BandaConfianza } from "@/lib/scoreCobrador";
 
 export const dynamic = "force-dynamic";
+
+// Un agregado colgado LANZA → error.tsx del panel ("Reintentar"), no un 504.
+const TOPE_MS = 22_000;
 
 const SEV: Record<SeveridadAlerta, { label: string; bg: string; text: string; dot: string }> = {
   alta: { label: "Alta", bg: "bg-[#FBE4E2]", text: "text-[#C0392B]", dot: "#D64545" },
@@ -42,10 +46,14 @@ export default async function AlertasPage() {
   const db = await createSupabaseServer();
   const alcance = await alcanceDelActor();
 
-  const [centro, cobradores] = await Promise.all([
-    getCentroAlertas(db, hoy, alcance),
-    getVigilanciaCobradores(db, hoy, { alcance }),
-  ]);
+  const [centro, cobradores] = await conTimeout(
+    Promise.all([
+      getCentroAlertas(db, hoy, alcance),
+      getVigilanciaCobradores(db, hoy, { alcance }),
+    ]),
+    TOPE_MS,
+    "admin.alertas",
+  );
   // Solo los que hay que mirar (no intachables/confiables) primero; el resto abajo.
   const aVigilar = cobradores.filter((c) => c.confianza.banda === "riesgo" || c.confianza.banda === "observar");
   // Bandeja: las 7 más urgentes a la vista; el resto colapsado (no abruma; ya

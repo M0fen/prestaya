@@ -6,7 +6,11 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { getComisionesPeriodo, getHistorialLiquidaciones, etiquetaPeriodoKey } from "@/lib/data/comisiones";
 import { normalizarPeriodo, PERIODOS } from "@/lib/data/periodo";
 import { TablaComisiones } from "@/components/admin/TablaComisiones";
+import { conTimeout } from "@/lib/timeout";
 import { UYU, meses } from "@/lib/format";
+
+// Un agregado colgado LANZA → error.tsx del panel ("Reintentar"), no un 504.
+const TOPE_MS = 22_000;
 
 // "YYYY-MM-DD" → "5 jul" (día UY, legible).
 function fCorta(ymd: string): string {
@@ -40,10 +44,11 @@ export default async function ComisionesPage({
   const usuario = await requireGestor();
   const periodo = normalizarPeriodo((await searchParams).periodo);
   const db = await createSupabaseServer();
-  const [r, historial] = await Promise.all([
-    getComisionesPeriodo(db, periodo),
-    getHistorialLiquidaciones(db),
-  ]);
+  const [r, historial] = await conTimeout(
+    Promise.all([getComisionesPeriodo(db, periodo), getHistorialLiquidaciones(db)]),
+    TOPE_MS,
+    "admin.comisiones",
+  );
   const puedeGestionar = esAdmin(usuario.rol);
   // "A liquidar" = solo lo PENDIENTE (los ya liquidados no se vuelven a pagar).
   const aLiquidar = r.filas.filter((f) => !f.liquidado).reduce((s, f) => s + f.comision, 0);

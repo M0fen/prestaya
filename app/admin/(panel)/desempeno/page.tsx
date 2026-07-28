@@ -8,11 +8,15 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { getDesempenoRango, MAX_DIAS_DESEMPENO } from "@/lib/data/desempeno";
 import { alcanceDelActor } from "@/lib/data/alcance";
 import { fechaISOUY, sumarDiasYmd } from "@/lib/fecha";
+import { conTimeout } from "@/lib/timeout";
 import { UYU, meses } from "@/lib/format";
 import { Columnas } from "@/components/charts/Columnas";
 import { BotonImprimir } from "@/components/admin/BotonImprimir";
 
 export const dynamic = "force-dynamic";
+
+// Un agregado colgado LANZA → error.tsx del panel ("Reintentar"), no un 504.
+const TOPE_MS = 22_000;
 
 const esYmd = (v: string | undefined): string | null =>
   v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
@@ -38,7 +42,7 @@ export default async function DesempenoPage({
   const desde = esYmd(sp.desde) ?? sumarDiasYmd(hoyYmd, -6);
   const hasta = esYmd(sp.hasta) ?? hoyYmd;
 
-  const r = await getDesempenoRango(db, { desde, hasta }, alcance);
+  const r = await conTimeout(getDesempenoRango(db, { desde, hasta }, alcance), TOPE_MS, "admin.desempeno");
 
   // Chips de rango rápido (GET, sin JS).
   const primerDelMes = `${hoyYmd.slice(0, 7)}-01`;

@@ -13,8 +13,12 @@ import { FormPoliticaMora } from "@/components/admin/FormPoliticaMora";
 import { FichaRapidaBoton } from "@/components/admin/FichaRapida";
 import { GestionCobranzaBoton } from "@/components/admin/GestionCobranza";
 import { getEstadoGestionClientes, type EstadoGestionCliente } from "@/lib/data/gestionesCobranza";
+import { conTimeout } from "@/lib/timeout";
 
 export const dynamic = "force-dynamic";
+
+// Un agregado colgado LANZA → error.tsx del panel ("Reintentar"), no un 504.
+const TOPE_MS = 22_000;
 
 const NIVEL: Record<NivelRiesgo, { label: string; bg: string; fg: string }> = {
   critico: { label: "Crítico", bg: "#FBE4E2", fg: "#C0392B" },
@@ -43,15 +47,20 @@ export default async function MoraPage({
 }) {
   const usuario = await requireGestor();
   const db = await createSupabaseServer();
-  const [{ resumen, config, enRiesgo }, morosos] = await Promise.all([
-    getTableroMora(db),
-    getMorosos(db),
-  ]);
+  const [{ resumen, config, enRiesgo }, morosos] = await conTimeout(
+    Promise.all([getTableroMora(db), getMorosos(db)]),
+    TOPE_MS,
+    "admin.mora",
+  );
   const conMora = config.modo !== "off";
 
   // Estado de gestión (mini-CRM) por cliente en riesgo: si ya se gestionó hoy y si
   // hay un compromiso de pago abierto. Enciende el loop de cobranza sobre la lista.
-  const estadosGestion = await getEstadoGestionClientes(db, enRiesgo.map((c) => c.clienteId));
+  const estadosGestion = await conTimeout(
+    getEstadoGestionClientes(db, enRiesgo.map((c) => c.clienteId)),
+    TOPE_MS,
+    "admin.mora.gestion",
+  );
 
   // Filtro "modo ruta": por cobrador y por nivel, para aislar la lista de un
   // cobrador y mandársela. GET (sin JS). Los KPIs de arriba siguen siendo del total.

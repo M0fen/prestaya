@@ -17,6 +17,7 @@ import { calcularScore } from "@/lib/scoring";
 import { calcularCuotaRenovacion, RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
 import { hoyUY } from "@/lib/fecha";
 import { toIso } from "@/lib/format";
+import { reportarError } from "@/lib/observabilidad";
 
 /** Subconjunto de Prestamo que realmente se lee al armar candidatos (evita el
  *  doble cast `as unknown as Prestamo` sobre un SELECT parcial — deuda #21). */
@@ -184,7 +185,9 @@ export type ResultadoAlta =
  * Crea el crédito de renovación de forma segura:
  *  1. valida que el crédito anterior exista, sea del cliente, esté ACTIVO y
  *     SALDADO (falta === 0) — no se renueva por encima de un saldo pendiente;
- *  2. finaliza el crédito anterior (queda un solo activo por cliente, regla BD);
+ *  2. finaliza el crédito anterior. El gate `.eq("estado","activo")` del finalize
+ *     es lo que evita renovaciones dobles del MISMO crédito (0037 permite
+ *     multi-crédito por cliente: NO hay constraint de "un activo por cliente");
  *  3. inserta el nuevo crédito arrastrando la tasa del anterior (la cuota se
  *     calcula en el servidor: el cliente no puede alterar el dinero).
  * Si el insert falla, revierte el finalizado (compensación) para no dejar al
@@ -285,10 +288,19 @@ export async function crearRenovacion(
     }
     // Compensación real: el nuevo NO se creó → reactivar el anterior para no dejar
     // al cliente sin crédito. (El reintento verá el anterior activo y lo renueva bien.)
-    await db
+    const comp = await db
       .from("prestamos")
       .update({ estado: "activo", finalizado_en: null })
       .eq("id", ant.id);
+    if (comp.error) {
+      // La reversión NO cerró: el cliente quedó SIN crédito activo (el anterior
+      // finalizado y el nuevo sin crear). Deja rastro para arreglo manual — sin esto
+      // era una pérdida de estado SILENCIOSA (el reintento fallaría "no está activo").
+      reportarError("crearRenovacion.compensacion", comp.error, {
+        clienteId,
+        prestamoAnteriorId: ant.id,
+      });
+    }
     return { ok: false, error: "No se pudo crear el crédito; se revirtió el cambio." };
   }
 

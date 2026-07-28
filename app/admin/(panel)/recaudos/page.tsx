@@ -7,11 +7,16 @@ import { getVendedores } from "@/lib/data/usuarios";
 import { alcanceDelActor } from "@/lib/data/alcance";
 import { getEstadisticas } from "@/lib/data/estadisticas";
 import { diaUYInicioIso, diaUYFinIso, fechaISOUY } from "@/lib/fecha";
+import { conTimeout } from "@/lib/timeout";
 import { BotonImprimir } from "@/components/admin/BotonImprimir";
 import { Columnas } from "@/components/charts/Columnas";
 import { UYU, horaDe, meses } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
+
+// Tope del render server-side: un agregado colgado LANZA → lo toma el error.tsx
+// del panel ("Reintentar"), en vez de un 504 de Vercel / spinner eterno.
+const TOPE_MS = 22_000;
 
 function mesLabel(ym: string): string {
   const [y, m] = ym.split("-").map(Number);
@@ -49,18 +54,22 @@ export default async function RecaudosPage({
   // Admin → todos. Importa al escalar a varias zonas.
   const alcance = await alcanceDelActor();
   const vendedoresScope = alcance.global ? null : alcance.cobradorIds;
-  const [r, vendedores, stats] = await Promise.all([
-    getRecaudos(db, {
-      desde: diaUYInicioIso(desde),
-      hasta: diaUYFinIso(hasta),
-      vendedorId,
-      q,
-    }),
-    getVendedores(db, vendedoresScope),
-    // El "Rendimiento mensual" es un agregado GLOBAL (toda la empresa): SOLO el
-    // dueño. Para el supervisor no se trae ni se muestra (evita fuga de otra zona).
-    admin ? getEstadisticas(db, { meses: 8 }) : Promise.resolve(null),
-  ]);
+  const [r, vendedores, stats] = await conTimeout(
+    Promise.all([
+      getRecaudos(db, {
+        desde: diaUYInicioIso(desde),
+        hasta: diaUYFinIso(hasta),
+        vendedorId,
+        q,
+      }),
+      getVendedores(db, vendedoresScope),
+      // El "Rendimiento mensual" es un agregado GLOBAL (toda la empresa): SOLO el
+      // dueño. Para el supervisor no se trae ni se muestra (evita fuga de otra zona).
+      admin ? getEstadisticas(db, { meses: 8 }) : Promise.resolve(null),
+    ]),
+    TOPE_MS,
+    "admin.recaudos",
+  );
 
   // Rendimiento mensual: recaudo por mes + calificación del mes en curso vs el
   // promedio de los meses previos (con caveat de que el mes actual es parcial).

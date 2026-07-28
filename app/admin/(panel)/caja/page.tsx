@@ -13,8 +13,12 @@ import { CierrePorZona } from "@/components/admin/CierrePorZona";
 import { BotonImprimir } from "@/components/admin/BotonImprimir";
 import { UYU, horaDe, meses } from "@/lib/format";
 import { diaUYInicioIso, diaUYFinIso, fechaISOUY } from "@/lib/fecha";
+import { conTimeout } from "@/lib/timeout";
 
 export const dynamic = "force-dynamic";
+
+// Un agregado colgado LANZA → error.tsx del panel ("Reintentar"), no un 504.
+const TOPE_MS = 22_000;
 
 const esYmd = (v: string | undefined): string | null =>
   v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
@@ -48,13 +52,14 @@ export default async function CajaPage({
   const hasta = esYmd(sp.hasta) ?? hoyYmd;
   const esHoy = desde === hoyYmd && hasta === hoyYmd;
 
-  const r = await getResumenCajaRango(db, {
-    desde: diaUYInicioIso(desde),
-    hasta: diaUYFinIso(hasta),
-  });
+  const r = await conTimeout(
+    getResumenCajaRango(db, { desde: diaUYInicioIso(desde), hasta: diaUYFinIso(hasta) }),
+    TOPE_MS,
+    "admin.caja",
+  );
   // Cierre por zona (rendiciones agrupadas): solo tiene sentido cuando es "hoy".
   const actor = await getActorActual();
-  const cierre = esHoy ? await getCierrePorZona(db) : null;
+  const cierre = esHoy ? await conTimeout(getCierrePorZona(db), TOPE_MS, "admin.caja.cierre") : null;
   // Zonas que el usuario actual puede cerrar (supervisor de la zona; admin todas).
   const cerrables =
     actor && cierre
