@@ -50,14 +50,8 @@ export default async function ClientesPage({
           </span>
         </div>
         <div className="flex flex-wrap gap-2 print:hidden">
-          <button
-            type="button"
-            disabled
-            title="Alta de clientes desde el panel: pronto (hoy se dan de alta en ruta / oficina)"
-            className="cursor-not-allowed rounded-full border border-borde bg-tarjeta px-4 py-2 text-[13px] font-bold text-[#AEB6CC]"
-          >
-            + Crear cliente (pronto)
-          </button>
+          {/* El alta de clientes se hace en ruta (censo del cobrador) / oficina;
+              no se ofrece desde el panel para no duplicar el flujo. */}
           <a
             href="/api/reportes/clientes"
             className="inline-flex items-center gap-1.5 rounded-full border border-borde bg-tarjeta px-4 py-2 text-[13px] font-bold text-[#2453DC] hover:bg-suave"

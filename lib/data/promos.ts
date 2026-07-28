@@ -7,6 +7,7 @@ import { tablaFaltante, columnaFaltante } from "@/lib/data/errores";
 import { contarPagosVigentesCliente } from "@/lib/data/estrellas";
 import { raspaditasDisponibles, type PremioRaspa, type SegmentoRaspa } from "@/lib/raspadita";
 import { traerTodo } from "@/lib/data/paginado";
+import { enLotes } from "@/lib/data/alcance";
 
 // ── Raspaditas: premios ────────────────────────────────────────────────────
 
@@ -339,11 +340,11 @@ export async function getParticipaciones(
         .range(d, h),
     );
     const ids = [...new Set(filas.map((r) => r.cliente_id))];
-    // Nombres por lotes (≤500): con >1000 participantes, un solo .in() volvería a
-    // toparse con el límite de filas / largo de URL.
+    // Nombres por lotes: con cientos de participantes, un solo .in() supera el
+    // largo de URL de PostgREST (~445 UUIDs falla). Lote de 150 (LOTE_IN), el
+    // mismo umbral seguro que usa `enLotes` en el resto del panel.
     const nombres = new Map<string, string>();
-    for (let i = 0; i < ids.length; i += 500) {
-      const lote = ids.slice(i, i + 500);
+    for (const lote of enLotes(ids)) {
       const { data: cs } = await db.from("clientes").select("id, nombre").in("id", lote);
       for (const c of cs ?? []) nombres.set((c as { id: string }).id, (c as { nombre: string }).nombre);
     }

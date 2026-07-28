@@ -477,7 +477,7 @@ function Apertura({
           </div>
         </Panel>
       ) : (
-        <LineaCalma texto={rendicionesDisponible ? "La caja de ayer quedó limpia: sin faltantes ni float en la calle." : "Sin señales de caja abiertas."} />
+        <LineaCalma texto={rendicionesDisponible ? "La caja está limpia: sin faltantes ni float en la calle." : "Sin señales de caja abiertas."} />
       )}
 
       {/* Oportunidad de colocación: clientes que ya casi terminan su crédito. */}

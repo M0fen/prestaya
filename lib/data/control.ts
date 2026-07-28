@@ -13,7 +13,7 @@ import { getActivosConPagos } from "./activos";
 import { alcanceDelActor, type Alcance } from "./alcance";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { cuotaObjetivoHoy } from "./ruta";
-import { plazoVencido } from "@/lib/cartones";
+import { plazoVencido, totalCredito } from "@/lib/cartones";
 
 /** Efectivo por cobrador que dispara alerta de rendición (hasta tener módulo de caja). */
 const LIMITE_FLOAT = 15000;
@@ -184,6 +184,12 @@ export async function getControlCobranza(
       frecuencia: p.frecuencia,
     };
     if (plazoVencido(credCalc, hoyMid)) continue; // cartera vencida → fuera del target del día
+    // Crédito SALDADO (pagó todo pero aún no se finalizó/renovó) → fuera del target,
+    // EXACTAMENTE como lo excluye la ruta del cobrador (ruta.ts): si no, un saldado
+    // sumaba una cuota entera a la "meta del día" del panel mientras aportaba $0 a la
+    // ruta → la meta se inflaba y el % de avance quedaba deprimido todo el día.
+    const totalCred = totalCredito(Number(p.cuota_diaria), Number(p.total_dias));
+    if (totalCred > 0 && Number(p.pagado) >= totalCred - 0.5) continue;
     const pagadoHoy = pagadoHoyPorCredito.get(p.id) ?? 0;
     init(p.cobrador_id).esperado += cuotaObjetivoHoy(
       {

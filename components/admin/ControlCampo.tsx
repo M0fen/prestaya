@@ -35,7 +35,7 @@ export function ControlCampo({ resumen }: { resumen: ResumenCobradorDia[] }) {
     return (
       <div className="rounded-[16px] border border-borde bg-tarjeta p-6 text-center">
         <p className="text-[13px] font-medium text-gris">
-          No hay actividad de campo registrada ese día. (Requiere la migración 0024 corrida.)
+          No hay actividad de campo registrada ese día.
         </p>
       </div>
     );

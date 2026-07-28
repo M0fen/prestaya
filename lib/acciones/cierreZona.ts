@@ -36,10 +36,10 @@ export async function confirmarCierreZona(input: {
     actor.rol === "admin" || (actor.rol === "supervisor" && puedeVerZona(actor, input.zonaId));
   if (!puede) return { ok: false, error: "No podés cerrar esta zona." };
 
-  // Kill switch: el cierre de zona es una escritura de custodia de efectivo
-  // (registro autoritativo de handoff + unique por zona/día). Durante un freeze
-  // NO debe congelarse un cierre —quedaría bloqueado el resto del día por el
-  // unique, con totales de una ventana incierta—. Igual que cerrarJornada.
+  // Kill switch (modo solo-lectura): el cierre de zona es una escritura de
+  // custodia de efectivo (registro autoritativo de handoff + unique por zona/día),
+  // así que durante un freeze SÍ se bloquea, igual que el resto de las escrituras
+  // de plata. Se puede reintentar cuando se levanta el modo solo-lectura.
   const bloqueo = await bloqueoSoloLectura();
   if (bloqueo) return bloqueo;
 
