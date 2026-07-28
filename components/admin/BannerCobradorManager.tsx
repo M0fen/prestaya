@@ -12,6 +12,7 @@ import { BannerEquipo } from "@/components/cobrador/BannerEquipo";
 import type { BannerCobrador, TemaBanner } from "@/lib/data/bannerCobrador";
 import { estadoPublicacion } from "@/lib/publicacion";
 import { EstadoBadge } from "@/components/admin/EstadoBadge";
+import { esAvisoCurbe } from "@/lib/curbe";
 
 const TEMAS: { id: TemaBanner; label: string; bg: string; fg: string; bd: string }[] = [
   { id: "azul", label: "Info", bg: "#E9F0FF", fg: "#1E47C8", bd: "#C6D6FB" },
@@ -341,10 +342,15 @@ export function BannerCobradorManager({ banners }: { banners: BannerCobrador[] }
                 style={oferta ? { background: "#FBF6E9", borderColor: "#EAD9AE" } : { background: t.bg, borderColor: t.bd }}
               >
                 <span
-                  className="min-w-0 flex-1 basis-[140px] truncate text-[12.5px] font-semibold"
+                  className="flex min-w-0 flex-1 basis-[140px] items-center gap-1.5 text-[12.5px] font-semibold"
                   style={{ color: oferta ? "#8A6A1F" : t.fg }}
                 >
-                  {oferta ? `🎁 ${b.titulo || b.texto}` : b.texto}
+                  <span className="truncate">{oferta ? `🎁 ${b.titulo || b.texto}` : b.texto}</span>
+                  {esAvisoCurbe(b.id) && (
+                    <span className="flex-shrink-0 rounded-full bg-white/70 px-1.5 py-0.5 text-[9.5px] font-black tracking-wide text-[#8A6A1F] uppercase">
+                      🔗 curbe
+                    </span>
+                  )}
                 </span>
                 <EstadoBadge estado={estado} />
                 <div className="flex flex-shrink-0 items-center gap-1.5">

@@ -5,13 +5,7 @@ import type { VistaCredito } from "@/types/cartones";
 import type { Anuncio, Calificacion } from "@/types/db";
 import type { ProductoParaCliente } from "@/lib/data/tienda";
 import { TiendaBanner } from "@/components/tienda/TiendaBanner";
-import type { JuegoCliente as Juego } from "@/lib/juegoCliente";
-import type { Juego as JuegoArcade } from "@/lib/juegos";
-import type { AjustesJuegoVista } from "@/components/JuegoCliente";
-import type { SaldoEstrellas } from "@/lib/estrellas";
-import { EstrellasCliente } from "@/components/estrellas/EstrellasCliente";
 import { PromoCliente, type PromoData } from "@/components/promos/PromoCliente";
-import { TemporadaBanner } from "@/components/gaming/TemporadaBanner";
 import { Header } from "@/components/Header";
 import { Saludo } from "@/components/Saludo";
 import { BienvenidaCliente } from "@/components/BienvenidaCliente";
@@ -24,7 +18,6 @@ import { BannerCarrusel } from "@/components/BannerCarrusel";
 import { RifaBanner, type RifaVista } from "@/components/RifaBanner";
 import { ProximaCuota } from "@/components/ProximaCuota";
 import { CartonDigital } from "@/components/CartonDigital";
-import { GameSlot } from "@/components/GameSlot";
 import { Historial } from "@/components/Historial";
 import Link from "next/link";
 import { ReportarDiscrepancia } from "@/components/ReportarDiscrepancia";
@@ -39,10 +32,7 @@ export function VistaClienteScreen({
   productoDestacado = null,
   token = null,
   reputacion = null,
-  estrellas = null,
   promo = null,
-  juegoArcade = null,
-  temporada = null,
   rifa = null,
   creditoSelector = null,
 }: {
@@ -60,25 +50,9 @@ export function VistaClienteScreen({
   token?: string | null;
   /** Reputación positiva del cliente (chips). */
   reputacion?: { calificacion: Calificacion; creditosPagados: number } | null;
-  /** Estado de juego (nivel/racha/misiones). Si es null, no se muestra la zona. */
-  juego?: Juego | null;
-  /** Saldo de estrellas (recompensa real). Si es null, no se muestra. */
-  estrellas?: SaldoEstrellas | null;
   /** Juegos promocionales (raspadita + quiniela). Si es null, no se muestran. */
   promo?: PromoData | null;
-  /** Config de presentación del juego (mensajes/premio/misiones). */
-  juegoAjustes?: AjustesJuegoVista;
-  /** Juego arcade elegido por el admin. Si es null, no se muestra el slot. */
-  juegoArcade?: JuegoArcade | null;
-  /** Temporada/evento del mes (si el admin lo encendió). */
-  temporada?: { nombre: string; emoji: string; meta: number; premio: string } | null;
 }) {
-  // Bloque LÚDICO "Novedades" (arcade, temporada, estrellas) oculto por ahora
-  // (flag único, reversible). Lo que el admin usa para COMUNICARSE con el cliente
-  // —anuncios, raspadita/quiniela y RIFA— se muestra siempre que lo active (fuera
-  // de este flag): así "activar" en el panel de verdad llega al cliente.
-  const MOSTRAR_JUEGOS: boolean = false;
-  const hayNovedades = Boolean(temporada || estrellas || juegoArcade);
   return (
     <div className="flex min-h-screen justify-center bg-fondo text-tinta">
       <div className="flex w-full max-w-[440px] flex-col gap-2.5 bg-app px-[18px] pt-3.5 pb-6 shadow-[0_0_60px_rgba(15,27,61,0.08)]">
@@ -179,32 +153,6 @@ export function VistaClienteScreen({
 
         {/* Historial de pagos (con % de la cuota cubierto + descuento). */}
         <Historial historial={v.historial} />
-
-        {/* ── NOVEDADES: TODO lo promocional/lúdico agrupado, DESPUÉS del dinero ── */}
-        {MOSTRAR_JUEGOS && hayNovedades && (
-          <>
-            <div className="mt-2 flex items-center gap-2 px-1">
-              <span className="text-[11px] font-bold tracking-wide text-gris uppercase">Novedades</span>
-              <span className="h-px flex-1 bg-linea" />
-            </div>
-
-            {/* Temporada/evento del mes (si el admin lo encendió). */}
-            {temporada && (
-              <TemporadaBanner
-                nombre={temporada.nombre}
-                emoji={temporada.emoji}
-                meta={temporada.meta}
-                premio={temporada.premio}
-              />
-            )}
-
-            {/* Estrellas: recompensa real por pagar (5 pagos = 1 estrella). */}
-            {estrellas && <EstrellasCliente saldo={estrellas} token={token} />}
-
-            {/* Espacio de juegos: slot aislado. Solo si el admin lo dejó activo. */}
-            {juegoArcade && <GameSlot juego={juegoArcade} />}
-          </>
-        )}
 
         {/* Reporte de discrepancia + recordatorio: solo con token (vista real). */}
         {token && <ReportarDiscrepancia token={token} />}

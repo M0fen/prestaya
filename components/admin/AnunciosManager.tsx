@@ -9,6 +9,7 @@ import { BannerCarrusel } from "@/components/BannerCarrusel";
 import { guardarAnuncio, alternarAnuncio, eliminarAnuncio, subirImagenAnuncio, type RawAnuncio } from "@/lib/acciones/anuncios";
 import { estadoPublicacion } from "@/lib/publicacion";
 import { EstadoBadge } from "@/components/admin/EstadoBadge";
+import { esAvisoCurbe } from "@/lib/curbe";
 
 const TEMAS: { v: TemaAnuncio; label: string }[] = [
   { v: "azul", label: "Azul" },
@@ -112,7 +113,12 @@ export function AnunciosManager({ anuncios }: { anuncios: Anuncio[] }) {
     router.refresh();
   };
   const borrar = async (a: Anuncio) => {
-    if (!confirm(`¿Borrar el anuncio "${a.titulo}"?`)) return;
+    // Curbe se siembra por script (IDs fijos): si se borra, "reaparece" al
+    // re-sembrar. Avisamos y sugerimos pausar en vez de borrar.
+    const msg = esAvisoCurbe(a.id)
+      ? "Este es el aviso de curbe (publicidad gestionada por fuera). Si lo borrás, va a volver a aparecer la próxima vez que se sincronice. Mejor usá “Pausar”. ¿Borrar igual?"
+      : `¿Borrar el anuncio "${a.titulo}"?`;
+    if (!confirm(msg)) return;
     await eliminarAnuncio(a.id);
     if (form.id === a.id) setForm(vacio);
     router.refresh();
@@ -263,7 +269,14 @@ export function AnunciosManager({ anuncios }: { anuncios: Anuncio[] }) {
                 </span>
               )}
               <div className="flex min-w-0 flex-1 basis-[160px] flex-col">
-                <span className="truncate text-[13.5px] font-bold text-tinta">{a.titulo}</span>
+                <span className="flex items-center gap-1.5">
+                  <span className="truncate text-[13.5px] font-bold text-tinta">{a.titulo}</span>
+                  {esAvisoCurbe(a.id) && (
+                    <span className="flex-shrink-0 rounded-full bg-[#FBF1D9] px-1.5 py-0.5 text-[9.5px] font-black tracking-wide text-[#8A6A1F] uppercase">
+                      🔗 curbe
+                    </span>
+                  )}
+                </span>
                 <span className="text-[11.5px] font-medium text-gris">
                   {a.segmento === "todos" ? "Todos los clientes" : a.segmento === "al_dia" ? "Solo al día" : "Solo con pendientes"}
                   {" · "}{ventanaCorta(a.fecha_inicio, a.fecha_fin)}

@@ -19,18 +19,13 @@ import {
 import { getPagosDePrestamo } from "@/lib/data/pagos";
 import { getAnunciosActivos } from "@/lib/data/anuncios";
 import { getAjustesJuego } from "@/lib/data/juegoConfig";
-import { getSaldoEstrellas } from "@/lib/data/estrellas";
-import { claveCiclo } from "@/lib/estrellas";
 import { getEstadoRaspaCliente, getQuinielaAbierta, getParticipacionCliente } from "@/lib/data/promos";
 import { numeroSuerte } from "@/lib/quiniela";
 import { calcularEstadosCarton } from "@/lib/cartones";
 import { getRifaParaCliente } from "@/lib/data/rifas";
-import { cicloUY } from "@/lib/fecha";
-import { juegoArcadeDe } from "@/lib/juegoAjustes";
 import { construirVistaCliente } from "@/lib/vistaCliente";
 import { hayProductosActivos, getProductoDestacadoParaCliente, type ProductoParaCliente } from "@/lib/data/tienda";
 import { conTimeout } from "@/lib/timeout";
-import { calcularJuegoCliente } from "@/lib/juegoCliente";
 import { hoyUY } from "@/lib/fecha";
 import type { Anuncio } from "@/types/db";
 import { NEGOCIO } from "@/lib/negocio";
@@ -127,16 +122,10 @@ export default async function VistaPorToken({
   // 3) Pagos vigentes + cálculo + render. "hoy" = fecha real del servidor.
   const pagos = await conTimeout(getPagosDePrestamo(db, prestamo.id), TOPE_MS, "cliente.pagos");
 
-  // Config del cliente definida por el admin (ciclo de estrellas, umbral caritas).
+  // Config de juegos del admin. Hoy solo se usa `ajustes.activo` para prender/
+  // apagar la raspadita y la quiniela (el resto de la zona lúdica —arcade,
+  // temporada, estrellas al cliente— está en pausa y no se muestra en el cartón).
   const ajustes = await getAjustesJuego(db);
-
-  // Estrellas: recompensa real (resiliente a que 0020 no exista). El ciclo del
-  // tope lo define el admin: por mes o por crédito.
-  const cicloEstrellas = claveCiclo(ajustes.estrellasCiclo, {
-    cicloMes: cicloUY(),
-    prestamoId: prestamo.id,
-  });
-  const estrellas = await getSaldoEstrellas(db, cliente.id, cicloEstrellas);
 
   // Juegos promocionales (resiliente a que 0021 no exista).
   const [raspa, quiniela] = await Promise.all([
@@ -180,22 +169,6 @@ export default async function VistaPorToken({
     negocio: NEGOCIO,
     hoy: hoyUY(),
   });
-
-  // Zona de juego según la config del admin (ajustes ya leídos arriba).
-  const juego = ajustes.activo
-    ? calcularJuegoCliente(prestamo, pagos, hoyUY(), { metaRacha: ajustes.metaRacha })
-    : null;
-  const juegoArcade = ajustes.activo ? juegoArcadeDe(ajustes) : null;
-
-  const temporada =
-    ajustes.activo && ajustes.temporadaActiva && ajustes.temporadaNombre.trim()
-      ? {
-          nombre: ajustes.temporadaNombre,
-          emoji: ajustes.temporadaEmoji,
-          meta: ajustes.temporadaMeta,
-          premio: ajustes.temporadaPremio,
-        }
-      : null;
 
   // 4) Banner de anuncios — RESILIENTE: si algo falla (o aún no existe la
   //    tabla), el crédito se muestra igual. El banner nunca rompe la vista.
@@ -251,16 +224,7 @@ export default async function VistaPorToken({
       rifa={rifa}
       creditoSelector={creditoSelector}
       reputacion={reputacion}
-      juego={juego}
-      estrellas={estrellas}
       promo={promo}
-      juegoAjustes={{
-        mensajeBienvenida: ajustes.mensajeBienvenida,
-        premioMeta: ajustes.premioMeta,
-        mostrarMisiones: ajustes.mostrarMisiones,
-      }}
-      juegoArcade={juegoArcade}
-      temporada={temporada}
     />
   );
 }

@@ -8,6 +8,7 @@ import { getAjustesJuego } from "@/lib/data/juegoConfig";
 import { ganadores as calcularGanadores } from "@/lib/quiniela";
 import { PromosManager, type ResumenQuiniela } from "@/components/admin/PromosManager";
 import { ToggleJuegos } from "@/components/admin/ToggleJuegos";
+import { PromosPreview } from "@/components/admin/PromosPreview";
 import { EtiquetaAudiencia } from "@/components/admin/EtiquetaAudiencia";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +22,10 @@ export default async function PromosPage() {
     getQuinielasAdmin(db),
     getAjustesJuego(db),
   ]);
+
+  // Datos para el preview "así lo ve el cliente".
+  const quinielaAbierta = quinielas.find((q) => q.estado === "abierta") ?? null;
+  const hayRaspa = premios.some((p) => p.activo && p.tipo === "beneficio");
 
   // Resumen por quiniela: cantidad de participantes + ganadores (si ya se sorteó).
   const resumen: Record<string, ResumenQuiniela> = {};
@@ -55,6 +60,13 @@ export default async function PromosPage() {
       {/* On/off de los juegos, co-locado con lo que se configura (antes vivía en
           "Zona de juego", otra pantalla). Si está apagado, el cliente no ve nada. */}
       <ToggleJuegos inicial={ajustes.activo} />
+
+      {/* Así lo ve el cliente (snapshot fiel; cierra el ciclo configurar→ver). */}
+      <PromosPreview
+        quinielaTitulo={quinielaAbierta?.titulo ?? null}
+        quinielaPremio={quinielaAbierta?.premioTexto ?? null}
+        hayRaspa={hayRaspa}
+      />
 
       <PromosManager premios={premios} segmentos={segmentos} quinielas={quinielas} resumen={resumen} />
 

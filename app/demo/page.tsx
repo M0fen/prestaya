@@ -9,10 +9,6 @@ import {
 } from "@/lib/mock/loanData";
 import { NEGOCIO } from "@/lib/negocio";
 import { construirVistaCliente } from "@/lib/vistaCliente";
-import { calcularJuegoCliente } from "@/lib/juegoCliente";
-import { AJUSTES_JUEGO_DEFAULT, juegoArcadeDe } from "@/lib/juegoAjustes";
-import { calcularEstrellas } from "@/lib/estrellas";
-import { cicloUY } from "@/lib/fecha";
 import { VistaClienteScreen } from "@/components/VistaClienteScreen";
 import type { Anuncio } from "@/types/db";
 
@@ -80,24 +76,12 @@ export default function DemoVistaCliente() {
     negocio: NEGOCIO,
     hoy: HOY_DEMO,
   });
-  const ajustes = AJUSTES_JUEGO_DEFAULT;
-  const juego = calcularJuegoCliente(prestamoMock, pagosMock, HOY_DEMO, {
-    metaRacha: ajustes.metaRacha,
-  });
-  // Estrellas demo: 1 fragmento por pago vigente del mock.
-  const estrellas = calcularEstrellas({
-    pagosVigentes: pagosMock.length,
-    redenciones: [],
-    cicloActual: cicloUY(HOY_DEMO),
-  });
 
   return (
     <VistaClienteScreen
       v={v}
       anuncios={anunciosDemo}
       reputacion={{ calificacion: clienteMock.calificacion, creditosPagados: 2 }}
-      juego={juego}
-      estrellas={estrellas}
       promo={{
         raspaDisponibles: 1,
         quiniela: {
@@ -105,13 +89,6 @@ export default function DemoVistaCliente() {
           miNumero: 42, alDia: true, participando: false,
         },
       }}
-      juegoAjustes={{
-        mensajeBienvenida: ajustes.mensajeBienvenida,
-        premioMeta: ajustes.premioMeta,
-        mostrarMisiones: ajustes.mostrarMisiones,
-      }}
-      juegoArcade={juegoArcadeDe(ajustes)}
-      temporada={null}
     />
   );
 }
