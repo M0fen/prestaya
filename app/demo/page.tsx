@@ -34,6 +34,7 @@ function anuncioDemo(
     prioridad,
     activo: true,
     segmento: "todos",
+    segmento_def: null,
     fecha_inicio: "2026-06-01T00:00:00Z",
     fecha_fin: null,
     creado_por: null,

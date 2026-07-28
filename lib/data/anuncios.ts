@@ -4,6 +4,8 @@
 // ─────────────────────────────────────────────────────────────────────────
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Anuncio, SegmentoAnuncio, TemaAnuncio } from "@/types/db";
+import type { ClienteSegmentable, DefinicionSegmento } from "@/lib/segmentos";
+import { clienteEnSegmento } from "@/lib/segmentos";
 import { tablaFaltante } from "@/lib/data/errores";
 
 /** Convierte una fila cruda en un Anuncio tipado. */
@@ -20,6 +22,8 @@ function mapAnuncio(r: Record<string, unknown>): Anuncio {
     prioridad: Number(r.prioridad),
     activo: r.activo as boolean,
     segmento: r.segmento as SegmentoAnuncio,
+    // jsonb → objeto (o null si la columna no existe / está vacía).
+    segmento_def: (r.segmento_def as DefinicionSegmento | null) ?? null,
     fecha_inicio: r.fecha_inicio as string,
     fecha_fin: (r.fecha_fin as string | null) ?? null,
     creado_por: (r.creado_por as string | null) ?? null,
@@ -28,16 +32,26 @@ function mapAnuncio(r: Record<string, unknown>): Anuncio {
   };
 }
 
+/** ¿Este anuncio aplica al cliente? Si tiene `segmento_def` (audiencia rica 0089),
+ *  MANDA sobre el enum; si no, cae al enum viejo (todos/al_dia/con_pendientes). */
+function anuncioAplica(a: Anuncio, cliente: ClienteSegmentable): boolean {
+  if (a.segmento_def) return clienteEnSegmento(cliente, a.segmento_def);
+  if (a.segmento === "al_dia") return cliente.alDia;
+  if (a.segmento === "con_pendientes") return !cliente.alDia;
+  return true; // "todos"
+}
+
 /**
- * Devuelve los anuncios vigentes a mostrar AHORA para un cliente (para el
- * carrusel). Vigentes = activos, ya empezaron, no vencieron y su segmento
- * aplica al cliente. Ordenados por prioridad (luego, los más recientes).
- *
- * @param segmentoCliente  "al_dia" o "con_pendientes" según el estado del crédito.
+ * Anuncios vigentes a mostrar AHORA para un cliente (carrusel). Vigentes = activos,
+ * ya empezaron, no vencieron, y su AUDIENCIA aplica al cliente (segmento_def rico o
+ * el enum viejo). El filtro de audiencia se hace en JS con clienteEnSegmento (los
+ * anuncios activos son pocos) para que segmento_def pueda targetear por calificación/
+ * zona/cobrador/individual, que la query SQL por enum no permitía. Ordenados por
+ * prioridad, luego los más recientes; se corta a `limite` DESPUÉS de filtrar.
  */
 export async function getAnunciosActivos(
   db: SupabaseClient,
-  segmentoCliente: Exclude<SegmentoAnuncio, "todos">,
+  cliente: ClienteSegmentable,
   ahora: Date = new Date(),
   limite = 6,
 ): Promise<Anuncio[]> {
@@ -49,13 +63,11 @@ export async function getAnunciosActivos(
     .eq("activo", true)
     .lte("fecha_inicio", iso)
     .or(`fecha_fin.is.null,fecha_fin.gte.${iso}`)
-    .in("segmento", ["todos", segmentoCliente])
     .order("prioridad", { ascending: false })
-    .order("fecha_inicio", { ascending: false })
-    .limit(limite);
+    .order("fecha_inicio", { ascending: false });
 
   if (error) throw error;
-  return (data ?? []).map(mapAnuncio);
+  return (data ?? []).map(mapAnuncio).filter((a) => anuncioAplica(a, cliente)).slice(0, limite);
 }
 
 // ── Administración de anuncios (gestor) ────────────────────────────────────
@@ -88,6 +100,8 @@ export interface AnuncioInput {
   prioridad: number;
   activo: boolean;
   segmento: SegmentoAnuncio;
+  /** Audiencia rica (0089). null = usar el enum `segmento`. */
+  segmentoDef: DefinicionSegmento | null;
   fechaInicio: string | null; // ISO o null (= ahora)
   fechaFin: string | null; // ISO o null (= sin vencimiento)
 }
@@ -104,6 +118,7 @@ function aFila(input: AnuncioInput): Record<string, unknown> {
     prioridad: input.prioridad,
     activo: input.activo,
     segmento: input.segmento,
+    segmento_def: input.segmentoDef, // jsonb; null = a todos (usa el enum)
     ...(input.fechaInicio ? { fecha_inicio: input.fechaInicio } : {}),
     fecha_fin: input.fechaFin,
   };

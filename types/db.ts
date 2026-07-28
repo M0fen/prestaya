@@ -228,6 +228,9 @@ export interface Anuncio {
   prioridad: number;
   activo: boolean;
   segmento: SegmentoAnuncio;
+  /** Audiencia rica (0089): calificación/zona/cobrador/estado/individual. Si está,
+   *  MANDA sobre `segmento`. null = usa `segmento` (conducta previa). */
+  segmento_def: import("@/lib/segmentos").DefinicionSegmento | null;
   fecha_inicio: string;
   fecha_fin: string | null;
   creado_por: string | null;

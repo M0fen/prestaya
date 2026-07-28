@@ -17,6 +17,7 @@ import {
 } from "@/lib/data/anuncios";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { hrefSeguro } from "@/lib/seguridad";
+import { normalizarSegmento, esSegmentoTodos, type DefinicionSegmento } from "@/lib/segmentos";
 import type { SegmentoAnuncio, TemaAnuncio } from "@/types/db";
 
 type Resultado = { ok: true } | { ok: false; error: string };
@@ -41,6 +42,14 @@ function aIso(v: string | null): string | null {
 function sanear(raw: RawAnuncio): AnuncioInput | null {
   const titulo = (raw.titulo ?? "").trim().slice(0, 80);
   if (!titulo) return null;
+  // Audiencia rica (0089): se sanea y, si quedó "todos" (vacía), se guarda null (y el
+  // enum `segmento` vuelve a mandar). El enum se DERIVA del estado del crédito de la
+  // audiencia para mantener coherencia con la lista/legacy; segmento_def manda al servir.
+  const defRaw = normalizarSegmento(raw.segmentoDef ?? {});
+  const segmentoDef: DefinicionSegmento | null = esSegmentoTodos(defRaw) ? null : defRaw;
+  const segmento: SegmentoAnuncio = SEGMENTOS.includes(defRaw.estadoCredito as SegmentoAnuncio)
+    ? (defRaw.estadoCredito as SegmentoAnuncio)
+    : "todos";
   return {
     titulo,
     cuerpo: (raw.cuerpo ?? "").trim().slice(0, 240) || null,
@@ -51,9 +60,8 @@ function sanear(raw: RawAnuncio): AnuncioInput | null {
     tema: TEMAS.includes(raw.tema as TemaAnuncio) ? (raw.tema as TemaAnuncio) : "azul",
     prioridad: Math.max(0, Math.min(999, Math.round(Number(raw.prioridad) || 0))),
     activo: Boolean(raw.activo),
-    segmento: SEGMENTOS.includes(raw.segmento as SegmentoAnuncio)
-      ? (raw.segmento as SegmentoAnuncio)
-      : "todos",
+    segmento,
+    segmentoDef,
     fechaInicio: aIso(raw.fechaInicio ?? null),
     fechaFin: aIso(raw.fechaFin ?? null),
   };
@@ -71,6 +79,8 @@ export interface RawAnuncio {
   prioridad: number;
   activo: boolean;
   segmento: string;
+  /** Audiencia rica (0089). Si viene, MANDA sobre `segmento`. */
+  segmentoDef?: DefinicionSegmento | null;
   fechaInicio?: string | null;
   fechaFin?: string | null;
 }

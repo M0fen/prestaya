@@ -5,6 +5,7 @@
 import { requireGestor } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getAnunciosAdmin } from "@/lib/data/anuncios";
+import { getZonas } from "@/lib/data/zonas";
 import { AnunciosManager } from "@/components/admin/AnunciosManager";
 import { EtiquetaAudiencia } from "@/components/admin/EtiquetaAudiencia";
 
@@ -13,7 +14,7 @@ export const dynamic = "force-dynamic";
 export default async function AnunciosPage() {
   await requireGestor();
   const db = await createSupabaseServer();
-  const anuncios = await getAnunciosAdmin(db);
+  const [anuncios, zonas] = await Promise.all([getAnunciosAdmin(db), getZonas(db)]);
 
   return (
     <div className="mx-auto flex max-w-[640px] flex-col gap-5">
@@ -35,14 +36,14 @@ export default async function AnunciosPage() {
           <span>🖼️ <b>Foto/imagen</b> (subís desde tu equipo)</span>
           <span>🔘 <b>Botón</b> con enlace (WhatsApp, promo, etc.)</span>
           <span>🎨 <b>Color/tema</b> del banner</span>
-          <span>🎯 <b>A quién</b>: todos, al día o con pendientes</span>
+          <span>🎯 <b>A quién</b>: por calificación, estado del crédito o zona</span>
           <span>📅 <b>Cuándo</b>: fecha de inicio y fin</span>
           <span>⬆️ <b>Prioridad</b>: cuál se ve primero</span>
           <span>👁️ <b>Vista previa</b> de cómo lo ve el cliente</span>
         </div>
       </div>
 
-      <AnunciosManager anuncios={anuncios} />
+      <AnunciosManager anuncios={anuncios} zonas={zonas.map((z) => ({ id: z.id, nombre: z.nombre }))} />
     </div>
   );
 }

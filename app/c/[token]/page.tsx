@@ -28,6 +28,7 @@ import { hayProductosActivos, getProductoDestacadoParaCliente, type ProductoPara
 import { conTimeout } from "@/lib/timeout";
 import { hoyUY } from "@/lib/fecha";
 import type { Anuncio } from "@/types/db";
+import type { ClienteSegmentable } from "@/lib/segmentos";
 import { NEGOCIO } from "@/lib/negocio";
 import { VistaClienteScreen } from "@/components/VistaClienteScreen";
 import { SinCreditoActivo } from "@/components/SinCreditoActivo";
@@ -172,11 +173,29 @@ export default async function VistaPorToken({
 
   // 4) Banner de anuncios — RESILIENTE: si algo falla (o aún no existe la
   //    tabla), el crédito se muestra igual. El banner nunca rompe la vista.
-  const segmento =
-    v.estadoGeneral === "Estás al día" ? "al_dia" : "con_pendientes";
+  //    La AUDIENCIA del anuncio (0089) puede ser por calificación/zona/cobrador/
+  //    estado/individual, así que se arma el ClienteSegmentable de este cliente.
+  const alDiaAnuncio = v.estadoGeneral === "Estás al día";
   let anuncios: Anuncio[] = [];
   try {
-    anuncios = await getAnunciosActivos(db, segmento);
+    // Zona del cobrador asignado (para el targeting por zona). Barato y resiliente.
+    let zonaId: string | null = null;
+    if (prestamo.cobrador_id) {
+      const { data: cob } = await db
+        .from("usuarios")
+        .select("zona_id")
+        .eq("id", prestamo.cobrador_id)
+        .maybeSingle();
+      zonaId = (cob as { zona_id: string | null } | null)?.zona_id ?? null;
+    }
+    const clienteSeg: ClienteSegmentable = {
+      id: cliente.id,
+      calificacion: cliente.calificacion,
+      zonaId,
+      cobradorId: prestamo.cobrador_id ?? null,
+      alDia: alDiaAnuncio,
+    };
+    anuncios = await getAnunciosActivos(db, clienteSeg);
   } catch {
     anuncios = [];
   }

@@ -9,6 +9,8 @@ import { BannerCarrusel } from "@/components/BannerCarrusel";
 import { guardarAnuncio, alternarAnuncio, eliminarAnuncio, subirImagenAnuncio, type RawAnuncio } from "@/lib/acciones/anuncios";
 import { estadoPublicacion } from "@/lib/publicacion";
 import { EstadoBadge } from "@/components/admin/EstadoBadge";
+import { SelectorSegmento } from "@/components/admin/SelectorSegmento";
+import { describirSegmento } from "@/lib/segmentos";
 import { esAvisoCurbe } from "@/lib/curbe";
 
 const TEMAS: { v: TemaAnuncio; label: string }[] = [
@@ -18,12 +20,6 @@ const TEMAS: { v: TemaAnuncio; label: string }[] = [
   { v: "oscuro", label: "Oscuro" },
   { v: "dorado", label: "Dorado (publicidad)" },
 ];
-const SEGMENTOS: { v: SegmentoAnuncio; label: string }[] = [
-  { v: "todos", label: "Todos" },
-  { v: "al_dia", label: "Al día" },
-  { v: "con_pendientes", label: "Con pendientes" },
-];
-
 const vacio: RawAnuncio = {
   id: null, titulo: "", cuerpo: "", ctaTexto: "", ctaUrl: "", imagenUrl: "", etiqueta: "",
   tema: "azul", prioridad: 0, activo: true, segmento: "todos", fechaInicio: "", fechaFin: "",
@@ -56,7 +52,14 @@ function aLocal(iso: string | null): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-export function AnunciosManager({ anuncios }: { anuncios: Anuncio[] }) {
+export function AnunciosManager({
+  anuncios,
+  zonas = [],
+}: {
+  anuncios: Anuncio[];
+  /** Zonas disponibles para el targeting por zona (inyectadas desde la página). */
+  zonas?: { id: string; nombre: string }[];
+}) {
   const router = useRouter();
   const [form, setForm] = useState<RawAnuncio>(vacio);
   const [ocupado, setOcupado] = useState(false);
@@ -82,7 +85,7 @@ export function AnunciosManager({ anuncios }: { anuncios: Anuncio[] }) {
     setForm({
       id: a.id, titulo: a.titulo, cuerpo: a.cuerpo ?? "", ctaTexto: a.cta_texto ?? "",
       ctaUrl: a.cta_url ?? "", imagenUrl: a.imagen_url ?? "", etiqueta: a.etiqueta ?? "", tema: a.tema,
-      prioridad: a.prioridad, activo: a.activo, segmento: a.segmento,
+      prioridad: a.prioridad, activo: a.activo, segmento: a.segmento, segmentoDef: a.segmento_def,
       fechaInicio: aLocal(a.fecha_inicio), fechaFin: aLocal(a.fecha_fin),
     });
 
@@ -92,7 +95,7 @@ export function AnunciosManager({ anuncios }: { anuncios: Anuncio[] }) {
     setForm({
       id: null, titulo: a.titulo, cuerpo: a.cuerpo ?? "", ctaTexto: a.cta_texto ?? "",
       ctaUrl: a.cta_url ?? "", imagenUrl: a.imagen_url ?? "", etiqueta: a.etiqueta ?? "", tema: a.tema,
-      prioridad: a.prioridad, activo: true, segmento: a.segmento, fechaInicio: "", fechaFin: "",
+      prioridad: a.prioridad, activo: true, segmento: a.segmento, segmentoDef: a.segmento_def, fechaInicio: "", fechaFin: "",
     });
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -130,7 +133,7 @@ export function AnunciosManager({ anuncios }: { anuncios: Anuncio[] }) {
     cuerpo: form.cuerpo || null, cta_texto: form.ctaTexto || null, cta_url: form.ctaUrl || null,
     imagen_url: form.imagenUrl || null, etiqueta: form.etiqueta || null,
     tema: form.tema as TemaAnuncio, prioridad: form.prioridad,
-    activo: form.activo, segmento: form.segmento as SegmentoAnuncio,
+    activo: form.activo, segmento: form.segmento as SegmentoAnuncio, segmento_def: form.segmentoDef ?? null,
     fecha_inicio: new Date().toISOString(), fecha_fin: null, creado_por: null,
     creado_en: "", actualizado_en: "",
   };
@@ -203,13 +206,15 @@ export function AnunciosManager({ anuncios }: { anuncios: Anuncio[] }) {
                 {TEMAS.map((t) => <option key={t.v} value={t.v}>{t.label}</option>)}
               </select>
             </label>
-            <label className="flex flex-col gap-1 text-[11px] font-semibold text-gris">
-              A quién
-              <select className={inputCls} value={form.segmento} onChange={(e) => set("segmento", e.target.value)}>
-                {SEGMENTOS.map((s) => <option key={s.v} value={s.v}>{s.label}</option>)}
-              </select>
-            </label>
           </div>
+
+          {/* Audiencia (0089): a QUÉ RANGO DE PERSONAS le aparece. Reemplaza el viejo
+              "A quién" de 3 opciones por targeting por calificación / estado / zona. */}
+          <SelectorSegmento
+            value={form.segmentoDef ?? null}
+            onChange={(d) => set("segmentoDef", d)}
+            zonas={zonas}
+          />
 
           <div className="grid grid-cols-2 gap-2.5">
             <label className="flex flex-col gap-1 text-[11px] font-semibold text-gris">
@@ -278,7 +283,9 @@ export function AnunciosManager({ anuncios }: { anuncios: Anuncio[] }) {
                   )}
                 </span>
                 <span className="text-[11.5px] font-medium text-gris">
-                  {a.segmento === "todos" ? "Todos los clientes" : a.segmento === "al_dia" ? "Solo al día" : "Solo con pendientes"}
+                  {a.segmento_def
+                    ? describirSegmento(a.segmento_def, { zonas: Object.fromEntries(zonas.map((z) => [z.id, z.nombre])) })
+                    : a.segmento === "todos" ? "Todos los clientes" : a.segmento === "al_dia" ? "Solo al día" : "Solo con pendientes"}
                   {" · "}{ventanaCorta(a.fecha_inicio, a.fecha_fin)}
                 </span>
               </div>
