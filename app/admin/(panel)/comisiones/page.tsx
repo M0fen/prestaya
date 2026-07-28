@@ -160,7 +160,7 @@ export default async function ComisionesPage({
         </section>
       )}
 
-      <p className="text-[11px] leading-[1.5] font-medium text-[#AEB6CC]">
+      <p className="text-[11px] leading-[1.5] font-medium text-tenue-2">
         La comisión se calcula sobre lo <b>recaudado</b> por cada cobrador en el período. <b>Liquidar</b> registra
         un egreso en la Caja (categoría “Comisión”) y queda en la auditoría — <b>una sola vez por período</b> (si ya
         se liquidó, el botón queda deshabilitado; no se paga dos veces). Los <b>faltantes NO se descuentan acá</b>:

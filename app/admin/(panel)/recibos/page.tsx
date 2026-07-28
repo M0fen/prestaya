@@ -39,7 +39,7 @@ export default async function RecibosPage() {
 
       <RecibosManager trabajadores={trabajadores} recibos={recibos} negocio={NEGOCIO} />
 
-      <p className="text-[11px] leading-[1.5] font-medium text-[#AEB6CC] print:hidden">
+      <p className="text-[11px] leading-[1.5] font-medium text-tenue-2 print:hidden">
         Es un comprobante interno de pago, no una factura fiscal (eso lo regula la DGI). Requiere la
         migración 0046.
       </p>

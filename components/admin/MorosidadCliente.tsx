@@ -222,7 +222,7 @@ export function MorosidadCliente({
             })}
           </ul>
         ) : (
-          <span className="text-[11.5px] font-medium text-[#AEB6CC]">Sin notas de mora todavía.</span>
+          <span className="text-[11.5px] font-medium text-tenue-2">Sin notas de mora todavía.</span>
         )}
       </div>
     </section>

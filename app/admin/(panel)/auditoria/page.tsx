@@ -49,7 +49,7 @@ export default async function AuditoriaPage() {
         <p className="rounded-[14px] border border-borde bg-tarjeta px-4 py-8 text-center text-[13px] font-medium text-gris">
           Todavía no hay acciones registradas.
           <br />
-          <span className="text-[12px] text-[#AEB6CC]">
+          <span className="text-[12px] text-tenue-2">
             Las renovaciones, movimientos de caja, cierres de jornada y demás aparecerán acá.
           </span>
         </p>

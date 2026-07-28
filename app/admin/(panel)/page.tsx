@@ -326,7 +326,7 @@ export default async function DashboardPage({
               datos={mov.serie.map((b) => ({ etiqueta: b.etiqueta, valor: b.valor, esHoy: b.esActual }))}
             />
           ) : (
-            <p className="py-6 text-center text-[12.5px] font-medium text-[#AEB6CC]">
+            <p className="py-6 text-center text-[12.5px] font-medium text-tenue-2">
               Sin cobros en este período todavía.
             </p>
           )}

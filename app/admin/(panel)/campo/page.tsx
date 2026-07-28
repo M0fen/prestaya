@@ -54,7 +54,7 @@ export default async function CampoPage({
 
       <ControlCampo resumen={resumen} />
 
-      <p className="text-[11px] leading-[1.5] font-medium text-[#AEB6CC]">
+      <p className="text-[11px] leading-[1.5] font-medium text-tenue-2">
         La bitácora es inmutable (solo se agrega, no se edita ni borra). El cobrador está informado
         de que sus acciones quedan geolocalizadas.
       </p>

@@ -90,7 +90,7 @@ export default async function EstrellasPage() {
         )}
       </section>
 
-      <p className="text-[11px] leading-[1.5] font-medium text-[#AEB6CC]">
+      <p className="text-[11px] leading-[1.5] font-medium text-tenue-2">
         Las estrellas se calculan solas a partir de los pagos reales (no se pueden “trucar”): si un
         pago se anula, su fragmento desaparece. Requiere la migración 0020.
       </p>

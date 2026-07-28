@@ -167,7 +167,7 @@ export default async function EstadisticasPage() {
         </ul>
       </Card>
 
-      <p className="text-[11px] leading-[1.5] font-medium text-[#AEB6CC]">
+      <p className="text-[11px] leading-[1.5] font-medium text-tenue-2">
         Los meses se cortan en el día calendario de Uruguay. Colocación por fecha de crédito, recaudo por fecha de
         pago, altas por fecha de registro. Todo agregado en la base (no se estima).
       </p>

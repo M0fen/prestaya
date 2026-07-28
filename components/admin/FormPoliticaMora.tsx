@@ -125,7 +125,7 @@ export function FormPoliticaMora({
             {error && <span className="text-[12px] font-bold text-[#C0392B]">{error}</span>}
           </div>
 
-          <p className="text-[11px] leading-[1.5] font-medium text-[#AEB6CC]">
+          <p className="text-[11px] leading-[1.5] font-medium text-tenue-2">
             El recargo se calcula aparte y no modifica el cartón del cliente. El tope ayuda a mantenerlo
             dentro de lo razonable (ley de usura 18.212). Cobrarlo o no queda a criterio del equipo.
           </p>

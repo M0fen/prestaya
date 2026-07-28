@@ -188,7 +188,7 @@ export function CommandPalette({ rol, esDev = false }: { rol: Rol; esDev?: boole
                 }}
                 onKeyDown={onKeyDown}
                 placeholder="Buscar sección o cliente…"
-                className="min-w-0 flex-1 bg-transparent text-[15px] font-medium text-tinta outline-none placeholder:text-[#AEB6CC]"
+                className="min-w-0 flex-1 bg-transparent text-[15px] font-medium text-tinta outline-none placeholder:text-tenue-2"
               />
               <kbd className="rounded-[6px] border border-borde bg-suave px-1.5 py-0.5 text-[10px] font-bold text-gris">
                 Esc
@@ -236,7 +236,7 @@ export function CommandPalette({ rol, esDev = false }: { rol: Rol; esDev?: boole
                     );
                   })}
                   {clientes.length === 0 && (
-                    <p className="px-4 py-2 text-[12.5px] font-medium text-[#AEB6CC]">
+                    <p className="px-4 py-2 text-[12.5px] font-medium text-tenue-2">
                       {cargando ? "Buscando…" : "Sin clientes que coincidan."}
                     </p>
                   )}
@@ -244,14 +244,14 @@ export function CommandPalette({ rol, esDev = false }: { rol: Rol; esDev?: boole
               )}
 
               {filas.length === 0 && q.trim().length < 2 && (
-                <p className="px-4 py-6 text-center text-[13px] font-medium text-[#AEB6CC]">
+                <p className="px-4 py-6 text-center text-[13px] font-medium text-tenue-2">
                   Escribí para buscar una sección o un cliente.
                 </p>
               )}
             </div>
 
             {/* Pie con ayuda de teclado */}
-            <div className="flex items-center gap-3 border-t border-linea px-4 py-2 text-[11px] font-semibold text-[#AEB6CC]">
+            <div className="flex items-center gap-3 border-t border-linea px-4 py-2 text-[11px] font-semibold text-tenue-2">
               <span>↑ ↓ moverse</span>
               <span>↵ abrir</span>
               <span>esc cerrar</span>
@@ -266,7 +266,7 @@ export function CommandPalette({ rol, esDev = false }: { rol: Rol; esDev?: boole
 function Grupo({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
     <div className="mb-1">
-      <p className="px-4 pt-1.5 pb-1 text-[10.5px] font-bold tracking-wide text-[#AEB6CC] uppercase">
+      <p className="px-4 pt-1.5 pb-1 text-[10.5px] font-bold tracking-wide text-tenue-2 uppercase">
         {titulo}
       </p>
       {children}

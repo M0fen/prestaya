@@ -248,7 +248,7 @@ function ReciboImprimible({
         </div>
       </div>
 
-      <p className="mt-4 text-center text-[9.5px] leading-snug text-[#AEB6CC]">
+      <p className="mt-4 text-center text-[9.5px] leading-snug text-tenue-2">
         Comprobante interno de pago. No es una factura fiscal (DGI).
       </p>
     </div>

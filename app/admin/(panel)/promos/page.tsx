@@ -70,7 +70,7 @@ export default async function PromosPage() {
 
       <PromosManager premios={premios} segmentos={segmentos} quinielas={quinielas} resumen={resumen} />
 
-      <p className="text-[11px] leading-[1.5] font-medium text-[#AEB6CC]">
+      <p className="text-[11px] leading-[1.5] font-medium text-tenue-2">
         Marco legal: en Uruguay el juego de azar por dinero lo regula el Estado. Estas funciones son
         estrictamente promocionales (sin apuesta ni pago en efectivo). Requiere la migración 0021.
       </p>

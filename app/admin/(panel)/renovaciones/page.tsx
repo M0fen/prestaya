@@ -140,7 +140,7 @@ export default async function RenovacionesPage() {
                   moroso={moroso}
                 />
               ) : (
-                <p className="mt-3 text-center text-[11.5px] font-medium text-[#AEB6CC]">
+                <p className="mt-3 text-center text-[11.5px] font-medium text-tenue-2">
                   Se podrá renovar cuando termine de pagar el crédito actual.
                 </p>
               )}
@@ -149,7 +149,7 @@ export default async function RenovacionesPage() {
         })}
       </div>
 
-      <p className="text-[11px] leading-[1.5] font-medium text-[#AEB6CC]">
+      <p className="text-[11px] leading-[1.5] font-medium text-tenue-2">
         El puntaje sale del comportamiento de pago propio del cliente (interno, no se le
         muestra). El supervisor puede <b>solicitar</b> la renovación; el <b>administrador</b> la
         aprueba y crea el crédito.

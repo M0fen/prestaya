@@ -88,7 +88,7 @@ export default async function EquipoPage({
           </form>
         </div>
         <EquipoTabla miembros={filtrados} viewerRol={usuario.rol} />
-        <p className="text-[10.5px] font-medium text-[#AEB6CC]">
+        <p className="text-[10.5px] font-medium text-tenue-2">
           "Conectado" es un proxy honesto: indica login en las últimas 24 h (no presencia en vivo).
           "Dispositivos" = suscripciones push activas del usuario.
         </p>

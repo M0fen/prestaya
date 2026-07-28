@@ -281,7 +281,7 @@ function Desglose({ label, valor, sub, tono }: { label: string; valor: number; s
     <div className="flex flex-col rounded-[10px] border border-borde bg-tarjeta px-3 py-2">
       <span className="text-[10.5px] font-semibold text-tenue">{label}</span>
       <span className="text-[15px] font-extrabold tabular-nums" style={{ color: tono }}>{UYU(valor)}</span>
-      <span className="text-[10px] font-medium text-[#AEB6CC]">{sub}</span>
+      <span className="text-[10px] font-medium text-tenue-2">{sub}</span>
     </div>
   );
 }

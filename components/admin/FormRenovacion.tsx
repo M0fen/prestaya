@@ -270,7 +270,7 @@ export function FormRenovacion({
         )}
       </div>
       {confirmar && !ocupado && (
-        <p className="text-[11px] font-medium text-[#AEB6CC]">
+        <p className="text-[11px] font-medium text-tenue-2">
           Esto finaliza el crédito actual (saldado) y crea uno nuevo activo.
         </p>
       )}

@@ -95,7 +95,7 @@ export default async function JuegoPage() {
 
       <RecompensasManager recompensas={recompensas} />
 
-      <p className="text-[11px] leading-[1.5] font-medium text-[#AEB6CC]">
+      <p className="text-[11px] leading-[1.5] font-medium text-tenue-2">
         Las misiones, el nivel y las recompensas se calculan solos a partir de los pagos reales (no se
         pueden “trucar”). Vos definís las metas, los premios, la temporada y qué juego se muestra.
       </p>

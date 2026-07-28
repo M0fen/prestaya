@@ -28,7 +28,7 @@ export default async function RifaPage() {
 
       <RifaAdmin rifa={rifa} />
 
-      <p className="text-[11px] leading-[1.5] font-medium text-[#AEB6CC]">
+      <p className="text-[11px] leading-[1.5] font-medium text-tenue-2">
         Promocional: la rifa es un incentivo por estar al día. Requiere la migración 0045.
       </p>
     </div>

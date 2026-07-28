@@ -145,7 +145,7 @@ export function CierrePorZona({
       ))}
 
       {(consolidado.totalFaltante > 0 || consolidado.porRendir > 0) && (
-        <p className="text-[11px] leading-[1.5] font-medium text-[#AEB6CC]">
+        <p className="text-[11px] leading-[1.5] font-medium text-tenue-2">
           {consolidado.totalFaltante > 0 && (
             <>
               Los <b className="text-[#C0392B]">faltantes</b> bajan el score de confianza del cobrador y quedan en su

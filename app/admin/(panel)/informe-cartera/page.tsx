@@ -174,7 +174,7 @@ export default async function InformeCarteraPage({
         </p>
       )}
 
-      <p className="text-[11px] leading-[1.6] font-medium text-[#AEB6CC]">
+      <p className="text-[11px] leading-[1.6] font-medium text-tenue-2">
         Todo derivado del cartón real: <b>Ventas Crédito</b> = capital colocado; <b>Con Intereses</b> = total
         a cobrar (interés incluido en la cuota); <b>Utilidad proyectada</b> = Σ del interés por crédito (interés a
         ganar si todos pagan) — es PROYECTADA, no ganancia neta; <b>Recaudo</b> =
@@ -197,7 +197,7 @@ function Kpi({ label, valor, tono, sub }: { label: string; valor: string; tono?:
       <span className="text-[19px] font-extrabold tabular-nums" style={{ color: tono ?? "var(--color-tinta)" }}>
         {valor}
       </span>
-      {sub && <span className="text-[10.5px] font-medium text-[#AEB6CC]">{sub}</span>}
+      {sub && <span className="text-[10.5px] font-medium text-tenue-2">{sub}</span>}
     </div>
   );
 }

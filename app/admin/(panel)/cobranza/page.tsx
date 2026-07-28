@@ -157,7 +157,7 @@ export default async function CobranzaPage() {
         </section>
       </div>
 
-      <p className="text-[11px] font-medium text-[#AEB6CC]">
+      <p className="text-[11px] font-medium text-tenue-2">
         La geo-cerca requiere que el cliente tenga ubicación guardada (censo con
         GPS). La alerta de “float alto sin rendir” deja de aparecer en cuanto el
         cobrador cierra su jornada en <b>Caja diaria</b>.

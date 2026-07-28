@@ -170,7 +170,7 @@ export default async function ClientesPage({
         </div>
       )}
 
-      <p className="text-[11px] font-medium text-[#AEB6CC]">
+      <p className="text-[11px] font-medium text-tenue-2">
         Se muestran hasta {LIMITE} resultados. Afiná con el buscador para encontrar un cliente puntual.
       </p>
     </div>

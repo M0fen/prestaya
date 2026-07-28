@@ -67,7 +67,7 @@ export default async function ValorPage() {
         <Metrica label="Finalizados" valor={String(v.creditosFinalizados)} acento="#7A4DD6" />
       </Bloque>
 
-      <p className="text-[11px] leading-[1.5] font-medium text-[#AEB6CC]">
+      <p className="text-[11px] leading-[1.5] font-medium text-tenue-2">
         Estas cifras crecen con el volumen de operación. La trazabilidad requiere
         que los cobros se registren desde la app del cobrador (GPS + hora); la
         próxima palanca de valor es la renovación pre-aprobada, que convierte a
