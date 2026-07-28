@@ -67,7 +67,7 @@ export async function crearUsuarioAction(
     // Rollback: borrar el login recién creado para no dejar un auth huérfano.
     await admin.auth.admin.deleteUser(created.user.id).catch(() => {});
     if (/es_dev/.test(e2.message))
-      return { ok: false, error: "Para crear un desarrollador, corré antes la migración 0034." };
+      return { ok: false, error: "No se pudo crear el desarrollador. Avisá a soporte." };
     return { ok: false, error: "No se pudo guardar el usuario." };
   }
 

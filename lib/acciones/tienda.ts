@@ -94,7 +94,7 @@ export async function guardarProducto(raw: RawProducto): Promise<Resultado> {
     revalidatePath("/admin/tienda");
     return { ok: true };
   } catch {
-    return { ok: false, error: "No se pudo guardar. ¿Corriste la migración 0076?" };
+    return { ok: false, error: "No se pudo guardar. Probá de nuevo." };
   }
 }
 
@@ -248,7 +248,7 @@ export async function fijarPrecioSegmento(raw: {
     revalidatePath("/admin/tienda");
     return { ok: true };
   } catch {
-    return { ok: false, error: "No se pudo fijar el precio. ¿Corriste la migración 0078?" };
+    return { ok: false, error: "No se pudo fijar el precio. Probá de nuevo." };
   }
 }
 

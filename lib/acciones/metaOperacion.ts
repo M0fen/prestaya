@@ -29,6 +29,6 @@ export async function guardarMetaMensual(meta: number): Promise<Resultado> {
     revalidatePath("/admin/cierre");
     return { ok: true };
   } catch {
-    return { ok: false, error: "No se pudo guardar. ¿Corriste la migración 0025?" };
+    return { ok: false, error: "No se pudo guardar. Probá de nuevo." };
   }
 }

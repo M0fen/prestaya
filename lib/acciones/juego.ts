@@ -79,6 +79,6 @@ export async function guardarAjustesJuego(input: AjustesJuego): Promise<Resultad
     revalidatePath("/admin/juego");
     return { ok: true };
   } catch {
-    return { ok: false, error: "No se pudo guardar. ¿Corriste la migración 0009?" };
+    return { ok: false, error: "No se pudo guardar. Probá de nuevo." };
   }
 }

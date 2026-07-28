@@ -167,7 +167,7 @@ export async function solicitarAnulacionAction(input: {
     solicitado_por: ctx.u.id,
     solicitado_por_nombre: ctx.u.nombre,
   });
-  if (error) return { ok: false, error: "No se pudo registrar la solicitud. ¿Corriste la migración 0032?" };
+  if (error) return { ok: false, error: "No se pudo registrar la solicitud. Probá de nuevo." };
 
   await registrarAuditoria(db, {
     actorId: ctx.u.id,

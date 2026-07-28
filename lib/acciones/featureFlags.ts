@@ -32,6 +32,6 @@ export async function setModoSoloLectura(
     return { ok: true };
   } catch (e) {
     reportarError("setModoSoloLectura", e, { activo });
-    return { ok: false, error: "No se pudo cambiar el modo. ¿Corriste la migración 0072?" };
+    return { ok: false, error: "No se pudo cambiar el modo. Probá de nuevo." };
   }
 }

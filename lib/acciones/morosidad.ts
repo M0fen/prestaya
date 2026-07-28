@@ -17,7 +17,7 @@ import { registrarAuditoria } from "@/lib/data/auditoria";
 
 type Resultado = { ok: true } | { ok: false; error: string };
 
-const ERR_MIGRACION = "No se pudo guardar. ¿Corriste la migración 0027?";
+const ERR_MIGRACION = "No se pudo guardar. Probá de nuevo.";
 
 export async function marcarMoroso(clienteId: string, motivo: string): Promise<Resultado> {
   const u = await getUsuarioActual();

@@ -61,7 +61,7 @@ export async function guardarPremioRaspa(input: {
     revalidatePath("/admin/promos");
     return { ok: true };
   } catch {
-    return { ok: false, error: "No se pudo guardar. ¿Corriste la migración 0021?" };
+    return { ok: false, error: "No se pudo guardar. Probá de nuevo." };
   }
 }
 
@@ -103,7 +103,7 @@ export async function guardarSegmentoRaspa(input: {
     revalidatePath("/admin/promos");
     return { ok: true };
   } catch {
-    return { ok: false, error: "No se pudo guardar. ¿Corriste la migración 0042?" };
+    return { ok: false, error: "No se pudo guardar. Probá de nuevo." };
   }
 }
 
@@ -157,7 +157,7 @@ export async function crearQuiniela(input: {
     revalidatePath("/admin/promos");
     return { ok: true };
   } catch {
-    return { ok: false, error: "No se pudo crear. ¿Corriste la migración 0021?" };
+    return { ok: false, error: "No se pudo crear. Probá de nuevo." };
   }
 }
 

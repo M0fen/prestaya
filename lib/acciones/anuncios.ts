@@ -100,7 +100,7 @@ export async function guardarAnuncio(raw: RawAnuncio): Promise<Resultado> {
     revalidatePath("/admin/anuncios");
     return { ok: true };
   } catch {
-    return { ok: false, error: "No se pudo guardar. ¿Corriste la migración 0003?" };
+    return { ok: false, error: "No se pudo guardar. Probá de nuevo." };
   }
 }
 

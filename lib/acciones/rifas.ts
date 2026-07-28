@@ -58,6 +58,6 @@ export async function guardarRifa(input: {
     revalidatePath("/admin/rifa");
     return { ok: true };
   } catch {
-    return { ok: false, error: "No se pudo guardar la rifa. ¿Corriste la migración 0045?" };
+    return { ok: false, error: "No se pudo guardar la rifa. Probá de nuevo." };
   }
 }

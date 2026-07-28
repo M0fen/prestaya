@@ -155,6 +155,51 @@ const PATHS: Record<string, React.ReactNode> = {
       <path d="M13 9h3a1.5 1.5 0 0 1 1.5 1.5V16a1.8 1.8 0 0 0 3.5 0V9.5L18 6.5" />
     </>
   ),
+  // ── "Para tus clientes" (lo que ve el cliente en su cartón) ──
+  // Resumen / hub (diana).
+  objetivo: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="4.5" />
+      <circle cx="12" cy="12" r="1" />
+    </>
+  ),
+  // Tienda (bolsa de compras).
+  bolsa: (
+    <>
+      <path d="M5.5 8h13l-1 11.5a1 1 0 0 1-1 .9H7.5a1 1 0 0 1-1-.9L5.5 8z" />
+      <path d="M9 8V6.5a3 3 0 0 1 6 0V8" />
+    </>
+  ),
+  // Anuncios (megáfono).
+  megafono: (
+    <>
+      <path d="M3 11v2a1 1 0 0 0 1 1h3l6 3.5V6.5L7 10H4a1 1 0 0 0-1 1z" />
+      <path d="M17 9.5a4 4 0 0 1 0 5" />
+    </>
+  ),
+  // Rifa (regalo con moño).
+  regalo: (
+    <>
+      <path d="M20 12v7.5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V12" />
+      <rect x="3" y="8" width="18" height="4" rx="0.5" />
+      <path d="M12 8v12.5" />
+      <path d="M12 8C10 8 8 7.2 8 5.7A1.6 1.6 0 0 1 12 5a1.6 1.6 0 0 1 4 .7C16 7.2 14 8 12 8z" />
+    </>
+  ),
+  // Juegos y sorteos (ticket).
+  ticket: (
+    <>
+      <path d="M3.5 8.5a1 1 0 0 1 1-1h15a1 1 0 0 1 1 1v2a2 2 0 0 0 0 4v2a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1v-2a2 2 0 0 0 0-4v-2z" />
+      <path d="M14.5 8v1.5M14.5 12v1.5M14.5 16v0.5" />
+    </>
+  ),
+  // Estrellas (estrella de 5 puntas).
+  estrella: (
+    <>
+      <path d="M12 3.6l2.6 5.2 5.7.8-4.1 4 1 5.7L12 16.6l-5.2 2.7 1-5.7-4.1-4 5.7-.8L12 3.6z" />
+    </>
+  ),
 };
 
 /** Mapa href → ícono para la nav del panel (sidebar + launchpad). Cubre los ítems
@@ -176,6 +221,13 @@ export const ICONO_NAV: Record<string, NombreIcono> = {
   "/admin/desempeno": "award",
   "/admin/chat": "chat",
   "/admin/notas": "notas",
+  // Para tus clientes.
+  "/admin/para-clientes": "objetivo",
+  "/admin/tienda": "bolsa",
+  "/admin/anuncios": "megafono",
+  "/admin/rifa": "regalo",
+  "/admin/promos": "ticket",
+  "/admin/estrellas": "estrella",
 };
 
 export type NombreIcono = keyof typeof PATHS;

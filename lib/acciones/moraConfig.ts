@@ -44,6 +44,6 @@ export async function guardarConfigMora(input: {
     revalidatePath("/admin/mora");
     return { ok: true };
   } catch {
-    return { ok: false, error: "No se pudo guardar. ¿Corriste la migración 0016?" };
+    return { ok: false, error: "No se pudo guardar. Probá de nuevo." };
   }
 }

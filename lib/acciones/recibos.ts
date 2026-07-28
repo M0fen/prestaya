@@ -52,6 +52,6 @@ export async function emitirRecibo(input: {
     revalidatePath("/admin/recibos");
     return { ok: true, recibo };
   } catch {
-    return { ok: false, error: "No se pudo emitir el recibo. ¿Corriste la migración 0046?" };
+    return { ok: false, error: "No se pudo emitir el recibo. Probá de nuevo." };
   }
 }

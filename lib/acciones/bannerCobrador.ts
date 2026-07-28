@@ -66,7 +66,7 @@ export async function crearBannerCobrador(input: {
     revalidatePath("/cobrador");
     return { ok: true };
   } catch {
-    return { ok: false, error: "No se pudo publicar. ¿Corriste las migraciones 0050 y 0080?" };
+    return { ok: false, error: "No se pudo publicar. Probá de nuevo." };
   }
 }
 

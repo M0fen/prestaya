@@ -47,7 +47,7 @@ async function resolver(id: string, estado: "aprobada" | "rechazada"): Promise<R
     revalidatePath("/admin/estrellas");
     return { ok: true };
   } catch {
-    return { ok: false, error: "No se pudo procesar. ¿Corriste la migración 0020?" };
+    return { ok: false, error: "No se pudo procesar. Probá de nuevo." };
   }
 }
 
@@ -112,6 +112,6 @@ export async function redimirEstrellasAdmin(input: {
     revalidatePath("/admin/estrellas");
     return { ok: true };
   } catch {
-    return { ok: false, error: "No se pudo redimir. ¿Corriste la migración 0020?" };
+    return { ok: false, error: "No se pudo redimir. Probá de nuevo." };
   }
 }

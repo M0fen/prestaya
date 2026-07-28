@@ -84,7 +84,7 @@ export async function registrarGestion(input: EntradaGestion): Promise<Resultado
     revalidatePath("/admin/jornada");
     return { ok: true };
   } catch {
-    return { ok: false, error: "No se pudo guardar. ¿Corriste la migración 0055?" };
+    return { ok: false, error: "No se pudo guardar. Probá de nuevo." };
   }
 }
 

@@ -19,7 +19,7 @@ import { registrarAuditoria } from "@/lib/data/auditoria";
 
 type Resultado = { ok: true } | { ok: false; error: string };
 
-const SIN_MIGRACION = "No se pudo guardar. ¿Corriste la migración 0030?";
+const SIN_MIGRACION = "No se pudo guardar. Probá de nuevo.";
 
 async function guardAdmin() {
   const u = await getUsuarioActual();

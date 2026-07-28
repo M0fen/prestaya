@@ -85,7 +85,7 @@ export async function solicitarGastoRuta(input: {
       solicitado_por: usuario.id,
       solicitado_por_nombre: usuario.nombre,
     });
-    if (error) return { ok: false, error: "No se pudo enviar la solicitud. ¿Corriste las migraciones 0057 y 0070?" };
+    if (error) return { ok: false, error: "No se pudo enviar la solicitud. Probá de nuevo." };
     await registrarBitacora(db, {
       actorId: usuario.id,
       actorNombre: usuario.nombre,

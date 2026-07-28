@@ -68,6 +68,6 @@ export async function guardarConfigScoring(input: {
     revalidatePath("/admin/scoring");
     return { ok: true };
   } catch {
-    return { ok: false, error: "No se pudo guardar. ¿Corriste la migración 0028?" };
+    return { ok: false, error: "No se pudo guardar. Probá de nuevo." };
   }
 }

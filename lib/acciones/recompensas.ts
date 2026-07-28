@@ -53,7 +53,7 @@ export async function agregarRecompensa(input: {
     revalidatePath("/admin/juego");
     return { ok: true };
   } catch {
-    return { ok: false, error: "No se pudo guardar. ¿Corriste la migración 0018?" };
+    return { ok: false, error: "No se pudo guardar. Probá de nuevo." };
   }
 }
 

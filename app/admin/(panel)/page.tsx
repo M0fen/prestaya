@@ -588,6 +588,7 @@ function AccesoRapido({ admin }: { admin: boolean }) {
     { href: "/admin/alertas", label: "Alertas", icon: "🚨" },
     { href: "/admin/recibos", label: "Recibos", icon: "🧾", soloAdmin: true },
     { href: "/admin/clientes", label: "Clientes", icon: "👤" },
+    { href: "/admin/para-clientes", label: "Para tus clientes", icon: "🎯", soloAdmin: true },
   ].filter((i) => admin || !i.soloAdmin);
   return (
     <section className="flex flex-col gap-2">

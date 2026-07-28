@@ -38,7 +38,7 @@ export async function cerrarJornada(input: {
   const db = await createSupabaseServer();
   const estado = await getEstadoJornada(db, usuario.id);
   if (!estado.disponible) {
-    return { ok: false, error: "El cierre de jornada todavía no está habilitado (falta la migración 0013)." };
+    return { ok: false, error: "El cierre de jornada todavía no está habilitado." };
   }
   if (estado.yaRendida) return { ok: false, error: "Ya cerraste tu jornada de hoy." };
 

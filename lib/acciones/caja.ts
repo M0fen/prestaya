@@ -110,6 +110,6 @@ export async function agregarMovimientoCaja(input: {
     return { ok: true };
   } catch (e) {
     reportarError("registrarMovimientoCaja", e, { tipo: input.tipo });
-    return { ok: false, error: "No se pudo registrar. ¿Corriste la migración 0010?" };
+    return { ok: false, error: "No se pudo registrar. Probá de nuevo." };
   }
 }

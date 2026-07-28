@@ -41,6 +41,6 @@ export async function registrarCompromiso(input: {
     revalidatePath(`/cobrador/cliente/${input.clienteId}`);
     return { ok: true };
   } catch {
-    return { ok: false, error: "No se pudo registrar el compromiso. ¿Corriste la migración 0059?" };
+    return { ok: false, error: "No se pudo registrar el compromiso. Probá de nuevo." };
   }
 }

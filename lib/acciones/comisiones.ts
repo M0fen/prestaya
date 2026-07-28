@@ -43,7 +43,7 @@ export async function setComisionPct(cobradorId: string, pct: number): Promise<R
     revalidatePath("/admin/comisiones");
     return { ok: true };
   } catch {
-    return { ok: false, error: "No se pudo guardar. ¿Corriste la migración 0014?" };
+    return { ok: false, error: "No se pudo guardar. Probá de nuevo." };
   }
 }
 
@@ -94,7 +94,7 @@ export async function liquidarComision(input: {
     .from("comisiones_liquidadas")
     .select("periodo_key")
     .eq("cobrador_id", input.cobradorId);
-  if (eYa) return { ok: false, error: "No se pudo verificar. ¿Corriste la migración 0049?" };
+  if (eYa) return { ok: false, error: "No se pudo verificar. Probá de nuevo." };
   for (const l of yaLiquidadas ?? []) {
     const key = l.periodo_key as string;
     if (key === periodoKey) continue; // misma clave → la maneja el candado unique
@@ -133,7 +133,7 @@ export async function liquidarComision(input: {
         ok: false,
         error: "Ese recaudo ya se comisionó en otra cadencia (día/semana/mes/año). Elegí una sola.",
       };
-    return { ok: false, error: "No se pudo liquidar. ¿Corriste la migración 0049?" };
+    return { ok: false, error: "No se pudo liquidar. Probá de nuevo." };
   }
 
   // op_id DETERMINISTA del egreso: estable por (comisión, cobrador, período). Si el
@@ -210,6 +210,6 @@ export async function liquidarComision(input: {
       .delete()
       .eq("cobrador_id", input.cobradorId)
       .eq("periodo_key", periodoKey);
-    return { ok: false, error: "No se pudo registrar el egreso. ¿Corriste la migración 0010?" };
+    return { ok: false, error: "No se pudo registrar el egreso. Probá de nuevo." };
   }
 }

@@ -24,7 +24,7 @@ export async function guardarSuscripcion(sub: {
     await guardarSuscripcionDb(db, u.id, sub);
     return { ok: true };
   } catch {
-    return { ok: false, error: "No se pudo activar. ¿Corriste la migración 0026?" };
+    return { ok: false, error: "No se pudo activar. Probá de nuevo." };
   }
 }
 

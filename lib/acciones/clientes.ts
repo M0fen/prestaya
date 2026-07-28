@@ -42,7 +42,7 @@ export async function marcarClienteReportado(input: {
     revalidatePath("/admin/clientes");
     return { ok: true, reportado: input.reportado };
   } catch {
-    return { ok: false, error: "No se pudo actualizar. ¿Corriste la migración 0041?" };
+    return { ok: false, error: "No se pudo actualizar. Probá de nuevo." };
   }
 }
 

@@ -81,6 +81,6 @@ export async function confirmarCierreZona(input: {
     return { ok: true };
   } catch (e) {
     if (esDuplicado(e)) return { ok: false, error: "Esa zona ya se cerró hoy." };
-    return { ok: false, error: "No se pudo cerrar la zona. ¿Corriste la migración 0047?" };
+    return { ok: false, error: "No se pudo cerrar la zona. Probá de nuevo." };
   }
 }
