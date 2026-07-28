@@ -1,5 +1,9 @@
-// Auditoría (gestor): log inmutable de quién hizo qué y cuándo en el panel.
-import { requireGestor } from "@/lib/auth";
+// Auditoría (SOLO admin): log inmutable de quién hizo qué y cuándo en el panel.
+// Admin-only a propósito: el log incluye acciones financieras del dueño (caja,
+// capital, comisiones, cierres) que un supervisor no debe ver. La RLS de la tabla
+// `auditoria` no está acotada por zona (0015), así que la restricción vive acá; el
+// día que se quiera dar acceso acotado al supervisor, hace falta una RLS por zona.
+import { requireAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getAuditoria } from "@/lib/data/auditoria";
 import { horaDe, meses } from "@/lib/format";
@@ -28,7 +32,7 @@ function cuando(iso: string): string {
 }
 
 export default async function AuditoriaPage() {
-  await requireGestor();
+  await requireAdmin();
   const db = await createSupabaseServer();
   const registros = await getAuditoria(db, 150);
 

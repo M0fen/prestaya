@@ -43,6 +43,33 @@ export async function getPagosDePrestamo(
   return (data ?? []).map(mapPago);
 }
 
+/**
+ * Pagos vigentes de VARIOS préstamos en UNA sola consulta (evita el N+1 de pedir
+ * los pagos crédito por crédito, ej. en la ficha de un cliente con muchas
+ * renovaciones). Devuelve un mapa prestamo_id → pagos (ordenados por día).
+ */
+export async function getPagosDeVariosPrestamos(
+  db: SupabaseClient,
+  prestamoIds: string[],
+): Promise<Record<string, Pago[]>> {
+  const porPrestamo: Record<string, Pago[]> = {};
+  if (prestamoIds.length === 0) return porPrestamo;
+  const { data, error } = await db
+    .from("pagos")
+    .select("*")
+    .in("prestamo_id", prestamoIds)
+    .eq("anulado", false)
+    .order("dia_credito", { ascending: true });
+  if (error) throw error;
+  // El orden global por día se preserva dentro de cada grupo (misma semántica que
+  // getPagosDePrestamo, que ordena por dia_credito).
+  for (const r of data ?? []) {
+    const p = mapPago(r);
+    (porPrestamo[p.prestamo_id] ??= []).push(p);
+  }
+  return porPrestamo;
+}
+
 /** Marca de "sobre-pago rechazado bajo el candado" (la carrera perdió: otro pago
  *  saldó el crédito primero). Es PERMANENTE (no reintentar): el llamador lo surfacea. */
 export function esSobrePago(e: unknown): boolean {

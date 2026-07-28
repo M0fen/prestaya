@@ -6,7 +6,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Pago, Prestamo } from "@/types/db";
 import { getPrestamosDeCliente } from "./prestamos";
-import { getPagosDePrestamo } from "./pagos";
+import { getPagosDeVariosPrestamos } from "./pagos";
 
 export interface HistorialCrediticio {
   prestamos: Prestamo[];
@@ -24,12 +24,10 @@ export async function getHistorialCrediticio(
 ): Promise<HistorialCrediticio> {
   const prestamos = await getPrestamosDeCliente(db, clienteId);
 
-  const pagosPorPrestamo: Record<string, Pago[]> = {};
-  await Promise.all(
-    prestamos.map(async (p) => {
-      pagosPorPrestamo[p.id] = await getPagosDePrestamo(db, p.id);
-    }),
-  );
+  // Los pagos de TODOS sus créditos en UNA consulta (antes: una por crédito → N+1).
+  const pagosPorPrestamo = await getPagosDeVariosPrestamos(db, prestamos.map((p) => p.id));
+  // Garantizar una entrada (aunque sea []) por cada préstamo, como antes.
+  for (const p of prestamos) pagosPorPrestamo[p.id] ??= [];
 
   return { prestamos, pagosPorPrestamo };
 }
