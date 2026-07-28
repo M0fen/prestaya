@@ -36,6 +36,12 @@ export function Composer({ canal, acuse = false }: { canal: string; acuse?: bool
   return (
     <div className="flex flex-col gap-1.5">
       {error && <span className="px-1 text-[11px] font-semibold text-[#C0392B]">{error}</span>}
+      {pendiente && (
+        <span className="flex items-center gap-1.5 px-1 text-[11px] font-semibold text-gris">
+          <span className="h-3 w-3 animate-spin rounded-full border-2 border-[#DCE3F4] border-t-[#2453DC]" />
+          Enviando…
+        </span>
+      )}
       {acuse && (
         <div className="flex flex-wrap gap-1.5">
           {ACUSES.map((a) => (
@@ -72,7 +78,7 @@ export function Composer({ canal, acuse = false }: { canal: string; acuse?: bool
           className="flex h-[44px] w-[44px] flex-shrink-0 items-center justify-center rounded-full bg-[#2453DC] text-[17px] text-white transition-transform active:scale-90 disabled:opacity-40"
           aria-label="Enviar"
         >
-          ➤
+          {pendiente ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : "➤"}
         </button>
       </div>
     </div>

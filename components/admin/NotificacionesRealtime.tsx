@@ -21,15 +21,18 @@ export function NotificacionesRealtime({ yoId }: { yoId: string }) {
 
   useEffect(() => {
     const supabase = createSupabaseBrowser();
+    // SIN filtro de ámbito: se escuchan TODAS las inserciones de `mensajes`. La RLS de
+    // Realtime solo entrega las filas que este usuario puede VER (general, su zona,
+    // supervisores, y sus hilos privados de cobrador) → el admin/supervisor se entera de
+    // CUALQUIER mensaje visible, no solo del general (antes perdía privados/zona).
     const canal = supabase
-      .channel("avisos-chat-general")
+      .channel("avisos-chat")
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
           table: "mensajes",
-          filter: "ambito=eq.general",
         },
         (payload) => {
           const fila = payload.new as { autor_id?: string } | null;
@@ -47,7 +50,7 @@ export function NotificacionesRealtime({ yoId }: { yoId: string }) {
             notificar({
               tipo: "info",
               titulo: "Nuevo mensaje",
-              mensaje: "Tenés un mensaje en el chat del equipo.",
+              mensaje: "Tenés un mensaje nuevo en el chat.",
               href: "/admin/chat",
             });
           }

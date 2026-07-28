@@ -6,6 +6,7 @@ import { cerrarSesion } from "@/lib/auth-actions";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getTotalNoLeidos } from "@/lib/data/chat";
 import { SyncEngine } from "@/components/cobrador/SyncEngine";
+import { AvisoChatCobrador } from "@/components/cobrador/AvisoChatCobrador";
 import { CobradorBottomNav } from "@/components/cobrador/CobradorBottomNav";
 import { RegistroUso } from "@/components/RegistroUso";
 import { OfflineBanner } from "@/components/cobrador/OfflineBanner";
@@ -55,6 +56,8 @@ export default async function CobradorLayout({
         {/* Sin conexión: avisa que la ruta es la última guardada (SW network-first). */}
         <OfflineBanner />
         <SyncEngine usuarioId={usuario.id} />
+        {/* Enciende el badge de no-leídos en vivo cuando la oficina le escribe. */}
+        <AvisoChatCobrador yoId={usuario.id} />
         {/* Teléfono compartido: purga la caché de ruta del cobrador anterior. */}
         <CacheRutaGuard usuarioId={usuario.id} />
         <RegistroUso />
