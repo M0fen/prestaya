@@ -4,6 +4,7 @@
 import { requireAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getValorSistema } from "@/lib/data/valor";
+import { conTimeout } from "@/lib/timeout";
 import { UYU } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +15,9 @@ export default async function ValorPage() {
   // Solo el dueño: expone rentabilidad/ROI del negocio (dato privado del admin).
   await requireAdmin();
   const db = await createSupabaseServer();
-  const v = await getValorSistema(db);
+  // conTimeout: getValorSistema corre la RPC pesada de cartera; un cuelgue en server
+  // component daría 504 crudo → con el tope LANZA a error.tsx ("Reintentar").
+  const v = await conTimeout(getValorSistema(db), 22_000, "admin.valor");
 
   return (
     <div className="flex flex-col gap-6">

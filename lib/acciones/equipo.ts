@@ -50,8 +50,14 @@ export async function restablecerAccesoAction(
     .maybeSingle();
   if (e0 || !obj) return { ok: false, error: "No se encontró ese usuario." };
 
-  // ── Autorización ────────────────────────────────────────────────────────
+  // ── Autorización (server-side, SOLO gestores; no confía en la UI) ─────────
   if (!esAdmin(actor.rol)) {
+    // Gate de ROL explícito: un COBRADOR también es "no admin", y su
+    // alcanceDelActor() incluye a los cobradores de su misma zona → sin este corte
+    // podría resetearle la clave a un compañero (toma de cuenta). Solo el SUPERVISOR
+    // llega a la rama de zona; cualquier otro rol se rechaza de plano.
+    if (actor.rol !== "supervisor")
+      return { ok: false, error: "No tenés permiso para restablecer accesos." };
     // Supervisor: solo COBRADORES de su alcance de zona.
     if (obj.rol !== "cobrador")
       return { ok: false, error: "Solo el administrador puede restablecer accesos de gestores." };

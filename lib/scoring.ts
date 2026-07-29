@@ -18,7 +18,7 @@ import type {
   RecomendacionCredito,
   ResultadoScore,
 } from "@/types/scoring";
-import { calcularEstadosCarton } from "./cartones";
+import { calcularEstadosCarton, fechaDeCuota } from "./cartones";
 import { parseFecha, toIso } from "./format";
 
 // ── Parámetros del modelo (AJUSTABLES) ────────────────────────────────────
@@ -81,9 +81,15 @@ const redondearMil = (x: number) => Math.round(x / 1000) * 1000;
  *  cerrado, un día después del último día programado (todo queda "maduro"). */
 function referenciaDe(p: Prestamo, hoy: Date): Date {
   if (p.estado === "activo") return hoy;
+  if (p.total_dias < 1) return hoy; // crédito inválido: sin cuotas, no maduramos nada
   const start = parseFecha(p.fecha_inicio);
-  const ref = new Date(start);
-  ref.setDate(start.getDate() + p.total_dias); // último día = start+total-1; +1 → pasado
+  // Un día DESPUÉS del ÚLTIMO día PROGRAMADO, con el MISMO calendario que el cartón
+  // (días hábiles Lun–Sáb, domingos corridos; semanal/mensual por su paso). Con días
+  // CALENDARIO la última semana de cuotas caía DESPUÉS de la referencia → quedaba
+  // "futuro" y salía del exigible → INFLABA el cumplimiento de un crédito ya cerrado.
+  const fin = fechaDeCuota(start, p.total_dias - 1, p.frecuencia ?? "diario");
+  const ref = new Date(fin);
+  ref.setDate(fin.getDate() + 1);
   return ref;
 }
 
@@ -137,7 +143,12 @@ export function calcularScore(
 
     if (p.estado === "activo") {
       tieneActivo = true;
-      diasAtrasoActual = r.dias.filter((d) => d.estado === "atrasado").length;
+      // Con VARIOS créditos activos (0037) manda el PEOR: antes esto REASIGNABA, así que
+      // ganaba el último iterado y un activo sano podía TAPAR la mora de otro atrasado.
+      diasAtrasoActual = Math.max(
+        diasAtrasoActual,
+        r.dias.filter((d) => d.estado === "atrasado").length,
+      );
     }
   }
 

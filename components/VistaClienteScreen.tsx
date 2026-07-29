@@ -31,6 +31,7 @@ export function VistaClienteScreen({
   hayTienda = false,
   productoDestacado = null,
   token = null,
+  prestamoId = null,
   reputacion = null,
   promo = null,
   rifa = null,
@@ -48,6 +49,8 @@ export function VistaClienteScreen({
   creditoSelector?: React.ReactNode;
   /** Token del link: habilita el reporte de discrepancia (solo vista real). */
   token?: string | null;
+  /** Crédito que se está viendo (multi-crédito): el reporte se adjunta a ESTE. */
+  prestamoId?: string | null;
   /** Reputación positiva del cliente (chips). */
   reputacion?: { calificacion: Calificacion; creditosPagados: number } | null;
   /** Juegos promocionales (raspadita + quiniela). Si es null, no se muestran. */
@@ -155,7 +158,7 @@ export function VistaClienteScreen({
         <Historial historial={v.historial} />
 
         {/* Reporte de discrepancia + recordatorio: solo con token (vista real). */}
-        {token && <ReportarDiscrepancia token={token} />}
+        {token && <ReportarDiscrepancia token={token} prestamoId={prestamoId} />}
         {token && <RecordatorioLink token={token} />}
 
         {/* Guardar la app en el teléfono (accesibilidad: se abre con un toque). */}

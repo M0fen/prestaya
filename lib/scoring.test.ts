@@ -150,4 +150,29 @@ describe("calcularScore", () => {
     const total = r.factores.reduce((s, f) => s + f.puntos, 0);
     expect(total).toBeLessThanOrEqual(1000);
   });
+
+  it("un FINALIZADO madura TODAS las cuotas con el calendario hábil (no infla el cumplimiento)", () => {
+    // 30 cuotas diarias desde jue 2026-01-01: la 30ª cae ~04-feb hábil (saltea domingos).
+    // Con días CALENDARIO la referencia caía en 31-ene y las últimas 3 quedaban "futuro"
+    // → quien pagó 27/30 parecía 100%. Con el calendario hábil, exigible = 30 cuotas.
+    const full = prestamo({ id: "f", estado: "finalizado", fecha_inicio: "2026-01-01", total_dias: 30 });
+    const parcial = prestamo({ id: "q", estado: "finalizado", fecha_inicio: "2026-01-01", total_dias: 30 });
+    const sFull = correr([full], { f: pagosDias("f", rango(30)) });
+    const sParcial = correr([parcial], { q: pagosDias("q", rango(27)) }); // faltan las últimas 3
+    // Con el bug (días calendario) ambos exigían 27 → empataban ~100%. Con el fix, el
+    // que pagó las 30 puntúa estrictamente MÁS que el que dejó 3 sin pagar.
+    expect(sFull.puntaje).toBeGreaterThan(sParcial.puntaje);
+  });
+
+  it("mora con multi-activo es INDEPENDIENTE del orden (un activo sano no tapa al atrasado)", () => {
+    // Dos activos con mora MUY distinta. Antes diasAtrasoActual se REASIGNABA → ganaba
+    // el último iterado; si el sano iba último, tapaba la mora del atrasado. Con Math.max
+    // manda el peor SIEMPRE → el puntaje no depende del orden del array.
+    const sano = prestamo({ id: "s", estado: "activo", fecha_inicio: "2026-06-08", total_dias: 30 });
+    const atrasado = prestamo({ id: "a", estado: "activo", fecha_inicio: "2026-05-20", total_dias: 30 });
+    const pagos: Record<string, Pago[]> = { s: pagosDias("s", rango(6)), a: [] };
+    const ab = calcularScore({ prestamos: [atrasado, sano], pagosPorPrestamo: pagos, hoy: HOY });
+    const ba = calcularScore({ prestamos: [sano, atrasado], pagosPorPrestamo: pagos, hoy: HOY });
+    expect(ab.puntaje).toBe(ba.puntaje);
+  });
 });

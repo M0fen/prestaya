@@ -4,6 +4,8 @@
 //  a `disponible:false` si 0048 aún no corrió (la pantalla lo avisa, no rompe).
 // ─────────────────────────────────────────────────────────────────────────
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { funcionFaltante, tablaFaltante } from "./errores";
+import { reportarError } from "@/lib/observabilidad";
 
 export interface MesStats {
   mes: string; // "YYYY-MM"
@@ -108,7 +110,14 @@ export async function getEstadisticas(
     }));
 
     return { disponible: true, mensual, distribucion, porCobrador, topClientes };
-  } catch {
-    return vacio;
+  } catch (e) {
+    // Solo la AUSENCIA real de la RPC/tabla (0048 sin correr) degrada a "no disponible"
+    // (la pantalla muestra el cartel de migración). Un error TRANSITORIO (blip de red,
+    // statement_timeout) antes se tragaba acá → cartel de "corré 0048" engañoso y sin
+    // rastro. Ahora sube a error.tsx ("Reintentar") y queda observado. Igual que
+    // activos.ts/metricas.ts.
+    if (funcionFaltante(e) || tablaFaltante(e)) return vacio;
+    reportarError("estadisticas", e);
+    throw e;
   }
 }

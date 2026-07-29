@@ -7,7 +7,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getClientePorToken } from "@/lib/data/clientes";
-import { getPrestamoActivoPorCliente } from "@/lib/data/prestamos";
+import { getPrestamoActivoPorCliente, getPrestamosActivosPorCliente } from "@/lib/data/prestamos";
 import { crearReporte, contarReportesRecientes } from "@/lib/data/reportes";
 import { getSaldoEstrellas, crearSolicitudRedencion } from "@/lib/data/estrellas";
 import { validarRedencion, claveCiclo } from "@/lib/estrellas";
@@ -35,7 +35,7 @@ import { getConfigScoring } from "@/lib/data/scoringConfig";
 import { calcularScore } from "@/lib/scoring";
 import { numeroSuerte } from "@/lib/quiniela";
 import { tokenValido } from "@/lib/validacion/esquemas";
-import { getProductoAdmin, crearSolicitudDb, contarSolicitudesRecientesCliente } from "@/lib/data/tienda";
+import { getProductoAdmin, crearSolicitudDb, contarSolicitudesRecientesCliente, getZonaIdDeCliente } from "@/lib/data/tienda";
 import { esUuid } from "@/lib/idempotencia";
 
 /** Azar del SERVIDOR (no del cliente) para decidir premios. Uniforme en [0,1). */
@@ -68,6 +68,19 @@ export async function registrarInteres(input: {
     if (!cliente) return { ok: false, error: "Enlace no válido." };
     const prod = await getProductoAdmin(db, input.productoId);
     if (!prod || !prod.activo) return { ok: false, error: "Ese producto ya no está disponible." };
+    // AUDIENCIA (0089): si el producto está acotado a un segmento, solo genera lead quien
+    // pertenece — MISMA resolución que la vitrina (getProductosParaCliente: zona del
+    // cliente + calificación, alDia=true, cobradorId=null) → "lo ve ⟺ puede pedirlo".
+    // Defensa en profundidad server-side (espejo de la quiniela): un cliente fuera de
+    // audiencia no debe auto-inscribirse llamando la acción directa con un productId cacheado.
+    if (prod.segmentoDef) {
+      const zonaId = await getZonaIdDeCliente(db, cliente.id);
+      const enAudiencia = clienteEnSegmento(
+        { id: cliente.id, calificacion: cliente.calificacion, zonaId, cobradorId: null, alDia: true },
+        prod.segmentoDef,
+      );
+      if (!enAudiencia) return { ok: false, error: "Ese producto ya no está disponible." };
+    }
     // Rate-limit: máx. 10 solicitudes en 10 minutos por cliente (anti-spam del link).
     const desde = new Date(Date.now() - 10 * 60 * 1000);
     if ((await contarSolicitudesRecientesCliente(db, cliente.id, desde)) >= 10) {
@@ -82,6 +95,8 @@ export async function registrarInteres(input: {
 
 export async function reportarFaltaPago(input: {
   token: string;
+  /** Crédito que el cliente estaba VIENDO (multi-crédito). Se valida que sea suyo. */
+  prestamoId?: string | null;
   diaCredito?: number | null;
   montoReclamado?: number | null;
   comentario?: string | null;
@@ -105,8 +120,17 @@ export async function reportarFaltaPago(input: {
       };
     }
 
-    // 3) Saneamiento de entradas.
-    const prestamo = await getPrestamoActivoPorCliente(db, cliente.id);
+    // 3) Crédito al que se adjunta: el que el cliente estaba VIENDO (multi-crédito) si
+    // mandó uno válido y es SUYO; si no, el principal. Validar la pertenencia evita que
+    // por la acción directa se adjunte el reporte a un crédito AJENO con un id arbitrario.
+    let prestamoId: string | null = null;
+    if (input.prestamoId && esUuid(input.prestamoId)) {
+      const activos = await getPrestamosActivosPorCliente(db, cliente.id);
+      if (activos.some((p) => p.id === input.prestamoId)) prestamoId = input.prestamoId;
+    }
+    if (!prestamoId) prestamoId = (await getPrestamoActivoPorCliente(db, cliente.id))?.id ?? null;
+
+    // 4) Saneamiento de entradas.
     const dia =
       typeof input.diaCredito === "number" &&
       input.diaCredito >= 1 &&
@@ -121,7 +145,7 @@ export async function reportarFaltaPago(input: {
 
     await crearReporte(db, {
       cliente_id: cliente.id,
-      prestamo_id: prestamo?.id ?? null,
+      prestamo_id: prestamoId,
       tipo: "falta_pago",
       dia_credito: dia,
       monto_reclamado: monto,

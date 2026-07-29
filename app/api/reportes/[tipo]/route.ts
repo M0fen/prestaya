@@ -73,7 +73,10 @@ export async function GET(
   // Puerta por rol en el servidor: los reportes/exportaciones son SOLO del dueño
   // (contienen la operación completa y datos financieros). Supervisor → 403.
   const usuario = await getUsuarioActual();
-  if (!usuario || !esAdmin(usuario.rol)) {
+  // Exige activo: un admin dado de baja cuyo ban en Auth quedó a medias (best-effort)
+  // conserva su JWT vivo → sin este chequeo podría descargar cartera/pagos/padrón de
+  // ~4.000 clientes. Mismo criterio que requireUsuario y /api/buscar-clientes.
+  if (!usuario || !usuario.activo || !esAdmin(usuario.rol)) {
     return new Response("No autorizado", { status: 403 });
   }
 

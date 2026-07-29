@@ -5,6 +5,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { getInformeCartera } from "@/lib/data/informeCartera";
 import { getVendedores } from "@/lib/data/usuarios";
 import { BotonImprimir } from "@/components/admin/BotonImprimir";
+import { conTimeout } from "@/lib/timeout";
 import { UYU, meses } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -34,10 +35,14 @@ export default async function InformeCarteraPage({
   const vendedorId = sp.vendedor || null;
   const q = (sp.q ?? "").trim() || null;
 
-  const [r, vendedores] = await Promise.all([
-    getInformeCartera(db, { vendedorId, q }),
-    getVendedores(db),
-  ]);
+  // conTimeout: la RPC de cartera es pesada (getActivosConPagos). Un await colgado en
+  // un server component NO lanza → error.tsx no lo captura y la plataforma tira un 504
+  // crudo. Con el tope, un cuelgue LANZA → "Reintentar" (igual que mora/cobranza).
+  const [r, vendedores] = await conTimeout(
+    Promise.all([getInformeCartera(db, { vendedorId, q }), getVendedores(db)]),
+    22_000,
+    "admin.informe-cartera",
+  );
   const filasVisibles = r.filas.slice(0, LIMITE_TABLA);
   const hayMas = r.filas.length - filasVisibles.length;
   // Utilidad = interés proyectado (Con Intereses − Ventas); margen sobre el capital.

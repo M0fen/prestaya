@@ -247,6 +247,7 @@ export default async function VistaPorToken({
       hayTienda={hayTienda}
       productoDestacado={productoDestacado}
       token={token}
+      prestamoId={prestamo.id}
       rifa={rifa}
       creditoSelector={creditoSelector}
       reputacion={reputacion}

@@ -7,7 +7,7 @@
 import { useState, useTransition } from "react";
 import { reportarFaltaPago } from "@/app/c/[token]/actions";
 
-export function ReportarDiscrepancia({ token }: { token: string }) {
+export function ReportarDiscrepancia({ token, prestamoId }: { token: string; prestamoId?: string | null }) {
   const [abierto, setAbierto] = useState(false);
   const [enviado, setEnviado] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -20,6 +20,7 @@ export function ReportarDiscrepancia({ token }: { token: string }) {
     startTransition(async () => {
       const res = await reportarFaltaPago({
         token,
+        prestamoId: prestamoId ?? null, // el crédito que el cliente está viendo (multi-crédito)
         diaCredito: dia ? Number(dia) : null,
         comentario: comentario || null,
       });
