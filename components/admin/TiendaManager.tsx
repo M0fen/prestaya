@@ -74,7 +74,7 @@ function Tab({ activo, onClick, children }: { activo: boolean; onClick: () => vo
 // ── PRODUCTOS ────────────────────────────────────────────────────────────────
 const PRODUCTO_VACIO: RawProducto = {
   nombre: "", marca: "", descripcion: "", categoriaId: null, precio: 0, precioAnterior: 0,
-  interesPct: 0, cuotas: 0, frecuencia: "diario", fotos: [], videoUrl: null, activo: true, destacado: false, orden: 0,
+  interesPct: 0, cuotas: 0, frecuencia: "diario", fotos: [], videoUrl: null, activo: true, destacado: false, agotado: false, orden: 0,
 };
 
 function Productos({ productos, categorias, zonas }: { productos: Producto[]; categorias: CategoriaProducto[]; zonas: ZonaOpcion[] }) {
@@ -129,6 +129,7 @@ function Productos({ productos, categorias, zonas }: { productos: Producto[]; ca
               )}
               <div className="absolute left-1.5 top-1.5 flex gap-1">
                 {p.destacado && <span className="rounded-full bg-[#FDF0DC] px-2 py-0.5 text-[10px] font-bold text-[#B9770E]">Destacado</span>}
+                {p.agotado && <span className="rounded-full bg-[#FBE4E2] px-2 py-0.5 text-[10px] font-bold text-[#C0392B]">Agotado</span>}
                 {!p.activo && <span className="rounded-full bg-[#F1F3F9] px-2 py-0.5 text-[10px] font-bold text-gris">Pausado</span>}
               </div>
               {p.fotos.length > 1 && (
@@ -338,6 +339,9 @@ function EditorProducto({
         </label>
         <label className="flex items-center gap-2 text-[13px] font-semibold text-cuerpo">
           <input type="checkbox" checked={f.destacado} onChange={(e) => set("destacado", e.target.checked)} /> Destacar como banner
+        </label>
+        <label className="flex items-center gap-2 text-[13px] font-semibold text-cuerpo">
+          <input type="checkbox" checked={Boolean(f.agotado)} onChange={(e) => set("agotado", e.target.checked)} /> Agotado (sin stock)
         </label>
         <label className="flex items-center gap-2 text-[13px] font-semibold text-cuerpo">
           Orden <input type="number" value={f.orden} onChange={(e) => set("orden", Math.round(Number(e.target.value) || 0))} className={`${INPUT} w-20`} />

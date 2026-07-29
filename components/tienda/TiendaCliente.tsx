@@ -148,9 +148,11 @@ export function TiendaCliente({
               className="flex flex-col overflow-hidden rounded-[16px] border border-[#ECEFF8] bg-white text-left shadow-[0_2px_10px_rgba(15,27,61,0.05)] active:scale-[0.98]">
               <div className="relative">
                 <Foto p={p} className="aspect-square" />
-                {p.precioAnterior > p.precio && (
+                {p.agotado ? (
+                  <span className="absolute left-2 top-2 rounded-full bg-[#6B7494] px-2 py-0.5 text-[10px] font-black text-white">Agotado</span>
+                ) : p.precioAnterior > p.precio ? (
                   <span className="absolute left-2 top-2 rounded-full bg-[#D64545] px-2 py-0.5 text-[10px] font-black text-white">OFERTA</span>
-                )}
+                ) : null}
               </div>
               <div className="flex flex-1 flex-col gap-0.5 px-3 py-2.5">
                 {p.marca && <span className="text-[10px] font-bold uppercase tracking-wide text-gris">{p.marca}</span>}
@@ -280,6 +282,10 @@ function DetalleProducto({ p, token, onClose, preview = false }: { p: ProductoPa
             <div className="rounded-[14px] bg-[#E4F5EC] px-4 py-3 text-center">
               <p className="text-[15px] font-extrabold text-[#157A50]">¡Listo! 💚</p>
               <p className="text-[13px] font-medium text-[#3E8E67]">Anotamos tu interés. Tu cobrador te va a contar cómo llevártelo.</p>
+            </div>
+          ) : p.agotado ? (
+            <div className="w-full rounded-full bg-[#FBE4E2] px-5 py-3.5 text-center text-[15px] font-extrabold text-[#C0392B]">
+              Sin stock por ahora 😔
             </div>
           ) : (
             <button type="button" onClick={interes} disabled={pend}

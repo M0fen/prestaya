@@ -42,6 +42,9 @@ export interface Producto {
   videoUrl: string | null;
   activo: boolean;
   destacado: boolean;
+  /** Sin stock (0099): sigue visible en la vitrina con cartel "Agotado" pero no se
+   *  puede pedir (no genera lead) hasta que el admin lo reponga. */
+  agotado: boolean;
   orden: number;
   /** Visibilidad por audiencia (0089): null = visible para todos. Si está, solo lo
    *  ven los clientes que matchean (clienteEnSegmento). */
@@ -136,6 +139,7 @@ function mapProducto(r: Record<string, unknown>): Producto {
     videoUrl: (r.video_url as string | null) ?? null,
     activo: Boolean(r.activo),
     destacado: Boolean(r.destacado),
+    agotado: Boolean(r.agotado), // defensivo: sin 0099 viene undefined → false
     orden: N(r.orden),
     segmentoDef: (r.segmento_def as DefinicionSegmento | null) ?? null,
   };
@@ -482,6 +486,7 @@ export interface ProductoInput {
   videoUrl: string | null;
   activo: boolean;
   destacado: boolean;
+  agotado: boolean;
   orden: number;
   /** Visibilidad por audiencia (0089). null = visible para todos. */
   segmentoDef: DefinicionSegmento | null;
@@ -492,7 +497,7 @@ function rowProducto(p: ProductoInput) {
     nombre: p.nombre, marca: p.marca, descripcion: p.descripcion, categoria_id: p.categoriaId,
     precio: N(p.precio), precio_anterior: p.precioAnterior > 0 ? N(p.precioAnterior) : null,
     interes_pct: NUM(p.interesPct), cuotas: N(p.cuotas), frecuencia: p.frecuencia,
-    fotos: p.fotos, video_url: p.videoUrl, activo: p.activo, destacado: p.destacado, orden: N(p.orden),
+    fotos: p.fotos, video_url: p.videoUrl, activo: p.activo, destacado: p.destacado, agotado: p.agotado, orden: N(p.orden),
     segmento_def: p.segmentoDef,
   };
 }

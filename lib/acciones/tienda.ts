@@ -54,6 +54,7 @@ export interface RawProducto {
   videoUrl?: string | null;
   activo: boolean;
   destacado: boolean;
+  agotado?: boolean;
   orden: number;
   /** Visibilidad por audiencia (0089). null/vacío = visible para todos. */
   segmentoDef?: DefinicionSegmento | null;
@@ -78,6 +79,7 @@ function sanearProducto(raw: RawProducto): ProductoInput | null {
     videoUrl: raw.videoUrl ? urlSegura(raw.videoUrl) : null,
     activo: Boolean(raw.activo),
     destacado: Boolean(raw.destacado),
+    agotado: Boolean(raw.agotado),
     orden: Math.max(0, Math.min(9999, Math.round(Number(raw.orden) || 0))),
     segmentoDef: esSegmentoTodos(defRaw) ? null : defRaw,
   };
