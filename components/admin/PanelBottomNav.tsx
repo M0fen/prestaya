@@ -24,12 +24,14 @@ export function PanelBottomNav({
   noLeidos = 0,
   gastosPendientes = 0,
   leadsNuevos = 0,
+  incidenciasAbiertas = 0,
   esDev = false,
 }: {
   rol: Rol;
   noLeidos?: number;
   gastosPendientes?: number;
   leadsNuevos?: number;
+  incidenciasAbiertas?: number;
   esDev?: boolean;
 }) {
   const pathname = usePathname();
@@ -75,7 +77,7 @@ export function PanelBottomNav({
         >
           <span className="relative leading-none">
             <Icono name="menu" className="h-[22px] w-[22px]" />
-            {(noLeidos > 0 || gastosPendientes > 0 || leadsNuevos > 0) && (
+            {(noLeidos > 0 || gastosPendientes > 0 || leadsNuevos > 0 || incidenciasAbiertas > 0) && (
               <span
                 className="absolute -top-1 -right-1.5 h-2 w-2 rounded-full"
                 style={{ background: noLeidos > 0 ? "#E06A6A" : gastosPendientes > 0 ? "#E8A317" : "#1FA971" }}
@@ -123,7 +125,7 @@ export function PanelBottomNav({
                         icon={i.icon}
                         label={i.label}
                         activo={activo(i.href)}
-                        badge={i.href === "/admin/chat" ? noLeidos : i.href === "/admin/gastos" ? gastosPendientes : i.href === "/admin/tienda" ? leadsNuevos : 0}
+                        badge={i.href === "/admin/chat" ? noLeidos : i.href === "/admin/gastos" ? gastosPendientes : i.href === "/admin/tienda" ? leadsNuevos : i.href === "/admin/incidencias" ? incidenciasAbiertas : 0}
                         amber={i.href === "/admin/gastos"}
                         green={i.href === "/admin/tienda"}
                         onNav={() => setAbierto(false)}

@@ -11,6 +11,7 @@ import { CobradorBottomNav } from "@/components/cobrador/CobradorBottomNav";
 import { RegistroUso } from "@/components/RegistroUso";
 import { OfflineBanner } from "@/components/cobrador/OfflineBanner";
 import { CacheRutaGuard } from "@/components/cobrador/CacheRutaGuard";
+import { ReportarProblema } from "@/components/ReportarProblema";
 
 export const dynamic = "force-dynamic";
 
@@ -63,6 +64,8 @@ export default async function CobradorLayout({
         <RegistroUso />
 
         <main className="flex-1 px-4 pt-4 pb-24">{children}</main>
+        {/* Reportar un problema (0107): el cobrador registra un bug desde la calle. */}
+        <ReportarProblema />
         <CobradorBottomNav noLeidos={noLeidos} />
       </div>
     </div>

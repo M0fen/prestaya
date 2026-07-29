@@ -14,6 +14,8 @@ import { getTotalNoLeidos } from "@/lib/data/chat";
 import { contarSolicitudesGastoPendientes } from "@/lib/data/solicitudesGasto";
 import { alcanceDelActor } from "@/lib/data/alcance";
 import { contarSolicitudesNuevas } from "@/lib/data/tienda";
+import { contarIncidenciasAbiertas } from "@/lib/data/incidencias";
+import { ReportarProblema } from "@/components/ReportarProblema";
 import { AsesorFlotante } from "@/components/asesor/AsesorFlotante";
 import { CommandPalette } from "@/components/admin/CommandPalette";
 import { Toaster } from "@/components/ui/Toaster";
@@ -49,10 +51,11 @@ export default async function PanelLayout({
   // su badge quedaba en 0 aunque tuviera solicitudes). Tienda (leads): sigue admin-only.
   const alcance = await alcanceDelActor();
   const cobIdsGasto = alcance.global ? null : alcance.cobradorIds;
-  const [noLeidos, gastosPendientes, leadsNuevos] = await Promise.all([
+  const [noLeidos, gastosPendientes, leadsNuevos, incidenciasAbiertas] = await Promise.all([
     getTotalNoLeidos(db, usuario),
     esGestor(usuario.rol) ? contarSolicitudesGastoPendientes(db, cobIdsGasto) : Promise.resolve(0),
     esAdmin(usuario.rol) ? contarSolicitudesNuevas(db) : Promise.resolve(0),
+    esAdmin(usuario.rol) ? contarIncidenciasAbiertas(db) : Promise.resolve(0),
   ]);
   const tema = (await cookies()).get("tema")?.value === "oscuro" ? "oscuro" : "claro";
   const iniciales = usuario.nombre
@@ -79,7 +82,7 @@ export default async function PanelLayout({
             </span>
           </div>
         </div>
-        <SidebarNav rol={usuario.rol} noLeidos={noLeidos} gastosPendientes={gastosPendientes} leadsNuevos={leadsNuevos} esDev={usuario.es_dev} />
+        <SidebarNav rol={usuario.rol} noLeidos={noLeidos} gastosPendientes={gastosPendientes} leadsNuevos={leadsNuevos} incidenciasAbiertas={incidenciasAbiertas} esDev={usuario.es_dev} />
       </aside>
 
       {/* Contenido */}
@@ -123,7 +126,7 @@ export default async function PanelLayout({
       </div>
 
       {/* Navegación inferior (mobile): el flujo del día + Menú con todo. */}
-      <PanelBottomNav rol={usuario.rol} noLeidos={noLeidos} gastosPendientes={gastosPendientes} leadsNuevos={leadsNuevos} esDev={usuario.es_dev} />
+      <PanelBottomNav rol={usuario.rol} noLeidos={noLeidos} gastosPendientes={gastosPendientes} leadsNuevos={leadsNuevos} incidenciasAbiertas={incidenciasAbiertas} esDev={usuario.es_dev} />
 
       {/* Telemetría de uso (0064): registra qué sección abre este usuario. */}
       <RegistroUso />
@@ -132,6 +135,9 @@ export default async function PanelLayout({
       <div className="print:hidden">
         {/* Asesor financiero IA (flotante), solo para gestores. */}
         {esGestor(usuario.rol) && <AsesorFlotante />}
+
+        {/* Reportar un problema (0107): cualquier gestor registra un bug/incidencia. */}
+        <ReportarProblema />
 
         {/* Avisos flotantes + notificaciones en vivo del chat. */}
         <Toaster />

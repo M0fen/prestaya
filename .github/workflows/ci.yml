@@ -1,0 +1,47 @@
+name: CI
+
+# Gate de calidad: en CADA push y PR a master corre tipos + lint + tests + build.
+# Si algo falla, el commit/PR queda marcado en rojo → no debería desplegarse a prod
+# (que maneja plata de terceros) código que rompe tipos o tests. Es la red que hoy
+# faltaba: el deploy era `vercel --prod` a mano, sin gate.
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+# Un push nuevo cancela la corrida anterior de la misma rama (ahorra minutos).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    name: Tipos · Lint · Tests · Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node 20 (+ cache npm)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Typecheck (tsc --noEmit)
+        run: npm run typecheck
+
+      - name: Lint (eslint)
+        run: npm run lint
+
+      - name: Tests (vitest)
+        run: npm run test
+
+      - name: Build (next build)
+        run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"

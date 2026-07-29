@@ -101,6 +101,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/admin/equipo", label: "Equipo", icon: "🧑‍🤝‍🧑", grupo: "Configuración", roles: ["admin", "supervisor"], alias: ["permisos", "roles", "supervisora", "esposa", "usuarios", "contraseña", "acceso", "restablecer", "clave", "olvidó"] },
   { href: "/admin/recibos", label: "Recibos", icon: "🧾", grupo: "Configuración", roles: ["admin"], alias: ["factura", "comprobante", "pago", "sueldo", "adelanto", "trabajador"] },
   { href: "/admin/auditoria", label: "Auditoría", icon: "🧾", grupo: "Configuración", roles: ["admin"], alias: ["log", "registro", "acciones"] },
+  { href: "/admin/incidencias", label: "Incidencias", icon: "🐞", grupo: "Configuración", roles: ["admin"], alias: ["bugs", "reportes", "problemas", "soporte", "errores", "tickets", "reporte de bug"] },
   { href: "/admin/tutorial", label: "Cómo se usa", icon: "🎓", grupo: "Configuración", alias: ["tutorial", "ayuda", "guia", "manual", "instrucciones", "aprender"] },
   { href: "/admin/seguridad", label: "Seguridad", icon: "🔐", grupo: "Configuración", alias: ["2fa", "dos pasos", "mfa", "totp", "contraseña", "verificacion"] },
   { href: "/admin/dev", label: "Dev", icon: "🛠️", grupo: "Configuración", dev: true, alias: ["diagnostico", "salud", "sistema", "debug", "desarrollador", "estado"] },
