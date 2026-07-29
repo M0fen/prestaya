@@ -134,6 +134,15 @@ export interface Prestamo {
   /** % de interés informativo del import (Disapp). La app NO lo usa para el saldo
    *  (el saldo sale del cartón); sirve para mostrar el % exacto en informes. */
   interes_pct: number | null;
+  // ── Venta de tienda (0101) ─────────────────────────────────────────────
+  /** Origen del crédito: 'credito' (préstamo normal en efectivo) o 'tienda'
+   *  (compra financiada de un producto). Distingue el dinero en el cartón de
+   *  cliente/cobrador/admin. Defensivo: sin 0101 viene undefined → 'credito'. */
+  origen: "credito" | "tienda";
+  /** Producto vendido (solo si origen='tienda'). null en un crédito normal. */
+  producto_id: string | null;
+  /** Nombre del producto al momento de la venta (snapshot, sobrevive al borrado). */
+  producto_nombre: string | null;
   creado_en: string;
   actualizado_en: string;
   finalizado_en: string | null;

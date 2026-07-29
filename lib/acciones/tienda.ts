@@ -13,16 +13,24 @@ import { MODELO_ASESOR } from "@/lib/asesor/prompt";
 import { getUsuarioActual, esAdmin } from "@/lib/auth";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { hrefSeguro } from "@/lib/seguridad";
-import { esUuid } from "@/lib/idempotencia";
+import { esUuid, opIdDeterminista } from "@/lib/idempotencia";
 import { normalizarSegmento, esSegmentoTodos, type DefinicionSegmento } from "@/lib/segmentos";
 import {
   crearProductoDb, actualizarProductoDb, setProductoActivoDb, borrarProductoDb,
   crearCategoriaDb, actualizarCategoriaDb, borrarCategoriaDb,
   setPrecioClienteDb, borrarPrecioClienteDb, resolverSolicitudDb, getPreciosDeProducto,
   setPrecioSegmentoDb, borrarPrecioSegmentoDb, getSegmentosDeProducto,
+  getProductoAdmin, getSolicitudProductoPorId, getTerminosVentaParaCliente, crearVentaSegura,
   type ProductoInput, type FrecuenciaProducto, type EstadoSolicitud, type PrecioCliente,
   type PrecioSegmento, type TipoSegmento,
 } from "@/lib/data/tienda";
+import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
+import { getClientePorId } from "@/lib/data/clientes";
+import { getCobradorDeCliente } from "@/lib/data/asignaciones";
+import { calcularPlanVenta } from "@/lib/venta";
+import { RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
+import { hoyUY } from "@/lib/fecha";
+import { toIso } from "@/lib/format";
 import type { Calificacion } from "@/types/db";
 
 type Resultado = { ok: true } | { ok: false; error: string };
@@ -392,6 +400,110 @@ export async function resolverSolicitud(id: string, estado: string, nota?: strin
   } catch {
     return { ok: false, error: "No se pudo actualizar la solicitud." };
   }
+}
+
+// ── Convertir un LEAD en una VENTA (crédito real) — P3b, money-critical ─────
+export type ResultadoConversion =
+  | { ok: true; prestamoId: string; clienteId: string; cuota: number; totalACobrar: number; sinCobrador: boolean; yaConvertido?: boolean }
+  | { ok: false; error: string };
+
+/**
+ * Convierte un pedido de tienda (lead) en un CRÉDITO real de venta. Money-critical:
+ * es la primera alta de crédito "desde cero" de la app. Blindajes (espejo de la
+ * renovación + idempotencia propia):
+ *  · SOLO ADMIN (la tienda es del dueño; colocar capital lo decide el admin).
+ *  · Kill switch (bloqueoSoloLectura) → congela la colocación en modo solo-lectura.
+ *  · El precio se RE-RESUELVE server-side para ESTE cliente (individual>zona>calif>base):
+ *    el número del navegador es solo display; el servidor manda.
+ *  · Cuota/monto con la fórmula canónica (lib/venta, sin float). CAP total $100.000.
+ *  · RPC ATÓMICO + advisory lock + op_id determinista → jamás dos créditos por
+ *    doble-submit/ACK perdido; el reintento devuelve el crédito existente.
+ *  · Corre con la sesión del gestor (RLS de prestamos vigente).
+ */
+export async function convertirLeadEnVenta(input: {
+  solicitudId: string;
+  /** Cuotas del plan (override del admin). Si falta, usa las del producto. */
+  plazo?: number;
+  frecuencia?: FrecuenciaProducto;
+}): Promise<ResultadoConversion> {
+  const u = await soloAdmin();
+  if (!u) return { ok: false, error: "Solo el administrador puede convertir un pedido en venta." };
+  // Kill switch: convertir COLOCA capital (crea un crédito) → congelar en freeze.
+  const bloqueo = await bloqueoSoloLectura();
+  if (bloqueo) return bloqueo;
+  if (!esUuid(input.solicitudId)) return { ok: false, error: "Pedido inválido." };
+
+  const db = await createSupabaseServer();
+  const lead = await getSolicitudProductoPorId(db, input.solicitudId);
+  if (!lead) return { ok: false, error: "No se encontró el pedido." };
+  // Idempotente amable: si ya se convirtió, devolver el crédito existente (no otro).
+  if (lead.estado === "convertida" && lead.prestamoId) {
+    return { ok: true, prestamoId: lead.prestamoId, clienteId: lead.clienteId, cuota: 0, totalACobrar: 0, sinCobrador: false, yaConvertido: true };
+  }
+  if (lead.estado !== "nueva" && lead.estado !== "contactado") {
+    return { ok: false, error: "Ese pedido está cerrado o descartado; solo se convierten pedidos abiertos." };
+  }
+  if (!lead.productoId) return { ok: false, error: "El producto de este pedido ya no existe." };
+
+  const [producto, cliente] = await Promise.all([
+    getProductoAdmin(db, lead.productoId),
+    getClientePorId(db, lead.clienteId),
+  ]);
+  if (!producto) return { ok: false, error: "El producto ya no existe." };
+  if (!producto.activo) return { ok: false, error: "El producto está inactivo. Activalo antes de venderlo." };
+  if (producto.agotado || producto.stock === 0) return { ok: false, error: "El producto está sin stock. Reponelo antes de vender." };
+  if (!cliente) return { ok: false, error: "El cliente ya no existe." };
+
+  // Precio RESUELTO server-side para este cliente (nunca el número del navegador).
+  const terminos = await getTerminosVentaParaCliente(db, producto, { id: cliente.id, calificacion: cliente.calificacion });
+
+  const frecuencia: FrecuenciaProducto =
+    input.frecuencia && FRECUENCIAS.includes(input.frecuencia) ? input.frecuencia : producto.frecuencia;
+  const plazo = input.plazo != null ? Math.round(Number(input.plazo)) : terminos.cuotas;
+  if (!Number.isInteger(plazo) || plazo < 1 || plazo > 1000) return { ok: false, error: "Revisá la cantidad de cuotas (entre 1 y 1000)." };
+
+  const plan = calcularPlanVenta({ precio: terminos.precio, interesPct: terminos.interesPct, cuotas: plazo });
+  if (!(plan.monto > 0) || !(plan.cuota > 0)) return { ok: false, error: "El precio o la cuota del producto son inválidos. Revisalos." };
+  if (plan.monto > RENOVACION_CAP_TOTAL) {
+    return { ok: false, error: `La venta no puede superar $${RENOVACION_CAP_TOTAL.toLocaleString("es-UY")} (tope de crédito).` };
+  }
+
+  // Cobrador del cliente (para que la venta entre a una ruta). Puede no tener aún.
+  const cob = await getCobradorDeCliente(db, cliente.id);
+  const cobradorId = cob?.cobradorId ?? null;
+
+  const opId = opIdDeterminista("venta", input.solicitudId);
+  const fechaInicio = toIso(hoyUY());
+
+  const res = await crearVentaSegura(db, {
+    solicitudId: input.solicitudId,
+    clienteId: cliente.id,
+    cobradorId,
+    monto: plan.monto,
+    cuota: plan.cuota,
+    totalDias: plan.totalDias,
+    frecuencia,
+    fechaInicio,
+    productoId: producto.id,
+    productoNombre: producto.nombre,
+    opId,
+    creadoPor: u.id,
+  });
+  if (!res.ok) return { ok: false, error: res.error };
+
+  await registrarAuditoria(db, {
+    actorId: u.id,
+    actorNombre: u.nombre,
+    accion: "Convirtió pedido de tienda en venta",
+    entidad: "cliente",
+    entidadId: cliente.id,
+    detalle: `${producto.nombre} · $${plan.monto.toLocaleString("es-UY")} en ${plan.totalDias} cuotas de $${plan.cuota.toLocaleString("es-UY")} (${frecuencia})`,
+  });
+
+  revalidatePath("/admin/tienda");
+  revalidatePath(`/admin/clientes/${cliente.id}`);
+  revalidatePath("/admin");
+  return { ok: true, prestamoId: res.prestamoId, clienteId: cliente.id, cuota: plan.cuota, totalACobrar: plan.totalACobrar, sinCobrador: !cobradorId };
 }
 
 // ── Subida de MEDIOS ────────────────────────────────────────────────────────

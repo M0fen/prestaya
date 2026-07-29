@@ -120,7 +120,7 @@ export default async function DetalleClientePage({
                       : "border border-[#DCE3F4] bg-white text-[#6B7494]"
                   }`}
                 >
-                  Crédito {i + 1} · {UYU(p.cuota_diaria)}/día
+                  {p.origen === "tienda" ? `🛒 ${p.producto_nombre ?? "Tienda"}` : `Crédito ${i + 1}`} · {UYU(p.cuota_diaria)}/día
                 </Link>
               );
             })}
@@ -198,6 +198,15 @@ async function Detalle({
 
   return (
     <>
+      {/* Distintivo de VENTA de tienda: que el cobrador NO confunda el dinero
+          (una compra financiada) con el crédito de efectivo del cliente. */}
+      {prestamo.origen === "tienda" && (
+        <div className="flex items-center gap-2 rounded-[12px] bg-[#E7ECFF] px-3.5 py-2.5 text-[13px] font-bold text-[#13308C]">
+          <span className="text-[16px]">🛒</span>
+          <span>Compra en la tienda{prestamo.producto_nombre ? `: ${prestamo.producto_nombre}` : ""}</span>
+        </div>
+      )}
+
       {/* Resumen */}
       <div className="grid grid-cols-2 gap-2.5">
         <Resumen label="Cuota diaria" valor={UYU(prestamo.cuota_diaria)} />

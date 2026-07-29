@@ -22,6 +22,10 @@ function mapPrestamo(r: Record<string, unknown>): Prestamo {
     // Paridad Disapp (0041); defensivo si aún no corrió la migración.
     es_float_supervisor: (r.es_float_supervisor as boolean | undefined) ?? false,
     interes_pct: r.interes_pct == null ? null : Number(r.interes_pct),
+    // Venta de tienda (0101); defensivo si aún no corrió la migración.
+    origen: (r.origen as "credito" | "tienda" | undefined) === "tienda" ? "tienda" : "credito",
+    producto_id: (r.producto_id as string | null | undefined) ?? null,
+    producto_nombre: (r.producto_nombre as string | null | undefined) ?? null,
     creado_en: r.creado_en as string,
     actualizado_en: r.actualizado_en as string,
     finalizado_en: (r.finalizado_en as string | null) ?? null,

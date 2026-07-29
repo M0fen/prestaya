@@ -113,7 +113,7 @@ export default async function VistaPorToken({
                   sel ? "bg-[#1E47C8] text-white" : "bg-white text-[#1E47C8]"
                 }`}
               >
-                Crédito {i + 1}
+                {p.origen === "tienda" ? `🛒 ${p.producto_nombre ?? "Tienda"}` : `Crédito ${i + 1}`}
               </Link>
             );
           })}
@@ -254,6 +254,7 @@ export default async function VistaPorToken({
       creditoSelector={creditoSelector}
       reputacion={reputacion}
       promo={promo}
+      compra={prestamo.origen === "tienda" ? { productoNombre: prestamo.producto_nombre ?? "Producto de la tienda" } : null}
     />
   );
 }

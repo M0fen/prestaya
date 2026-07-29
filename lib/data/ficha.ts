@@ -32,6 +32,9 @@ export interface CreditoFicha {
   fechaInicio: string;
   estado: Prestamo["estado"];
   pagadoTotal: number;
+  /** 'tienda' = compra financiada; 'credito' = préstamo normal (0101). */
+  origen: "credito" | "tienda";
+  productoNombre: string | null;
 }
 export interface CreditoActivoFicha {
   id: string;
@@ -45,6 +48,9 @@ export interface CreditoActivoFicha {
   dias: DiaEstado[];
   cuota: number;
   fechaInicio: string;
+  /** Origen del crédito, para distinguir el dinero en la ficha (0101). */
+  origen: "credito" | "tienda";
+  productoNombre: string | null;
 }
 export interface FichaCliente {
   cliente: Cliente;
@@ -93,6 +99,8 @@ export async function getFichaCliente(
       dias: r.dias,
       cuota: pr.cuota_diaria,
       fechaInicio: pr.fecha_inicio,
+      origen: pr.origen,
+      productoNombre: pr.producto_nombre,
     };
   });
 
@@ -105,6 +113,8 @@ export async function getFichaCliente(
     fechaInicio: p.fecha_inicio,
     estado: p.estado,
     pagadoTotal: (historial.pagosPorPrestamo[p.id] ?? []).reduce((s, x) => s + x.monto, 0),
+    origen: p.origen,
+    productoNombre: p.producto_nombre,
   }));
 
   // Historial de pagos (todos los créditos), del más reciente al más viejo.

@@ -270,13 +270,18 @@ export default async function FichaClientePage({
                 className={idx > 0 ? "border-t border-linea pt-4" : ""}
               >
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                  {activos.length > 1 ? (
-                    <span className="inline-block rounded-full bg-[#EAF0FF] px-2.5 py-1 text-[11px] font-bold text-[#1E47C8]">
-                      Crédito {idx + 1} · desde {fechaCorta(activo.fechaInicio)}
-                    </span>
-                  ) : (
-                    <span />
-                  )}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {activo.origen === "tienda" && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-[#E7ECFF] px-2.5 py-1 text-[11px] font-bold text-[#13308C]">
+                        🛒 Tienda{activo.productoNombre ? ` · ${activo.productoNombre}` : ""}
+                      </span>
+                    )}
+                    {activos.length > 1 && (
+                      <span className="inline-block rounded-full bg-[#EAF0FF] px-2.5 py-1 text-[11px] font-bold text-[#1E47C8]">
+                        Crédito {idx + 1} · desde {fechaCorta(activo.fechaInicio)}
+                      </span>
+                    )}
+                  </div>
                   <RegistrarPagoPanel clienteId={id} prestamoId={activo.id} cuota={activo.cuota} />
                 </div>
                 <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
@@ -372,10 +377,10 @@ export default async function FichaClientePage({
             >
               <div className="flex flex-col">
                 <span className="text-[13.5px] font-bold text-tinta">
-                  {UYU(c.monto)} · cuota {UYU(c.cuota)} × {c.totalDias}
+                  {c.origen === "tienda" ? "🛒 " : ""}{UYU(c.monto)} · cuota {UYU(c.cuota)} × {c.totalDias}
                 </span>
                 <span className="text-[11.5px] font-medium text-tenue">
-                  Desde {fechaCorta(c.fechaInicio)} · pagó {UYU(c.pagadoTotal)}
+                  {c.origen === "tienda" && c.productoNombre ? `${c.productoNombre} · ` : ""}Desde {fechaCorta(c.fechaInicio)} · pagó {UYU(c.pagadoTotal)}
                 </span>
               </div>
               <span className="rounded-full bg-tarjeta px-2.5 py-1 text-[11px] font-bold text-gris">

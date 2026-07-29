@@ -14,8 +14,10 @@ import {
   fijarPrecioCliente, quitarPrecioCliente, preciosDeProducto,
   fijarPrecioSegmento, quitarPrecioSegmento, segmentosDeProducto,
   resolverSolicitud, subirImagenTienda, crearUrlSubidaTienda, generarDescripcionIA,
+  convertirLeadEnVenta,
   type RawProducto,
 } from "@/lib/acciones/tienda";
+import { calcularPlanVenta } from "@/lib/venta";
 import type {
   Producto, CategoriaProducto, SolicitudProducto, PrecioCliente, PrecioSegmento,
   FrecuenciaProducto, EstadoSolicitud, TipoSegmento,
@@ -36,12 +38,14 @@ const CALIFICACIONES: { valor: string; label: string }[] = [
 ];
 
 export function TiendaManager({
-  productos, categorias, solicitudes, zonas = [],
+  productos, categorias, solicitudes, zonas = [], esAdmin = false,
 }: {
   productos: Producto[];
   categorias: CategoriaProducto[];
   solicitudes: SolicitudProducto[];
   zonas?: ZonaOpcion[];
+  /** Solo el admin puede CONVERTIR un lead en venta (colocar capital). */
+  esAdmin?: boolean;
 }) {
   const [tab, setTab] = useState<"productos" | "categorias" | "leads">("productos");
   const nuevas = solicitudes.filter((s) => s.estado === "nueva").length;
@@ -57,7 +61,7 @@ export function TiendaManager({
       </div>
       {tab === "productos" && <Productos productos={productos} categorias={categorias} zonas={zonas} />}
       {tab === "categorias" && <Categorias categorias={categorias} />}
-      {tab === "leads" && <Leads solicitudes={solicitudes} />}
+      {tab === "leads" && <Leads solicitudes={solicitudes} productos={productos} esAdmin={esAdmin} />}
     </div>
   );
 }
@@ -633,9 +637,10 @@ const ESTADO_TONO: Record<EstadoSolicitud, { bg: string; fg: string; label: stri
   contactado: { bg: "#EEF3FF", fg: "#1E47C8", label: "Contactado" },
   cerrada: { bg: "#E4F5EC", fg: "#157A50", label: "Cerrada" },
   descartada: { bg: "#F1F3F9", fg: "#6B7494", label: "Descartada" },
+  convertida: { bg: "#E7ECFF", fg: "#13308C", label: "🛒 Vendido" },
 };
 
-function Leads({ solicitudes }: { solicitudes: SolicitudProducto[] }) {
+function Leads({ solicitudes, productos, esAdmin }: { solicitudes: SolicitudProducto[]; productos: Producto[]; esAdmin: boolean }) {
   const total = solicitudes.length;
   const cont = (e: EstadoSolicitud) => solicitudes.filter((s) => s.estado === e).length;
   // "Más pedidos": ranking de productos por cantidad de leads.
@@ -674,7 +679,9 @@ function Leads({ solicitudes }: { solicitudes: SolicitudProducto[] }) {
       </div>
 
       <div className="flex flex-col gap-2">
-        {solicitudes.map((s) => <LeadCard key={s.id} s={s} />)}
+        {solicitudes.map((s) => (
+          <LeadCard key={s.id} s={s} producto={productos.find((p) => p.id === s.productoId)} esAdmin={esAdmin} />
+        ))}
       </div>
     </div>
   );
@@ -689,11 +696,35 @@ function MiniLead({ k, v, tono }: { k: string; v: number; tono?: "ambar" | "verd
   );
 }
 
-function LeadCard({ s }: { s: SolicitudProducto }) {
+function LeadCard({ s, producto, esAdmin }: { s: SolicitudProducto; producto?: Producto; esAdmin: boolean }) {
   const router = useRouter();
   const [pend, start] = useTransition();
   const [nota, setNota] = useState(s.nota ?? "");
   const [editaNota, setEditaNota] = useState(false);
+  const [ventaAbierta, setVentaAbierta] = useState(false);
+  const [plazo, setPlazo] = useState<number>(producto?.cuotas || 20);
+  const [frecuencia, setFrecuencia] = useState<FrecuenciaProducto>(producto?.frecuencia ?? "diario");
+  const [msgVenta, setMsgVenta] = useState<string | null>(null);
+  const abierto = s.estado === "nueva" || s.estado === "contactado";
+  const puedeVender = esAdmin && abierto && !!producto;
+  // Preview del plan con el PRECIO BASE del producto (el precio real del cliente
+  // —si tiene uno especial— se resuelve en el SERVIDOR al confirmar; esto es guía).
+  const planPreview = producto ? calcularPlanVenta({ precio: producto.precio, interesPct: producto.interesPct, cuotas: plazo }) : null;
+  const venderAhora = () =>
+    start(async () => {
+      setMsgVenta(null);
+      const r = await convertirLeadEnVenta({ solicitudId: s.id, plazo, frecuencia });
+      if (r.ok) {
+        setMsgVenta(
+          r.yaConvertido
+            ? "Este pedido ya estaba vendido."
+            : `¡Venta creada! Cuota ${UYU(r.cuota)}${r.sinCobrador ? " · ⚠️ el cliente no tiene cobrador asignado (asignale uno para que entre a la ruta)" : ""}`,
+        );
+        router.refresh();
+      } else {
+        setMsgVenta(r.error);
+      }
+    });
   const t = ESTADO_TONO[s.estado];
   const tel = soloDigitos(s.clienteTelefono);
   const wa = s.clienteTelefono
@@ -760,14 +791,69 @@ function LeadCard({ s }: { s: SolicitudProducto }) {
         <span className="text-[11px] font-medium text-tenue-2">Sin teléfono cargado · abrí la ficha del cliente</span>
       )}
 
-      <div className="mt-1 flex flex-wrap gap-1.5 border-t border-linea pt-2">
-        {(["contactado", "cerrada", "descartada"] as EstadoSolicitud[]).map((e) => (
-          <button key={e} type="button" onClick={() => marcar(e)} disabled={pend || s.estado === e}
-            className="rounded-full border border-borde bg-tarjeta px-3 py-1 text-[12px] font-bold text-gris disabled:opacity-40">
-            {ESTADO_TONO[e].label}
-          </button>
-        ))}
-      </div>
+      {/* Convertir el pedido en una VENTA real (crédito). Solo admin, pedido abierto. */}
+      {s.estado === "convertida" ? (
+        <Link href={`/admin/clientes/${s.clienteId}`}
+          className="mt-1 inline-flex w-fit items-center gap-1.5 rounded-full bg-[#E7ECFF] px-3 py-1.5 text-[12px] font-bold text-[#13308C] hover:underline">
+          🛒 Vendido · ver el crédito en la ficha →
+        </Link>
+      ) : puedeVender ? (
+        <div className="mt-1 border-t border-linea pt-2">
+          {!ventaAbierta ? (
+            <button type="button" onClick={() => setVentaAbierta(true)}
+              className="inline-flex items-center gap-1.5 rounded-full bg-[#1E47C8] px-3.5 py-1.5 text-[12.5px] font-extrabold text-white active:scale-95">
+              🛒 Convertir en venta
+            </button>
+          ) : (
+            <div className="flex flex-col gap-2 rounded-[12px] border border-[#C7D2EC] bg-azul-suave p-3">
+              <span className="text-[12.5px] font-extrabold text-[#13308C]">Crear el crédito de venta · {s.productoNombre}</span>
+              <div className="flex flex-wrap items-end gap-2">
+                <label className="flex flex-col gap-0.5">
+                  <span className="text-[10.5px] font-bold text-gris">Cuotas</span>
+                  <input type="number" min={1} max={1000} value={plazo}
+                    onChange={(e) => setPlazo(Math.max(1, Math.round(Number(e.target.value) || 1)))}
+                    className="w-20 rounded-[8px] border border-campo bg-tarjeta px-2 py-1 text-[13px] tabular-nums outline-none focus:border-azul" />
+                </label>
+                <label className="flex flex-col gap-0.5">
+                  <span className="text-[10.5px] font-bold text-gris">Frecuencia</span>
+                  <select value={frecuencia} onChange={(e) => setFrecuencia(e.target.value as FrecuenciaProducto)}
+                    className="rounded-[8px] border border-campo bg-tarjeta px-2 py-1 text-[13px] outline-none focus:border-azul">
+                    {FRECUENCIAS.map((f) => <option key={f} value={f}>{f}</option>)}
+                  </select>
+                </label>
+              </div>
+              {planPreview && (
+                <p className="text-[12px] font-medium text-cuerpo">
+                  ≈ <b className="tabular-nums">{UYU(planPreview.cuota)}</b>/{frecuencia === "diario" ? "día" : "cuota"} · total a cobrar <b className="tabular-nums">{UYU(planPreview.totalACobrar)}</b>
+                  <span className="mt-0.5 block text-[10.5px] text-tenue">Precio base; si el cliente tiene precio especial, se aplica al confirmar.</span>
+                </p>
+              )}
+              <div className="flex gap-1.5">
+                <button type="button" onClick={venderAhora} disabled={pend}
+                  className="rounded-full bg-[#1FA971] px-3.5 py-1.5 text-[12.5px] font-extrabold text-white disabled:opacity-50">
+                  {pend ? "Creando…" : "Confirmar venta"}
+                </button>
+                <button type="button" onClick={() => { setVentaAbierta(false); setMsgVenta(null); }}
+                  className="rounded-full border border-campo px-3 py-1.5 text-[12.5px] font-bold text-gris">Cancelar</button>
+              </div>
+            </div>
+          )}
+          {msgVenta && <p className="mt-1.5 text-[12px] font-semibold text-cuerpo">{msgVenta}</p>}
+        </div>
+      ) : esAdmin && abierto && !producto ? (
+        <span className="mt-1 text-[11px] font-medium text-tenue-2">El producto de este pedido ya no existe (no se puede vender).</span>
+      ) : null}
+
+      {s.estado !== "convertida" && (
+        <div className="mt-1 flex flex-wrap gap-1.5 border-t border-linea pt-2">
+          {(["contactado", "cerrada", "descartada"] as EstadoSolicitud[]).map((e) => (
+            <button key={e} type="button" onClick={() => marcar(e)} disabled={pend || s.estado === e}
+              className="rounded-full border border-borde bg-tarjeta px-3 py-1 text-[12px] font-bold text-gris disabled:opacity-40">
+              {ESTADO_TONO[e].label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

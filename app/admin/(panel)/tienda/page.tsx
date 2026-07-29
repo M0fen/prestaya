@@ -45,6 +45,7 @@ export default async function TiendaPage() {
         categorias={categorias}
         solicitudes={solicitudes}
         zonas={zonas.map((z) => ({ id: z.id, nombre: z.nombre }))}
+        esAdmin={esAdmin(u.rol)}
       />
     </div>
   );

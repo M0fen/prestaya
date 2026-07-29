@@ -36,6 +36,7 @@ export function VistaClienteScreen({
   promo = null,
   rifa = null,
   creditoSelector = null,
+  compra = null,
 }: {
   v: VistaCredito;
   anuncios?: Anuncio[];
@@ -55,6 +56,9 @@ export function VistaClienteScreen({
   reputacion?: { calificacion: Calificacion; creditosPagados: number } | null;
   /** Juegos promocionales (raspadita + quiniela). Si es null, no se muestran. */
   promo?: PromoData | null;
+  /** Si el crédito visto es una VENTA de tienda (0101): muestra un distintivo
+   *  para que el cliente sepa que este cartón es de una compra, no de un préstamo. */
+  compra?: { productoNombre: string } | null;
 }) {
   return (
     <div className="flex min-h-screen justify-center bg-fondo text-tinta">
@@ -67,6 +71,18 @@ export function VistaClienteScreen({
         {token && <BienvenidaCliente />}
 
         {creditoSelector}
+
+        {/* Distintivo: este cartón es una COMPRA en la tienda (no un préstamo en
+            efectivo), para que el cliente no confunda un dinero con el otro. */}
+        {compra && (
+          <div className="flex items-center gap-2.5 rounded-[14px] bg-[#EEF3FF] px-3.5 py-2.5">
+            <span className="text-[20px]" aria-hidden>🛒</span>
+            <span className="flex min-w-0 flex-col">
+              <span className="text-[13px] font-extrabold text-[#13308C]">Compra en la tienda</span>
+              <span className="truncate text-[12px] font-medium text-[#1E47C8]">{compra.productoNombre} · lo pagás en cuotas cómodas</span>
+            </span>
+          </div>
+        )}
 
         {/* Mensaje de aliento arriba (framing positivo, ancla de identidad). */}
         <Aliento

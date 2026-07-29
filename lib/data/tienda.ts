@@ -11,8 +11,9 @@ import type { Calificacion } from "@/types/db";
 import type { DefinicionSegmento } from "@/lib/segmentos";
 import { clienteEnSegmento } from "@/lib/segmentos";
 import { tablaFaltante } from "./errores";
+import { reportarError } from "@/lib/observabilidad";
 
-export type EstadoSolicitud = "nueva" | "contactado" | "cerrada" | "descartada";
+export type EstadoSolicitud = "nueva" | "contactado" | "cerrada" | "descartada" | "convertida";
 export type FrecuenciaProducto = "diario" | "semanal" | "quincenal" | "mensual";
 /** Qué agrupa a un segmento de clientes para la cuota especial (0078). */
 export type TipoSegmento = "calificacion" | "zona";
@@ -575,4 +576,115 @@ export async function resolverSolicitudDb(db: SupabaseClient, id: string, estado
     .update({ estado, resuelto_por: resueltoPor, resuelto_en: new Date().toISOString(), ...(nota != null ? { nota } : {}) })
     .eq("id", id);
   if (error) throw error;
+}
+
+// ── Venta de tienda: convertir un LEAD en un CRÉDITO real (P3b, migración 0101) ──
+
+/** Un lead leído por id, con lo justo para convertirlo en venta. */
+export interface LeadDetalle {
+  id: string;
+  productoId: string | null;
+  clienteId: string;
+  productoNombre: string;
+  estado: EstadoSolicitud;
+  /** Crédito ya generado si el lead se convirtió (0101). null si no. */
+  prestamoId: string | null;
+}
+
+export async function getSolicitudProductoPorId(db: SupabaseClient, id: string): Promise<LeadDetalle | null> {
+  try {
+    // select("*") es resiliente: si `prestamo_id` (0101) aún no existe, no rompe.
+    const { data, error } = await db.from("solicitudes_producto").select("*").eq("id", id).maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+    return {
+      id: data.id as string,
+      productoId: (data.producto_id as string | null) ?? null,
+      clienteId: data.cliente_id as string,
+      productoNombre: (data.producto_nombre as string | null) ?? "Producto",
+      estado: data.estado as EstadoSolicitud,
+      prestamoId: (data.prestamo_id as string | null | undefined) ?? null,
+    };
+  } catch (e) {
+    if (tablaFaltante(e)) return null;
+    throw e;
+  }
+}
+
+/**
+ * Términos de precio de un producto RESUELTOS para un cliente (mismo criterio que
+ * la vitrina: individual > zona > calificación > base). En la conversión de un lead
+ * el precio se recalcula SIEMPRE en el servidor con esta función — nunca se confía
+ * en el número del navegador.
+ */
+export async function getTerminosVentaParaCliente(
+  db: SupabaseClient, producto: Producto, cliente: ClientePrecio,
+): Promise<Terminos & { origen: OrigenPrecio }> {
+  const { data: ov } = await db.from("producto_precio_cliente")
+    .select("precio, interes_pct, cuotas").eq("cliente_id", cliente.id).eq("producto_id", producto.id).maybeSingle();
+  const individual = ov ? { precio: N(ov.precio), interesPct: NUM(ov.interes_pct), cuotas: N(ov.cuotas) } : null;
+  const s = (await overridesSegmento(db, cliente.calificacion, cliente.id)).get(producto.id);
+  return resolverPrecioCliente(
+    { precio: producto.precio, interesPct: producto.interesPct, cuotas: producto.cuotas },
+    { individual, zona: s?.zona, calificacion: s?.calificacion },
+  );
+}
+
+export type ResultadoVenta =
+  | { ok: true; prestamoId: string }
+  | { ok: false; error: string; faltaMigracion?: boolean };
+
+/**
+ * Crea el crédito de venta vía el RPC ATÓMICO `crear_credito_venta_seguro` (0101):
+ * inserta el crédito + marca el lead 'convertida' en UNA transacción, serializado
+ * por advisory lock del lead. Idempotente: si el lead ya se convirtió (P0410 con
+ * prestamo_id) o el op_id ya existe (23505 = commit-perdido), devuelve el crédito
+ * existente en vez de crear un segundo. monto/cuota llegan ya calculados y validados
+ * por el server (nunca float). Degrada con mensaje claro si 0101 no corrió.
+ */
+export async function crearVentaSegura(
+  db: SupabaseClient,
+  input: {
+    solicitudId: string; clienteId: string; cobradorId: string | null;
+    monto: number; cuota: number; totalDias: number; frecuencia: FrecuenciaProducto;
+    fechaInicio: string; productoId: string | null; productoNombre: string;
+    opId: string; creadoPor: string;
+  },
+): Promise<ResultadoVenta> {
+  const rpc = await db.rpc("crear_credito_venta_seguro", {
+    p_solicitud_id: input.solicitudId,
+    p_cliente_id: input.clienteId,
+    p_cobrador_id: input.cobradorId,
+    p_monto: input.monto,
+    p_cuota: input.cuota,
+    p_total_dias: input.totalDias,
+    p_frecuencia: input.frecuencia,
+    p_fecha_inicio: input.fechaInicio,
+    p_producto_id: input.productoId,
+    p_producto_nombre: input.productoNombre,
+    p_op_id: input.opId,
+    p_creado_por: input.creadoPor,
+  });
+  if (!rpc.error && rpc.data) {
+    return { ok: true, prestamoId: (rpc.data as { id: string }).id };
+  }
+  const code = (rpc.error as { code?: string } | null)?.code;
+  // Migración 0101 sin correr → degradación elegante (mensaje claro, no rompe).
+  if (code === "42883" || code === "PGRST202") {
+    return { ok: false, error: "Falta correr la migración 0101 (venta de tienda).", faltaMigracion: true };
+  }
+  // El lead ya no está abierto (P0410): probablemente ya se convirtió → buscá su crédito.
+  if (code === "P0410") {
+    const { data } = await db.from("solicitudes_producto").select("prestamo_id").eq("id", input.solicitudId).maybeSingle();
+    const pid = (data?.prestamo_id as string | null) ?? null;
+    if (pid) return { ok: true, prestamoId: pid };
+    return { ok: false, error: "Ese pedido ya no está abierto (quizá ya se convirtió)." };
+  }
+  // op_id duplicado (commit-perdido): la venta YA se creó → devolver ese crédito.
+  if (code === "23505") {
+    const { data } = await db.from("prestamos").select("id").eq("op_id", input.opId).limit(1);
+    if (data && data.length > 0) return { ok: true, prestamoId: data[0].id as string };
+  }
+  reportarError("crearVentaSegura", rpc.error, { solicitudId: input.solicitudId, clienteId: input.clienteId });
+  return { ok: false, error: "No se pudo crear la venta. Probá de nuevo." };
 }
