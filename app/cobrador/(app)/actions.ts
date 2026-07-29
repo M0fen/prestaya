@@ -172,6 +172,24 @@ export async function registrarPagoCobrador(input: {
     const prestamo = await resolverPrestamo(db, cliente.id, input.prestamoId);
     if (!prestamo) return { ok: false, error: "El cliente no tiene crédito activo." };
 
+    // IDEMPOTENCIA del reintento (exactly-once): si este op_id YA está en el libro
+    // —el 1er intento commiteó pero se perdió el ACK de red (común en móvil rural)—
+    // es un ÉXITO idempotente: devolver ok con el pago ya guardado, sin reprocesar.
+    // Sin esto, el clamp anti-sobre-pago de abajo (min(monto, r.falta) con falta≈0 en
+    // el pago que SALDA el crédito) cortaría el reintento y lo marcaría "no se pudo
+    // subir" para un cobro que SÍ entró → el cobrador lo re-registra o lo descarta.
+    // El insert idempotente (23505) nunca se alcanzaba en ese caso. Índice único op_id.
+    if (input.opId) {
+      const { data: yaGuardado } = await db
+        .from("pagos")
+        .select("dia_credito, monto")
+        .eq("op_id", input.opId)
+        .limit(1);
+      if (yaGuardado && yaGuardado.length > 0) {
+        return { ok: true, dia: Number(yaGuardado[0].dia_credito), monto: Math.round(Number(yaGuardado[0].monto)), enZona: null };
+      }
+    }
+
     // Imputar al primer día no cubierto (o al día de hoy).
     const pagos = await getPagosDePrestamo(db, prestamo.id);
     const r = calcularEstadosCarton(prestamo, pagos, hoyUY());
@@ -196,7 +214,16 @@ export async function registrarPagoCobrador(input: {
     // fuera fraccionaria (cuota×días − Σpagos). El monto que se registra y se muestra
     // en el recibo es SIEMPRE entero (además del chokepoint en registrarPago).
     const monto = Math.round(Math.min(solicitado, r.falta));
-    if (monto <= 0) return { ok: false, error: "Este crédito ya está saldado." };
+    if (monto <= 0) {
+      // op_id NUEVO (no es reintento, ya se descartó arriba) sobre un crédito YA saldado
+      // por otros pagos → intento de cobrar de más = posible DOBLE-COBRANZA FÍSICA (el
+      // cobrador tiene efectivo de más que hay que devolver/reconciliar). Deja rastro
+      // durable para que admin/supervisor lo vean (antes era invisible del lado servidor).
+      reportarError("cobro.sobrepago.saldado", new Error("Cobro sobre crédito ya saldado"), {
+        clienteId: input.clienteId, prestamoId: prestamo.id, opId: input.opId, solicitado,
+      });
+      return { ok: false, error: "Este crédito ya está saldado." };
+    }
     const gps_lat = numeroValido(input.gpsLat);
     const gps_lng = numeroValido(input.gpsLng);
 
@@ -233,6 +260,10 @@ export async function registrarPagoCobrador(input: {
         // La carrera perdió: otro pago saldó el crédito primero. PERMANENTE (sin
         // retryable → la cola NO reintenta en loop; se surfacea para reconciliar la
         // plata física si el cobro fue real). Nunca se descarta ni se duplica el libro.
+        // Rastro durable: una doble-cobranza física real debe verla el admin.
+        reportarError("cobro.sobrepago.carrera", e, {
+          clienteId: input.clienteId, prestamoId: prestamo.id, opId: input.opId, monto,
+        });
         return { ok: false, error: "Este crédito ya se saldó (entró otro pago). Revisá el cartón antes de reintentar." };
       } else {
         throw e;

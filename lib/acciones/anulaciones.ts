@@ -28,6 +28,7 @@ import {
 } from "@/lib/data/anulaciones";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
+import { reportarError } from "@/lib/observabilidad";
 import type { Usuario } from "@/types/db";
 
 type Resultado = { ok: true } | { ok: false; error: string };
@@ -52,8 +53,28 @@ async function flipAnulado(pagoId: string, u: Usuario, motivo: string): Promise<
     })
     .eq("id", pagoId)
     .eq("anulado", false) // idempotente: no re-anula uno ya anulado
-    .select("id");
-  return !error && (data?.length ?? 0) > 0;
+    .select("id, prestamo_id");
+  const ok = !error && (data?.length ?? 0) > 0;
+  // VISIBILIDAD (caza 07-28): anular un pago de un crédito NO activo (finalizado/
+  // renovado) baja pagado_acum sin reabrir el crédito → el saldo que queda impago no
+  // lo cobra nadie y una renovación pudo otorgarse sobre ese pago. La reconciliación
+  // (pagado_acum==Σpagos, sin sobre-cobro) NO lo detecta (ambos bajan). Deja rastro
+  // durable para revisar la cascada. Best-effort: no rompe la anulación.
+  if (ok) {
+    try {
+      const prestamoId = data![0].prestamo_id as string;
+      const { data: pre } = await admin.from("prestamos").select("estado").eq("id", prestamoId).maybeSingle();
+      const estado = (pre as { estado?: string } | null)?.estado;
+      if (estado && estado !== "activo") {
+        reportarError("anulacion.credito-no-activo", new Error(`Anulación de pago en crédito ${estado} (write-off silencioso, revisar renovación)`), {
+          pagoId, prestamoId, estado, anuladoPor: u.id,
+        });
+      }
+    } catch {
+      /* la visibilidad es best-effort */
+    }
+  }
+  return ok;
 }
 
 // ── (quien registró) Deshacer dentro de 1 hora ──────────────────────────────

@@ -106,7 +106,14 @@ export async function registrarPagoPanel(input: {
     // inmutable. Sin esto, un pago de oficina podía dejar pagado_acum > total.
     // Redondeo tras el clamp: `r.falta` con cuota fraccionaria reintroduciría decimales.
     const monto = Math.round(Math.min(solicitado, r.falta));
-    if (monto <= 0) return { ok: false, error: "Este crédito ya está saldado." };
+    if (monto <= 0) {
+      // Registrar un pago sobre un crédito YA saldado = posible doble-cobranza física.
+      // Rastro durable para que la anomalía sea visible (antes se rechazaba en silencio).
+      reportarError("pagoPanel.sobrepago.saldado", new Error("Pago sobre crédito ya saldado"), {
+        clienteId, prestamoId: prestamo.id, solicitado,
+      });
+      return { ok: false, error: "Este crédito ya está saldado." };
+    }
 
     // Idempotencia: nonce del cliente (estable por-envío) si vino y es un uuid
     // válido; si no, fallback al hash determinista por minuto. El nonce cierra el
@@ -132,8 +139,10 @@ export async function registrarPagoPanel(input: {
       if ((e as { code?: string } | null)?.code === "23505") return { ok: true, dia, monto };
       // Sobre-pago rechazado bajo el candado (RPC 0079): otro pago concurrente saldó
       // el crédito primero → NO se registra (evita el sobre-cobro). Se avisa claro.
-      if (esSobrePago(e))
+      if (esSobrePago(e)) {
+        reportarError("pagoPanel.sobrepago.carrera", e, { clienteId, prestamoId: prestamo.id, monto });
         return { ok: false, error: "El crédito ya se saldó (entró otro pago primero). Recargá para ver el estado." };
+      }
       throw e;
     }
 
