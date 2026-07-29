@@ -152,7 +152,7 @@ export function VistaClienteScreen({
         {/* Rifa promocional: se muestra cuando el admin la activa y este cliente
             califica (soloMejores). Es COMUNICACIÓN al cliente, no un juego → visible
             aunque el bloque lúdico esté en pausa. */}
-        {rifa && <RifaBanner rifa={rifa} />}
+        {rifa && <RifaBanner rifa={rifa} token={token} />}
 
         {/* Historial de pagos (con % de la cuota cubierto + descuento). */}
         <Historial historial={v.historial} />

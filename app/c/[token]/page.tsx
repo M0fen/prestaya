@@ -22,7 +22,7 @@ import { getAjustesJuego } from "@/lib/data/juegoConfig";
 import { getEstadoRaspaCliente, getQuinielaAbierta, getParticipacionCliente } from "@/lib/data/promos";
 import { numeroSuerte } from "@/lib/quiniela";
 import { calcularEstadosCarton } from "@/lib/cartones";
-import { getRifaParaCliente } from "@/lib/data/rifas";
+import { getRifaParaCliente, getParticipacionRifaCliente } from "@/lib/data/rifas";
 import { construirVistaCliente } from "@/lib/vistaCliente";
 import { hayProductosActivos, getProductoDestacadoParaCliente, type ProductoParaCliente } from "@/lib/data/tienda";
 import { conTimeout } from "@/lib/timeout";
@@ -236,9 +236,11 @@ export default async function VistaPorToken({
     reputacion = null;
   }
 
-  // Rifa promocional: se muestra si el admin la activó y este cliente califica
-  // (dirigida a los mejores clientes, según su calificación).
-  const rifa = await getRifaParaCliente(db, clienteSeg);
+  // Rifa promocional: se muestra si el admin la activó y este cliente califica.
+  // Si es un sorteo real (0098), se adjunta el número de ticket que ya tenga el cliente.
+  const rifaBase = await getRifaParaCliente(db, clienteSeg);
+  const miNumeroRifa = rifaBase ? await getParticipacionRifaCliente(db, rifaBase.id, cliente.id) : null;
+  const rifa = rifaBase ? { ...rifaBase, miNumero: miNumeroRifa } : null;
 
   return (
     <VistaClienteScreen

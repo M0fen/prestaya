@@ -4,14 +4,53 @@
 //  premio, botón), subir la foto del premio, dirigirla a los mejores clientes y
 //  encenderla/apagarla. Solo ADMIN. Queda en auditoría.
 // ─────────────────────────────────────────────────────────────────────────
+import { randomInt } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getUsuarioActual, esAdmin } from "@/lib/auth";
 import { registrarAuditoria } from "@/lib/data/auditoria";
-import { guardarRifaDb, subirFotoRifa } from "@/lib/data/rifas";
+import { guardarRifaDb, subirFotoRifa, getParticipacionesRifa, cerrarRifaDb, type ParticipanteRifa } from "@/lib/data/rifas";
+import { esUuid } from "@/lib/idempotencia";
 import { normalizarSegmento, esSegmentoTodos, type DefinicionSegmento } from "@/lib/segmentos";
 
 type Resultado = { ok: true } | { ok: false; error: string };
+
+/**
+ * SORTEA la rifa: elige un ganador entre los participantes REALES (al azar del
+ * servidor, garantiza que gane alguien) o el que el admin elija, la cierra y emite
+ * el folio del comprobante del ganador. Idempotente (si ya está cerrada, no re-sortea).
+ */
+export async function sortearRifa(input: {
+  rifaId: string;
+  ganadorClienteId?: string | null;
+}): Promise<{ ok: true; ganadorNombre: string; numero: number; folio: number | null } | { ok: false; error: string }> {
+  const u = await getUsuarioActual();
+  if (!u || !u.activo || !esAdmin(u.rol)) return { ok: false, error: "Solo el administrador puede sortear la rifa." };
+  if (!esUuid(input.rifaId)) return { ok: false, error: "Rifa inválida." };
+  try {
+    const db = await createSupabaseServer();
+    const participantes = await getParticipacionesRifa(db, input.rifaId);
+    if (participantes.length === 0) return { ok: false, error: "Todavía no hay participantes para sortear." };
+    let ganador: ParticipanteRifa;
+    if (input.ganadorClienteId) {
+      const g = participantes.find((p) => p.clienteId === input.ganadorClienteId);
+      if (!g) return { ok: false, error: "Ese cliente no está entre los participantes." };
+      ganador = g;
+    } else {
+      ganador = participantes[randomInt(participantes.length)]; // azar del servidor
+    }
+    const folio = await cerrarRifaDb(db, input.rifaId, ganador.clienteId, ganador.numero);
+    await registrarAuditoria(db, {
+      actorId: u.id, actorNombre: u.nombre,
+      accion: "Sorteó la rifa", entidad: "promo", entidadId: input.rifaId,
+      detalle: `Ganador: ${ganador.clienteNombre} (N.º ${ganador.numero})`,
+    });
+    revalidatePath("/admin/rifa");
+    return { ok: true, ganadorNombre: ganador.clienteNombre, numero: ganador.numero, folio };
+  } catch {
+    return { ok: false, error: "No se pudo sortear. Probá de nuevo." };
+  }
+}
 
 export async function guardarRifa(input: {
   id?: string | null;

@@ -2,9 +2,10 @@
 // les muestra a los clientes (o solo a los mejores). Marketing, sin dinero.
 import { requireAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { getRifa } from "@/lib/data/rifas";
+import { getRifa, getParticipacionesRifa } from "@/lib/data/rifas";
 import { getZonas } from "@/lib/data/zonas";
 import { RifaAdmin } from "@/components/admin/RifaAdmin";
+import { RifaSorteo } from "@/components/admin/RifaSorteo";
 import { EtiquetaAudiencia } from "@/components/admin/EtiquetaAudiencia";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +14,11 @@ export default async function RifaPage() {
   await requireAdmin();
   const db = await createSupabaseServer();
   const [rifa, zonas] = await Promise.all([getRifa(db), getZonas(db)]);
+  // Sorteo real (0098): participantes + nombre del ganador (siempre está entre ellos).
+  const participantes = rifa ? await getParticipacionesRifa(db, rifa.id) : [];
+  const ganadorNombre = rifa?.ganadorClienteId
+    ? participantes.find((p) => p.clienteId === rifa.ganadorClienteId)?.clienteNombre ?? null
+    : null;
 
   return (
     <div className="mx-auto flex max-w-[820px] flex-col gap-5">
@@ -29,8 +35,21 @@ export default async function RifaPage() {
 
       <RifaAdmin rifa={rifa} zonas={zonas.map((z) => ({ id: z.id, nombre: z.nombre }))} />
 
+      {/* Sorteo real (0098): participantes + sortear/elegir ganador + cerrar. */}
+      {rifa && (
+        <RifaSorteo
+          rifaId={rifa.id}
+          estado={rifa.estado}
+          participantes={participantes}
+          ganadorNombre={ganadorNombre}
+          ganadorNumero={rifa.ganadorNumero}
+          folio={rifa.folio}
+        />
+      )}
+
       <p className="text-[11px] leading-[1.5] font-medium text-tenue-2">
-        Promocional: la rifa es un incentivo por estar al día. Requiere la migración 0045.
+        Promocional: la rifa es un incentivo por estar al día. El sorteo elige un ganador entre los
+        participantes reales y queda registrado con su comprobante. Requiere las migraciones 0045 y 0098.
       </p>
     </div>
   );

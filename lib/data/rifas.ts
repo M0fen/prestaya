@@ -6,10 +6,12 @@
 // ─────────────────────────────────────────────────────────────────────────
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
-import { tablaFaltante } from "./errores";
+import { tablaFaltante, columnaFaltante } from "./errores";
 import type { Calificacion } from "@/types/db";
 import type { ClienteSegmentable, DefinicionSegmento } from "@/lib/segmentos";
 import { clienteEnSegmento } from "@/lib/segmentos";
+import { traerTodo } from "./paginado";
+import { enLotes } from "./alcance";
 
 export const BUCKET_RIFAS = "rifas";
 const MAX_BYTES = 4_000_000;
@@ -30,6 +32,12 @@ export interface Rifa {
   /** Audiencia rica (0089). Si está, MANDA sobre soloMejores. null = usa soloMejores. */
   segmentoDef: DefinicionSegmento | null;
   activo: boolean;
+  // ── Ciclo de sorteo (0098) ──
+  estado: "abierta" | "cerrada";
+  ganadorClienteId: string | null;
+  ganadorNumero: number | null;
+  sorteoEn: string | null;
+  folio: number | null;
 }
 
 function mapRifa(r: Record<string, unknown>): Rifa {
@@ -45,6 +53,12 @@ function mapRifa(r: Record<string, unknown>): Rifa {
     soloMejores: (r.solo_mejores as boolean) ?? true,
     segmentoDef: (r.segmento_def as DefinicionSegmento | null) ?? null,
     activo: (r.activo as boolean) ?? false,
+    // Defensivo: si 0098 aún no corrió, la rifa se comporta como "abierta sin sorteo".
+    estado: (r.estado as Rifa["estado"]) ?? "abierta",
+    ganadorClienteId: (r.ganador_cliente_id as string | null) ?? null,
+    ganadorNumero: r.ganador_numero == null ? null : Number(r.ganador_numero),
+    sorteoEn: (r.sorteo_en as string | null) ?? null,
+    folio: r.folio == null ? null : Number(r.folio),
   };
 }
 
@@ -119,6 +133,87 @@ export async function guardarRifaDb(
   const { data, error } = await db.from("rifas").insert(fila).select("id").single();
   if (error) throw error;
   return data.id as string;
+}
+
+// ── Sorteo real (0098): participación + participantes + cierre ─────────────
+export interface ParticipanteRifa {
+  clienteId: string;
+  clienteNombre: string;
+  numero: number;
+}
+
+/** El cliente participa en la rifa: ticket correlativo ATÓMICO e idempotente
+ *  (RPC 0098). Devuelve su número, o null si 0098 aún no corrió (sin sorteo). */
+export async function participarRifaSeguro(
+  db: SupabaseClient,
+  rifaId: string,
+  clienteId: string,
+): Promise<number | null> {
+  const rpc = await db.rpc("participar_rifa_seguro", { p_rifa: rifaId, p_cliente: clienteId });
+  if (!rpc.error) return Number(rpc.data);
+  const code = (rpc.error as { code?: string }).code;
+  if (code === "42883" || code === "PGRST202") return null; // 0098 sin correr
+  throw rpc.error;
+}
+
+/** El número de ticket del cliente en la rifa (o null si no participa / sin 0098). */
+export async function getParticipacionRifaCliente(
+  db: SupabaseClient,
+  rifaId: string,
+  clienteId: string,
+): Promise<number | null> {
+  try {
+    const { data, error } = await db
+      .from("rifa_participaciones")
+      .select("numero")
+      .eq("rifa_id", rifaId)
+      .eq("cliente_id", clienteId)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? Number((data as { numero: number }).numero) : null;
+  } catch (e) {
+    if (tablaFaltante(e)) return null;
+    throw e;
+  }
+}
+
+/** Participantes de una rifa con nombre (para el admin). Paginado + lotes. */
+export async function getParticipacionesRifa(db: SupabaseClient, rifaId: string): Promise<ParticipanteRifa[]> {
+  try {
+    const filas = await traerTodo<{ cliente_id: string; numero: number }>((d, h) =>
+      db.from("rifa_participaciones").select("cliente_id, numero").eq("rifa_id", rifaId)
+        .order("id", { ascending: true }).range(d, h),
+    );
+    const ids = [...new Set(filas.map((r) => r.cliente_id))];
+    const nombres = new Map<string, string>();
+    for (const lote of enLotes(ids)) {
+      const { data: cs } = await db.from("clientes").select("id, nombre").in("id", lote);
+      for (const c of cs ?? []) nombres.set((c as { id: string }).id, (c as { nombre: string }).nombre);
+    }
+    return filas
+      .map((r) => ({ clienteId: r.cliente_id, clienteNombre: nombres.get(r.cliente_id) ?? "—", numero: Number(r.numero) }))
+      .sort((a, b) => a.numero - b.numero);
+  } catch (e) {
+    if (tablaFaltante(e)) return [];
+    throw e;
+  }
+}
+
+/** Cierra la rifa con el ganador + folio del comprobante (RPC 0098, atómico e
+ *  idempotente). Devuelve el folio, o null si 0098 aún no corrió. */
+export async function cerrarRifaDb(
+  db: SupabaseClient,
+  rifaId: string,
+  ganadorClienteId: string,
+  ganadorNumero: number,
+): Promise<number | null> {
+  const rpc = await db.rpc("cerrar_rifa_seguro", {
+    p_rifa: rifaId, p_ganador: ganadorClienteId, p_numero: ganadorNumero,
+  });
+  if (!rpc.error) return rpc.data == null ? null : Number(rpc.data);
+  const code = (rpc.error as { code?: string }).code;
+  if (code === "42883" || code === "PGRST202") return null;
+  throw rpc.error;
 }
 
 export type ResultadoFotoRifa = { ok: true; path: string } | { ok: false; error: string };

@@ -36,6 +36,7 @@ import { calcularScore } from "@/lib/scoring";
 import { numeroSuerte } from "@/lib/quiniela";
 import { tokenValido } from "@/lib/validacion/esquemas";
 import { getProductoAdmin, crearSolicitudDb, contarSolicitudesRecientesCliente, getZonaIdDeCliente } from "@/lib/data/tienda";
+import { getRifaParaCliente, participarRifaSeguro } from "@/lib/data/rifas";
 import { esUuid } from "@/lib/idempotencia";
 
 /** Azar del SERVIDOR (no del cliente) para decidir premios. Uniforme en [0,1). */
@@ -263,6 +264,50 @@ export async function jugarRaspadita(input: { token: string }): Promise<Resultad
     return { ok: true, label, tipo, folio: guardado.folio };
   } catch {
     return { ok: false, error: "No pudimos jugar la raspadita. Probá más tarde." };
+  }
+}
+
+// ── Rifa (PROMOCIONAL): participar (ticket correlativo) ────────────────────
+// El cliente entra a la rifa activa si su AUDIENCIA lo incluye. Recibe un número
+// de ticket (asignado por el servidor, correlativo). Idempotente: si ya participa,
+// devuelve su mismo número. Se re-valida la audiencia server-side (defensa en
+// profundidad, igual que la quiniela). Sin dinero (premio simbólico).
+export async function participarRifa(input: {
+  token: string;
+}): Promise<{ ok: true; numero: number } | { ok: false; error: string }> {
+  try {
+    if (!tokenValido(input.token)) return { ok: false, error: "Enlace no válido." };
+    const db = createSupabaseAdmin();
+    const cliente = await getClientePorToken(db, input.token);
+    if (!cliente) return { ok: false, error: "Enlace no válido." };
+
+    // ClienteSegmentable con la MISMA resolución que la vitrina/quiniela.
+    const prestamo = await getPrestamoActivoPorCliente(db, cliente.id);
+    let zonaId: string | null = null;
+    let alDia = true;
+    if (prestamo) {
+      if (prestamo.cobrador_id) {
+        const { data: cob } = await db.from("usuarios").select("zona_id").eq("id", prestamo.cobrador_id).maybeSingle();
+        zonaId = (cob as { zona_id: string | null } | null)?.zona_id ?? null;
+      }
+      const pagos = await getPagosDePrestamo(db, prestamo.id);
+      const carton = calcularEstadosCarton(prestamo, pagos, hoyUY());
+      alDia = !carton.dias.some((d) => d.estado === "atrasado" || d.estado === "pendiente");
+    }
+    const clienteSeg = {
+      id: cliente.id, calificacion: cliente.calificacion, zonaId,
+      cobradorId: prestamo?.cobrador_id ?? null, alDia,
+    };
+
+    const rifa = await getRifaParaCliente(db, clienteSeg);
+    if (!rifa) return { ok: false, error: "No hay una rifa disponible para vos ahora." };
+    if (rifa.estado !== "abierta") return { ok: false, error: "La rifa ya se cerró. ¡Atento a la próxima! 🍀" };
+
+    const numero = await participarRifaSeguro(db, rifa.id, cliente.id);
+    if (numero == null) return { ok: false, error: "La rifa no está disponible ahora." };
+    return { ok: true, numero };
+  } catch {
+    return { ok: false, error: "No pudimos registrarte en la rifa. Probá más tarde." };
   }
 }
 
