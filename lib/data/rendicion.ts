@@ -9,7 +9,8 @@ import { inicioDiaUYIso, hoyUY } from "@/lib/fecha";
 import { toIso } from "@/lib/format";
 import type { EstadoRendicion } from "@/lib/rendicion";
 import { getSolicitudesGastoCobrador } from "./solicitudesGasto";
-import { tablaFaltante } from "./errores";
+import { getAperturaDia } from "./aperturas";
+import { tablaFaltante, columnaFaltante } from "./errores";
 import { traerTodo } from "./paginado";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import type { Alcance } from "./alcance";
@@ -26,6 +27,8 @@ export interface RendicionDia {
   estado: EstadoRendicion;
   notas: string | null;
   creadoEn: string;
+  /** Base de arranque congelada al cerrar (0105). 0 si no tenía / falta migración. */
+  base: number;
   /** Recaudo EN VIVO del cobrador hoy (no el congelado al cerrar). Si es MAYOR que
    *  `recaudado`, cobró DESPUÉS de rendir → esa plata no entró a esta rendición. */
   recaudadoVivo?: number;
@@ -46,6 +49,9 @@ export interface EstadoJornada {
   gastosRespaldadosHoy: number;
   /** La rendición de hoy si ya cerró; null si todavía no. */
   yaRendida: RendicionDia | null;
+  /** Base de arranque que el supervisor le dio al cobrador HOY (0105). Debe
+   *  entregarla junto con lo cobrado. 0 si no tiene / falta migración. */
+  base: number;
   /** false si falta la migración 0013 (la tabla no existe). */
   disponible: boolean;
 }
@@ -63,6 +69,8 @@ function mapRendicion(r: Record<string, unknown>): RendicionDia {
     estado: diferencia === 0 ? "cuadra" : diferencia < 0 ? "faltante" : "sobrante",
     notas: (r.notas as string | null) ?? null,
     creadoEn: r.creado_en as string,
+    // Defensivo: si 0105 aún no corrió, la columna viene undefined → 0.
+    base: r.base == null ? 0 : Number(r.base),
   };
 }
 
@@ -106,6 +114,8 @@ export async function getEstadoJornada(
   const gastosPendientesHoy = sol.items
     .filter((s) => s.estado === "pendiente")
     .reduce((acc, s) => acc + s.monto, 0);
+  // Base de arranque del cobrador HOY (0105). La debe entregar junto con lo cobrado.
+  const base = await getAperturaDia(db, cobradorId, hoy);
 
   let yaRendida: RendicionDia | null = null;
   let disponible = true;
@@ -129,6 +139,7 @@ export async function getEstadoJornada(
     gastosHoy,
     gastosRespaldadosHoy: gastosHoy + gastosPendientesHoy,
     yaRendida,
+    base,
     disponible,
   };
 }
@@ -140,6 +151,8 @@ export interface NuevaRendicion {
   gastos: number;
   entregado: number;
   diferencia: number;
+  /** Base de arranque congelada en la rendición (0105). */
+  base: number;
   notas: string | null;
   registradoPor: string;
 }
@@ -147,16 +160,24 @@ export interface NuevaRendicion {
 /** Inserta la rendición. La `fecha` la pone la BD (día de Uruguay). El único
  *  índice (cobrador_id, fecha) impide dos rendiciones el mismo día. */
 export async function crearRendicionDb(db: SupabaseClient, r: NuevaRendicion): Promise<void> {
-  const { error } = await db.from("rendiciones").insert({
+  const fila: Record<string, unknown> = {
     cobrador_id: r.cobradorId,
     recaudado: r.recaudado,
     cobros_cantidad: r.cobrosCantidad,
     gastos: r.gastos,
     entregado: r.entregado,
     diferencia: r.diferencia,
+    base: r.base,
     notas: r.notas,
     registrado_por: r.registradoPor,
-  });
+  };
+  let { error } = await db.from("rendiciones").insert(fila);
+  // 0105 sin correr → insertar sin `base` (conducta previa; la diferencia igual
+  // ya se calculó con base=0, así que no cambia el resultado).
+  if (error && columnaFaltante(error)) {
+    delete fila.base;
+    ({ error } = await db.from("rendiciones").insert(fila));
+  }
   if (error) throw error;
 }
 

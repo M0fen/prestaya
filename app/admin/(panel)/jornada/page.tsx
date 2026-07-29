@@ -22,6 +22,8 @@ import { getDesempenoRango, type DesempenoRango } from "@/lib/data/desempeno";
 import { contarSolicitudesGastoPendientes } from "@/lib/data/solicitudesGasto";
 import { getBitacoraGestorDia, type RegistroAuditoria } from "@/lib/data/auditoria";
 import { alcanceDelActor } from "@/lib/data/alcance";
+import { getAperturasDia } from "@/lib/data/aperturas";
+import { BaseCajaManager, type CobradorBase } from "@/components/admin/BaseCajaManager";
 import { conTimeout } from "@/lib/timeout";
 import { navVisible } from "@/lib/admin/nav";
 import { UYU, diasSemana, meses, horaDe } from "@/lib/format";
@@ -186,6 +188,29 @@ export default async function JornadaPage({
     ? (pedido as Acto)
     : actoDefault;
 
+  // Base de caja del día (0105): con cuánto arranca cada cobrador. Solo se arma en
+  // Apertura del día de HOY (setear la base de un día pasado no tiene sentido). Se
+  // lee con el cliente admin acotado por `cobIds` (mismo patrón que el resto del
+  // panel); la escritura (setApertura) sí corre bajo la RLS del gestor.
+  let basesCobradores: CobradorBase[] = [];
+  if (acto === "apertura" && esHoy) {
+    const cobIds = alcance.global ? null : alcance.cobradorIds;
+    let cq = adminZ.from("usuarios").select("id, nombre, zona_id").eq("rol", "cobrador").eq("activo", true);
+    if (cobIds) cq = cobIds.length > 0 ? cq.in("id", cobIds) : cq.eq("id", "00000000-0000-0000-0000-000000000000");
+    const [cobsRes, bases, zonasRes] = await Promise.all([
+      cq.order("nombre", { ascending: true }),
+      getAperturasDia(db, hoy, cobIds),
+      adminZ.from("zonas").select("id, nombre"),
+    ]);
+    const zonaN = new Map((zonasRes.data ?? []).map((z) => [z.id as string, z.nombre as string]));
+    basesCobradores = (cobsRes.data ?? []).map((u) => ({
+      id: u.id as string,
+      nombre: u.nombre as string,
+      zonaNombre: u.zona_id ? (zonaN.get(u.zona_id as string) ?? null) : null,
+      base: bases.get(u.id as string) ?? 0,
+    }));
+  }
+
   // ── Señales del cierre, derivadas del consolidado (sin re-consultar rendiciones) ──
   const cons = cierre.consolidado;
   const faltantesN = cons.zonas.reduce(
@@ -342,6 +367,7 @@ export default async function JornadaPage({
           renovables={renovables}
         />
       )}
+      {acto === "apertura" && esHoy && <BaseCajaManager cobradores={basesCobradores} />}
       {acto === "vivo" && (
         <EnVivo
           cobradoRuta={cobradoRuta}

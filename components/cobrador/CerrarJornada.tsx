@@ -22,6 +22,7 @@ export function CerrarJornada({
   cobrosCantidad,
   gastosHoy = 0,
   gastosPendientes = 0,
+  base = 0,
   yaRendida,
   disponible,
 }: {
@@ -31,13 +32,17 @@ export function CerrarJornada({
   /** Gastos SOLICITADOS pero aún no aprobados: si el cobrador ya sacó esa plata,
    *  le saldría un faltante. Se AVISA (no se resta solo del prefijado). */
   gastosPendientes?: number;
+  /** Base de arranque que recibió del supervisor (0105): la devuelve junto con lo
+   *  cobrado → esperado = base + recaudado − gastos. 0 si no tiene. */
+  base?: number;
   yaRendida: RendicionDia | null;
   disponible: boolean;
 }) {
   const router = useRouter();
   // Prellena los gastos con lo que el cobrador ya cargó hoy (puede ajustarlo).
   const [gastos, setGastos] = useState(gastosHoy > 0 ? String(gastosHoy) : "");
-  const [entregado, setEntregado] = useState(String(Math.max(0, recaudado - gastosHoy)));
+  // Prellena el efectivo a entregar = base + recaudado − gastos (devuelve la base).
+  const [entregado, setEntregado] = useState(String(Math.max(0, base + recaudado - gastosHoy)));
   // ¿El cobrador tocó los campos a mano? Si NO, el prefijado se re-sincroniza cuando
   // sube el `recaudado` del servidor (al drenar la cola, `router.refresh` sube el
   // prop SIN desmontar este componente). Sin esto, `entregado` quedaba en el valor
@@ -61,8 +66,8 @@ export function CerrarJornada({
   useEffect(() => {
     if (editado) return;
     setGastos(gastosHoy > 0 ? String(gastosHoy) : "");
-    setEntregado(String(Math.max(0, recaudado - gastosHoy)));
-  }, [recaudado, gastosHoy, editado]);
+    setEntregado(String(Math.max(0, base + recaudado - gastosHoy)));
+  }, [recaudado, gastosHoy, editado, base]);
 
   if (!disponible) return null; // se habilita al correr 0013
 
@@ -85,9 +90,10 @@ export function CerrarJornada({
           </p>
         )}
         <div className="grid grid-cols-2 gap-2 text-[13px]">
+          {yaRendida.base > 0 && <Fila k="Base recibida" v={UYU(yaRendida.base)} />}
           <Fila k="Recaudado" v={UYU(yaRendida.recaudado)} />
           <Fila k="Gastos de ruta" v={UYU(yaRendida.gastos)} />
-          <Fila k="A entregar" v={UYU(yaRendida.recaudado - yaRendida.gastos)} />
+          <Fila k="A entregar" v={UYU(Math.max(0, yaRendida.base + yaRendida.recaudado - yaRendida.gastos))} />
           <Fila k="Entregado" v={UYU(yaRendida.entregado)} />
         </div>
         {yaRendida.diferencia !== 0 && (
@@ -101,7 +107,7 @@ export function CerrarJornada({
 
   const gastosN = Math.max(0, Math.round(Number(gastos) || 0));
   const entregadoN = Math.max(0, Math.round(Number(entregado) || 0));
-  const { esperado, diferencia, estado } = calcularRendicion(recaudado, gastosN, entregadoN);
+  const { esperado, diferencia, estado } = calcularRendicion(recaudado, gastosN, entregadoN, base);
   const t = TONO[estado];
 
   // Cobros en la cola offline que no subieron. SINCRONIZANDO (se reintentan solos)
@@ -131,6 +137,13 @@ export function CerrarJornada({
   return (
     <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-4">
       <span className="text-[14px] font-extrabold text-tinta">Cerrar jornada</span>
+
+      {base > 0 && (
+        <div className="mt-2 flex items-end justify-between rounded-[12px] bg-[#EEF3FF] px-3 py-2.5">
+          <span className="text-[12px] font-semibold text-[#1E47C8]">Base recibida (la devolvés)</span>
+          <span className="text-[16px] font-black tabular-nums text-[#1E47C8]">{UYU(base)}</span>
+        </div>
+      )}
 
       <div className="mt-2 flex items-end justify-between rounded-[12px] bg-[#F4F6FB] px-3 py-2.5">
         <span className="text-[12px] font-semibold text-gris">Recaudado hoy</span>
@@ -189,7 +202,7 @@ export function CerrarJornada({
               // quede un sobrante fantasma con un entregado sobre-declarado. Si ya
               // escribió su efectivo real, NO lo pisamos (respeta su conteo físico;
               // el campo sigue editable y la diferencia se ve en vivo).
-              if (!editado) setEntregado(String(Math.max(0, recaudado - nuevoGastos)));
+              if (!editado) setEntregado(String(Math.max(0, base + recaudado - nuevoGastos)));
               setEditado(true);
               setGastos(String(nuevoGastos));
             }}

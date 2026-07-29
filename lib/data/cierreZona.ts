@@ -49,6 +49,7 @@ export async function getCierrePorZona(
     entregado: r.entregado,
     diferencia: r.diferencia,
     estado: r.estado,
+    base: r.base,
     recaudadoVivo: r.recaudadoVivo,
   }));
   const pendientes: PendienteLite[] = rend.pendientes.map((p) => ({

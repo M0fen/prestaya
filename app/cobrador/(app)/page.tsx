@@ -264,6 +264,7 @@ export default async function RutaPage() {
           cobrosCantidad={jornada.cobrosCantidad}
           gastosHoy={jornada.gastosHoy}
           gastosPendientes={gastosPendientes}
+          base={jornada.base}
           yaRendida={jornada.yaRendida}
           disponible={jornada.disponible}
         />

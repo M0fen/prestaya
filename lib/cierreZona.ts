@@ -5,8 +5,11 @@
 //  caja central (admin). Este módulo solo agrega y suma (sin BD ni red).
 //
 //  Regla de dinero (espejo de lib/rendicion.ts, redondeo a peso entero):
-//     esperado   = max(0, recaudado − gastos)
+//     esperado   = max(0, base + recaudado − gastos)
 //     diferencia = entregado − esperado   → <0 faltante · >0 sobrante
+//  `base` = efectivo de arranque que el supervisor le dio al cobrador (0105);
+//  base=0 (default) → conducta previa. La diferencia ya viene calculada con base
+//  desde el cierre; acá recomputamos el esperado con base para que sea coherente.
 //  Un cobrador que recaudó pero AÚN no rindió es "pendiente" (su plata sigue
 //  en la calle): NO cuenta como faltante, cuenta como "por rendir".
 // ─────────────────────────────────────────────────────────────────────────
@@ -24,6 +27,8 @@ export interface RendidaLite {
   entregado: number;
   diferencia: number;
   estado: EstadoRendicion;
+  /** Base de arranque congelada en la rendición (0105). Default 0. */
+  base?: number;
   /** Recaudo EN VIVO (no el congelado al cerrar). Si supera `recaudado`, cobró
    *  DESPUÉS de rendir → esa plata quedó fuera de esta rendición. */
   recaudadoVivo?: number;
@@ -44,7 +49,9 @@ export interface CobradorCierre {
   estado: EstadoCobradorCierre;
   recaudado: number;
   gastos: number;
-  /** recaudado − gastos (nunca negativo). */
+  /** Base de arranque del cobrador (0105). 0 si no tiene / aún no rindió. */
+  base: number;
+  /** base + recaudado − gastos (nunca negativo). */
   esperado: number;
   /** Efectivo entregado (0 si aún no rindió). */
   entregado: number;
@@ -140,7 +147,8 @@ export function consolidarPorZona(
 
   for (const r of rendidas) {
     const z = asegurarZona(cobradorZona.get(r.cobradorId) ?? null);
-    const esperado = Math.max(0, Math.round(r.recaudado) - Math.round(r.gastos));
+    const base = Math.round(r.base ?? 0);
+    const esperado = Math.max(0, base + Math.round(r.recaudado) - Math.round(r.gastos));
     // Cobró después de rendir: el recaudo vivo supera el congelado al cerrar.
     const cobroPostCierre = Math.max(0, Math.round(r.recaudadoVivo ?? r.recaudado) - Math.round(r.recaudado));
     z.cobradores.push({
@@ -149,6 +157,7 @@ export function consolidarPorZona(
       estado: r.estado,
       recaudado: r.recaudado,
       gastos: r.gastos,
+      base,
       esperado,
       entregado: r.entregado,
       diferencia: r.diferencia,
@@ -170,6 +179,7 @@ export function consolidarPorZona(
       estado: "pendiente",
       recaudado: p.recaudado,
       gastos: 0,
+      base: 0,
       esperado: Math.max(0, Math.round(p.recaudado)),
       entregado: 0,
       diferencia: 0,
