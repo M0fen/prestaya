@@ -35,7 +35,7 @@ import { getConfigScoring } from "@/lib/data/scoringConfig";
 import { calcularScore } from "@/lib/scoring";
 import { numeroSuerte } from "@/lib/quiniela";
 import { tokenValido } from "@/lib/validacion/esquemas";
-import { getProductoAdmin, crearSolicitudDb, contarSolicitudesRecientesCliente, getZonaIdDeCliente } from "@/lib/data/tienda";
+import { getProductoAdmin, crearSolicitudDb, contarSolicitudesRecientesCliente, existeSolicitudAbierta, getZonaIdDeCliente } from "@/lib/data/tienda";
 import { getRifaParaCliente, participarRifaSeguro } from "@/lib/data/rifas";
 import { esUuid } from "@/lib/idempotencia";
 
@@ -82,6 +82,10 @@ export async function registrarInteres(input: {
       );
       if (!enAudiencia) return { ok: false, error: "Ese producto ya no está disponible." };
     }
+    // IDEMPOTENCIA: si el cliente ya tiene un lead ABIERTO de este producto, no se
+    // crea otro (tocar "Me interesa" varias veces no genera leads duplicados). Se
+    // devuelve ok igual (para el cliente, su interés ya quedó registrado).
+    if (await existeSolicitudAbierta(db, cliente.id, prod.id)) return { ok: true };
     // Rate-limit: máx. 10 solicitudes en 10 minutos por cliente (anti-spam del link).
     const desde = new Date(Date.now() - 10 * 60 * 1000);
     if ((await contarSolicitudesRecientesCliente(db, cliente.id, desde)) >= 10) {

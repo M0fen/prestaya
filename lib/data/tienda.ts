@@ -103,10 +103,15 @@ export interface SolicitudProducto {
   productoId: string | null;
   clienteId: string;
   clienteNombre?: string;
+  /** Teléfono del cliente (para contactarlo / WhatsApp desde el lead). */
+  clienteTelefono?: string | null;
   productoNombre: string;
   estado: EstadoSolicitud;
   nota: string | null;
   creadoEn: string;
+  /** Quién resolvió el lead (contactó/cerró) y cuándo. */
+  resueltoPorNombre?: string | null;
+  resueltoEn?: string | null;
 }
 
 const N = (v: unknown) => Math.round(Number(v) || 0);
@@ -401,18 +406,51 @@ export async function borrarPrecioSegmentoDb(db: SupabaseClient, id: string): Pr
 export async function getSolicitudes(db: SupabaseClient, estado?: EstadoSolicitud): Promise<SolicitudProducto[]> {
   try {
     let q = db.from("solicitudes_producto")
-      .select("id, producto_id, cliente_id, producto_nombre, estado, nota, creado_en, clientes(nombre)");
+      .select("id, producto_id, cliente_id, producto_nombre, estado, nota, creado_en, resuelto_por, resuelto_en, clientes(nombre, telefono)");
     if (estado) q = q.eq("estado", estado);
     const { data, error } = await q.order("creado_en", { ascending: false }).limit(500);
     if (error) throw error;
-    return (data ?? []).map((r) => ({
+    const filas = (data ?? []).map((r) => ({
       id: r.id as string, productoId: (r.producto_id as string | null) ?? null, clienteId: r.cliente_id as string,
       clienteNombre: (r.clientes as { nombre?: string } | null)?.nombre ?? "Cliente",
+      clienteTelefono: (r.clientes as { telefono?: string | null } | null)?.telefono ?? null,
       productoNombre: r.producto_nombre as string, estado: r.estado as EstadoSolicitud,
       nota: (r.nota as string | null) ?? null, creadoEn: r.creado_en as string,
+      resueltoPor: (r.resuelto_por as string | null) ?? null,
+      resueltoEn: (r.resuelto_en as string | null) ?? null,
+    }));
+    // Nombre de quién resolvió (para la traza del lead).
+    const ids = [...new Set(filas.map((f) => f.resueltoPor).filter(Boolean) as string[])];
+    const nombres = new Map<string, string>();
+    if (ids.length > 0) {
+      const { data: us } = await db.from("usuarios").select("id, nombre").in("id", ids);
+      for (const u of us ?? []) nombres.set(u.id as string, u.nombre as string);
+    }
+    return filas.map((f) => ({
+      id: f.id, productoId: f.productoId, clienteId: f.clienteId, clienteNombre: f.clienteNombre,
+      clienteTelefono: f.clienteTelefono, productoNombre: f.productoNombre, estado: f.estado,
+      nota: f.nota, creadoEn: f.creadoEn,
+      resueltoPorNombre: f.resueltoPor ? nombres.get(f.resueltoPor) ?? null : null,
+      resueltoEn: f.resueltoEn,
     }));
   } catch (e) {
     if (tablaFaltante(e)) return [];
+    throw e;
+  }
+}
+
+/** ¿El cliente ya tiene un lead ABIERTO (nueva/contactado) de este producto? Para
+ *  NO duplicar leads cuando toca "Me interesa" varias veces (idempotencia). */
+export async function existeSolicitudAbierta(db: SupabaseClient, clienteId: string, productoId: string): Promise<boolean> {
+  try {
+    const { count, error } = await db.from("solicitudes_producto")
+      .select("*", { count: "exact", head: true })
+      .eq("cliente_id", clienteId).eq("producto_id", productoId)
+      .in("estado", ["nueva", "contactado"]);
+    if (error) throw error;
+    return (count ?? 0) > 0;
+  } catch (e) {
+    if (tablaFaltante(e)) return false;
     throw e;
   }
 }

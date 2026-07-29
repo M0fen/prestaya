@@ -4,7 +4,9 @@
 // (los leads que dejan los clientes). Mobile-first, paleta del sitio.
 import { useState, useTransition, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { UYU } from "@/lib/format";
+import { linkWhatsApp, soloDigitos } from "@/lib/telefono";
 import { SelectorSegmento } from "@/components/admin/SelectorSegmento";
 import {
   guardarProducto, alternarProducto, eliminarProducto,
@@ -606,15 +608,46 @@ function Leads({ solicitudes }: { solicitudes: SolicitudProducto[] }) {
     <div className="flex flex-col gap-2">
       {solicitudes.map((s) => {
         const t = ESTADO_TONO[s.estado];
+        const tel = soloDigitos(s.clienteTelefono);
+        const wa = s.clienteTelefono
+          ? linkWhatsApp(s.clienteTelefono, `Hola ${s.clienteNombre}, vimos que te interesó ${s.productoNombre} 🙂`)
+          : null;
         return (
           <div key={s.id} className="flex flex-col gap-1.5 rounded-[14px] border border-borde bg-tarjeta p-3.5">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[14px] font-extrabold text-tinta">{s.clienteNombre}</span>
-              <span className="rounded-full px-2.5 py-0.5 text-[11px] font-bold" style={{ background: t.bg, color: t.fg }}>{t.label}</span>
+              <Link href={`/admin/clientes/${s.clienteId}`} className="truncate text-[14px] font-extrabold text-azul hover:underline">
+                {s.clienteNombre}
+              </Link>
+              <span className="flex-shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-bold" style={{ background: t.bg, color: t.fg }}>{t.label}</span>
             </div>
             <span className="text-[12.5px] font-medium text-gris">Interesado en: <b className="text-cuerpo">{s.productoNombre}</b></span>
-            <span className="text-[11px] font-medium text-tenue">{new Date(s.creadoEn).toLocaleString("es-UY", { timeZone: "America/Montevideo" })}</span>
-            <div className="mt-1 flex flex-wrap gap-1.5">
+            <span className="text-[11px] font-medium text-tenue">
+              {new Date(s.creadoEn).toLocaleString("es-UY", { timeZone: "America/Montevideo" })}
+              {s.resueltoPorNombre && ` · resuelto por ${s.resueltoPorNombre}`}
+            </span>
+            {s.nota && (
+              <p className="rounded-[10px] bg-suave px-2.5 py-1.5 text-[12px] font-medium text-cuerpo">📝 {s.nota}</p>
+            )}
+
+            {/* Contacto directo (el lead ya no es ciego) */}
+            {s.clienteTelefono ? (
+              <div className="flex flex-wrap gap-1.5">
+                {wa && (
+                  <a href={wa} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 rounded-full bg-[#25D366] px-3 py-1 text-[12px] font-extrabold text-white active:scale-95">
+                    💬 WhatsApp
+                  </a>
+                )}
+                <a href={`tel:${tel}`}
+                  className="inline-flex items-center gap-1 rounded-full border border-campo px-3 py-1 text-[12px] font-bold text-cuerpo">
+                  📞 {s.clienteTelefono}
+                </a>
+              </div>
+            ) : (
+              <span className="text-[11px] font-medium text-tenue-2">Sin teléfono cargado · abrí la ficha del cliente</span>
+            )}
+
+            <div className="mt-1 flex flex-wrap gap-1.5 border-t border-linea pt-2">
               {(["contactado", "cerrada", "descartada"] as EstadoSolicitud[]).map((e) => (
                 <button key={e} type="button" onClick={() => marcar(s.id, e)} disabled={pend || s.estado === e}
                   className="rounded-full border border-borde bg-tarjeta px-3 py-1 text-[12px] font-bold text-gris disabled:opacity-40">

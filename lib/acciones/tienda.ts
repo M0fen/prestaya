@@ -8,6 +8,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
+import { reportarError } from "@/lib/observabilidad";
 import { getUsuarioActual, esAdmin } from "@/lib/auth";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { hrefSeguro } from "@/lib/seguridad";
@@ -117,17 +118,40 @@ export async function alternarProducto(id: string, activo: boolean): Promise<Res
   }
 }
 
+/** Borra del bucket 'tienda' los objetos de una lista de URLs públicas (best-effort:
+ *  no lanza; una URL externa —no del bucket— se ignora). Evita objetos huérfanos. */
+async function borrarMediosTienda(urls: (string | null | undefined)[]): Promise<void> {
+  const marker = `/object/public/${BUCKET}/`;
+  const paths = urls
+    .map((u) => { const i = (u ?? "").indexOf(marker); return i >= 0 ? (u as string).slice(i + marker.length) : null; })
+    .filter((p): p is string => !!p);
+  if (paths.length === 0) return;
+  try {
+    await createSupabaseAdmin().storage.from(BUCKET).remove(paths);
+  } catch (e) {
+    reportarError("tienda.borrarMedios", e); // best-effort: no debe frenar el borrado
+  }
+}
+
 export async function eliminarProducto(id: string): Promise<Resultado> {
   const u = await soloAdmin();
   if (!u) return { ok: false, error: "No tenés permisos." };
   if (!esUuid(id)) return { ok: false, error: "Producto inválido." };
   try {
     const db = await createSupabaseServer();
+    // Limpiar los medios del Storage ANTES de borrar la fila (evita fotos/videos
+    // huérfanos en el bucket para siempre). Un video con URL externa se ignora.
+    const { data: medios } = await createSupabaseAdmin()
+      .from("productos").select("fotos, video_url").eq("id", id).maybeSingle();
+    if (medios) {
+      await borrarMediosTienda([...(((medios.fotos as string[] | null) ?? [])), medios.video_url as string | null]);
+    }
     await borrarProductoDb(db, id);
     await registrarAuditoria(db, { actorId: u.id, actorNombre: u.nombre, accion: "Borró producto", entidad: "producto", entidadId: id });
     revalidatePath("/admin/tienda");
     return { ok: true };
-  } catch {
+  } catch (e) {
+    reportarError("eliminarProducto", e, { id });
     return { ok: false, error: "No se pudo borrar." };
   }
 }
