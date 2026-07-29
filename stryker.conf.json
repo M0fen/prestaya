@@ -13,6 +13,9 @@
     "lib/reconciliacion.ts",
     "lib/idempotencia.ts",
     "lib/quiniela.ts",
-    "lib/data/comisiones.ts"
-  ]
+    "lib/data/comisiones.ts",
+    "lib/venta.ts",
+    "lib/estrellas.ts"
+  ],
+  "thresholds": { "high": 90, "low": 75, "break": 50 }
 }

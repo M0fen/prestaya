@@ -64,7 +64,7 @@ export async function cerrarJornada(input: {
   const { esperado, diferencia, estado: est } = calcularRendicion(estado.recaudado, gastos, entregado, estado.base);
 
   try {
-    await crearRendicionDb(db, {
+    await crearRendicionDb({
       cobradorId: usuario.id,
       recaudado: estado.recaudado,
       cobrosCantidad: estado.cobrosCantidad,

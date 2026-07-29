@@ -11,4 +11,10 @@ export default defineConfig({
       "server-only": fileURLToPath(new URL("./test/empty-module.ts", import.meta.url)),
     },
   },
+  test: {
+    // La suite de INTEGRACIÓN (test/pg/**) corre aparte con
+    // vitest.integration.config.ts (necesita un Postgres real). El suite rápido
+    // no debe intentar levantarla.
+    exclude: ["**/node_modules/**", "**/dist/**", "test/pg/**"],
+  },
 });

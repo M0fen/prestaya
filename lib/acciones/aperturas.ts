@@ -8,6 +8,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getUsuarioActual, esGestor } from "@/lib/auth";
+import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
 import { esUuid } from "@/lib/idempotencia";
 import { setAperturaDb } from "@/lib/data/aperturas";
 import { registrarAuditoria } from "@/lib/data/auditoria";
@@ -24,6 +25,12 @@ export async function setApertura(input: {
 }): Promise<Resultado> {
   const u = await getUsuarioActual();
   if (!u || !u.activo || !esGestor(u.rol)) return { ok: false, error: "No tenés permisos." };
+  // Kill switch: la base entra al `esperado` de la rendición (esperado = base +
+  // recaudado − gastos). Bajar la base cambia a posteriori cuánto debe entregar un
+  // cobrador → durante un freeze (investigando un descuadre) NO se puede tocar,
+  // igual que el resto de las escrituras de custodia (cierre/rendición/comisión).
+  const bloqueo = await bloqueoSoloLectura();
+  if (bloqueo) return bloqueo;
   if (!esUuid(input.cobradorId)) return { ok: false, error: "Cobrador inválido." };
   const base = Math.max(0, Math.min(1_000_000, Math.round(Number(input.base) || 0)));
   const nota = (input.nota ?? "").trim().slice(0, 200) || null;

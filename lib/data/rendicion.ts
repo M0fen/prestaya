@@ -157,9 +157,21 @@ export interface NuevaRendicion {
   registradoPor: string;
 }
 
-/** Inserta la rendición. La `fecha` la pone la BD (día de Uruguay). El único
- *  índice (cobrador_id, fecha) impide dos rendiciones el mismo día. */
-export async function crearRendicionDb(db: SupabaseClient, r: NuevaRendicion): Promise<void> {
+/**
+ * Inserta la rendición. La `fecha` la pone la BD (día de Uruguay). El único
+ * índice (cobrador_id, fecha) impide dos rendiciones el mismo día.
+ *
+ * ⚠️ MONEY-CRITICAL: el INSERT va con SERVICE_ROLE (admin), NO con la sesión del
+ * cobrador. Los campos de dinero (recaudado/gastos/entregado/diferencia/base) los
+ * computa el server-side de `cerrarJornada` (recaudado autoritativo de `pagos`,
+ * gastos capados a lo respaldado). Si el cobrador pudiera INSERTAR su rendición
+ * por PostgREST crudo (bajo su sesión), forjaría esos montos —recaudado honesto +
+ * gastos fantasma → "cuadra ✓"— y enmascararía el faltante completo sin rastro.
+ * Por eso la policy `rend_insert` se cierra a `with check (false)` (migración 0108)
+ * y la única vía de escritura es esta función, con los montos ya validados.
+ */
+export async function crearRendicionDb(r: NuevaRendicion): Promise<void> {
+  const admin = createSupabaseAdmin();
   const fila: Record<string, unknown> = {
     cobrador_id: r.cobradorId,
     recaudado: r.recaudado,
@@ -171,12 +183,12 @@ export async function crearRendicionDb(db: SupabaseClient, r: NuevaRendicion): P
     notas: r.notas,
     registrado_por: r.registradoPor,
   };
-  let { error } = await db.from("rendiciones").insert(fila);
+  let { error } = await admin.from("rendiciones").insert(fila);
   // 0105 sin correr → insertar sin `base` (conducta previa; la diferencia igual
   // ya se calculó con base=0, así que no cambia el resultado).
   if (error && columnaFaltante(error)) {
     delete fila.base;
-    ({ error } = await db.from("rendiciones").insert(fila));
+    ({ error } = await admin.from("rendiciones").insert(fila));
   }
   if (error) throw error;
 }

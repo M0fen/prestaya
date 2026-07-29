@@ -12,7 +12,7 @@ import { resolverRedencionDb, getSaldoEstrellas, redimirDirectoDb, marcarEntrega
 import { getPrestamosActivosPorCliente } from "@/lib/data/prestamos";
 import { getAjustesJuego } from "@/lib/data/juegoConfig";
 import { registrarAuditoria } from "@/lib/data/auditoria";
-import { validarRedencion, claveCiclo, type SaldoEstrellas } from "@/lib/estrellas";
+import { validarRedencion, claveCiclo, TOPE_REDENCION_CICLO, type SaldoEstrellas } from "@/lib/estrellas";
 import { cicloUY } from "@/lib/fecha";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -50,6 +50,21 @@ async function resolver(id: string, estado: "aprobada" | "rechazada"): Promise<R
         const saldo = await getSaldoEstrellas(db, red.cliente_id as string, red.ciclo as string);
         if (saldo.estrellasRedimidas + Number(red.estrellas) > saldo.estrellasGanadas) {
           return { ok: false, error: "El cliente ya no tiene saldo para este canje (se anularon pagos). Rechazalo o aprobá uno menor." };
+        }
+        // Tope POR CICLO re-validado al APROBAR (no solo al solicitar): dos solicitudes
+        // concurrentes podían pasar ambas la validación de la solicitud (cada una veía el
+        // cupo libre) y quedar dos "pendiente" del mismo ciclo. Sin este re-chequeo, el
+        // admin las aprobaba las dos y superaba el tope mensual. Se cuenta lo YA APROBADO
+        // en el ciclo (esta sigue pendiente, no se cuenta a sí misma) + esta redención.
+        const { data: aprobadasCiclo } = await db
+          .from("estrellas_redenciones")
+          .select("estrellas")
+          .eq("cliente_id", red.cliente_id as string)
+          .eq("ciclo", red.ciclo as string)
+          .eq("estado", "aprobada");
+        const yaAprobadas = (aprobadasCiclo ?? []).reduce((s, r) => s + Number(r.estrellas), 0);
+        if (yaAprobadas + Number(red.estrellas) > TOPE_REDENCION_CICLO) {
+          return { ok: false, error: `El cliente ya llegó al tope de ${TOPE_REDENCION_CICLO} estrellas en este ciclo. Rechazá esta.` };
         }
       }
     }

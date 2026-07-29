@@ -133,6 +133,109 @@ export function invHuerfanos(cantidad: number): Hallazgo[] {
   ];
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+//  INVARIANTES de lo NUEVO (07-29): estrellas, base de caja, ventas de tienda.
+//  Son dinero-adyacentes y hasta hoy no tenían monitoreo. Puras y testeables.
+// ─────────────────────────────────────────────────────────────────────────
+
+/** Estrellas ganadas (derivadas de pagos) vs redimidas (aprobadas) por cliente. */
+export interface EstrellasRecon {
+  clienteId: string;
+  estrellasGanadas: number;
+  estrellasRedimidas: number;
+}
+
+/**
+ * INVARIANTE 5 — Estrellas: nadie redimió MÁS estrellas de las que ganó
+ * (redención "fantasma"). El saldo se DERIVA de los pagos vigentes; una
+ * redención aprobada por encima de lo ganado es un beneficio entregado sin
+ * respaldo (el TOCTOU diferido de la auditoría). Crítico si aparece.
+ */
+export function invEstrellasFantasma(rows: readonly EstrellasRecon[]): Hallazgo[] {
+  const out: Hallazgo[] = [];
+  for (const r of rows) {
+    const g = Math.round(r.estrellasGanadas);
+    const red = Math.round(r.estrellasRedimidas);
+    if (red > g) {
+      out.push({
+        invariante: "estrellas-no-fantasma",
+        severidad: "critico",
+        creditoId: r.clienteId,
+        detalle: `cliente redimió ${red} estrella(s) pero ganó ${g}`,
+      });
+    }
+  }
+  return out;
+}
+
+/** Base declarada en la apertura vs base usada en el cierre (rendición) del día. */
+export interface BaseCajaRecon {
+  cobradorId: string;
+  fecha: string;
+  baseApertura: number;
+  /** null si el cobrador aún no rindió (no aplica el chequeo). */
+  baseRendicion: number | null;
+}
+
+/**
+ * INVARIANTE 6 — Base de caja consistente: la base con la que se CERRÓ la jornada
+ * es la MISMA que se declaró en la apertura. Una base editada DESPUÉS del cierre
+ * cambia el "esperado = base + recaudado − gastos" a posteriori y puede
+ * enmascarar un faltante. Alto (operativo, no corrompe el libro).
+ */
+export function invBaseCaja(rows: readonly BaseCajaRecon[]): Hallazgo[] {
+  const out: Hallazgo[] = [];
+  for (const r of rows) {
+    if (r.baseRendicion == null) continue; // aún no rindió → no aplica
+    if (Math.abs(Math.round(r.baseApertura) - Math.round(r.baseRendicion)) >= DRIFT_TOL) {
+      out.push({
+        invariante: "base-caja-consistente",
+        severidad: "alto",
+        detalle: `cobrador ${r.cobradorId} (${r.fecha}): base apertura ${r.baseApertura} ≠ base cierre ${r.baseRendicion}`,
+      });
+    }
+  }
+  return out;
+}
+
+/** Un lead de tienda con su estado y el crédito al que dice apuntar. */
+export interface LeadRecon {
+  leadId: string;
+  estado: string;
+  prestamoId: string | null;
+  /** ¿Existe ese crédito en la base? */
+  prestamoExiste: boolean;
+  /** origen del crédito apuntado ('tienda' esperado), o null. */
+  prestamoOrigen: string | null;
+}
+
+/**
+ * INVARIANTE 7 — Tienda lead→crédito: todo lead 'convertida' apunta a UN crédito
+ * existente de origen 'tienda'. Detecta una conversión rota (lead marcado
+ * convertido sin crédito real, o apuntando a un préstamo que no es de venta) →
+ * deuda de tienda mal trazada. Crítico si no hay crédito; alto si el origen no cuadra.
+ */
+export function invLeadConvertido(rows: readonly LeadRecon[]): Hallazgo[] {
+  const out: Hallazgo[] = [];
+  for (const r of rows) {
+    if (r.estado !== "convertida") continue;
+    if (!r.prestamoId || !r.prestamoExiste) {
+      out.push({
+        invariante: "lead-convertido-consistente",
+        severidad: "critico",
+        detalle: `lead ${r.leadId} marcado 'convertida' sin crédito válido`,
+      });
+    } else if (r.prestamoOrigen !== "tienda") {
+      out.push({
+        invariante: "lead-convertido-consistente",
+        severidad: "alto",
+        detalle: `lead ${r.leadId} apunta a un crédito de origen '${r.prestamoOrigen}' (esperado 'tienda')`,
+      });
+    }
+  }
+  return out;
+}
+
 export interface ResumenReconciliacion {
   ok: boolean;
   totalCreditos: number;

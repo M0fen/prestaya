@@ -9,7 +9,9 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:pg": "vitest run --config vitest.integration.config.ts",
+    "test:mutation": "stryker run"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.65.0",
@@ -31,12 +33,14 @@
     "@tailwindcss/postcss": "^4.0.0",
     "@types/leaflet": "^1.9.21",
     "@types/node": "^20",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/web-push": "^3.6.4",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.2.10",
     "fast-check": "^4.9.0",
+    "pg": "^8.22.0",
     "tailwindcss": "^4.0.0",
     "typescript": "^5",
     "vitest": "^4.1.10",

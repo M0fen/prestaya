@@ -9,6 +9,9 @@ on:
     branches: [master]
   pull_request:
     branches: [master]
+  # Mutation testing es lento (minutos): se dispara A MANO antes de un release
+  # (pestaña Actions → "Run workflow"), no en cada push.
+  workflow_dispatch: {}
 
 # Un push nuevo cancela la corrida anterior de la misma rama (ahorra minutos).
 concurrency:
@@ -45,3 +48,63 @@ jobs:
         run: npm run build
         env:
           NEXT_TELEMETRY_DISABLED: "1"
+
+  # Suite de INTEGRACIÓN: corre los RPC/triggers/RLS de dinero contra un Postgres
+  # 17 REAL (no un fake JS). Es la red que faltaba: si el SQL de una migración
+  # diverge de lo que el código espera, esto se pone en rojo. Ver test/pg/.
+  integracion:
+    name: Integración RPC (Postgres real)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node 20 (+ cache npm)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Tests de integración (RPC de dinero vs Postgres real)
+        run: npm run test:pg
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+
+  # Mutation testing del NÚCLEO de plata (mide si los tests ATRAPAN bugs, no solo
+  # cobertura). Manual (release), porque es lento. Falla si el score baja del 50%.
+  mutacion:
+    name: Mutation testing (release, manual)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node 20 (+ cache npm)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Mutation testing (stryker)
+        run: npm run test:mutation
