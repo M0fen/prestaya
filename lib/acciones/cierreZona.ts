@@ -8,6 +8,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { reportarError } from "@/lib/observabilidad";
 import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
 import { getUsuarioActual, getActorActual } from "@/lib/auth";
 import { puedeVerZona } from "@/lib/permisos";
@@ -81,6 +82,8 @@ export async function confirmarCierreZona(input: {
     return { ok: true };
   } catch (e) {
     if (esDuplicado(e)) return { ok: false, error: "Esa zona ya se cerró hoy." };
+    // Custodia de efectivo: un fallo real acá debe dejar rastro (antes se tragaba).
+    reportarError("cerrarCajaZona", e, { zonaId: input.zonaId, supervisorId: u.id });
     return { ok: false, error: "No se pudo cerrar la zona. Probá de nuevo." };
   }
 }

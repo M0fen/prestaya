@@ -6,6 +6,7 @@
 //  Protegido con CRON_SECRET, corre con service_role. Lo dispara Vercel Cron.
 // ─────────────────────────────────────────────────────────────────────────
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
+import { reportarError } from "@/lib/observabilidad";
 import { cronAutorizado } from "@/lib/seguridad/cron";
 import { reconciliarDia, logReconciliacion } from "@/lib/data/reconciliacion";
 import { getSuscripcionesDeRoles, borrarSuscripcionDb } from "@/lib/data/push";
@@ -26,9 +27,13 @@ export async function GET(req: Request): Promise<Response> {
     return new Response("No autorizado", { status: 401 });
   }
 
+  try {
   const db = createSupabaseAdmin();
   const r = await reconciliarDia(db);
   if (!r.disponible) {
+    // Antes devolvía ok:false en SILENCIO → un vigilante caído se confundía con "todo
+    // cuadra". Ahora deja rastro para que se note que la reconciliación no está corriendo.
+    reportarError("cron.reconciliacion", new Error("RPC app_reconciliacion_violaciones sin correr (0071)"));
     return Response.json({ ok: false, motivo: "RPC app_reconciliacion_violaciones sin correr (0071)" });
   }
 
@@ -68,4 +73,10 @@ export async function GET(req: Request): Promise<Response> {
     recaudoLibro: r.recaudoLibro,
     avisados,
   });
+  } catch (e) {
+    // El VIGILANTE de la plata deja rastro si él mismo falla (antes solo lo veía
+    // onRequestError→Sentry, sin señal si el DSN no estaba). Es la última red.
+    reportarError("cron.reconciliacion", e);
+    return Response.json({ ok: false, error: "fallo del cron de reconciliación" }, { status: 500 });
+  }
 }
