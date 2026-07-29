@@ -194,6 +194,11 @@ function EditorProducto({
 
   const onVideo = async (file: File | null) => {
     if (!file) return;
+    // Validación de tamaño/tipo ANTES de pedir la URL firmada (la subida es directa
+    // al bucket, la Server Action no puede validar el peso). Evita subir un archivo
+    // enorme o un no-video al Storage.
+    if (!file.type.startsWith("video/")) { setError("Eso no parece un video."); return; }
+    if (file.size > 50 * 1024 * 1024) { setError("El video es muy pesado (máx. 50 MB). Recortalo o bajá la calidad."); return; }
     setSubiendo(true); setError(null);
     const pre = await crearUrlSubidaTienda({ nombreArchivo: file.name, contentType: file.type });
     if (!pre.ok) { setError(pre.error); setSubiendo(false); return; }
@@ -597,67 +602,138 @@ const ESTADO_TONO: Record<EstadoSolicitud, { bg: string; fg: string; label: stri
 };
 
 function Leads({ solicitudes }: { solicitudes: SolicitudProducto[] }) {
-  const router = useRouter();
-  const [pend, start] = useTransition();
-  const marcar = (id: string, estado: EstadoSolicitud) => start(async () => { await resolverSolicitud(id, estado); router.refresh(); });
+  const total = solicitudes.length;
+  const cont = (e: EstadoSolicitud) => solicitudes.filter((s) => s.estado === e).length;
+  // "Más pedidos": ranking de productos por cantidad de leads.
+  const topProd = (() => {
+    const m = new Map<string, number>();
+    for (const s of solicitudes) m.set(s.productoNombre, (m.get(s.productoNombre) ?? 0) + 1);
+    return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4);
+  })();
 
-  if (solicitudes.length === 0) {
+  if (total === 0) {
     return <p className="rounded-[14px] border border-borde bg-tarjeta px-4 py-8 text-center text-[13px] font-medium text-gris">Sin solicitudes todavía. Cuando un cliente toque "Me interesa", aparece acá.</p>;
   }
   return (
-    <div className="flex flex-col gap-2">
-      {solicitudes.map((s) => {
-        const t = ESTADO_TONO[s.estado];
-        const tel = soloDigitos(s.clienteTelefono);
-        const wa = s.clienteTelefono
-          ? linkWhatsApp(s.clienteTelefono, `Hola ${s.clienteNombre}, vimos que te interesó ${s.productoNombre} 🙂`)
-          : null;
-        return (
-          <div key={s.id} className="flex flex-col gap-1.5 rounded-[14px] border border-borde bg-tarjeta p-3.5">
-            <div className="flex items-center justify-between gap-2">
-              <Link href={`/admin/clientes/${s.clienteId}`} className="truncate text-[14px] font-extrabold text-azul hover:underline">
-                {s.clienteNombre}
-              </Link>
-              <span className="flex-shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-bold" style={{ background: t.bg, color: t.fg }}>{t.label}</span>
-            </div>
-            <span className="text-[12.5px] font-medium text-gris">Interesado en: <b className="text-cuerpo">{s.productoNombre}</b></span>
-            <span className="text-[11px] font-medium text-tenue">
-              {new Date(s.creadoEn).toLocaleString("es-UY", { timeZone: "America/Montevideo" })}
-              {s.resueltoPorNombre && ` · resuelto por ${s.resueltoPorNombre}`}
-            </span>
-            {s.nota && (
-              <p className="rounded-[10px] bg-suave px-2.5 py-1.5 text-[12px] font-medium text-cuerpo">📝 {s.nota}</p>
-            )}
-
-            {/* Contacto directo (el lead ya no es ciego) */}
-            {s.clienteTelefono ? (
-              <div className="flex flex-wrap gap-1.5">
-                {wa && (
-                  <a href={wa} target="_blank" rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 rounded-full bg-[#25D366] px-3 py-1 text-[12px] font-extrabold text-white active:scale-95">
-                    💬 WhatsApp
-                  </a>
-                )}
-                <a href={`tel:${tel}`}
-                  className="inline-flex items-center gap-1 rounded-full border border-campo px-3 py-1 text-[12px] font-bold text-cuerpo">
-                  📞 {s.clienteTelefono}
-                </a>
-              </div>
-            ) : (
-              <span className="text-[11px] font-medium text-tenue-2">Sin teléfono cargado · abrí la ficha del cliente</span>
-            )}
-
-            <div className="mt-1 flex flex-wrap gap-1.5 border-t border-linea pt-2">
-              {(["contactado", "cerrada", "descartada"] as EstadoSolicitud[]).map((e) => (
-                <button key={e} type="button" onClick={() => marcar(s.id, e)} disabled={pend || s.estado === e}
-                  className="rounded-full border border-borde bg-tarjeta px-3 py-1 text-[12px] font-bold text-gris disabled:opacity-40">
-                  {ESTADO_TONO[e].label}
-                </button>
+    <div className="flex flex-col gap-3">
+      {/* Métricas de interés (sobre lo cargado) */}
+      <div className="flex flex-col gap-2.5 rounded-[16px] border border-borde bg-tarjeta p-4">
+        <span className="text-[13px] font-extrabold text-tinta">Resumen de interés</span>
+        <div className="grid grid-cols-4 gap-2">
+          <MiniLead k="Total" v={total} />
+          <MiniLead k="Nuevos" v={cont("nueva")} tono="ambar" />
+          <MiniLead k="Atendidos" v={cont("contactado") + cont("cerrada")} tono="verde" />
+          <MiniLead k="Descartados" v={cont("descartada")} />
+        </div>
+        {topProd.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <span className="text-[11px] font-bold uppercase tracking-wide text-gris">Más pedidos</span>
+            <div className="flex flex-wrap gap-1.5">
+              {topProd.map(([nombre, n]) => (
+                <span key={nombre} className="rounded-full bg-suave px-2.5 py-0.5 text-[11.5px] font-semibold text-cuerpo">
+                  {nombre} · <b className="tabular-nums">{n}</b>
+                </span>
               ))}
             </div>
           </div>
-        );
-      })}
+        )}
+      </div>
+
+      <div className="flex flex-col gap-2">
+        {solicitudes.map((s) => <LeadCard key={s.id} s={s} />)}
+      </div>
+    </div>
+  );
+}
+
+function MiniLead({ k, v, tono }: { k: string; v: number; tono?: "ambar" | "verde" }) {
+  return (
+    <div className="flex flex-col gap-0.5 rounded-[12px] border border-borde bg-suave p-2.5">
+      <span className="text-[10px] font-bold uppercase tracking-wide text-gris">{k}</span>
+      <span className={`text-[17px] font-extrabold tabular-nums ${tono === "verde" ? "text-verde" : tono === "ambar" ? "text-ambar-osc" : "text-tinta"}`}>{v}</span>
+    </div>
+  );
+}
+
+function LeadCard({ s }: { s: SolicitudProducto }) {
+  const router = useRouter();
+  const [pend, start] = useTransition();
+  const [nota, setNota] = useState(s.nota ?? "");
+  const [editaNota, setEditaNota] = useState(false);
+  const t = ESTADO_TONO[s.estado];
+  const tel = soloDigitos(s.clienteTelefono);
+  const wa = s.clienteTelefono
+    ? linkWhatsApp(s.clienteTelefono, `Hola ${s.clienteNombre}, vimos que te interesó ${s.productoNombre} 🙂`)
+    : null;
+  // Al marcar un estado, se adjunta la nota actual (para no perderla).
+  const marcar = (estado: EstadoSolicitud) =>
+    start(async () => { await resolverSolicitud(s.id, estado, nota.trim() || null); router.refresh(); });
+  const guardarNota = () =>
+    start(async () => { await resolverSolicitud(s.id, s.estado, nota.trim() || null); setEditaNota(false); router.refresh(); });
+
+  return (
+    <div className="flex flex-col gap-1.5 rounded-[14px] border border-borde bg-tarjeta p-3.5">
+      <div className="flex items-center justify-between gap-2">
+        <Link href={`/admin/clientes/${s.clienteId}`} className="truncate text-[14px] font-extrabold text-azul hover:underline">
+          {s.clienteNombre}
+        </Link>
+        <span className="flex-shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-bold" style={{ background: t.bg, color: t.fg }}>{t.label}</span>
+      </div>
+      <span className="text-[12.5px] font-medium text-gris">Interesado en: <b className="text-cuerpo">{s.productoNombre}</b></span>
+      <span className="text-[11px] font-medium text-tenue">
+        {new Date(s.creadoEn).toLocaleString("es-UY", { timeZone: "America/Montevideo" })}
+        {s.resueltoPorNombre && ` · resuelto por ${s.resueltoPorNombre}`}
+      </span>
+
+      {/* Nota del lead (ver + editar) */}
+      {editaNota ? (
+        <div className="flex flex-col gap-1.5">
+          <textarea
+            value={nota} onChange={(e) => setNota(e.target.value)} rows={2} maxLength={200}
+            placeholder="Ej: quedó de pasar el viernes; ofrecerle 12 cuotas."
+            className="rounded-[10px] border border-campo bg-tarjeta px-2.5 py-1.5 text-[12.5px] text-tinta outline-none focus:border-azul"
+          />
+          <div className="flex gap-1.5">
+            <button type="button" onClick={guardarNota} disabled={pend}
+              className="rounded-full bg-azul px-3 py-1 text-[12px] font-bold text-white disabled:opacity-50">Guardar nota</button>
+            <button type="button" onClick={() => { setNota(s.nota ?? ""); setEditaNota(false); }}
+              className="rounded-full border border-campo px-3 py-1 text-[12px] font-bold text-gris">Cancelar</button>
+          </div>
+        </div>
+      ) : (
+        <button type="button" onClick={() => setEditaNota(true)}
+          className="flex items-start gap-1.5 rounded-[10px] bg-suave px-2.5 py-1.5 text-left text-[12px] font-medium text-cuerpo">
+          <span>📝</span>
+          <span className={s.nota ? "" : "text-tenue"}>{s.nota || "Agregar una nota…"}</span>
+        </button>
+      )}
+
+      {/* Contacto directo */}
+      {s.clienteTelefono ? (
+        <div className="flex flex-wrap gap-1.5">
+          {wa && (
+            <a href={wa} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 rounded-full bg-[#25D366] px-3 py-1 text-[12px] font-extrabold text-white active:scale-95">
+              💬 WhatsApp
+            </a>
+          )}
+          <a href={`tel:${tel}`}
+            className="inline-flex items-center gap-1 rounded-full border border-campo px-3 py-1 text-[12px] font-bold text-cuerpo">
+            📞 {s.clienteTelefono}
+          </a>
+        </div>
+      ) : (
+        <span className="text-[11px] font-medium text-tenue-2">Sin teléfono cargado · abrí la ficha del cliente</span>
+      )}
+
+      <div className="mt-1 flex flex-wrap gap-1.5 border-t border-linea pt-2">
+        {(["contactado", "cerrada", "descartada"] as EstadoSolicitud[]).map((e) => (
+          <button key={e} type="button" onClick={() => marcar(e)} disabled={pend || s.estado === e}
+            className="rounded-full border border-borde bg-tarjeta px-3 py-1 text-[12px] font-bold text-gris disabled:opacity-40">
+            {ESTADO_TONO[e].label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
