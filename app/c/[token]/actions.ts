@@ -266,7 +266,11 @@ export async function jugarRaspadita(input: { token: string }): Promise<Resultad
       // Otra jugada concurrente ya consumió el último cupo (o el cliente se quedó sin).
       return { ok: false, error: "Ya jugaste tus raspaditas por ahora. ¡Con tu próximo pago desbloqueás otra! 🌟" };
     }
-    return { ok: true, label, tipo, folio: guardado.folio };
+    // Si el servidor entregó un premio FIJADO por el admin (0106), el cliente ve ESE
+    // (label/tipo del RPC), no el del azar → comprobante/folio coherentes con la BD.
+    const labelFinal = guardado.label ?? label;
+    const tipoFinal: "beneficio" | "nada" = guardado.tipo === "beneficio" ? "beneficio" : guardado.tipo === "nada" ? "nada" : tipo;
+    return { ok: true, label: labelFinal, tipo: tipoFinal, folio: guardado.folio };
   } catch {
     return { ok: false, error: "No pudimos jugar la raspadita. Probá más tarde." };
   }

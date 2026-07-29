@@ -163,11 +163,13 @@ export function consolidarPorZona(
       diferencia: r.diferencia,
       cobroPostCierre,
     });
-    z.totalRecaudado += r.recaudado;
+    // Redondeo defensivo por simetría con `esperado` (hoy los valores ya son enteros
+    // desde la capa de datos; esto blinda contra un monto fraccionario a futuro).
+    z.totalRecaudado += Math.round(r.recaudado);
     z.totalEsperado += esperado;
-    z.totalEntregado += r.entregado;
-    if (r.diferencia < 0) z.totalFaltante += -r.diferencia;
-    else if (r.diferencia > 0) z.totalSobrante += r.diferencia;
+    z.totalEntregado += Math.round(r.entregado);
+    if (r.diferencia < 0) z.totalFaltante += -Math.round(r.diferencia);
+    else if (r.diferencia > 0) z.totalSobrante += Math.round(r.diferencia);
     z.rendidos += 1;
   }
 
@@ -184,8 +186,8 @@ export function consolidarPorZona(
       entregado: 0,
       diferencia: 0,
     });
-    z.totalRecaudado += p.recaudado;
-    z.porRendir += p.recaudado;
+    z.totalRecaudado += Math.round(p.recaudado);
+    z.porRendir += Math.round(p.recaudado);
     z.pendientes += 1;
   }
 

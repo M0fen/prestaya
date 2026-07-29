@@ -6,6 +6,7 @@
 import { useState, useMemo, useTransition } from "react";
 import { UYU } from "@/lib/format";
 import { registrarInteres } from "@/app/c/[token]/actions";
+import { calcularPlanVenta } from "@/lib/venta";
 import type { ProductoParaCliente, FrecuenciaProducto } from "@/lib/data/tienda";
 
 const FREC_LABEL: Record<FrecuenciaProducto, string> = {
@@ -13,11 +14,14 @@ const FREC_LABEL: Record<FrecuenciaProducto, string> = {
 };
 type Orden = "destacados" | "menor" | "mayor";
 
-/** Precio final con interés + la cuota (framing "en N cuotas de $X"). */
+/** Cuota + TOTAL a cobrar (= cuota × cuotas), con la fórmula CANÓNICA (lib/venta), la
+ *  misma que usa la conversión a crédito y el cartón → el cliente ve exactamente lo que
+ *  va a pagar (antes se mostraba `conInteres`, que por el redondeo `ceil` quedaba por
+ *  debajo del total real cuota×cuotas por unos pesos). */
 function financiacion(p: ProductoParaCliente) {
-  const conInteres = Math.round(p.precio * (1 + p.interesPct / 100));
-  const cuota = p.cuotas > 0 ? Math.ceil(conInteres / p.cuotas) : 0;
-  return { conInteres, cuota };
+  if (p.cuotas <= 0) return { total: 0, cuota: 0 };
+  const plan = calcularPlanVenta({ precio: p.precio, interesPct: p.interesPct, cuotas: p.cuotas });
+  return { total: plan.totalACobrar, cuota: plan.cuota };
 }
 // Quita acentos para que "heladera" matchee "Heladera" y "cafe" matchee "café".
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -219,7 +223,7 @@ function DetalleProducto({ p, token, onClose, preview = false }: { p: ProductoPa
   const [pend, start] = useTransition();
   const [estado, setEstado] = useState<"idle" | "ok" | "error">("idle");
   const [msg, setMsg] = useState<string | null>(null);
-  const { conInteres, cuota } = financiacion(p);
+  const { total: totalCuotas, cuota } = financiacion(p);
   const medios = p.fotos.length > 0 ? p.fotos : [];
   const total = medios.length + (p.videoUrl ? 1 : 0);
   const esVideo = p.videoUrl && i === medios.length;
@@ -270,7 +274,7 @@ function DetalleProducto({ p, token, onClose, preview = false }: { p: ProductoPa
               <span className="text-[14px] font-semibold text-cuerpo">o en <b>{p.cuotas} cuotas</b> de <b className="tabular-nums text-[#1E47C8]">{UYU(cuota)}</b> {FREC_LABEL[p.frecuencia]}</span>
             )}
             {p.interesPct > 0 && p.cuotas > 0 && (
-              <span className="text-[12px] font-medium text-gris">Total en cuotas: <b className="tabular-nums">{UYU(conInteres)}</b> ({p.interesPct}% de interés)</span>
+              <span className="text-[12px] font-medium text-gris">Total en cuotas: <b className="tabular-nums">{UYU(totalCuotas)}</b> ({p.interesPct}% de interés)</span>
             )}
           </div>
 

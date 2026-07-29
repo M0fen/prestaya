@@ -206,7 +206,7 @@ export async function registrarJugadaRaspa(
 }
 
 export type ResultadoJugadaSegura =
-  | { ok: true; folio: number | null }
+  | { ok: true; folio: number | null; label?: string | null; tipo?: string | null }
   | { ok: false; sinCupo: boolean };
 
 /**
@@ -233,8 +233,19 @@ export async function registrarJugadaRaspaSeguro(
   };
   // 0103: RPC pin-aware (entrega el PREMIO FIJADO pendiente FIFO, o el azar). Mismo
   // candado + re-cheque de cupo que 0097. Si 0103 no corrió, cae al RPC 0097.
+  // 0106: el RPC devuelve el label/tipo REALMENTE entregado → el cliente ve lo que
+  // quedó en la BD (antes veía el azar aunque se guardara el pin). Si falta 0106, el
+  // RPC viejo no trae esas columnas → label/tipo null → se usa el del azar (previo).
   const pin = await db.rpc("registrar_jugada_raspa_pin", params);
-  if (!pin.error) return { ok: true, folio: leerFolio(pin.data) };
+  if (!pin.error) {
+    const row = Array.isArray(pin.data) ? pin.data[0] : pin.data;
+    return {
+      ok: true,
+      folio: leerFolio(pin.data),
+      label: (row as { premio_label?: string | null } | null)?.premio_label ?? null,
+      tipo: (row as { premio_tipo?: string | null } | null)?.premio_tipo ?? null,
+    };
+  }
   const pcode = (pin.error as { code?: string }).code;
   if (pcode === "P0001") return { ok: false, sinCupo: true }; // sin cupo (carrera)
   if (pcode !== "42883" && pcode !== "PGRST202") throw pin.error;

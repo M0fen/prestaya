@@ -270,7 +270,8 @@ export async function marcarEntregadaDb(db: SupabaseClient, id: string, usuarioI
     .from("estrellas_redenciones")
     .update({ entregado: true, entregado_en: new Date().toISOString(), entregado_por: usuarioId })
     .eq("id", id)
-    .eq("estado", "aprobada"); // solo se entrega algo aprobado
+    .eq("estado", "aprobada") // solo se entrega algo aprobado
+    .eq("entregado", false); // idempotente: congela quién/cuándo la 1ª vez (no lo pisa un 2º clic)
   if (error) throw error;
 }
 

@@ -36,6 +36,23 @@ async function resolver(id: string, estado: "aprobada" | "rechazada"): Promise<R
   if (!id) return { ok: false, error: "Redención inválida." };
   try {
     const db = await createSupabaseServer();
+    // Re-validar el SALDO DERIVADO al momento de APROBAR: el saldo sale de los pagos NO
+    // anulados y pudo ENCOGER entre la solicitud y ahora (anulaciones). Si ganadas cayó
+    // por debajo de lo ya redimido + esta redención, NO se aprueba (si no, el cliente
+    // canjearía más de lo ganado). Invariante global: redimidas + n <= ganadas.
+    if (estado === "aprobada") {
+      const { data: red } = await db
+        .from("estrellas_redenciones")
+        .select("cliente_id, estrellas, ciclo, estado")
+        .eq("id", id)
+        .maybeSingle();
+      if (red && red.estado === "pendiente") {
+        const saldo = await getSaldoEstrellas(db, red.cliente_id as string, red.ciclo as string);
+        if (saldo.estrellasRedimidas + Number(red.estrellas) > saldo.estrellasGanadas) {
+          return { ok: false, error: "El cliente ya no tiene saldo para este canje (se anularon pagos). Rechazalo o aprobá uno menor." };
+        }
+      }
+    }
     await resolverRedencionDb(db, id, estado, u.id);
     await registrarAuditoria(db, {
       actorId: u.id,

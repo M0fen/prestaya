@@ -680,6 +680,10 @@ export async function crearVentaSegura(
     if (pid) return { ok: true, prestamoId: pid };
     return { ok: false, error: "Ese pedido ya no está abierto (quizá ya se convirtió)." };
   }
+  // Gate de stock del RPC (0106): otra venta concurrente agotó el stock.
+  if (code === "P0409") return { ok: false, error: "El producto se quedó sin stock (otra venta lo agotó)." };
+  // Defensa CAP del RPC (0106).
+  if (code === "P0403") return { ok: false, error: "La venta supera el tope de crédito ($100.000)." };
   // op_id duplicado (commit-perdido): la venta YA se creó → devolver ese crédito.
   if (code === "23505") {
     const { data } = await db.from("prestamos").select("id").eq("op_id", input.opId).limit(1);
