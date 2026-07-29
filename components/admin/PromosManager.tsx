@@ -52,24 +52,25 @@ export function PromosManager({
     <div className="flex flex-col gap-6">
       {/* Explicador simple de cómo funciona todo (arriba de todo). */}
       <div className="flex flex-col gap-2 rounded-[16px] border border-[#D9E4FF] bg-[#EEF3FF] p-4">
-        <span className="text-[14px] font-extrabold text-[#1E47C8]">🎫 Cómo funciona la raspadita</span>
+        <span className="text-[14px] font-extrabold text-[#1E47C8]">🎫 Cómo armás la raspadita, en 3 pasos</span>
         <ol className="flex flex-col gap-1.5 text-[12.5px] font-medium text-cuerpo">
-          <li><b>1.</b> Creás <b>tramos</b> por el score del cliente (ej.: “Clientes estrella”, score 90–100%).</li>
-          <li><b>2.</b> A cada tramo le ponés su <b>chance de ganar</b>: 100% = gana siempre; 40% = gana 4 de cada 10.</li>
-          <li><b>3.</b> Cargás <b>premios</b> y los asignás a un tramo. Cuando el cliente gana, se sortea uno por su “peso”.</li>
+          <li><b>1 · ¿Quiénes?</b> Agrupás a los clientes por su <b>puntaje</b> (0 a 100, según cómo pagan). Ej.: “Clientes estrella”, del 90 al 100.</li>
+          <li><b>2 · ¿Con qué chance ganan?</b> A cada grupo le ponés su <b>% de ganar</b>: 100% = gana siempre; 40% = gana 4 de cada 10.</li>
+          <li><b>3 · ¿Qué premios?</b> Cargás los premios de cada grupo. Cuando alguien gana, se sortea uno según la <b>chance</b> que le pusiste.</li>
         </ol>
         <p className="rounded-[10px] bg-white/70 px-3 py-2 text-[11.5px] font-semibold text-[#3A4664]">
-          Ejemplo: un cliente con score 95% cae en “Clientes estrella” → gana siempre → saca uno de los premios de ese tramo.
-          Uno con 60% cae en “Los demás” → gana según el % que le pongas.
+          Ejemplo: un cliente con puntaje 95 cae en “Clientes estrella” → gana siempre → saca uno de los premios de ese grupo.
+          Uno con 60 cae en “Los demás” → gana según el % que le pongas. El servidor decide el resultado (no se puede trucar).
         </p>
       </div>
 
       {/* ── Tramos de scoring ── */}
       <section className="flex flex-col gap-3">
-        <h2 className="text-[15px] font-extrabold text-tinta">🎯 Paso 1 · Tramos por scoring</h2>
+        <h2 className="text-[15px] font-extrabold text-tinta">👥 Paso 1 · Grupos de clientes (por su puntaje)</h2>
         <p className="text-[12px] font-medium text-gris">
-          Cada tramo es un rango de score (en %) con su <b>% de probabilidad de ganar</b>. “Los demás”
-          cubre a quien no cae en ningún tramo (no se puede borrar ni apagar).
+          Cada grupo es un rango de <b>puntaje</b> (de 0 a 100) con su <b>% de ganar</b>. Cada cliente tiene un
+          puntaje según cómo paga; podés premiar distinto a los mejores. “Los demás” cubre a quien no cae en
+          ningún grupo (no se puede borrar ni apagar).
         </p>
         <div className="flex flex-col gap-2">
           {tramos.map((s) => (
@@ -81,31 +82,38 @@ export function PromosManager({
 
       {/* ── Raspadita: premios (asignados a un tramo) ── */}
       <section className="flex flex-col gap-3">
-        <h2 className="text-[15px] font-extrabold text-tinta">🎟️ Paso 2 · Premios de cada tramo</h2>
+        <h2 className="text-[15px] font-extrabold text-tinta">🎁 Paso 2 · Premios de cada grupo</h2>
         <p className="text-[12px] font-medium text-gris">
-          Cargá los premios y asigná cada uno a un tramo (con el selector). Al ganar, se sortea CUÁL por
-          su “peso” (mayor peso = más chance). El servidor decide el resultado (no se puede trucar).
+          Cargá los premios de cada grupo. Cuando alguien de ese grupo gana, se sortea CUÁL según su
+          <b> chance</b> (más alta = más probable). El % de al lado es la chance real dentro del grupo.
         </p>
         {tramos.map((t) => {
           const delTramo = premios.filter(
             (p) => p.segmentoId === t.id || (t.esDefault && !p.segmentoId),
           );
-          const pesoTotal =
-            delTramo.filter((p) => p.activo && p.tipo === "beneficio").reduce((s, p) => s + p.peso, 0) || 1;
+          const premiosBeneficio = delTramo.filter((p) => p.activo && p.tipo === "beneficio");
+          const pesoTotal = premiosBeneficio.reduce((s, p) => s + p.peso, 0) || 1;
+          // Aviso en vivo: si el grupo gana pero no tiene premios, los que ganen no reciben nada.
+          const sinPremioPeroGana = premiosBeneficio.length === 0 && t.probGanar > 0;
           return (
             <div key={t.id} className="flex flex-col gap-2 rounded-[14px] border border-borde bg-suave p-3">
               <span className="text-[12.5px] font-bold text-tinta">
-                {t.nombre} <span className="font-medium text-gris">· {t.scoreMin}–{t.scoreMax}% · gana {t.probGanar}%</span>
+                {t.nombre} <span className="font-medium text-gris">· puntaje {t.scoreMin}–{t.scoreMax} · gana {t.probGanar}%</span>
               </span>
-              {delTramo.length === 0 && (
-                <span className="text-[11.5px] font-medium text-tenue">Sin premios en este tramo todavía.</span>
-              )}
+              {sinPremioPeroGana ? (
+                <span className="rounded-[8px] bg-[#FDF3E2] px-2.5 py-1.5 text-[11.5px] font-semibold text-[#9A6A0E]">
+                  ⚠️ Este grupo gana el {t.probGanar}% de las veces pero no tiene premios: los que ganen no van a recibir nada. Agregá al menos uno.
+                </span>
+              ) : delTramo.length === 0 ? (
+                <span className="text-[11.5px] font-medium text-tenue">Sin premios en este grupo todavía.</span>
+              ) : null}
               {delTramo.map((p) => (
                 <PremioFila
                   key={p.id}
                   premio={p}
                   segmentos={tramos}
                   probabilidad={p.activo && p.tipo === "beneficio" ? Math.round((p.peso / pesoTotal) * 100) : 0}
+                  probGanarTramo={t.probGanar}
                   onChange={refrescar}
                 />
               ))}
@@ -160,6 +168,7 @@ const inputCls =
 function PremioFila({
   premio,
   probabilidad,
+  probGanarTramo,
   segmentos = [],
   segmentoInicial = null,
   nuevo = false,
@@ -167,6 +176,8 @@ function PremioFila({
 }: {
   premio?: PremioRaspa;
   probabilidad?: number;
+  /** % de ganar del grupo (para mostrar la chance TOTAL = grupo × reparto). */
+  probGanarTramo?: number;
   segmentos?: SegmentoRaspa[];
   segmentoInicial?: string | null;
   nuevo?: boolean;
@@ -197,39 +208,57 @@ function PremioFila({
     onChange();
   };
 
+  // Chance dentro del grupo (reparto por peso) y chance TOTAL (grupo gana × reparto).
+  const chanceGrupo = probabilidad ?? 0;
+  const chanceTotal = Math.round(((probGanarTramo ?? 100) / 100) * chanceGrupo);
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-[12px] border border-borde bg-tarjeta p-2.5">
-      <input className={`${inputCls} min-w-0 flex-1`} placeholder={nuevo ? "Nuevo premio…" : ""}
-        value={label} onChange={(e) => setLabel(e.target.value)} />
-      {/* Selector de tramo (a qué segmento de scoring pertenece el premio). */}
-      {segmentos.length > 0 && (
-        <select className={inputCls} value={segmentoId} onChange={(e) => setSegmentoId(e.target.value)}>
-          {segmentos.map((s) => (
-            <option key={s.id} value={s.id}>{s.nombre}</option>
-          ))}
-        </select>
-      )}
-      <select className={inputCls} value={tipo} onChange={(e) => setTipo(e.target.value as PremioRaspa["tipo"])}>
-        <option value="beneficio">Beneficio</option>
-        <option value="nada">Nada</option>
-      </select>
-      <label className="flex items-center gap-1 text-[11px] font-semibold text-gris">
-        Peso
-        <input type="number" min={0} className={`${inputCls} w-16`} value={peso}
-          onChange={(e) => setPeso(Number(e.target.value))} />
-      </label>
-      {!nuevo && (
-        <span className="w-12 text-center text-[12px] font-bold text-azul tabular-nums">{probabilidad}%</span>
-      )}
-      <label className="flex items-center gap-1 text-[12px] font-semibold text-tinta">
-        <input type="checkbox" checked={activo} onChange={(e) => setActivo(e.target.checked)} /> Activo
-      </label>
-      <button onClick={guardar} disabled={ocupado || !label.trim()}
-        className="rounded-full bg-azul px-3 py-1.5 text-[12px] font-bold text-white disabled:opacity-50">
-        {nuevo ? "Agregar" : "Guardar"}
-      </button>
-      {!nuevo && (
-        <button onClick={borrar} aria-label="Borrar" className="text-[15px] text-[#C7D2EC] hover:text-[#D64545]">✕</button>
+    <div className="flex flex-col gap-2 rounded-[12px] border border-borde bg-tarjeta p-3">
+      <div className="flex items-center gap-2">
+        <input className={`${inputCls} min-w-0 flex-1`} placeholder={nuevo ? "Nuevo premio…" : ""}
+          value={label} onChange={(e) => setLabel(e.target.value)} />
+        {!nuevo && (
+          <button onClick={borrar} aria-label="Borrar" className="flex-shrink-0 text-[16px] text-[#C7D2EC] hover:text-[#D64545]">✕</button>
+        )}
+      </div>
+      <div className="flex flex-wrap items-end gap-2">
+        {/* A qué GRUPO pertenece el premio. */}
+        {segmentos.length > 0 && (
+          <label className="flex flex-col gap-0.5">
+            <span className="text-[10px] font-bold text-gris">Grupo</span>
+            <select className={inputCls} value={segmentoId} onChange={(e) => setSegmentoId(e.target.value)}>
+              {segmentos.map((s) => (
+                <option key={s.id} value={s.id}>{s.nombre}</option>
+              ))}
+            </select>
+          </label>
+        )}
+        <label className="flex flex-col gap-0.5">
+          <span className="text-[10px] font-bold text-gris">Tipo</span>
+          <select className={inputCls} value={tipo} onChange={(e) => setTipo(e.target.value as PremioRaspa["tipo"])}>
+            <option value="beneficio">Beneficio</option>
+            <option value="nada">Nada</option>
+          </select>
+        </label>
+        <label className="flex flex-col gap-0.5">
+          <span className="text-[10px] font-bold text-gris" title="Más alta = más probable dentro del grupo.">Chance</span>
+          <input type="number" min={0} className={`${inputCls} w-20`} value={peso}
+            onChange={(e) => setPeso(Number(e.target.value))} />
+        </label>
+        <label className="mb-2 flex items-center gap-1.5 text-[12px] font-semibold text-tinta">
+          <input type="checkbox" checked={activo} onChange={(e) => setActivo(e.target.checked)} /> Activo
+        </label>
+        <button onClick={guardar} disabled={ocupado || !label.trim()}
+          className="mb-0.5 ml-auto rounded-full bg-azul px-4 py-2 text-[12px] font-bold text-white disabled:opacity-50">
+          {nuevo ? "Agregar" : "Guardar"}
+        </button>
+      </div>
+      {/* Chance real (dentro del grupo) + chance total de fin a fin. */}
+      {!nuevo && tipo === "beneficio" && activo && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 rounded-[8px] bg-[#EEF3FF] px-2.5 py-1.5 text-[11px] font-semibold text-[#3A4664]">
+          <span>Chance en el grupo: <b className="tabular-nums text-azul">{chanceGrupo}%</b></span>
+          <span className="text-tenue">·</span>
+          <span>En total sale <b className="tabular-nums text-azul">{chanceTotal}%</b> de las veces</span>
+        </div>
       )}
     </div>
   );
@@ -266,26 +295,25 @@ function SegmentoFila({
   };
   const borrar = async () => {
     if (!segmento) return;
-    if (!confirm(`¿Borrar el tramo "${segmento.nombre}"?`)) return;
+    if (!confirm(`¿Borrar el grupo "${segmento.nombre}"?`)) return;
     await eliminarSegmentoRaspa(segmento.id);
     onChange();
   };
 
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-[14px] border border-borde bg-tarjeta p-2.5">
-      <input className={`${inputCls} min-w-0 flex-1`} placeholder={nuevo ? "Nuevo tramo (ej. VIP)…" : ""}
+      <input className={`${inputCls} min-w-0 flex-1`} placeholder={nuevo ? "Nuevo grupo (ej. VIP)…" : ""}
         value={nombre} onChange={(e) => setNombre(e.target.value)} />
       {esDefault ? (
         <span className="text-[11px] font-bold text-tenue">todo lo no asignado</span>
       ) : (
         <label className="flex items-center gap-1 text-[11px] font-semibold text-gris">
-          Score
+          Puntaje
           <input type="number" min={0} max={100} className={`${inputCls} w-14`} value={min}
             onChange={(e) => setMin(Number(e.target.value))} />
           <span>a</span>
           <input type="number" min={0} max={100} className={`${inputCls} w-14`} value={max}
             onChange={(e) => setMax(Number(e.target.value))} />
-          <span>%</span>
         </label>
       )}
       <label className="flex items-center gap-1 text-[11px] font-semibold text-gris">
@@ -310,7 +338,7 @@ function SegmentoFila({
       </label>
       <button onClick={guardar} disabled={ocupado || !nombre.trim()}
         className="rounded-full bg-azul px-3 py-1.5 text-[12px] font-bold text-white disabled:opacity-50">
-        {nuevo ? "Agregar tramo" : "Guardar"}
+        {nuevo ? "Agregar grupo" : "Guardar"}
       </button>
       {!nuevo && !esDefault && (
         <button onClick={borrar} aria-label="Borrar" className="text-[15px] text-[#C7D2EC] hover:text-[#D64545]">✕</button>
