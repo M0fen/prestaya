@@ -62,7 +62,7 @@ export async function crearBannerCobrador(input: {
       entidad: "banner_cobrador",
       entidadId: null,
     });
-    revalidatePath("/admin/chat");
+    revalidatePath("/admin/banner-equipo");
     revalidatePath("/cobrador");
     return { ok: true };
   } catch {
@@ -114,7 +114,7 @@ export async function actualizarBannerCobrador(input: {
       entidad: "banner_cobrador",
       entidadId: input.id,
     });
-    revalidatePath("/admin/chat");
+    revalidatePath("/admin/banner-equipo");
     revalidatePath("/cobrador");
     return { ok: true };
   } catch {
@@ -131,7 +131,7 @@ export async function desactivarBannerCobrador(id: string): Promise<Resultado> {
     const db = await createSupabaseServer();
     const { error } = await db.from("banner_cobrador").update({ activo: false }).eq("id", id);
     if (error) throw error;
-    revalidatePath("/admin/chat");
+    revalidatePath("/admin/banner-equipo");
     revalidatePath("/cobrador");
     return { ok: true };
   } catch {
