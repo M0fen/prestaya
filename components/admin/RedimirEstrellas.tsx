@@ -16,6 +16,7 @@ export function RedimirEstrellas() {
   const [sel, setSel] = useState<ClienteMin | null>(null);
   const [saldo, setSaldo] = useState<SaldoEstrellas | null>(null);
   const [cantidad, setCantidad] = useState(1);
+  const [premio, setPremio] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [pendiente, startTransition] = useTransition();
@@ -62,12 +63,13 @@ export function RedimirEstrellas() {
     if (!sel || cantidad < 1 || pendiente) return;
     setError(null);
     startTransition(async () => {
-      const res = await redimirEstrellasAdmin({ clienteId: sel.id, estrellas: cantidad });
+      const res = await redimirEstrellasAdmin({ clienteId: sel.id, estrellas: cantidad, premioTexto: premio.trim() || null });
       if (res.ok) {
-        setOk(`Canjeaste ${cantidad} ⭐ de ${sel.nombre}.`);
+        setOk(`Canjeaste ${cantidad} ⭐ de ${sel.nombre}${premio.trim() ? ` (${premio.trim()})` : ""}.`);
         setSel(null);
         setSaldo(null);
         setQ("");
+        setPremio("");
         router.refresh();
       } else setError(res.error);
     });
@@ -120,23 +122,33 @@ export function RedimirEstrellas() {
             <span>Este mes podés canjear hasta <b className="text-tinta">{tope}</b></span>
           </div>
           {tope > 0 ? (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-2">
               <input
-                type="number"
-                min={1}
-                max={tope}
-                value={cantidad}
-                onChange={(e) => setCantidad(Math.max(1, Math.min(tope, Math.round(Number(e.target.value) || 1))))}
-                className="w-20 rounded-[10px] border border-borde px-3 py-2 text-[14px] font-bold outline-none focus:border-azul"
+                type="text"
+                value={premio}
+                onChange={(e) => setPremio(e.target.value)}
+                maxLength={120}
+                placeholder="Premio entregado (opcional): ej. descuento, regalo…"
+                className="w-full rounded-[10px] border border-borde px-3 py-2 text-[13px] outline-none focus:border-azul"
               />
-              <button
-                type="button"
-                onClick={redimir}
-                disabled={pendiente}
-                className="flex-1 rounded-full bg-[#1FA971] px-4 py-2.5 text-[13px] font-extrabold text-white disabled:opacity-40"
-              >
-                {pendiente ? "Canjeando…" : `Canjear ${cantidad} ⭐`}
-              </button>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  max={tope}
+                  value={cantidad}
+                  onChange={(e) => setCantidad(Math.max(1, Math.min(tope, Math.round(Number(e.target.value) || 1))))}
+                  className="w-20 rounded-[10px] border border-borde px-3 py-2 text-[14px] font-bold outline-none focus:border-azul"
+                />
+                <button
+                  type="button"
+                  onClick={redimir}
+                  disabled={pendiente}
+                  className="flex-1 rounded-full bg-[#1FA971] px-4 py-2.5 text-[13px] font-extrabold text-white disabled:opacity-40"
+                >
+                  {pendiente ? "Canjeando…" : `Canjear ${cantidad} ⭐`}
+                </button>
+              </div>
             </div>
           ) : (
             <p className="text-[12px] font-medium text-gris">

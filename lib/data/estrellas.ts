@@ -5,7 +5,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { calcularEstrellas, type RedencionMin, type SaldoEstrellas, type EstadoRedencion } from "@/lib/estrellas";
-import { tablaFaltante } from "@/lib/data/errores";
+import { tablaFaltante, columnaFaltante } from "@/lib/data/errores";
 
 /** Cuenta los pagos VIGENTES (no anulados) de un cliente = fragmentos ganados. */
 export async function contarPagosVigentesCliente(
@@ -129,7 +129,7 @@ export async function getRedencionesPendientes(
   }
 }
 
-/** Una redención resuelta (para el historial del admin). */
+/** Una redención resuelta (para el registro del admin). Con folio/entrega/premio (0104). */
 export interface RedencionHistorial {
   id: string;
   clienteId: string;
@@ -140,24 +140,52 @@ export interface RedencionHistorial {
   resueltoEn: string | null;
   resueltoPorNombre: string | null;
   nota: string | null;
+  /** Nº de comprobante verificable (solo aprobadas; 0104). null si falta 0104. */
+  folio: number | null;
+  premioTexto: string | null;
+  /** Entrega física del premio, aparte de la aprobación (0104). */
+  entregado: boolean;
+  entregadoEn: string | null;
+  entregadoPorNombre: string | null;
 }
 
-/** Historial de redenciones RESUELTAS (aprobadas/rechazadas), más nuevas primero. */
+const REDEN_COLS_NEW =
+  "id, cliente_id, estrellas, ciclo, estado, resuelto_en, resuelto_por, nota, folio, premio_texto, entregado, entregado_en, entregado_por";
+const REDEN_COLS_OLD = "id, cliente_id, estrellas, ciclo, estado, resuelto_en, resuelto_por, nota";
+
+/** Registro de redenciones RESUELTAS (aprobadas/rechazadas), más nuevas primero.
+ *  Trae folio/entrega/premio si 0104 corrió; degrada al set viejo si no. */
 export async function getHistorialRedenciones(
   db: SupabaseClient,
-  limite = 40,
+  limite = 60,
 ): Promise<RedencionHistorial[]> {
+  const tope = Math.max(1, Math.min(500, limite));
   try {
-    const { data, error } = await db
+    let filas: Record<string, unknown>[];
+    const r = await db
       .from("estrellas_redenciones")
-      .select("id, cliente_id, estrellas, ciclo, estado, resuelto_en, resuelto_por, nota")
+      .select(REDEN_COLS_NEW)
       .neq("estado", "pendiente")
       .order("resuelto_en", { ascending: false, nullsFirst: false })
-      .limit(Math.max(1, Math.min(200, limite)));
-    if (error) throw error;
-    const filas = data ?? [];
-    const cliIds = [...new Set(filas.map((r) => (r as { cliente_id: string }).cliente_id))];
-    const usrIds = [...new Set(filas.map((r) => (r as { resuelto_por: string | null }).resuelto_por).filter(Boolean) as string[])];
+      .limit(tope);
+    if (r.error) {
+      if (!columnaFaltante(r.error)) throw r.error;
+      // 0104 sin correr → set de columnas viejo (sin folio/entrega/premio).
+      const r2 = await db
+        .from("estrellas_redenciones")
+        .select(REDEN_COLS_OLD)
+        .neq("estado", "pendiente")
+        .order("resuelto_en", { ascending: false, nullsFirst: false })
+        .limit(tope);
+      if (r2.error) throw r2.error;
+      filas = (r2.data ?? []) as Record<string, unknown>[];
+    } else {
+      filas = (r.data ?? []) as Record<string, unknown>[];
+    }
+    const cliIds = [...new Set(filas.map((x) => x.cliente_id as string))];
+    const usrIds = [
+      ...new Set(filas.flatMap((x) => [x.resuelto_por, x.entregado_por]).filter(Boolean) as string[]),
+    ];
     const nomCli = new Map<string, string>();
     const nomUsr = new Map<string, string>();
     if (cliIds.length > 0) {
@@ -168,27 +196,82 @@ export async function getHistorialRedenciones(
       const { data: us } = await db.from("usuarios").select("id, nombre").in("id", usrIds);
       for (const u of us ?? []) nomUsr.set((u as { id: string }).id, (u as { nombre: string }).nombre);
     }
-    return filas.map((r) => {
-      const row = r as {
-        id: string; cliente_id: string; estrellas: number; ciclo: string;
-        estado: "aprobada" | "rechazada"; resuelto_en: string | null; resuelto_por: string | null; nota: string | null;
-      };
-      return {
-        id: row.id,
-        clienteId: row.cliente_id,
-        clienteNombre: nomCli.get(row.cliente_id) ?? "—",
-        estrellas: Number(row.estrellas),
-        ciclo: row.ciclo,
-        estado: row.estado,
-        resueltoEn: row.resuelto_en,
-        resueltoPorNombre: row.resuelto_por ? nomUsr.get(row.resuelto_por) ?? null : null,
-        nota: row.nota ?? null,
-      };
-    });
+    return filas.map((x) => ({
+      id: x.id as string,
+      clienteId: x.cliente_id as string,
+      clienteNombre: nomCli.get(x.cliente_id as string) ?? "—",
+      estrellas: Number(x.estrellas),
+      ciclo: x.ciclo as string,
+      estado: x.estado as "aprobada" | "rechazada",
+      resueltoEn: (x.resuelto_en as string | null) ?? null,
+      resueltoPorNombre: x.resuelto_por ? nomUsr.get(x.resuelto_por as string) ?? null : null,
+      nota: (x.nota as string | null) ?? null,
+      folio: x.folio == null ? null : Number(x.folio),
+      premioTexto: (x.premio_texto as string | null | undefined) ?? null,
+      entregado: Boolean(x.entregado),
+      entregadoEn: (x.entregado_en as string | null | undefined) ?? null,
+      entregadoPorNombre: x.entregado_por ? nomUsr.get(x.entregado_por as string) ?? null : null,
+    }));
   } catch (e) {
     if (tablaFaltante(e)) return [];
     throw e;
   }
+}
+
+/** Métricas agregadas del programa de estrellas (para el panel del admin). */
+export interface MetricasEstrellas {
+  /** Redenciones aprobadas (canjes concretados). */
+  canjes: number;
+  /** Σ estrellas canjeadas (aprobadas). */
+  estrellasCanjeadas: number;
+  /** Solicitudes pendientes de aprobar. */
+  pendientes: number;
+  /** Aprobadas ya ENTREGADAS al cliente (0104). */
+  entregadas: number;
+  /** Aprobadas que faltan ENTREGAR (0104). */
+  porEntregar: number;
+}
+
+export async function getMetricasEstrellas(db: SupabaseClient): Promise<MetricasEstrellas> {
+  const vacio: MetricasEstrellas = { canjes: 0, estrellasCanjeadas: 0, pendientes: 0, entregadas: 0, porEntregar: 0 };
+  // Las redenciones son de bajo volumen (promocional): traer las aprobadas y sumar
+  // en JS es barato. `entregado` puede faltar (0104 sin correr) → reintento sin ella.
+  const contarPend = async () => {
+    const { count } = await db.from("estrellas_redenciones").select("*", { count: "exact", head: true }).eq("estado", "pendiente");
+    return count ?? 0;
+  };
+  try {
+    const r = await db.from("estrellas_redenciones").select("estrellas, entregado").eq("estado", "aprobada").limit(3000);
+    if (r.error) {
+      if (!columnaFaltante(r.error)) throw r.error;
+      const r2 = await db.from("estrellas_redenciones").select("estrellas").eq("estado", "aprobada").limit(3000);
+      if (r2.error) throw r2.error;
+      const rows = (r2.data ?? []) as { estrellas: number }[];
+      return { canjes: rows.length, estrellasCanjeadas: rows.reduce((s, x) => s + Number(x.estrellas), 0), pendientes: await contarPend(), entregadas: 0, porEntregar: rows.length };
+    }
+    const rows = (r.data ?? []) as { estrellas: number; entregado?: boolean }[];
+    const entregadas = rows.filter((x) => x.entregado).length;
+    return {
+      canjes: rows.length,
+      estrellasCanjeadas: rows.reduce((s, x) => s + Number(x.estrellas), 0),
+      pendientes: await contarPend(),
+      entregadas,
+      porEntregar: rows.length - entregadas,
+    };
+  } catch (e) {
+    if (tablaFaltante(e)) return vacio;
+    throw e;
+  }
+}
+
+/** Marca una redención APROBADA como ENTREGADA (premio recibido por el cliente). */
+export async function marcarEntregadaDb(db: SupabaseClient, id: string, usuarioId: string): Promise<void> {
+  const { error } = await db
+    .from("estrellas_redenciones")
+    .update({ entregado: true, entregado_en: new Date().toISOString(), entregado_por: usuarioId })
+    .eq("id", id)
+    .eq("estado", "aprobada"); // solo se entrega algo aprobado
+  if (error) throw error;
 }
 
 /** Inserta una redención YA APROBADA (canje directo hecho por el admin en persona).
@@ -196,9 +279,9 @@ export async function getHistorialRedenciones(
  *  ya validó que es un gestor y que hay saldo/cupo. */
 export async function redimirDirectoDb(
   db: SupabaseClient,
-  input: { clienteId: string; estrellas: number; ciclo: string; resueltoPor: string; nota?: string | null },
+  input: { clienteId: string; estrellas: number; ciclo: string; resueltoPor: string; nota?: string | null; premioTexto?: string | null },
 ): Promise<void> {
-  const { error } = await db.from("estrellas_redenciones").insert({
+  const fila: Record<string, unknown> = {
     cliente_id: input.clienteId,
     estrellas: input.estrellas,
     ciclo: input.ciclo,
@@ -206,7 +289,14 @@ export async function redimirDirectoDb(
     nota: input.nota ?? "Canje directo (admin)",
     resuelto_por: input.resueltoPor,
     resuelto_en: new Date().toISOString(),
-  });
+  };
+  if (input.premioTexto) fila.premio_texto = input.premioTexto;
+  let { error } = await db.from("estrellas_redenciones").insert(fila);
+  // 0104 sin correr → insertar sin premio_texto (conducta previa).
+  if (error && input.premioTexto && columnaFaltante(error)) {
+    delete fila.premio_texto;
+    ({ error } = await db.from("estrellas_redenciones").insert(fila));
+  }
   if (error) throw error;
 }
 

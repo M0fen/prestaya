@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getUsuarioActual, esAdmin } from "@/lib/auth";
-import { resolverRedencionDb, getSaldoEstrellas, redimirDirectoDb } from "@/lib/data/estrellas";
+import { resolverRedencionDb, getSaldoEstrellas, redimirDirectoDb, marcarEntregadaDb } from "@/lib/data/estrellas";
 import { getPrestamosActivosPorCliente } from "@/lib/data/prestamos";
 import { getAjustesJuego } from "@/lib/data/juegoConfig";
 import { registrarAuditoria } from "@/lib/data/auditoria";
@@ -58,6 +58,28 @@ export async function rechazarRedencion(id: string): Promise<Resultado> {
   return resolver(id, "rechazada");
 }
 
+/** Marca una redención APROBADA como ENTREGADA (el cliente recibió el premio). 0104. */
+export async function marcarEntregada(id: string): Promise<Resultado> {
+  const u = await getUsuarioActual();
+  if (!u || !u.activo || !esAdmin(u.rol)) return { ok: false, error: "No tenés permisos." };
+  if (!ES_UUID.test(id)) return { ok: false, error: "Redención inválida." };
+  try {
+    const db = await createSupabaseServer();
+    await marcarEntregadaDb(db, id, u.id);
+    await registrarAuditoria(db, {
+      actorId: u.id,
+      actorNombre: u.nombre,
+      accion: "Marcó entregado un premio de estrellas",
+      entidad: "estrellas",
+      entidadId: id,
+    });
+    revalidatePath("/admin/estrellas");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "No se pudo marcar. Probá de nuevo." };
+  }
+}
+
 /** Saldo de estrellas de un cliente (para el panel de redención directa del admin). */
 export async function saldoEstrellasCliente(
   clienteId: string,
@@ -84,11 +106,14 @@ export async function saldoEstrellasCliente(
 export async function redimirEstrellasAdmin(input: {
   clienteId: string;
   estrellas: number;
+  /** Qué premio se entregó (opcional, 0104). Queda en el registro. */
+  premioTexto?: string | null;
 }): Promise<Resultado> {
   const u = await getUsuarioActual();
   if (!u || !u.activo || !esAdmin(u.rol)) return { ok: false, error: "No tenés permisos." };
   if (!ES_UUID.test(input.clienteId)) return { ok: false, error: "Cliente inválido." };
   const n = Math.round(input.estrellas);
+  const premioTexto = (input.premioTexto ?? "").trim().slice(0, 120) || null;
   try {
     const db = await createSupabaseServer();
     const ciclo = await cicloDeCliente(db, input.clienteId);
@@ -101,6 +126,7 @@ export async function redimirEstrellasAdmin(input: {
       estrellas: n,
       ciclo,
       resueltoPor: u.id,
+      premioTexto,
     });
     await registrarAuditoria(db, {
       actorId: u.id,
