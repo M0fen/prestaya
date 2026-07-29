@@ -69,7 +69,7 @@ export async function registrarInteres(input: {
     if (!cliente) return { ok: false, error: "Enlace no válido." };
     const prod = await getProductoAdmin(db, input.productoId);
     if (!prod || !prod.activo) return { ok: false, error: "Ese producto ya no está disponible." };
-    if (prod.agotado) return { ok: false, error: "Ese producto está sin stock por ahora." };
+    if (prod.agotado || prod.stock === 0) return { ok: false, error: "Ese producto está sin stock por ahora." };
     // AUDIENCIA (0089): si el producto está acotado a un segmento, solo genera lead quien
     // pertenece — MISMA resolución que la vitrina (getProductosParaCliente: zona del
     // cliente + calificación, alDia=true, cobradorId=null) → "lo ve ⟺ puede pedirlo".

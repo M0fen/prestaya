@@ -45,6 +45,9 @@ export interface Producto {
   /** Sin stock (0099): sigue visible en la vitrina con cartel "Agotado" pero no se
    *  puede pedir (no genera lead) hasta que el admin lo reponga. */
   agotado: boolean;
+  /** Unidades disponibles (0100). null = no se controla (siempre disponible). 0 =
+   *  sin stock. >0 = quedan N (la vitrina muestra escasez si son pocas). */
+  stock: number | null;
   orden: number;
   /** Visibilidad por audiencia (0089): null = visible para todos. Si está, solo lo
    *  ven los clientes que matchean (clienteEnSegmento). */
@@ -140,6 +143,7 @@ function mapProducto(r: Record<string, unknown>): Producto {
     activo: Boolean(r.activo),
     destacado: Boolean(r.destacado),
     agotado: Boolean(r.agotado), // defensivo: sin 0099 viene undefined → false
+    stock: r.stock == null ? null : Number(r.stock), // defensivo: sin 0100 → null
     orden: N(r.orden),
     segmentoDef: (r.segmento_def as DefinicionSegmento | null) ?? null,
   };
@@ -487,6 +491,7 @@ export interface ProductoInput {
   activo: boolean;
   destacado: boolean;
   agotado: boolean;
+  stock: number | null;
   orden: number;
   /** Visibilidad por audiencia (0089). null = visible para todos. */
   segmentoDef: DefinicionSegmento | null;
@@ -497,7 +502,8 @@ function rowProducto(p: ProductoInput) {
     nombre: p.nombre, marca: p.marca, descripcion: p.descripcion, categoria_id: p.categoriaId,
     precio: N(p.precio), precio_anterior: p.precioAnterior > 0 ? N(p.precioAnterior) : null,
     interes_pct: NUM(p.interesPct), cuotas: N(p.cuotas), frecuencia: p.frecuencia,
-    fotos: p.fotos, video_url: p.videoUrl, activo: p.activo, destacado: p.destacado, agotado: p.agotado, orden: N(p.orden),
+    fotos: p.fotos, video_url: p.videoUrl, activo: p.activo, destacado: p.destacado, agotado: p.agotado,
+    stock: p.stock, orden: N(p.orden),
     segmento_def: p.segmentoDef,
   };
 }

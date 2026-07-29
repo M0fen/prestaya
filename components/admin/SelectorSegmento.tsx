@@ -50,6 +50,9 @@ export function SelectorSegmento({
   const estado = def.estadoCredito ?? "todos";
   const nombresZona = Object.fromEntries(zonas.map((z) => [z.id, z.nombre]));
   const emit = (patch: Partial<DefinicionSegmento>) => onChange({ ...def, ...patch });
+  // "Todos" = sin ningún filtro (lo ve todo el mundo). Es el default seguro.
+  const esTodos = cal.length === 0 && zon.length === 0 && (sinEstado || estado === "todos") &&
+    !(def.cobradores?.length) && !(def.incluir?.length) && !(def.excluir?.length);
 
   return (
     <div className="flex flex-col gap-2.5 rounded-[12px] border border-borde bg-suave p-3">
@@ -59,6 +62,25 @@ export function SelectorSegmento({
           {describirSegmento(def, { zonas: nombresZona })}
         </span>
       </div>
+
+      {/* "Todos" explícito: lo ve todo el mundo (limpia los filtros). */}
+      <button
+        type="button"
+        onClick={() => onChange({})}
+        className={`flex items-center gap-2 rounded-[10px] border px-3 py-2 text-left ${
+          esTodos ? "border-[#C7D2EC] bg-azul-suave" : "border-borde bg-tarjeta hover:bg-suave"
+        }`}
+      >
+        <span className="text-[16px]" aria-hidden>👥</span>
+        <span className="flex min-w-0 flex-col">
+          <span className={`text-[12.5px] font-bold ${esTodos ? "text-azul" : "text-tinta"}`}>Todos los clientes</span>
+          <span className="text-[11px] font-medium text-gris">
+            {esTodos ? "Visible para todo el mundo (sin filtros)" : "Tocá para mostrarlo a todos"}
+          </span>
+        </span>
+        {esTodos && <span className="ml-auto text-[14px] font-black text-azul">✓</span>}
+      </button>
+      <span className="text-[11px] font-semibold text-gris">…o mostralo solo a un grupo:</span>
 
       <div className="flex flex-col gap-1">
         <span className="text-[11px] font-semibold text-gris">Calificación (vacío = cualquiera)</span>

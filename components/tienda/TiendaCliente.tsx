@@ -148,8 +148,10 @@ export function TiendaCliente({
               className="flex flex-col overflow-hidden rounded-[16px] border border-[#ECEFF8] bg-white text-left shadow-[0_2px_10px_rgba(15,27,61,0.05)] active:scale-[0.98]">
               <div className="relative">
                 <Foto p={p} className="aspect-square" />
-                {p.agotado ? (
+                {p.agotado || p.stock === 0 ? (
                   <span className="absolute left-2 top-2 rounded-full bg-[#6B7494] px-2 py-0.5 text-[10px] font-black text-white">Agotado</span>
+                ) : p.stock != null && p.stock <= 5 ? (
+                  <span className="absolute left-2 top-2 rounded-full bg-[#E8A317] px-2 py-0.5 text-[10px] font-black text-white">¡Últimas {p.stock}!</span>
                 ) : p.precioAnterior > p.precio ? (
                   <span className="absolute left-2 top-2 rounded-full bg-[#D64545] px-2 py-0.5 text-[10px] font-black text-white">OFERTA</span>
                 ) : null}
@@ -283,15 +285,20 @@ function DetalleProducto({ p, token, onClose, preview = false }: { p: ProductoPa
               <p className="text-[15px] font-extrabold text-[#157A50]">¡Listo! 💚</p>
               <p className="text-[13px] font-medium text-[#3E8E67]">Anotamos tu interés. Tu cobrador te va a contar cómo llevártelo.</p>
             </div>
-          ) : p.agotado ? (
+          ) : p.agotado || p.stock === 0 ? (
             <div className="w-full rounded-full bg-[#FBE4E2] px-5 py-3.5 text-center text-[15px] font-extrabold text-[#C0392B]">
               Sin stock por ahora 😔
             </div>
           ) : (
-            <button type="button" onClick={interes} disabled={pend}
-              className="w-full rounded-full bg-[#1E47C8] px-5 py-3.5 text-[16px] font-extrabold text-white shadow-[0_6px_18px_rgba(19,48,140,0.28)] active:scale-[0.99] disabled:opacity-60">
-              {pend ? "Enviando…" : "Me interesa · Quiero saber más"}
-            </button>
+            <>
+              {p.stock != null && p.stock <= 5 && (
+                <p className="text-center text-[13px] font-extrabold text-[#B9770E]">🔥 ¡Quedan solo {p.stock}! Apurate.</p>
+              )}
+              <button type="button" onClick={interes} disabled={pend}
+                className="w-full rounded-full bg-[#1E47C8] px-5 py-3.5 text-[16px] font-extrabold text-white shadow-[0_6px_18px_rgba(19,48,140,0.28)] active:scale-[0.99] disabled:opacity-60">
+                {pend ? "Enviando…" : "Me interesa · Quiero saber más"}
+              </button>
+            </>
           )}
           {!preview && estado === "error" && msg && <p className="text-center text-[12.5px] font-semibold text-[#E06A6A]">{msg}</p>}
           <p className="pb-1 text-center text-[11px] font-medium text-tenue">Sin compromiso. Te contactamos para darte los detalles.</p>

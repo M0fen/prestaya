@@ -13,7 +13,7 @@ import {
   guardarCategoria, eliminarCategoria,
   fijarPrecioCliente, quitarPrecioCliente, preciosDeProducto,
   fijarPrecioSegmento, quitarPrecioSegmento, segmentosDeProducto,
-  resolverSolicitud, subirImagenTienda, crearUrlSubidaTienda,
+  resolverSolicitud, subirImagenTienda, crearUrlSubidaTienda, generarDescripcionIA,
   type RawProducto,
 } from "@/lib/acciones/tienda";
 import type {
@@ -74,7 +74,7 @@ function Tab({ activo, onClick, children }: { activo: boolean; onClick: () => vo
 // ── PRODUCTOS ────────────────────────────────────────────────────────────────
 const PRODUCTO_VACIO: RawProducto = {
   nombre: "", marca: "", descripcion: "", categoriaId: null, precio: 0, precioAnterior: 0,
-  interesPct: 0, cuotas: 0, frecuencia: "diario", fotos: [], videoUrl: null, activo: true, destacado: false, agotado: false, orden: 0,
+  interesPct: 0, cuotas: 0, frecuencia: "diario", fotos: [], videoUrl: null, activo: true, destacado: false, agotado: false, stock: null, orden: 0,
 };
 
 function Productos({ productos, categorias, zonas }: { productos: Producto[]; categorias: CategoriaProducto[]; zonas: ZonaOpcion[] }) {
@@ -129,7 +129,10 @@ function Productos({ productos, categorias, zonas }: { productos: Producto[]; ca
               )}
               <div className="absolute left-1.5 top-1.5 flex gap-1">
                 {p.destacado && <span className="rounded-full bg-[#FDF0DC] px-2 py-0.5 text-[10px] font-bold text-[#B9770E]">Destacado</span>}
-                {p.agotado && <span className="rounded-full bg-[#FBE4E2] px-2 py-0.5 text-[10px] font-bold text-[#C0392B]">Agotado</span>}
+                {(p.agotado || p.stock === 0) && <span className="rounded-full bg-[#FBE4E2] px-2 py-0.5 text-[10px] font-bold text-[#C0392B]">Agotado</span>}
+                {!p.agotado && p.stock != null && p.stock > 0 && (
+                  <span className="rounded-full bg-[#EEF3FF] px-2 py-0.5 text-[10px] font-bold text-azul">{p.stock} en stock</span>
+                )}
                 {!p.activo && <span className="rounded-full bg-[#F1F3F9] px-2 py-0.5 text-[10px] font-bold text-gris">Pausado</span>}
               </div>
               {p.fotos.length > 1 && (
@@ -177,6 +180,17 @@ function EditorProducto({
   const [error, setError] = useState<string | null>(null);
   const [subiendo, setSubiendo] = useState(false);
   const set = <K extends keyof RawProducto>(k: K, v: RawProducto[K]) => setF((p) => ({ ...p, [k]: v }));
+
+  const [iaLoad, setIaLoad] = useState(false);
+  // Descripción con IA: usa nombre + marca + categoría del form. Degrada con aviso.
+  const generarIA = async () => {
+    setError(null); setIaLoad(true);
+    const cat = categorias.find((c) => c.id === f.categoriaId)?.nombre ?? null;
+    const r = await generarDescripcionIA({ nombre: f.nombre, marca: f.marca, categoria: cat });
+    setIaLoad(false);
+    if (r.ok) set("descripcion", r.descripcion);
+    else setError(r.error);
+  };
 
   const guardar = () =>
     start(async () => {
@@ -327,10 +341,21 @@ function EditorProducto({
             {FRECUENCIAS.map((x) => <option key={x} value={x}>{x}</option>)}
           </select>
         </Campo>
+        <Campo label="Unidades en stock (vacío = sin control)">
+          <input type="number" inputMode="numeric" min={0} value={f.stock ?? ""} placeholder="Ej: 5"
+            onChange={(e) => set("stock", e.target.value === "" ? null : Math.max(0, Math.round(Number(e.target.value) || 0)))}
+            className={INPUT} />
+        </Campo>
       </div>
       <Campo label="Descripción">
-        <textarea value={f.descripcion ?? ""} onChange={(e) => set("descripcion", e.target.value)} rows={3}
-          className={`${INPUT} resize-none`} placeholder="Detalle del producto, medidas, garantía…" />
+        <div className="flex flex-col gap-1.5">
+          <textarea value={f.descripcion ?? ""} onChange={(e) => set("descripcion", e.target.value)} rows={3}
+            className={`${INPUT} resize-none`} placeholder="Detalle del producto, medidas, garantía… o generala con IA ✨" />
+          <button type="button" onClick={generarIA} disabled={iaLoad || !(f.nombre ?? "").trim()}
+            className="w-fit rounded-full border border-[#C7D2EC] bg-azul-suave px-3 py-1.5 text-[12px] font-bold text-azul active:scale-95 disabled:opacity-40">
+            {iaLoad ? "Generando…" : "✨ Generar con IA"}
+          </button>
+        </div>
       </Campo>
 
       <div className="flex flex-wrap items-center gap-4">

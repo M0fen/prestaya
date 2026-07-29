@@ -9,6 +9,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { reportarError } from "@/lib/observabilidad";
+import { MODELO_ASESOR } from "@/lib/asesor/prompt";
 import { getUsuarioActual, esAdmin } from "@/lib/auth";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { hrefSeguro } from "@/lib/seguridad";
@@ -55,6 +56,8 @@ export interface RawProducto {
   activo: boolean;
   destacado: boolean;
   agotado?: boolean;
+  /** Unidades (0100). null/undefined = sin control de stock. */
+  stock?: number | null;
   orden: number;
   /** Visibilidad por audiencia (0089). null/vacío = visible para todos. */
   segmentoDef?: DefinicionSegmento | null;
@@ -80,9 +83,59 @@ function sanearProducto(raw: RawProducto): ProductoInput | null {
     activo: Boolean(raw.activo),
     destacado: Boolean(raw.destacado),
     agotado: Boolean(raw.agotado),
+    // stock null/undefined = sin control; si viene, se acota a entero ≥ 0.
+    stock: raw.stock == null ? null : Math.max(0, Math.min(1_000_000, Math.round(Number(raw.stock) || 0))),
     orden: Math.max(0, Math.min(9999, Math.round(Number(raw.orden) || 0))),
     segmentoDef: esSegmentoTodos(defRaw) ? null : defRaw,
   };
+}
+
+/**
+ * Genera una DESCRIPCIÓN de producto con IA (DeepSeek) a partir del nombre/marca/
+ * categoría. Copy vendedor para e-commerce a crédito. Degrada con mensaje claro si
+ * falta la API key o la IA no responde (nunca rompe el editor).
+ */
+export async function generarDescripcionIA(input: {
+  nombre: string;
+  marca?: string | null;
+  categoria?: string | null;
+}): Promise<{ ok: true; descripcion: string } | { ok: false; error: string }> {
+  const u = await soloAdmin();
+  if (!u) return { ok: false, error: "No tenés permisos." };
+  const nombre = (input.nombre ?? "").trim().slice(0, 100);
+  if (!nombre) return { ok: false, error: "Poné primero el nombre del producto." };
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  if (!apiKey) return { ok: false, error: "La generación con IA no está configurada (falta la clave). Escribila a mano por ahora." };
+
+  const contexto = [
+    `Producto: ${nombre}`,
+    input.marca ? `Marca: ${(input.marca || "").trim().slice(0, 60)}` : "",
+    input.categoria ? `Categoría: ${(input.categoria || "").trim().slice(0, 60)}` : "",
+  ].filter(Boolean).join("\n");
+  const system =
+    'Sos un redactor de e-commerce uruguayo para una tienda de electrodomésticos a crédito (cobro diario, cuotas chicas). ' +
+    'Escribí una descripción ATRACTIVA y vendedora del producto: 3 a 5 frases, español rioplatense (tratá de "vos"), ' +
+    "TEXTO PLANO (sin markdown, viñetas ni encabezados). Destacá los BENEFICIOS y el uso cotidiano con tono cálido y " +
+    "aspiracional. No inventes especificaciones técnicas puntuales que no te den; hablá de beneficios generales. " +
+    "No menciones precio ni cuotas.";
+  try {
+    const res = await fetch("https://api.deepseek.com/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: MODELO_ASESOR, temperature: 0.85, max_tokens: 320, stream: false,
+        messages: [{ role: "system", content: system }, { role: "user", content: contexto }],
+      }),
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!res.ok) return { ok: false, error: "La IA no respondió. Probá de nuevo en un momento." };
+    const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+    const texto = json.choices?.[0]?.message?.content?.trim();
+    if (!texto) return { ok: false, error: "La IA no devolvió texto. Probá de nuevo." };
+    return { ok: true, descripcion: texto.slice(0, 1000) };
+  } catch {
+    return { ok: false, error: "No se pudo generar. Probá de nuevo." };
+  }
 }
 
 export async function guardarProducto(raw: RawProducto): Promise<Resultado> {
