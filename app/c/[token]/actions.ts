@@ -19,7 +19,7 @@ import { calcularEstadosCarton } from "@/lib/cartones";
 import {
   getEstadoRaspaCliente,
   getSegmentosRaspa,
-  registrarJugadaRaspa,
+  registrarJugadaRaspaSeguro,
   getQuinielaAbierta,
   getParticipacionCliente,
   participarQuinielaDb,
@@ -205,7 +205,7 @@ export async function solicitarRedencion(input: {
 // BENEFICIO simbólico o "nada") lo decide el SERVIDOR con azar del servidor y se
 // registra. No hay dinero real (ver lib/raspadita.ts / migración 0021).
 export type ResultadoRaspa =
-  | { ok: true; label: string; tipo: "beneficio" | "nada" }
+  | { ok: true; label: string; tipo: "beneficio" | "nada"; folio?: number | null }
   | { ok: false; error: string };
 
 export async function jugarRaspadita(input: { token: string }): Promise<ResultadoRaspa> {
@@ -247,13 +247,20 @@ export async function jugarRaspadita(input: { token: string }): Promise<Resultad
     // devolver el ítem 'nada' sembrado: NO hay que festejarlo como beneficio).
     const label = premio?.label ?? "¡Seguí participando!";
     const tipo: "beneficio" | "nada" = premio?.tipo ?? "nada";
-    await registrarJugadaRaspa(db, {
+    // Jugada ATÓMICA (0097): re-chequea el cupo (jugadas < ganadas) con advisory lock
+    // → dos jugadas concurrentes no farmean cupones. Devuelve el folio del comprobante.
+    const guardado = await registrarJugadaRaspaSeguro(db, {
       clienteId: cliente.id,
       premioId: premio?.id ?? null,
       premioLabel: label,
       premioTipo: tipo,
+      ganadas: estado.ganadas,
     });
-    return { ok: true, label, tipo };
+    if (!guardado.ok) {
+      // Otra jugada concurrente ya consumió el último cupo (o el cliente se quedó sin).
+      return { ok: false, error: "Ya jugaste tus raspaditas por ahora. ¡Con tu próximo pago desbloqueás otra! 🌟" };
+    }
+    return { ok: true, label, tipo, folio: guardado.folio };
   } catch {
     return { ok: false, error: "No pudimos jugar la raspadita. Probá más tarde." };
   }

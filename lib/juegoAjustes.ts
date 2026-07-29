@@ -31,6 +31,11 @@ export interface AjustesJuego {
   temporadaPremio: string;
   /** Ciclo del tope de canje de estrellas: por mes o por crédito (0022). */
   estrellasCiclo: "mes" | "credito";
+  /** Cómo se GANA una raspadita (0097): por cada pago, por crédito renovado/
+   *  completado, o solo las que el admin otorga a mano. */
+  raspaGatillo: "pago" | "renovacion" | "manual";
+  /** Máximo de raspaditas SIN jugar que se acumulan (0097). */
+  raspaTope: number;
 }
 
 export const AJUSTES_JUEGO_DEFAULT: AjustesJuego = {
@@ -46,6 +51,8 @@ export const AJUSTES_JUEGO_DEFAULT: AjustesJuego = {
   temporadaMeta: 90,
   temporadaPremio: "",
   estrellasCiclo: "mes",
+  raspaGatillo: "pago",
+  raspaTope: 3,
 };
 
 /** Devuelve el juego arcade elegido (o el del mes si el id no existe). */

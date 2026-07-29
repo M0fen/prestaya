@@ -29,6 +29,10 @@ export async function getAjustesJuego(db: SupabaseClient): Promise<AjustesJuego>
       // Config del cliente (columnas de 0022; si aún no existen, caen al default).
       estrellasCiclo:
         (data.estrellas_ciclo as AjustesJuego["estrellasCiclo"]) ?? AJUSTES_JUEGO_DEFAULT.estrellasCiclo,
+      // Raspadita (columnas de 0097; si aún no existen, caen al default).
+      raspaGatillo:
+        (data.raspa_gatillo as AjustesJuego["raspaGatillo"]) ?? AJUSTES_JUEGO_DEFAULT.raspaGatillo,
+      raspaTope: data.raspa_tope == null ? AJUSTES_JUEGO_DEFAULT.raspaTope : Number(data.raspa_tope),
     };
   } catch (e) {
     if (tablaFaltante(e)) return AJUSTES_JUEGO_DEFAULT;
@@ -61,10 +65,19 @@ export async function actualizarAjustesJuego(
     ...conTemporada,
     estrellas_ciclo: a.estrellasCiclo,
   };
+  const conRaspa = {
+    ...conConfig,
+    raspa_gatillo: a.raspaGatillo,
+    raspa_tope: a.raspaTope,
+  };
   // Escalera de compatibilidad: intentá guardar TODO; si faltan columnas de una
   // migración, reintentá con menos (sin perder lo que sí existe).
-  let { error } = await db.from("ajustes_juego").upsert(conConfig);
+  let { error } = await db.from("ajustes_juego").upsert(conRaspa);
   if (!error) return;
+  if (columnaFaltante(error)) {
+    ({ error } = await db.from("ajustes_juego").upsert(conConfig)); // sin 0097
+    if (!error) return;
+  }
   if (columnaFaltante(error)) {
     ({ error } = await db.from("ajustes_juego").upsert(conTemporada)); // sin 0022
     if (!error) return;

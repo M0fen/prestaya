@@ -7,6 +7,7 @@ import type { DefinicionSegmento } from "@/lib/segmentos";
 import { tablaFaltante, columnaFaltante } from "@/lib/data/errores";
 import { contarPagosVigentesCliente } from "@/lib/data/estrellas";
 import { raspaditasDisponibles, type PremioRaspa, type SegmentoRaspa } from "@/lib/raspadita";
+import { getAjustesJuego } from "@/lib/data/juegoConfig";
 import { traerTodo } from "@/lib/data/paginado";
 import { enLotes } from "@/lib/data/alcance";
 
@@ -124,26 +125,71 @@ export async function contarJugadasRaspa(db: SupabaseClient, clienteId: string):
   }
 }
 
+/** Créditos ya finalizados del cliente = ciclos completados (proxy de "renovaciones"
+ *  para el gatillo 'renovacion'). Degrada a 0 si falta la tabla. */
+export async function contarRenovacionesCliente(db: SupabaseClient, clienteId: string): Promise<number> {
+  try {
+    const { count, error } = await db
+      .from("prestamos")
+      .select("*", { count: "exact", head: true })
+      .eq("cliente_id", clienteId)
+      .eq("estado", "finalizado");
+    if (error) throw error;
+    return count ?? 0;
+  } catch (e) {
+    if (tablaFaltante(e)) return 0;
+    throw e;
+  }
+}
+
+/** Raspaditas que el admin OTORGÓ a mano al cliente (suman a las ganadas, 0097).
+ *  Degrada a 0 si falta la tabla (0097 sin correr). */
+export async function contarOtorgadasCliente(db: SupabaseClient, clienteId: string): Promise<number> {
+  try {
+    const filas = await traerTodo<{ cantidad: number }>((d, h) =>
+      db.from("raspaditas_otorgadas").select("cantidad").eq("cliente_id", clienteId)
+        .order("id", { ascending: true }).range(d, h),
+    );
+    return filas.reduce((s, r) => s + Number(r.cantidad), 0);
+  } catch (e) {
+    if (tablaFaltante(e)) return 0;
+    throw e;
+  }
+}
+
 export interface EstadoRaspaCliente {
   disponibles: number;
   premios: PremioRaspa[];
+  /** Total de raspaditas GANADAS por el cliente (base del gatillo + otorgadas).
+   *  Es el CUPO que la jugada atómica re-chequea contra las jugadas hechas. */
+  ganadas: number;
 }
 
-/** Cuántas raspaditas puede jugar el cliente (una por pago) + catálogo activo. */
+/** Cuántas raspaditas puede jugar el cliente + catálogo activo. El GATILLO lo
+ *  define el admin (0097): 'pago' (una por cuota), 'renovacion' (una por crédito
+ *  completado) o 'manual' (solo otorgadas). Las OTORGADAS a mano siempre suman. */
 export async function getEstadoRaspaCliente(
   db: SupabaseClient,
   clienteId: string,
 ): Promise<EstadoRaspaCliente> {
-  const [pagos, jugadas, premios] = await Promise.all([
-    contarPagosVigentesCliente(db, clienteId),
+  const ajustes = await getAjustesJuego(db);
+  const baseGatillo =
+    ajustes.raspaGatillo === "renovacion"
+      ? contarRenovacionesCliente(db, clienteId)
+      : ajustes.raspaGatillo === "manual"
+        ? Promise.resolve(0)
+        : contarPagosVigentesCliente(db, clienteId);
+  const [base, otorgadas, jugadas, premios] = await Promise.all([
+    baseGatillo,
+    contarOtorgadasCliente(db, clienteId),
     contarJugadasRaspa(db, clienteId),
     getPremiosRaspa(db, true),
   ]);
-  // Si no hay premios activos (o falta la migración 0021), el juego no está
-  // configurado: no ofrecemos raspaditas (evita el botón "raspar" que fallaría).
-  const disponibles =
-    premios.length > 0 ? raspaditasDisponibles(pagos, jugadas) : 0;
-  return { disponibles, premios };
+  const ganadas = base + otorgadas;
+  // Si no hay premios activos (o falta 0021), el juego no está configurado: no
+  // ofrecemos raspaditas (evita el botón "raspar" que fallaría).
+  const disponibles = premios.length > 0 ? raspaditasDisponibles(ganadas, jugadas, ajustes.raspaTope) : 0;
+  return { disponibles, premios, ganadas };
 }
 
 export async function registrarJugadaRaspa(
@@ -157,6 +203,42 @@ export async function registrarJugadaRaspa(
     premio_tipo: input.premioTipo,
   });
   if (error) throw error;
+}
+
+export type ResultadoJugadaSegura =
+  | { ok: true; folio: number | null }
+  | { ok: false; sinCupo: boolean };
+
+/**
+ * Registra la jugada de forma ATÓMICA (RPC 0097 con advisory lock): re-chequea el
+ * cupo (jugadas < ganadas) DENTRO de la transacción → dos jugadas concurrentes no
+ * pueden farmear cupones. Devuelve el `folio` del comprobante (solo beneficios).
+ * Si 0097 aún no corrió (42883/PGRST202), cae al insert plano (conducta previa).
+ */
+export async function registrarJugadaRaspaSeguro(
+  db: SupabaseClient,
+  input: { clienteId: string; premioId: string | null; premioLabel: string; premioTipo: string; ganadas: number },
+): Promise<ResultadoJugadaSegura> {
+  const rpc = await db.rpc("registrar_jugada_raspa_seguro", {
+    p_cliente: input.clienteId,
+    p_premio_id: input.premioId,
+    p_label: input.premioLabel,
+    p_tipo: input.premioTipo,
+    p_ganadas: input.ganadas,
+  });
+  if (!rpc.error) {
+    const row = Array.isArray(rpc.data) ? rpc.data[0] : rpc.data;
+    const folio = (row as { folio?: number | null } | null)?.folio;
+    return { ok: true, folio: folio == null ? null : Number(folio) };
+  }
+  const code = (rpc.error as { code?: string }).code;
+  if (code === "P0001") return { ok: false, sinCupo: true }; // sin cupo (carrera)
+  if (code === "42883" || code === "PGRST202") {
+    // 0097 sin correr → insert plano (sin folio ni candado; conducta previa).
+    await registrarJugadaRaspa(db, input);
+    return { ok: true, folio: null };
+  }
+  throw rpc.error;
 }
 
 // Admin CRUD de premios.
@@ -190,6 +272,97 @@ export async function guardarPremioRaspaDb(
 export async function borrarPremioRaspaDb(db: SupabaseClient, id: string): Promise<void> {
   const { error } = await db.from("raspadita_premios").delete().eq("id", id);
   if (error) throw error;
+}
+
+// ── Raspaditas: RESULTADOS para el admin (historial + agregados) ───────────
+export interface JugadaRaspa {
+  clienteId: string;
+  clienteNombre: string;
+  premioLabel: string;
+  premioTipo: string;
+  jugadoEn: string;
+  folio: number | null;
+}
+
+export interface ResumenRaspaditas {
+  totalJugadas: number;
+  beneficios: number;
+  nada: number;
+  /** Cuántas veces cayó cada premio (para "qué premios cayeron"). */
+  porPremio: { label: string; tipo: string; cantidad: number }[];
+  /** Últimas jugadas con nombre del cliente (historial verificable). */
+  recientes: JugadaRaspa[];
+}
+
+const RESUMEN_RASPA_VACIO: ResumenRaspaditas = {
+  totalJugadas: 0, beneficios: 0, nada: 0, porPremio: [], recientes: [],
+};
+
+/**
+ * Resumen de resultados de la raspadita para el admin: cuántas se jugaron, qué
+ * premios cayeron y el historial reciente (con nombre del cliente). Degrada a
+ * vacío si falta 0021. `limite` = cuántas jugadas recientes traer al detalle.
+ */
+export async function getResumenRaspaditas(
+  db: SupabaseClient,
+  limite = 40,
+): Promise<ResumenRaspaditas> {
+  try {
+    // Todas las jugadas (filas chicas) paginadas con orden estable → agregados
+    // exactos por encima de las 1000 filas de PostgREST. `folio` es de 0097: si aún
+    // no existe la columna, se reintenta sin ella (compat).
+    const cols = "id, cliente_id, premio_label, premio_tipo, jugado_en, folio";
+    let filas: Record<string, unknown>[];
+    try {
+      filas = await traerTodo<Record<string, unknown>>((d, h) =>
+        db.from("raspaditas_jugadas").select(cols).order("id", { ascending: true }).range(d, h),
+      );
+    } catch (e) {
+      if (!columnaFaltante(e)) throw e;
+      filas = await traerTodo<Record<string, unknown>>((d, h) =>
+        db.from("raspaditas_jugadas").select("id, cliente_id, premio_label, premio_tipo, jugado_en")
+          .order("id", { ascending: true }).range(d, h),
+      );
+    }
+    if (filas.length === 0) return RESUMEN_RASPA_VACIO;
+
+    const beneficios = filas.filter((r) => r.premio_tipo === "beneficio").length;
+    // Agrupado por premio (label+tipo) → "qué premios cayeron".
+    const porMap = new Map<string, { label: string; tipo: string; cantidad: number }>();
+    for (const r of filas) {
+      const label = (r.premio_label as string) ?? "—";
+      const tipo = (r.premio_tipo as string) ?? "nada";
+      const k = `${tipo}|${label}`;
+      const cur = porMap.get(k) ?? { label, tipo, cantidad: 0 };
+      cur.cantidad += 1;
+      porMap.set(k, cur);
+    }
+    const porPremio = [...porMap.values()].sort((a, b) => b.cantidad - a.cantidad);
+
+    // Recientes (por fecha desc) → solo se resuelven los nombres de esas N.
+    const recientesRaw = [...filas]
+      .sort((a, b) => String(b.jugado_en).localeCompare(String(a.jugado_en)))
+      .slice(0, limite);
+    const ids = [...new Set(recientesRaw.map((r) => r.cliente_id as string))];
+    const nombres = new Map<string, string>();
+    for (const lote of enLotes(ids)) {
+      const { data: cs } = await db.from("clientes").select("id, nombre").in("id", lote);
+      for (const c of cs ?? []) nombres.set((c as { id: string }).id, (c as { nombre: string }).nombre);
+    }
+    const recientes: JugadaRaspa[] = recientesRaw.map((r) => ({
+      clienteId: r.cliente_id as string,
+      clienteNombre: nombres.get(r.cliente_id as string) ?? "—",
+      premioLabel: (r.premio_label as string) ?? "—",
+      premioTipo: (r.premio_tipo as string) ?? "nada",
+      jugadoEn: r.jugado_en as string,
+      folio: r.folio == null ? null : Number(r.folio),
+    }));
+
+    return { totalJugadas: filas.length, beneficios, nada: filas.length - beneficios, porPremio, recientes };
+  } catch (e) {
+    if (tablaFaltante(e)) return RESUMEN_RASPA_VACIO;
+    throw e;
+  }
 }
 
 // ── Quiniela ───────────────────────────────────────────────────────────────

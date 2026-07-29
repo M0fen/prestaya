@@ -43,6 +43,40 @@ export async function setJuegosVisiblesAction(activo: boolean): Promise<Resultad
   }
 }
 
+/**
+ * Cómo se GANA una raspadita (0097): gatillo (pago/renovación/manual) + tope de
+ * acumuladas. Co-locado en /admin/promos (donde el admin ve/configura la raspadita).
+ * Lee los ajustes actuales y solo cambia lo de la raspadita. Solo admin.
+ */
+export async function setConfigRaspaditaAction(
+  gatillo: AjustesJuego["raspaGatillo"],
+  tope: number,
+): Promise<Resultado> {
+  const usuario = await getUsuarioActual();
+  if (!usuario || !usuario.activo || !esAdmin(usuario.rol)) {
+    return { ok: false, error: "No tenés permisos." };
+  }
+  const g: AjustesJuego["raspaGatillo"] =
+    gatillo === "renovacion" ? "renovacion" : gatillo === "manual" ? "manual" : "pago";
+  const t = Math.max(0, Math.min(50, Math.round(Number(tope) || 3)));
+  try {
+    const db = await createSupabaseServer();
+    const actuales = await getAjustesJuego(db);
+    await actualizarAjustesJuego(db, { ...actuales, raspaGatillo: g, raspaTope: t });
+    await registrarAuditoria(db, {
+      actorId: usuario.id,
+      actorNombre: usuario.nombre,
+      accion: "Cambió cómo se gana la raspadita",
+      entidad: "gaming",
+      detalle: `gatillo ${g} · tope ${t}`,
+    });
+    revalidatePath("/admin/promos");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "No se pudo guardar. Probá de nuevo." };
+  }
+}
+
 export async function guardarAjustesJuego(input: AjustesJuego): Promise<Resultado> {
   const usuario = await getUsuarioActual();
   if (!usuario || !usuario.activo || !esAdmin(usuario.rol)) {
@@ -64,6 +98,9 @@ export async function guardarAjustesJuego(input: AjustesJuego): Promise<Resultad
     temporadaMeta: Math.max(1, Math.min(100, Math.round(Number(input.temporadaMeta) || 90))),
     temporadaPremio: (input.temporadaPremio ?? "").trim().slice(0, 120),
     estrellasCiclo: input.estrellasCiclo === "credito" ? "credito" : "mes",
+    raspaGatillo:
+      input.raspaGatillo === "renovacion" ? "renovacion" : input.raspaGatillo === "manual" ? "manual" : "pago",
+    raspaTope: Math.max(0, Math.min(50, Math.round(Number(input.raspaTope) || 3))),
   };
 
   try {

@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { jugarRaspadita } from "@/app/c/[token]/actions";
 
-type Premio = { label: string; tipo: "beneficio" | "nada" };
+type Premio = { label: string; tipo: "beneficio" | "nada"; folio?: number | null };
 
 const UMBRAL_REVELAR = 0.6; // hay que raspar el 60% del área
 const RADIO_PINCEL = 15; // yema del dedo, chico → cuesta más raspar
@@ -208,7 +208,7 @@ export function RaspaditaCanvas({
     }
     const r = await jugarRaspadita({ token });
     if (r.ok) {
-      setPremio({ label: r.label, tipo: r.tipo });
+      setPremio({ label: r.label, tipo: r.tipo, folio: r.folio });
     } else {
       setError(r.error);
     }
@@ -348,7 +348,16 @@ export function RaspaditaCanvas({
               <span className="text-[32px]">{premio.tipo === "beneficio" ? "🎉" : "🍀"}</span>
               <span className="text-[16px] font-extrabold">{premio.label}</span>
               {premio.tipo === "beneficio" && (
-                <span className="text-[11px] font-medium text-white/80">Mostralo en la oficina para usarlo.</span>
+                <>
+                  {premio.folio != null && (
+                    <span className="mt-0.5 rounded-full bg-white/20 px-2.5 py-0.5 text-[11px] font-black tracking-wide tabular-nums">
+                      Comprobante N.º {String(premio.folio).padStart(6, "0")}
+                    </span>
+                  )}
+                  <span className="text-[11px] font-medium text-white/80">
+                    Mostrá este comprobante en la oficina para usar tu premio.
+                  </span>
+                </>
               )}
             </div>
           ) : (
