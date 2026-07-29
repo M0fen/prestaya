@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import type { Anuncio, TemaAnuncio, SegmentoAnuncio } from "@/types/db";
 import { BannerCarrusel } from "@/components/BannerCarrusel";
 import { guardarAnuncio, alternarAnuncio, eliminarAnuncio, subirImagenAnuncio, type RawAnuncio } from "@/lib/acciones/anuncios";
-import { estadoPublicacion } from "@/lib/publicacion";
+import { estadoPublicacion, META_ESTADO } from "@/lib/publicacion";
 import { EstadoBadge } from "@/components/admin/EstadoBadge";
 import { SelectorSegmento } from "@/components/admin/SelectorSegmento";
 import { describirSegmento } from "@/lib/segmentos";
@@ -24,6 +24,15 @@ const vacio: RawAnuncio = {
   id: null, titulo: "", cuerpo: "", ctaTexto: "", ctaUrl: "", imagenUrl: "", etiqueta: "",
   tema: "azul", prioridad: 0, activo: true, segmento: "todos", fechaInicio: "", fechaFin: "",
 };
+
+/** Plantillas de arranque: prellenan el formulario con un tono ya listo (framing
+ *  positivo, voseo). El admin edita desde ahí en vez de la hoja en blanco. */
+const PLANTILLAS: { nombre: string; datos: Partial<RawAnuncio> }[] = [
+  { nombre: "📣 Promo", datos: { etiqueta: "Promoción", titulo: "¡Aprovechá esta semana!", cuerpo: "Tenemos un beneficio especial para vos.", tema: "verde", ctaTexto: "Ver más" } },
+  { nombre: "💙 Recordatorio", datos: { etiqueta: "Recordatorio", titulo: "Un pasito más hacia tu meta", cuerpo: "Cada pago te acerca. ¡Vas muy bien!", tema: "azul" } },
+  { nombre: "🎉 Novedad", datos: { etiqueta: "Novedad", titulo: "Tenemos algo nuevo para vos", cuerpo: "", tema: "azul" } },
+  { nombre: "🏷️ Publicidad", datos: { etiqueta: "Publicidad", titulo: "Título de la publicidad", cuerpo: "", tema: "dorado", ctaTexto: "Ver oferta" } },
+];
 
 /** Fecha corta local ("DD/MM"). "" si es vacía/ilegible. */
 function fechaCorta(iso: string | null): string {
@@ -134,9 +143,16 @@ export function AnunciosManager({
     imagen_url: form.imagenUrl || null, etiqueta: form.etiqueta || null,
     tema: form.tema as TemaAnuncio, prioridad: form.prioridad,
     activo: form.activo, segmento: form.segmento as SegmentoAnuncio, segmento_def: form.segmentoDef ?? null,
-    fecha_inicio: new Date().toISOString(), fecha_fin: null, creado_por: null,
+    // Usa las fechas REALES del formulario (antes hardcodeaba "ahora/sin fin" → el
+    // preview mentía sobre la vigencia).
+    fecha_inicio: form.fechaInicio ? new Date(form.fechaInicio).toISOString() : new Date().toISOString(),
+    fecha_fin: form.fechaFin ? new Date(form.fechaFin).toISOString() : null,
+    creado_por: null,
     creado_en: "", actualizado_en: "",
   };
+  // Estado de publicación EN VIVO del formulario: si quedó pausado o programado, el
+  // admin lo ve acá aunque el banner igual se dibuje (deja de "creer que publicó").
+  const estadoForm = estadoPublicacion({ activo: form.activo, desde: preview.fecha_inicio, hasta: preview.fecha_fin });
 
   const inputCls =
     "w-full rounded-[10px] border border-borde px-3 py-2 text-[13px] text-tinta outline-none focus:border-azul";
@@ -156,14 +172,37 @@ export function AnunciosManager({
           )}
         </div>
 
-        {/* Vista previa en vivo (cómo lo ve el cliente) */}
+        {/* Plantillas para arrancar (solo al crear uno nuevo). */}
+        {!form.id && (
+          <div className="mb-3 flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 text-[10.5px] font-bold uppercase tracking-wide text-gris">Empezá con…</span>
+            {PLANTILLAS.map((p) => (
+              <button
+                key={p.nombre}
+                type="button"
+                onClick={() => setForm({ ...vacio, ...p.datos })}
+                className="rounded-full border border-borde bg-suave px-3 py-1 text-[12px] font-bold text-cuerpo hover:bg-tarjeta"
+              >
+                {p.nombre}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Vista previa en vivo (cómo lo ve el cliente) + estado real de publicación. */}
         <div className="mb-4 rounded-[16px] bg-[#EAEEF7] p-3">
-          <span className="mb-2 block text-[10.5px] font-bold tracking-wide text-gris uppercase">
-            Vista previa
-          </span>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <span className="text-[10.5px] font-bold tracking-wide text-gris uppercase">Vista previa</span>
+            <EstadoBadge estado={estadoForm} />
+          </div>
           <div className="mx-auto max-w-[380px]">
             <BannerCarrusel anuncios={[preview]} />
           </div>
+          {estadoForm !== "en_pantalla" && (
+            <p className="mt-2 text-[11px] font-semibold text-[#B9770E]">
+              Ojo: así no se le muestra al cliente todavía ({META_ESTADO[estadoForm].label.toLowerCase()}).
+            </p>
+          )}
         </div>
 
         <div className="flex flex-col gap-2.5">
