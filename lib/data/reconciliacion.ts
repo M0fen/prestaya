@@ -13,6 +13,8 @@ import {
 } from "@/lib/reconciliacion";
 import { inicioDiaUYIso } from "@/lib/fecha";
 import { saldoCredito } from "@/lib/cartones";
+import { reportarError } from "@/lib/observabilidad";
+import { tablaFaltante } from "./errores";
 import { traerTodo } from "./paginado";
 
 export interface ResultadoReconciliacion extends ResumenReconciliacion {
@@ -107,8 +109,11 @@ export async function logReconciliacion(
       origen: r.origen ?? "cron",
       detalle: r.detalle ?? null,
     });
-  } catch {
-    /* la tabla 0073 puede no existir aún: no rompe la corrida */
+  } catch (e) {
+    // La tabla 0073 puede faltar en un entorno viejo → degradar en silencio SOLO en
+    // ese caso. Cualquier OTRO fallo de escritura del log (RLS, tipo, jsonb inválido)
+    // es una mancha ciega en el CORAZÓN de la detección → dejar rastro en Sentry.
+    if (!tablaFaltante(e)) reportarError("logReconciliacion", e);
   }
 }
 

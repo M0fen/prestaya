@@ -35,6 +35,16 @@ export default async function EmpalmePage() {
     getHistorialReconciliacion(db, 14),
   ]);
 
+  // FRESCURA del vigilante: la reconciliación AUTOMÁTICA (origen 'cron') corre 1×/día.
+  // Si la última pasó hace >26h (o nunca corrió), el vigilante está CAÍDO → hay que
+  // gritarlo, porque "no hay señal" es el fallo más peligroso (un cron muerto se veía
+  // "sano" mostrando el historial viejo). Causa típica: falta CRON_SECRET en Vercel.
+  const ultimaCron = historial.find((h) => h.origen === "cron");
+  const horasSinCron = ultimaCron
+    ? (Date.now() - new Date(ultimaCron.corridaEn).getTime()) / 3_600_000
+    : Infinity;
+  const cronCaido = horasSinCron > 26;
+
   return (
     <div className="mx-auto flex max-w-[1000px] flex-col gap-5">
       <div className="flex flex-col gap-0.5">
@@ -46,6 +56,25 @@ export default async function EmpalmePage() {
       </div>
 
       <KillSwitch activo={info.soloLectura} />
+
+      {/* ── VIGILANTE CAÍDO (frescura del cron) ── */}
+      {cronCaido && (
+        <section
+          className="rounded-[16px] border px-4 py-3.5"
+          style={{ borderColor: "var(--color-rojo-osc)", background: "var(--color-rojo-suave)" }}
+        >
+          <span className="text-[13.5px] font-extrabold" style={{ color: "var(--color-rojo-osc)" }}>
+            ⚠️ La reconciliación automática NO está corriendo
+          </span>
+          <p className="mt-0.5 text-[12px] leading-[1.5] font-medium" style={{ color: "var(--color-rojo-osc)" }}>
+            {ultimaCron
+              ? `Última corrida automática: ${fechaHora(ultimaCron.corridaEn)} (hace ${Math.round(horasSinCron)} h). Debería correr cada mañana.`
+              : "Nunca corrió una reconciliación automática."}{" "}
+            La plata no se está verificando a diario. Revisá que <b>CRON_SECRET</b> esté seteado en Vercel (sin
+            eso el cron falla cerrado). Mientras tanto, corré la reconciliación a mano (ver abajo).
+          </p>
+        </section>
+      )}
 
       {/* ── SALUD DEL EMPALME ── */}
       <section className="flex flex-col gap-2">

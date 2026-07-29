@@ -34,6 +34,16 @@ export async function GET(req: Request): Promise<Response> {
     // Antes devolvía ok:false en SILENCIO → un vigilante caído se confundía con "todo
     // cuadra". Ahora deja rastro para que se note que la reconciliación no está corriendo.
     reportarError("cron.reconciliacion", new Error("RPC app_reconciliacion_violaciones sin correr (0071)"));
+    // Deja una fila en el log para DISTINGUIR "el cron no corrió" (log vacío) de "corrió
+    // pero el RPC no está" (esta fila ok:false). Sin esto ambos fallos se ven igual.
+    await logReconciliacion(db, {
+      ok: false,
+      total: 0,
+      criticos: 0,
+      recaudoLibro: 0,
+      origen: "cron",
+      detalle: { motivo: "rpc_0071_no_disponible" },
+    });
     return Response.json({ ok: false, motivo: "RPC app_reconciliacion_violaciones sin correr (0071)" });
   }
 
@@ -47,7 +57,19 @@ export async function GET(req: Request): Promise<Response> {
     detalle: r.porInvariante,
   });
 
-  // Alerta SOLO ante lo CRÍTICO: drift del denormalizado (los saldos mienten) o
+  // Un hallazgo CRÍTICO SIEMPRE deja rastro en Sentry, INDEPENDIENTE del push. El
+  // canal push depende de que un admin se haya suscrito en un dispositivo (frágil:
+  // hoy 0 suscritos) → sin esto, un sobre-cobro material vivo quedaba solo en el
+  // panel, sin que nadie se entere. reportarError es el piso de la alerta.
+  if (r.criticos > 0) {
+    reportarError(
+      "cron.reconciliacion.critico",
+      new Error(`${r.criticos} hallazgo(s) crítico(s) de dinero (${r.hallazgos.length} en total)`),
+      { criticos: r.criticos, total: r.hallazgos.length, recaudoLibro: r.recaudoLibro },
+    );
+  }
+
+  // Alerta push SOLO ante lo CRÍTICO: drift del denormalizado (los saldos mienten) o
   // sobre-cobro material (se cobró de más de verdad). El baseline de redondeos no.
   let avisados = 0;
   if (r.criticos > 0 && pushConfigurado()) {
