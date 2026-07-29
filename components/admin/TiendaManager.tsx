@@ -96,6 +96,10 @@ function Productos({ productos, categorias, zonas }: { productos: Producto[]; ca
   };
   const abrir = (p?: Producto) =>
     setEditando(p ? { ...p, videoUrl: p.videoUrl } : { ...PRODUCTO_VACIO, orden: productos.length });
+  // Duplicar: carga el producto en el editor como NUEVO (sin id) → al guardar se crea
+  // otro. Comparte fotos con el original (el borrado del Storage es consciente de eso).
+  const duplicar = (p: Producto) =>
+    setEditando({ ...p, id: undefined, nombre: `${p.nombre} (copia)`, destacado: false, videoUrl: p.videoUrl });
 
   if (editando) {
     return <EditorProducto raw={editando} categorias={categorias} zonas={zonas} onClose={() => setEditando(null)} />;
@@ -143,6 +147,7 @@ function Productos({ productos, categorias, zonas }: { productos: Producto[]; ca
             </div>
             <div className="mt-1 flex flex-wrap gap-1.5">
               <button type="button" onClick={() => abrir(p)} className="rounded-full border border-borde bg-tarjeta px-3 py-1.5 text-[12px] font-bold text-azul">Editar</button>
+              <button type="button" onClick={() => duplicar(p)} className="rounded-full border border-borde bg-tarjeta px-3 py-1.5 text-[12px] font-bold text-gris">Duplicar</button>
               <button type="button" onClick={() => toggle(p)} disabled={pend}
                 className="rounded-full border border-borde bg-tarjeta px-3 py-1.5 text-[12px] font-bold text-gris">
                 {p.activo ? "Pausar" : "Activar"}

@@ -88,6 +88,11 @@ export async function guardarProducto(raw: RawProducto): Promise<Resultado> {
   if (!u) return { ok: false, error: "Solo el administrador gestiona la tienda." };
   const input = sanearProducto(raw);
   if (!input) return { ok: false, error: "Poné un nombre para el producto." };
+  // El video debe estar SUBIDO al bucket (URL de storage). Una URL externa se guardaba
+  // pero el navegador la bloquea por CSP → video roto sin aviso. Se rechaza con mensaje claro.
+  if (input.videoUrl && !input.videoUrl.includes("/storage/v1/object/public/")) {
+    return { ok: false, error: "Subí el video con el botón: una URL externa no se puede mostrar por seguridad." };
+  }
   try {
     const db = await createSupabaseServer();
     if (raw.id) await actualizarProductoDb(db, raw.id, input);
@@ -139,12 +144,21 @@ export async function eliminarProducto(id: string): Promise<Resultado> {
   if (!esUuid(id)) return { ok: false, error: "Producto inválido." };
   try {
     const db = await createSupabaseServer();
-    // Limpiar los medios del Storage ANTES de borrar la fila (evita fotos/videos
-    // huérfanos en el bucket para siempre). Un video con URL externa se ignora.
-    const { data: medios } = await createSupabaseAdmin()
-      .from("productos").select("fotos, video_url").eq("id", id).maybeSingle();
+    // Limpiar los medios del Storage ANTES de borrar la fila (evita huérfanos). Pero
+    // SOLO los que ningún OTRO producto usa: una copia (duplicar) comparte fotos, y
+    // borrarlas rompería la otra. Un video con URL externa no es del bucket → se ignora.
+    const admin = createSupabaseAdmin();
+    const { data: medios } = await admin.from("productos").select("fotos, video_url").eq("id", id).maybeSingle();
     if (medios) {
-      await borrarMediosTienda([...(((medios.fotos as string[] | null) ?? [])), medios.video_url as string | null]);
+      const mios = [...(((medios.fotos as string[] | null) ?? [])), medios.video_url as string | null]
+        .filter((u): u is string => !!u);
+      const { data: otros } = await admin.from("productos").select("fotos, video_url").neq("id", id);
+      const enUso = new Set<string>();
+      for (const o of otros ?? []) {
+        for (const f of ((o.fotos as string[] | null) ?? [])) enUso.add(f);
+        if (o.video_url) enUso.add(o.video_url as string);
+      }
+      await borrarMediosTienda(mios.filter((u) => !enUso.has(u)));
     }
     await borrarProductoDb(db, id);
     await registrarAuditoria(db, { actorId: u.id, actorNombre: u.nombre, accion: "Borró producto", entidad: "producto", entidadId: id });
