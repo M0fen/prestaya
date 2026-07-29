@@ -8,14 +8,16 @@ import { useRouter } from "next/navigation";
 import { otorgarRaspaditasAction } from "@/lib/acciones/promos";
 
 type ClienteMin = { id: string; nombre: string; documento: string | null };
+type PremioMin = { id: string; label: string };
 
-export function OtorgarRaspadita() {
+export function OtorgarRaspadita({ premios = [] }: { premios?: PremioMin[] }) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [resultados, setResultados] = useState<ClienteMin[]>([]);
   const [sel, setSel] = useState<ClienteMin | null>(null);
   const [cantidad, setCantidad] = useState(1);
   const [motivo, setMotivo] = useState("");
+  const [premioId, setPremioId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [pendiente, start] = useTransition();
@@ -55,13 +57,18 @@ export function OtorgarRaspadita() {
     if (!sel || cantidad < 1 || pendiente) return;
     setError(null);
     start(async () => {
-      const res = await otorgarRaspaditasAction({ clienteId: sel.id, cantidad, motivo: motivo.trim() || null });
+      const res = await otorgarRaspaditasAction({ clienteId: sel.id, cantidad, motivo: motivo.trim() || null, premioId: premioId || null });
       if (res.ok) {
-        setOk(`Le regalaste ${cantidad} raspadita${cantidad === 1 ? "" : "s"} a ${sel.nombre}.`);
+        const premioNombre = premios.find((p) => p.id === premioId)?.label;
+        setOk(
+          `Le regalaste ${cantidad} raspadita${cantidad === 1 ? "" : "s"} a ${sel.nombre}` +
+            (premioNombre ? ` (le va a tocar: ${premioNombre}).` : "."),
+        );
         setSel(null);
         setQ("");
         setMotivo("");
         setCantidad(1);
+        setPremioId("");
         router.refresh();
       } else setError(res.error);
     });
@@ -72,8 +79,8 @@ export function OtorgarRaspadita() {
       <div className="flex flex-col gap-0.5">
         <span className="text-[14px] font-extrabold text-tinta">🎁 Regalar una raspadita a alguien</span>
         <span className="text-[11.5px] font-medium text-tenue">
-          Buscá a la persona por su nombre y regalale raspaditas. Las juega en su cartón; el premio
-          sale del sorteo que configuraste arriba (lo decide el servidor).
+          Buscá a la persona por su nombre y regalale raspaditas. Las juega en su cartón. Podés
+          dejar el premio al azar del sorteo, o FIJAR uno para que le toque sí o sí.
         </span>
       </div>
 
@@ -130,6 +137,21 @@ export function OtorgarRaspadita() {
               />
             </label>
           </div>
+          {premios.length > 0 && (
+            <label className="flex flex-col gap-0.5">
+              <span className="text-[10.5px] font-bold text-gris">¿Qué premio le va a tocar?</span>
+              <select
+                value={premioId}
+                onChange={(e) => setPremioId(e.target.value)}
+                className="w-full rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[13px] outline-none focus:border-azul"
+              >
+                <option value="">🎲 Al azar (según el sorteo que configuraste)</option>
+                {premios.map((p) => (
+                  <option key={p.id} value={p.id}>🎯 Siempre: {p.label}</option>
+                ))}
+              </select>
+            </label>
+          )}
           <button
             type="button"
             onClick={otorgar}

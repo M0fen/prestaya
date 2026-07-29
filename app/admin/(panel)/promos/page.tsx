@@ -91,8 +91,9 @@ export default async function PromosPage() {
       {/* A quiénes les aparece la raspadita (0102): "Todos" o un grupo. */}
       <AudienciaRaspadita inicial={ajustes.raspaSegmentoDef} zonas={zonas.map((z) => ({ id: z.id, nombre: z.nombre }))} />
 
-      {/* Regalar una raspadita a una persona puntual (buscándola por su nombre). */}
-      <OtorgarRaspadita />
+      {/* Regalar una raspadita a una persona puntual (buscándola por su nombre),
+          opcionalmente con el premio FIJADO (0103). */}
+      <OtorgarRaspadita premios={premios.filter((p) => p.activo && p.tipo === "beneficio").map((p) => ({ id: p.id, label: p.label }))} />
 
       <PromosManager premios={premios} segmentos={segmentos} quinielas={quinielas} resumen={resumen} zonas={zonas.map((z) => ({ id: z.id, nombre: z.nombre }))} />
 

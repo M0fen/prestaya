@@ -219,20 +219,31 @@ export async function registrarJugadaRaspaSeguro(
   db: SupabaseClient,
   input: { clienteId: string; premioId: string | null; premioLabel: string; premioTipo: string; ganadas: number },
 ): Promise<ResultadoJugadaSegura> {
-  const rpc = await db.rpc("registrar_jugada_raspa_seguro", {
+  const params = {
     p_cliente: input.clienteId,
     p_premio_id: input.premioId,
     p_label: input.premioLabel,
     p_tipo: input.premioTipo,
     p_ganadas: input.ganadas,
-  });
-  if (!rpc.error) {
-    const row = Array.isArray(rpc.data) ? rpc.data[0] : rpc.data;
+  };
+  const leerFolio = (data: unknown): number | null => {
+    const row = Array.isArray(data) ? data[0] : data;
     const folio = (row as { folio?: number | null } | null)?.folio;
-    return { ok: true, folio: folio == null ? null : Number(folio) };
-  }
+    return folio == null ? null : Number(folio);
+  };
+  // 0103: RPC pin-aware (entrega el PREMIO FIJADO pendiente FIFO, o el azar). Mismo
+  // candado + re-cheque de cupo que 0097. Si 0103 no corrió, cae al RPC 0097.
+  const pin = await db.rpc("registrar_jugada_raspa_pin", params);
+  if (!pin.error) return { ok: true, folio: leerFolio(pin.data) };
+  const pcode = (pin.error as { code?: string }).code;
+  if (pcode === "P0001") return { ok: false, sinCupo: true }; // sin cupo (carrera)
+  if (pcode !== "42883" && pcode !== "PGRST202") throw pin.error;
+
+  // 0103 sin correr → RPC 0097 (que a su vez cae al insert plano si falta 0097).
+  const rpc = await db.rpc("registrar_jugada_raspa_seguro", params);
+  if (!rpc.error) return { ok: true, folio: leerFolio(rpc.data) };
   const code = (rpc.error as { code?: string }).code;
-  if (code === "P0001") return { ok: false, sinCupo: true }; // sin cupo (carrera)
+  if (code === "P0001") return { ok: false, sinCupo: true };
   if (code === "42883" || code === "PGRST202") {
     // 0097 sin correr → insert plano (sin folio ni candado; conducta previa).
     await registrarJugadaRaspa(db, input);
@@ -346,17 +357,25 @@ export async function canjearFolioDb(
   return { estado: existe ? "ya-estaba" : "no-existe" };
 }
 
-/** El admin OTORGA N raspaditas a un cliente (suman a las ganadas). Inmutable. */
+/** El admin OTORGA N raspaditas a un cliente (suman a las ganadas). Inmutable.
+ *  Con `premioId` (0103) FIJA qué premio le tocará al jugarla (en vez del azar). */
 export async function otorgarRaspaditasDb(
   db: SupabaseClient,
-  input: { clienteId: string; cantidad: number; motivo: string | null; otorgadoPor: string },
+  input: { clienteId: string; cantidad: number; motivo: string | null; otorgadoPor: string; premioId?: string | null },
 ): Promise<void> {
-  const { error } = await db.from("raspaditas_otorgadas").insert({
+  const fila: Record<string, unknown> = {
     cliente_id: input.clienteId,
     cantidad: input.cantidad,
     motivo: input.motivo,
     otorgado_por: input.otorgadoPor,
-  });
+  };
+  if (input.premioId) fila.premio_id = input.premioId;
+  let { error } = await db.from("raspaditas_otorgadas").insert(fila);
+  // 0103 sin correr → otorgar SIN premio fijado (azar, conducta previa).
+  if (error && input.premioId && columnaFaltante(error)) {
+    delete fila.premio_id;
+    ({ error } = await db.from("raspaditas_otorgadas").insert(fila));
+  }
   if (error) throw error;
 }
 

@@ -72,19 +72,24 @@ export async function otorgarRaspaditasAction(input: {
   clienteId: string;
   cantidad: number;
   motivo?: string | null;
+  /** Premio FIJADO (0103): si viene, esas raspaditas entregan ESE premio (no el
+   *  azar). null/ausente = azar por scoring, como siempre. */
+  premioId?: string | null;
 }): Promise<Resultado> {
   const u = await getUsuarioActual();
   if (!u || !u.activo || !esGestor(u.rol)) return { ok: false, error: "No tenés permisos." };
   if (!esUuid(input.clienteId)) return { ok: false, error: "Cliente inválido." };
   const cantidad = Math.max(1, Math.min(50, Math.round(Number(input.cantidad) || 0)));
   const motivo = (input.motivo ?? "").trim().slice(0, 120) || null;
+  const premioId = esUuid(input.premioId) ? input.premioId : null;
   try {
     const db = await createSupabaseServer();
-    await otorgarRaspaditasDb(db, { clienteId: input.clienteId, cantidad, motivo, otorgadoPor: u.id });
+    await otorgarRaspaditasDb(db, { clienteId: input.clienteId, cantidad, motivo, otorgadoPor: u.id, premioId });
     await registrarAuditoria(db, {
       actorId: u.id, actorNombre: u.nombre,
       accion: "Otorgó raspaditas a un cliente",
-      entidad: "promo", detalle: `${cantidad} raspadita(s)${motivo ? ` · ${motivo}` : ""}`,
+      entidad: "promo",
+      detalle: `${cantidad} raspadita(s)${premioId ? " · premio fijado" : ""}${motivo ? ` · ${motivo}` : ""}`,
     });
     revalidatePath(`/admin/clientes/${input.clienteId}`);
     return { ok: true };
