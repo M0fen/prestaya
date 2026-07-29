@@ -183,9 +183,12 @@ export default async function VistaPorToken({
   const quinielaEnAudiencia = quiniela
     ? !quiniela.segmentoDef || clienteEnSegmento(clienteSeg, quiniela.segmentoDef)
     : false;
+  // La raspadita también respeta su AUDIENCIA (0102): si está acotada a un segmento,
+  // solo la ve quien pertenece. segmento_def NULL = todos.
+  const raspaEnAudiencia = !ajustes.raspaSegmentoDef || clienteEnSegmento(clienteSeg, ajustes.raspaSegmentoDef);
   const promo = ajustes.activo
     ? {
-        raspaDisponibles: raspa.disponibles,
+        raspaDisponibles: raspaEnAudiencia ? raspa.disponibles : 0,
         quiniela: quiniela && quinielaEnAudiencia
           ? {
               id: quiniela.id,

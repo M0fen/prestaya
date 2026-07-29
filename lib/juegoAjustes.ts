@@ -5,6 +5,7 @@
 //  lib/data/juegoConfig.ts. Ver migración 0009.
 // ─────────────────────────────────────────────────────────────────────────
 import { JUEGOS, JUEGO_ACTUAL, type Juego } from "./juegos";
+import type { DefinicionSegmento } from "./segmentos";
 
 export interface AjustesJuego {
   /** Interruptor maestro de toda la zona de juego (misiones, recompensas, arcade). */
@@ -36,6 +37,10 @@ export interface AjustesJuego {
   raspaGatillo: "pago" | "renovacion" | "manual";
   /** Máximo de raspaditas SIN jugar que se acumulan (0097). */
   raspaTope: number;
+  /** A quiénes les aparece la raspadita (0102). null = TODOS. Si está, solo la ven
+   *  los clientes que matchean el segmento (misma DefinicionSegmento que anuncios/
+   *  quiniela/rifa/tienda). Es SOLO visibilidad promocional. */
+  raspaSegmentoDef: DefinicionSegmento | null;
 }
 
 export const AJUSTES_JUEGO_DEFAULT: AjustesJuego = {
@@ -53,6 +58,7 @@ export const AJUSTES_JUEGO_DEFAULT: AjustesJuego = {
   estrellasCiclo: "mes",
   raspaGatillo: "pago",
   raspaTope: 3,
+  raspaSegmentoDef: null,
 };
 
 /** Devuelve el juego arcade elegido (o el del mes si el id no existe). */

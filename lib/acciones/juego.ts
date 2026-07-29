@@ -9,6 +9,7 @@ import { getUsuarioActual, esAdmin } from "@/lib/auth";
 import { actualizarAjustesJuego, getAjustesJuego } from "@/lib/data/juegoConfig";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { JUEGOS } from "@/lib/juegos";
+import { normalizarSegmento, esSegmentoTodos, type DefinicionSegmento } from "@/lib/segmentos";
 import type { AjustesJuego } from "@/lib/juegoAjustes";
 
 type Resultado = { ok: true } | { ok: false; error: string };
@@ -77,6 +78,40 @@ export async function setConfigRaspaditaAction(
   }
 }
 
+/**
+ * A quiénes les APARECE la raspadita (0102). null / "Todos" = todo el mundo. Si
+ * está acotada a un segmento, solo la ven (y pueden jugar) los clientes que
+ * matchean. Es SOLO visibilidad promocional (no toca dinero). Solo admin.
+ */
+export async function setAudienciaRaspaditaAction(
+  segmentoDef: DefinicionSegmento | null,
+): Promise<Resultado> {
+  const usuario = await getUsuarioActual();
+  if (!usuario || !usuario.activo || !esAdmin(usuario.rol)) {
+    return { ok: false, error: "No tenés permisos." };
+  }
+  // "Todos" se persiste como NULL (misma convención que anuncios/quiniela/rifa/tienda).
+  const norm = normalizarSegmento(segmentoDef ?? {});
+  const def = esSegmentoTodos(norm) ? null : norm;
+  try {
+    const db = await createSupabaseServer();
+    const actuales = await getAjustesJuego(db);
+    await actualizarAjustesJuego(db, { ...actuales, raspaSegmentoDef: def });
+    await registrarAuditoria(db, {
+      actorId: usuario.id,
+      actorNombre: usuario.nombre,
+      accion: "Cambió a quiénes les aparece la raspadita",
+      entidad: "gaming",
+      detalle: def ? "acotada a un grupo" : "a todos",
+    });
+    revalidatePath("/admin/promos");
+    revalidatePath("/admin/para-clientes");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "No se pudo guardar. Probá de nuevo." };
+  }
+}
+
 export async function guardarAjustesJuego(input: AjustesJuego): Promise<Resultado> {
   const usuario = await getUsuarioActual();
   if (!usuario || !usuario.activo || !esAdmin(usuario.rol)) {
@@ -101,6 +136,7 @@ export async function guardarAjustesJuego(input: AjustesJuego): Promise<Resultad
     raspaGatillo:
       input.raspaGatillo === "renovacion" ? "renovacion" : input.raspaGatillo === "manual" ? "manual" : "pago",
     raspaTope: Math.max(0, Math.min(50, Math.round(Number(input.raspaTope) || 3))),
+    raspaSegmentoDef: input.raspaSegmentoDef ?? null,
   };
 
   try {

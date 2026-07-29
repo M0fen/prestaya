@@ -5,6 +5,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { AJUSTES_JUEGO_DEFAULT, type AjustesJuego } from "@/lib/juegoAjustes";
+import type { DefinicionSegmento } from "@/lib/segmentos";
 import { tablaFaltante, columnaFaltante } from "./errores";
 
 export async function getAjustesJuego(db: SupabaseClient): Promise<AjustesJuego> {
@@ -33,6 +34,8 @@ export async function getAjustesJuego(db: SupabaseClient): Promise<AjustesJuego>
       raspaGatillo:
         (data.raspa_gatillo as AjustesJuego["raspaGatillo"]) ?? AJUSTES_JUEGO_DEFAULT.raspaGatillo,
       raspaTope: data.raspa_tope == null ? AJUSTES_JUEGO_DEFAULT.raspaTope : Number(data.raspa_tope),
+      // Audiencia de la raspadita (0102); defensivo si aún no corrió la migración.
+      raspaSegmentoDef: (data.raspa_segmento_def as DefinicionSegmento | null | undefined) ?? null,
     };
   } catch (e) {
     if (tablaFaltante(e)) return AJUSTES_JUEGO_DEFAULT;
@@ -70,10 +73,18 @@ export async function actualizarAjustesJuego(
     raspa_gatillo: a.raspaGatillo,
     raspa_tope: a.raspaTope,
   };
+  const conAudiencia = {
+    ...conRaspa,
+    raspa_segmento_def: a.raspaSegmentoDef,
+  };
   // Escalera de compatibilidad: intentá guardar TODO; si faltan columnas de una
   // migración, reintentá con menos (sin perder lo que sí existe).
-  let { error } = await db.from("ajustes_juego").upsert(conRaspa);
+  let { error } = await db.from("ajustes_juego").upsert(conAudiencia);
   if (!error) return;
+  if (columnaFaltante(error)) {
+    ({ error } = await db.from("ajustes_juego").upsert(conRaspa)); // sin 0102
+    if (!error) return;
+  }
   if (columnaFaltante(error)) {
     ({ error } = await db.from("ajustes_juego").upsert(conConfig)); // sin 0097
     if (!error) return;

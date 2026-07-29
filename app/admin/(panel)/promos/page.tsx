@@ -9,6 +9,7 @@ import { getZonas } from "@/lib/data/zonas";
 import { ganadores as calcularGanadores } from "@/lib/quiniela";
 import { PromosManager, type ResumenQuiniela } from "@/components/admin/PromosManager";
 import { ConfigRaspadita } from "@/components/admin/ConfigRaspadita";
+import { AudienciaRaspadita } from "@/components/admin/AudienciaRaspadita";
 import { OtorgarRaspadita } from "@/components/admin/OtorgarRaspadita";
 import { RaspaditaResultados } from "@/components/admin/RaspaditaResultados";
 import { ValidarComprobante } from "@/components/admin/ValidarComprobante";
@@ -86,6 +87,9 @@ export default async function PromosPage() {
 
       {/* Cómo se GANA una raspadita (0097): el admin elige el gatillo + tope. */}
       <ConfigRaspadita gatilloInicial={ajustes.raspaGatillo} topeInicial={ajustes.raspaTope} />
+
+      {/* A quiénes les aparece la raspadita (0102): "Todos" o un grupo. */}
+      <AudienciaRaspadita inicial={ajustes.raspaSegmentoDef} zonas={zonas.map((z) => ({ id: z.id, nombre: z.nombre }))} />
 
       {/* Regalar una raspadita a una persona puntual (buscándola por su nombre). */}
       <OtorgarRaspadita />
