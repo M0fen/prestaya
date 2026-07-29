@@ -357,6 +357,18 @@ export function RaspaditaCanvas({
                   <span className="text-[11px] font-medium text-white/80">
                     Mostrá este comprobante en la oficina para usar tu premio.
                   </span>
+                  {premio.folio != null && (
+                    <a
+                      href={`https://wa.me/?text=${encodeURIComponent(
+                        `🎉 ¡Gané un premio en Presta Ya! ${premio.label} · Comprobante N.º ${String(premio.folio).padStart(6, "0")}. Lo presento en la oficina para usarlo.`,
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-1.5 text-[12px] font-extrabold text-[#5B2FC0] active:scale-95"
+                    >
+                      📲 Compartir comprobante
+                    </a>
+                  )}
                 </>
               )}
             </div>

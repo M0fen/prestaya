@@ -10,6 +10,7 @@ import { ganadores as calcularGanadores } from "@/lib/quiniela";
 import { PromosManager, type ResumenQuiniela } from "@/components/admin/PromosManager";
 import { ConfigRaspadita } from "@/components/admin/ConfigRaspadita";
 import { RaspaditaResultados } from "@/components/admin/RaspaditaResultados";
+import { ValidarComprobante } from "@/components/admin/ValidarComprobante";
 import { ToggleJuegos } from "@/components/admin/ToggleJuegos";
 import { PromosPreview } from "@/components/admin/PromosPreview";
 import { EtiquetaAudiencia } from "@/components/admin/EtiquetaAudiencia";
@@ -86,6 +87,9 @@ export default async function PromosPage() {
       <ConfigRaspadita gatilloInicial={ajustes.raspaGatillo} topeInicial={ajustes.raspaTope} />
 
       <PromosManager premios={premios} segmentos={segmentos} quinielas={quinielas} resumen={resumen} zonas={zonas.map((z) => ({ id: z.id, nombre: z.nombre }))} />
+
+      {/* Validar un comprobante de premio por su folio (la oficina lo marca usado). */}
+      <ValidarComprobante />
 
       {/* Resultados de la raspadita: el admin ya no está ciego (cuántas se jugaron,
           qué premios cayeron, historial con folio verificable). */}

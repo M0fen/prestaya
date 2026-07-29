@@ -274,6 +274,92 @@ export async function borrarPremioRaspaDb(db: SupabaseClient, id: string): Promi
   if (error) throw error;
 }
 
+// ── Raspaditas: COMPROBANTE por folio (validar + canjear) ──────────────────
+export interface ComprobanteRaspa {
+  folio: number;
+  clienteId: string;
+  clienteNombre: string;
+  premioLabel: string;
+  premioTipo: string;
+  jugadoEn: string;
+  canjeadoEn: string | null;
+  canjeadoPorNombre: string | null;
+}
+
+/** Busca el comprobante de un premio por su FOLIO (para que la oficina lo valide).
+ *  null si no existe o si 0097 aún no agregó la columna. */
+export async function getJugadaPorFolio(db: SupabaseClient, folio: number): Promise<ComprobanteRaspa | null> {
+  try {
+    const { data, error } = await db
+      .from("raspaditas_jugadas")
+      .select("folio, cliente_id, premio_label, premio_tipo, jugado_en, canjeado_en, canjeado_por")
+      .eq("folio", folio)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+    const r = data as Record<string, unknown>;
+    const clienteId = r.cliente_id as string;
+    const canjPor = (r.canjeado_por as string | null) ?? null;
+    const ids = [clienteId, ...(canjPor ? [canjPor] : [])];
+    const nombres = new Map<string, string>();
+    const { data: cs } = await db.from("clientes").select("id, nombre").in("id", ids);
+    for (const c of cs ?? []) nombres.set((c as { id: string }).id, (c as { nombre: string }).nombre);
+    let canjeadoPorNombre: string | null = null;
+    if (canjPor) {
+      const { data: us } = await db.from("usuarios").select("nombre").eq("id", canjPor).maybeSingle();
+      canjeadoPorNombre = (us as { nombre?: string } | null)?.nombre ?? null;
+    }
+    return {
+      folio: Number(r.folio),
+      clienteId,
+      clienteNombre: nombres.get(clienteId) ?? "—",
+      premioLabel: (r.premio_label as string) ?? "—",
+      premioTipo: (r.premio_tipo as string) ?? "nada",
+      jugadoEn: r.jugado_en as string,
+      canjeadoEn: (r.canjeado_en as string | null) ?? null,
+      canjeadoPorNombre,
+    };
+  } catch (e) {
+    if (tablaFaltante(e) || columnaFaltante(e)) return null;
+    throw e;
+  }
+}
+
+/** Marca un folio como CANJEADO (usado). Idempotente: si ya estaba, no re-marca.
+ *  Devuelve el estado para que el admin sepa si lo acaba de canjear o ya estaba. */
+export async function canjearFolioDb(
+  db: SupabaseClient,
+  folio: number,
+  usuarioId: string,
+): Promise<{ estado: "canjeado" | "ya-estaba" | "no-existe" }> {
+  // Solo actualiza si NO estaba canjeado (candado idempotente por `is null`).
+  const { data, error } = await db
+    .from("raspaditas_jugadas")
+    .update({ canjeado_en: new Date().toISOString(), canjeado_por: usuarioId })
+    .eq("folio", folio)
+    .is("canjeado_en", null)
+    .select("folio");
+  if (error) throw error;
+  if (data && data.length > 0) return { estado: "canjeado" };
+  // 0 filas: o no existe, o ya estaba canjeado. Distinguir.
+  const { data: existe } = await db.from("raspaditas_jugadas").select("folio").eq("folio", folio).maybeSingle();
+  return { estado: existe ? "ya-estaba" : "no-existe" };
+}
+
+/** El admin OTORGA N raspaditas a un cliente (suman a las ganadas). Inmutable. */
+export async function otorgarRaspaditasDb(
+  db: SupabaseClient,
+  input: { clienteId: string; cantidad: number; motivo: string | null; otorgadoPor: string },
+): Promise<void> {
+  const { error } = await db.from("raspaditas_otorgadas").insert({
+    cliente_id: input.clienteId,
+    cantidad: input.cantidad,
+    motivo: input.motivo,
+    otorgado_por: input.otorgadoPor,
+  });
+  if (error) throw error;
+}
+
 // ── Raspaditas: RESULTADOS para el admin (historial + agregados) ───────────
 export interface JugadaRaspa {
   clienteId: string;
