@@ -4,6 +4,7 @@
 import { requireGestor } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getSolicitudesPendientes } from "@/lib/data/anulaciones";
+import { alcanceDelActor } from "@/lib/data/alcance";
 import { SolicitudesAnulacion } from "@/components/admin/SolicitudesAnulacion";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +12,10 @@ export const dynamic = "force-dynamic";
 export default async function AnulacionesPage() {
   const usuario = await requireGestor();
   const db = await createSupabaseServer();
-  const solicitudes = await getSolicitudesPendientes(db);
+  // Acota la bandeja a la zona del gestor (admin = global): sin esto un supervisor
+  // veía el motivo/solicitante de anulaciones de otras zonas (RLS de la tabla ancha).
+  const alcance = await alcanceDelActor();
+  const solicitudes = await getSolicitudesPendientes(db, alcance);
 
   return (
     <div className="mx-auto flex max-w-[720px] flex-col gap-5">

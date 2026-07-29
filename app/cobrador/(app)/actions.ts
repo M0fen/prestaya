@@ -15,6 +15,7 @@ import { MOTIVOS_NOPAGO, type MotivoNoPago } from "./motivos";
 import {
   crearClienteCenso,
   getClientePorDocumento,
+  getClienteRecientePorNombre,
   getClientePorId,
 } from "@/lib/data/clientes";
 import {
@@ -27,7 +28,7 @@ import type { Prestamo } from "@/types/db";
 import { crearVisita } from "@/lib/data/visitas";
 import { registrarBitacora } from "@/lib/data/bitacora";
 import { calcularEstadosCarton } from "@/lib/cartones";
-import { evaluarZona } from "@/lib/geo";
+import { evaluarZona, MAX_PRECISION_ANCLA_M } from "@/lib/geo";
 import { hoyUY, sellarRegistroEn } from "@/lib/fecha";
 import { validar, cobroSchema, noPagoSchema } from "@/lib/validacion/esquemas";
 import { reportarError } from "@/lib/observabilidad";
@@ -68,13 +69,21 @@ export async function relevarCliente(input: {
     const notas = limpiar(input.notas)?.slice(0, 500) ?? null;
     const gpsCrudoLat = numeroValido(input.gpsLat);
     const gpsCrudoLng = numeroValido(input.gpsLng);
-    // 0,0 es un fix ROTO en Uruguay (lat≈-34, lng≈-56): no se fija como ancla —
-    // regiría la geo-cerca de TODOS los cobros futuros del cliente. El cliente ya lo
-    // filtra; esto blinda el servidor.
+    const precisionAncla = numeroValido(input.gpsPrecision);
+    // El ancla rige la geo-cerca de TODOS los cobros futuros del cliente, así que se
+    // fija SOLO si el fix es confiable. Se descarta cuando:
+    //  · es null / no numérico;
+    //  · es 0,0 (fix ROTO en Uruguay, lat≈−34/lng≈−56);
+    //  · la ACCURACY falta o supera MAX_PRECISION_ANCLA_M (=radio de la cerca): un
+    //    ancla más incierta que el propio radio desplazaría el centro más que el radio
+    //    → acusaría "fuera de zona" a cobros honestos por siempre (mejor sin ancla).
+    // El cliente ya avisa "precisión baja"; esto BLINDA el servidor (el form es saltable).
     const anclaValida =
       gpsCrudoLat != null &&
       gpsCrudoLng != null &&
-      !(Math.abs(gpsCrudoLat) < 0.5 && Math.abs(gpsCrudoLng) < 0.5);
+      !(Math.abs(gpsCrudoLat) < 0.5 && Math.abs(gpsCrudoLng) < 0.5) &&
+      precisionAncla != null &&
+      precisionAncla <= MAX_PRECISION_ANCLA_M;
     const gps_lat = anclaValida ? gpsCrudoLat : null;
     const gps_lng = anclaValida ? gpsCrudoLng : null;
 
@@ -85,6 +94,13 @@ export async function relevarCliente(input: {
       // No se devuelve el NOMBRE: el chequeo lee cross-zona con service_role, así que
       // filtrar el nombre dejaría enumerar clientes de otra zona por documento (fuga PII).
       if (yaExiste) return { ok: false, error: "Ese documento ya está registrado." };
+    } else {
+      // Sin cédula el alta no es idempotente: si se corta la red al recibir el ACK (el
+      // server ya commiteó) el cobrador re-tapea "Guardar" y crearía un 2º cliente
+      // idéntico. Best-effort: si ESTE cobrador acaba de dar de alta (≤3 min) un cliente
+      // con el MISMO nombre, se asume reintento → se devuelve el existente (idempotente).
+      const reciente = await getClienteRecientePorNombre(db, usuario.id, nombre);
+      if (reciente) return { ok: true, id: reciente };
     }
 
     const cliente = await crearClienteCenso(db, {
@@ -126,7 +142,9 @@ export async function relevarCliente(input: {
       detalle: nombre,
       gpsLat: gps_lat,
       gpsLng: gps_lng,
-      gpsPrecision: numeroValido(input.gpsPrecision),
+      // Se guarda la accuracy CRUDA aunque el ancla se haya descartado por imprecisa:
+      // deja rastro de por qué el cliente quedó sin geo-cerca (accuracy > umbral).
+      gpsPrecision: precisionAncla,
       gpsDenegado: gps_lat == null || gps_lng == null,
     });
 
@@ -140,10 +158,13 @@ export async function relevarCliente(input: {
 // ── Cobro (pago real) ────────────────────────────────────────────────────────
 export type ResultadoCobro =
   | { ok: true; dia: number; monto: number; enZona: boolean | null }
-  // `retryable`: el fallo es TEMPORAL (kill switch, error de red/DB, sesión) → la cola
-  // offline NO debe envenenar el cobro (marcarlo "atascado" y pedir descartarlo); hay
-  // que reintentar. Sin la marca, es un fallo PERMANENTE (crédito finalizado/saldado).
-  | { ok: false; error: string; retryable?: boolean };
+  // `retryable`: el fallo es TEMPORAL → la cola offline NO debe envenenar el cobro
+  // (marcarlo "atascado" y pedir descartarlo); hay que reintentar. Sin la marca, es un
+  // fallo PERMANENTE (crédito finalizado/saldado). `sistemico`: el temporal afecta a
+  // TODAS las ops por igual (kill switch, sesión) → la cola corta el batch y reintenta
+  // todo, SIN acumular intentos. Un retryable SIN `sistemico` (catch-all: red/DB/timeout)
+  // es AMBIGUO/per-op: la cola sigue con el resto y, si otras avanzan, lo escala a atascada.
+  | { ok: false; error: string; retryable?: boolean; sistemico?: boolean };
 
 export async function registrarPagoCobrador(input: {
   clienteId: string;
@@ -161,8 +182,9 @@ export async function registrarPagoCobrador(input: {
   if (!validar(cobroSchema, input).ok) return { ok: false, error: "Datos del cobro inválidos." };
   try {
     const usuario = await getUsuarioActual();
-    // Sesión: puede ser un blip de auth (no la culpa del cobro) → retryable, no envenena.
-    if (!usuario || !usuario.activo) return { ok: false, error: "Sesión no válida.", retryable: true };
+    // Sesión: un blip de auth (no la culpa del cobro) → retryable + SISTÉMICO (afecta a
+    // toda la cola por igual) → la cola reintenta todo, sin envenenar ningún cobro.
+    if (!usuario || !usuario.activo) return { ok: false, error: "Sesión no válida.", retryable: true, sistemico: true };
     const bloqueo = await bloqueoSoloLectura(); // kill switch: congela escrituras de plata
     if (bloqueo) return bloqueo;
 
@@ -315,11 +337,11 @@ export async function registrarNoPagoCobrador(input: {
   gpsPrecision?: number | null;
   registradoEn?: string | null;
   opId?: string | null;
-}): Promise<{ ok: true } | { ok: false; error: string; retryable?: boolean }> {
+}): Promise<{ ok: true } | { ok: false; error: string; retryable?: boolean; sistemico?: boolean }> {
   if (!validar(noPagoSchema, input).ok) return { ok: false, error: "Datos inválidos." };
   try {
     const usuario = await getUsuarioActual();
-    if (!usuario || !usuario.activo) return { ok: false, error: "Sesión no válida.", retryable: true };
+    if (!usuario || !usuario.activo) return { ok: false, error: "Sesión no válida.", retryable: true, sistemico: true };
     const bloqueo = await bloqueoSoloLectura();
     if (bloqueo) return bloqueo;
 

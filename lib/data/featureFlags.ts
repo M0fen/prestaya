@@ -30,7 +30,9 @@ export const escrituraCongelada = cache(async (): Promise<boolean> => {
  * devuelve el resultado de rechazo (mensaje claro) para hacer `return` directo;
  * si no, devuelve null y la acción sigue. Llamar al INICIO de la acción.
  */
-export async function bloqueoSoloLectura(): Promise<{ ok: false; error: string; retryable: true } | null> {
+export async function bloqueoSoloLectura(): Promise<
+  { ok: false; error: string; retryable: true; sistemico: true } | null
+> {
   if (await escrituraCongelada()) {
     return {
       ok: false,
@@ -38,6 +40,9 @@ export async function bloqueoSoloLectura(): Promise<{ ok: false; error: string; 
       // TEMPORAL: el freeze se levanta. La cola offline del cobrador NO debe envenenar
       // (marcar "atascado" → descartá) un cobro real por esto — hay que reintentar luego.
       retryable: true,
+      // SISTÉMICO e inequívoco (afecta a TODAS las ops por igual): la cola corta el
+      // batch y reintenta todo más tarde, sin acumular intentos hacia "atascada".
+      sistemico: true,
     };
   }
   return null;

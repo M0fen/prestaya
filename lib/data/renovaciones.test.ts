@@ -331,31 +331,72 @@ describe("crearRenovacion — carreras y fallos (money-critical)", () => {
   });
 });
 
-describe("crearRenovacion — saldado con tolerancia sub-peso (crédito importado fraccionario)", () => {
-  // Cuota importada de Disapp fraccionaria; el libro es ENTERO (registrarPago
-  // redondea). Un residuo < 0,5 es INCOBRABLE y el cartón ya lo da por saldado:
-  // el gate de renovación debe alinearse (Math.round(falta) > 0), si no bloquea
-  // para siempre la renovación de clientes que pagaron todo.
-  it("residuo < 0,5 (incobrable) cuenta como SALDADO → deja renovar", async () => {
-    // cuota 100,02 × 10 = 1000,2 a pagar; pagó 1000 (10 cuotas enteras) → falta 0,2.
+describe("crearRenovacion — saldado con residuo sub-peso (crédito importado fraccionario)", () => {
+  // Cuota importada de Disapp FRACCIONARIA; el libro es ENTERO (registrarPago
+  // redondea). Al pagar todas las cuotas en enteros queda un residuo AGREGADO =
+  // (cuota − round(cuota)) × días que NO está acotado a 0,5. Ese residuo sub-peso
+  // es INCOBRABLE (no se puede cobrar 0,96) → el gate ahora exige saldar solo si
+  // falta ≥ 1 peso. Para cuota ENTERA el residuo es 0 o ≥ 1 → NO cambia nada.
+  const pagoUnico = (monto: number) => [{ id: "p1", prestamo_id: "ant-1", dia_credito: 1, monto, anulado: false }];
+
+  it("CONTRAEJEMPLO documentado: cuota 351,04 × 24, pagó 8424 (falta 0,96) → RENUEVA (antes trababa para siempre)", async () => {
+    // 8425/24 = 351,04 (caso real de import Disapp). 24 cuotas enteras de 351 = 8424.
+    // Total real 8424,96 → falta 0,96 (incobrable). El gate viejo `round(0,96)=1>0`
+    // lo bloqueaba aunque el cliente pagó todo lo cobrable; el nuevo `0,96 >= 1` = false.
     const state = {
-      prestamos: { "ant-1": prestamoAnterior({ monto_prestado: 1000, cuota_diaria: 100.02, total_dias: 10 }) },
-      pagos: { "ant-1": [{ id: "p1", prestamo_id: "ant-1", dia_credito: 1, monto: 1000, anulado: false }] },
+      prestamos: { "ant-1": prestamoAnterior({ monto_prestado: 8425, cuota_diaria: 351.04, total_dias: 24 }) },
+      pagos: { "ant-1": pagoUnico(8424) },
       nextInsertId: "nuevo-frac",
     };
     const r = await crearRenovacion(fakeDb(state), ALTA_OK, HOY);
     expect(r.ok).toBe(true);
   });
 
-  it("residuo ≥ 0,5 (todavía cobrable) sigue bloqueando la renovación", async () => {
-    // cuota 100,6 × 10 = 1006 a pagar; pagó 1000 → falta 6 (cobrable) → NO saldado.
+  it("residuo < 1 peso (incobrable) cuenta como SALDADO → deja renovar", async () => {
+    // cuota 100,02 × 10 = 1000,2; pagó 1000 → falta 0,2 < 1 → saldado.
+    const state = {
+      prestamos: { "ant-1": prestamoAnterior({ monto_prestado: 1000, cuota_diaria: 100.02, total_dias: 10 }) },
+      pagos: { "ant-1": pagoUnico(1000) },
+      nextInsertId: "nuevo-frac2",
+    };
+    expect((await crearRenovacion(fakeDb(state), ALTA_OK, HOY)).ok).toBe(true);
+  });
+
+  it("falta ≥ 1 peso (cobrable de verdad) sigue bloqueando la renovación", async () => {
+    // cuota 100,6 × 10 = 1006; pagó 1000 → falta 6 (cobrable) → NO saldado.
     const state = {
       prestamos: { "ant-1": prestamoAnterior({ monto_prestado: 1000, cuota_diaria: 100.6, total_dias: 10 }) },
-      pagos: { "ant-1": [{ id: "p1", prestamo_id: "ant-1", dia_credito: 1, monto: 1000, anulado: false }] },
+      pagos: { "ant-1": pagoUnico(1000) },
     };
     const r = await crearRenovacion(fakeDb(state), ALTA_OK, HOY);
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toMatch(/no está saldado/i);
+  });
+
+  it("BORDE falta = exactamente 1 peso → bloquea (1 peso es cobrable)", async () => {
+    // cuota 100,1 × 10 = 1001; pagó 1000 → falta 1,0 → `1 >= 1` = true → bloquea.
+    const state = {
+      prestamos: { "ant-1": prestamoAnterior({ monto_prestado: 1000, cuota_diaria: 100.1, total_dias: 10 }) },
+      pagos: { "ant-1": pagoUnico(1000) },
+    };
+    expect((await crearRenovacion(fakeDb(state), ALTA_OK, HOY)).ok).toBe(false);
+  });
+
+  it("NO-OP para cuota ENTERA (el piloto): saldado exacto renueva, deber ≥ 1 cuota bloquea", async () => {
+    // Cuota entera 400 × 30 = 12000. El residuo fraccionario no existe → el gate se
+    // comporta idéntico al viejo `round(falta)>0`. Blindaje de que el piloto no cambia.
+    const saldado = {
+      prestamos: { "ant-1": prestamoAnterior() },
+      pagos: { "ant-1": pagoUnico(12000) },
+      nextInsertId: "nuevo-ent",
+    };
+    expect((await crearRenovacion(fakeDb(saldado), ALTA_OK, HOY)).ok).toBe(true);
+    // Debe una cuota entera (falta 400) → bloquea igual que siempre.
+    const debe = {
+      prestamos: { "ant-1": prestamoAnterior() },
+      pagos: { "ant-1": pagoUnico(11600) },
+    };
+    expect((await crearRenovacion(fakeDb(debe), ALTA_OK, HOY)).ok).toBe(false);
   });
 });
 

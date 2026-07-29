@@ -8,9 +8,11 @@ import {
   configurarUsuario,
   hidratar,
   marcarAtascada,
+  marcarIntento,
   opAtascada,
   pendientes,
   suscribir,
+  type OpCobro,
 } from "@/lib/cobrador/colaOffline";
 import {
   registrarPagoCobrador,
@@ -73,7 +75,10 @@ export function useSync(usuarioId: string | null, onSynced?: () => void) {
     flushing.current = true;
     setSincronizando(true);
     let algunoOk = false;
-    let huboTemporal = false; // un fallo TEMPORAL cortó el flush → reprogramar reintento
+    let frenoSistemico = false; // señal INEQUÍVOCA (kill switch/sesión/red) → cortar y reintentar TODO
+    // Ops que fallaron con un retryable AMBIGUO (catch-all del server: red/DB/timeout
+    // per-op). NO cortan el batch: se juntan y, al final, se decide si escalarlas.
+    const ambiguas: OpCobro[] = [];
     try {
       for (const op of listas) {
         const registradoEn = new Date(op.deviceTs).toISOString();
@@ -105,36 +110,52 @@ export function useSync(usuarioId: string | null, onSynced?: () => void) {
             // mostrando unos segundos hasta que el refresco del server la refleje).
             confirmar(op.id);
             algunoOk = true;
-          } else if (res.retryable) {
-            // Fallo TEMPORAL (kill switch, error de red/DB, sesión): NO envenenar el
-            // cobro. Es sistémico → cortar el flush y reintentar TODO más tarde. Sin
-            // esto, un freeze de emergencia terminaba marcando cobros reales como
-            // "atascados" y el cierre le pedía al cobrador DESCARTARLOS (fuga real).
-            huboTemporal = true;
+          } else if (res.retryable && res.sistemico) {
+            // Temporal SISTÉMICO (kill switch, sesión): afecta a TODA la cola por igual.
+            // Cortar el flush y reintentar TODO más tarde, SIN acumular intentos. Sin
+            // esto, un freeze de emergencia marcaba cobros reales como "atascados" y el
+            // cierre pedía DESCARTARLOS (fuga real). Las ops de atrás no se tocan.
+            frenoSistemico = true;
             break;
+          } else if (res.retryable) {
+            // Temporal AMBIGUO (catch-all: red/DB/timeout). Puede ser un glitch pasajero
+            // O un error DETERMINISTA de ESTA op (p. ej. statement-timeout sobre un
+            // crédito con historial pesado). NO cortamos el batch: seguimos con el resto
+            // (anti head-of-line: una op envenenada ya no traba a las de atrás). Se anota
+            // para decidir al final si se escala (evidencia de per-op) o no (red caída).
+            ambiguas.push(op);
           } else {
             // Error PERMANENTE (crédito finalizado/saldado/reasignado, datos inválidos):
-            // reintentar daría el MISMO error → se marca ATASCADA de INMEDIATO. Antes se
-            // hacía marcarIntento (intentos→1) y, como un error permanente no cambia
-            // `ops.length`, el auto-flush no volvía a correr → la op quedaba clavada en
-            // intentos=1: bloqueaba el cierre (sigue "pendiente") pero nunca llegaba a
-            // "atascada" (Descartar) → el cobrador quedaba TRABADO. Ahora pasa directo a
-            // atascada: no bloquea y aparece para descartar/re-registrar.
+            // reintentar daría el MISMO error → se marca ATASCADA de INMEDIATO (no bloquea
+            // el cierre; aparece para descartar/re-registrar).
             marcarAtascada(op.id);
           }
         } catch {
-          huboTemporal = true;
-          break; // se cayó la red: cortar y reintentar más tarde
+          // El propio llamado a la Server Action tiró (fetch failed): la red se cayó =
+          // señal sistémica. Cortar y reintentar todo, sin envenenar.
+          frenoSistemico = true;
+          break;
         }
+      }
+
+      // Escalar SOLO las ambiguas que son PER-OP: fallaron mientras el batch AVANZÓ
+      // (alguna otra op subió OK) o ya venían sospechosas (intentos>0 de un pase previo).
+      // Un corte sistémico (red caída: ninguna avanza y todas son nuevas) NO acumula
+      // intentos → no marca cobros reales como atascados durante el freeze. Con
+      // marcarIntento, tras MAX_INTENTOS_SYNC pases la op cae a "atascada": sale del
+      // loop de reintento y aparece en el cierre para descartar/re-registrar (su op_id
+      // sigue protegido por idempotencia, así que re-registrar no duplica).
+      for (const op of ambiguas) {
+        if (algunoOk || (op.intentos ?? 0) > 0) marcarIntento(op.id);
       }
     } finally {
       flushing.current = false;
       setSincronizando(false);
       if (algunoOk) onSyncedRef.current?.();
-      // Reintento programado ante un fallo temporal: así un kill switch / caída
-      // sostenida se reintenta sola cuando se levanta, sin depender de que el
-      // cobrador cargue otro cobro o recargue la app. (Un solo timer a la vez.)
-      if (huboTemporal && !reintentoTimer.current) {
+      // Reintento programado ante cualquier fallo temporal (sistémico o ambiguo): así un
+      // kill switch / caída sostenida se reintenta sola al levantarse, sin depender de
+      // que el cobrador cargue otro cobro o recargue la app. (Un solo timer a la vez.)
+      if ((frenoSistemico || ambiguas.length > 0) && !reintentoTimer.current) {
         reintentoTimer.current = setTimeout(() => {
           reintentoTimer.current = null;
           void flush();

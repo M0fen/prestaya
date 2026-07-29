@@ -7,6 +7,14 @@
 
 export const RADIO_ZONA_M = 120;
 
+/** Accuracy MÁXIMA (m) aceptable para FIJAR el ancla de un cliente en el censo.
+ *  El ancla rige la geo-cerca de TODOS sus cobros futuros: un fix con incertidumbre
+ *  mayor que el propio radio de la cerca desplazaría el centro más que el radio →
+ *  acusaría "fuera de zona" a cobros honestos por siempre. Peor un ancla mentirosa
+ *  que sin ancla: si la accuracy supera esto, NO se fija (se guarda el cliente sin
+ *  ubicación). Atado al radio: un ancla debe ser al menos tan precisa como la cerca. */
+export const MAX_PRECISION_ANCLA_M = RADIO_ZONA_M;
+
 export interface Punto {
   lat: number;
   lng: number;

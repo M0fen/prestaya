@@ -8,7 +8,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { inicioDiaUYIso, hoyUY } from "@/lib/fecha";
 import { toIso } from "@/lib/format";
 import type { EstadoRendicion } from "@/lib/rendicion";
-import { getGastosCobradorHoy } from "./gastos";
+import { getSolicitudesGastoCobrador } from "./solicitudesGasto";
 import { tablaFaltante } from "./errores";
 import { traerTodo } from "./paginado";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
@@ -35,8 +35,15 @@ export interface EstadoJornada {
   /** Recaudado hoy por el cobrador (suma de sus pagos, autoritativo). */
   recaudado: number;
   cobrosCantidad: number;
-  /** Gastos de ruta cargados hoy (para prellenar la rendición). */
+  /** Gastos de ruta APROBADOS que se SOLICITARON hoy (para prellenar la rendición).
+   *  Se bucketea por fecha de SOLICITUD (no de aprobación): un gasto aprobado tarde
+   *  pertenece al día en que se incurrió, no a hoy → no se re-prefija ni se descuenta
+   *  dos veces en el cierre de otro día. */
   gastosHoy: number;
+  /** Tope anti-fuga para el cierre: gastos RESPALDADOS por solicitudes de hoy
+   *  (aprobados + pendientes). El cobrador no puede descontar más que esto del
+   *  "esperado" (si no, declararía gastos fantasma y la rendición marcaría "cuadra"). */
+  gastosRespaldadosHoy: number;
   /** La rendición de hoy si ya cerró; null si todavía no. */
   yaRendida: RendicionDia | null;
   /** false si falta la migración 0013 (la tabla no existe). */
@@ -91,7 +98,14 @@ export async function getEstadoJornada(
   hoy: Date = new Date(),
 ): Promise<EstadoJornada> {
   const { recaudado, cobros } = await recaudadoHoyDe(cobradorId, inicioDiaUYIso(hoy));
-  const gastos = await getGastosCobradorHoy(db, cobradorId, hoy);
+  // Gastos del día por FECHA DE SOLICITUD (solicitado_en), no de aprobación: un gasto
+  // aprobado tarde ya no se re-prefija ni se descuenta dos veces en el cierre de otro
+  // día. `aprobadoTotal` prellena; `aprobado + pendiente` acota lo declarable (cierre).
+  const sol = await getSolicitudesGastoCobrador(db, cobradorId, hoy);
+  const gastosHoy = sol.aprobadoTotal;
+  const gastosPendientesHoy = sol.items
+    .filter((s) => s.estado === "pendiente")
+    .reduce((acc, s) => acc + s.monto, 0);
 
   let yaRendida: RendicionDia | null = null;
   let disponible = true;
@@ -109,7 +123,14 @@ export async function getEstadoJornada(
     else throw e;
   }
 
-  return { recaudado, cobrosCantidad: cobros, gastosHoy: gastos.total, yaRendida, disponible };
+  return {
+    recaudado,
+    cobrosCantidad: cobros,
+    gastosHoy,
+    gastosRespaldadosHoy: gastosHoy + gastosPendientesHoy,
+    yaRendida,
+    disponible,
+  };
 }
 
 export interface NuevaRendicion {

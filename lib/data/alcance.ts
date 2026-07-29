@@ -76,15 +76,30 @@ export async function alcanceDelActor(actorPre?: Actor | null): Promise<Alcance>
   const cobradorIds = (cobs ?? []).map((c) => (c as { id: string }).id);
 
   // Clientes asignados (activos) a esos cobradores.
+  // EN LOTES + PAGINADO (traerTodo): una zona con >1000 asignaciones activas
+  // (14 cobradores × cientos de clientes) truncaba en silencio a 1000 → clientes
+  // reales de la zona quedaban FUERA del alcance → el supervisor no los veía en
+  // recaudos/caja/desempeño y `registrarPagoPanel` los rechazaba con "no es de tu
+  // zona". Es correctitud de plata (mismo criterio que prestamoIdsDelAlcance, que
+  // ya paginaba). Orden por `id` (PK única) para un range estable.
   let clienteIds: string[] = [];
   if (cobradorIds.length > 0) {
-    const { data: asig, error: eAsig } = await admin
-      .from("asignaciones")
-      .select("cliente_id")
-      .eq("activo", true)
-      .in("cobrador_id", cobradorIds);
-    if (eAsig) throw eAsig;
-    clienteIds = [...new Set((asig ?? []).map((a) => (a as { cliente_id: string }).cliente_id))];
+    const partes = await Promise.all(
+      enLotes(cobradorIds).map((lote) =>
+        traerTodo<{ cliente_id: string }>((d, h) =>
+          admin
+            .from("asignaciones")
+            .select("cliente_id")
+            .eq("activo", true)
+            .in("cobrador_id", lote)
+            .order("id", { ascending: true })
+            .range(d, h),
+        ),
+      ),
+    );
+    const set = new Set<string>();
+    for (const filas of partes) for (const a of filas) set.add(a.cliente_id);
+    clienteIds = [...set];
   }
 
   return { global: false, zonas, cobradorIds, clienteIds };

@@ -3,7 +3,7 @@
 // encola la operación; el SyncEngine (en el layout) la sincroniza cuando hay
 // señal. Nunca "no anduvo": registra siempre, con o sin conexión.
 import { useRef, useState } from "react";
-import { configurarUsuario, encolar, parchearGps, quitar, type OpCobro, type OpTipo } from "@/lib/cobrador/colaOffline";
+import { configurarUsuario, encolar, parchearGps, quitar, pendientes, type OpCobro, type OpTipo } from "@/lib/cobrador/colaOffline";
 import { MOTIVOS_NOPAGO, type MotivoNoPago } from "@/app/cobrador/(app)/motivos";
 import { UYU } from "@/lib/format";
 import { Comprobante, type DatosComprobante } from "@/components/cobrador/Comprobante";
@@ -260,6 +260,17 @@ export function RegistroCobro({
   // libro de pagos). Solo disponible dentro de la ventana de hold.
   const deshacerCobro = () => {
     if (!undo) return;
+    // La ventana de "Deshacer" ES la de hold: el flush no envía la op antes de
+    // `holdHasta` (useSync filtra por holdHasta<=ahora). Si la ventana ya venció, o la
+    // op ya no está en la cola, el flush pudo haberla capturado y estar insertándola
+    // en el libro → NO afirmar "deshecho" (sería un mensaje falso con el pago ya hecho).
+    if (Date.now() >= undo.hasta || !pendientes().some((o) => o.id === undo.opId)) {
+      setUndo(null);
+      setModalAbierto(false);
+      setComprobante(null);
+      flash({ texto: "El cobro ya se registró", tono: "info" });
+      return;
+    }
     quitar(undo.opId);
     vibrar(30);
     if (cobroTimer.current) clearTimeout(cobroTimer.current);

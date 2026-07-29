@@ -76,6 +76,13 @@ export async function liquidarComision(input: {
   const resumen = await getComisionesPeriodo(db, periodo);
   if (resumen.periodoKey !== input.periodoKey)
     return { ok: false, error: "El período cambió. Recargá la página y volvé a intentar." };
+  // No liquidar sobre una base DEGRADADA: `recaudoPorRuta` devuelve null ante CUALQUIER
+  // error de la RPC 0069 (incluido un blip transitorio), cayendo a la atribución por
+  // `registrado_por` → el monto podría diferir del aprobado (un cobrador que tecleó
+  // pagos de rutas ajenas cobraría de más) y el candado congelaría esa cifra. 0069
+  // está viva; este guard solo frena el blip → el admin recarga y reintenta.
+  if (!resumen.atribuidoPorRuta)
+    return { ok: false, error: "No se pudo calcular la comisión por ruta. Recargá y reintentá." };
   const fila = resumen.filas.find((f) => f.cobradorId === input.cobradorId);
   const monto = Math.round(fila?.comision ?? 0);
   if (!fila || !(monto > 0)) return { ok: false, error: "La comisión es cero." };

@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { requireGestor, esAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { getComisionesPeriodo, getHistorialLiquidaciones, etiquetaPeriodoKey } from "@/lib/data/comisiones";
+import { getComisionesPeriodo, getHistorialLiquidaciones, etiquetaPeriodoKey, rangoDePeriodoKey } from "@/lib/data/comisiones";
 import { normalizarPeriodo, PERIODOS } from "@/lib/data/periodo";
 import { TablaComisiones } from "@/components/admin/TablaComisiones";
 import { conTimeout } from "@/lib/timeout";
+import { hoyUY } from "@/lib/fecha";
+import { toIso } from "@/lib/format";
 import { UYU, meses } from "@/lib/format";
 
 // Un agregado colgado LANZA → error.tsx del panel ("Reintentar"), no un 504.
@@ -52,6 +54,11 @@ export default async function ComisionesPage({
   const puedeGestionar = esAdmin(usuario.rol);
   // "A liquidar" = solo lo PENDIENTE (los ya liquidados no se vuelven a pagar).
   const aLiquidar = r.filas.filter((f) => !f.liquidado).reduce((s, f) => s + f.comision, 0);
+  // ¿El período todavía NO terminó? Si se liquida en curso, se paga solo lo recaudado
+  // hasta hoy y el candado (unique por período) deja el resto sin poder liquidarse en
+  // la app. Se avisa para que el admin espere al cierre o elija una cadencia cerrada.
+  const rangoFull = rangoDePeriodoKey(r.periodoKey);
+  const periodoEnCurso = !!rangoFull && rangoFull.hasta > toIso(hoyUY());
 
   return (
     <div className="mx-auto flex max-w-[720px] flex-col gap-5">
@@ -118,6 +125,14 @@ export default async function ComisionesPage({
           </span>
         </div>
       </div>
+
+      {puedeGestionar && periodoEnCurso && aLiquidar > 0 && (
+        <p className="rounded-[12px] border border-[#F0D9A8] bg-ambar-suave px-3.5 py-2.5 text-[12.5px] font-medium text-ambar-osc">
+          <b>Este período todavía no terminó.</b> Si liquidás ahora, se paga solo lo recaudado
+          hasta hoy y el resto del período queda <b>bloqueado</b> (no se vuelve a liquidar la misma
+          cadencia). Conviene esperar al cierre del período, o liquidar una cadencia ya cerrada.
+        </p>
+      )}
 
       <TablaComisiones
         filas={r.filas}

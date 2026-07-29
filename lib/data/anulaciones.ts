@@ -6,6 +6,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { tablaFaltante } from "./errores";
+import type { Alcance } from "./alcance";
 
 export interface SolicitudAnulacion {
   id: string;
@@ -139,9 +140,17 @@ export async function getSolicitud(
   return data ? mapSolicitud(data) : null;
 }
 
-/** Solicitudes pendientes con contexto del pago (para la bandeja). */
+/**
+ * Solicitudes pendientes con contexto del pago (para la bandeja).
+ * `alcance` acota por ZONA: la RLS de `solicitudes_anulacion` es ANCHA (cualquier
+ * gestor ve todas las filas), así que SIN este recorte un supervisor leería el
+ * MOTIVO (texto libre, puede tener nombre/monto) y el SOLICITANTE de anulaciones de
+ * OTRAS zonas (fuga de PII). El admin (global) ve todas; el supervisor, solo las de
+ * clientes de su alcance. Omitido = sin recorte (compatibilidad).
+ */
 export async function getSolicitudesPendientes(
   db: SupabaseClient,
+  alcance?: Alcance,
 ): Promise<SolicitudAnulacion[]> {
   try {
     const { data, error } = await db
@@ -150,7 +159,7 @@ export async function getSolicitudesPendientes(
       .eq("estado", "pendiente")
       .order("solicitado_en", { ascending: false });
     if (error) throw error;
-    return (data ?? []).map((r) => {
+    const items = (data ?? []).map((r) => {
       const s = mapSolicitud(r);
       const pago = (r as { pagos?: { monto?: number; prestamos?: { cliente_id?: string; clientes?: { nombre?: string } } | { cliente_id?: string; clientes?: { nombre?: string } }[] } }).pagos;
       const prest = Array.isArray(pago?.prestamos) ? pago?.prestamos[0] : pago?.prestamos;
@@ -159,6 +168,14 @@ export async function getSolicitudesPendientes(
       s.clienteId = prest?.cliente_id ?? undefined;
       return s;
     });
+    // Recorte por zona (supervisor). Una solicitud cuyo pago NO cae en el alcance
+    // (clienteId ajeno o indeterminable → el embed vino null por la RLS de pagos) se
+    // descarta: no se muestra el motivo/solicitante de otra zona.
+    if (alcance && !alcance.global) {
+      const set = new Set(alcance.clienteIds);
+      return items.filter((s) => s.clienteId != null && set.has(s.clienteId));
+    }
+    return items;
   } catch (e) {
     if (tablaFaltante(e)) return [];
     throw e;

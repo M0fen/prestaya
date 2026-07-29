@@ -42,9 +42,23 @@ export async function cerrarJornada(input: {
   }
   if (estado.yaRendida) return { ok: false, error: "Ya cerraste tu jornada de hoy." };
 
-  const gastos = Math.max(0, Math.round(Number(input.gastos) || 0));
+  const gastosDeclarados = Math.max(0, Math.round(Number(input.gastos) || 0));
   const entregado = Math.max(0, Math.round(Number(input.entregado) || 0));
-  const notas = (input.notas ?? "").toString().trim().slice(0, 300) || null;
+  let notas = (input.notas ?? "").toString().trim().slice(0, 300) || null;
+
+  // ANTI-FUGA (server-side): los gastos que reducen el "esperado" NO pueden superar
+  // lo RESPALDADO por solicitudes de hoy (aprobadas + pendientes, por fecha de
+  // solicitud). Sin este tope, un cobrador declaraba gastos FANTASMA para llevar el
+  // esperado a 0 y la rendición marcaba "cuadra ✓" (embolsándose el recaudo); y un
+  // gasto aprobado tarde se contaba dos veces entre días. El EXCEDENTE sin respaldo
+  // NO se descuenta → aflora como FALTANTE visible + queda nota automática para
+  // trazarlo. Para un cobrador honesto (gastos respaldados) el tope es un no-op.
+  const gastos = Math.min(gastosDeclarados, estado.gastosRespaldadosHoy);
+  const excedente = gastosDeclarados - gastos;
+  if (excedente > 0) {
+    const aviso = `Declaró ${UYU(gastosDeclarados)} en gastos; solo ${UYU(gastos)} respaldados por solicitudes de hoy (excedente ${UYU(excedente)} sin comprobar).`;
+    notas = notas ? `${aviso} · ${notas}`.slice(0, 300) : aviso.slice(0, 300);
+  }
 
   const { esperado, diferencia, estado: est } = calcularRendicion(estado.recaudado, gastos, entregado);
 

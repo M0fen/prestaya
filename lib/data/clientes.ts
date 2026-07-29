@@ -97,6 +97,33 @@ export async function crearClienteCenso(
   return mapCliente(data);
 }
 
+/** Best-effort anti-duplicado del alta SIN documento: ¿ESTE creador dio de alta un
+ *  cliente con el MISMO nombre en los últimos `ventanaMin` minutos? Devuelve su id o
+ *  null. Cierra el reintento por ACK perdido (server commiteó pero se cortó la red al
+ *  responder → el cobrador re-tapea "Guardar" y crearía un 2º cliente idéntico, sin op_id
+ *  no hay idempotencia). Ventana corta + mismo creador + mismo nombre → el choque con
+ *  dos personas reales distintas es despreciable (y no pierde plata, solo evita basura). */
+export async function getClienteRecientePorNombre(
+  db: SupabaseClient,
+  creadoPor: string,
+  nombre: string,
+  ventanaMin = 3,
+): Promise<string | null> {
+  const desde = new Date(Date.now() - ventanaMin * 60_000).toISOString();
+  // Escapa comodines de LIKE → `ilike` queda como igualdad case-insensitive exacta.
+  const patron = nombre.replace(/[%_]/g, (m) => `\\${m}`);
+  const { data, error } = await db
+    .from("clientes")
+    .select("id")
+    .eq("creado_por", creadoPor)
+    .ilike("nombre", patron)
+    .gte("creado_en", desde)
+    .order("creado_en", { ascending: false })
+    .limit(1);
+  if (error) return null; // best-effort: ante cualquier problema, NO bloquea el alta
+  return data && data.length > 0 ? (data[0].id as string) : null;
+}
+
 /** Busca un cliente por documento (para evitar duplicados al censar). */
 export async function getClientePorDocumento(
   db: SupabaseClient,
