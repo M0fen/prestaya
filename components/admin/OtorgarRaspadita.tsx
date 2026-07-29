@@ -1,0 +1,148 @@
+"use client";
+// Regalar raspaditas a una PERSONA buscándola por su NOMBRE (o documento). Conecta
+// la acción otorgarRaspaditasAction (que existía sin UI). Reusa /api/buscar-clientes
+// (RLS por zona: un supervisor solo ve/otorga a clientes de su zona). El premio de
+// cada raspadita sale del sorteo configurado arriba (el servidor decide; anti-trampa).
+import { useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { otorgarRaspaditasAction } from "@/lib/acciones/promos";
+
+type ClienteMin = { id: string; nombre: string; documento: string | null };
+
+export function OtorgarRaspadita() {
+  const router = useRouter();
+  const [q, setQ] = useState("");
+  const [resultados, setResultados] = useState<ClienteMin[]>([]);
+  const [sel, setSel] = useState<ClienteMin | null>(null);
+  const [cantidad, setCantidad] = useState(1);
+  const [motivo, setMotivo] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
+  const [pendiente, start] = useTransition();
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const buscar = (term: string) => {
+    setQ(term);
+    setSel(null);
+    setOk(null);
+    setError(null);
+    if (timer.current) clearTimeout(timer.current);
+    if (term.trim().length < 2) {
+      setResultados([]);
+      return;
+    }
+    // Debounce 300ms (la API está rate-limited; no disparar por cada tecla).
+    timer.current = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/buscar-clientes?q=${encodeURIComponent(term.trim())}`);
+        const j = await r.json();
+        setResultados(j.ok ? (j.clientes ?? []) : []);
+      } catch {
+        setResultados([]);
+      }
+    }, 300);
+  };
+
+  const elegir = (c: ClienteMin) => {
+    setSel(c);
+    setResultados([]);
+    setQ(c.nombre);
+    setOk(null);
+    setError(null);
+  };
+
+  const otorgar = () => {
+    if (!sel || cantidad < 1 || pendiente) return;
+    setError(null);
+    start(async () => {
+      const res = await otorgarRaspaditasAction({ clienteId: sel.id, cantidad, motivo: motivo.trim() || null });
+      if (res.ok) {
+        setOk(`Le regalaste ${cantidad} raspadita${cantidad === 1 ? "" : "s"} a ${sel.nombre}.`);
+        setSel(null);
+        setQ("");
+        setMotivo("");
+        setCantidad(1);
+        router.refresh();
+      } else setError(res.error);
+    });
+  };
+
+  return (
+    <section className="flex flex-col gap-2.5 rounded-[16px] border border-borde bg-tarjeta p-4">
+      <div className="flex flex-col gap-0.5">
+        <span className="text-[14px] font-extrabold text-tinta">🎁 Regalar una raspadita a alguien</span>
+        <span className="text-[11.5px] font-medium text-tenue">
+          Buscá a la persona por su nombre y regalale raspaditas. Las juega en su cartón; el premio
+          sale del sorteo que configuraste arriba (lo decide el servidor).
+        </span>
+      </div>
+
+      {/* Búsqueda de cliente por nombre */}
+      <div className="relative">
+        <input
+          type="search"
+          value={q}
+          onChange={(e) => buscar(e.target.value)}
+          placeholder="Buscar persona por nombre o documento…"
+          className="w-full rounded-[12px] border border-borde bg-tarjeta px-3 py-2.5 text-[13.5px] outline-none focus:border-azul"
+        />
+        {resultados.length > 0 && !sel && (
+          <div className="absolute z-10 mt-1 flex w-full flex-col overflow-hidden rounded-[12px] border border-borde bg-tarjeta shadow-[0_8px_24px_rgba(26,34,71,0.12)]">
+            {resultados.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => elegir(c)}
+                className="flex flex-col items-start px-3 py-2 text-left hover:bg-suave"
+              >
+                <span className="text-[13px] font-semibold text-tinta">{c.nombre}</span>
+                {c.documento && <span className="text-[11px] text-tenue">{c.documento}</span>}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {sel && (
+        <div className="flex flex-col gap-2.5 rounded-[12px] bg-suave p-3">
+          <span className="text-[13px] font-extrabold text-tinta">{sel.nombre}</span>
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="flex flex-col gap-0.5">
+              <span className="text-[10.5px] font-bold text-gris">Cantidad</span>
+              <input
+                type="number"
+                min={1}
+                max={50}
+                value={cantidad}
+                onChange={(e) => setCantidad(Math.max(1, Math.min(50, Math.round(Number(e.target.value) || 1))))}
+                className="w-20 rounded-[10px] border border-borde px-3 py-2 text-[14px] font-bold outline-none focus:border-azul"
+              />
+            </label>
+            <label className="flex flex-1 flex-col gap-0.5">
+              <span className="text-[10.5px] font-bold text-gris">Motivo (opcional)</span>
+              <input
+                type="text"
+                value={motivo}
+                onChange={(e) => setMotivo(e.target.value)}
+                maxLength={120}
+                placeholder="Ej: cumpleaños, cliente fiel…"
+                className="w-full rounded-[10px] border border-borde px-3 py-2 text-[13px] outline-none focus:border-azul"
+              />
+            </label>
+          </div>
+          <button
+            type="button"
+            onClick={otorgar}
+            disabled={pendiente}
+            className="rounded-full bg-[#1E47C8] px-4 py-2.5 text-[13px] font-extrabold text-white disabled:opacity-40"
+          >
+            {pendiente ? "Regalando…" : `Regalar ${cantidad} raspadita${cantidad === 1 ? "" : "s"}`}
+          </button>
+        </div>
+      )}
+
+      {error && <span className="text-[11.5px] font-semibold text-[#C0392B]">{error}</span>}
+      {ok && <span className="text-[11.5px] font-semibold text-[#157A50]">{ok} ✓</span>}
+    </section>
+  );
+}

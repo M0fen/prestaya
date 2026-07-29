@@ -7,7 +7,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { tablaFaltante, columnaFaltante } from "./errores";
-import type { Calificacion } from "@/types/db";
 import type { ClienteSegmentable, DefinicionSegmento } from "@/lib/segmentos";
 import { clienteEnSegmento } from "@/lib/segmentos";
 import { traerTodo } from "./paginado";
@@ -16,9 +15,6 @@ import { enLotes } from "./alcance";
 export const BUCKET_RIFAS = "rifas";
 const MAX_BYTES = 4_000_000;
 const TIPOS_OK = new Set(["image/jpeg", "image/png", "image/webp"]);
-/** Calificaciones que cuentan como "mejores clientes" para la rifa dirigida. */
-const MEJORES: ReadonlySet<Calificacion> = new Set<Calificacion>(["excelente", "bueno"]);
-
 export interface Rifa {
   id: string;
   titulo: string;
@@ -95,8 +91,15 @@ export async function getRifaParaCliente(
 ): Promise<Rifa | null> {
   const rifa = await getRifa(db);
   if (!rifa || !rifa.activo) return null;
+  // AUDIENCIA UNIFICADA (como anuncios/quiniela/tienda): la visibilidad la gobierna
+  // SOLO `segmentoDef`. NULL = TODOS, SIEMPRE. El viejo `soloMejores` (0045) quedó
+  // DEPRECADO por el SelectorSegmento (una audiencia "solo mejores" hoy se expresa
+  // como un segmento de calificación excelente/bueno). Antes, una rifa con
+  // segmento_def NULL caía al `soloMejores`, cuyo DEFAULT en la tabla es `true` →
+  // una rifa marcada "Todos" quedaba OCULTA para todo cliente que no fuera
+  // excelente/bueno (incoherencia: "Todos" no llegaba a todos). Ya no se honra el
+  // flag para la visibilidad → NULL significa todos, sin sorpresas.
   if (rifa.segmentoDef) return clienteEnSegmento(cliente, rifa.segmentoDef) ? rifa : null;
-  if (rifa.soloMejores && !(cliente.calificacion && MEJORES.has(cliente.calificacion))) return null;
   return rifa;
 }
 

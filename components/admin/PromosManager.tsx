@@ -353,12 +353,16 @@ function NuevaQuiniela({ onDone, zonas = [] }: { onDone: () => void; zonas?: { i
   );
 }
 
+/** Normaliza para buscar: sin acentos, minúsculas, sin espacios extremos. */
+const sinAcentos = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+
 function QuinielaFila({ q, resumen, onDone }: { q: Quiniela; resumen?: ResumenQuiniela; onDone: () => void }) {
   const [ganador, setGanador] = useState<number>(q.numeroGanador ?? 0);
   const [ocupado, setOcupado] = useState(false);
   const [verParticipantes, setVerParticipantes] = useState(false);
   // cliente_ids que el admin fuerza como ganadores, además del número (0090).
   const [forzados, setForzados] = useState<Set<string>>(new Set());
+  const [filtro, setFiltro] = useState("");
   const count = resumen?.count ?? 0;
   const abierta = q.estado === "abierta";
 
@@ -394,6 +398,11 @@ function QuinielaFila({ q, resumen, onDone }: { q: Quiniela; resumen?: ResumenQu
   };
 
   const forzadosSet = new Set(resumen?.ganadoresForzados ?? []);
+  // Filtro por NOMBRE: encontrar a una persona puntual entre muchos participantes
+  // (antes había que scrollear toda la lista). Sin acentos, case-insensitive.
+  const participantesFiltrados = (resumen?.participantes ?? []).filter(
+    (p) => !filtro.trim() || sinAcentos(p.nombre).includes(sinAcentos(filtro)),
+  );
 
   return (
     <div className="flex flex-col gap-2 rounded-[14px] border border-borde bg-tarjeta p-3">
@@ -421,10 +430,23 @@ function QuinielaFila({ q, resumen, onDone }: { q: Quiniela; resumen?: ResumenQu
               Tocá una persona para que gane sí o sí (⭐), además del número sorteado.
             </span>
           )}
+          {count > 0 && (
+            <input
+              type="search"
+              value={filtro}
+              onChange={(e) => setFiltro(e.target.value)}
+              placeholder="Buscar persona por nombre…"
+              className="w-full rounded-[8px] border border-borde bg-tarjeta px-2.5 py-1.5 text-[12px] outline-none focus:border-azul"
+            />
+          )}
           <div className="max-h-[200px] overflow-y-auto rounded-[10px] border border-borde bg-suave p-2">
-            {resumen && resumen.participantes.length > 0 ? (
+            {!resumen || resumen.participantes.length === 0 ? (
+              <span className="text-[11.5px] font-medium text-gris">Todavía no hay participantes.</span>
+            ) : participantesFiltrados.length === 0 ? (
+              <span className="text-[11.5px] font-medium text-gris">Nadie coincide con “{filtro}”.</span>
+            ) : (
               <ul className="flex flex-col gap-0.5">
-                {resumen.participantes.map((g) => {
+                {participantesFiltrados.map((g) => {
                   const marcado = forzados.has(g.clienteId);
                   const contenido = (
                     <>
@@ -452,8 +474,6 @@ function QuinielaFila({ q, resumen, onDone }: { q: Quiniela; resumen?: ResumenQu
                   );
                 })}
               </ul>
-            ) : (
-              <span className="text-[11.5px] font-medium text-gris">Todavía no hay participantes.</span>
             )}
           </div>
         </div>
