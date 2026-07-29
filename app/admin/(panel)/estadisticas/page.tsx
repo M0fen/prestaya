@@ -5,10 +5,18 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getEstadisticas } from "@/lib/data/estadisticas";
+import { getZonas } from "@/lib/data/zonas";
 import { Columnas } from "@/components/charts/Columnas";
+import { DesempenoPanel, type CobradorDesempeno } from "@/components/admin/DesempenoPanel";
 import { UYU, meses } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
+
+/** Período (en días) para el recaudo por cobrador. Acotado a los presets. */
+function diasDe(v: string | undefined): number {
+  const n = Number(v);
+  return n === 7 || n === 90 ? n : 30;
+}
 
 function mesLabel(ym: string): string {
   const [y, m] = ym.split("-").map(Number);
@@ -23,10 +31,16 @@ const CALIF: Record<string, { label: string; color: string }> = {
   nuevo: { label: "Nuevo", color: "#7A4DD6" },
 };
 
-export default async function EstadisticasPage() {
+export default async function EstadisticasPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ dias?: string }>;
+}) {
   await requireAdmin();
+  const { dias: diasParam } = await searchParams;
+  const dias = diasDe(diasParam);
   const db = await createSupabaseServer();
-  const e = await getEstadisticas(db, { meses: 8, dias: 30, topN: 10 });
+  const e = await getEstadisticas(db, { meses: 8, dias, topN: 10 });
 
   if (!e.disponible) {
     return (
@@ -40,6 +54,26 @@ export default async function EstadisticasPage() {
       </div>
     );
   }
+
+  // Enriquecer el desempeño por cobrador con su ZONA + ticket promedio (para poder
+  // filtrar por zona/persona y leer mejor). Zona = usuarios.zona_id → nombre.
+  const cobIds = e.porCobrador.map((c) => c.cobradorId);
+  const zonas = await getZonas(db);
+  const zonaNombre = new Map(zonas.map((z) => [z.id, z.nombre] as const));
+  const zonaDe = new Map<string, string | null>();
+  if (cobIds.length > 0) {
+    const { data: us } = await db.from("usuarios").select("id, zona_id").in("id", cobIds);
+    for (const u of us ?? []) zonaDe.set(u.id as string, (u.zona_id as string | null) ?? null);
+  }
+  const desempeno: CobradorDesempeno[] = e.porCobrador.map((c) => {
+    const zonaId = zonaDe.get(c.cobradorId) ?? null;
+    return {
+      ...c,
+      zonaId,
+      zonaNombre: zonaId ? (zonaNombre.get(zonaId) ?? null) : null,
+      ticketPromedio: c.cobros > 0 ? Math.round(c.recaudo / c.cobros) : 0,
+    };
+  });
 
   const ult = e.mensual.length - 1;
   const colocadoCols = e.mensual.map((m, i) => ({
@@ -121,33 +155,8 @@ export default async function EstadisticasPage() {
         </Card>
       </div>
 
-      {/* Comportamiento por cobrador (últimos 30 días) */}
-      <Card titulo="Comportamiento por cobrador" nota="recaudo de los últimos 30 días · cartera gestionada">
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-[12.5px]">
-            <thead>
-              <tr className="border-b border-linea text-[10.5px] font-bold uppercase tracking-wide text-gris">
-                <th className="px-2.5 py-2 text-left">Cobrador</th>
-                <th className="px-2.5 py-2 text-center">Créditos</th>
-                <th className="px-2.5 py-2 text-right">Cartera</th>
-                <th className="px-2.5 py-2 text-right">Recaudo 30d</th>
-                <th className="px-2.5 py-2 text-center">Cobros</th>
-              </tr>
-            </thead>
-            <tbody>
-              {e.porCobrador.slice(0, 15).map((c) => (
-                <tr key={c.cobradorId} className="border-b border-[#F4F6FB]">
-                  <td className="px-2.5 py-2 font-semibold text-tinta">{c.nombre}</td>
-                  <td className="px-2.5 py-2 text-center tabular-nums text-cuerpo">{c.creditosActivos}</td>
-                  <td className="px-2.5 py-2 text-right tabular-nums text-cuerpo">{UYU(c.capital)}</td>
-                  <td className="px-2.5 py-2 text-right tabular-nums font-bold text-[#157A50]">{UYU(c.recaudo)}</td>
-                  <td className="px-2.5 py-2 text-center tabular-nums text-gris">{c.cobros}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+      {/* Desempeño por PERSONA con filtros (período/zona/búsqueda) + más columnas. */}
+      <DesempenoPanel cobradores={desempeno} zonas={zonas.map((z) => ({ id: z.id, nombre: z.nombre }))} dias={dias} />
 
       {/* Clientes que más vuelven (recompra) */}
       <Card titulo="Clientes que más vuelven" nota="por cantidad de créditos tomados (fidelidad)">
