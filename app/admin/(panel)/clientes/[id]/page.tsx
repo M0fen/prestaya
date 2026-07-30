@@ -273,12 +273,13 @@ export default async function FichaClientePage({
                   <div className="flex flex-wrap items-center gap-1.5">
                     {activo.origen === "tienda" && (
                       <span className="inline-flex items-center gap-1 rounded-full bg-[#E7ECFF] px-2.5 py-1 text-[11px] font-bold text-[#13308C]">
-                        🛒 Tienda{activo.productoNombre ? ` · ${activo.productoNombre}` : ""}
+                        🛒 Tienda{activo.productoNombre ? ` · ${activo.productoNombre}` : ""} · desde {fechaCorta(activo.fechaInicio)}
                       </span>
                     )}
-                    {activos.length > 1 && (
+                    {/* Fecha de inicio SIEMPRE visible (antes solo con múltiples créditos). */}
+                    {(activos.length > 1 || activo.origen !== "tienda") && (
                       <span className="inline-block rounded-full bg-[#EAF0FF] px-2.5 py-1 text-[11px] font-bold text-[#1E47C8]">
-                        Crédito {idx + 1} · desde {fechaCorta(activo.fechaInicio)}
+                        {activos.length > 1 ? `Crédito ${idx + 1} · ` : ""}desde {fechaCorta(activo.fechaInicio)}
                       </span>
                     )}
                   </div>

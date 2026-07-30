@@ -58,7 +58,7 @@ export function VistaClienteScreen({
   promo?: PromoData | null;
   /** Si el crédito visto es una VENTA de tienda (0101): muestra un distintivo
    *  para que el cliente sepa que este cartón es de una compra, no de un préstamo. */
-  compra?: { productoNombre: string } | null;
+  compra?: { productoNombre: string; inicio?: string | null } | null;
 }) {
   return (
     <div className="flex min-h-screen justify-center bg-fondo text-tinta">
@@ -80,6 +80,7 @@ export function VistaClienteScreen({
             <span className="flex min-w-0 flex-col">
               <span className="text-[13px] font-extrabold text-[#13308C]">Compra en la tienda</span>
               <span className="truncate text-[12px] font-medium text-[#1E47C8]">{compra.productoNombre} · lo pagás en cuotas cómodas</span>
+              {compra.inicio && <span className="text-[11.5px] font-semibold text-[#5B6BA8]">Empezó el {compra.inicio}</span>}
             </span>
           </div>
         )}

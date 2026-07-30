@@ -257,7 +257,19 @@ export default async function VistaPorToken({
       creditoSelector={creditoSelector}
       reputacion={reputacion}
       promo={promo}
-      compra={prestamo.origen === "tienda" ? { productoNombre: prestamo.producto_nombre ?? "Producto de la tienda" } : null}
+      compra={
+        prestamo.origen === "tienda"
+          ? {
+              productoNombre: prestamo.producto_nombre ?? "Producto de la tienda",
+              // "Empezó el …" — la fecha de inicio del crédito del artículo (antes solo se veía la fecha fin).
+              inicio: prestamo.fecha_inicio
+                ? new Intl.DateTimeFormat("es-UY", { day: "numeric", month: "long", year: "numeric", timeZone: "America/Montevideo" }).format(
+                    new Date(String(prestamo.fecha_inicio).slice(0, 10) + "T12:00:00"),
+                  )
+                : null,
+            }
+          : null
+      }
     />
   );
 }
