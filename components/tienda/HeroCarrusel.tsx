@@ -133,10 +133,14 @@ export function HeroCarrusel({ slides }: { slides: HeroSlide[] }) {
             className="absolute left-2 top-1/2 hidden h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/25 text-white backdrop-blur transition hover:bg-black/40 md:flex">‹</button>
           <button type="button" onClick={() => ir(i + 1)} aria-label="Siguiente"
             className="absolute right-2 top-1/2 hidden h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/25 text-white backdrop-blur transition hover:bg-black/40 md:flex">›</button>
-          <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5">
+          <div className="absolute bottom-0 left-1/2 flex -translate-x-1/2 items-end gap-1">
             {slides.map((_, idx) => (
+              // Hit area de ~44px (pt + pb) aunque la barrita visible siga midiendo 6px:
+              // en touch no hay hover, los puntos son el ÚNICO control en mobile.
               <button key={idx} type="button" onClick={() => ir(idx)} aria-label={`Ir al banner ${idx + 1}`}
-                className={`h-1.5 rounded-full transition-all ${idx === i ? "w-5 bg-white" : "w-1.5 bg-white/40 hover:bg-white/60"}`} />
+                className="flex items-center px-1.5 pb-3 pt-9">
+                <span className={`h-1.5 rounded-full transition-all ${idx === i ? "w-5 bg-white" : "w-1.5 bg-white/40"}`} />
+              </button>
             ))}
           </div>
         </>

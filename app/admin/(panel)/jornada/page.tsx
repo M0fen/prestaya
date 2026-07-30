@@ -1059,7 +1059,7 @@ function DateBar({ fechaYmd, hoyYmd }: { fechaYmd: string; hoyYmd: string }) {
           name="fecha"
           defaultValue={fechaYmd}
           max={hoyYmd}
-          className="h-9 rounded-[11px] border border-borde bg-tarjeta px-3 text-[13px] font-semibold text-tinta outline-none focus:border-azul"
+          className="h-9 rounded-[11px] border border-borde bg-tarjeta px-3 text-[16px] font-semibold text-tinta outline-none focus:border-azul"
         />
         <button type="submit" className="h-9 rounded-[11px] bg-[#2453DC] px-3.5 text-[13px] font-bold text-white">
           Ver

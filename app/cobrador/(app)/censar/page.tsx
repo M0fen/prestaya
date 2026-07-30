@@ -135,7 +135,7 @@ export default function CensarPage() {
             name="notas"
             rows={2}
             maxLength={500}
-            className="resize-none rounded-[10px] border border-[#DCE3F4] px-3 py-2 text-[14px] outline-none focus:border-azul"
+            className="resize-none rounded-[10px] border border-[#DCE3F4] px-3 py-2 text-[16px] outline-none focus:border-azul"
           />
         </label>
 
@@ -219,7 +219,7 @@ function Campo({
         inputMode={inputMode}
         required={required}
         placeholder={placeholder}
-        className="min-h-11 rounded-[10px] border border-[#DCE3F4] px-3 py-2.5 text-[14px] outline-none focus:border-azul"
+        className="min-h-11 rounded-[10px] border border-[#DCE3F4] px-3 py-2.5 text-[16px] outline-none focus:border-azul"
       />
     </label>
   );

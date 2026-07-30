@@ -160,7 +160,7 @@ export function CerrarJornada({
             value={gastos}
             onChange={(e) => { setEditado(true); setGastos(e.target.value.replace(/[^\d]/g, "")); }}
             placeholder="0"
-            className="min-h-11 w-full rounded-[11px] border border-[#DCE3F4] px-3 py-3 text-[15px] tabular-nums outline-none focus:border-azul"
+            className="min-h-11 w-full rounded-[11px] border border-[#DCE3F4] px-3 py-3 text-[16px] tabular-nums outline-none focus:border-azul"
           />
         </Campo>
         <Campo label="Efectivo que entrego">
@@ -169,7 +169,7 @@ export function CerrarJornada({
             value={entregado}
             onChange={(e) => { setEditado(true); setEntregado(e.target.value.replace(/[^\d]/g, "")); }}
             placeholder="0"
-            className="min-h-11 w-full rounded-[11px] border border-[#DCE3F4] px-3 py-3 text-[15px] tabular-nums outline-none focus:border-azul"
+            className="min-h-11 w-full rounded-[11px] border border-[#DCE3F4] px-3 py-3 text-[16px] tabular-nums outline-none focus:border-azul"
           />
         </Campo>
       </div>
@@ -229,7 +229,7 @@ export function CerrarJornada({
         onChange={(e) => setNotas(e.target.value)}
         maxLength={300}
         placeholder="Nota (opcional): motivo del faltante, etc."
-        className="mt-2.5 w-full rounded-[11px] border border-[#DCE3F4] px-3 py-2 text-[13.5px] outline-none focus:border-azul"
+        className="mt-2.5 w-full rounded-[11px] border border-[#DCE3F4] px-3 py-2 text-[16px] outline-none focus:border-azul"
       />
 
       {error && <p className="mt-2 text-[12px] font-semibold text-[#C0392B]">{error}</p>}

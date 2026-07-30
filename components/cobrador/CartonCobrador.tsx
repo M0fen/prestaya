@@ -116,7 +116,7 @@ export function CartonCobrador({
               <span>{estado === "pagado" ? "✓" : d.dia}</span>
               {/* Monto del abono del día (cuánto se pagó), visible de un vistazo. */}
               {d.montoPagado > 0 && (
-                <span className="mt-[1px] text-[7.5px] font-black tracking-tight tabular-nums opacity-95">
+                <span className="mt-[1px] text-[9.5px] font-black leading-none tracking-tight tabular-nums opacity-95">
                   {montoCompacto(d.montoPagado)}
                 </span>
               )}

@@ -142,7 +142,7 @@ export function FormRenovacion({
               setMonto(e.target.value);
               setConfirmar(false);
             }}
-            className="rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[14px] font-semibold outline-none focus:border-azul"
+            className="rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[16px] font-semibold outline-none focus:border-azul"
           />
         </label>
         <label className="flex flex-col gap-1">
@@ -156,10 +156,10 @@ export function FormRenovacion({
               setDias(e.target.value);
               setConfirmar(false);
             }}
-            className="rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[14px] font-semibold outline-none focus:border-azul"
+            className="rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[16px] font-semibold outline-none focus:border-azul"
           />
           {/* Plazos estándar del negocio (cobro diario Lun–Sáb). */}
-          <div className="mt-1 flex gap-1.5">
+          <div className="mt-1 flex gap-2">
             {PLAZOS.map((p) => (
               <button
                 key={p}
@@ -168,7 +168,7 @@ export function FormRenovacion({
                   setDias(String(p));
                   setConfirmar(false);
                 }}
-                className={`rounded-full px-2.5 py-1 text-[11.5px] font-bold ${
+                className={`rounded-full px-3.5 py-1.5 text-[13px] font-bold ${
                   diasNum === p ? "bg-[#2453DC] text-white" : "bg-tarjeta text-gris border border-borde"
                 }`}
               >

@@ -38,7 +38,7 @@ export function ReportarProblema({ conAsesor = false }: { conAsesor?: boolean })
       } else setMsg(r.error);
     });
 
-  const input = "rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[13.5px] text-tinta outline-none focus:border-azul";
+  const input = "rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[16px] text-tinta outline-none focus:border-azul";
 
   // Con el asesor Aureo presente (panel admin), el botón se APILA ARRIBA del de la
   // IA (que vive fijo abajo-derecha: right-4, bottom-4 en desktop / bottom-[5.5rem]
@@ -71,7 +71,7 @@ export function ReportarProblema({ conAsesor = false }: { conAsesor?: boolean })
           >
             <div className="flex items-center justify-between">
               <span className="text-[15px] font-extrabold text-tinta">Reportar un problema</span>
-              <button type="button" onClick={() => setAbierto(false)} className="text-[16px] font-bold text-gris" aria-label="Cerrar">✕</button>
+              <button type="button" onClick={() => setAbierto(false)} className="-mr-1 flex h-9 w-9 items-center justify-center rounded-full text-[16px] font-bold text-gris hover:bg-suave" aria-label="Cerrar">✕</button>
             </div>
 
             {ok ? (

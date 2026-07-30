@@ -51,7 +51,7 @@ export function FichaRapidaBoton({ clienteId }: { clienteId: string }) {
         onClick={abrir}
         title="Vista rápida"
         aria-label="Vista rápida del cliente"
-        className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-borde text-azul hover:bg-suave"
+        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-borde text-azul hover:bg-suave"
       >
         <OjoIcon />
       </button>
@@ -95,7 +95,7 @@ export function FichaRapidaBoton({ clienteId }: { clienteId: string }) {
                   )}
                 </div>
               </div>
-              <button type="button" onClick={() => setOpen(false)} aria-label="Cerrar" className="text-[20px] leading-none text-gris hover:text-tinta">
+              <button type="button" onClick={() => setOpen(false)} aria-label="Cerrar" className="-mr-1 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-[20px] leading-none text-gris hover:bg-suave hover:text-tinta">
                 ×
               </button>
             </div>

@@ -31,7 +31,7 @@ function Campo({ label, children, hint }: { label: string; children: React.React
     </label>
   );
 }
-const INPUT = "rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[15px] text-tinta tabular-nums outline-none focus:border-azul";
+const INPUT = "rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[16px] text-tinta tabular-nums outline-none focus:border-azul";
 
 function Kpi({ valor, label, sub, acento }: { valor: string; label: string; sub?: string; acento?: "verde" | "azul" }) {
   const b = acento === "verde" ? "border-[#BFE6D2] bg-[#EAF7F0]" : acento === "azul" ? "border-[#BFD4F5] bg-[#EEF3FF]" : "border-borde bg-tarjeta";
@@ -84,7 +84,7 @@ export function CalculadoraPrecios({ productos }: { productos: ProductoCalc[] })
       {productos.length > 0 && (
         <label className="flex flex-wrap items-center gap-2 rounded-[14px] border border-borde bg-tarjeta p-3">
           <span className="text-[12.5px] font-bold text-cuerpo">Cargar de un producto:</span>
-          <select onChange={(e) => cargar(e.target.value)} defaultValue="" className="rounded-[10px] border border-borde bg-tarjeta px-3 py-1.5 text-[13px] text-tinta outline-none">
+          <select onChange={(e) => cargar(e.target.value)} defaultValue="" className="rounded-[10px] border border-borde bg-tarjeta px-3 py-1.5 text-[16px] text-tinta outline-none">
             <option value="" disabled>Elegí un producto…</option>
             {productos.map((p) => (
               <option key={p.id} value={p.id}>{p.nombre} · {UYU(p.precio)}{p.costo == null ? " (sin costo)" : ""}</option>

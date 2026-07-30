@@ -32,7 +32,7 @@ export default async function TiendaClientePage({
       <div className="flex w-full max-w-[440px] flex-col gap-3 bg-app px-[18px] pt-4 pb-10 shadow-[0_0_60px_rgba(15,27,61,0.08)]">
         {/* Encabezado con volver a la cuenta */}
         <div className="flex items-center justify-between">
-          <Link href={`/c/${token}`} className="flex items-center gap-1 text-[13.5px] font-bold text-azul">
+          <Link href={`/c/${token}`} className="-my-1 flex items-center gap-1 py-2 pr-2 text-[13.5px] font-bold text-azul">
             ← Mi cuenta
           </Link>
           <span className="text-[12px] font-semibold text-gris">{NEGOCIO.nombre}</span>

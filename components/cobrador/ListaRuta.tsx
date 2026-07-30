@@ -188,7 +188,7 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="🔍 Buscar cliente por nombre…"
-        className="rounded-[12px] border border-[#DCE3F4] bg-white px-3.5 py-2.5 text-[13.5px] outline-none focus:border-azul"
+        className="rounded-[12px] border border-[#DCE3F4] bg-white px-3.5 py-2.5 text-[16px] outline-none focus:border-azul"
       />
 
       {/* Orden de la ruta (cercanía / prioridad de cobro / A-Z) + camino en Maps */}
@@ -210,7 +210,7 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
                   if (id === "cercania" && !origen) pedirUbicacion();
                   setModo(id);
                 }}
-                className={`rounded-full px-2.5 py-1.5 text-[11.5px] font-bold transition-colors ${
+                className={`rounded-full px-3 py-2 text-[12px] font-bold transition-colors ${
                   activo ? "bg-white text-azul shadow-[0_1px_2px_rgba(26,34,71,0.12)]" : "text-gris"
                 }`}
               >

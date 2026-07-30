@@ -50,7 +50,7 @@ export function FormIngreso() {
             type="button"
             onClick={() => setVerPass((v) => !v)}
             aria-label={verPass ? "Ocultar contraseña" : "Mostrar contraseña"}
-            className="absolute top-1/2 right-1.5 -translate-y-1/2 rounded-[9px] p-2 text-gris transition-colors hover:text-azul"
+            className="absolute top-1/2 right-1.5 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-[9px] text-gris transition-colors hover:text-azul"
           >
             {verPass ? <OjoTachado /> : <Ojo />}
           </button>

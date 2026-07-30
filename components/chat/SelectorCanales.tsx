@@ -66,7 +66,7 @@ export function SelectorCanales({
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="Buscar canal o persona…"
-        className="rounded-[12px] border border-borde bg-tarjeta px-3 py-2 text-[13px] outline-none focus:border-azul"
+        className="rounded-[12px] border border-borde bg-tarjeta px-3 py-2 text-[16px] outline-none focus:border-azul"
       />
       <div className="flex flex-col gap-3">
         {grupos.length === 0 && (

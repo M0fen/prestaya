@@ -19,7 +19,7 @@ export function AyudaIngreso() {
         <button
           type="button"
           onClick={() => setAbierto(true)}
-          className="text-[12.5px] font-semibold text-white/70 underline decoration-white/30 decoration-dotted underline-offset-4 active:text-white"
+          className="inline-block min-h-11 px-3 py-2 text-[12.5px] font-semibold text-white/70 underline decoration-white/30 decoration-dotted underline-offset-4 active:text-white"
         >
           ¿No podés entrar?
         </button>

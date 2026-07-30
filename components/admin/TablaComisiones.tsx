@@ -123,13 +123,13 @@ function Fila({
 
       {puedeGestionar ? (
         <>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <div className="flex items-center gap-1 rounded-[11px] border border-borde px-2.5 py-1.5">
               <input
                 inputMode="decimal"
                 value={pct}
                 onChange={(e) => setPct(e.target.value.replace(/[^\d.]/g, ""))}
-                className="w-12 text-[14px] tabular-nums outline-none"
+                className="w-16 text-[16px] tabular-nums outline-none"
                 aria-label={`Comisión de ${f.nombre}`}
               />
               <span className="text-[13px] font-bold text-gris">%</span>
@@ -138,7 +138,7 @@ function Fila({
               type="button"
               onClick={guardar}
               disabled={pendiente || !cambiado}
-              className="rounded-full border border-borde px-3 py-1.5 text-[12px] font-bold text-azul disabled:opacity-40"
+              className="rounded-full border border-borde px-3 py-2.5 text-[13px] font-bold text-azul disabled:opacity-40"
             >
               Guardar
             </button>
@@ -147,7 +147,7 @@ function Fila({
               onClick={liquidar}
               disabled={pendiente || comision <= 0 || !!f.liquidado}
               title={f.liquidado ? "Ya liquidada en este período" : undefined}
-              className="ml-auto rounded-full bg-[#1FA971] px-3.5 py-1.5 text-[12px] font-extrabold text-white disabled:opacity-40"
+              className="ml-auto rounded-full bg-[#1FA971] px-3.5 py-2.5 text-[13px] font-extrabold text-white disabled:opacity-40"
             >
               {f.liquidado ? "Liquidada ✓" : pendiente ? "…" : "Liquidar"}
             </button>

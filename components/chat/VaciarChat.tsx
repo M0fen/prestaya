@@ -31,7 +31,7 @@ export function VaciarChat({ canal, titulo }: { canal: string; titulo: string })
         type="button"
         onClick={() => setConfirmar(true)}
         title="Vaciar este canal (borra todos sus mensajes)"
-        className="flex items-center gap-1 rounded-full border border-[#F0D2CE] bg-white px-2.5 py-1 text-[11.5px] font-bold text-[#C0392B] hover:bg-[#FDECEA]"
+        className="flex items-center gap-1 rounded-full border border-[#F0D2CE] bg-white px-2.5 py-2 text-[11.5px] font-bold text-[#C0392B] hover:bg-[#FDECEA]"
       >
         🗑 Vaciar
       </button>
@@ -39,7 +39,7 @@ export function VaciarChat({ canal, titulo }: { canal: string; titulo: string })
   }
 
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-2">
       <span className="text-[11px] font-semibold text-[#C0392B]">
         {error ?? `¿Borrar todo "${titulo}"?`}
       </span>
@@ -47,7 +47,7 @@ export function VaciarChat({ canal, titulo }: { canal: string; titulo: string })
         type="button"
         onClick={ejecutar}
         disabled={pendiente}
-        className="rounded-full bg-[#C0392B] px-2.5 py-1 text-[11.5px] font-bold text-white disabled:opacity-50"
+        className="min-h-11 rounded-full bg-[#C0392B] px-3 py-2 text-[11.5px] font-bold text-white disabled:opacity-50"
       >
         {pendiente ? "Borrando…" : "Sí, borrar"}
       </button>
@@ -55,7 +55,7 @@ export function VaciarChat({ canal, titulo }: { canal: string; titulo: string })
         type="button"
         onClick={() => { setConfirmar(false); setError(null); }}
         disabled={pendiente}
-        className="rounded-full border border-[#DCE3F4] px-2.5 py-1 text-[11.5px] font-bold text-gris"
+        className="min-h-11 rounded-full border border-[#DCE3F4] px-3 py-2 text-[11.5px] font-bold text-gris"
       >
         No
       </button>

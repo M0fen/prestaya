@@ -20,7 +20,7 @@ export function ComprasEquipo({ compras, resumen }: { compras: CompraEmpleado[];
   return (
     <div className="flex flex-col gap-4">
       {/* KPIs */}
-      <div className="grid grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
         <Kpi valor={String(resumen.activas)} label="Compras activas" />
         <Kpi valor={UYU(resumen.saldoTotal)} label="Saldo por descontar" acento />
         <Kpi valor={String(resumen.compradores)} label="Compradores" />
@@ -81,7 +81,7 @@ function Fila({ c }: { c: CompraEmpleado }) {
           <span className="text-[11.5px] font-medium text-gris">Empezó el {fecha(c.creadaEn)} · {c.cuotas} cuotas de {UYU(c.cuotaMonto)}</span>
         </div>
         <span
-          className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[10.5px] font-bold ${
+          className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[12px] font-bold ${
             c.estado === "saldada" ? "bg-[#E4F5EC] text-[#157A50]" : c.estado === "cancelada" ? "bg-[#F1F3F9] text-gris" : "bg-[#FDF3E2] text-[#B9770E]"
           }`}
         >
@@ -114,11 +114,11 @@ function Fila({ c }: { c: CompraEmpleado }) {
           {confirmar ? (
             <div className="flex items-center gap-2">
               <span className="text-[11.5px] font-semibold text-gris">¿Cancelar? No se descuenta más.</span>
-              <button type="button" disabled={pend} onClick={cancelar} className="rounded-full bg-[#D64545] px-3 py-1.5 text-[11.5px] font-bold text-white disabled:opacity-60">Sí, cancelar</button>
-              <button type="button" onClick={() => setConfirmar(false)} className="rounded-full border border-borde px-3 py-1.5 text-[11.5px] font-bold text-cuerpo">No</button>
+              <button type="button" disabled={pend} onClick={cancelar} className="min-h-[40px] rounded-full bg-[#D64545] px-3 py-2 text-[12px] font-bold text-white disabled:opacity-60">Sí, cancelar</button>
+              <button type="button" onClick={() => setConfirmar(false)} className="min-h-[40px] rounded-full border border-borde px-3 py-2 text-[12px] font-bold text-cuerpo">No</button>
             </div>
           ) : (
-            <button type="button" onClick={() => setConfirmar(true)} className="text-[12px] font-bold text-[#C0392B]">Cancelar compra</button>
+            <button type="button" onClick={() => setConfirmar(true)} className="rounded-full border border-[#F3C0B8] px-3 py-2 text-[12px] font-bold text-[#C0392B]">Cancelar compra</button>
           )}
         </div>
       )}

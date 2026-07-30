@@ -64,7 +64,7 @@ export function RegistrarCompromiso({
     <section className="flex flex-col gap-2.5 rounded-[16px] border border-[#E4DDF6] bg-[#FAF8FF] p-4">
       <div className="flex items-center justify-between">
         <span className="text-[13.5px] font-extrabold text-[#5B3FA8]">Compromiso de pago</span>
-        <button type="button" onClick={() => setAbierto(false)} className="text-[12px] font-bold text-gris hover:underline">
+        <button type="button" onClick={() => setAbierto(false)} className="-mr-1 rounded-full px-3 py-1.5 text-[12px] font-bold text-gris active:bg-[#EEE9FB]">
           Cerrar
         </button>
       </div>
@@ -82,7 +82,7 @@ export function RegistrarCompromiso({
                   value={monto}
                   onChange={(e) => setMonto(e.target.value.replace(/[^\d]/g, ""))}
                   placeholder={String(Math.round(cuota))}
-                  className="w-20 text-[15px] tabular-nums outline-none"
+                  className="w-20 text-[16px] tabular-nums outline-none"
                   aria-label="Monto del compromiso"
                 />
               </div>
@@ -94,7 +94,7 @@ export function RegistrarCompromiso({
                 value={fecha}
                 min={fechaISOUY()}
                 onChange={(e) => setFecha(e.target.value)}
-                className="rounded-[11px] border border-[#DCD2F0] bg-white px-3 py-2 text-[13.5px] text-tinta outline-none"
+                className="rounded-[11px] border border-[#DCD2F0] bg-white px-3 py-2 text-[16px] text-tinta outline-none"
               />
             </label>
             <button

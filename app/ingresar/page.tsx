@@ -53,7 +53,7 @@ export default async function IngresarPage() {
           🛍️ Ver la Tienda Presta Ya
         </Link>
 
-        <p className="mt-5 flex items-center justify-center gap-1.5 text-center text-[11px] font-medium text-white/45">
+        <p className="mt-5 flex items-center justify-center gap-1.5 text-center text-[12px] font-medium text-white/60">
           <span aria-hidden="true">🔒</span>
           Conexión segura · acceso restringido al personal autorizado
         </p>

@@ -24,7 +24,7 @@ import type {
 } from "@/lib/data/tienda";
 
 const FRECUENCIAS: FrecuenciaProducto[] = ["diario", "semanal", "quincenal", "mensual"];
-const INPUT = "rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[14px] outline-none focus:border-azul";
+const INPUT = "rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[16px] outline-none focus:border-azul";
 
 /** Opción de zona para el dropdown de "precio por segmento". */
 export type ZonaOpcion = { id: string; nombre: string };
@@ -154,15 +154,15 @@ function Productos({ productos, categorias, zonas }: { productos: Producto[]; ca
                 {p.cuotas > 0 ? ` · ${p.cuotas} cuotas` : ""}
               </span>
             </div>
-            <div className="mt-1 flex flex-wrap gap-1.5">
-              <button type="button" onClick={() => abrir(p)} className="rounded-full border border-borde bg-tarjeta px-3 py-1.5 text-[12px] font-bold text-azul">Editar</button>
-              <button type="button" onClick={() => duplicar(p)} className="rounded-full border border-borde bg-tarjeta px-3 py-1.5 text-[12px] font-bold text-gris">Duplicar</button>
+            <div className="mt-1 flex flex-wrap gap-2">
+              <button type="button" onClick={() => abrir(p)} className="min-h-[40px] rounded-full border border-borde bg-tarjeta px-3 py-2.5 text-[12.5px] font-bold text-azul">Editar</button>
+              <button type="button" onClick={() => duplicar(p)} className="min-h-[40px] rounded-full border border-borde bg-tarjeta px-3 py-2.5 text-[12.5px] font-bold text-gris">Duplicar</button>
               <button type="button" onClick={() => toggle(p)} disabled={pend}
-                className="rounded-full border border-borde bg-tarjeta px-3 py-1.5 text-[12px] font-bold text-gris">
+                className="min-h-[40px] rounded-full border border-borde bg-tarjeta px-3 py-2.5 text-[12.5px] font-bold text-gris">
                 {p.activo ? "Pausar" : "Activar"}
               </button>
               <button type="button" onClick={() => borrar(p)} disabled={pend}
-                className="rounded-full border border-[#F3C0B8] bg-white px-3 py-1.5 text-[12px] font-bold text-[#C0392B]">Borrar</button>
+                className="ml-auto min-h-[40px] rounded-full border border-[#F3C0B8] bg-white px-3 py-2.5 text-[12.5px] font-bold text-[#C0392B]">Borrar</button>
             </div>
           </div>
         ))}
@@ -272,14 +272,14 @@ function EditorProducto({
                 <span className="absolute left-1 top-1 rounded-full bg-[#2453DC] px-2 py-0.5 text-[9px] font-black text-white">PORTADA</span>
               ) : (
                 <button type="button" onClick={() => hacerPortada(i)}
-                  className="absolute left-1 top-1 rounded-full bg-white/90 px-2 py-0.5 text-[9px] font-bold text-azul shadow">★ Portada</button>
+                  className="absolute left-1 top-1 rounded-full bg-white/90 px-2 py-1 text-[11px] font-bold text-azul shadow">★ Portada</button>
               )}
               <button type="button" onClick={() => quitarFoto(i)}
-                className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/55 text-[11px] font-bold text-white">✕</button>
-              <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/45 px-1.5 py-0.5">
-                <button type="button" onClick={() => moverFoto(i, -1)} disabled={i === 0} className="text-[13px] text-white disabled:opacity-30">◀</button>
+                className="absolute right-1 top-1 flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-[13px] font-bold text-white">✕</button>
+              <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/45 px-1 py-1">
+                <button type="button" onClick={() => moverFoto(i, -1)} disabled={i === 0} className="flex h-8 w-8 items-center justify-center text-[14px] text-white disabled:opacity-30">◀</button>
                 <span className="text-[9px] font-bold text-white/80">#{i + 1}</span>
-                <button type="button" onClick={() => moverFoto(i, 1)} disabled={i === f.fotos.length - 1} className="text-[13px] text-white disabled:opacity-30">▶</button>
+                <button type="button" onClick={() => moverFoto(i, 1)} disabled={i === f.fotos.length - 1} className="flex h-8 w-8 items-center justify-center text-[14px] text-white disabled:opacity-30">▶</button>
               </div>
             </div>
           ))}
@@ -489,9 +489,9 @@ function PrecioPorSegmento({ productoId, zonas }: { productoId: string; zonas: Z
           {lista.map((s) => (
             <div key={s.id} className="flex items-center justify-between rounded-[10px] border border-borde bg-tarjeta px-3 py-2">
               <span className="text-[12.5px] font-semibold text-tinta">{etiqueta(s)}</span>
-              <span className="flex items-center gap-2 text-[12px] font-medium text-gris">
+              <span className="flex items-center gap-3 text-[12px] font-medium text-gris">
                 {UYU(s.precio)}{s.interesPct > 0 ? ` · ${s.interesPct}%` : ""}{s.cuotas > 0 ? ` · ${s.cuotas}c` : ""}
-                <button type="button" onClick={() => quitar(s.id)} disabled={pend} className="font-bold text-[#C0392B]">✕</button>
+                <button type="button" onClick={() => quitar(s.id)} disabled={pend} aria-label="Quitar regla de precio" className="-m-1 flex h-9 w-9 items-center justify-center rounded-full font-bold text-[#C0392B] hover:bg-[#FBE4E2]">✕</button>
               </span>
             </div>
           ))}
@@ -513,10 +513,10 @@ function PrecioPorSegmento({ productoId, zonas }: { productoId: string; zonas: Z
             {opciones.map((o) => <option key={o.valor} value={o.valor}>{o.label}</option>)}
           </select>
         </label>
-        <input type="number" placeholder="Precio" value={precio} onChange={(e) => setPrecio(e.target.value)} className={`${INPUT} w-24`} />
-        <input type="number" placeholder="% int." value={interes} onChange={(e) => setInteres(e.target.value)} className={`${INPUT} w-20`} />
-        <input type="number" placeholder="Cuotas" value={cuotas} onChange={(e) => setCuotas(e.target.value)} className={`${INPUT} w-20`} />
-        <button type="button" onClick={agregar} disabled={pend} className="rounded-full bg-[#2453DC] px-3 py-2 text-[12px] font-bold text-white">Fijar</button>
+        <input type="number" inputMode="numeric" placeholder="Precio" value={precio} onChange={(e) => setPrecio(e.target.value)} className={`${INPUT} w-24`} />
+        <input type="number" inputMode="decimal" placeholder="% int." value={interes} onChange={(e) => setInteres(e.target.value)} className={`${INPUT} w-20`} />
+        <input type="number" inputMode="numeric" placeholder="Cuotas" value={cuotas} onChange={(e) => setCuotas(e.target.value)} className={`${INPUT} w-20`} />
+        <button type="button" onClick={agregar} disabled={pend} className="rounded-full bg-[#2453DC] px-3 py-2.5 text-[12px] font-bold text-white">Fijar</button>
       </div>
       {tipo === "zona" && zonas.length === 0 && (
         <span className="text-[11px] font-medium text-gris">No hay zonas cargadas todavía. Creá zonas en Configuración → Zonas.</span>
@@ -580,9 +580,9 @@ function PrecioPorCliente({ productoId }: { productoId: string }) {
           {lista.map((p) => (
             <div key={p.id} className="flex items-center justify-between rounded-[10px] border border-borde bg-tarjeta px-3 py-2">
               <span className="text-[12.5px] font-semibold text-tinta">{p.clienteNombre}</span>
-              <span className="flex items-center gap-2 text-[12px] font-medium text-gris">
+              <span className="flex items-center gap-3 text-[12px] font-medium text-gris">
                 {UYU(p.precio)}{p.interesPct > 0 ? ` · ${p.interesPct}%` : ""}{p.cuotas > 0 ? ` · ${p.cuotas}c` : ""}
-                <button type="button" onClick={() => quitar(p.id)} disabled={pend} className="font-bold text-[#C0392B]">✕</button>
+                <button type="button" onClick={() => quitar(p.id)} disabled={pend} aria-label="Quitar precio del cliente" className="-m-1 flex h-9 w-9 items-center justify-center rounded-full font-bold text-[#C0392B] hover:bg-[#FBE4E2]">✕</button>
               </span>
             </div>
           ))}
@@ -604,10 +604,10 @@ function PrecioPorCliente({ productoId }: { productoId: string }) {
         {sel && (
           <div className="flex flex-wrap items-end gap-2">
             <span className="rounded-full bg-[#EEF3FF] px-2.5 py-1 text-[12px] font-bold text-azul">{sel.nombre}</span>
-            <input type="number" placeholder="Precio" value={precio} onChange={(e) => setPrecio(e.target.value)} className={`${INPUT} w-24`} />
-            <input type="number" placeholder="% int." value={interes} onChange={(e) => setInteres(e.target.value)} className={`${INPUT} w-20`} />
-            <input type="number" placeholder="Cuotas" value={cuotas} onChange={(e) => setCuotas(e.target.value)} className={`${INPUT} w-20`} />
-            <button type="button" onClick={agregar} disabled={pend} className="rounded-full bg-[#2453DC] px-3 py-2 text-[12px] font-bold text-white">Fijar</button>
+            <input type="number" inputMode="numeric" placeholder="Precio" value={precio} onChange={(e) => setPrecio(e.target.value)} className={`${INPUT} w-24`} />
+            <input type="number" inputMode="decimal" placeholder="% int." value={interes} onChange={(e) => setInteres(e.target.value)} className={`${INPUT} w-20`} />
+            <input type="number" inputMode="numeric" placeholder="Cuotas" value={cuotas} onChange={(e) => setCuotas(e.target.value)} className={`${INPUT} w-20`} />
+            <button type="button" onClick={agregar} disabled={pend} className="rounded-full bg-[#2453DC] px-3 py-2.5 text-[12px] font-bold text-white">Fijar</button>
           </div>
         )}
         {error && <span className="text-[11.5px] font-semibold text-[#C0392B]">{error}</span>}
@@ -645,9 +645,9 @@ function Categorias({ categorias }: { categorias: CategoriaProducto[] }) {
         {categorias.map((c) => (
           <div key={c.id} className="flex items-center justify-between rounded-[12px] border border-borde bg-tarjeta px-3.5 py-2.5">
             <span className="text-[13.5px] font-semibold text-tinta">{c.nombre}{!c.activo && <span className="ml-2 text-[11px] font-bold text-gris">(oculta)</span>}</span>
-            <div className="flex gap-1.5">
-              <button type="button" onClick={() => toggle(c)} disabled={pend} className="rounded-full border border-borde px-3 py-1 text-[12px] font-bold text-gris">{c.activo ? "Ocultar" : "Mostrar"}</button>
-              <button type="button" onClick={() => borrar(c)} disabled={pend} className="rounded-full border border-[#F3C0B8] px-3 py-1 text-[12px] font-bold text-[#C0392B]">Borrar</button>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => toggle(c)} disabled={pend} className="min-h-[38px] rounded-full border border-borde px-3 py-2 text-[12px] font-bold text-gris">{c.activo ? "Ocultar" : "Mostrar"}</button>
+              <button type="button" onClick={() => borrar(c)} disabled={pend} className="min-h-[38px] rounded-full border border-[#F3C0B8] px-3 py-2 text-[12px] font-bold text-[#C0392B]">Borrar</button>
             </div>
           </div>
         ))}
@@ -782,13 +782,13 @@ function LeadCard({ s, producto, esAdmin }: { s: SolicitudProducto; producto?: P
           <textarea
             value={nota} onChange={(e) => setNota(e.target.value)} rows={2} maxLength={200}
             placeholder="Ej: quedó de pasar el viernes; ofrecerle 12 cuotas."
-            className="rounded-[10px] border border-campo bg-tarjeta px-2.5 py-1.5 text-[12.5px] text-tinta outline-none focus:border-azul"
+            className="rounded-[10px] border border-campo bg-tarjeta px-2.5 py-1.5 text-[16px] text-tinta outline-none focus:border-azul"
           />
-          <div className="flex gap-1.5">
+          <div className="flex gap-2">
             <button type="button" onClick={guardarNota} disabled={pend}
-              className="rounded-full bg-azul px-3 py-1 text-[12px] font-bold text-white disabled:opacity-50">Guardar nota</button>
+              className="min-h-[38px] rounded-full bg-azul px-3 py-2 text-[12px] font-bold text-white disabled:opacity-50">Guardar nota</button>
             <button type="button" onClick={() => { setNota(s.nota ?? ""); setEditaNota(false); }}
-              className="rounded-full border border-campo px-3 py-1 text-[12px] font-bold text-gris">Cancelar</button>
+              className="min-h-[38px] rounded-full border border-campo px-3 py-2 text-[12px] font-bold text-gris">Cancelar</button>
           </div>
         </div>
       ) : (
@@ -836,14 +836,14 @@ function LeadCard({ s, producto, esAdmin }: { s: SolicitudProducto; producto?: P
               <div className="flex flex-wrap items-end gap-2">
                 <label className="flex flex-col gap-0.5">
                   <span className="text-[10.5px] font-bold text-gris">Cuotas</span>
-                  <input type="number" min={1} max={1000} value={plazo}
+                  <input type="number" inputMode="numeric" min={1} max={1000} value={plazo}
                     onChange={(e) => setPlazo(Math.max(1, Math.round(Number(e.target.value) || 1)))}
-                    className="w-20 rounded-[8px] border border-campo bg-tarjeta px-2 py-1 text-[13px] tabular-nums outline-none focus:border-azul" />
+                    className="w-20 rounded-[8px] border border-campo bg-tarjeta px-2 py-1.5 text-[16px] tabular-nums outline-none focus:border-azul" />
                 </label>
                 <label className="flex flex-col gap-0.5">
                   <span className="text-[10.5px] font-bold text-gris">Frecuencia</span>
                   <select value={frecuencia} onChange={(e) => setFrecuencia(e.target.value as FrecuenciaProducto)}
-                    className="rounded-[8px] border border-campo bg-tarjeta px-2 py-1 text-[13px] outline-none focus:border-azul">
+                    className="rounded-[8px] border border-campo bg-tarjeta px-2 py-1.5 text-[16px] outline-none focus:border-azul">
                     {FRECUENCIAS.map((f) => <option key={f} value={f}>{f}</option>)}
                   </select>
                 </label>
@@ -871,10 +871,10 @@ function LeadCard({ s, producto, esAdmin }: { s: SolicitudProducto; producto?: P
       ) : null}
 
       {s.estado !== "convertida" && (
-        <div className="mt-1 flex flex-wrap gap-1.5 border-t border-linea pt-2">
+        <div className="mt-1 flex flex-wrap gap-2 border-t border-linea pt-2">
           {(["contactado", "cerrada", "descartada"] as EstadoSolicitud[]).map((e) => (
             <button key={e} type="button" onClick={() => marcar(e)} disabled={pend || s.estado === e}
-              className="rounded-full border border-borde bg-tarjeta px-3 py-1 text-[12px] font-bold text-gris disabled:opacity-40">
+              className="min-h-[38px] rounded-full border border-borde bg-tarjeta px-3 py-2 text-[12px] font-bold text-gris disabled:opacity-40">
               {ESTADO_TONO[e].label}
             </button>
           ))}

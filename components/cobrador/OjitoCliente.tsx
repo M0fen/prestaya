@@ -58,7 +58,7 @@ export function OjitoCliente({ clienteId, nombre }: { clienteId: string; nombre:
         type="button"
         onClick={abrir}
         aria-label={`Vistazo de ${nombre}`}
-        className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#F0F3FA] text-[15px] active:scale-90"
+        className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-[#F0F3FA] text-[16px] active:scale-90"
         style={{ transition: "transform .1s" }}
       >
         👁
@@ -85,7 +85,7 @@ export function OjitoCliente({ clienteId, nombre }: { clienteId: string; nombre:
                 type="button"
                 onClick={cerrar}
                 aria-label="Cerrar"
-                className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#F0F3FA] text-[15px] font-bold text-gris"
+                className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-[#F0F3FA] text-[15px] font-bold text-gris"
               >
                 ✕
               </button>

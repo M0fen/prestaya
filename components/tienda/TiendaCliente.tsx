@@ -172,7 +172,7 @@ export function TiendaCliente({
           className="w-full rounded-full border border-[#DCE3F4] bg-white py-3.5 pl-12 pr-10 text-[16px] shadow-[0_2px_12px_rgba(15,27,61,0.06)] outline-none focus:border-azul focus:ring-2 focus:ring-[#1E47C8]/25"
         />
         {q && (
-          <button type="button" onClick={() => setQ("")} aria-label="Limpiar búsqueda" className="absolute right-4 top-1/2 -translate-y-1/2 text-[17px] font-bold text-gris hover:text-tinta">✕</button>
+          <button type="button" onClick={() => setQ("")} aria-label="Limpiar búsqueda" className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center text-[17px] font-bold text-gris hover:text-tinta">✕</button>
         )}
       </div>
 
@@ -336,7 +336,7 @@ export function TiendaCliente({
           {filtrados.length} {filtrados.length === 1 ? "artículo" : "artículos"}{cat ? ` · ${cat}` : ""}
         </span>
         <select value={orden} onChange={(e) => setOrden(e.target.value as Orden)}
-          className="rounded-full border border-[#DCE3F4] bg-white px-3 py-1 text-[12px] font-semibold text-cuerpo outline-none">
+          className="rounded-full border border-[#DCE3F4] bg-white px-3 py-1.5 text-[16px] font-semibold text-cuerpo outline-none">
           <option value="destacados">Destacados</option>
           <option value="menor">Menor precio</option>
           <option value="mayor">Mayor precio</option>
@@ -384,7 +384,7 @@ export function TiendaCliente({
                 {/* Favorito ❤️ (guardar, como Mercado Libre). */}
                 <button type="button" onClick={(e) => { e.stopPropagation(); toggleFav(p.id); }}
                   aria-label={esFav(p.id) ? "Quitar de favoritos" : "Guardar en favoritos"}
-                  className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-[13px] shadow-sm backdrop-blur transition hover:scale-110 active:scale-90">
+                  className="absolute right-2 top-2 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-[16px] shadow-sm backdrop-blur transition hover:scale-110 active:scale-90">
                   {esFav(p.id) ? "❤️" : "🤍"}
                 </button>
               </div>
@@ -408,7 +408,7 @@ export function TiendaCliente({
         </div>
       )}
 
-      <p className="px-1 pt-1 text-center text-[11px] font-medium text-tenue">
+      <p className="px-1 pt-1 text-center text-[12px] font-medium text-gris">
         Precios de referencia. Tocá "Me interesa" y tu cobrador te pasa el precio y las cuotas para vos. 🙂
       </p>
 
@@ -623,7 +623,7 @@ function CarritoDrawer({
       <div className="flex h-full w-full max-w-[420px] flex-col bg-white shadow-[0_0_60px_rgba(15,27,61,0.4)]" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Carrito">
         <div className="flex shrink-0 items-center justify-between border-b border-[#EEF1F8] px-5 py-4">
           <span className="text-[17px] font-extrabold text-tinta">🛒 Tu carrito</span>
-          <button type="button" onClick={onCerrar} aria-label="Cerrar" className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F1F4FB] text-[14px] font-black text-tinta active:scale-90">✕</button>
+          <button type="button" onClick={onCerrar} aria-label="Cerrar" className="flex h-11 w-11 items-center justify-center rounded-full bg-[#F1F4FB] text-[15px] font-black text-tinta active:scale-90">✕</button>
         </div>
 
         {estado === "ok" ? (
@@ -659,11 +659,11 @@ function CarritoDrawer({
                     <span className="text-[11.5px] font-semibold text-[#157A50] tabular-nums">{UYU(it.precio)} contado</span>
                     <div className="mt-1 flex items-center gap-2.5">
                       <div className="flex items-center rounded-full border border-[#DCE3F4]">
-                        <button type="button" onClick={() => onCambiarCantidad(it.id, -1)} aria-label="Menos" className="px-2.5 py-0.5 text-[16px] font-black text-gris">−</button>
-                        <span className="w-6 text-center text-[13px] font-bold tabular-nums">{it.cantidad}</span>
-                        <button type="button" onClick={() => onCambiarCantidad(it.id, 1)} aria-label="Más" className="px-2.5 py-0.5 text-[16px] font-black text-gris">+</button>
+                        <button type="button" onClick={() => onCambiarCantidad(it.id, -1)} aria-label="Menos" className="flex h-11 w-11 items-center justify-center text-[20px] font-black text-gris">−</button>
+                        <span className="w-6 text-center text-[14px] font-bold tabular-nums">{it.cantidad}</span>
+                        <button type="button" onClick={() => onCambiarCantidad(it.id, 1)} aria-label="Más" className="flex h-11 w-11 items-center justify-center text-[20px] font-black text-gris">+</button>
                       </div>
-                      <button type="button" onClick={() => onQuitar(it.id)} className="text-[11.5px] font-bold text-[#C0392B]">Quitar</button>
+                      <button type="button" onClick={() => onQuitar(it.id)} className="rounded-full px-2 py-2 text-[12px] font-bold text-[#C0392B]">Quitar</button>
                     </div>
                   </div>
                 </div>
@@ -683,10 +683,10 @@ function CarritoDrawer({
               )}
               {modoPublico && (
                 <div className="flex flex-col gap-2 pt-1">
-                  <input value={nombre} onChange={(e) => { setNombre(e.target.value); setMsg(null); }} placeholder="Tu nombre" maxLength={80}
-                    className="rounded-[12px] border border-[#DCE3F4] px-3.5 py-2.5 text-[15px] text-tinta outline-none focus:border-azul" />
-                  <input value={tel} onChange={(e) => { setTel(e.target.value); setMsg(null); }} placeholder="Tu teléfono o WhatsApp" inputMode="tel" maxLength={30}
-                    className="rounded-[12px] border border-[#DCE3F4] px-3.5 py-2.5 text-[15px] text-tinta outline-none focus:border-azul" />
+                  <input value={nombre} onChange={(e) => { setNombre(e.target.value); setMsg(null); }} placeholder="Tu nombre" maxLength={80} autoComplete="name"
+                    className="rounded-[12px] border border-[#DCE3F4] px-3.5 py-2.5 text-[16px] text-tinta outline-none focus:border-azul" />
+                  <input value={tel} onChange={(e) => { setTel(e.target.value); setMsg(null); }} placeholder="Tu teléfono o WhatsApp" type="tel" inputMode="tel" maxLength={30} autoComplete="tel"
+                    className="rounded-[12px] border border-[#DCE3F4] px-3.5 py-2.5 text-[16px] text-tinta outline-none focus:border-azul" />
                 </div>
               )}
               <button type="button" onClick={enviar} disabled={pend}
@@ -822,8 +822,8 @@ function DetalleProducto({
             )}
             {total > 1 && (
               <>
-                <button type="button" onClick={() => setI((x) => (x - 1 + total) % total)} className="absolute left-2.5 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-[16px] font-black text-tinta shadow-md active:scale-90">‹</button>
-                <button type="button" onClick={() => setI((x) => (x + 1) % total)} className="absolute right-2.5 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-[16px] font-black text-tinta shadow-md active:scale-90">›</button>
+                <button type="button" onClick={() => setI((x) => (x - 1 + total) % total)} aria-label="Foto anterior" className="absolute left-2.5 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-white/95 text-[16px] font-black text-tinta shadow-md active:scale-90">‹</button>
+                <button type="button" onClick={() => setI((x) => (x + 1) % total)} aria-label="Foto siguiente" className="absolute right-2.5 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-white/95 text-[16px] font-black text-tinta shadow-md active:scale-90">›</button>
               </>
             )}
             {ahorroPct > 0 && !sinStock && (
@@ -832,7 +832,7 @@ function DetalleProducto({
             {p.proveedor === "curbe" && (
               <span className={`absolute left-3 ${ahorroPct > 0 && !sinStock ? "top-11" : "top-3"} rounded-full bg-[linear-gradient(135deg,#E8C56E,#C9A24B)] px-2.5 py-1 text-[11px] font-black text-[#3A2E0A] shadow`}>💎 Curbe</span>
             )}
-            <button type="button" onClick={onClose} className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-[14px] font-black text-tinta shadow active:scale-90">✕</button>
+            <button type="button" onClick={onClose} aria-label="Cerrar" className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full bg-white/95 text-[15px] font-black text-tinta shadow active:scale-90">✕</button>
           </div>
           {total > 1 && (
             <div className="flex gap-2 overflow-x-auto px-4 py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -898,7 +898,7 @@ function DetalleProducto({
                         {n}×
                       </button>
                     ))}
-                    <span className="w-full text-[10.5px] font-medium text-tenue">Cuota estimada · el plan final lo confirma tu cobrador.</span>
+                    <span className="w-full text-[12px] font-medium text-gris">Cuota estimada · el plan final lo confirma tu cobrador.</span>
                   </div>
                 )}
               </div>
@@ -993,7 +993,7 @@ function DetalleProducto({
                   {pend ? "Registrando…" : "Comprar a crédito"}
                 </button>
                 {estado === "error" && msg && <p className="text-center text-[12px] font-semibold text-[#E06A6A]">{msg}</p>}
-                <p className="text-center text-[10.5px] font-medium text-tenue">Compra del equipo · se descuenta de tu comisión al liquidarla.</p>
+                <p className="text-center text-[12px] font-medium text-gris">Compra del equipo · se descuenta de tu comisión al liquidarla.</p>
               </div>
             )
           ) : conCarrito ? (
@@ -1002,20 +1002,20 @@ function DetalleProducto({
                 className="w-full rounded-full bg-[#1E47C8] px-5 py-3.5 text-[16px] font-extrabold text-white shadow-[0_6px_18px_rgba(19,48,140,0.28)] transition active:scale-[0.99]">
                 🛒 Agregar al carrito
               </button>
-              <p className="text-center text-[10.5px] font-medium text-tenue">Sumalo al carrito y pedí todo junto. Sin compromiso.</p>
+              <p className="text-center text-[12px] font-medium text-gris">Sumalo al carrito y pedí todo junto. Sin compromiso.</p>
             </div>
           ) : modoPublico && form ? (
             <div className="flex flex-col gap-2">
-              <input value={nombre} onChange={(e) => { setNombre(e.target.value); setMsg(null); }} placeholder="Tu nombre" maxLength={80}
-                className="rounded-[12px] border border-[#DCE3F4] px-3.5 py-2.5 text-[15px] text-tinta outline-none focus:border-azul" autoFocus />
-              <input value={tel} onChange={(e) => { setTel(e.target.value); setMsg(null); }} placeholder="Tu teléfono o WhatsApp" inputMode="tel" maxLength={30}
-                className="rounded-[12px] border border-[#DCE3F4] px-3.5 py-2.5 text-[15px] text-tinta outline-none focus:border-azul" />
+              <input value={nombre} onChange={(e) => { setNombre(e.target.value); setMsg(null); }} placeholder="Tu nombre" maxLength={80} autoComplete="name"
+                className="rounded-[12px] border border-[#DCE3F4] px-3.5 py-2.5 text-[16px] text-tinta outline-none focus:border-azul" autoFocus />
+              <input value={tel} onChange={(e) => { setTel(e.target.value); setMsg(null); }} placeholder="Tu teléfono o WhatsApp" type="tel" inputMode="tel" maxLength={30} autoComplete="tel"
+                className="rounded-[12px] border border-[#DCE3F4] px-3.5 py-2.5 text-[16px] text-tinta outline-none focus:border-azul" />
               <button type="button" onClick={enviar} disabled={pend}
                 className="w-full rounded-full bg-[#1E47C8] px-5 py-3.5 text-[16px] font-extrabold text-white shadow-[0_6px_18px_rgba(19,48,140,0.28)] active:scale-[0.99] disabled:opacity-60">
                 {pend ? "Enviando…" : "Enviar mi interés"}
               </button>
               {estado === "error" && msg && <p className="text-center text-[12px] font-semibold text-[#E06A6A]">{msg}</p>}
-              <p className="text-center text-[10.5px] font-medium text-tenue">Dejanos tu contacto y te escribimos con el precio y las cuotas. Sin compromiso.</p>
+              <p className="text-center text-[12px] font-medium text-gris">Dejanos tu contacto y te escribimos con el precio y las cuotas. Sin compromiso.</p>
             </div>
           ) : (
             <>
@@ -1024,7 +1024,7 @@ function DetalleProducto({
                 {pend ? "Enviando…" : "Me interesa · Quiero saber más"}
               </button>
               {estado === "error" && msg && <p className="mt-1.5 text-center text-[12px] font-semibold text-[#E06A6A]">{msg}</p>}
-              <p className="mt-1.5 text-center text-[10.5px] font-medium text-tenue">Sin compromiso. Te contactamos para darte los detalles.</p>
+              <p className="mt-1.5 text-center text-[12px] font-medium text-gris">Sin compromiso. Te contactamos para darte los detalles.</p>
             </>
           )}
         </div>

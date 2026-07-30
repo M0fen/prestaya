@@ -69,7 +69,7 @@ export function Composer({ canal, acuse = false }: { canal: string; acuse?: bool
           }}
           rows={1}
           placeholder="Escribí un mensaje…"
-          className="max-h-32 min-h-[44px] flex-1 resize-none rounded-[14px] border border-[#DCE3F4] bg-white px-3.5 py-2.5 text-[14px] outline-none focus:border-azul"
+          className="max-h-32 min-h-[44px] flex-1 resize-none rounded-[14px] border border-[#DCE3F4] bg-white px-3.5 py-2.5 text-[16px] outline-none focus:border-azul"
         />
         <button
           type="button"

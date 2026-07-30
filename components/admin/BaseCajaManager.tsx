@@ -120,20 +120,20 @@ function FilaBase({ c }: { c: CobradorBase }) {
       if (r.ok) router.refresh();
     });
   return (
-    <li className="flex items-center gap-2 py-2">
+    <li className="flex items-center gap-2 py-2.5">
       <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-tinta">{c.nombre}</span>
       <input
         inputMode="numeric"
         value={val}
         onChange={(e) => { setVal(e.target.value.replace(/[^\d]/g, "")); setMsg(null); }}
         placeholder="0"
-        className="w-24 rounded-[9px] border border-borde px-2.5 py-1.5 text-right text-[13px] tabular-nums outline-none focus:border-azul"
+        className="w-28 rounded-[9px] border border-borde px-2.5 py-1.5 text-right text-[16px] tabular-nums outline-none focus:border-azul"
       />
       <button
         type="button"
         onClick={guardar}
         disabled={pend}
-        className="flex-shrink-0 rounded-full bg-azul px-3 py-1.5 text-[12px] font-bold text-white disabled:opacity-50"
+        className="flex-shrink-0 rounded-full bg-azul px-3 py-2.5 text-[12px] font-bold text-white disabled:opacity-50"
       >
         {pend ? "…" : "Fijar"}
       </button>

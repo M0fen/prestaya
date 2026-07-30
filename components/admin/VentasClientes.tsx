@@ -55,7 +55,7 @@ export function VentasClientes({ ventas, resumen }: { ventas: VentaCliente[]; re
                     <span className="truncate text-[12.5px] font-semibold text-cuerpo">{v.proveedor === "curbe" ? "💎 " : "🛒 "}{v.productoNombre}</span>
                     <span className="text-[11.5px] font-medium text-gris">Empezó el {fecha(v.fechaInicio)} · {v.totalDias} cuotas de {UYU(v.cuota)}</span>
                   </div>
-                  <span className="flex-shrink-0 rounded-full px-2.5 py-1 text-[10.5px] font-bold" style={{ background: e.bg, color: e.fg }}>{e.label}</span>
+                  <span className="flex-shrink-0 rounded-full px-2.5 py-1 text-[12px] font-bold" style={{ background: e.bg, color: e.fg }}>{e.label}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#EEF1F8]">

@@ -90,7 +90,7 @@ export function PanelGastosFlotante({ pendientes }: { pendientes: number }) {
           >
             <div className="flex items-center justify-between border-b border-linea px-4 py-3">
               <span className="text-[15px] font-extrabold text-tinta">Gastos por aprobar</span>
-              <button type="button" onClick={() => setAbierto(false)} className="text-[16px] font-bold text-gris" aria-label="Cerrar">✕</button>
+              <button type="button" onClick={() => setAbierto(false)} className="-mr-1 flex h-9 w-9 items-center justify-center rounded-full text-[16px] font-bold text-gris hover:bg-suave" aria-label="Cerrar">✕</button>
             </div>
 
             <div className="flex-1 overflow-y-auto px-4 py-3">
@@ -126,21 +126,21 @@ export function PanelGastosFlotante({ pendientes }: { pendientes: number }) {
                             onChange={(e) => setMotivo(e.target.value)}
                             maxLength={200}
                             placeholder="Motivo del rechazo (opcional)"
-                            className="rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[13px] text-tinta outline-none focus:border-azul"
+                            className="rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[16px] text-tinta outline-none focus:border-azul"
                           />
-                          <div className="flex justify-end gap-2">
-                            <button type="button" onClick={() => { setRechazando(null); setMotivo(""); }} className="rounded-full px-3 py-1.5 text-[12px] font-bold text-gris">Cancelar</button>
-                            <button type="button" disabled={pend} onClick={() => confirmarRechazo(s.id)} className="rounded-full bg-rojo-osc px-3.5 py-1.5 text-[12px] font-bold text-white disabled:opacity-60">
+                          <div className="flex justify-end gap-3">
+                            <button type="button" onClick={() => { setRechazando(null); setMotivo(""); }} className="min-h-11 rounded-full px-3 py-2.5 text-[13px] font-bold text-gris">Cancelar</button>
+                            <button type="button" disabled={pend} onClick={() => confirmarRechazo(s.id)} className="min-h-11 rounded-full bg-rojo-osc px-3.5 py-2.5 text-[13px] font-bold text-white disabled:opacity-60">
                               {pend ? "…" : "Confirmar rechazo"}
                             </button>
                           </div>
                         </div>
                       ) : (
-                        <div className="flex justify-end gap-2">
-                          <button type="button" disabled={pend} onClick={() => setRechazando(s.id)} className="rounded-full border border-borde px-3.5 py-1.5 text-[12px] font-bold text-gris hover:bg-tarjeta disabled:opacity-60">
+                        <div className="flex justify-end gap-3">
+                          <button type="button" disabled={pend} onClick={() => setRechazando(s.id)} className="min-h-11 rounded-full border border-borde px-3.5 py-2.5 text-[13px] font-bold text-gris hover:bg-tarjeta disabled:opacity-60">
                             Rechazar
                           </button>
-                          <button type="button" disabled={pend} onClick={() => aprobar(s.id)} className="rounded-full bg-[#1FA971] px-4 py-1.5 text-[12px] font-extrabold text-white active:scale-95 disabled:opacity-60">
+                          <button type="button" disabled={pend} onClick={() => aprobar(s.id)} className="min-h-11 rounded-full bg-[#1FA971] px-4 py-2.5 text-[13px] font-extrabold text-white active:scale-95 disabled:opacity-60">
                             {pend ? "…" : "Aprobar"}
                           </button>
                         </div>

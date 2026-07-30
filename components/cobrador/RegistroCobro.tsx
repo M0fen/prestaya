@@ -386,7 +386,7 @@ export function RegistroCobro({
               onChange={(e) => setMontoAbono(e.target.value)}
               placeholder="¿Cuánto abona?"
               autoFocus
-              className="min-h-11 min-w-0 flex-1 rounded-[10px] border border-[#E7D4A6] bg-white px-3 py-3 text-[15px] font-semibold outline-none focus:border-[#E8A317]"
+              className="min-h-11 min-w-0 flex-1 rounded-[10px] border border-[#E7D4A6] bg-white px-3 py-3 text-[16px] font-semibold outline-none focus:border-[#E8A317]"
             />
             <button
               type="button"
@@ -469,7 +469,7 @@ export function RegistroCobro({
                   <button
                     type="button"
                     onClick={toast.acciones.recibo}
-                    className="rounded-full bg-white/20 px-2.5 py-1 text-[11.5px] font-bold active:scale-95"
+                    className="flex min-h-11 items-center rounded-full bg-white/20 px-3 py-2 text-[12.5px] font-bold active:scale-95"
                   >
                     Recibo
                   </button>
@@ -478,7 +478,7 @@ export function RegistroCobro({
                   <button
                     type="button"
                     onClick={toast.acciones.deshacer}
-                    className="rounded-full bg-white/20 px-2.5 py-1 text-[11.5px] font-bold active:scale-95"
+                    className="flex min-h-11 items-center rounded-full bg-white/20 px-3 py-2 text-[12.5px] font-bold active:scale-95"
                   >
                     Deshacer
                   </button>

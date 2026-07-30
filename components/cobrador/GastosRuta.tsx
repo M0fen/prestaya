@@ -196,7 +196,7 @@ export function GastosRuta({
             onChange={(e) => setNota(e.target.value)}
             maxLength={160}
             placeholder="Para qué es (opcional)"
-            className="w-full rounded-[12px] border border-[#DCE3F4] px-3 py-2 text-[13.5px] outline-none focus:border-azul"
+            className="w-full rounded-[12px] border border-[#DCE3F4] px-3 py-2 text-[16px] outline-none focus:border-azul"
           />
           {error && <p className="text-[12px] font-semibold text-[#C0392B]">{error}</p>}
           {ok && <p className="text-[12px] font-semibold text-[#157A50]">✓ Solicitud enviada. Esperá la aprobación del admin.</p>}

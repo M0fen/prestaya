@@ -78,7 +78,7 @@ export function Toaster() {
                 cerrar(t.id);
               }}
               aria-label="Cerrar aviso"
-              className="-mt-0.5 -mr-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[15px] text-tenue hover:bg-suave"
+              className="-mt-1 -mr-1 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-[15px] text-tenue hover:bg-suave"
             >
               ✕
             </button>

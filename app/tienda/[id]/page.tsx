@@ -56,7 +56,7 @@ export default async function ProductoPublicoPage({ params }: { params: Promise<
             <Link href="/ingresar" className="rounded-full border border-[#DCE3F4] bg-white px-3.5 py-1.5 text-[12.5px] font-bold text-azul hover:bg-suave">Ingresar</Link>
           )}
         </div>
-        <Link href="/tienda" className="w-fit text-[12.5px] font-bold text-azul">← Volver a la tienda</Link>
+        <Link href="/tienda" className="-my-1 inline-flex w-fit items-center gap-1 py-2 pr-2 text-[12.5px] font-bold text-azul">← Volver a la tienda</Link>
 
         {/* Abre el detalle del producto compartido y deja seguir viendo el catálogo. */}
         <TiendaCliente productos={productos} token={null} modoPublico modoEmpleado={esEmpleado} conEncabezado={false} abrirId={id} />

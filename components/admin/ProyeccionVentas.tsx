@@ -127,6 +127,14 @@ export function ProyeccionVentas({ base }: { base: BaseProyeccion }) {
             </div>
           ))}
         </div>
+        {/* Etiquetas fijas de extremos: en touch no hay hover, así que el dato
+            del primer y último mes siempre queda visible (mobile-first). */}
+        {r.serie.length > 0 && (
+          <div className="flex items-center justify-between text-[11px] font-bold tabular-nums text-gris">
+            <span>mes 1 · {compact(r.serie[0])}</span>
+            <span className="text-tinta">mes {meses} · {compact(r.serie[r.serie.length - 1])}</span>
+          </div>
+        )}
       </div>
 
       {/* Controles */}
