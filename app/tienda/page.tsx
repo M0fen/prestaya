@@ -38,6 +38,10 @@ export default async function TiendaPublicaPage({
   // Empleado (cobrador/supervisor) logueado → compra a crédito (0113) + ve sus compras.
   const esEmpleado = !!logueado && (logueado.rol === "cobrador" || logueado.rol === "supervisor");
   const misCompras = esEmpleado ? await getMisComprasEmpleado(db, logueado!.id).catch(() => []) : [];
+  // "Mis compras" del perfil según el ingreso: el EMPLEADO ve sus compras a crédito.
+  const comprasPerfil = esEmpleado
+    ? misCompras.map((c) => ({ id: c.id, nombre: c.productoNombre, foto: null, total: c.total, saldo: c.saldo, cuota: c.cuotaMonto, cuotas: c.cuotas, estado: c.estado, fechaIso: c.creadaEn }))
+    : [];
 
   // CARRUSEL del hero: la tienda es GENERAL (no solo perfumes) → un banner de Presta
   // Ya + un banner de Curbe, cada uno con SU imagen coherente (nunca "perfumes" con
@@ -133,7 +137,8 @@ export default async function TiendaPublicaPage({
             <p className="max-w-[280px] text-[13px] font-medium text-gris">Estamos preparando el catálogo. Volvé en unos días.</p>
           </div>
         ) : (
-          <TiendaCliente productos={productos} token={null} modoPublico modoEmpleado={esEmpleado} conEncabezado={false} abrirId={producto ?? null} />
+          <TiendaCliente productos={productos} token={null} modoPublico modoEmpleado={esEmpleado} conEncabezado={false} abrirId={producto ?? null}
+            compras={comprasPerfil} perfilTitulo={logueado ? `Hola, ${primerNombre}` : "Mi tienda"} />
         )}
 
         <p className="mt-2 text-center text-[11px] font-medium text-tenue">

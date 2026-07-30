@@ -5,7 +5,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getClientePorToken } from "@/lib/data/clientes";
-import { getProductosParaCliente } from "@/lib/data/tienda";
+import { getProductosParaCliente, getComprasTiendaDeCliente } from "@/lib/data/tienda";
 import { conTimeout } from "@/lib/timeout";
 import { TiendaCliente } from "@/components/tienda/TiendaCliente";
 import { NEGOCIO } from "@/lib/negocio";
@@ -25,7 +25,11 @@ export default async function TiendaClientePage({
   const db = createSupabaseAdmin();
   const cliente = await conTimeout(getClientePorToken(db, token), TOPE_MS, "cliente.tienda.token");
   if (!cliente) notFound();
-  const productos = await conTimeout(getProductosParaCliente(db, cliente), TOPE_MS, "cliente.tienda");
+  const [productos, comprasTienda] = await Promise.all([
+    conTimeout(getProductosParaCliente(db, cliente), TOPE_MS, "cliente.tienda"),
+    getComprasTiendaDeCliente(db, cliente.id).catch(() => []),
+  ]);
+  const primerNombre = cliente.nombre.split(" ")[0];
 
   return (
     <div className="flex min-h-screen justify-center bg-fondo text-tinta">
@@ -54,7 +58,8 @@ export default async function TiendaClientePage({
             <Link href={`/c/${token}`} className="mt-2 rounded-full bg-[#1E47C8] px-5 py-2.5 text-[14px] font-bold text-white">Volver a mi cuenta</Link>
           </div>
         ) : (
-          <TiendaCliente productos={productos} token={token} conEncabezado={false} abrirId={producto ?? null} />
+          <TiendaCliente productos={productos} token={token} conEncabezado={false} abrirId={producto ?? null}
+            compras={comprasTienda} perfilTitulo={`Hola, ${primerNombre}`} />
         )}
       </div>
     </div>

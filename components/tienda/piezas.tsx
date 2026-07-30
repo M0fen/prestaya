@@ -185,6 +185,35 @@ export function leerPedidosLocal(scope: string): PedidoLocal[] {
   }
 }
 
+// ── "Visto recientemente" — historial local de productos abiertos (como ML) ───
+const claveVistos = (scope: string) => `vistos_tienda:${scope}`;
+export function registrarVisto(scope: string, id: string): void {
+  try {
+    const prev = leerVistos(scope).filter((x) => x !== id);
+    localStorage.setItem(claveVistos(scope), JSON.stringify([id, ...prev].slice(0, 12)));
+  } catch { /* sin storage */ }
+}
+export function leerVistos(scope: string): string[] {
+  try {
+    const raw = localStorage.getItem(claveVistos(scope));
+    const a = raw ? JSON.parse(raw) : [];
+    return Array.isArray(a) ? (a as string[]) : [];
+  } catch { return []; }
+}
+
+// ── "Mis compras" — compra real según el perfil (empleado→a crédito, cliente→tienda) ──
+export type CompraTienda = {
+  id: string;
+  nombre: string;
+  foto: string | null;
+  total: number;
+  saldo: number;
+  cuota: number;
+  cuotas: number;
+  estado: "activa" | "saldada" | "cancelada";
+  fechaIso: string;
+};
+
 // ── SECCIÓN en TARJETA blanca (como los bloques de Mercado Libre) ────────────
 /** Envuelve un bloque en una tarjeta blanca con título en negrita + "Ver todos ›".
  *  Sobre el fondo gris de la página, esto es lo que hace que las secciones "se vean". */
@@ -286,9 +315,11 @@ export function BarraTienda({ titulo, favN, cartN, favActivo, onFav, onCart, onP
 
 type FavItem = { id: string; nombre: string; foto: string | null; precio: number };
 
-/** HUB "MI TIENDA" (perfil): pedidos + favoritos + ayuda. El "gestionar pedidos". */
-export function MiTienda({ open, onOpenChange, scope, favoritos, onVerFavoritos, onQuitarFav, onAbrirProducto, soporte }: {
+/** HUB "MI TIENDA" (perfil): COMPRAS reales (según el perfil) + pedidos + favoritos + ayuda. */
+export function MiTienda({ open, onOpenChange, scope, titulo = "Mi tienda", compras = [], favoritos, onVerFavoritos, onQuitarFav, onAbrirProducto, soporte }: {
   open: boolean; onOpenChange: (o: boolean) => void; scope: string;
+  titulo?: string;
+  compras?: CompraTienda[];
   favoritos: FavItem[];
   onVerFavoritos: () => void;
   onQuitarFav: (id: string) => void;
@@ -298,6 +329,7 @@ export function MiTienda({ open, onOpenChange, scope, favoritos, onVerFavoritos,
   const [pedidos, setPedidos] = useState<PedidoLocal[]>([]);
   useEffect(() => { if (open) setPedidos(leerPedidosLocal(scope)); }, [open, scope]);
   const wa = soporte ? `https://wa.me/${soporte.replace(/[^\d]/g, "")}` : null;
+  const debeTotal = compras.filter((c) => c.estado === "activa").reduce((a, c) => a + c.saldo, 0);
 
   return (
     <Drawer.Root open={open} onOpenChange={onOpenChange}>
@@ -310,13 +342,40 @@ export function MiTienda({ open, onOpenChange, scope, favoritos, onVerFavoritos,
           <div className="flex items-center gap-3 px-5 pb-3 pt-2">
             <div className="grid h-12 w-12 place-items-center rounded-full bg-[linear-gradient(135deg,#2453DC,#13308C)] text-white shadow-[0_6px_16px_rgba(19,48,140,0.35)]"><IcoPersona /></div>
             <div className="flex min-w-0 flex-col">
-              <span className="text-[17px] font-extrabold text-tinta">Mi tienda</span>
-              <span className="text-[12px] font-medium text-gris">Tus pedidos y favoritos</span>
+              <span className="text-[17px] font-extrabold text-tinta">{titulo}</span>
+              <span className="text-[12px] font-medium text-gris">Compras, pedidos y favoritos</span>
             </div>
             <button type="button" onClick={() => onOpenChange(false)} aria-label="Cerrar" className="ml-auto flex h-9 w-9 items-center justify-center rounded-full bg-white text-[14px] font-black text-tinta shadow-sm active:scale-90">✕</button>
           </div>
 
           <div className="flex flex-col gap-4 overflow-y-auto px-4 pb-6">
+            {/* Compras reales (según el perfil: empleado→a crédito, cliente→tienda). */}
+            {compras.length > 0 && (
+              <section className="flex flex-col gap-2 rounded-[16px] bg-white p-3.5 shadow-[0_1px_4px_rgba(15,27,61,0.05)]">
+                <div className="flex items-center justify-between">
+                  <span className="text-[13.5px] font-extrabold text-tinta">🛍️ Mis compras</span>
+                  {debeTotal > 0 && <span className="rounded-full bg-[#EEF3FF] px-2.5 py-1 text-[11px] font-bold text-azul">Debés {UYU(debeTotal)}</span>}
+                </div>
+                {compras.map((c) => {
+                  const pagado = Math.max(0, c.total - c.saldo);
+                  const pct = c.total > 0 ? Math.min(100, Math.round((pagado / c.total) * 100)) : 0;
+                  return (
+                    <div key={c.id} className="flex flex-col gap-1.5 rounded-[12px] border border-[#EEF1F8] p-2.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="line-clamp-2 text-[13px] font-bold text-tinta">{c.nombre}</span>
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ${c.estado === "saldada" ? "bg-[#E4F5EC] text-[#157A50]" : c.estado === "cancelada" ? "bg-[#F1F3F9] text-gris" : "bg-[#FDF3E2] text-[#B9770E]"}`}>{c.estado === "saldada" ? "Saldada ✓" : c.estado === "cancelada" ? "Cancelada" : `Debés ${UYU(c.saldo)}`}</span>
+                      </div>
+                      <span className="text-[11px] font-semibold text-gris">{c.cuotas}× {UYU(c.cuota)} · empezó {fechaCorta(c.fechaIso)}</span>
+                      <div className="flex items-center gap-2">
+                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#EEF1F8]"><div className="h-full rounded-full bg-[linear-gradient(90deg,#34E0A1,#1FA971)]" style={{ width: `${pct}%` }} /></div>
+                        <span className="text-[10.5px] font-bold tabular-nums text-gris">{UYU(pagado)} / {UYU(c.total)}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </section>
+            )}
+
             {/* Pedidos */}
             <section className="flex flex-col gap-2 rounded-[16px] bg-white p-3.5 shadow-[0_1px_4px_rgba(15,27,61,0.05)]">
               <span className="text-[13.5px] font-extrabold text-tinta">📦 Mis pedidos</span>

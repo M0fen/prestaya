@@ -14,7 +14,7 @@ import { comprarComoEmpleado } from "@/lib/acciones/comprasEmpleado";
 import { soloDigitos } from "@/lib/telefono";
 import { calcularPlanVenta } from "@/lib/venta";
 import type { ProductoParaCliente, FrecuenciaProducto } from "@/lib/data/tienda";
-import { GaleriaEmbla, Confeti, folioNuevo, guardarPedidoLocal, BarraTienda, MiTienda, SeccionTienda, AtajosTienda, type Atajo } from "./piezas";
+import { GaleriaEmbla, Confeti, folioNuevo, guardarPedidoLocal, BarraTienda, MiTienda, SeccionTienda, AtajosTienda, registrarVisto, leerVistos, type Atajo, type CompraTienda } from "./piezas";
 
 const FREC_LABEL: Record<FrecuenciaProducto, string> = {
   diario: "por día", semanal: "por semana", quincenal: "por quincena", mensual: "por mes",
@@ -46,7 +46,7 @@ function financiacion(p: ProductoParaCliente) {
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
 export function TiendaCliente({
-  productos, token, conEncabezado = true, abrirId = null, preview = false, modoPublico = false, modoEmpleado = false,
+  productos, token, conEncabezado = true, abrirId = null, preview = false, modoPublico = false, modoEmpleado = false, compras = [], perfilTitulo = "Mi tienda",
 }: {
   productos: ProductoParaCliente[];
   token: string | null;
@@ -59,6 +59,10 @@ export function TiendaCliente({
   modoPublico?: boolean;
   /** El que mira es EMPLEADO logueado (cobrador/supervisor) → compra a crédito (0113). */
   modoEmpleado?: boolean;
+  /** Compras REALES del perfil (empleado→a crédito, cliente→tienda) para el hub "Mi tienda". */
+  compras?: CompraTienda[];
+  /** Título del hub según el perfil (ej. "Hola, Juan"). */
+  perfilTitulo?: string;
 }) {
   // Si venimos del banner del cartón (?producto=id), abrimos su detalle de una.
   const [abierto, setAbierto] = useState<ProductoParaCliente | null>(
@@ -132,6 +136,30 @@ export function TiendaCliente({
     () => productos.filter((p) => favoritos.includes(p.id)),
     [productos, favoritos],
   );
+
+  // VISTO RECIENTEMENTE (historial local, como Mercado Libre). Se registra cuando
+  // se abre un producto (efecto sobre `abierto`, cubre todos los caminos de apertura).
+  const scopeVistos = token ?? "publico";
+  const [vistos, setVistos] = useState<string[]>([]);
+  useEffect(() => { setVistos(leerVistos(scopeVistos)); }, [scopeVistos]);
+  const vistosProductos = useMemo(() => {
+    const byId = new Map(productos.map((p) => [p.id, p] as const));
+    return vistos.map((id) => byId.get(id)).filter((p): p is ProductoParaCliente => !!p);
+  }, [vistos, productos]);
+
+  // Foto REPRESENTATIVA por categoría (primer producto con foto) → tiles con imagen.
+  const fotoCat = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const p of productos) {
+      const k = p.categoriaNombre ?? "Más productos";
+      if (!m.has(k) && p.fotos[0]) m.set(k, p.fotos[0]);
+    }
+    return m;
+  }, [productos]);
+  // Registrar el producto abierto en el historial "visto recientemente".
+  useEffect(() => {
+    if (abierto) { registrarVisto(scopeVistos, abierto.id); setVistos(leerVistos(scopeVistos)); }
+  }, [abierto, scopeVistos]);
 
   const filtrados = useMemo(() => {
     const t = norm(q.trim());
@@ -216,7 +244,7 @@ export function TiendaCliente({
         <div className="-mx-3.5 flex gap-2 overflow-x-auto px-3.5 pb-1 md:-mx-4 md:px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <CategoriaTile emoji="🏬" nombre="Todo" n={productos.length} activo={!cat && !soloFav} onClick={() => { setCat(null); setSoloFav(false); }} />
           {categorias.map((c) => (
-            <CategoriaTile key={c.nombre} emoji={emojiDe(c.nombre)} nombre={c.nombre} n={c.n}
+            <CategoriaTile key={c.nombre} emoji={emojiDe(c.nombre)} foto={fotoCat.get(c.nombre) ?? null} nombre={c.nombre} n={c.n}
               activo={cat === c.nombre} onClick={() => { setSoloFav(false); setCat(cat === c.nombre ? null : c.nombre); }} />
           ))}
           {favoritos.length > 0 && (
@@ -285,6 +313,24 @@ export function TiendaCliente({
           </div>
         </SeccionTienda>
         </div>
+      )}
+
+      {/* 👁 Visto recientemente — historial local (como Mercado Libre). */}
+      {!hayFiltro && vistosProductos.length > 0 && (
+        <SeccionTienda titulo="👁 Visto recientemente">
+          <div className="-mx-3.5 flex gap-3 overflow-x-auto px-3.5 pb-1 md:-mx-4 md:px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {vistosProductos.map((p) => (
+              <button key={p.id} type="button" onClick={() => setAbierto(p)}
+                className="group flex w-[150px] shrink-0 flex-col overflow-hidden rounded-[16px] border border-[#ECEFF8] bg-white text-left shadow-[0_2px_10px_rgba(15,27,61,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(15,27,61,0.12)] active:scale-[0.98]">
+                <Foto p={p} className="aspect-square" />
+                <div className="flex flex-col gap-0.5 px-3 py-2.5">
+                  <span className="line-clamp-2 text-[13px] font-bold leading-tight text-tinta">{p.nombre}</span>
+                  <Precio p={p} />
+                </div>
+              </button>
+            ))}
+          </div>
+        </SeccionTienda>
       )}
 
       {/* ❤️ Tus favoritos — estante personal (sección en tarjeta, sin filtro). */}
@@ -519,6 +565,8 @@ export function TiendaCliente({
             open={perfilAbierto}
             onOpenChange={setPerfilAbierto}
             scope={token ?? "publico"}
+            titulo={perfilTitulo}
+            compras={compras}
             favoritos={favProductos.map((p) => ({ id: p.id, nombre: p.nombre, foto: p.fotos[0] ?? null, precio: p.precio }))}
             onVerFavoritos={() => { setCat(null); setMarca(null); setSoloFav(true); }}
             onQuitarFav={toggleFav}
@@ -586,13 +634,20 @@ function emojiDe(nombre: string): string {
   return "🛍️";
 }
 
-/** Tile de categoría (ícono + nombre + conteo), estilo Mercado Libre. */
-function CategoriaTile({ emoji, nombre, n, activo, onClick }: { emoji: string; nombre: string; n: number; activo: boolean; onClick: () => void }) {
+/** Tile de categoría con FOTO de producto en círculo (estilo Mercado Libre). */
+function CategoriaTile({ emoji, foto = null, nombre, n, activo, onClick }: { emoji: string; foto?: string | null; nombre: string; n: number; activo: boolean; onClick: () => void }) {
   return (
     <button type="button" onClick={onClick}
-      className={`flex min-w-[74px] shrink-0 flex-col items-center gap-1 rounded-[14px] border px-2.5 py-2.5 transition active:scale-95 ${activo ? "border-[#1E47C8] bg-[#EEF3FF]" : "border-[#ECEFF8] bg-white hover:border-[#D5DEF3] hover:shadow-[0_4px_14px_rgba(15,27,61,0.08)]"}`}>
-      <span className="text-[22px] leading-none" aria-hidden>{emoji}</span>
-      <span className={`max-w-[74px] truncate text-center text-[12px] font-bold leading-tight ${activo ? "text-[#1E47C8]" : "text-cuerpo"}`}>{nombre}</span>
+      className={`flex w-[82px] shrink-0 flex-col items-center gap-1.5 rounded-[16px] border px-1.5 py-2.5 transition active:scale-95 ${activo ? "border-[#1E47C8] bg-[#EEF3FF]" : "border-[#ECEFF8] bg-white hover:border-[#D5DEF3] hover:shadow-[0_4px_14px_rgba(15,27,61,0.08)]"}`}>
+      <span className={`grid h-14 w-14 place-items-center overflow-hidden rounded-full ring-1 ${activo ? "bg-white ring-[#C7D6F7]" : "bg-[#F4F6FC] ring-[#ECEFF8]"}`}>
+        {foto ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={foto} alt="" loading="lazy" className="h-full w-full object-contain p-1.5" />
+        ) : (
+          <span className="text-[24px] leading-none" aria-hidden>{emoji}</span>
+        )}
+      </span>
+      <span className={`max-w-[80px] truncate text-center text-[12px] font-bold leading-tight ${activo ? "text-[#1E47C8]" : "text-cuerpo"}`}>{nombre}</span>
       <span className="text-[10px] font-semibold text-gris tabular-nums">{n}</span>
     </button>
   );

@@ -758,3 +758,57 @@ export async function crearVentaSegura(
   reportarError("crearVentaSegura", rpc.error, { solicitudId: input.solicitudId, clienteId: input.clienteId });
   return { ok: false, error: "No se pudo crear la venta. Probá de nuevo." };
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+//  Compras de la TIENDA de un cliente (créditos con origen='tienda', 0101).
+//  Para el hub "Mi tienda" del cliente logueado por token: sus compras reales
+//  con saldo y progreso. Display-only; degrada a [] si algo falla (no es plata
+//  crítica, es una comodidad del perfil).
+// ─────────────────────────────────────────────────────────────────────────
+export type CompraTiendaCliente = {
+  id: string;
+  nombre: string;
+  foto: string | null;
+  total: number;
+  saldo: number;
+  cuota: number;
+  cuotas: number;
+  estado: "activa" | "saldada" | "cancelada";
+  fechaIso: string;
+};
+
+export async function getComprasTiendaDeCliente(
+  db: SupabaseClient,
+  clienteId: string,
+): Promise<CompraTiendaCliente[]> {
+  try {
+    const { data, error } = await db
+      .from("prestamos")
+      .select("id, producto_nombre, cuota_diaria, total_dias, pagado_acum, estado, fecha_inicio")
+      .eq("cliente_id", clienteId)
+      .eq("origen", "tienda")
+      .order("fecha_inicio", { ascending: false });
+    if (error) throw error;
+    return (data ?? []).map((r) => {
+      const cuota = Math.round(Number(r.cuota_diaria) || 0);
+      const cuotas = Number(r.total_dias) || 0;
+      const total = cuota * cuotas;
+      const pagado = Math.round(Number(r.pagado_acum) || 0);
+      const saldo = Math.max(0, total - pagado);
+      const est = r.estado as string;
+      const estado: CompraTiendaCliente["estado"] =
+        est === "activo" ? "activa" : est === "finalizado" ? "saldada" : "cancelada";
+      return {
+        id: r.id as string,
+        nombre: (r.producto_nombre as string) || "Compra de la tienda",
+        foto: null,
+        total, saldo, cuota, cuotas, estado,
+        fechaIso: r.fecha_inicio as string,
+      };
+    });
+  } catch (e) {
+    // origen sin 0101, u otro fallo: sin compras (comodidad, no rompe la tienda).
+    if (!tablaFaltante(e) && !columnaFaltante(e)) reportarError("getComprasTiendaDeCliente", e, { clienteId });
+    return [];
+  }
+}
