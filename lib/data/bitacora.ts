@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { tablaFaltante } from "@/lib/data/errores";
 import { analizarSospecha, type EventoBitacora, type SenalesSospecha } from "@/lib/sospecha";
 import { alcanceDelActor } from "./alcance";
+import { traerTodo } from "./paginado";
 
 export interface EntradaBitacora {
   actorId: string;
@@ -81,15 +82,16 @@ export async function getResumenBitacoraDia(
     // El supervisor ve SOLO la bitácora de sus cobradores; el admin, todos.
     const alcance = await alcanceDelActor();
     if (!alcance.global && alcance.cobradorIds.length === 0) return [];
-    let query = db
-      .from("bitacora")
-      .select("*")
-      .eq("fecha_uy", fechaUY)
-      .order("server_ts", { ascending: true });
-    if (!alcance.global) query = query.in("actor_id", alcance.cobradorIds);
-    const { data, error } = await query;
-    if (error) throw error;
-    const filas = data ?? [];
+    // PAGINA por `id` (no por server_ts): un día con 52 cobradores supera las 1000
+    // filas de PostgREST y truncaba la TARDE en silencio → cobradores desaparecían
+    // del panel y el score de sospecha salía MAL (subestimado). Cada actor se
+    // reordena por serverTs abajo para el display cronológico (analizarSospecha
+    // re-ordena internamente, así que el score no depende del orden de entrada).
+    const filas = await traerTodo<Record<string, unknown>>((desde, hasta) => {
+      let q = db.from("bitacora").select("*").eq("fecha_uy", fechaUY);
+      if (!alcance.global) q = q.in("actor_id", alcance.cobradorIds);
+      return q.order("id", { ascending: true }).range(desde, hasta);
+    });
 
     // Nombres de clientes (para mostrar a quién).
     const cliIds = [...new Set(filas.map((r) => r.cliente_id).filter((x): x is string => !!x))];
@@ -121,6 +123,8 @@ export async function getResumenBitacoraDia(
       arr.push(fila);
       porActor.set(fila.actorId, arr);
     }
+    // Display cronológico por cobrador (traemos paginado por id, no por hora).
+    for (const arr of porActor.values()) arr.sort((a, b) => a.serverTs.localeCompare(b.serverTs));
 
     const resumen: ResumenCobradorDia[] = [...porActor.entries()].map(([actorId, eventos]) => ({
       actorId,

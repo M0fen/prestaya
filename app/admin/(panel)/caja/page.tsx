@@ -86,12 +86,16 @@ export default async function CajaPage({
           </span>
         </div>
         <div className="flex gap-2 print:hidden">
-          <a
-            href={csvHref}
-            className="inline-flex items-center gap-1.5 rounded-full border border-borde bg-tarjeta px-4 py-2 text-[13px] font-bold text-azul-claro hover:bg-suave"
-          >
-            ⬇️ Exportar CSV
-          </a>
+          {/* El endpoint /api/reportes/caja es admin-only → el supervisor recibía 403
+              (botón muerto). Se muestra solo al admin. */}
+          {actor?.rol === "admin" && (
+            <a
+              href={csvHref}
+              className="inline-flex items-center gap-1.5 rounded-full border border-borde bg-tarjeta px-4 py-2 text-[13px] font-bold text-azul-claro hover:bg-suave"
+            >
+              ⬇️ Exportar CSV
+            </a>
+          )}
           <BotonImprimir />
         </div>
       </div>
@@ -178,9 +182,16 @@ export default async function CajaPage({
       {/* Efectivo a rendir por cobrador */}
       {r.porCobrador.length > 0 && (
         <section className="rounded-[16px] border border-borde bg-tarjeta p-4">
-          <span className="text-[13px] font-bold text-tinta">
-            {esHoy ? "Efectivo a rendir hoy" : "Recaudado por cobrador"}
-          </span>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[13px] font-bold text-tinta">
+              {esHoy ? "Recaudado hoy por cobrador" : "Recaudado por cobrador"}
+            </span>
+            {esHoy && (
+              <span className="text-[11px] leading-[1.4] font-medium text-tenue-2">
+                Bruto cobrado. El efectivo NETO a rendir (base + recaudado − gastos) está en "Cierre por zona".
+              </span>
+            )}
+          </div>
           <ul className="mt-2 flex flex-col divide-y divide-linea">
             {r.porCobrador.map((c) => (
               <li key={c.nombre} className="flex items-center justify-between py-2">
