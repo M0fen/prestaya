@@ -243,17 +243,37 @@ export function RegistroCobro({
 
   const noPago = (m: MotivoNoPago) => {
     if (!tomarTurno()) return;
-    const { offline, persistido } = registrar("no_pago", { monto: null, motivo: m });
+    const { offline, op, persistido } = registrar("no_pago", { monto: null, motivo: m });
     vibrar(12);
     setMotivos(false);
     if (!persistido) {
       avisarNoGuardado();
     } else {
-      flash({
-        texto: `No pago registrado${offline ? " (offline)" : ""}`,
-        tono: "info",
-      });
+      // Igual que el cobro: la visita queda retenida el hold (9s) → se puede DESHACER
+      // un mis-tap de motivo/cliente antes de que llegue al libro (contamina el score
+      // de campo / bitácora). Simetría con el cobro, sin fricción real.
+      const hasta = op.holdHasta ?? Date.now() + HOLD_MS;
+      flash(
+        {
+          texto: `No pago registrado${offline ? " (offline)" : ""}`,
+          tono: "info",
+          acciones: { deshacer: () => deshacerVisita(op.id, hasta) },
+        },
+        HOLD_MS,
+      );
     }
+  };
+
+  // Deshacer una VISITA (no_pago): saca la op de la cola dentro del hold, igual que
+  // deshacerCobro pero sin comprobante/modal. Fuera de la ventana ya no se puede.
+  const deshacerVisita = (opId: string, hasta: number) => {
+    if (Date.now() >= hasta || !pendientes().some((o) => o.id === opId)) {
+      flash({ texto: "El registro ya se sincronizó", tono: "info" });
+      return;
+    }
+    quitar(opId);
+    vibrar(30);
+    flash({ texto: "No pago deshecho", tono: "info" });
   };
 
   // Deshacer: saca la op de la cola ANTES de que sincronice (nunca llegó al
@@ -317,7 +337,7 @@ export function RegistroCobro({
             entendía que había desplegado el panel de abono). */}
         <button
           type="button"
-          disabled={ocupado}
+          disabled={ocupado || cobroReciente}
           onClick={() => {
             setAbono((v) => !v);
             setMotivos(false);
@@ -332,7 +352,7 @@ export function RegistroCobro({
         </button>
         <button
           type="button"
-          disabled={ocupado}
+          disabled={ocupado || cobroReciente}
           onClick={() => {
             setMotivos((v) => !v);
             setAbono(false);
@@ -370,7 +390,7 @@ export function RegistroCobro({
             />
             <button
               type="button"
-              disabled={ocupado || !abonoValido}
+              disabled={ocupado || cobroReciente || !abonoValido}
               onClick={() => cobrar(montoAbonoNum)}
               className="min-h-11 rounded-full bg-[#1FA971] px-4 py-3 text-[13px] font-extrabold text-white transition-transform active:scale-[0.98] disabled:opacity-40"
             >
@@ -403,7 +423,7 @@ export function RegistroCobro({
             <button
               key={m.id}
               type="button"
-              disabled={ocupado}
+              disabled={ocupado || cobroReciente}
               onClick={() => noPago(m.id)}
               className="flex min-h-11 items-center gap-2 rounded-[11px] bg-[#F4F6FB] px-3 py-3 text-[13px] font-semibold text-tinta active:scale-95 disabled:opacity-60"
               style={{ transition: "transform .1s" }}

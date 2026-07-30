@@ -8,11 +8,13 @@ import type { ResumenCierreZonas } from "@/lib/data/cierreZona";
 import type { EstadoCobradorCierre } from "@/lib/cierreZona";
 import { BotonCerrarZona } from "./BotonCerrarZona";
 
+// Tokens tema-aware (globals.css): en oscuro flipean a superficie teñida + texto
+// claro legible. Antes eran hex fijos → verde/rojo ilegible sobre fondo oscuro.
 const CHIP: Record<EstadoCobradorCierre, { bg: string; fg: string }> = {
-  cuadra: { bg: "#E4F5EC", fg: "#157A50" },
-  faltante: { bg: "#FBE4E2", fg: "#C0392B" },
-  sobrante: { bg: "#FDF3E2", fg: "#B9770E" },
-  pendiente: { bg: "#EEF1F8", fg: "#6B7494" },
+  cuadra: { bg: "var(--color-verde-suave)", fg: "var(--color-verde-osc)" },
+  faltante: { bg: "var(--color-rojo-suave)", fg: "var(--color-rojo-osc)" },
+  sobrante: { bg: "var(--color-ambar-suave)", fg: "var(--color-ambar-osc)" },
+  pendiente: { bg: "var(--color-suave)", fg: "var(--color-gris)" },
 };
 
 export function CierrePorZona({
@@ -29,7 +31,7 @@ export function CierrePorZona({
         <span className="text-[13px] font-bold text-tinta">Cierre por zona</span>
         <p className="mt-1.5 text-[12.5px] font-medium text-gris">
           Para habilitar el cierre de jornada, corré la migración{" "}
-          <code className="rounded bg-[#F0F3FA] px-1 font-mono text-[11.5px]">0013_rendiciones.sql</code>.
+          <code className="rounded bg-suave px-1 font-mono text-[11.5px]">0013_rendiciones.sql</code>.
         </p>
       </section>
     );
@@ -48,12 +50,12 @@ export function CierrePorZona({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-[13px] font-bold text-tinta">{soloSinZona ? "Cierre del día" : "Cierre por zona"}</span>
         <div className="flex flex-wrap items-center gap-1.5">
-          <TotalChip label="Entregado" valor={consolidado.totalEntregado} tono="#157A50" />
+          <TotalChip label="Entregado" valor={consolidado.totalEntregado} kind="verde" />
           {consolidado.totalFaltante > 0 && (
-            <TotalChip label="Faltante" valor={consolidado.totalFaltante} tono="#C0392B" />
+            <TotalChip label="Faltante" valor={consolidado.totalFaltante} kind="rojo" />
           )}
           {consolidado.porRendir > 0 && (
-            <TotalChip label="Por rendir" valor={consolidado.porRendir} tono="#B9770E" />
+            <TotalChip label="Por rendir" valor={consolidado.porRendir} kind="ambar" />
           )}
         </div>
       </div>
@@ -75,11 +77,11 @@ export function CierrePorZona({
               </span>
             </div>
             {z.confirmado ? (
-              <span className="rounded-full bg-[#E4F5EC] px-2.5 py-1 text-[11.5px] font-bold text-[#157A50]">
+              <span className="rounded-full bg-verde-suave px-2.5 py-1 text-[11.5px] font-bold text-verde-osc">
                 Cerrada ✓ {z.confirmado.supervisorNombre ? `· ${z.confirmado.supervisorNombre}` : ""}
               </span>
             ) : z.totalFaltante > 0 ? (
-              <span className="rounded-full bg-[#FBE4E2] px-2.5 py-1 text-[11.5px] font-bold text-[#C0392B]">
+              <span className="rounded-full bg-rojo-suave px-2.5 py-1 text-[11.5px] font-bold text-rojo-osc">
                 Faltante {UYU(z.totalFaltante)}
               </span>
             ) : null}
@@ -88,11 +90,11 @@ export function CierrePorZona({
           {/* Totales de la zona */}
           <div className="mt-2.5 grid grid-cols-3 gap-2">
             <Mini label="Esperado" valor={z.totalEsperado} />
-            <Mini label="Entregado" valor={z.totalEntregado} tono="#157A50" />
+            <Mini label="Entregado" valor={z.totalEntregado} tono="var(--color-verde-osc)" />
             <Mini
               label={z.porRendir > 0 ? "Por rendir" : "Diferencia"}
               valor={z.porRendir > 0 ? z.porRendir : z.totalSobrante - z.totalFaltante}
-              tono={z.porRendir > 0 ? "#B9770E" : z.totalFaltante > 0 ? "#C0392B" : "#157A50"}
+              tono={z.porRendir > 0 ? "var(--color-ambar-osc)" : z.totalFaltante > 0 ? "var(--color-rojo-osc)" : "var(--color-verde-osc)"}
             />
           </div>
 
@@ -124,7 +126,7 @@ export function CierrePorZona({
                     </span>
                   </div>
                   {postCierre > 1 && (
-                    <span className="rounded-[8px] bg-[#FBF1DC] px-2 py-1 text-[11px] font-bold text-[#9A6A0E]">
+                    <span className="rounded-[8px] bg-ambar-suave px-2 py-1 text-[11px] font-bold text-ambar-osc">
                       ⚠️ Cobró {UYU(postCierre)} DESPUÉS de cerrar — esa plata no entró a esta rendición.
                     </span>
                   )}
@@ -148,11 +150,11 @@ export function CierrePorZona({
         <p className="text-[11px] leading-[1.5] font-medium text-tenue-2">
           {consolidado.totalFaltante > 0 && (
             <>
-              Los <b className="text-[#C0392B]">faltantes</b> bajan el score de confianza del cobrador y quedan en su
+              Los <b className="text-rojo-osc">faltantes</b> bajan el score de confianza del cobrador y quedan en su
               cuenta corriente.{" "}
             </>
           )}
-          {consolidado.porRendir > 0 && <>Lo <b className="text-[#B9770E]">por rendir</b> es float aún en la calle. </>}
+          {consolidado.porRendir > 0 && <>Lo <b className="text-ambar-osc">por rendir</b> es float aún en la calle. </>}
           Actuá desde el <Link href="/admin/alertas" className="font-bold text-azul">Centro de alertas</Link>.
         </p>
       )}
@@ -160,11 +162,11 @@ export function CierrePorZona({
   );
 }
 
-function TotalChip({ label, valor, tono }: { label: string; valor: number; tono: string }) {
+function TotalChip({ label, valor, kind }: { label: string; valor: number; kind: "verde" | "rojo" | "ambar" }) {
   return (
     <span
       className="rounded-full px-2.5 py-0.5 text-[11.5px] font-bold"
-      style={{ background: `${tono}18`, color: tono }}
+      style={{ background: `var(--color-${kind}-suave)`, color: `var(--color-${kind}-osc)` }}
     >
       {label} {UYU(valor)}
     </span>
