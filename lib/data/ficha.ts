@@ -90,7 +90,7 @@ export async function getFichaCliente(
     return {
       id: pr.id,
       saldo: r.falta,
-      deudaVencida: r.montoParaAlDia,
+      deudaVencida: r.montoVencido, // mora real: EXCLUYE la cuota de hoy (regla de oro)
       diasAtraso: r.dias.filter((d) => d.estado === "atrasado").length,
       pagados: r.dias.filter((d) => d.estado === "pagado").length,
       totalDias: pr.total_dias,

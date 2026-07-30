@@ -222,9 +222,15 @@ export function calcularEstadosCarton(
   // Monto para ponerse al día HOY: lo que falta en cada día ya vencido o de
   // hoy (excluye los futuros, que aún no se deben). Al cubrirlo, queda al día.
   let montoParaAlDia = 0;
+  // Deuda VENCIDA (mora real): igual que la anterior pero EXCLUYE la cuota de HOY
+  // (regla de oro: hoy jamás está vencido). Es lo que debe mostrarse como "deuda
+  // vencida" en admin/ficha/asesor — no incluir hoy, que aún no se debe.
+  let montoVencido = 0;
   for (const d of dias) {
     if (d.estado !== "futuro") {
-      montoParaAlDia += Math.max(0, cuota - d.montoPagado);
+      const faltaDia = Math.max(0, cuota - d.montoPagado);
+      montoParaAlDia += faltaDia;
+      if (!d.esHoy) montoVencido += faltaDia;
     }
   }
 
@@ -273,6 +279,7 @@ export function calcularEstadosCarton(
     diaEnCurso,
     hayPendiente,
     montoParaAlDia,
+    montoVencido,
     fechaFin,
     mejorRacha,
     proxima,

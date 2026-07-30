@@ -191,6 +191,7 @@ export function calcularAlertaMora({
       rachaAtraso,
       diasSinPagar,
       deudaVencida,
+      montoVencido: r.montoVencido, // deuda vencida REAL (sin hoy), para DISPLAY/recargo
       cumplimientoPct: Math.round(cumplimiento * 100),
       cumplimientoRecientePct: Math.round(cumplimientoReciente * 100),
     },

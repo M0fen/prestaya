@@ -28,8 +28,10 @@ export interface SenalesMora {
   rachaAtraso: number;
   /** Días calendario desde el último abono (recencia). */
   diasSinPagar: number;
-  /** $ para ponerse al día hoy (deuda vencida). */
+  /** $ para ponerse al día hoy — INCLUYE la cuota de hoy (lente de riesgo, no display). */
   deudaVencida: number;
+  /** Deuda VENCIDA real: EXCLUYE la cuota de hoy (regla de oro). Para DISPLAY y recargo. */
+  montoVencido: number;
   /** % de lo exigible pagado en todo el crédito (0..100). */
   cumplimientoPct: number;
   /** % de lo exigible pagado en la ventana reciente (0..100). */

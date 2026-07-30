@@ -275,7 +275,7 @@ export default async function MoraPage({
                     {c.alerta.accionSugerida}
                   </span>
                   <span className="text-[12px] font-medium text-gris">
-                    Deuda vencida: {UYU(s.deudaVencida)}
+                    Deuda vencida: {UYU(s.montoVencido)}
                     {conMora && c.recargoMora > 0 && (
                       <span className="font-bold text-ambar-osc"> · +{UYU(c.recargoMora)} mora</span>
                     )}
@@ -283,7 +283,7 @@ export default async function MoraPage({
                 </div>
                 <div className="flex flex-shrink-0 flex-wrap justify-end gap-2">
                   {/* Registrar gestión / compromiso de pago (mini-CRM de cobranza). */}
-                  <GestionCobranzaBoton clienteId={c.clienteId} nombre={c.nombre} montoSugerido={s.deudaVencida} />
+                  <GestionCobranzaBoton clienteId={c.clienteId} nombre={c.nombre} montoSugerido={s.montoVencido} />
                   {/* Dejar un mensaje en el chat (al hilo del cobrador que la tiene
                       asignada) para mandarlo a cobrar. No se llama al cliente. */}
                   <Link

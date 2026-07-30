@@ -238,7 +238,7 @@ export async function buscarClientePerfil(
       const pref = activos.length > 1 ? `  · Crédito ${i + 1}:` : "- Crédito activo:";
       L.push(
         `${pref} cuota ${UYU(prestamo.cuota_diaria)} × ${prestamo.total_dias} días. Pagó ${pagados}/${prestamo.total_dias}. ` +
-          `Saldo ${UYU(r.falta)}, deuda vencida ${UYU(r.montoParaAlDia)}, días atrasados ${atrasados}.` +
+          `Saldo ${UYU(r.falta)}, deuda vencida ${UYU(r.montoVencido)}, días atrasados ${atrasados}.` +
           (r.proxima ? ` Próxima: día ${r.proxima.dia} (${r.proxima.fecha}).` : ""),
       );
     }
@@ -339,7 +339,7 @@ export async function proyeccionCajaTexto(
     // Escenario "cobra la cuota cada día hábil": aporta cuota×(días de cobro), tope el saldo.
     totalHorizonte += Math.min(r.falta, cuota * diasCobro);
     ingresoDiario += cuota;
-    vencidoYa += r.montoParaAlDia;
+    vencidoYa += r.montoVencido; // mora real, sin la cuota de hoy
   }
 
   return [

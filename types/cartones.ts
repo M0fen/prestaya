@@ -59,6 +59,11 @@ export interface ResultadoCarton {
    * falta en cada día ya vencido o de hoy. Si es 0, está al día.
    */
   montoParaAlDia: number;
+  /**
+   * Deuda VENCIDA (mora real): igual que montoParaAlDia pero EXCLUYE la cuota de
+   * hoy (hoy jamás está vencido). Es lo que debe mostrarse como "deuda vencida".
+   */
+  montoVencido: number;
   /** Fecha del último día del crédito, ISO "YYYY-MM-DD". */
   fechaFin: string;
   /** Racha más larga de días consecutivos pagados completos. */

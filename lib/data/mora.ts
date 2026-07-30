@@ -100,10 +100,12 @@ export async function getTableroMora(
 
     if (alerta.nivel === "sano") continue;
 
-    resumen.deudaEnRiesgo += alerta.senales.deudaVencida;
+    // Deuda VENCIDA real (sin la cuota de hoy) para el total y el recargo — evita
+    // inflar la mora y cobrar recargo sobre algo que aún no venció (anti-usura).
+    resumen.deudaEnRiesgo += alerta.senales.montoVencido;
     // Recargo por mora sugerido según la política (0 si está en off).
     const recargoMora = calcularRecargoMora(
-      alerta.senales.deudaVencida,
+      alerta.senales.montoVencido,
       alerta.senales.atrasosTotales,
       config,
     );

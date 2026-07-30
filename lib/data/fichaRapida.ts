@@ -62,7 +62,7 @@ export async function getFichaRapida(
       pagados: r.dias.filter((d) => d.estado === "pagado").length,
       atrasados: r.dias.filter((d) => d.estado === "atrasado").length,
       saldo: r.falta,
-      deudaVencida: r.montoParaAlDia,
+      deudaVencida: r.montoVencido, // mora real: EXCLUYE la cuota de hoy (regla de oro)
       progresoPct: r.progresoPct,
       proxima: r.proxima ? `día ${r.proxima.dia} · ${r.proxima.fecha}` : null,
     });

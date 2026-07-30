@@ -140,6 +140,24 @@ describe("calcularEstadosCarton — regla de oro: HOY nunca es atrasado", () => 
   });
 });
 
+describe("calcularEstadosCarton — montoVencido EXCLUYE hoy (mora precisa)", () => {
+  it("base: montoVencido cuenta solo lo vencido de verdad (sin la cuota de hoy)", () => {
+    const r = calcularEstadosCarton(prestamoBase, pagosBase, HOY);
+    // FIFO: 210.000 abonados llenan días 1–10 completos + día 11 parcial (10.000);
+    // hoy (día 12) queda sin pagar (20.000). montoParaAlDia = 10.000 (día 11) +
+    // 20.000 (hoy) = 30.000; montoVencido EXCLUYE hoy → solo el día 11 = 10.000.
+    expect(r.montoParaAlDia).toBe(30000);
+    expect(r.montoVencido).toBe(10000);
+  });
+  it("cliente que SOLO debe hoy → montoVencido 0 (nada venció aún)", () => {
+    // Pagó los días 1–11 completos (FIFO); hoy (día 12) sin pagar.
+    const pagos = Array.from({ length: 11 }, (_, i) => ({ dia_credito: i + 1, monto: 20000 }));
+    const r = calcularEstadosCarton(prestamoBase, pagos, HOY);
+    expect(r.montoVencido).toBe(0);
+    expect(r.montoParaAlDia).toBe(20000); // solo la cuota de hoy
+  });
+});
+
 describe("calcularEstadosCarton — normaliza 'hoy' con hora", () => {
   it("una fecha con hora se trata igual que medianoche", () => {
     const hoyConHora = new Date(2026, 5, 16, 17, 45, 30); // 16-jun 17:45 (día 12)

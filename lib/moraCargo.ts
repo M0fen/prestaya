@@ -29,6 +29,11 @@ export const CONFIG_MORA_DEFAULT: ConfigMora = {
   topePct: 30,
 };
 
+// Freno de usura DURO: el recargo jamás supera este % de la deuda vencida, sin
+// importar la config (aunque topePct=0 "sin tope" o el admin ponga un valor alto).
+// Protege al deudor de un recargo abusivo por mala configuración (ley 18.212).
+const TOPE_USURA_PCT = 30;
+
 /**
  * Recargo por mora para un crédito, dado su monto vencido y cuántas cuotas
  * lleva vencidas. Determinista; nunca negativo; respeta gracia y tope.
@@ -45,9 +50,12 @@ export function calcularRecargoMora(
   let recargo = cfg.modo === "fijo" ? cfg.valor * exceso : deudaVencida * (cfg.valor / 100);
   recargo = Math.round(recargo);
 
+  // Tope configurable (si el admin lo puso) …
   if (cfg.topePct > 0) {
     recargo = Math.min(recargo, Math.round(deudaVencida * (cfg.topePct / 100)));
   }
+  // … Y el freno de usura DURO, siempre (aunque topePct=0 o mal configurado).
+  recargo = Math.min(recargo, Math.round(deudaVencida * (TOPE_USURA_PCT / 100)));
   return Math.max(0, recargo);
 }
 
