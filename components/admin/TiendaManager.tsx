@@ -360,6 +360,17 @@ function EditorProducto({
             className={INPUT} />
         </Campo>
       </div>
+      {/* Aviso money-safe: financiar sin interés o en 1 cuota suele ser un olvido. */}
+      {f.precio > 0 && (f.interesPct === 0 || f.cuotas <= 1) && (
+        <div className="flex items-start gap-2 rounded-[10px] border border-[#F3D9A6] bg-[#FDF6E7] px-3 py-2 text-[11.5px] font-semibold text-[#8A5A00]">
+          <span aria-hidden>⚠️</span>
+          <span>
+            {f.cuotas <= 1
+              ? "Se paga en 1 sola cuota (sin financiación). ¿Es a propósito?"
+              : "Sin interés: no ganás nada por financiar este producto. Poné un % si querés cobrar por las cuotas."}
+          </span>
+        </div>
+      )}
       <Campo label="Descripción">
         <div className="flex flex-col gap-1.5">
           <textarea value={f.descripcion ?? ""} onChange={(e) => set("descripcion", e.target.value)} rows={3}
@@ -431,15 +442,15 @@ function EditorProducto({
       {/* Precios especiales (solo al editar un producto ya creado) */}
       {raw.id && (
         <>
-          <PrecioPorSegmento productoId={raw.id} zonas={zonas} />
-          <PrecioPorCliente productoId={raw.id} />
+          <PrecioPorSegmento productoId={raw.id} zonas={zonas} baseInteres={raw.interesPct} baseCuotas={raw.cuotas} />
+          <PrecioPorCliente productoId={raw.id} baseInteres={raw.interesPct} baseCuotas={raw.cuotas} />
         </>
       )}
     </div>
   );
 }
 
-function PrecioPorSegmento({ productoId, zonas }: { productoId: string; zonas: ZonaOpcion[] }) {
+function PrecioPorSegmento({ productoId, zonas, baseInteres, baseCuotas }: { productoId: string; zonas: ZonaOpcion[]; baseInteres: number; baseCuotas: number }) {
   const router = useRouter();
   const [lista, setLista] = useState<PrecioSegmento[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -469,7 +480,10 @@ function PrecioPorSegmento({ productoId, zonas }: { productoId: string; zonas: Z
       setError(null);
       const res = await fijarPrecioSegmento({
         productoId, tipo, valor, precio: Number(precio),
-        interesPct: Number(interes) || 0, cuotas: Number(cuotas) || 0,
+        // Si el admin deja interés/cuotas en BLANCO, hereda el del producto base
+        // (antes quedaba en 0% / 1 cuota → se regalaba el interés en silencio).
+        interesPct: interes.trim() === "" ? baseInteres : Number(interes) || 0,
+        cuotas: cuotas.trim() === "" ? baseCuotas : Number(cuotas) || 0,
       });
       if (res.ok) { setValor(""); setPrecio(""); setInteres(""); setCuotas(""); recargar(); router.refresh(); }
       else setError(res.error);
@@ -514,10 +528,11 @@ function PrecioPorSegmento({ productoId, zonas }: { productoId: string; zonas: Z
           </select>
         </label>
         <input type="number" inputMode="numeric" placeholder="Precio" value={precio} onChange={(e) => setPrecio(e.target.value)} className={`${INPUT} w-24`} />
-        <input type="number" inputMode="decimal" placeholder="% int." value={interes} onChange={(e) => setInteres(e.target.value)} className={`${INPUT} w-20`} />
-        <input type="number" inputMode="numeric" placeholder="Cuotas" value={cuotas} onChange={(e) => setCuotas(e.target.value)} className={`${INPUT} w-20`} />
+        <input type="number" inputMode="decimal" placeholder={`% (${baseInteres})`} value={interes} onChange={(e) => setInteres(e.target.value)} className={`${INPUT} w-20`} />
+        <input type="number" inputMode="numeric" placeholder={`Cuot. (${baseCuotas})`} value={cuotas} onChange={(e) => setCuotas(e.target.value)} className={`${INPUT} w-24`} />
         <button type="button" onClick={agregar} disabled={pend} className="rounded-full bg-[#2453DC] px-3 py-2.5 text-[12px] font-bold text-white">Fijar</button>
       </div>
+      <span className="text-[11px] font-medium text-gris">Si dejás <b>% interés</b> o <b>cuotas</b> en blanco, se usa el del producto base ({baseInteres}% · {baseCuotas} cuotas).</span>
       {tipo === "zona" && zonas.length === 0 && (
         <span className="text-[11px] font-medium text-gris">No hay zonas cargadas todavía. Creá zonas en Configuración → Zonas.</span>
       )}
@@ -526,7 +541,7 @@ function PrecioPorSegmento({ productoId, zonas }: { productoId: string; zonas: Z
   );
 }
 
-function PrecioPorCliente({ productoId }: { productoId: string }) {
+function PrecioPorCliente({ productoId, baseInteres, baseCuotas }: { productoId: string; baseInteres: number; baseCuotas: number }) {
   const router = useRouter();
   const [lista, setLista] = useState<PrecioCliente[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -562,7 +577,9 @@ function PrecioPorCliente({ productoId }: { productoId: string }) {
       setError(null);
       const res = await fijarPrecioCliente({
         productoId, clienteId: sel.id, precio: Number(precio),
-        interesPct: Number(interes) || 0, cuotas: Number(cuotas) || 0,
+        // Blanco → hereda del producto base (no regalar el interés en silencio).
+        interesPct: interes.trim() === "" ? baseInteres : Number(interes) || 0,
+        cuotas: cuotas.trim() === "" ? baseCuotas : Number(cuotas) || 0,
       });
       if (res.ok) { setSel(null); setQ(""); setPrecio(""); setInteres(""); setCuotas(""); setResultados([]); recargar(); router.refresh(); }
       else setError(res.error);
@@ -605,11 +622,12 @@ function PrecioPorCliente({ productoId }: { productoId: string }) {
           <div className="flex flex-wrap items-end gap-2">
             <span className="rounded-full bg-[#EEF3FF] px-2.5 py-1 text-[12px] font-bold text-azul">{sel.nombre}</span>
             <input type="number" inputMode="numeric" placeholder="Precio" value={precio} onChange={(e) => setPrecio(e.target.value)} className={`${INPUT} w-24`} />
-            <input type="number" inputMode="decimal" placeholder="% int." value={interes} onChange={(e) => setInteres(e.target.value)} className={`${INPUT} w-20`} />
-            <input type="number" inputMode="numeric" placeholder="Cuotas" value={cuotas} onChange={(e) => setCuotas(e.target.value)} className={`${INPUT} w-20`} />
+            <input type="number" inputMode="decimal" placeholder={`% (${baseInteres})`} value={interes} onChange={(e) => setInteres(e.target.value)} className={`${INPUT} w-20`} />
+            <input type="number" inputMode="numeric" placeholder={`Cuot. (${baseCuotas})`} value={cuotas} onChange={(e) => setCuotas(e.target.value)} className={`${INPUT} w-24`} />
             <button type="button" onClick={agregar} disabled={pend} className="rounded-full bg-[#2453DC] px-3 py-2.5 text-[12px] font-bold text-white">Fijar</button>
           </div>
         )}
+        {sel && <span className="text-[11px] font-medium text-gris">En blanco = usa el interés/cuotas del producto base ({baseInteres}% · {baseCuotas} cuotas).</span>}
         {error && <span className="text-[11.5px] font-semibold text-[#C0392B]">{error}</span>}
       </div>
     </section>

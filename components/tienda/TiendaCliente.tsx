@@ -14,7 +14,7 @@ import { comprarComoEmpleado } from "@/lib/acciones/comprasEmpleado";
 import { soloDigitos } from "@/lib/telefono";
 import { calcularPlanVenta } from "@/lib/venta";
 import type { ProductoParaCliente, FrecuenciaProducto } from "@/lib/data/tienda";
-import { GaleriaEmbla, Confeti, folioNuevo, guardarPedidoLocal, BarraTienda, MiTienda, SeccionTienda, AtajosTienda, BannerPromo, registrarVisto, leerVistos, type Atajo, type CompraTienda } from "./piezas";
+import { GaleriaEmbla, Confeti, folioNuevo, guardarPedidoLocal, BarraTienda, MiTienda, SeccionTienda, AtajosTienda, BannerPromo, useEsDesktop, claseDrawer, registrarVisto, leerVistos, type Atajo, type CompraTienda } from "./piezas";
 
 const FREC_LABEL: Record<FrecuenciaProducto, string> = {
   diario: "por día", semanal: "por semana", quincenal: "por quincena", mensual: "por mes",
@@ -167,6 +167,20 @@ export function TiendaCliente({
   useEffect(() => {
     if (abierto) { registrarVisto(scopeVistos, abierto.id); setVistos(leerVistos(scopeVistos)); }
   }, [abierto, scopeVistos]);
+
+  // ESTANTES por CATEGORÍA ("Lo mejor en X") — top 3 categorías, para dar sensación
+  // de catálogo grande (como los estantes temáticos de Mercado Libre).
+  const shelvesCategorias = useMemo(() => {
+    const curbeCats = new Set(["Para Ella", "Para Él", "Unisex", "Oro 18k"]);
+    return categorias
+      .filter((c) => c.n >= 2 && !curbeCats.has(c.nombre))
+      .sort((a, b) => b.n - a.n)
+      .slice(0, 3)
+      .map((c) => ({
+        nombre: c.nombre,
+        items: productos.filter((p) => (p.categoriaNombre ?? "Más productos") === c.nombre).slice(0, 12),
+      }));
+  }, [categorias, productos]);
 
   const filtrados = useMemo(() => {
     const t = norm(q.trim());
@@ -438,6 +452,28 @@ export function TiendaCliente({
         </div>
       )}
 
+      {/* Estantes por CATEGORÍA ("Lo mejor en X") — sensación de catálogo grande. */}
+      {!hayFiltro && shelvesCategorias.map((sh) => (
+        <SeccionTienda key={sh.nombre} titulo={`${emojiDe(sh.nombre)} ${sh.nombre}`}
+          verTodos={() => { setSoloFav(false); setMarca(null); setCat(sh.nombre); setTimeout(() => document.getElementById("sec-catalogo")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60); }}>
+          <div className="-mx-3.5 flex gap-3 overflow-x-auto px-3.5 pb-1 md:-mx-4 md:px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {sh.items.map((p) => (
+              <button key={p.id} type="button" onClick={() => setAbierto(p)}
+                className="group flex w-[150px] shrink-0 flex-col overflow-hidden rounded-[16px] border border-[#ECEFF8] bg-white text-left shadow-[0_2px_10px_rgba(15,27,61,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(15,27,61,0.12)] active:scale-[0.98]">
+                <div className="relative overflow-hidden">
+                  <Foto p={p} className="aspect-square" />
+                  {p.precioAnterior > p.precio && <span className="absolute left-2 top-2 rounded-full bg-[#D64545] px-2 py-0.5 text-[11px] font-black text-white shadow">−{Math.round((1 - p.precio / p.precioAnterior) * 100)}%</span>}
+                </div>
+                <div className="flex flex-col gap-0.5 px-3 py-2.5">
+                  <span className="line-clamp-2 text-[13px] font-bold leading-tight text-tinta">{p.nombre}</span>
+                  <Precio p={p} />
+                </div>
+              </button>
+            ))}
+          </div>
+        </SeccionTienda>
+      ))}
+
       {/* Filtros ACTIVOS (chips removibles) + "Ver todo". STICKY: el reset queda
           siempre a la vista aunque bajes por la grilla (como Zara/Uniqlo). */}
       {hayFiltro && (
@@ -638,6 +674,9 @@ function IconoCasa({ className = "" }: { className?: string }) {
 function IconoTarjeta({ className = "" }: { className?: string }) {
   return (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden><rect x="3" y="5.5" width="18" height="13" rx="2.5" /><path d="M3 9.5h18" /></svg>);
 }
+function IconoCompartir({ className = "" }: { className?: string }) {
+  return (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden><circle cx="18" cy="5" r="2.5" /><circle cx="6" cy="12" r="2.5" /><circle cx="18" cy="19" r="2.5" /><path d="m8.2 10.8 7.6-4.4M8.2 13.2l7.6 4.4" /></svg>);
+}
 
 /** Ícono de categoría (perfumería/joyería Curbe + electrodomésticos). */
 const EMOJI_CAT: Record<string, string> = { "Para Ella": "🌸", "Para Él": "🧔", Unisex: "✨", "Oro 18k": "💍" };
@@ -806,14 +845,21 @@ function CarritoSheet({
     });
 
   const idxPaso: 0 | 1 | 2 = estado === "ok" ? 2 : paso === "datos" ? 1 : 0;
+  const esDesktop = useEsDesktop();
 
   return (
-    <Drawer.Root open={open} onOpenChange={onOpenChange}>
+    <Drawer.Root open={open} onOpenChange={onOpenChange} direction={esDesktop ? "right" : "bottom"}>
       <Drawer.Portal>
         <Drawer.Overlay className="fixed inset-0 z-[74] bg-black/55" />
-        <Drawer.Content className="fixed inset-x-0 bottom-0 z-[75] mx-auto flex max-h-[92vh] w-full max-w-[460px] flex-col rounded-t-[24px] bg-white shadow-[0_-10px_60px_rgba(15,27,61,0.35)] outline-none">
+        <Drawer.Content className={claseDrawer(esDesktop, "bg-white")}>
           <Drawer.Title className="sr-only">Tu carrito y checkout</Drawer.Title>
-          <div className="mx-auto mt-2.5 h-1.5 w-11 shrink-0 rounded-full bg-[#E0E5F0]" aria-hidden />
+          {!esDesktop && <div className="mx-auto mt-2.5 h-1.5 w-11 shrink-0 rounded-full bg-[#E0E5F0]" aria-hidden />}
+          {esDesktop && (
+            <div className="flex shrink-0 items-center justify-between border-b border-[#EEF1F8] px-5 py-3.5">
+              <span className="text-[16px] font-extrabold text-tinta">🛒 Tu carrito</span>
+              <button type="button" onClick={() => onOpenChange(false)} aria-label="Cerrar" className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F1F4FB] text-[14px] font-black text-tinta active:scale-90">✕</button>
+            </div>
+          )}
 
           {estado === "ok" ? (
             /* ── Comprobante: pedido PENDIENTE DE APROBACIÓN ── */
@@ -1090,8 +1136,8 @@ function DetalleProducto({
               <h3 className="text-[22px] font-extrabold leading-tight text-tinta">{p.nombre}</h3>
               {!preview && (
                 <button type="button" onClick={compartir} aria-label="Compartir producto"
-                  className="mt-0.5 flex shrink-0 items-center gap-1 rounded-full border border-[#DCE3F4] bg-white px-2.5 py-1.5 text-[11.5px] font-bold text-azul transition hover:bg-suave active:scale-95">
-                  {compartido ? "¡Copiado!" : "🔗 Compartir"}
+                  className={`mt-0.5 flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-[12.5px] font-extrabold shadow-[0_2px_8px_rgba(30,71,200,0.18)] transition active:scale-95 ${compartido ? "bg-[#E4F5EC] text-[#157A50]" : "bg-[#1E47C8] text-white hover:bg-[#13308C]"}`}>
+                  {compartido ? "✓ ¡Copiado!" : <><IconoCompartir className="h-[15px] w-[15px]" /> Compartir</>}
                 </button>
               )}
             </div>

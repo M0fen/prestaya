@@ -13,6 +13,27 @@ import useEmblaCarousel from "embla-carousel-react";
 import { Drawer } from "vaul";
 import { UYU } from "@/lib/format";
 
+// ── ¿Estamos en desktop? (para que los drawers sean laterales en vez de bottom-sheet) ──
+export function useEsDesktop(): boolean {
+  const [d, setD] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    const on = () => setD(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  return d;
+}
+
+/** Clases del Drawer.Content según viewport: lateral derecho en desktop, bottom-sheet en mobile.
+ *  El fondo lo pone cada drawer (extra), porque varía (carrito blanco vs perfil gris). */
+export function claseDrawer(esDesktop: boolean, extra = ""): string {
+  return esDesktop
+    ? `fixed inset-y-0 right-0 z-[75] flex h-full w-full max-w-[440px] flex-col shadow-[-16px_0_60px_rgba(15,27,61,0.28)] outline-none ${extra}`
+    : `fixed inset-x-0 bottom-0 z-[75] mx-auto flex max-h-[92vh] w-full max-w-[460px] flex-col rounded-t-[24px] shadow-[0_-10px_60px_rgba(15,27,61,0.35)] outline-none ${extra}`;
+}
+
 // ── Galería del producto (Embla) ─────────────────────────────────────────────
 export function GaleriaEmbla({
   fotos, videoUrl, nombre, ahorroPct, esCurbe, onZoom, onClose,
@@ -373,14 +394,15 @@ export function MiTienda({ open, onOpenChange, scope, titulo = "Mi tienda", comp
   useEffect(() => { if (open) setPedidos(leerPedidosLocal(scope)); }, [open, scope]);
   const wa = soporte ? `https://wa.me/${soporte.replace(/[^\d]/g, "")}` : null;
   const debeTotal = compras.filter((c) => c.estado === "activa").reduce((a, c) => a + c.saldo, 0);
+  const esDesktop = useEsDesktop();
 
   return (
-    <Drawer.Root open={open} onOpenChange={onOpenChange}>
+    <Drawer.Root open={open} onOpenChange={onOpenChange} direction={esDesktop ? "right" : "bottom"}>
       <Drawer.Portal>
         <Drawer.Overlay className="fixed inset-0 z-[74] bg-black/55" />
-        <Drawer.Content className="fixed inset-x-0 bottom-0 z-[75] mx-auto flex max-h-[90vh] w-full max-w-[460px] flex-col rounded-t-[24px] bg-[#F6F8FD] shadow-[0_-10px_60px_rgba(15,27,61,0.35)] outline-none">
-          <Drawer.Title className="sr-only">Mi tienda</Drawer.Title>
-          <div className="mx-auto mt-2.5 h-1.5 w-11 shrink-0 rounded-full bg-[#E0E5F0]" aria-hidden />
+        <Drawer.Content className={claseDrawer(esDesktop, "bg-[#F6F8FD]")}>
+          <Drawer.Title className="sr-only">{titulo}</Drawer.Title>
+          {!esDesktop && <div className="mx-auto mt-2.5 h-1.5 w-11 shrink-0 rounded-full bg-[#E0E5F0]" aria-hidden />}
           {/* Encabezado del perfil */}
           <div className="flex items-center gap-3 px-5 pb-3 pt-2">
             <div className="grid h-12 w-12 place-items-center rounded-full bg-[linear-gradient(135deg,#2453DC,#13308C)] text-white shadow-[0_6px_16px_rgba(19,48,140,0.35)]"><IcoPersona /></div>

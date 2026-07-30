@@ -108,22 +108,32 @@ export default async function TiendaPublicaPage({
         {/* Hero = CARRUSEL de banners (Presta Ya general + Curbe publicitario). */}
         <HeroCarrusel slides={slidesHero} />
 
-        {/* Ticker de beneficios con movimiento sutil (como los e-commerce top). */}
-        <div className="tienda-ticker relative overflow-hidden rounded-full border border-[#E4EAF6] bg-white py-2.5 shadow-[0_2px_10px_rgba(15,27,61,0.05)]">
-          <div className="tienda-ticker-track flex w-max gap-8 whitespace-nowrap px-4 text-[12.5px] font-bold text-cuerpo">
+        {/* Marquesina de beneficios: chips con ícono en círculo de color + fade en los
+            bordes (se ve intencional, no un texto corriendo genérico). */}
+        <div className="tienda-ticker relative overflow-hidden rounded-[16px] border border-[#E4EAF6] bg-white py-2.5 shadow-[0_2px_10px_rgba(15,27,61,0.05)]">
+          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 bg-[linear-gradient(90deg,white,transparent)]" aria-hidden />
+          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-[linear-gradient(270deg,white,transparent)]" aria-hidden />
+          <div className="tienda-ticker-track flex w-max items-center gap-2.5 whitespace-nowrap px-4">
             {[0, 1].map((k) => (
-              <div key={k} className="flex gap-8" aria-hidden={k === 1}>
-                <span>🚚 Entrega a domicilio</span>
-                <span>💳 Cuotas cómodas</span>
-                <span>🛡️ Con garantía</span>
-                <span>🔒 Compra segura</span>
-                <span>🤝 Te lo lleva tu cobrador</span>
-                <span>💎 Perfumes y joyas por Curbe</span>
+              <div key={k} className="flex items-center gap-2.5" aria-hidden={k === 1}>
+                {[
+                  { i: "🚚", t: "Entrega a domicilio", c: "#EAF7F0" },
+                  { i: "💳", t: "Hasta 12 cuotas", c: "#EEF3FF" },
+                  { i: "🛡️", t: "Con garantía", c: "#F1F0FB" },
+                  { i: "🔒", t: "Compra segura", c: "#EAF7F0" },
+                  { i: "🤝", t: "Te lo lleva tu cobrador", c: "#EEF3FF" },
+                  { i: "💎", t: "Perfumes y joyas por Curbe", c: "#FBF3DE" },
+                ].map((b, idx) => (
+                  <div key={idx} className="flex shrink-0 items-center gap-2 rounded-full bg-[#F6F8FD] py-1 pl-1 pr-3.5">
+                    <span className="grid h-7 w-7 place-items-center rounded-full text-[14px]" style={{ background: b.c }}>{b.i}</span>
+                    <span className="text-[12.5px] font-bold text-cuerpo">{b.t}</span>
+                  </div>
+                ))}
               </div>
             ))}
           </div>
           <style>{`
-            .tienda-ticker-track{animation:tickerMove 28s linear infinite}
+            .tienda-ticker-track{animation:tickerMove 34s linear infinite}
             .tienda-ticker:hover .tienda-ticker-track{animation-play-state:paused}
             @keyframes tickerMove{to{transform:translateX(-50%)}}
             @media (prefers-reduced-motion: reduce){.tienda-ticker-track{animation:none}}
