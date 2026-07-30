@@ -264,6 +264,31 @@ async function overridesSegmento(
  * RESUELTOS por prioridad: individual > zona > calificación > base.
  * Corre con service_role (la vista del cliente valida el token antes).
  */
+/**
+ * Productos para la TIENDA PÚBLICA (/tienda, visible para cualquiera): activos, a
+ * precio BASE (sin cliente → sin overrides individuales/segmento), y SOLO los que
+ * NO tienen restricción de audiencia (segmentoDef null) — un producto targeteado a
+ * un segmento no se muestra en la vidriera pública.
+ */
+export async function getProductosPublicos(db: SupabaseClient): Promise<ProductoParaCliente[]> {
+  try {
+    const { data, error } = await db
+      .from("productos")
+      .select(COLS)
+      .eq("activo", true)
+      .order("orden", { ascending: true })
+      .order("nombre", { ascending: true });
+    if (error) throw error;
+    // Precio BASE (sin override → precioPersonalizado false). Solo productos públicos.
+    return (data ?? [])
+      .map(mapProducto)
+      .filter((p) => !p.segmentoDef)
+      .map((p) => ({ ...p, precioPersonalizado: false }));
+  } catch {
+    return [];
+  }
+}
+
 export async function getProductosParaCliente(
   db: SupabaseClient,
   cliente: ClientePrecio,

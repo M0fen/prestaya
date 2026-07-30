@@ -6,6 +6,8 @@
 import { useState, useMemo, useTransition } from "react";
 import { UYU } from "@/lib/format";
 import { registrarInteres } from "@/app/c/[token]/actions";
+import { registrarInteresPublico } from "@/lib/acciones/leadsPublicos";
+import { soloDigitos } from "@/lib/telefono";
 import { calcularPlanVenta } from "@/lib/venta";
 import type { ProductoParaCliente, FrecuenciaProducto } from "@/lib/data/tienda";
 
@@ -27,7 +29,7 @@ function financiacion(p: ProductoParaCliente) {
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
 export function TiendaCliente({
-  productos, token, conEncabezado = true, abrirId = null, preview = false,
+  productos, token, conEncabezado = true, abrirId = null, preview = false, modoPublico = false,
 }: {
   productos: ProductoParaCliente[];
   token: string | null;
@@ -36,6 +38,8 @@ export function TiendaCliente({
   abrirId?: string | null;
   /** Vista previa del admin: se ve igual pero "Me interesa" queda desactivado. */
   preview?: boolean;
+  /** Tienda PÚBLICA (/tienda): visitante sin token → "Me interesa" pide contacto. */
+  modoPublico?: boolean;
 }) {
   // Si venimos del banner del cartón (?producto=id), abrimos su detalle de una.
   const [abierto, setAbierto] = useState<ProductoParaCliente | null>(
@@ -233,6 +237,7 @@ export function TiendaCliente({
           p={abierto}
           token={token}
           preview={preview}
+          modoPublico={modoPublico}
           relacionados={relacionadosDe(abierto, productos)}
           onAbrirOtro={setAbierto}
           onClose={() => setAbierto(null)}
@@ -289,12 +294,13 @@ function Precio({ p }: { p: ProductoParaCliente }) {
 }
 
 function DetalleProducto({
-  p, token, onClose, preview = false, relacionados, onAbrirOtro,
+  p, token, onClose, preview = false, modoPublico = false, relacionados, onAbrirOtro,
 }: {
   p: ProductoParaCliente;
   token: string | null;
   onClose: () => void;
   preview?: boolean;
+  modoPublico?: boolean;
   relacionados: ProductoParaCliente[];
   onAbrirOtro: (p: ProductoParaCliente) => void;
 }) {
@@ -302,6 +308,9 @@ function DetalleProducto({
   const [pend, start] = useTransition();
   const [estado, setEstado] = useState<"idle" | "ok" | "error">("idle");
   const [msg, setMsg] = useState<string | null>(null);
+  const [nombre, setNombre] = useState("");
+  const [tel, setTel] = useState("");
+  const [form, setForm] = useState(false); // form de contacto abierto (modo público)
   const { total: totalCuotas, cuota } = financiacion(p);
   const medios = p.fotos.length > 0 ? p.fotos : [];
   const total = medios.length + (p.videoUrl ? 1 : 0);
@@ -310,11 +319,19 @@ function DetalleProducto({
   const ahorroPct = ahorro > 0 && p.precioAnterior > 0 ? Math.round((ahorro / p.precioAnterior) * 100) : 0;
   const sinStock = p.agotado || p.stock === 0;
 
-  const interes = () =>
+  const enviar = () =>
     start(async () => {
-      if (!token) { setEstado("error"); setMsg("Volvé a abrir tu enlace para pedirlo."); return; }
-      const r = await registrarInteres({ token, productoId: p.id });
-      if (r.ok) { setEstado("ok"); setMsg(null); } else { setEstado("error"); setMsg(r.error); }
+      setMsg(null);
+      if (modoPublico) {
+        if (nombre.trim().length < 2) { setEstado("error"); setMsg("Poné tu nombre."); return; }
+        if (soloDigitos(tel).length < 6) { setEstado("error"); setMsg("Poné un teléfono/WhatsApp válido."); return; }
+        const r = await registrarInteresPublico({ productoId: p.id, productoNombre: p.nombre, nombre: nombre.trim(), telefono: tel.trim() });
+        if (r.ok) setEstado("ok"); else { setEstado("error"); setMsg(r.error); }
+      } else {
+        if (!token) { setEstado("error"); setMsg("Volvé a abrir tu enlace para pedirlo."); return; }
+        const r = await registrarInteres({ token, productoId: p.id });
+        if (r.ok) setEstado("ok"); else { setEstado("error"); setMsg(r.error); }
+      }
     });
 
   return (
@@ -434,13 +451,26 @@ function DetalleProducto({
           ) : estado === "ok" ? (
             <div className="rounded-[14px] bg-[#E4F5EC] px-4 py-2.5 text-center">
               <p className="text-[15px] font-extrabold text-[#157A50]">¡Listo! 💚</p>
-              <p className="text-[12.5px] font-medium text-[#3E8E67]">Tu cobrador te va a contar cómo llevártelo.</p>
+              <p className="text-[12.5px] font-medium text-[#3E8E67]">{modoPublico ? "Te vamos a contactar para darte los detalles." : "Tu cobrador te va a contar cómo llevártelo."}</p>
             </div>
           ) : sinStock ? (
             <div className="w-full rounded-full bg-[#FBE4E2] px-5 py-3 text-center text-[15px] font-extrabold text-[#C0392B]">Sin stock por ahora 😔</div>
+          ) : modoPublico && form ? (
+            <div className="flex flex-col gap-2">
+              <input value={nombre} onChange={(e) => { setNombre(e.target.value); setMsg(null); }} placeholder="Tu nombre" maxLength={80}
+                className="rounded-[12px] border border-[#DCE3F4] px-3.5 py-2.5 text-[15px] text-tinta outline-none focus:border-azul" autoFocus />
+              <input value={tel} onChange={(e) => { setTel(e.target.value); setMsg(null); }} placeholder="Tu teléfono o WhatsApp" inputMode="tel" maxLength={30}
+                className="rounded-[12px] border border-[#DCE3F4] px-3.5 py-2.5 text-[15px] text-tinta outline-none focus:border-azul" />
+              <button type="button" onClick={enviar} disabled={pend}
+                className="w-full rounded-full bg-[#1E47C8] px-5 py-3.5 text-[16px] font-extrabold text-white shadow-[0_6px_18px_rgba(19,48,140,0.28)] active:scale-[0.99] disabled:opacity-60">
+                {pend ? "Enviando…" : "Enviar mi interés"}
+              </button>
+              {estado === "error" && msg && <p className="text-center text-[12px] font-semibold text-[#E06A6A]">{msg}</p>}
+              <p className="text-center text-[10.5px] font-medium text-tenue">Dejanos tu contacto y te escribimos con el precio y las cuotas. Sin compromiso.</p>
+            </div>
           ) : (
             <>
-              <button type="button" onClick={interes} disabled={pend}
+              <button type="button" onClick={() => (modoPublico ? setForm(true) : enviar())} disabled={pend}
                 className="w-full rounded-full bg-[#1E47C8] px-5 py-3.5 text-[16px] font-extrabold text-white shadow-[0_6px_18px_rgba(19,48,140,0.28)] active:scale-[0.99] disabled:opacity-60">
                 {pend ? "Enviando…" : "Me interesa · Quiero saber más"}
               </button>

@@ -21,6 +21,7 @@ export const BUCKETS = {
   asesor: { limite: 20, ventanaSeg: 60 }, // por usuario (cuesta $)
   buscar: { limite: 30, ventanaSeg: 60 }, // por usuario
   reportes: { limite: 10, ventanaSeg: 60 }, // por usuario
+  tienda_publica: { limite: 6, ventanaSeg: 300 }, // por IP (lead público anti-spam)
 } satisfies Record<string, ConfigBucket>;
 
 export type Bucket = keyof typeof BUCKETS;
