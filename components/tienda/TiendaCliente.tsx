@@ -163,7 +163,7 @@ export function TiendaCliente({
 
       {/* Buscador PROTAGONISTA (search-first, como los mejores e-commerce). */}
       <div className="relative">
-        <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[18px] text-gris">🔎</span>
+        <IconoLupa className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gris" />
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -313,15 +313,17 @@ export function TiendaCliente({
         </div>
       )}
 
-      {/* Filtros ACTIVOS (chips removibles) + "Ver todo" → volver a mostrar todo. */}
+      {/* Filtros ACTIVOS (chips removibles) + "Ver todo". STICKY: el reset queda
+          siempre a la vista aunque bajes por la grilla (como Zara/Uniqlo). */}
       {hayFiltro && (
-        <div className="flex flex-wrap items-center gap-1.5 px-1">
+        <div className="sticky top-0 z-20 -mx-[18px] flex flex-wrap items-center gap-1.5 border-b border-[#EEF1F8] bg-app/95 px-[18px] py-2 backdrop-blur md:mx-0 md:rounded-[12px] md:border md:px-3">
           <span className="text-[11.5px] font-bold text-gris">Filtrando:</span>
+          {soloFav && <FiltroChip label="❤️ Favoritos" onQuitar={() => setSoloFav(false)} />}
           {q.trim() && <FiltroChip label={`“${q.trim()}”`} onQuitar={() => setQ("")} />}
           {cat && <FiltroChip label={cat} onQuitar={() => setCat(null)} />}
           {marca && <FiltroChip label={marca} onQuitar={() => setMarca(null)} />}
           <button type="button" onClick={limpiarTodo}
-            className="ml-0.5 rounded-full bg-[#1E47C8] px-3 py-1 text-[11.5px] font-bold text-white active:scale-95">
+            className="ml-auto rounded-full bg-[#1E47C8] px-3 py-1 text-[11.5px] font-bold text-white active:scale-95">
             Ver todo
           </button>
         </div>
@@ -465,6 +467,23 @@ function Chip({ activo, onClick, children }: { activo: boolean; onClick: () => v
       {children}
     </button>
   );
+}
+
+// ── Íconos SVG de línea (premium; reemplazan emojis en la UI funcional) ──────
+function IconoLupa({ className = "" }: { className?: string }) {
+  return (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" className={className} aria-hidden><circle cx="11" cy="11" r="7" /><path d="m20 20-3.6-3.6" /></svg>);
+}
+function IconoCamion({ className = "" }: { className?: string }) {
+  return (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden><path d="M3 6.5h10.5v9.5H3z" /><path d="M13.5 9.5H17l3.5 3.5v3h-7z" /><circle cx="7" cy="18" r="1.7" /><circle cx="17.5" cy="18" r="1.7" /></svg>);
+}
+function IconoEscudo({ className = "" }: { className?: string }) {
+  return (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden><path d="M12 3l7 3v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6z" /><path d="m9 12 2 2 4-4" /></svg>);
+}
+function IconoCasa({ className = "" }: { className?: string }) {
+  return (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden><path d="M4 11 12 4l8 7" /><path d="M6 10v9h12v-9" /><path d="M10 19v-5h4v5" /></svg>);
+}
+function IconoTarjeta({ className = "" }: { className?: string }) {
+  return (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden><rect x="3" y="5.5" width="18" height="13" rx="2.5" /><path d="M3 9.5h18" /></svg>);
 }
 
 /** Ícono de categoría (perfumería/joyería Curbe + electrodomésticos). */
@@ -710,6 +729,16 @@ function DetalleProducto({
   const ahorroPct = ahorro > 0 && p.precioAnterior > 0 ? Math.round((ahorro / p.precioAnterior) * 100) : 0;
   const sinStock = p.agotado || p.stock === 0;
   const [compartido, setCompartido] = useState(false);
+  const [zoom, setZoom] = useState(false); // foto a pantalla completa
+  const touchX = useRef<number | null>(null);
+  // Swipe táctil en la foto principal (estándar PDP mobile).
+  const onTouchStart = (e: React.TouchEvent) => { touchX.current = e.touches[0].clientX; };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (touchX.current == null || total <= 1 || esVideo) return;
+    const dx = e.changedTouches[0].clientX - touchX.current;
+    touchX.current = null;
+    if (Math.abs(dx) > 40) setI((x) => (x + (dx < 0 ? 1 : -1) + total) % total);
+  };
 
   // Compartir la ficha (link + preview con foto y precio) — como Mercado Libre.
   const compartir = async () => {
@@ -762,16 +791,17 @@ function DetalleProducto({
     });
 
   return (
+    <>
     <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/55 p-0 sm:items-center sm:p-4" onClick={onClose}>
       <div className="flex max-h-[94vh] w-full max-w-[460px] flex-col overflow-hidden rounded-t-[26px] bg-white shadow-[0_24px_70px_rgba(15,27,61,0.4)] sm:rounded-[26px]" onClick={(e) => e.stopPropagation()}>
         {/* Galería con miniaturas */}
         <div className="shrink-0">
-          <div className="relative aspect-square w-full bg-[linear-gradient(180deg,#FBFCFF,#F1F4FB)]">
+          <div className="relative aspect-square w-full bg-[linear-gradient(180deg,#FBFCFF,#F1F4FB)]" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
             {esVideo ? (
               <video src={p.videoUrl!} controls playsInline className="h-full w-full bg-black object-contain" />
             ) : medios[i] ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={medios[i]} alt={p.nombre} className="h-full w-full object-contain p-3" />
+              <img src={medios[i]} alt={p.nombre} onClick={() => setZoom(true)} className="h-full w-full cursor-zoom-in object-contain p-3" />
             ) : (
               <div className="flex h-full items-center justify-center text-[56px]">🛍️</div>
             )}
@@ -838,7 +868,7 @@ function DetalleProducto({
             </div>
             {p.cuotas > 0 && cuota > 0 && (
               <div className="flex items-center gap-2 rounded-[12px] bg-white px-3 py-2">
-                <span className="text-[18px]">💳</span>
+                <IconoTarjeta className="h-[18px] w-[18px] text-[#1E47C8]" />
                 <span className="text-[14px] font-semibold text-cuerpo">
                   <b className="text-[#1E47C8]">{p.cuotas} cuotas</b> de <b className="tabular-nums text-[#1E47C8]">{UYU(cuota)}</b> {FREC_LABEL[p.frecuencia]}
                 </span>
@@ -851,9 +881,9 @@ function DetalleProducto({
 
           {/* Señales de confianza — le dan sensación de tienda seria. */}
           <div className="grid grid-cols-3 gap-2">
-            <TrustItem icon="🚚" label="Entrega a domicilio" />
-            <TrustItem icon="🛡️" label="Con garantía" />
-            <TrustItem icon="🤝" label="Te lo lleva tu cobrador" />
+            <TrustItem icon={<IconoCamion className="h-[22px] w-[22px]" />} label="Entrega a domicilio" />
+            <TrustItem icon={<IconoEscudo className="h-[22px] w-[22px]" />} label="Con garantía" />
+            <TrustItem icon={<IconoCasa className="h-[22px] w-[22px]" />} label="Te lo lleva tu cobrador" />
           </div>
 
           {p.descripcion && (
@@ -971,13 +1001,25 @@ function DetalleProducto({
         </div>
       </div>
     </div>
+    {/* Foto a PANTALLA COMPLETA (tap para cerrar) — zoom de la galería. */}
+    {zoom && medios[i] && !esVideo && (
+      <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/90 p-4" onClick={() => setZoom(false)} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={medios[i]} alt={p.nombre} className="max-h-full max-w-full object-contain" />
+        <button type="button" onClick={(e) => { e.stopPropagation(); setZoom(false); }} aria-label="Cerrar" className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-[16px] font-black text-tinta">✕</button>
+        {total > 1 && (
+          <span className="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full bg-white/85 px-3 py-1 text-[12px] font-bold text-tinta">{i + 1} / {total}</span>
+        )}
+      </div>
+    )}
+    </>
   );
 }
 
-function TrustItem({ icon, label }: { icon: string; label: string }) {
+function TrustItem({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
-    <div className="flex flex-col items-center gap-0.5 rounded-[12px] border border-[#ECEFF8] bg-[#FBFCFF] px-1.5 py-2 text-center">
-      <span className="text-[17px]" aria-hidden>{icon}</span>
+    <div className="flex flex-col items-center gap-1 rounded-[12px] border border-[#ECEFF8] bg-[#FBFCFF] px-1.5 py-2.5 text-center">
+      <span className="text-azul" aria-hidden>{icon}</span>
       <span className="text-[10.5px] font-bold leading-tight text-cuerpo">{label}</span>
     </div>
   );
