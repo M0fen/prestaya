@@ -302,6 +302,7 @@ export async function crearRenovacion(
       fecha_inicio: fechaInicio,
       estado: "activo",
       creado_por: creadoPor,
+      renovado_de: ant.id, // linaje (0116): el nuevo apunta al que renovó
     })
     .select("id")
     .single();

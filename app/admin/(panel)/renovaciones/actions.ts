@@ -70,13 +70,36 @@ export async function renovarCredito(input: {
   if (evalu.superaCap) {
     return { ok: false, error: evalu.motivo ?? `El crédito no puede superar ${UYU(RENOVACION_CAP_TOTAL)}.` };
   }
-  // El tope del tramo (20/15/10%) es DURO para cobrador/supervisor; el admin
-  // puede excederlo (autorización directa). No hay flujo de "solicitud" acá.
+  // El tope del tramo (20/15/10%) es DURO para cobrador/supervisor; el admin puede
+  // excederlo (alta directa). Si un no-admin lo excede, YA NO da error: crea una
+  // SOLICITUD que el admin aprueba/rechaza (Tanda 6, decisión de Carlos: supervisor
+  // pide → admin aprueba). La infraestructura (0029) ya existe; antes era rama muerta.
   if (evalu.excedePct && !admin) {
-    return {
-      ok: false,
-      error: `${evalu.motivo ?? "El aumento supera el máximo permitido."} Solo el administrador puede autorizarlo.`,
-    };
+    try {
+      await crearSolicitudDb(db, {
+        clienteId: input.clienteId,
+        prestamoAnteriorId: input.prestamoAnteriorId,
+        monto,
+        totalDias,
+        frecuencia: input.frecuencia,
+        solicitadoPor: usuario.id,
+        solicitadoPorNombre: usuario.nombre,
+      });
+      await registrarAuditoria(db, {
+        actorId: usuario.id,
+        actorNombre: usuario.nombre,
+        accion: "Solicitó renovación (sobre el tope)",
+        entidad: "cliente",
+        entidadId: input.clienteId,
+        detalle: `${UYU(monto)} × ${totalDias} (${input.frecuencia}) — espera aprobación del admin`,
+      });
+      revalidatePath("/admin/renovaciones");
+      return { ok: true, via: "solicitud" };
+    } catch (e) {
+      if ((e as { code?: string } | null)?.code === "23505")
+        return { ok: false, error: "Ya hay una solicitud pendiente para este crédito." };
+      return { ok: false, error: "No se pudo enviar la solicitud. Probá de nuevo." };
+    }
   }
 
   // Auto-aprobable, o admin excediendo el tope del tramo (alta directa).

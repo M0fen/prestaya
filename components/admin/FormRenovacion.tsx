@@ -68,7 +68,10 @@ export function FormRenovacion({
   // → alta directa. Sobre el tramo: solo el admin autoriza; el resto queda
   // BLOQUEADO. El cap de $100.000 bloquea a TODOS (incluido el admin).
   const evalu = valido ? evaluarRenovacion(anterior.monto, montoNum) : null;
-  const bloqueado = evalu ? evalu.superaCap || (evalu.excedePct && !esAdmin) : false;
+  // Solo el CAP de $100.000 bloquea a todos. El sobre-tope del tramo YA NO bloquea
+  // al supervisor: genera una SOLICITUD para el admin (Tanda 6).
+  const bloqueado = evalu ? evalu.superaCap : false;
+  const esSolicitud = evalu ? evalu.excedePct && !esAdmin : false;
   const iraDirecto = evalu ? evalu.autoAprobable || (esAdmin && !evalu.superaCap) : true;
 
   const enviar = async () => {
@@ -226,7 +229,7 @@ export function FormRenovacion({
               ? `${evalu.motivo} No se puede dar de alta.`
               : esAdmin
                 ? `${evalu.motivo} Como admin, lo autorizás directo.`
-                : `${evalu.motivo} Solo el administrador puede autorizarlo.`}
+                : `${evalu.motivo} Se envía al administrador para que lo apruebe.`}
         </p>
       )}
 
@@ -256,7 +259,7 @@ export function FormRenovacion({
             disabled={!valido || ocupado || bloqueado}
             className="flex-1 rounded-full bg-[#2453DC] px-4 py-2.5 text-[13px] font-bold text-white disabled:opacity-40"
           >
-            {bloqueado ? "No permitido" : "Revisar y dar de alta"}
+            {bloqueado ? "No permitido" : esSolicitud ? "Solicitar aprobación" : "Revisar y dar de alta"}
           </button>
         ) : (
           <button
@@ -265,13 +268,15 @@ export function FormRenovacion({
             disabled={ocupado}
             className="flex-1 rounded-full bg-[#1FA971] px-4 py-2.5 text-[13px] font-extrabold text-white disabled:opacity-60"
           >
-            {ocupado ? "Creando…" : `Confirmar alta · ${UYU(montoNum)}`}
+            {ocupado ? (esSolicitud ? "Enviando…" : "Creando…") : esSolicitud ? "Enviar solicitud al admin" : `Confirmar alta · ${UYU(montoNum)}`}
           </button>
         )}
       </div>
       {confirmar && !ocupado && (
         <p className="text-[11px] font-medium text-tenue-2">
-          Esto finaliza el crédito actual (saldado) y crea uno nuevo activo.
+          {esSolicitud
+            ? "Queda pendiente hasta que el administrador la apruebe (nada se crea todavía)."
+            : "Esto finaliza el crédito actual (saldado) y crea uno nuevo activo."}
         </p>
       )}
     </div>
