@@ -118,6 +118,49 @@ export async function crearPedidoCurbeDb(admin: SupabaseClient, p: PedidoCurbeIn
   }
 }
 
+export interface CurbeResumen {
+  productosCurbe: number;        // productos con proveedor='curbe'
+  productosActivos: number;      // …y visibles en la tienda
+  ventas: number;                // pedidos no cancelados (cada venta encola uno)
+  totalVendido: number;          // Σ monto de esas ventas (lo que pagan los clientes)
+  porDespachar: number;          // estado pendiente + pedido
+  despachados: number;
+  porEstado: Record<EstadoPedidoCurbe, number>;
+}
+
+/** KPIs de la integración Curbe para el hub del admin. Defensivo: sin 0112 → ceros. */
+export async function getCurbeResumen(db: SupabaseClient): Promise<CurbeResumen> {
+  const vacio: CurbeResumen = {
+    productosCurbe: 0, productosActivos: 0, ventas: 0, totalVendido: 0,
+    porDespachar: 0, despachados: 0,
+    porEstado: { pendiente: 0, pedido: 0, despachado: 0, cancelado: 0 },
+  };
+  try {
+    const [prodTot, prodAct, pedidos] = await Promise.all([
+      db.from("productos").select("*", { count: "exact", head: true }).eq("proveedor", "curbe"),
+      db.from("productos").select("*", { count: "exact", head: true }).eq("proveedor", "curbe").eq("activo", true),
+      db.from("pedidos_curbe").select("estado, monto").limit(5000),
+    ]);
+    const r = { ...vacio, porEstado: { pendiente: 0, pedido: 0, despachado: 0, cancelado: 0 } };
+    r.productosCurbe = prodTot.count ?? 0;
+    r.productosActivos = prodAct.count ?? 0;
+    for (const row of pedidos.data ?? []) {
+      const estado = (row.estado as EstadoPedidoCurbe) ?? "pendiente";
+      r.porEstado[estado] = (r.porEstado[estado] ?? 0) + 1;
+      if (estado !== "cancelado") {
+        r.ventas += 1;
+        r.totalVendido += Math.round(Number(row.monto) || 0);
+      }
+    }
+    r.porDespachar = r.porEstado.pendiente + r.porEstado.pedido;
+    r.despachados = r.porEstado.despachado;
+    return r;
+  } catch (e) {
+    if (tablaFaltante(e)) return vacio;
+    throw e;
+  }
+}
+
 /** Cambia el estado del pedido (service_role). Marca notificado_en al pasar a 'pedido'. */
 export async function actualizarPedidoCurbeDb(
   admin: SupabaseClient,

@@ -10,7 +10,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Calificacion } from "@/types/db";
 import type { DefinicionSegmento } from "@/lib/segmentos";
 import { clienteEnSegmento } from "@/lib/segmentos";
-import { tablaFaltante } from "./errores";
+import { tablaFaltante, columnaFaltante } from "./errores";
 import { reportarError } from "@/lib/observabilidad";
 
 export type EstadoSolicitud = "nueva" | "contactado" | "cerrada" | "descartada" | "convertida";
@@ -195,6 +195,19 @@ export async function getProductosAdmin(db: SupabaseClient): Promise<Producto[]>
     return (data ?? []).map(mapProducto);
   } catch (e) {
     if (tablaFaltante(e)) return [];
+    throw e;
+  }
+}
+
+/** Solo los productos que despacha Curbe (0112), para el hub de la integración. */
+export async function getProductosCurbe(db: SupabaseClient): Promise<Producto[]> {
+  try {
+    const { data, error } = await db.from("productos").select(COLS).eq("proveedor", "curbe")
+      .order("orden", { ascending: true }).order("nombre", { ascending: true });
+    if (error) throw error;
+    return (data ?? []).map(mapProducto);
+  } catch (e) {
+    if (tablaFaltante(e) || columnaFaltante(e)) return []; // sin 0112 → vacío
     throw e;
   }
 }

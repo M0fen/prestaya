@@ -11,7 +11,6 @@ import { getPedidosCurbe } from "@/lib/data/pedidosCurbe";
 import { getZonas } from "@/lib/data/zonas";
 import { TiendaManager } from "@/components/admin/TiendaManager";
 import { ProspectosPublicos } from "@/components/admin/ProspectosPublicos";
-import { PedidosCurbe } from "@/components/admin/PedidosCurbe";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +35,9 @@ export default async function TiendaPage() {
             <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">Tienda</h1>
           </div>
           <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
+            <Link href="/admin/tienda/curbe" className="flex items-center gap-1.5 rounded-full border border-[#C9B8F0] bg-[#F3EEFC] px-3.5 py-2 text-[12.5px] font-bold text-[#6D4AC7] hover:brightness-[0.98]">
+              💎 Curbe
+            </Link>
             <Link href="/tienda" target="_blank" className="flex items-center gap-1.5 rounded-full border border-borde bg-tarjeta px-3.5 py-2 text-[12.5px] font-bold text-azul hover:bg-suave">
               🌐 Tienda pública
             </Link>
@@ -49,7 +51,27 @@ export default async function TiendaPage() {
         </span>
       </header>
       <ProspectosPublicos leads={leadsPublicos} />
-      <PedidosCurbe pedidos={pedidosCurbe} />
+      {(() => {
+        const curbePend = pedidosCurbe.filter((p) => p.estado === "pendiente").length;
+        const curbeCount = productos.filter((p) => p.proveedor === "curbe").length;
+        if (curbeCount === 0 && pedidosCurbe.length === 0) return null;
+        return (
+          <Link href="/admin/tienda/curbe" className="flex items-center justify-between gap-3 rounded-[16px] border border-[#C9B8F0] bg-[#F3EEFC] p-4 hover:brightness-[0.99]">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[14px] font-extrabold text-tinta">💎 Integración Curbe</span>
+              <span className="text-[12px] font-medium text-gris">
+                {curbeCount} productos · catálogo, ventas, ingresos y despacho en un solo lugar.
+              </span>
+            </div>
+            <div className="flex flex-shrink-0 items-center gap-2">
+              {curbePend > 0 && (
+                <span className="rounded-full bg-[#E8A317] px-2.5 py-1 text-[11px] font-black text-[#0F1B3D]">{curbePend} por despachar</span>
+              )}
+              <span className="text-[18px] text-[#6D4AC7]">→</span>
+            </div>
+          </Link>
+        );
+      })()}
       <TiendaManager
         productos={productos}
         categorias={categorias}

@@ -1,0 +1,371 @@
+[
+  {
+    "slug": "212-vip-rose",
+    "nombre": "212 VIP Rose",
+    "precio": 890,
+    "ml": 30,
+    "categoria": "Para Ella",
+    "descripcion": "Inspirado en Carolina Herrera 212 VIP Rose. Captura la efervescencia de una noche VIP en Nueva York. Abre con notas de champagne y frambuesa, evoluciona hacia un corazón floral lujoso de rosa búlgara y pétalos de rosa, y cierra con almizcle blanco para un final sensual. Elegancia juvenil en su forma más festiva, ideal para celebraciones y noches glamorosas. Duración 7-9 horas. Hecho a mano en Uruguay con materiales de calidad importada, en empaque discreto y sellado con garantía de calidad de importación.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/212-vip-rose-1780417782248.jpg"
+  },
+  {
+    "slug": "absolu-versace",
+    "nombre": "Absolu Versace",
+    "precio": 890,
+    "ml": 30,
+    "categoria": "Para Ella",
+    "descripcion": "Inspirado en Versace Bright Crystal Absolu. Elaborado a mano en Uruguay con ingredientes de calidad importada. Abre con notas de bergamota, naranja y pera. El corazón presenta mimosa, nardo y flor de naranjo, mientras que la base combina ámbar, madera y almizcle. Ofrece una duración de 8-10 horas y es ideal para uso de día y de noche durante todo el año. Diseñado para mujeres seguras que dejan una impresión duradera.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/absolu-versace-gallery-1780581960782.jpg"
+  },
+  {
+    "slug": "acqua-di-gio",
+    "nombre": "Acqua di Gio",
+    "precio": 890,
+    "ml": 30,
+    "categoria": "Para Él",
+    "descripcion": "Inspirado en Giorgio Armani Acqua di Giò, hecho a mano en Uruguay con materiales de calidad importada. Este fresco aroma masculino abre con notas marinas, bergamota y limón que evocan el amanecer mediterráneo. El corazón se desarrolla con romero y jazmín, mientras que el almizcle blanco y el cedro aportan la base duradera. Ideal para uso de día y de noche durante todo el año, con una duración de 12-16 horas. La opción segura cuando querés acertar sin pensarlo.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/acqua-di-gio-gallery-1780431943748.jpg"
+  },
+  {
+    "slug": "ali-vega",
+    "nombre": "Ali Vega",
+    "precio": 890,
+    "ml": 30,
+    "categoria": "Para Ella",
+    "descripcion": "Inspirado en Ali Vega Eau de Parfum, con una composición floral-frutal de frutos blancos y bergamota en la apertura, jazmín y rosa en el corazón, y madera blanca con almizcle en la base. La mujer elegante de bajo perfil: oficina, almuerzos de negocios, presencia profesional. Duración 6-8 horas (media), para todo el año y uso de día. Hecho a mano en Uruguay con materiales de calidad importada.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/ali-vega-gallery-1780614168100.jpg"
+  },
+  {
+    "slug": "aretes-amour-oro-18k",
+    "nombre": "Aretes Amour",
+    "precio": 7900,
+    "ml": null,
+    "categoria": "Oro 18k",
+    "descripcion": "Aretes de oro cálido italiano 18k diseñados para el uso diario. Oro cálido que reposa cerca de la piel y devuelve un brillo discreto, pensados para acompañar más que para hacer una declaración audaz. Ideales para quienes buscan un detalle femenino de oro atemporal para el día a día o para regalar. Pureza 18 quilates, origen Italia, stock limitado.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/aretes-amour-oro-18k-1780993852402.jpg"
+  },
+  {
+    "slug": "aretes-esmeralda-punto-de-luz-oro-18k",
+    "nombre": "Aretes Esmeralda Punto de Luz",
+    "precio": 9900,
+    "ml": null,
+    "categoria": "Oro 18k",
+    "descripcion": "Aretes de esmeralda en oro 18k italiano. Una gema verde serena que funciona como punto focal. Ofrecen elegancia sin esfuerzo, adecuados tanto para el uso diario como para ocasiones especiales que requieren presencia. La calidad eterna de la esmeralda se complementa con el marco refinado del oro. Pureza 18 quilates, origen Italia, stock limitado.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/aretes-esmeralda-punto-de-luz-oro-18k-1780993853874.jpg"
+  },
+  {
+    "slug": "aretes-gota-oro-18k",
+    "nombre": "Aretes Gota",
+    "precio": 8900,
+    "ml": null,
+    "categoria": "Oro 18k",
+    "descripcion": "Una silueta fluida que cae con naturalidad y alarga la línea del rostro. La pieza está realizada en cálido oro italiano 18k, con líneas limpias y movimiento. Unos aretes gota favorecedores, ideales tanto para el día como para la noche, pensados para quienes buscan una joya elegante con movimiento grácil que atrapa la luz.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/aretes-gota-oro-18k-1780993854678.jpg"
+  },
+  {
+    "slug": "black-xs",
+    "nombre": "Black XS",
+    "precio": 890,
+    "ml": 30,
+    "categoria": "Para Él",
+    "descripcion": "Fragancia inspirada en Black XS de Paco Rabanne. Abre con pomelo y tagete que evolucionan hacia un corazón floral oscuro de iris y sándalo. El fondo combina tonka, praliné y patchouli para un dulzor adictivo. Diseñada para el hombre amante de la noche, de personalidad rock, que ofrece una seducción sofisticada entre bares, conciertos y encuentros nocturnos.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/black-xs-gallery-1780431953374.jpg"
+  },
+  {
+    "slug": "born-in-roma",
+    "nombre": "Born in Roma",
+    "precio": 890,
+    "ml": 30,
+    "categoria": "Para Él",
+    "descripcion": "Fragancia inspirada en Valentino Uomo Born in Roma, que combina cuero suave y maderas elegantes para el hombre que marca tendencia. Abre con bergamota y pimienta negra, transita por té de jazmín y geranio en el corazón, y asienta sobre cuero pulido y vetiver. La composición captura el contraste entre la cultura callejera romana y la alta costura italiana, con una duración de 8 a 10 horas. Perfecta para uso de día y de noche durante las temporadas de otoño-invierno. Elaborada artesanalmente en Uruguay con materiales calidad importación.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/born-in-roma-gallery-1780431750379.jpg"
+  },
+  {
+    "slug": "cadena-cordon-oro-18k",
+    "nombre": "Cadena Cordón",
+    "precio": 27900,
+    "ml": null,
+    "categoria": "Oro 18k",
+    "descripcion": "El cordón es sinónimo de carácter: un tejido entrelazado que llena de oro la línea del cuello y refleja la luz en cada vuelta. Esta Cadena Cordón suma cuerpo y presencia sin perder elegancia, con esa caída densa que solo dan las piezas bien hechas. Para quien prefiere que el oro se note.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/cadena-cordon-oro-18k-1780993856616.jpg"
+  },
+  {
+    "slug": "cadena-filo-oro-18k",
+    "nombre": "Cadena Filo",
+    "precio": 12900,
+    "ml": null,
+    "categoria": "Oro 18k",
+    "descripcion": "Cadena Filo en oro. Un trazo fino y luminoso que se lleva solo o como base de un dije. Un trazo de oro depurado, ideal para el uso diario, tanto en solitario como base para colgantes. Realizada en oro italiano 18k.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/cadena-filo-oro-18k-1780993855744.jpg"
+  },
+  {
+    "slug": "cadena-veneciana-oro-18k",
+    "nombre": "Cadena Veneciana",
+    "precio": 18500,
+    "ml": null,
+    "categoria": "Oro 18k",
+    "descripcion": "Tejida con eslabón cuadrado, la veneciana es la cadena por excelencia: geométrica, sólida y atemporal. Cada cara refleja la luz con ese amarillo profundo que define al oro, en una pieza que funciona tanto sola como de base para un dije. Un clásico que no pasa de moda porque nunca quiso estarlo.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/cadena-veneciana-oro-18k-1780993857493.jpg"
+  },
+  {
+    "slug": "chanel-bleu",
+    "nombre": "Bleu",
+    "precio": 890,
+    "ml": 30,
+    "categoria": "Unisex",
+    "descripcion": "Bleu es una esencia floral unisex que captura la esencia de la libertad y la elegancia cotidiana, ideal para cualquier momento del día. Inspirado en Chanel Bleu, abre con notas vibrantes de cítricos y menta, desarrolla un corazón floral de lavanda y geranio, y cierra con notas de fondo de sándalo, cedro y ámbar. Elaborado artesanalmente en Uruguay con materiales de calidad importada.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/chanel-bleu-gallery-1780630013181.jpg"
+  },
+  {
+    "slug": "coco-mademoiselle",
+    "nombre": "Coco Mademoiselle",
+    "precio": 890,
+    "ml": 30,
+    "categoria": "Para Ella",
+    "descripcion": "El icono parisino. Cítricos chispeantes sobre rosa y pachulí — elegancia sin tiempo. Notas de salida de naranja, mandarina y pomelo; corazón de mimosa, jazmín y rosa turca; y fondo de pachulí, vainilla y almizcle blanco. Elaborado artesanalmente en Uruguay, inspirado en la icónica fragancia de Chanel, con longevidad profesional de 8-10 horas y uso durante todo el año.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/coco-mademoiselle-1780431190026.jpg"
+  },
+  {
+    "slug": "collar-trenza-oro-18k",
+    "nombre": "Collar Trenza",
+    "precio": 34900,
+    "ml": null,
+    "categoria": "Oro 18k",
+    "descripcion": "Collar Trenza en oro. Un tejido entrelazado de presencia plena que viste el cuello con calidez. La pieza presenta hilos de oro entrelazados que crean textura y cuerpo, ideal para quien busca una pieza statement en oro 18k con presencia noble y caída. Material: Oro 18k italiano. Origen: Italia. Pureza: 18 quilates. Opción de pago: 6 cuotas de $5.817 vía Mercado Pago. Stock limitado.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/collar-trenza-oro-18k-1780993861051.jpg"
+  },
+  {
+    "slug": "diesel-plus",
+    "nombre": "Diesel Plus",
+    "precio": 890,
+    "ml": 30,
+    "categoria": "Para Él",
+    "descripcion": "Composición inspirada con lavanda, mandarina y bergamota en la salida, geranio y manzana en el corazón, y cedro, almizcle y vetiver en el fondo. Un fougère moderno con sensibilidad urbana, diseñado para el joven de ciudad que prefiere la simplicidad y la efectividad. Perfil amaderado. Duración 6-8 horas. Uso todo el año, ideal para el día. Referencia: Diesel Plus Plus Masculine.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/diesel-plus-gallery-1780432021826.jpg"
+  },
+  {
+    "slug": "erba-pura",
+    "nombre": "Erba Pura",
+    "precio": 890,
+    "ml": 30,
+    "categoria": "Unisex",
+    "descripcion": "El árabe que enamoró al mundo. Frutos cálidos y caramelo dorado — pura adicción. Eau de parfum inspirado en Xerjoff Erba Pura, con bergamota, limón y naranja dulce en las notas de salida, frutos tropicales con caramelo en el corazón, y almizcle, pachulí y ámbar en el fondo.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/erba-pura-gallery-1780432013496.jpg"
+  },
+  {
+    "slug": "fahrenheit",
+    "nombre": "Fahrenheit",
+    "precio": 890,
+    "ml": 30,
+    "categoria": "Para Él",
+    "descripcion": "Fragancia inspirada en Dior Fahrenheit, que combina cuero y violeta para representar la dualidad masculina. Presenta mandarina y bergamota en las notas de salida, violeta, cuero y nuez moscada en el corazón, y cuero, ambroxan y musgo en el fondo. Alta proyección con duración de 8-10 horas, ideal para las noches de otoño-invierno.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/fahrenheit-gallery-1780431981568.jpg"
+  },
+  {
+    "slug": "fame",
+    "nombre": "Fame",
+    "precio": 890,
+    "ml": 30,
+    "categoria": "Para Ella",
+    "descripcion": "La fama tiene aroma. Mango exótico y jazmín blanco — luminoso e intenso. Inspirado en el icónico Fame de Paco Rabanne. Salida: Mango, Pimienta Rosa. Corazón: Jazmín, Iris. Fondo: Sándalo, Almizcle. Eau de Parfum. Duración alta (7-9 horas), apto todo el año, ideal para la noche. Hecho en Uruguay con materias primas de calidad importada.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/fame-1780200785371.jpg"
+  },
+  {
+    "slug": "good-girl-blue",
+    "nombre": "Good Girl Blue",
+    "precio": 890,
+    "ml": 30,
+    "categoria": "Para Ella",
+    "descripcion": "Jazmín blanco de día, cacao oscuro de noche. Inspirado en Good Girl Blush de Carolina Herrera. Abre con naranja y almendra cálida, corazón floral blanco de jazmín y nardo, y cierra con base de tonka, cacao y madera. Familia floral. Eau de Parfum. Duración 8-10 horas. Ideal para día y noche.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/good-girl-blue-gallery-1780544166045.jpg"
+  },
+  {
+    "slug": "invictus",
+    "nombre": "Invictus",
+    "precio": 890,
+    "ml": 30,
+    "categoria": "Para Él",
+    "descripcion": "Inspirado en Invictus de Paco Rabanne. Notas cítricas y acuáticas que transicionan a notas herbales en el corazón, finalizando con madera de guayacán y ámbar gris para un impacto duradero. Salida: Pomelo, notas marinas. Corazón: Hojas de laurel, jazmín. Fondo: Madera de guayacán, ámbar gris. Eau de Parfum. Duración 8-10 horas. Todo el año, día y noche. Hecho en Uruguay con materiales de calidad importada.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/invictus-gallery-1780431931196.jpg"
+  },
+  {
+    "slug": "la-bomba",
+    "nombre": "La Bomba",
+    "precio": 890,
+    "ml": 30,
+    "categoria": "Para Ella",
+    "descripcion": "Una explosión floral que capta la atención desde el primer momento. Inspirado en La Bomba de Carolina Herrera. Abre con maracuyá y pomelo, corazón de peonía y vainilla, y cierra con almizcle y notas amaderadas. Eau de Parfum. Duración 8-10 horas. Ideal para día y noche, especialmente primavera y verano.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/la-bomba-gallery-1780626001360.jpg"
+  },
+  {
+    "slug": "la-vida-es-bella",
+    "nombre": "La Vida es Bella",
+    "precio": 890,
+    "ml": 50,
+    "categoria": "Para Ella",
+    "descripcion": "La sonrisa hecha aroma. Iris cremoso y pralin dulce — el bestseller que enamora al mundo. Inspirado en La Vie Est Belle de Lancôme. Floral gourmand con salida de cassis y pera, corazón de iris cremoso con jazmín y flor de naranja, y base de praliné, vainilla y pachulí creando una estela dulce adictiva. Eau de Parfum. Duración 8-10 horas. Todo el año, día y noche.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/la-vida-es-bella-1780431196149.jpg"
+  },
+  {
+    "slug": "lacoste-white",
+    "nombre": "Lacoste White",
+    "precio": 890,
+    "ml": 30,
+    "categoria": "Para Él",
+    "descripcion": "Frescura impecable. Algodón limpio y tuberosa cristalina para días claros y libres. Inspirado en Lacoste L.12.12 Blanc. Captura la esencia de una camisa blanca recién planchada con notas de salida cítricas y especiadas, corazón limpio, y base de cedro y vetiver. Salida: Pomelo, Cardamomo. Corazón: Algodón, Tuberosa. Fondo: Cedro, Vetiver. Eau de Parfum. Duración 12-16 horas. Primavera-verano, para el día.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/lacoste-white-gallery-1780431778643.jpg"
+  },
+  {
+    "slug": "lady-million",
+    "nombre": "Lady Million",
+    "precio": 890,
+    "ml": 30,
+    "categoria": "Para Ella",
+    "descripcion": "Fragancia inspirada en el icónico Paco Rabanne. Abre con frambuesa, neroli y lima de Amalfi para una luminosidad frutal-cítrica. El corazón presenta jazmín, azahar y gardenia en un lujoso bouquet floral. Notas de fondo de pachulí, miel y ámbar crean una estela dorada y sofisticada. Diseñada para la mujer ambiciosa y segura en eventos profesionales clave, fiestas y citas importantes. Proyección alta, duración 8-10 horas, para todo el año, día y noche. Hecho a mano en Soriano, Uruguay con materiales de calidad de importación.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/lady-million-gallery-1780615435921.jpg"
+  },
+  {
+    "slug": "light-blue",
+    "nombre": "Light Blue",
+    "precio": 890,
+    "ml": 30,
+    "categoria": "Para Ella",
+    "descripcion": "Fragancia inspirada en un icónico perfume italiano (Dolce & Gabbana Light Blue). Presenta manzana siciliana, cidra y campanilla en las notas de salida para una apertura fresca y jugosa. El corazón combina bambú, jazmín y rosa blanca para una elegancia floral, mientras que cedro, almizcle y ámbar crean una base limpia y soleada. Diseñada para la mujer despreocupada que disfruta de escapadas a la playa y reuniones al aire libre. Duración 5-7 horas, primavera-verano, uso diurno. Hecho a mano en Uruguay con materiales de calidad de importación.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/light-blue-1780417786764.jpg"
+  },
+  {
+    "slug": "light-blue-men",
+    "nombre": "Light Blue Men",
+    "precio": 890,
+    "ml": 30,
+    "categoria": "Para Él",
+    "descripcion": "Fragancia cítrica inspirada en Dolce & Gabbana Light Blue Pour Homme. Abre con pomelo siciliano, mandarina y enebro, transiciona por romero y pimienta de Szechwan, y se asienta en incienso, madera y almizcle. Captura el sol del Mediterráneo para el hombre relajado y consciente de su estilo que busca vibras costeras y largos almuerzos soleados. Proyección media que dura 12-16 horas, ideal para primavera y verano, uso diurno.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/light-blue-men-gallery-1780432005666.jpg"
+  },
+  {
+    "slug": "nautica-voyage",
+    "nombre": "Nautica Voyage",
+    "precio": 898,
+    "ml": 30,
+    "categoria": "Para Él",
+    "descripcion": "Eau de parfum que captura la esencia de la aventura marítima. Abre con manzana verde y hoja de loto para una frescura acuática, el corazón se desarrolla a través de salvia y mimosa herbáceas, mientras que madera de deriva, almizcle y musgo de roble crean una base cálida y orgánica. La composición busca evocar el aroma del viaje sin destino fijo para quienes abrazan el horizonte abierto. Ideal para primavera-verano, ofrece 7-9 horas de longevidad con una estela media-alta.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/nautica-voyage-gallery-1780431972643.jpg"
+  },
+  {
+    "slug": "olympia",
+    "nombre": "Olympia",
+    "precio": 890,
+    "ml": 30,
+    "categoria": "Para Ella",
+    "descripcion": "Fragancia de diosa moderna inspirada en Paco Rabanne Olympéa. Abre con notas de mandarina, jengibre y cassis, se desarrolla en un corazón de peonía y sal marina, y cierra con cachemira, vetiver y almizcle. Diseñada para mujeres seguras que buscan una fragancia elegante con apertura fresco-especiada y final sensual. Longevidad 8-10 horas. Hecho a mano en Uruguay con materiales de calidad de importación, concentración Eau de Parfum, apta todo el año, ideal para uso nocturno.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/olympia-1780417798452.jpg"
+  },
+  {
+    "slug": "one-million",
+    "nombre": "One Million",
+    "precio": 890,
+    "ml": 30,
+    "categoria": "Unisex",
+    "descripcion": "Fragancia floral especiada inspirada en Paco Rabanne One Million. Abre vibrante con mandarina roja y pomelo, refrescada por menta pimentada. El corazón presenta canela intensa y especias entrelazadas con rosa absoluta, creando un abrazo cálido. La base de cuero, ámbar y maderas deja una estela envolvente. Diseñada para quienes viven sin filtros, apta para días casuales y salidas nocturnas. Duración 6-8 horas. Eau de Parfum.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/one-million-gallery-1780629563202.jpg"
+  },
+  {
+    "slug": "paris-hilton",
+    "nombre": "Paris Hilton",
+    "precio": 890,
+    "ml": 30,
+    "categoria": "Para Ella",
+    "descripcion": "Inspirada en el icónico Paris Hilton Eau de Parfum. Manzana champagne y tuberosa: el lujo desenfadado. Notas de salida de manzana, bergamota y champagne para una alegría juvenil y burbujeante. El corazón se desarrolla con tuberosa, manzana y vainilla, creando un carácter dulce y femenino, mientras que las notas de fondo de madera y almizcle aportan una suave sensualidad. Un perfume de glamour divertido y sin pretensiones, ideal para mujeres jóvenes que disfrutan de momentos de lujo casual como brunches y salidas de compras. Familia floral, duración media de 5-7 horas, ideal para primavera-verano y uso de día.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/paris-hilton-1780417800368.jpg"
+  },
+  {
+    "slug": "polo-blue",
+    "nombre": "Polo Blue",
+    "precio": 890,
+    "ml": 30,
+    "categoria": "Para Él",
+    "descripcion": "Captura la esencia de Ralph Lauren Polo Blue con frescura refinada. Abre con mandarina brillante, pepino y albahaca para una vitalidad acuática y limpia. El corazón presenta geranio, salvia y verbena para dar sofisticación, mientras que el fondo ofrece almizcle blanco, tabaco y gamuza para una calidez inesperada. El perfume del hombre que combina el blazer con jeans sin perder el estilo. Duración de 6-8 horas (media), para todo el año, uso de día y noche.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/polo-blue-gallery-1780432031099.jpg"
+  },
+  {
+    "slug": "pulsera-bismark-oro-18k",
+    "nombre": "Pulsera Bismark",
+    "precio": 17900,
+    "ml": null,
+    "categoria": "Oro 18k",
+    "descripcion": "El tejido Bismark es un emblema de la joyería en oro: eslabones entrelazados que se mueven con la muñeca y reflejan la luz de forma pareja y continua. Combina flexibilidad con brillo continuo a través de eslabones entrelazados que se mueven fluidamente con la muñeca. Un clásico que sienta bien siempre, ideal para quienes buscan pulseras de oro clásicas con brillo parejo y comodidad. Oro italiano de 18 quilates, origen Italia.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/pulsera-bismark-oro-18k-1780993858286.jpg"
+  },
+  {
+    "slug": "pulsera-esfera-oro-18k",
+    "nombre": "Pulsera Esfera",
+    "precio": 14900,
+    "ml": null,
+    "categoria": "Oro 18k",
+    "descripcion": "Pequeñas esferas pulidas que ruedan con la luz en la muñeca. Una pieza delicada y luminosa, ideal para el uso diario, descrita como femenina, moderna y versátil para combinar. Oro italiano de 18 quilates, origen Italia.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/pulsera-esfera-oro-18k-1780993860140.jpg"
+  },
+  {
+    "slug": "pulsera-trenza-oro-18k",
+    "nombre": "Pulsera Trenza",
+    "precio": 16900,
+    "ml": null,
+    "categoria": "Oro 18k",
+    "descripcion": "Pulsera de oro trenzado con hebras entrelazadas que juegan con la luz en cada movimiento. La pieza emplea técnicas artesanales para crear textura y dimensión. Tiene un encanto cálido y femenino, transformando una pieza simple en un detalle con carácter, ideal para quienes aprecian la artesanía refinada y la joyería con textura. Oro italiano de 18 quilates.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/pulsera-trenza-oro-18k-1780993859096.jpg"
+  },
+  {
+    "slug": "sauvage",
+    "nombre": "Sauvage",
+    "precio": 890,
+    "ml": 30,
+    "categoria": "Para Él",
+    "descripcion": "Inspirada en Dior Sauvage, con una salvajidad civilizada de bergamota brillante y ambroxan magnético. La composición incluye notas de salida de bergamota de Calabria y pimienta, un corazón de lavanda, geranio y vetiver, y un fondo de ambroxan, cedro y labdano. Versátil y magnético, funciona en diversos contextos, desde reuniones de negocios hasta primeras citas. Eau de Parfum con duración de 8-10 horas y proyección alta. Para todo el año, uso de día y noche.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/sauvage-gallery-1780431997467.jpg"
+  },
+  {
+    "slug": "taj-sunset",
+    "nombre": "Taj Sunset",
+    "precio": 890,
+    "ml": 50,
+    "categoria": "Para Ella",
+    "descripcion": "Eau de parfum oriental inspirado en Bharara Taj Sunset. Abre con manzana caramelizada y bergamota, corazón de jazmín y caramelo, y fondo de vainilla, almizcle y pachulí. Para una mujer de personalidad fuerte que disfruta destacarse: noches glamorosas, eventos memorables. Intensidad intensa, estela de 10-12 horas de duración, ideal para otoño-invierno y ocasiones de noche. Hecho a mano en Uruguay con materiales de calidad importada.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/taj-sunset-1780431192431.jpg"
+  },
+  {
+    "slug": "tommy-girl",
+    "nombre": "Tommy girl",
+    "precio": 2000,
+    "ml": 30,
+    "categoria": "Para Ella",
+    "descripcion": "Fragancia floral inspirada en Tommy Hilfiger que captura el espíritu libre y juvenil de la icónica Tommy Girl, perfecta para cualquier momento del día. Abre con notas frescas de grosella negra y mandarina, corazón de madreselva y violeta, y fondo de magnolia y sándalo para una impresión sutil y duradera. Hecho a mano en Uruguay con materiales de calidad importada, longevidad media de 4-6 horas, ideal para primavera-verano de día o de noche.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/tommy-girl-gallery-1783949305219.jpg"
+  },
+  {
+    "slug": "touch-of-pink",
+    "nombre": "Touch of Pink",
+    "precio": 890,
+    "ml": 30,
+    "categoria": "Para Ella",
+    "descripcion": "Eau de parfum floral inspirado en Lacoste Touch of Pink, con una frescura rosa juvenil. Abre con cassis y pomelo, corazón de magnolia y jazmín, y fondo cálido de sándalo y almizcle. Notas de salida: cassis, pomelo, pera. Notas de corazón: magnolia, jazmín, manzanilla. Notas de fondo: sándalo, almizcle, caoba. Duración de 5-7 horas con proyección media, ideal para primavera-verano de día. Para mujeres jóvenes que prefieren lo ligero y luminoso. Hecho a mano en Uruguay con materiales de calidad importada.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/touch-of-pink-1780431194392.jpg"
+  },
+  {
+    "slug": "ultra-male",
+    "nombre": "Ultra Male",
+    "precio": 890,
+    "ml": 30,
+    "categoria": "Para Él",
+    "descripcion": "Eau de parfum inspirado en Jean Paul Gaultier Ultra Male, con una seducción intensa de vainilla caramelizada y lavanda para una presencia memorable. Notas de salida de lavanda y pera, corazón de menta y canela, y fondo de vainilla, tonka y ámbar. Longevidad de 10-12 horas, ideal para noches de otoño-invierno. Intensidad intensa. Hecho a mano en Uruguay con materiales de calidad importada.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/ultra-male-gallery-1780431988676.jpg"
+  },
+  {
+    "slug": "yara",
+    "nombre": "Yara",
+    "precio": 890,
+    "ml": 30,
+    "categoria": "Para Ella",
+    "descripcion": "Eau de parfum oriental inspirado en Lattafa Yara. Con notas cremosas de orquídea y vainilla cálida. Abre con orquídea exótica y frutas, desarrolla un corazón floral de jazmín y heliotropo, y cierra con vainilla y almizcle. Lujo árabe a precio honesto, con longevidad de 10-12 horas, ideal para día y noche todo el año. Notas de salida: orquídea, frutas. Corazón: jazmín, heliotropo. Fondo: vainilla, almizcle. Hecho a mano en Uruguay con materiales de calidad importada.",
+    "urlImagen": "https://gwmtadnxp4vehblf.public.blob.vercel-storage.com/products/yara-gallery-1780582084507.jpg"
+  }
+]
