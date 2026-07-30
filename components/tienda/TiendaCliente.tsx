@@ -101,17 +101,31 @@ export function TiendaCliente({
     return [...set.entries()].map(([nombre, n]) => ({ nombre, n }));
   }, [productos]);
 
-  // Marcas presentes (para el filtro por marca, estilo e-commerce). Solo se muestran
-  // si hay al menos 2 marcas distintas (si no, el filtro no aporta).
+  // Marcas ACOTADAS a la categoría elegida (faceted search: no ofrecer filtros que
+  // dan 0 resultados). Solo se muestran si hay ≥2 marcas distintas.
   const marcas = useMemo(() => {
+    const base = cat ? productos.filter((p) => (p.categoriaNombre ?? "Más productos") === cat) : productos;
     const set = new Map<string, number>();
-    for (const p of productos) { if (p.marca) set.set(p.marca, (set.get(p.marca) ?? 0) + 1); }
+    for (const p of base) { if (p.marca) set.set(p.marca, (set.get(p.marca) ?? 0) + 1); }
     return [...set.entries()].map(([nombre, n]) => ({ nombre, n })).sort((a, b) => b.n - a.n);
-  }, [productos]);
+  }, [productos, cat]);
+
+  // FAVORITOS ❤️ (localStorage) — como los "guardados" de Mercado Libre.
+  const [favoritos, setFavoritos] = useState<string[]>([]);
+  const [soloFav, setSoloFav] = useState(false);
+  useEffect(() => {
+    try { const raw = localStorage.getItem("favoritos_tienda"); if (raw) setFavoritos(JSON.parse(raw)); } catch { /* sin storage */ }
+  }, []);
+  useEffect(() => {
+    try { localStorage.setItem("favoritos_tienda", JSON.stringify(favoritos)); } catch { /* sin storage */ }
+  }, [favoritos]);
+  const esFav = (id: string) => favoritos.includes(id);
+  const toggleFav = (id: string) => setFavoritos((f) => (f.includes(id) ? f.filter((x) => x !== id) : [...f, id]));
 
   const filtrados = useMemo(() => {
     const t = norm(q.trim());
     let r = productos.filter((p) => {
+      if (soloFav && !favoritos.includes(p.id)) return false;
       if (cat && (p.categoriaNombre ?? "Más productos") !== cat) return false;
       if (marca && p.marca !== marca) return false;
       if (!t) return true;
@@ -121,11 +135,13 @@ export function TiendaCliente({
     else if (orden === "mayor") r = [...r].sort((a, b) => b.precio - a.precio);
     else r = [...r].sort((a, b) => Number(b.destacado) - Number(a.destacado));
     return r;
-  }, [productos, q, cat, marca, orden]);
+  }, [productos, q, cat, marca, orden, soloFav, favoritos]);
 
   const destacados = productos.filter((p) => p.destacado);
   const curbeProds = productos.filter((p) => p.proveedor === "curbe"); // colección de lujo (oro)
-  const hayFiltro = Boolean(q.trim() || cat || marca);
+  const ofertas = useMemo(() => productos.filter((p) => p.precioAnterior > p.precio).sort((a, b) => (1 - a.precio / a.precioAnterior) < (1 - b.precio / b.precioAnterior) ? 1 : -1), [productos]);
+  const hayFiltro = Boolean(q.trim() || cat || marca || soloFav);
+  const limpiarTodo = () => { setQ(""); setCat(null); setMarca(null); setOrden("destacados"); setSoloFav(false); };
   // Hero: el mejor destacado (primero en oferta, si hay). Solo sin filtro.
   const hero = !hayFiltro
     ? [...destacados].sort((a, b) => Number(b.precioAnterior > b.precio) - Number(a.precioAnterior > a.precio))[0] ?? null
@@ -159,14 +175,16 @@ export function TiendaCliente({
         )}
       </div>
 
-      {/* Chips de categoría (scroll horizontal) */}
-      <div className="-mx-[18px] flex gap-1.5 overflow-x-auto px-[18px] pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <Chip activo={!cat} onClick={() => setCat(null)}>Todos</Chip>
+      {/* Comprá por CATEGORÍA — TILES con ícono + conteo (estilo Mercado Libre). */}
+      <div className="-mx-[18px] flex gap-2 overflow-x-auto px-[18px] pb-1 md:mx-0 md:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <CategoriaTile emoji="🏬" nombre="Todo" n={productos.length} activo={!cat && !soloFav} onClick={() => { setCat(null); setSoloFav(false); }} />
         {categorias.map((c) => (
-          <Chip key={c.nombre} activo={cat === c.nombre} onClick={() => setCat(cat === c.nombre ? null : c.nombre)}>
-            {c.nombre}
-          </Chip>
+          <CategoriaTile key={c.nombre} emoji={emojiDe(c.nombre)} nombre={c.nombre} n={c.n}
+            activo={cat === c.nombre} onClick={() => { setSoloFav(false); setCat(cat === c.nombre ? null : c.nombre); }} />
         ))}
+        {favoritos.length > 0 && (
+          <CategoriaTile emoji="❤️" nombre="Favoritos" n={favoritos.length} activo={soloFav} onClick={() => { setCat(null); setSoloFav(!soloFav); }} />
+        )}
       </div>
 
       {/* Filtro por MARCA (solo si hay 2+ marcas). Completa la sensación de e-commerce. */}
@@ -209,6 +227,28 @@ export function TiendaCliente({
         </button>
       )}
 
+      {/* 🔥 OFERTAS — el gancho más fuerte arriba (como Mercado Libre). Solo si hay. */}
+      {!hayFiltro && ofertas.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <span className="px-1 text-[13px] font-extrabold text-[#C0392B]">🔥 Ofertas</span>
+          <div className="-mx-[18px] flex gap-3 overflow-x-auto px-[18px] pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {ofertas.map((p) => (
+              <button key={p.id} type="button" onClick={() => setAbierto(p)}
+                className="group flex w-[160px] shrink-0 flex-col overflow-hidden rounded-[16px] border border-[#ECEFF8] bg-white text-left shadow-[0_2px_10px_rgba(15,27,61,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(15,27,61,0.12)] active:scale-[0.98]">
+                <div className="relative overflow-hidden">
+                  <Foto p={p} className="aspect-square" />
+                  <span className="absolute left-2 top-2 rounded-full bg-[#D64545] px-2 py-0.5 text-[11px] font-black text-white shadow">−{Math.round((1 - p.precio / p.precioAnterior) * 100)}%</span>
+                </div>
+                <div className="flex flex-col gap-0.5 px-3 py-2.5">
+                  <span className="line-clamp-2 text-[13px] font-bold leading-tight text-tinta">{p.nombre}</span>
+                  <Precio p={p} />
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Más destacados (fila horizontal, excluye el hero). Solo sin filtro. */}
       {!hayFiltro && destacados.filter((p) => p.id !== hero?.id).length > 0 && (
         <div className="flex flex-col gap-2">
@@ -216,10 +256,22 @@ export function TiendaCliente({
           <div className="-mx-[18px] flex gap-3 overflow-x-auto px-[18px] pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {destacados.filter((p) => p.id !== hero?.id).map((p) => (
               <button key={p.id} type="button" onClick={() => setAbierto(p)}
-                className="flex w-[160px] shrink-0 flex-col overflow-hidden rounded-[16px] border border-[#ECEFF8] bg-white text-left shadow-[0_2px_10px_rgba(15,27,61,0.05)] active:scale-[0.98]">
-                <Foto p={p} className="aspect-square" />
+                className="group flex w-[160px] shrink-0 flex-col overflow-hidden rounded-[16px] border border-[#ECEFF8] bg-white text-left shadow-[0_2px_10px_rgba(15,27,61,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(15,27,61,0.12)] active:scale-[0.98]">
+                <div className="relative overflow-hidden">
+                  <Foto p={p} className="aspect-square" />
+                  {p.precioAnterior > p.precio && (
+                    <span className="absolute left-2 top-2 rounded-full bg-[#D64545] px-2 py-0.5 text-[11px] font-black text-white shadow">−{Math.round((1 - p.precio / p.precioAnterior) * 100)}%</span>
+                  )}
+                  {p.proveedor === "curbe" && (
+                    <span className="absolute right-2 top-2 rounded-full bg-[linear-gradient(135deg,#E8C56E,#C9A24B)] px-1.5 py-0.5 text-[10px] font-black text-[#3A2E0A] shadow">💎</span>
+                  )}
+                </div>
                 <div className="flex flex-col gap-0.5 px-3 py-2.5">
-                  {p.marca && <span className="text-[10px] font-bold uppercase tracking-wide text-gris">{p.marca}</span>}
+                  {p.proveedor === "curbe" ? (
+                    <span className="w-fit rounded-full bg-[linear-gradient(135deg,#FBF3DE,#F4E7C3)] px-2 py-0.5 text-[9.5px] font-black text-[#8A6A16]">💎 Curbe</span>
+                  ) : p.marca ? (
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-gris">{p.marca}</span>
+                  ) : null}
                   <span className="line-clamp-2 text-[13px] font-bold leading-tight text-tinta">{p.nombre}</span>
                   <Precio p={p} />
                 </div>
@@ -250,7 +302,10 @@ export function TiendaCliente({
                 </div>
                 <div className="flex flex-col gap-0.5 px-2.5 py-2">
                   <span className="line-clamp-2 text-[12px] font-bold leading-tight text-white">{p.nombre}</span>
-                  <span className="text-[13px] font-black tabular-nums text-[#E8C56E]">{UYU(p.precio)}</span>
+                  {p.cuotas > 0 && financiacion(p).cuota > 0 && (
+                    <span className="text-[12px] font-black tabular-nums text-[#E8C56E]">{p.cuotas}× {UYU(financiacion(p).cuota)}</span>
+                  )}
+                  <span className="text-[10.5px] font-semibold tabular-nums text-[#CBB98A]">{UYU(p.precio)} contado</span>
                 </div>
               </button>
             ))}
@@ -265,7 +320,7 @@ export function TiendaCliente({
           {q.trim() && <FiltroChip label={`“${q.trim()}”`} onQuitar={() => setQ("")} />}
           {cat && <FiltroChip label={cat} onQuitar={() => setCat(null)} />}
           {marca && <FiltroChip label={marca} onQuitar={() => setMarca(null)} />}
-          <button type="button" onClick={() => { setQ(""); setCat(null); setMarca(null); setOrden("destacados"); }}
+          <button type="button" onClick={limpiarTodo}
             className="ml-0.5 rounded-full bg-[#1E47C8] px-3 py-1 text-[11.5px] font-bold text-white active:scale-95">
             Ver todo
           </button>
@@ -292,7 +347,7 @@ export function TiendaCliente({
           <p className="text-[14px] font-bold text-tinta">No encontramos ese artículo</p>
           <p className="text-[12.5px] font-medium text-gris">Probá con otra palabra o mirá otra categoría.</p>
           {hayFiltro && (
-            <button type="button" onClick={() => { setQ(""); setCat(null); setMarca(null); setOrden("destacados"); }}
+            <button type="button" onClick={limpiarTodo}
               className="mt-1 rounded-full bg-[#1E47C8] px-4 py-2 text-[12.5px] font-bold text-white active:scale-95">
               Ver todos los productos
             </button>
@@ -323,9 +378,12 @@ export function TiendaCliente({
                     )}
                   </>
                 )}
-                {p.proveedor === "curbe" && (
-                  <span className="absolute right-2 top-2 rounded-full bg-[linear-gradient(135deg,#E8C56E,#C9A24B)] px-1.5 py-0.5 text-[10px] font-black text-[#3A2E0A] shadow">💎</span>
-                )}
+                {/* Favorito ❤️ (guardar, como Mercado Libre). */}
+                <button type="button" onClick={(e) => { e.stopPropagation(); toggleFav(p.id); }}
+                  aria-label={esFav(p.id) ? "Quitar de favoritos" : "Guardar en favoritos"}
+                  className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-[13px] shadow-sm backdrop-blur transition hover:scale-110 active:scale-90">
+                  {esFav(p.id) ? "❤️" : "🤍"}
+                </button>
               </div>
               <div className="flex flex-1 flex-col gap-0.5 px-3 py-2.5">
                 {p.proveedor === "curbe" ? (
@@ -405,6 +463,37 @@ function Chip({ activo, onClick, children }: { activo: boolean; onClick: () => v
     <button type="button" onClick={onClick}
       className={`shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 text-[12.5px] font-bold ${activo ? "bg-[#1E47C8] text-white" : "border border-[#DCE3F4] bg-white text-cuerpo"}`}>
       {children}
+    </button>
+  );
+}
+
+/** Ícono de categoría (perfumería/joyería Curbe + electrodomésticos). */
+const EMOJI_CAT: Record<string, string> = { "Para Ella": "🌸", "Para Él": "🧔", Unisex: "✨", "Oro 18k": "💍" };
+function emojiDe(nombre: string): string {
+  if (EMOJI_CAT[nombre]) return EMOJI_CAT[nombre];
+  const n = nombre.toLowerCase();
+  if (n.includes("helad")) return "❄️";
+  if (n.includes("tv") || n.includes("televis")) return "📺";
+  if (n.includes("lava")) return "🫧";
+  if (n.includes("cocina")) return "🍳";
+  if (n.includes("aire")) return "🌬️";
+  if (n.includes("micro")) return "🍽️";
+  if (n.includes("celular") || n.includes("smart")) return "📱";
+  if (n.includes("note") || n.includes("compu")) return "💻";
+  if (n.includes("termo")) return "🔥";
+  if (n.includes("ventil")) return "🌀";
+  if (n.includes("perfum") || n.includes("fragan")) return "🌸";
+  return "🛍️";
+}
+
+/** Tile de categoría (ícono + nombre + conteo), estilo Mercado Libre. */
+function CategoriaTile({ emoji, nombre, n, activo, onClick }: { emoji: string; nombre: string; n: number; activo: boolean; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick}
+      className={`flex min-w-[74px] shrink-0 flex-col items-center gap-1 rounded-[14px] border px-2.5 py-2.5 transition active:scale-95 ${activo ? "border-[#1E47C8] bg-[#EEF3FF]" : "border-[#ECEFF8] bg-white hover:border-[#D5DEF3] hover:shadow-[0_4px_14px_rgba(15,27,61,0.08)]"}`}>
+      <span className="text-[22px] leading-none" aria-hidden>{emoji}</span>
+      <span className={`max-w-[70px] truncate text-center text-[11px] font-bold leading-tight ${activo ? "text-[#1E47C8]" : "text-cuerpo"}`}>{nombre}</span>
+      <span className="text-[9.5px] font-semibold text-gris tabular-nums">{n}</span>
     </button>
   );
 }
