@@ -25,11 +25,11 @@ import { getBitacoraGestorDia, type RegistroAuditoria } from "@/lib/data/auditor
 import { alcanceDelActor } from "@/lib/data/alcance";
 import { getAperturasDia } from "@/lib/data/aperturas";
 import { BaseCajaManager, type CobradorBase } from "@/components/admin/BaseCajaManager";
+import { RankingPorZona } from "@/components/admin/RankingPorZona";
 import { conTimeout } from "@/lib/timeout";
 import { navVisible } from "@/lib/admin/nav";
 import { UYU, diasSemana, meses, horaDe } from "@/lib/format";
 import { fechaISOUY, sumarDiasYmd } from "@/lib/fecha";
-import { BarrasComparativas } from "@/components/charts/BarrasComparativas";
 import { CierrePorZona } from "@/components/admin/CierrePorZona";
 import { AvisarCobrador } from "@/components/admin/AvisarCobrador";
 import { BienvenidaCard } from "@/components/BienvenidaCard";
@@ -195,31 +195,36 @@ export default async function JornadaPage({
   // Apertura del día de HOY (setear la base de un día pasado no tiene sentido). Se
   // lee con el cliente admin acotado por `cobIds` (mismo patrón que el resto del
   // panel); la escritura (setApertura) sí corre bajo la RLS del gestor.
-  let basesCobradores: CobradorBase[] = [];
+  // Zona → nombre y zona → supervisor(es): tablas chicas, se leen SIEMPRE porque la
+  // jerarquía la usan tanto la Base de caja (Apertura) como "Cobradores hoy" (En vivo).
+  const [zonasRes, supZonasRes, supsRes] = await Promise.all([
+    adminZ.from("zonas").select("id, nombre"),
+    adminZ.from("supervisor_zonas").select("supervisor_id, zona_id"),
+    adminZ.from("usuarios").select("id, nombre").eq("rol", "supervisor"),
+  ]);
+  const zonaNombreMap: Record<string, string> = {};
+  for (const z of zonasRes.data ?? []) zonaNombreMap[z.id as string] = z.nombre as string;
+  const supN = new Map((supsRes.data ?? []).map((u) => [u.id as string, u.nombre as string]));
   const supervisoresPorZona: Record<string, string[]> = {};
+  for (const sz of supZonasRes.data ?? []) {
+    const nombre = supN.get(sz.supervisor_id as string);
+    if (nombre) (supervisoresPorZona[sz.zona_id as string] ??= []).push(nombre);
+  }
+
+  let basesCobradores: CobradorBase[] = [];
   if (acto === "apertura" && esHoy) {
     const cobIds = alcance.global ? null : alcance.cobradorIds;
     let cq = adminZ.from("usuarios").select("id, nombre, zona_id").eq("rol", "cobrador").eq("activo", true);
     if (cobIds) cq = cobIds.length > 0 ? cq.in("id", cobIds) : cq.eq("id", "00000000-0000-0000-0000-000000000000");
-    const [cobsRes, bases, zonasRes, supZonasRes, supsRes] = await Promise.all([
+    const [cobsRes, bases] = await Promise.all([
       cq.order("nombre", { ascending: true }),
       getAperturasDia(db, hoy, cobIds),
-      adminZ.from("zonas").select("id, nombre"),
-      adminZ.from("supervisor_zonas").select("supervisor_id, zona_id"),
-      adminZ.from("usuarios").select("id, nombre").eq("rol", "supervisor"),
     ]);
-    const zonaN = new Map((zonasRes.data ?? []).map((z) => [z.id as string, z.nombre as string]));
-    // Supervisores por zona (para el encabezado de cada grupo de la base de caja).
-    const supN = new Map((supsRes.data ?? []).map((u) => [u.id as string, u.nombre as string]));
-    for (const sz of supZonasRes.data ?? []) {
-      const nombre = supN.get(sz.supervisor_id as string);
-      if (nombre) (supervisoresPorZona[sz.zona_id as string] ??= []).push(nombre);
-    }
     basesCobradores = (cobsRes.data ?? []).map((u) => ({
       id: u.id as string,
       nombre: u.nombre as string,
       zonaId: (u.zona_id as string | null) ?? null,
-      zonaNombre: u.zona_id ? (zonaN.get(u.zona_id as string) ?? null) : null,
+      zonaNombre: u.zona_id ? (zonaNombreMap[u.zona_id as string] ?? null) : null,
       base: bases.get(u.id as string) ?? 0,
     }));
   }
@@ -389,6 +394,8 @@ export default async function JornadaPage({
           recaudadoHoy={recaudacion.hoy}
           ranking={control.ranking}
           alertas={centro.alertas}
+          zonaNombre={zonaNombreMap}
+          supervisoresPorZona={supervisoresPorZona}
         />
       )}
       {acto === "cierre" && <Cierre cierre={cierre} cerrables={cerrables} />}
@@ -553,6 +560,8 @@ function EnVivo({
   recaudadoHoy,
   ranking,
   alertas,
+  zonaNombre,
+  supervisoresPorZona,
 }: {
   cobradoRuta: number;
   esperadoTotal: number;
@@ -560,6 +569,8 @@ function EnVivo({
   recaudadoHoy: number;
   ranking: RankingCobrador[];
   alertas: Alerta[];
+  zonaNombre: Record<string, string>;
+  supervisoresPorZona: Record<string, string[]>;
 }) {
   const faltaMeta = Math.max(0, esperadoTotal - cobradoRuta);
   // Cobradores que necesitan atención: van por debajo de la mitad de su ruta o
@@ -624,18 +635,10 @@ function EnVivo({
         </Panel>
       )}
 
-      {/* Ranking de cobradores */}
+      {/* Cobradores hoy: agrupados por zona → supervisor (antes 52 barras planas). */}
       <Panel titulo="Cobradores hoy" href="/admin/cobranza" cta="Ver mapa de cobros →" tono="neutro">
         {ranking.length > 0 ? (
-          <BarrasComparativas
-            datos={ranking.map((c) => ({
-              nombre: c.nombre,
-              valor: c.recaudado,
-              total: c.esperado,
-              sub: `${Math.round(c.progreso * 100)}% de la ruta${c.anomalias > 0 ? ` · ${c.anomalias} anomalía(s)` : ""}`,
-              alerta: c.anomalias > 0,
-            }))}
-          />
+          <RankingPorZona ranking={ranking} zonaNombre={zonaNombre} supervisoresPorZona={supervisoresPorZona} />
         ) : (
           <p className="py-6 text-center text-[12.5px] font-medium text-gris">Todavía no hay actividad de cobradores hoy.</p>
         )}

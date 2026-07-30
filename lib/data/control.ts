@@ -21,6 +21,7 @@ const LIMITE_FLOAT = 15000;
 export interface RankingCobrador {
   cobradorId: string;
   nombre: string;
+  zonaId: string | null;
   recaudado: number;
   esperado: number;
   cobrados: number;
@@ -83,7 +84,7 @@ export async function getControlCobranza(
   const alcance = alcancePre ?? (await alcanceDelActor());
   let cobQuery = db
     .from("usuarios")
-    .select("id, nombre")
+    .select("id, nombre, zona_id")
     .eq("rol", "cobrador")
     .eq("activo", true);
   if (!alcance.global) cobQuery = cobQuery.in("id", alcance.cobradorIds);
@@ -94,6 +95,7 @@ export async function getControlCobranza(
   const cobradores = (cobRes.data ?? []).map((c) => ({
     id: c.id as string,
     nombre: c.nombre as string,
+    zona_id: (c.zona_id as string | null) ?? null,
   }));
   const cobradorDeCliente = new Map<string, string>();
   const prestamoPorCliente = new Map<string, { id: string; cuota: number }>();
@@ -294,6 +296,7 @@ export async function getControlCobranza(
       return {
         cobradorId: c.id,
         nombre: c.nombre,
+        zonaId: (c.zona_id as string | null) ?? null,
         recaudado: a.recaudado,
         esperado: Math.round(a.esperado),
         cobrados,
