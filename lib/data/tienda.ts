@@ -53,6 +53,9 @@ export interface Producto {
   /** Visibilidad por audiencia (0089): null = visible para todos. Si está, solo lo
    *  ven los clientes que matchean (clienteEnSegmento). */
   segmentoDef: DefinicionSegmento | null;
+  /** Quién DESPACHA (0112): null = propio (lo lleva el cobrador); 'curbe' = lo
+   *  despacha Curbe → al vender genera un pedido en la cola de despacho. */
+  proveedor: string | null;
 }
 
 /** Producto con el PRECIO RESUELTO para un cliente (override o base). */
@@ -147,6 +150,7 @@ function mapProducto(r: Record<string, unknown>): Producto {
     stock: r.stock == null ? null : Number(r.stock), // defensivo: sin 0100 → null
     orden: N(r.orden),
     segmentoDef: (r.segmento_def as DefinicionSegmento | null) ?? null,
+    proveedor: (r.proveedor as string | null) ?? null, // defensivo: sin 0112 → null (propio)
   };
 }
 
@@ -521,6 +525,8 @@ export interface ProductoInput {
   orden: number;
   /** Visibilidad por audiencia (0089). null = visible para todos. */
   segmentoDef: DefinicionSegmento | null;
+  /** Quién despacha (0112): null = propio; 'curbe' = lo despacha Curbe. */
+  proveedor: string | null;
 }
 
 function rowProducto(p: ProductoInput) {
@@ -531,6 +537,7 @@ function rowProducto(p: ProductoInput) {
     fotos: p.fotos, video_url: p.videoUrl, activo: p.activo, destacado: p.destacado, agotado: p.agotado,
     stock: p.stock, orden: N(p.orden),
     segmento_def: p.segmentoDef,
+    proveedor: p.proveedor, // 0112: null = propio; 'curbe' = despacha Curbe
   };
 }
 

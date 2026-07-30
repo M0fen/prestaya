@@ -27,6 +27,7 @@ import {
 import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
 import { getClientePorId } from "@/lib/data/clientes";
 import { getCobradorDeCliente } from "@/lib/data/asignaciones";
+import { crearPedidoCurbeDb } from "@/lib/data/pedidosCurbe";
 import { calcularPlanVenta } from "@/lib/venta";
 import { RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
 import { hoyUY } from "@/lib/fecha";
@@ -69,6 +70,8 @@ export interface RawProducto {
   orden: number;
   /** Visibilidad por audiencia (0089). null/vacío = visible para todos. */
   segmentoDef?: DefinicionSegmento | null;
+  /** Quién despacha (0112): null/'propio' = propio; 'curbe' = lo despacha Curbe. */
+  proveedor?: string | null;
 }
 
 function sanearProducto(raw: RawProducto): ProductoInput | null {
@@ -95,6 +98,8 @@ function sanearProducto(raw: RawProducto): ProductoInput | null {
     stock: raw.stock == null ? null : Math.max(0, Math.min(1_000_000, Math.round(Number(raw.stock) || 0))),
     orden: Math.max(0, Math.min(9999, Math.round(Number(raw.orden) || 0))),
     segmentoDef: esSegmentoTodos(defRaw) ? null : defRaw,
+    // Proveedor: solo 'curbe' habilita la cola de despacho; cualquier otra cosa = propio.
+    proveedor: raw.proveedor === "curbe" ? "curbe" : null,
   };
 }
 
@@ -499,6 +504,26 @@ export async function convertirLeadEnVenta(input: {
     entidadId: cliente.id,
     detalle: `${producto.nombre} · $${plan.monto.toLocaleString("es-UY")} en ${plan.totalDias} cuotas de $${plan.cuota.toLocaleString("es-UY")} (${frecuencia})`,
   });
+
+  // Integración CURBE (0112): si el producto lo despacha Curbe, encolar el pedido
+  // de despacho (idempotente por prestamo_id). Es LOGÍSTICA, no dinero: si algo
+  // falla acá NO revierte la venta (el crédito ya está creado y es la verdad).
+  if (producto.proveedor === "curbe") {
+    try {
+      const admin = createSupabaseAdmin();
+      await crearPedidoCurbeDb(admin, {
+        prestamoId: res.prestamoId,
+        productoId: producto.id,
+        productoNombre: producto.nombre,
+        clienteNombre: cliente.nombre,
+        clienteTelefono: cliente.telefono,
+        clienteDireccion: cliente.direccion,
+        monto: plan.totalACobrar,
+      });
+    } catch (e) {
+      reportarError("convertirLeadEnVenta:pedidoCurbe", e, { prestamoId: res.prestamoId });
+    }
+  }
 
   revalidatePath("/admin/tienda");
   revalidatePath(`/admin/clientes/${cliente.id}`);

@@ -7,9 +7,11 @@ import { requireGestor, esAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getProductosAdmin, getCategorias, getSolicitudes } from "@/lib/data/tienda";
 import { getLeadsPublicos } from "@/lib/data/leadsPublicos";
+import { getPedidosCurbe } from "@/lib/data/pedidosCurbe";
 import { getZonas } from "@/lib/data/zonas";
 import { TiendaManager } from "@/components/admin/TiendaManager";
 import { ProspectosPublicos } from "@/components/admin/ProspectosPublicos";
+import { PedidosCurbe } from "@/components/admin/PedidosCurbe";
 
 export const dynamic = "force-dynamic";
 
@@ -17,12 +19,13 @@ export default async function TiendaPage() {
   const u = await requireGestor();
   if (!esAdmin(u.rol)) redirect("/admin/jornada"); // la tienda la gobierna el dueño
   const db = await createSupabaseServer();
-  const [productos, categorias, solicitudes, zonas, leadsPublicos] = await Promise.all([
+  const [productos, categorias, solicitudes, zonas, leadsPublicos, pedidosCurbe] = await Promise.all([
     getProductosAdmin(db),
     getCategorias(db, false),
     getSolicitudes(db),
     getZonas(db),
     getLeadsPublicos(db),
+    getPedidosCurbe(db),
   ]);
   return (
     <div className="flex flex-col gap-5">
@@ -46,6 +49,7 @@ export default async function TiendaPage() {
         </span>
       </header>
       <ProspectosPublicos leads={leadsPublicos} />
+      <PedidosCurbe pedidos={pedidosCurbe} />
       <TiendaManager
         productos={productos}
         categorias={categorias}

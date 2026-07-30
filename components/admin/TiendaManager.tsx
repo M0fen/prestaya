@@ -78,7 +78,7 @@ function Tab({ activo, onClick, children }: { activo: boolean; onClick: () => vo
 // ── PRODUCTOS ────────────────────────────────────────────────────────────────
 const PRODUCTO_VACIO: RawProducto = {
   nombre: "", marca: "", descripcion: "", categoriaId: null, precio: 0, precioAnterior: 0,
-  interesPct: 0, cuotas: 0, frecuencia: "diario", fotos: [], videoUrl: null, activo: true, destacado: false, agotado: false, stock: null, orden: 0,
+  interesPct: 0, cuotas: 0, frecuencia: "diario", fotos: [], videoUrl: null, activo: true, destacado: false, agotado: false, stock: null, orden: 0, proveedor: null,
 };
 
 function Productos({ productos, categorias, zonas }: { productos: Producto[]; categorias: CategoriaProducto[]; zonas: ZonaOpcion[] }) {
@@ -133,6 +133,7 @@ function Productos({ productos, categorias, zonas }: { productos: Producto[]; ca
               )}
               <div className="absolute left-1.5 top-1.5 flex gap-1">
                 {p.destacado && <span className="rounded-full bg-[#FDF0DC] px-2 py-0.5 text-[10px] font-bold text-[#B9770E]">Destacado</span>}
+                {p.proveedor === "curbe" && <span className="rounded-full bg-[#EDE7FB] px-2 py-0.5 text-[10px] font-bold text-[#6D4AC7]">💎 Curbe</span>}
                 {(p.agotado || p.stock === 0) && <span className="rounded-full bg-[#FBE4E2] px-2 py-0.5 text-[10px] font-bold text-[#C0392B]">Agotado</span>}
                 {!p.agotado && p.stock != null && p.stock > 0 && (
                   <span className="rounded-full bg-[#EEF3FF] px-2 py-0.5 text-[10px] font-bold text-azul">{p.stock} en stock</span>
@@ -379,6 +380,23 @@ function EditorProducto({
       <p className="text-[11.5px] font-medium text-gris">
         El destacado aparece en la fila “⭐ Destacados” de la tienda; el <b>primero</b> (menor “Orden”) también sale como <b>banner en la cuenta del cliente</b> con “Ver más detalle”.
       </p>
+
+      {/* Proveedor / despacho (0112): quién ENTREGA. 'curbe' → cada venta encola un
+          pedido de despacho en la cola de Curbe del panel. */}
+      <div className="flex flex-col gap-1">
+        <span className="text-[13px] font-semibold text-cuerpo">¿Quién lo despacha?</span>
+        <div className="flex flex-wrap gap-2">
+          <label className={`flex cursor-pointer items-center gap-2 rounded-[10px] border px-3 py-2 text-[13px] font-semibold ${f.proveedor !== "curbe" ? "border-azul bg-azul-suave text-azul" : "border-borde bg-tarjeta text-cuerpo"}`}>
+            <input type="radio" name="proveedor" checked={f.proveedor !== "curbe"} onChange={() => set("proveedor", null)} /> 🏠 Propio (lo lleva el cobrador)
+          </label>
+          <label className={`flex cursor-pointer items-center gap-2 rounded-[10px] border px-3 py-2 text-[13px] font-semibold ${f.proveedor === "curbe" ? "border-azul bg-azul-suave text-azul" : "border-borde bg-tarjeta text-cuerpo"}`}>
+            <input type="radio" name="proveedor" checked={f.proveedor === "curbe"} onChange={() => set("proveedor", "curbe")} /> 💎 Curbe (lo despacha Curbe)
+          </label>
+        </div>
+        {f.proveedor === "curbe" && (
+          <span className="text-[11.5px] font-medium text-gris">Al vender, se crea un pedido en <b>“Pedidos a Curbe”</b> para avisarles y coordinar el despacho.</span>
+        )}
+      </div>
 
       {/* Visibilidad por audiencia (0089): quién VE el producto. Sin "estado del
           crédito" (la tienda no calcula el cartón) → por calificación / zona. */}

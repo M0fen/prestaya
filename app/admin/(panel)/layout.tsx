@@ -16,6 +16,8 @@ import { getSolicitudesPendientes as getAnulacionesPendientes } from "@/lib/data
 import { getSolicitudesPendientes as getRenovacionesPendientes } from "@/lib/data/solicitudesRenovacion";
 import { alcanceDelActor } from "@/lib/data/alcance";
 import { contarSolicitudesNuevas } from "@/lib/data/tienda";
+import { contarLeadsPublicosNuevos } from "@/lib/data/leadsPublicos";
+import { contarPedidosCurbePendientes } from "@/lib/data/pedidosCurbe";
 import { contarIncidenciasAbiertas } from "@/lib/data/incidencias";
 import { ReportarProblema } from "@/components/ReportarProblema";
 import { PanelGastosFlotante } from "@/components/admin/PanelGastosFlotante";
@@ -63,7 +65,11 @@ export default async function PanelLayout({
       esGestor(usuario.rol) ? contarSolicitudesGastoPendientes(db, cobIdsGasto) : Promise.resolve(0),
       esGestor(usuario.rol) ? getAnulacionesPendientes(db, alcance).then((a) => a.length) : Promise.resolve(0),
       esGestor(usuario.rol) ? getRenovacionesPendientes(db).then((r) => r.length) : Promise.resolve(0),
-      esAdmin(usuario.rol) ? contarSolicitudesNuevas(db) : Promise.resolve(0),
+      // Badge de Tienda = leads del cartón + prospectos de la tienda pública +
+      // pedidos a Curbe por despachar (todo se atiende en /admin/tienda).
+      esAdmin(usuario.rol)
+        ? Promise.all([contarSolicitudesNuevas(db), contarLeadsPublicosNuevos(db), contarPedidosCurbePendientes(db)]).then(([a, b, c]) => a + b + c)
+        : Promise.resolve(0),
       esAdmin(usuario.rol) ? contarIncidenciasAbiertas(db) : Promise.resolve(0),
     ]);
   const tema = (await cookies()).get("tema")?.value === "oscuro" ? "oscuro" : "claro";
