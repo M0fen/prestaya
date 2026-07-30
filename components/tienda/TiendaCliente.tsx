@@ -4,6 +4,8 @@
 // (marca, antes/ahora, "en N cuotas de $X") + modal de detalle con carrusel/video
 // y "Me interesa" (lead, sin generar crédito). Tono cliente: claro, aspiracional.
 import { useState, useMemo, useRef, useEffect, useTransition } from "react";
+import { Drawer } from "vaul";
+import { LazyMotion, domAnimation, m, MotionConfig } from "motion/react";
 import { UYU } from "@/lib/format";
 import { registrarInteres } from "@/app/c/[token]/actions";
 import { pedirCarritoPublico } from "@/lib/acciones/leadsPublicos";
@@ -12,6 +14,7 @@ import { comprarComoEmpleado } from "@/lib/acciones/comprasEmpleado";
 import { soloDigitos } from "@/lib/telefono";
 import { calcularPlanVenta } from "@/lib/venta";
 import type { ProductoParaCliente, FrecuenciaProducto } from "@/lib/data/tienda";
+import { GaleriaEmbla, Confeti, folioNuevo, guardarPedidoLocal, MisPedidos } from "./piezas";
 
 const FREC_LABEL: Record<FrecuenciaProducto, string> = {
   diario: "por día", semanal: "por semana", quincenal: "por quincena", mensual: "por mes",
@@ -151,6 +154,8 @@ export function TiendaCliente({
   if (!productos || productos.length === 0) return null;
 
   return (
+    <LazyMotion features={domAnimation}>
+    <MotionConfig reducedMotion="user">
     <section className="flex flex-col gap-3">
       {conEncabezado && (
         <div className="flex items-center gap-2 px-1">
@@ -159,6 +164,13 @@ export function TiendaCliente({
             <span className="text-[16px] font-extrabold tracking-[-0.01em] text-tinta">Nuestra tienda</span>
             <span className="text-[12.5px] font-medium text-gris">Llevate lo que necesitás, en cuotas cómodas.</span>
           </div>
+        </div>
+      )}
+
+      {/* Acceso rápido a "Mis pedidos" (se auto-oculta si no hay ninguno). */}
+      {conCarrito && (
+        <div className="px-1">
+          <MisPedidos scope={token ?? "publico"} />
         </div>
       )}
 
@@ -360,10 +372,15 @@ export function TiendaCliente({
         // En la tienda PÚBLICA la grilla crece en desktop (2→3→4 col); en el cartón
         // del cliente queda en 2 (se ve en el teléfono, no tocamos su densidad).
         <div className={`grid gap-3 grid-cols-2 ${modoPublico ? "sm:grid-cols-3 lg:grid-cols-4" : ""}`}>
-          {filtrados.map((p) => (
-            <div key={p.id} role="button" tabIndex={0} onClick={() => setAbierto(p)}
+          {filtrados.map((p, idx) => (
+            <m.div key={p.id} role="button" tabIndex={0} onClick={() => setAbierto(p)}
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setAbierto(p); } }}
-              className="group flex cursor-pointer flex-col overflow-hidden rounded-[16px] border border-[#ECEFF8] bg-white text-left shadow-[0_2px_10px_rgba(15,27,61,0.05)] transition duration-200 hover:-translate-y-0.5 hover:border-[#D5DEF3] hover:shadow-[0_10px_24px_rgba(15,27,61,0.12)] focus-visible:ring-2 focus-visible:ring-[#1E47C8]/40">
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              whileHover={{ y: -3 }}
+              viewport={{ once: true, margin: "0px 0px -40px 0px" }}
+              transition={{ duration: 0.32, delay: Math.min(idx * 0.025, 0.25), ease: [0.2, 0.7, 0.2, 1] }}
+              className="group flex cursor-pointer flex-col overflow-hidden rounded-[16px] border border-[#ECEFF8] bg-white text-left shadow-[0_2px_10px_rgba(15,27,61,0.05)] transition-[box-shadow,border-color] duration-200 hover:border-[#D5DEF3] hover:shadow-[0_10px_24px_rgba(15,27,61,0.12)] focus-visible:ring-2 focus-visible:ring-[#1E47C8]/40">
               <div className="relative overflow-hidden">
                 <div className="transition-transform duration-300 group-hover:scale-[1.04]">
                   <Foto p={p} className="aspect-square" />
@@ -403,7 +420,7 @@ export function TiendaCliente({
                   </button>
                 )}
               </div>
-            </div>
+            </m.div>
           ))}
         </div>
       )}
@@ -412,45 +429,46 @@ export function TiendaCliente({
         Precios de referencia. Tocá "Me interesa" y tu cobrador te pasa el precio y las cuotas para vos. 🙂
       </p>
 
-      {abierto && (
-        <DetalleProducto
-          key={abierto.id}
-          p={abierto}
-          token={token}
-          preview={preview}
-          modoPublico={modoPublico}
-          modoEmpleado={modoEmpleado}
-          conCarrito={conCarrito}
-          onAgregar={agregarAlCarrito}
-          relacionados={relacionadosDe(abierto, productos)}
-          onAbrirOtro={setAbierto}
-          onClose={() => setAbierto(null)}
-        />
-      )}
+      <DetalleSheet
+        producto={abierto}
+        token={token}
+        preview={preview}
+        modoPublico={modoPublico}
+        modoEmpleado={modoEmpleado}
+        conCarrito={conCarrito}
+        onAgregar={agregarAlCarrito}
+        productos={productos}
+        onAbrirOtro={setAbierto}
+        onClose={() => setAbierto(null)}
+      />
 
-      {/* Botón flotante del CARRITO + panel. */}
+      {/* Botón flotante del CARRITO. */}
       {conCarrito && itemsCarrito > 0 && !carritoAbierto && (
-        <button type="button" onClick={() => setCarritoAbierto(true)}
-          className="fixed bottom-5 right-5 z-[60] flex items-center gap-2 rounded-full bg-[#1E47C8] px-4 py-3 text-[14px] font-extrabold text-white shadow-[0_10px_28px_rgba(19,48,140,0.4)] transition active:scale-95"
-          style={{ animation: pulso ? "carritoPulso 0.35s ease" : undefined }} key={pulso}>
+        <m.button type="button" onClick={() => setCarritoAbierto(true)}
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} whileTap={{ scale: 0.95 }}
+          className="fixed bottom-5 right-5 z-[60] flex items-center gap-2 rounded-full bg-[#1E47C8] px-4 py-3 text-[14px] font-extrabold text-white shadow-[0_10px_28px_rgba(19,48,140,0.4)]">
           <span className="text-[18px]">🛒</span>
           <span>Ver carrito</span>
-          <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-white px-1.5 text-[12px] font-black text-[#1E47C8]">{itemsCarrito}</span>
-        </button>
+          <m.span key={pulso} initial={{ scale: 1 }} animate={{ scale: [1, 1.35, 1] }} transition={{ duration: 0.35 }}
+            className="flex h-6 min-w-6 items-center justify-center rounded-full bg-white px-1.5 text-[12px] font-black text-[#1E47C8]">{itemsCarrito}</m.span>
+        </m.button>
       )}
-      {conCarrito && carritoAbierto && (
-        <CarritoDrawer
+      {conCarrito && (
+        <CarritoSheet
+          open={carritoAbierto}
+          onOpenChange={setCarritoAbierto}
           items={carrito}
           token={token}
+          scope={token ?? "publico"}
           modoPublico={modoPublico}
-          onCerrar={() => setCarritoAbierto(false)}
           onCambiarCantidad={cambiarCantidad}
           onQuitar={quitarDelCarrito}
           onVaciar={vaciarCarrito}
         />
       )}
-      <style>{"@keyframes carritoPulso{0%{transform:scale(1)}40%{transform:scale(1.15)}100%{transform:scale(1)}}"}</style>
     </section>
+    </MotionConfig>
+    </LazyMotion>
   );
 }
 
@@ -563,35 +581,54 @@ function Precio({ p }: { p: ProductoParaCliente }) {
   );
 }
 
-/** Panel del CARRITO (público + cliente): ítems, cantidades y checkout. */
-function CarritoDrawer({
-  items, token, modoPublico, onCerrar, onCambiarCantidad, onQuitar, onVaciar,
+/** Barra de progreso del checkout (Revisar → Datos → Listo). */
+function PasosCheckout({ paso, conDatos }: { paso: 0 | 1 | 2; conDatos: boolean }) {
+  const labels = conDatos ? ["Tu pedido", "Tus datos", "Listo"] : ["Tu pedido", "Confirmar", "Listo"];
+  return (
+    <div className="flex items-center gap-1.5 px-1">
+      {labels.map((l, k) => (
+        <div key={k} className="flex flex-1 flex-col items-center gap-1">
+          <div className={`h-1.5 w-full rounded-full transition-colors ${k <= paso ? "bg-[#1E47C8]" : "bg-[#E4E9F5]"}`} />
+          <span className={`text-[10px] font-bold ${k <= paso ? "text-[#1E47C8]" : "text-gris"}`}>{l}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Carrito + CHECKOUT multi-paso (Vaul bottom-sheet). El pedido queda PENDIENTE
+ *  DE APROBACIÓN: el flujo público crea leads y el del cliente crea solicitudes,
+ *  que el admin revisa antes de convertir en venta. */
+function CarritoSheet({
+  open, onOpenChange, items, token, scope, modoPublico, onCambiarCantidad, onQuitar, onVaciar,
 }: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
   items: ItemCarrito[];
   token: string | null;
+  scope: string;
   modoPublico: boolean;
-  onCerrar: () => void;
   onCambiarCantidad: (id: string, delta: number) => void;
   onQuitar: (id: string) => void;
   onVaciar: () => void;
 }) {
   const [pend, start] = useTransition();
+  const [paso, setPaso] = useState<"revisar" | "datos">("revisar");
   const [estado, setEstado] = useState<"idle" | "ok" | "error">("idle");
   const [msg, setMsg] = useState<string | null>(null);
   const [nombre, setNombre] = useState("");
   const [tel, setTel] = useState("");
+  const [folio, setFolio] = useState<string | null>(null);
   const totalContado = items.reduce((a, i) => a + i.precio * i.cantidad, 0);
   const totalCuota = items.reduce((a, i) => a + i.cuota * i.cantidad, 0);
 
+  // Al abrir el carrito, arrancar siempre en "revisar" y limpiar un éxito anterior.
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onCerrar(); };
-    document.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
-  }, [onCerrar]);
+    if (open) { setPaso("revisar"); setEstado("idle"); setMsg(null); setFolio(null); }
+  }, [open]);
 
-  const enviar = () =>
+  // Confirma el pedido → server action (queda pendiente de aprobación) → éxito + folio.
+  const confirmar = () =>
     start(async () => {
       setMsg(null);
       if (items.length === 0) return;
@@ -602,7 +639,7 @@ function CarritoDrawer({
           items: items.map((i) => ({ productoId: i.id, productoNombre: i.nombre, cantidad: i.cantidad })),
           nombre: nombre.trim(), telefono: tel.trim(),
         });
-        if (r.ok) { setEstado("ok"); onVaciar(); } else { setEstado("error"); setMsg(r.error); }
+        if (!r.ok) { setEstado("error"); setMsg(r.error); return; }
       } else if (token) {
         // Chequear CADA resultado: no confirmar "enviado" ni vaciar si alguno falló
         // (registrarInteres no lanza; devuelve {ok:false} por stock/rate-limit/audiencia).
@@ -612,95 +649,194 @@ function CarritoDrawer({
           setMsg("No pudimos registrar todos los productos. Probá de nuevo en un rato.");
           return;
         }
-        setEstado("ok"); onVaciar();
       } else {
-        setEstado("error"); setMsg("Volvé a abrir tu enlace para pedir.");
+        setEstado("error"); setMsg("Volvé a abrir tu enlace para pedir."); return;
       }
+      // Éxito: generar folio, dejar rastro local ("mis pedidos") y celebrar.
+      const f = folioNuevo();
+      guardarPedidoLocal(scope, {
+        folio: f,
+        fechaIso: new Date().toISOString(),
+        items: items.map((i) => ({ nombre: i.nombre, cantidad: i.cantidad })),
+        total: totalContado,
+      });
+      setFolio(f);
+      setEstado("ok");
+      onVaciar();
     });
 
-  return (
-    <div className="fixed inset-0 z-[75] flex justify-end bg-black/55" onClick={onCerrar}>
-      <div className="flex h-full w-full max-w-[420px] flex-col bg-white shadow-[0_0_60px_rgba(15,27,61,0.4)]" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Carrito">
-        <div className="flex shrink-0 items-center justify-between border-b border-[#EEF1F8] px-5 py-4">
-          <span className="text-[17px] font-extrabold text-tinta">🛒 Tu carrito</span>
-          <button type="button" onClick={onCerrar} aria-label="Cerrar" className="flex h-11 w-11 items-center justify-center rounded-full bg-[#F1F4FB] text-[15px] font-black text-tinta active:scale-90">✕</button>
-        </div>
+  const idxPaso: 0 | 1 | 2 = estado === "ok" ? 2 : paso === "datos" ? 1 : 0;
 
-        {estado === "ok" ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-            <span className="text-[46px]" aria-hidden>🎉</span>
-            <p className="text-[18px] font-extrabold text-[#157A50]">¡Pedido enviado!</p>
-            <p className="max-w-[260px] text-[13px] font-medium text-gris">{modoPublico ? "Te vamos a contactar para coordinar el precio y las cuotas." : "Tu cobrador te va a contar cómo llevártelo."}</p>
-            <button type="button" onClick={onCerrar} className="mt-1 rounded-full bg-[#1E47C8] px-5 py-2.5 text-[13.5px] font-bold text-white">Seguir viendo</button>
-          </div>
-        ) : items.length === 0 ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-2 p-6 text-center">
-            <span className="text-[40px]" aria-hidden>🛒</span>
-            <p className="text-[15px] font-bold text-tinta">Tu carrito está vacío</p>
-            <p className="max-w-[240px] text-[12.5px] font-medium text-gris">Agregá productos y pedilos todos juntos.</p>
-            <button type="button" onClick={onCerrar} className="mt-1 rounded-full bg-[#1E47C8] px-5 py-2.5 text-[13.5px] font-bold text-white">Ver productos</button>
-          </div>
-        ) : (
-          <>
-            <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-4">
-              {items.map((it) => (
-                <div key={it.id} className="flex gap-3 rounded-[14px] border border-[#EEF1F8] p-2.5">
-                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded-[10px] bg-[linear-gradient(180deg,#FBFCFF,#F1F4FB)]">
-                    {it.foto ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={it.foto} alt={it.nombre} loading="lazy" decoding="async" className="h-full w-full object-contain p-1" />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-[22px]">🛒</div>
-                    )}
-                  </div>
-                  <div className="flex min-w-0 flex-1 flex-col">
-                    <span className="line-clamp-2 text-[13px] font-bold leading-tight text-tinta">{it.nombre}</span>
-                    {it.cuotas > 0 && it.cuota > 0 && <span className="text-[12px] font-black text-[#1E47C8] tabular-nums">{it.cuotas}× {UYU(it.cuota)}</span>}
-                    <span className="text-[11.5px] font-semibold text-[#157A50] tabular-nums">{UYU(it.precio)} contado</span>
-                    <div className="mt-1 flex items-center gap-2.5">
-                      <div className="flex items-center rounded-full border border-[#DCE3F4]">
-                        <button type="button" onClick={() => onCambiarCantidad(it.id, -1)} aria-label="Menos" className="flex h-11 w-11 items-center justify-center text-[20px] font-black text-gris">−</button>
-                        <span className="w-6 text-center text-[14px] font-bold tabular-nums">{it.cantidad}</span>
-                        <button type="button" onClick={() => onCambiarCantidad(it.id, 1)} aria-label="Más" className="flex h-11 w-11 items-center justify-center text-[20px] font-black text-gris">+</button>
+  return (
+    <Drawer.Root open={open} onOpenChange={onOpenChange}>
+      <Drawer.Portal>
+        <Drawer.Overlay className="fixed inset-0 z-[74] bg-black/55" />
+        <Drawer.Content className="fixed inset-x-0 bottom-0 z-[75] mx-auto flex max-h-[92vh] w-full max-w-[460px] flex-col rounded-t-[24px] bg-white shadow-[0_-10px_60px_rgba(15,27,61,0.35)] outline-none">
+          <Drawer.Title className="sr-only">Tu carrito y checkout</Drawer.Title>
+          <div className="mx-auto mt-2.5 h-1.5 w-11 shrink-0 rounded-full bg-[#E0E5F0]" aria-hidden />
+
+          {estado === "ok" ? (
+            /* ── Comprobante: pedido PENDIENTE DE APROBACIÓN ── */
+            <div className="relative flex flex-col items-center gap-3 p-6 text-center">
+              <Confeti />
+              <m.div initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 260, damping: 16 }}
+                className="flex h-16 w-16 items-center justify-center rounded-full bg-[#E4F5EC] text-[34px]">✅</m.div>
+              <div className="flex flex-col gap-1">
+                <p className="text-[19px] font-extrabold text-tinta">¡Pedido enviado!</p>
+                <span className="mx-auto rounded-full bg-[#FDF3E2] px-3 py-1 text-[12px] font-black text-[#B9770E]">⏳ Pendiente de aprobación</span>
+              </div>
+              {folio && (
+                <div className="rounded-[12px] border border-dashed border-[#C7D2EC] bg-[#F7F9FF] px-4 py-2">
+                  <span className="text-[11px] font-semibold text-gris">Tu folio</span>
+                  <p className="text-[18px] font-black tracking-wider tabular-nums text-[#1E47C8]">{folio}</p>
+                </div>
+              )}
+              <p className="max-w-[280px] text-[13px] font-medium text-gris">
+                {modoPublico ? "Lo revisamos y te contactamos para coordinar el precio y las cuotas." : "Tu cobrador lo revisa y te confirma el plan. ¡Gracias!"}
+              </p>
+              <button type="button" onClick={() => onOpenChange(false)} className="mt-1 w-full rounded-full bg-[#1E47C8] px-5 py-3 text-[14px] font-extrabold text-white active:scale-[0.99]">Seguir viendo</button>
+            </div>
+          ) : items.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 p-8 text-center">
+              <span className="text-[44px]" aria-hidden>🛒</span>
+              <p className="text-[16px] font-bold text-tinta">Tu carrito está vacío</p>
+              <p className="max-w-[240px] text-[13px] font-medium text-gris">Agregá productos y pedilos todos juntos.</p>
+              <button type="button" onClick={() => onOpenChange(false)} className="mt-1 rounded-full bg-[#1E47C8] px-5 py-2.5 text-[13.5px] font-bold text-white">Ver productos</button>
+            </div>
+          ) : (
+            <>
+              <div className="shrink-0 px-5 pb-2 pt-1"><PasosCheckout paso={idxPaso} conDatos={modoPublico} /></div>
+
+              {paso === "revisar" ? (
+                <>
+                  <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 pb-2">
+                    {items.map((it) => (
+                      <div key={it.id} className="flex gap-3 rounded-[14px] border border-[#EEF1F8] p-2.5">
+                        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-[10px] bg-[linear-gradient(180deg,#FBFCFF,#F1F4FB)]">
+                          {it.foto ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={it.foto} alt={it.nombre} loading="lazy" decoding="async" className="h-full w-full object-contain p-1" />
+                          ) : (
+                            <div className="flex h-full items-center justify-center text-[22px]">🛒</div>
+                          )}
+                        </div>
+                        <div className="flex min-w-0 flex-1 flex-col">
+                          <span className="line-clamp-2 text-[13px] font-bold leading-tight text-tinta">{it.nombre}</span>
+                          {it.cuotas > 0 && it.cuota > 0 && <span className="text-[12px] font-black tabular-nums text-[#1E47C8]">{it.cuotas}× {UYU(it.cuota)}</span>}
+                          <span className="text-[11.5px] font-semibold tabular-nums text-[#157A50]">{UYU(it.precio)} contado</span>
+                          <div className="mt-1 flex items-center gap-2.5">
+                            <div className="flex items-center rounded-full border border-[#DCE3F4]">
+                              <button type="button" onClick={() => onCambiarCantidad(it.id, -1)} aria-label="Menos" className="flex h-11 w-11 items-center justify-center text-[20px] font-black text-gris">−</button>
+                              <span className="w-6 text-center text-[14px] font-bold tabular-nums">{it.cantidad}</span>
+                              <button type="button" onClick={() => onCambiarCantidad(it.id, 1)} aria-label="Más" className="flex h-11 w-11 items-center justify-center text-[20px] font-black text-gris">+</button>
+                            </div>
+                            <button type="button" onClick={() => onQuitar(it.id)} className="rounded-full px-2 py-2 text-[12px] font-bold text-[#C0392B]">Quitar</button>
+                          </div>
+                        </div>
                       </div>
-                      <button type="button" onClick={() => onQuitar(it.id)} className="rounded-full px-2 py-2 text-[12px] font-bold text-[#C0392B]">Quitar</button>
+                    ))}
+                  </div>
+                  <div className="flex shrink-0 flex-col gap-2.5 border-t border-[#EEF1F8] p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[13px] font-semibold text-gris">Total contado</span>
+                      <span className="text-[18px] font-black tabular-nums text-[#157A50]">{UYU(totalContado)}</span>
+                    </div>
+                    {totalCuota > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-[12px] font-medium text-gris">En cuotas (aprox.)</span>
+                        <span className="text-[13px] font-bold tabular-nums text-[#1E47C8]">≈ {UYU(totalCuota)} por período</span>
+                      </div>
+                    )}
+                    <button type="button" disabled={pend}
+                      onClick={() => (modoPublico ? setPaso("datos") : confirmar())}
+                      className="w-full rounded-full bg-[#1E47C8] px-5 py-3.5 text-[16px] font-extrabold text-white shadow-[0_6px_18px_rgba(19,48,140,0.28)] active:scale-[0.99] disabled:opacity-60">
+                      {pend ? "Enviando…" : modoPublico ? "Continuar" : "Confirmar pedido"}
+                    </button>
+                    {estado === "error" && msg && <p className="text-center text-[12px] font-semibold text-[#E06A6A]">{msg}</p>}
+                    <button type="button" onClick={onVaciar} className="text-center text-[11.5px] font-semibold text-gris hover:text-tinta">Vaciar carrito</button>
+                    <p className="text-center text-[11px] font-medium text-gris">Sin compromiso · el pedido queda pendiente de aprobación.</p>
+                  </div>
+                </>
+              ) : (
+                /* ── Paso DATOS (solo público) ── */
+                <div className="flex flex-col gap-3 p-5">
+                  <div className="rounded-[14px] bg-[#F7F9FF] px-4 py-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[12.5px] font-semibold text-gris">{items.reduce((a, i) => a + i.cantidad, 0)} producto(s)</span>
+                      <span className="text-[15px] font-black tabular-nums text-[#157A50]">{UYU(totalContado)}</span>
                     </div>
                   </div>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-[12px] font-bold text-cuerpo">Tu nombre</span>
+                    <input value={nombre} onChange={(e) => { setNombre(e.target.value); setMsg(null); }} placeholder="Nombre y apellido" maxLength={80} autoComplete="name" autoFocus
+                      className="rounded-[12px] border border-[#DCE3F4] px-3.5 py-2.5 text-[16px] text-tinta outline-none focus:border-azul" />
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-[12px] font-bold text-cuerpo">Teléfono / WhatsApp</span>
+                    <input value={tel} onChange={(e) => { setTel(e.target.value); setMsg(null); }} placeholder="099 123 456" type="tel" inputMode="tel" maxLength={30} autoComplete="tel"
+                      className="rounded-[12px] border border-[#DCE3F4] px-3.5 py-2.5 text-[16px] text-tinta outline-none focus:border-azul" />
+                  </label>
+                  <button type="button" onClick={confirmar} disabled={pend}
+                    className="mt-1 w-full rounded-full bg-[#157A50] px-5 py-3.5 text-[16px] font-extrabold text-white shadow-[0_6px_18px_rgba(21,122,80,0.28)] active:scale-[0.99] disabled:opacity-60">
+                    {pend ? "Enviando…" : "Confirmar pedido"}
+                  </button>
+                  {estado === "error" && msg && <p className="text-center text-[12px] font-semibold text-[#E06A6A]">{msg}</p>}
+                  <button type="button" onClick={() => setPaso("revisar")} className="text-center text-[12.5px] font-semibold text-gris hover:text-tinta">← Volver al pedido</button>
                 </div>
-              ))}
-            </div>
+              )}
+            </>
+          )}
+        </Drawer.Content>
+      </Drawer.Portal>
+    </Drawer.Root>
+  );
+}
 
-            <div className="flex shrink-0 flex-col gap-2.5 border-t border-[#EEF1F8] p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-[13px] font-semibold text-gris">Total contado</span>
-                <span className="text-[18px] font-black tabular-nums text-[#157A50]">{UYU(totalContado)}</span>
-              </div>
-              {totalCuota > 0 && (
-                <div className="flex items-center justify-between">
-                  <span className="text-[12px] font-medium text-gris">En cuotas (aprox.)</span>
-                  <span className="text-[13px] font-bold tabular-nums text-[#1E47C8]">≈ {UYU(totalCuota)} por período</span>
-                </div>
-              )}
-              {modoPublico && (
-                <div className="flex flex-col gap-2 pt-1">
-                  <input value={nombre} onChange={(e) => { setNombre(e.target.value); setMsg(null); }} placeholder="Tu nombre" maxLength={80} autoComplete="name"
-                    className="rounded-[12px] border border-[#DCE3F4] px-3.5 py-2.5 text-[16px] text-tinta outline-none focus:border-azul" />
-                  <input value={tel} onChange={(e) => { setTel(e.target.value); setMsg(null); }} placeholder="Tu teléfono o WhatsApp" type="tel" inputMode="tel" maxLength={30} autoComplete="tel"
-                    className="rounded-[12px] border border-[#DCE3F4] px-3.5 py-2.5 text-[16px] text-tinta outline-none focus:border-azul" />
-                </div>
-              )}
-              <button type="button" onClick={enviar} disabled={pend}
-                className="w-full rounded-full bg-[#1E47C8] px-5 py-3.5 text-[16px] font-extrabold text-white shadow-[0_6px_18px_rgba(19,48,140,0.28)] transition active:scale-[0.99] disabled:opacity-60">
-                {pend ? "Enviando…" : "Pedir estos productos"}
-              </button>
-              {estado === "error" && msg && <p className="text-center text-[12px] font-semibold text-[#E06A6A]">{msg}</p>}
-              <button type="button" onClick={onVaciar} className="text-center text-[11.5px] font-semibold text-gris hover:text-tinta">Vaciar carrito</button>
-              <p className="text-center text-[10.5px] font-medium text-tenue">Sin compromiso. Coordinamos el precio y las cuotas con vos.</p>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
+/** Envuelve la ficha del producto en un Drawer (Vaul): bottom-sheet con arrastre
+ *  para cerrar. Mantiene el producto "vivo" durante la animación de salida y
+ *  remonta la ficha en cada apertura (estado fresco) vía `seq`. */
+function DetalleSheet({
+  producto, token, preview, modoPublico, modoEmpleado, conCarrito, onAgregar, productos, onAbrirOtro, onClose,
+}: {
+  producto: ProductoParaCliente | null;
+  token: string | null;
+  preview: boolean;
+  modoPublico: boolean;
+  modoEmpleado: boolean;
+  conCarrito: boolean;
+  onAgregar: (p: ProductoParaCliente) => void;
+  productos: ProductoParaCliente[];
+  onAbrirOtro: (p: ProductoParaCliente) => void;
+  onClose: () => void;
+}) {
+  const [vivo, setVivo] = useState<ProductoParaCliente | null>(producto);
+  const [seq, setSeq] = useState(0);
+  useEffect(() => { if (producto) { setVivo(producto); setSeq((s) => s + 1); } }, [producto]);
+  return (
+    <Drawer.Root open={!!producto} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <Drawer.Portal>
+        <Drawer.Overlay className="fixed inset-0 z-[70] bg-black/55" />
+        <Drawer.Content className="fixed inset-x-0 bottom-0 z-[71] mx-auto flex max-h-[94vh] w-full max-w-[480px] flex-col rounded-t-[26px] bg-white shadow-[0_-12px_60px_rgba(15,27,61,0.4)] outline-none">
+          <Drawer.Title className="sr-only">{vivo?.nombre ?? "Producto"}</Drawer.Title>
+          <div className="mx-auto mt-2 h-1.5 w-11 shrink-0 rounded-full bg-[#E0E5F0]" aria-hidden />
+          {vivo && (
+            <DetalleProducto
+              key={`${vivo.id}:${seq}`}
+              p={vivo}
+              token={token}
+              preview={preview}
+              modoPublico={modoPublico}
+              modoEmpleado={modoEmpleado}
+              conCarrito={conCarrito}
+              onAgregar={onAgregar}
+              relacionados={relacionadosDe(vivo, productos)}
+              onAbrirOtro={onAbrirOtro}
+              onClose={onClose}
+            />
+          )}
+        </Drawer.Content>
+      </Drawer.Portal>
+    </Drawer.Root>
   );
 }
 
@@ -718,7 +854,6 @@ function DetalleProducto({
   relacionados: ProductoParaCliente[];
   onAbrirOtro: (p: ProductoParaCliente) => void;
 }) {
-  const [i, setI] = useState(0);
   const [pend, start] = useTransition();
   const [estado, setEstado] = useState<"idle" | "ok" | "error">("idle");
   const [msg, setMsg] = useState<string | null>(null);
@@ -737,23 +872,11 @@ function DetalleProducto({
     ? [...new Set([Math.max(1, Math.round(p.cuotas / 2)), p.cuotas, Math.round(p.cuotas * 1.5)])].filter((n) => n >= 1 && n <= 1000).sort((a, b) => a - b)
     : [];
   const cuotaSel = plazoSel === p.cuotas ? cuota : Math.ceil(totalCuotas / Math.max(1, plazoSel));
-  const medios = p.fotos.length > 0 ? p.fotos : [];
-  const total = medios.length + (p.videoUrl ? 1 : 0);
-  const esVideo = p.videoUrl && i === medios.length;
   const ahorro = p.precioAnterior > p.precio ? p.precioAnterior - p.precio : 0;
   const ahorroPct = ahorro > 0 && p.precioAnterior > 0 ? Math.round((ahorro / p.precioAnterior) * 100) : 0;
   const sinStock = p.agotado || p.stock === 0;
   const [compartido, setCompartido] = useState(false);
-  const [zoom, setZoom] = useState(false); // foto a pantalla completa
-  const touchX = useRef<number | null>(null);
-  // Swipe táctil en la foto principal (estándar PDP mobile).
-  const onTouchStart = (e: React.TouchEvent) => { touchX.current = e.touches[0].clientX; };
-  const onTouchEnd = (e: React.TouchEvent) => {
-    if (touchX.current == null || total <= 1 || esVideo) return;
-    const dx = e.changedTouches[0].clientX - touchX.current;
-    touchX.current = null;
-    if (Math.abs(dx) > 40) setI((x) => (x + (dx < 0 ? 1 : -1) + total) % total);
-  };
+  const [zoomIdx, setZoomIdx] = useState<number | null>(null); // índice de foto a pantalla completa (Embla → zoom)
 
   // Compartir la ficha (link + preview con foto y precio) — como Mercado Libre.
   const compartir = async () => {
@@ -770,14 +893,7 @@ function DetalleProducto({
     } catch { /* el usuario canceló: sin drama */ }
   };
 
-  // A11y del modal: cerrar con Escape + bloquear el scroll del fondo mientras está abierto.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
-  }, [onClose]);
+  // (Escape + lock de scroll: los maneja el Drawer de Vaul que envuelve la ficha.)
 
   const enviar = () =>
     start(async () => {
@@ -807,49 +923,16 @@ function DetalleProducto({
 
   return (
     <>
-    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/55 p-0 sm:items-center sm:p-4" onClick={onClose}>
-      <div className="flex max-h-[94vh] w-full max-w-[460px] flex-col overflow-hidden rounded-t-[26px] bg-white shadow-[0_24px_70px_rgba(15,27,61,0.4)] sm:rounded-[26px]" onClick={(e) => e.stopPropagation()}>
-        {/* Galería con miniaturas */}
-        <div className="shrink-0">
-          <div className="relative aspect-square w-full bg-[linear-gradient(180deg,#FBFCFF,#F1F4FB)]" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-            {esVideo ? (
-              <video src={p.videoUrl!} controls playsInline className="h-full w-full bg-black object-contain" />
-            ) : medios[i] ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={medios[i]} alt={p.nombre} onClick={() => setZoom(true)} className="h-full w-full cursor-zoom-in object-contain p-3" />
-            ) : (
-              <div className="flex h-full items-center justify-center text-[56px]">🛍️</div>
-            )}
-            {total > 1 && (
-              <>
-                <button type="button" onClick={() => setI((x) => (x - 1 + total) % total)} aria-label="Foto anterior" className="absolute left-2.5 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-white/95 text-[16px] font-black text-tinta shadow-md active:scale-90">‹</button>
-                <button type="button" onClick={() => setI((x) => (x + 1) % total)} aria-label="Foto siguiente" className="absolute right-2.5 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-white/95 text-[16px] font-black text-tinta shadow-md active:scale-90">›</button>
-              </>
-            )}
-            {ahorroPct > 0 && !sinStock && (
-              <span className="absolute left-3 top-3 rounded-full bg-[#D64545] px-2.5 py-1 text-[11px] font-black text-white shadow">−{ahorroPct}%</span>
-            )}
-            {p.proveedor === "curbe" && (
-              <span className={`absolute left-3 ${ahorroPct > 0 && !sinStock ? "top-11" : "top-3"} rounded-full bg-[linear-gradient(135deg,#E8C56E,#C9A24B)] px-2.5 py-1 text-[11px] font-black text-[#3A2E0A] shadow`}>💎 Curbe</span>
-            )}
-            <button type="button" onClick={onClose} aria-label="Cerrar" className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full bg-white/95 text-[15px] font-black text-tinta shadow active:scale-90">✕</button>
-          </div>
-          {total > 1 && (
-            <div className="flex gap-2 overflow-x-auto px-4 py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {medios.map((src, k) => (
-                <button key={k} type="button" onClick={() => setI(k)}
-                  className={`h-14 w-14 shrink-0 overflow-hidden rounded-[10px] border-2 bg-white ${i === k ? "border-[#1E47C8]" : "border-[#ECEFF8]"}`}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={src} alt="" className="h-full w-full object-contain p-0.5" />
-                </button>
-              ))}
-              {p.videoUrl && (
-                <button type="button" onClick={() => setI(medios.length)}
-                  className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-[10px] border-2 bg-[#0F1B3D] text-[18px] text-white ${esVideo ? "border-[#1E47C8]" : "border-[#ECEFF8]"}`}>▶</button>
-              )}
-            </div>
-          )}
-        </div>
+      {/* Galería (Embla): swipe con momentum + miniaturas + tap→zoom. */}
+      <GaleriaEmbla
+        fotos={p.fotos}
+        videoUrl={p.videoUrl}
+        nombre={p.nombre}
+        ahorroPct={sinStock ? 0 : ahorroPct}
+        esCurbe={p.proveedor === "curbe"}
+        onZoom={setZoomIdx}
+        onClose={onClose}
+      />
 
         {/* Contenido */}
         <div className="flex flex-1 flex-col gap-3.5 overflow-y-auto px-5 py-4">
@@ -932,7 +1015,7 @@ function DetalleProducto({
               <span className="text-[13px] font-extrabold text-tinta">También te puede interesar</span>
               <div className="-mx-5 flex gap-2.5 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {relacionados.map((r) => (
-                  <button key={r.id} type="button" onClick={() => { setI(0); setEstado("idle"); onAbrirOtro(r); }}
+                  <button key={r.id} type="button" onClick={() => { setEstado("idle"); onAbrirOtro(r); }}
                     className="flex w-[130px] shrink-0 flex-col overflow-hidden rounded-[14px] border border-[#ECEFF8] bg-white text-left active:scale-[0.98]">
                     <Foto p={r} className="aspect-square" />
                     <div className="flex flex-col gap-0.5 px-2.5 py-2">
@@ -1028,19 +1111,18 @@ function DetalleProducto({
             </>
           )}
         </div>
-      </div>
-    </div>
-    {/* Foto a PANTALLA COMPLETA (tap para cerrar) — zoom de la galería. */}
-    {zoom && medios[i] && !esVideo && (
-      <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/90 p-4" onClick={() => setZoom(false)} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={medios[i]} alt={p.nombre} className="max-h-full max-w-full object-contain" />
-        <button type="button" onClick={(e) => { e.stopPropagation(); setZoom(false); }} aria-label="Cerrar" className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-[16px] font-black text-tinta">✕</button>
-        {total > 1 && (
-          <span className="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full bg-white/85 px-3 py-1 text-[12px] font-bold text-tinta">{i + 1} / {total}</span>
-        )}
-      </div>
-    )}
+
+      {/* Foto a PANTALLA COMPLETA (tap para cerrar) — zoom de la galería. */}
+      {zoomIdx != null && p.fotos[zoomIdx] && (
+        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/90 p-4" onClick={() => setZoomIdx(null)}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={p.fotos[zoomIdx]} alt={p.nombre} className="max-h-full max-w-full object-contain" />
+          <button type="button" onClick={(e) => { e.stopPropagation(); setZoomIdx(null); }} aria-label="Cerrar" className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-[16px] font-black text-tinta">✕</button>
+          {p.fotos.length > 1 && (
+            <span className="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full bg-white/85 px-3 py-1 text-[12px] font-bold text-tinta">{zoomIdx + 1} / {p.fotos.length}</span>
+          )}
+        </div>
+      )}
     </>
   );
 }
