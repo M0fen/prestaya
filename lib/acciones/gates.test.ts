@@ -16,6 +16,7 @@ const crearVentaSegura = vi.fn();
 const setAperturaDb = vi.fn();
 const getCierrePorZona = vi.fn();
 const puedeVerZona = vi.fn();
+const upsertDiscrepanciaDb = vi.fn();
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServer: vi.fn(async () => ({})) }));
@@ -38,10 +39,15 @@ vi.mock("@/lib/data/tienda", async (importOriginal) => ({
 vi.mock("@/lib/observabilidad", () => ({ reportarError: vi.fn() }));
 vi.mock("@/lib/permisos", () => ({ puedeVerZona: (...a: unknown[]) => puedeVerZona(...a) }));
 vi.mock("@/lib/data/cierreZona", () => ({ getCierrePorZona: (...a: unknown[]) => getCierrePorZona(...a) }));
+vi.mock("@/lib/data/discrepancias", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  upsertDiscrepanciaDb: (...a: unknown[]) => upsertDiscrepanciaDb(...a),
+}));
 
 import { convertirLeadEnVenta } from "./tienda";
 import { setApertura } from "./aperturas";
 import { confirmarCierreZona } from "./cierreZona";
+import { resolverDiscrepancia } from "./discrepancias";
 
 const ADMIN = { id: "u-admin", nombre: "Admin", rol: "admin", activo: true };
 const SUPERVISOR = { id: "u-sup", nombre: "Sup", rol: "supervisor", activo: true };
@@ -159,5 +165,37 @@ describe("confirmarCierreZona — gates (custodia de efectivo del supervisor)", 
     const r = await confirmarCierreZona({ zonaId: UUID });
     expect(r).toEqual({ ok: false, error: "Sistema en modo solo lectura." });
     expect(getCierrePorZona).not.toHaveBeenCalled();
+  });
+});
+
+describe("resolverDiscrepancia — gates (triage del empalme)", () => {
+  it("un supervisor (no admin) NO puede triagear una discrepancia de dinero", async () => {
+    getUsuarioActual.mockResolvedValue(SUPERVISOR);
+    const r = await resolverDiscrepancia({ creditoId: UUID, estado: "resuelto" });
+    expect(r.ok).toBe(false);
+    expect(upsertDiscrepanciaDb).not.toHaveBeenCalled();
+  });
+
+  it("un estado inválido se rechaza antes de la DB", async () => {
+    getUsuarioActual.mockResolvedValue(ADMIN);
+    const r = await resolverDiscrepancia({ creditoId: UUID, estado: "borrar_todo" });
+    expect(r.ok).toBe(false);
+    expect(upsertDiscrepanciaDb).not.toHaveBeenCalled();
+  });
+
+  it("un creditoId inválido se rechaza antes de la DB", async () => {
+    getUsuarioActual.mockResolvedValue(ADMIN);
+    const r = await resolverDiscrepancia({ creditoId: "x", estado: "aceptado" });
+    expect(r.ok).toBe(false);
+    expect(upsertDiscrepanciaDb).not.toHaveBeenCalled();
+  });
+
+  it("admin con datos válidos guarda el triage", async () => {
+    getUsuarioActual.mockResolvedValue(ADMIN);
+    upsertDiscrepanciaDb.mockResolvedValue(undefined);
+    const r = await resolverDiscrepancia({ creditoId: UUID, estado: "aceptado", nota: "baseline Disapp" });
+    expect(r.ok).toBe(true);
+    expect(upsertDiscrepanciaDb).toHaveBeenCalledTimes(1);
+    expect(upsertDiscrepanciaDb.mock.calls[0][1]).toMatchObject({ estado: "aceptado", adminId: "u-admin" });
   });
 });

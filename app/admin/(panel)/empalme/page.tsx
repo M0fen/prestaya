@@ -9,6 +9,7 @@ import {
   getHistorialReconciliacion,
 } from "@/lib/data/reconciliacion";
 import { KillSwitch } from "@/components/admin/KillSwitch";
+import { ResolverDiscrepancia } from "@/components/admin/ResolverDiscrepancia";
 import { UYU } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -102,24 +103,26 @@ export default async function EmpalmePage() {
           <div
             className="flex items-center justify-between rounded-[14px] border px-4 py-3"
             style={{
-              borderColor: info.criticas === 0 ? "var(--color-verde-osc)" : "var(--color-rojo-osc)",
-              background: info.criticas === 0 ? "var(--color-verde-suave)" : "var(--color-rojo-suave)",
+              borderColor: info.criticasSinResolver === 0 ? "var(--color-verde-osc)" : "var(--color-rojo-osc)",
+              background: info.criticasSinResolver === 0 ? "var(--color-verde-suave)" : "var(--color-rojo-suave)",
             }}
           >
             <div className="flex flex-col">
-              <span className="text-[14px] font-extrabold" style={{ color: info.criticas === 0 ? "var(--color-verde-osc)" : "var(--color-rojo-osc)" }}>
-                {info.criticas === 0
+              <span className="text-[14px] font-extrabold" style={{ color: info.criticasSinResolver === 0 ? "var(--color-verde-osc)" : "var(--color-rojo-osc)" }}>
+                {info.criticasSinResolver === 0
                   ? info.totalDiferencias === 0
                     ? "✅ La plata cuadra: cero diferencias."
-                    : "✅ Sano: sin diferencias críticas vivas."
-                  : `🔴 ${info.criticas} diferencia(s) crítica(s) — revisar`}
+                    : info.criticas === 0
+                      ? "✅ Sano: sin diferencias críticas vivas."
+                      : `✅ Sano: ${info.criticas} crítica(s), todas revisadas/aceptadas.`
+                  : `🔴 ${info.criticasSinResolver} diferencia(s) crítica(s) sin resolver — revisar`}
               </span>
               <span className="text-[12px] font-medium text-gris">
-                {info.totalDiferencias} diferencia(s) en total · {info.totalDiferencias - info.criticas} de redondeo (baseline)
+                {info.totalDiferencias} en total · {info.criticas} materiales · {info.totalDiferencias - info.criticas} de redondeo (baseline)
               </span>
             </div>
-            <span className="text-[26px] font-black tabular-nums" style={{ color: info.criticas === 0 ? "var(--color-verde-osc)" : "var(--color-rojo-osc)" }}>
-              {info.criticas}
+            <span className="text-[26px] font-black tabular-nums" style={{ color: info.criticasSinResolver === 0 ? "var(--color-verde-osc)" : "var(--color-rojo-osc)" }}>
+              {info.criticasSinResolver}
             </span>
           </div>
         </section>
@@ -185,6 +188,7 @@ export default async function EmpalmePage() {
                   <th className="px-3 py-2.5 text-right">Libro (Σpagos)</th>
                   <th className="px-3 py-2.5 text-right">Total</th>
                   <th className="px-3 py-2.5 text-right">Diferencia</th>
+                  <th className="px-3 py-2.5 text-right">Acción</th>
                 </tr>
               </thead>
               <tbody>
@@ -213,6 +217,14 @@ export default async function EmpalmePage() {
                       <td className="px-3 py-2.5 text-right font-bold tabular-nums" style={{ color: d.material ? "var(--color-rojo-osc)" : "var(--color-ambar-osc)" }}>
                         {dif > 0 ? "+" : ""}{UYU(dif)}
                       </td>
+                      <td className="px-3 py-2.5 text-right">
+                        <ResolverDiscrepancia
+                          creditoId={d.creditoId}
+                          tipo={d.tipo}
+                          montoDiferencia={dif}
+                          triage={d.triage ? { estado: d.triage.estado, nota: d.triage.nota } : null}
+                        />
+                      </td>
                     </tr>
                   );
                 })}
@@ -228,6 +240,7 @@ export default async function EmpalmePage() {
         <ul className="flex flex-col gap-1.5 text-[12px] leading-[1.5] font-medium text-gris">
           <li><b className="text-tinta">Saldo≠libro</b>: el saldo denormalizado de la app no coincide con la suma real de pagos. Siempre a revisar (los saldos/cartera dependen de que sea exacto).</li>
           <li><b className="text-tinta">Sobre-cobro</b>: el crédito registra más pagos que su total. <b>Material</b> (≥1 cuota o ≥5% del total) merece mirada; <b>redondeo</b> es ruido pre-existente del empalme original — casi todos de créditos ya finalizados, no afecta el piloto.</li>
+          <li><b className="text-tinta">Acción / triage</b>: con el botón de cada fila marcás la divergencia como <i>en progreso</i>, <i>resuelta</i> o <i>aceptada</i> (baseline) con una nota. Una crítica marcada resuelta/aceptada deja de contar como "sin resolver" y el estado de arriba vuelve a verde. Queda la traza (quién, cuándo).</li>
           <li><b className="text-tinta">Kill switch</b>: congela TODAS las escrituras de plata al instante (sin redeploy) si detectás corrupción. Reactivalo cuando esté resuelto.</li>
           <li>Corrida manual y exhaustiva: <code className="rounded bg-suave px-1 py-0.5 text-[11px]">node --env-file=.env.local scripts/reconciliacion.mjs</code></li>
           <li>Comparar vs Disapp (shadow-mode): <code className="rounded bg-suave px-1 py-0.5 text-[11px]">python scripts/shadow-disapp.py</code></li>

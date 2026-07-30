@@ -15,6 +15,7 @@ import { inicioDiaUYIso } from "@/lib/fecha";
 import { saldoCredito } from "@/lib/cartones";
 import { reportarError } from "@/lib/observabilidad";
 import { tablaFaltante } from "./errores";
+import { getDiscrepanciasMap, esCerrada, type TriageDiscrepancia } from "./discrepancias";
 import { traerTodo } from "./paginado";
 
 export interface ResultadoReconciliacion extends ResumenReconciliacion {
@@ -155,6 +156,8 @@ export interface DiferenciaEmpalme {
   tipo: "drift" | "sobrecobro";
   /** true = material (grave); false = redondeo/baseline. */
   material: boolean;
+  /** Estado del triage humano (0109), o null si nadie lo tocó / falta la migración. */
+  triage: TriageDiscrepancia | null;
 }
 
 export interface InfoEmpalme {
@@ -162,6 +165,8 @@ export interface InfoEmpalme {
   diferencias: DiferenciaEmpalme[];
   totalDiferencias: number;
   criticas: number;
+  /** Críticas MATERIALES que NO están resueltas/aceptadas (las que reclaman acción). */
+  criticasSinResolver: number;
   soloLectura: boolean;
 }
 
@@ -175,6 +180,7 @@ export async function getInfoEmpalme(db: SupabaseClient): Promise<InfoEmpalme> {
     diferencias: [],
     totalDiferencias: 0,
     criticas: 0,
+    criticasSinResolver: 0,
     soloLectura: false,
   };
   let filas: Record<string, unknown>[];
@@ -230,10 +236,20 @@ export async function getInfoEmpalme(db: SupabaseClient): Promise<InfoEmpalme> {
       tipo: esDrift ? "drift" : "sobrecobro",
       // Un drift del denormalizado siempre es material; un sobre-cobro, solo si activo.
       material: esDrift || materialSobre,
+      triage: null as TriageDiscrepancia | null,
     };
   });
-  // Más grave primero (drift, luego sobre-cobros materiales, luego el resto).
-  diferencias.sort((a, b) => Number(b.material) - Number(a.material) || Math.abs(b.exceso) - Math.abs(a.exceso));
+
+  // Triage humano (0109): adjunta el estado de cada divergencia (degrada a null si
+  // 0109 no corrió). Una crítica RESUELTA/ACEPTADA deja de reclamar acción.
+  const triage = await getDiscrepanciasMap(db, filas.map((r) => r.id as string));
+  for (const d of diferencias) d.triage = triage.get(d.creditoId) ?? null;
+
+  // Más grave primero: las materiales SIN resolver arriba, luego resto por |exceso|.
+  const pesoSinResolver = (d: DiferenciaEmpalme) => (d.material && !(d.triage && esCerrada(d.triage.estado)) ? 1 : 0);
+  diferencias.sort(
+    (a, b) => pesoSinResolver(b) - pesoSinResolver(a) || Number(b.material) - Number(a.material) || Math.abs(b.exceso) - Math.abs(a.exceso),
+  );
 
   let soloLectura = false;
   try {
@@ -252,6 +268,8 @@ export async function getInfoEmpalme(db: SupabaseClient): Promise<InfoEmpalme> {
     diferencias,
     totalDiferencias: diferencias.length,
     criticas: diferencias.filter((d) => d.material).length,
+    // Las que reclaman ACCIÓN: materiales que nadie resolvió/aceptó todavía.
+    criticasSinResolver: diferencias.filter((d) => d.material && !(d.triage && esCerrada(d.triage.estado))).length,
     soloLectura,
   };
 }
@@ -316,11 +334,16 @@ export async function reconciliarDia(
       : [];
 
   const resumen = reconciliar(creditos, extra);
-  // ALERTABLE (push diario) = problema VIVO, no el baseline histórico: un drift del
-  // denormalizado (los saldos mienten, siempre grave) o un sobre-cobro MATERIAL en
-  // un crédito ACTIVO (se está cobrando de más ahora). Los sobre-cobros de créditos
-  // ya finalizados son un baseline pre-existente y no disparan aviso a diario.
+  // Triage humano (0109): una divergencia ya RESUELTA/ACEPTADA (baseline conocido)
+  // no debe re-alertar a diario — si no, el push gritaría lo mismo cada mañana y se
+  // volvería ruido. Coherente con el panel (criticasSinResolver). Degrada si 0109 falta.
+  const triage = await getDiscrepanciasMap(db, creditos.map((c) => c.id));
+  // ALERTABLE (push diario) = problema VIVO y NO aceptado: un drift del denormalizado
+  // (los saldos mienten, siempre grave) o un sobre-cobro MATERIAL en un crédito ACTIVO
+  // (se está cobrando de más ahora), que nadie haya revisado/aceptado todavía.
   const criticos = creditos.filter((c) => {
+    const t = triage.get(c.id);
+    if (t && esCerrada(t.estado)) return false; // ya revisado/aceptado → no re-alerta
     const driftAcum = Math.abs(c.pagadoAcum - c.pagosSuma) >= 1;
     const exceso = c.pagosSuma - c.totalAPagar;
     const sobreMaterial =
