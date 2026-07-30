@@ -3,26 +3,40 @@
 //  Se consulta antes de cada ESCRITURA DE PLATA. Cacheado por request (React
 //  cache) para no leerlo N veces. FAIL-OPEN a propósito: si el flag no se puede
 //  leer (0072 sin correr, o error transitorio), NO se bloquea — no queremos
-//  frenar la operación por un glitch; el kill switch es una acción deliberada y
-//  cuando está prendido el flag existe y se lee bien.
+//  frenar la operación por un glitch; el kill switch es una acción deliberada.
+//  PERO: durante un incidente real (DB inestable) es JUSTO cuando el freeze más
+//  importa y cuando el blip es más probable → antes de caer a fail-open hacemos
+//  un reintento corto, para que un glitch aislado no reabra un freeze encendido.
 // ─────────────────────────────────────────────────────────────────────────
 import { cache } from "react";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/** Una sola lectura del flag. Lanza si falla (para que el retry la reintente). */
+async function leerFlagCongelado(): Promise<boolean> {
+  const db = createSupabaseAdmin();
+  const { data, error } = await db
+    .from("feature_flags")
+    .select("activo")
+    .eq("clave", "modo_solo_lectura")
+    .maybeSingle();
+  if (error) throw error;
+  return Boolean(data?.activo);
+}
+
 /** ¿Está congelada la escritura de dinero? (kill switch encendido). */
 export const escrituraCongelada = cache(async (): Promise<boolean> => {
-  try {
-    const db = createSupabaseAdmin();
-    const { data, error } = await db
-      .from("feature_flags")
-      .select("activo")
-      .eq("clave", "modo_solo_lectura")
-      .maybeSingle();
-    if (error) throw error;
-    return Boolean(data?.activo);
-  } catch {
-    return false; // fail-open: ante cualquier duda, dejar operar
+  // 2 intentos con backoff corto: un blip transitorio no debe reabrir el freeze.
+  const INTENTOS = 2;
+  for (let i = 0; i < INTENTOS; i++) {
+    try {
+      return await leerFlagCongelado();
+    } catch {
+      if (i < INTENTOS - 1) await sleep(150);
+    }
   }
+  return false; // fail-open SOLO tras agotar los reintentos
 });
 
 /**

@@ -37,6 +37,11 @@ type Respuesta = { data: unknown; error: unknown };
 export async function traerTodo<T>(
   consulta: (desde: number, hasta: number) => PromiseLike<Respuesta>,
   tam = 1000,
+  // Tope defensivo OPCIONAL de filas. Por defecto SIN tope (conducta previa: los
+  // barridos de plata deben traer TODO para no subestimar). Se usa solo en caminos
+  // DEGRADADOS/emergencia (p.ej. fallback sin RPC) para no reventar la instancia
+  // con millones de filas; ahí un corte acotado es preferible a un OOM.
+  maxFilas?: number,
 ): Promise<T[]> {
   const out: T[] = [];
   for (let desde = 0; ; desde += tam) {
@@ -45,6 +50,7 @@ export async function traerTodo<T>(
     const filas = (data ?? []) as T[];
     out.push(...filas);
     if (filas.length < tam) break; // última página
+    if (maxFilas !== undefined && out.length >= maxFilas) break; // tope de emergencia
   }
   return out;
 }

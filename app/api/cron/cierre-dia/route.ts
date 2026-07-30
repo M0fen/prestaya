@@ -15,6 +15,9 @@ import { UYU } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+// Igual que reconciliación: arma el resumen del día (agrega sobre datos que crecen)
+// y empuja push. 300s (máx. Pro; en Hobby se clampa) para que no se corte a mitad.
+export const maxDuration = 300;
 
 export async function GET(req: Request): Promise<Response> {
   // Solo Vercel Cron (o quien tenga el secreto). FALLA CERRADO en producción:

@@ -14,6 +14,12 @@ import { enviarPush, pushConfigurado } from "@/lib/push/enviar";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+// A ESCALA: este cron pagina TODOS los pagos del día para reconciliar. Con el tope
+// DEFAULT de Vercel (~10-15s) podría matarse a mitad y dejar el log incompleto (se
+// vería como "cron caído" por timeout, no por un problema real de plata). 300s es
+// el máximo del plan Pro; en Hobby se ignora/clampa (no rompe). El vigilante del
+// dinero debe poder terminar su barrido.
+export const maxDuration = 300;
 
 export async function GET(req: Request): Promise<Response> {
   // Solo Vercel Cron (o quien tenga el secreto). FALLA CERRADO en producción.

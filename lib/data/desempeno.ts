@@ -13,9 +13,13 @@ import { traerTodo } from "./paginado";
 import { enLotes, type Alcance } from "./alcance";
 import { tablaFaltante } from "./errores";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
+import { reportarError } from "@/lib/observabilidad";
 
 /** Tope defensivo: un año. Con el GROUP BY en SQL, un año es barato. */
 export const MAX_DIAS_DESEMPENO = 366;
+/** Tope de emergencia del FALLBACK (escaneo sin RPC): evita OOM si 0058 faltara y
+ *  el rango fuera enorme. Con la RPC presente (prod) este camino no se usa. */
+const MAX_FILAS_FALLBACK = 500_000;
 
 export interface DesempenoCobrador {
   cobradorId: string;
@@ -108,6 +112,14 @@ async function agregarPagos(
 
   // 2) Fallback: escaneo con el cliente admin (bypassa RLS por-fila). Scope por
   //    `registrado_por` (soloCob). Igual de exacto, más lento a escala.
+  //    VISIBLE en Sentry: si esto se activa en prod es que la RPC 0058 no está
+  //    (un fallback silencioso NO debe volverse el modo normal a escala) + tope
+  //    de filas de emergencia para no reventar la instancia con un rango enorme.
+  reportarError(
+    "desempeno.fallback_sin_rpc",
+    new Error("app_desempeno_rango ausente: escaneo con admin client (¿0058 sin correr?)"),
+    { desdeIso, hastaIso, soloCob: soloCob?.length ?? "global" },
+  );
   const admin = createSupabaseAdmin();
   const pagos = await traerTodo<{ monto: number; registrado_por: string | null; registrado_en: string }>((d, h) => {
     let q = admin
@@ -118,7 +130,7 @@ async function agregarPagos(
       .lt("registrado_en", hastaIso);
     if (soloCob) q = q.in("registrado_por", soloCob);
     return q.order("id", { ascending: true }).range(d, h);
-  });
+  }, 1000, MAX_FILAS_FALLBACK);
   const cob = new Map<string, { recaudado: number; cobros: number; dias: Set<string> }>();
   const porDia = new Map<string, { recaudado: number; cobros: number }>();
   let totalRecaudado = 0;

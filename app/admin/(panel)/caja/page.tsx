@@ -24,6 +24,29 @@ const TOPE_MS = 22_000;
 const esYmd = (v: string | undefined): string | null =>
   v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
 
+// A ESCALA: la caja materializa TODOS los pagos del rango en memoria (para sumar
+// con exactitud). Sin tope, un rango amplio (p.ej. un año) barre cientos de miles
+// / millones de filas → OOM o timeout. 31 días cubre la revisión operativa; el
+// detalle de un período largo va por Exportar CSV (que hace streaming, no
+// materializa). Si piden más, movemos 'desde' hacia adelante y avisamos.
+const MAX_DIAS_RANGO = 31;
+function acotarRango(
+  desde: string,
+  hasta: string,
+): { desde: string; acotado: boolean } {
+  const dDesde = Date.parse(`${desde}T00:00:00Z`);
+  const dHasta = Date.parse(`${hasta}T00:00:00Z`);
+  if (Number.isNaN(dDesde) || Number.isNaN(dHasta) || dHasta < dDesde) {
+    return { desde, acotado: false };
+  }
+  const dias = Math.floor((dHasta - dDesde) / 86_400_000) + 1;
+  if (dias <= MAX_DIAS_RANGO) return { desde, acotado: false };
+  const nuevo = new Date(dHasta - (MAX_DIAS_RANGO - 1) * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  return { desde: nuevo, acotado: true };
+}
+
 function fechaHora(iso: string | null | undefined): string {
   if (!iso) return "—"; // fecha ausente → guion, no "Invalid Date"
   const d = new Date(iso);
@@ -51,8 +74,10 @@ export default async function CajaPage({
   const db = await createSupabaseServer();
 
   const hoyYmd = fechaISOUY();
-  const desde = esYmd(sp.desde) ?? hoyYmd;
+  const desdePedido = esYmd(sp.desde) ?? hoyYmd;
   const hasta = esYmd(sp.hasta) ?? hoyYmd;
+  // Acotar el rango pedido antes de materializar (protección de escala).
+  const { desde, acotado: rangoAcotado } = acotarRango(desdePedido, hasta);
   const esHoy = desde === hoyYmd && hasta === hoyYmd;
 
   const r = await conTimeout(
@@ -73,7 +98,9 @@ export default async function CajaPage({
           .map((z) => z.zonaId ?? CLAVE_SIN_ZONA)
       : [];
 
-  const qs = new URLSearchParams({ desde, hasta, periodo: esHoy ? "hoy" : "mes" });
+  // El CSV usa el rango PEDIDO (sin acotar): exporta por streaming, así que es la
+  // vía correcta para un período largo cuando la vista de pantalla se acota.
+  const qs = new URLSearchParams({ desde: desdePedido, hasta, periodo: esHoy ? "hoy" : "mes" });
   const csvHref = `/api/reportes/caja?${qs.toString()}`;
 
   return (
@@ -148,6 +175,14 @@ export default async function CajaPage({
           Aplicar
         </button>
       </form>
+
+      {rangoAcotado && (
+        <p className="-mt-2 rounded-[12px] border border-[#F3D9A6] bg-[#FDF6E7] px-3.5 py-2.5 text-[12px] font-semibold text-[#8A5A00] print:hidden">
+          El rango se acotó a los últimos {MAX_DIAS_RANGO} días (desde {desde}) para
+          cuidar el rendimiento. Para el detalle completo de un período largo, usá{" "}
+          <b>Exportar CSV</b>.
+        </p>
+      )}
 
       {/* 3 tarjetas (como Disapp). En mobile van a 2 col para que el monto no se
           recorte/superponga en pantallas angostas (~360px). */}

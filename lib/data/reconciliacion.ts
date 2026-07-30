@@ -35,8 +35,12 @@ export async function getSaludEmpalme(db: SupabaseClient): Promise<SaludEmpalme>
     tabla: string,
     col?: string,
     val?: string | boolean,
+    // "estimated" usa la estimación del planner (reltuples) para tablas grandes y
+    // exacto para las chicas: evita el scan O(n) de un count exact. Solo para
+    // números INFORMATIVOS (foto de salud), no para lógica de plata.
+    modo: "exact" | "estimated" = "exact",
   ): Promise<number> => {
-    let q = db.from(tabla).select("id", { count: "exact", head: true });
+    let q = db.from(tabla).select("id", { count: modo, head: true });
     if (col !== undefined) q = q.eq(col, val as never);
     const { count } = await q;
     return count ?? 0;
@@ -46,7 +50,9 @@ export async function getSaludEmpalme(db: SupabaseClient): Promise<SaludEmpalme>
     cnt("prestamos", "estado", "finalizado"),
     cnt("prestamos"),
     cnt("clientes", "activo", true),
-    cnt("pagos", "anulado", false),
+    // `pagos` ya ronda cientos de miles y crece a millones: un count exact es un
+    // scan que se pone lento y contribuye a timeouts del panel. Estimado alcanza.
+    cnt("pagos", "anulado", false, "estimated"),
   ]);
   const { data: lp } = await db
     .from("pagos")
