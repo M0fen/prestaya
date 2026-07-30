@@ -139,7 +139,8 @@ export function TiendaCliente({
         <button type="button" onClick={() => setAbierto(hero)}
           className="group overflow-hidden rounded-[22px] bg-[linear-gradient(135deg,#173063,#0F1B3D)] text-left shadow-[0_14px_34px_rgba(15,27,61,0.3)] active:scale-[0.99]">
           <div className="flex items-stretch">
-            <div className="relative w-[42%] shrink-0 bg-white">
+            {/* En público desktop el hero no debe volverse un cuadro gigante: capamos la foto. */}
+            <div className={`relative w-[42%] shrink-0 bg-white ${modoPublico ? "md:w-[320px]" : ""}`}>
               <Foto p={hero} className="aspect-square" />
               {hero.precioAnterior > hero.precio && (
                 <span className="absolute left-2 top-2 rounded-full bg-[#D64545] px-2 py-0.5 text-[10px] font-black text-white">OFERTA</span>
@@ -203,7 +204,9 @@ export function TiendaCliente({
           <p className="text-[12.5px] font-medium text-gris">Probá con otra palabra o mirá otra categoría.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3">
+        // En la tienda PÚBLICA la grilla crece en desktop (2→3→4 col); en el cartón
+        // del cliente queda en 2 (se ve en el teléfono, no tocamos su densidad).
+        <div className={`grid gap-3 grid-cols-2 ${modoPublico ? "sm:grid-cols-3 lg:grid-cols-4" : ""}`}>
           {filtrados.map((p) => (
             <button key={p.id} type="button" onClick={() => setAbierto(p)}
               className="flex flex-col overflow-hidden rounded-[16px] border border-[#ECEFF8] bg-white text-left shadow-[0_2px_10px_rgba(15,27,61,0.05)] active:scale-[0.98]">

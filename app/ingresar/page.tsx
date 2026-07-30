@@ -1,4 +1,5 @@
 // Pantalla de ingreso del equipo. Si ya hay sesión, redirige a su inicio.
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getUsuarioActual, rutaHome } from "@/lib/auth";
 import { FormIngreso } from "@/components/auth/FormIngreso";
@@ -42,6 +43,15 @@ export default async function IngresarPage() {
         <div className="mt-4 flex justify-center">
           <BotonInstalar tono="sobreOscuro" />
         </div>
+
+        {/* Acceso visible a la Tienda Presta Ya (pública): cualquiera puede mirar el
+            catálogo sin entrar. Antes solo se llegaba escribiendo la URL a mano. */}
+        <Link
+          href="/tienda"
+          className="mt-4 flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 py-2.5 text-[13px] font-bold text-white backdrop-blur transition hover:bg-white/15"
+        >
+          🛍️ Ver la Tienda Presta Ya
+        </Link>
 
         <p className="mt-5 flex items-center justify-center gap-1.5 text-center text-[11px] font-medium text-white/45">
           <span aria-hidden="true">🔒</span>
