@@ -12,6 +12,8 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { estadoMfa } from "@/lib/seguridad/mfa";
 import { getTotalNoLeidos } from "@/lib/data/chat";
 import { contarSolicitudesGastoPendientes } from "@/lib/data/solicitudesGasto";
+import { getSolicitudesPendientes as getAnulacionesPendientes } from "@/lib/data/anulaciones";
+import { getSolicitudesPendientes as getRenovacionesPendientes } from "@/lib/data/solicitudesRenovacion";
 import { alcanceDelActor } from "@/lib/data/alcance";
 import { contarSolicitudesNuevas } from "@/lib/data/tienda";
 import { contarIncidenciasAbiertas } from "@/lib/data/incidencias";
@@ -51,12 +53,18 @@ export default async function PanelLayout({
   // su badge quedaba en 0 aunque tuviera solicitudes). Tienda (leads): sigue admin-only.
   const alcance = await alcanceDelActor();
   const cobIdsGasto = alcance.global ? null : alcance.cobradorIds;
-  const [noLeidos, gastosPendientes, leadsNuevos, incidenciasAbiertas] = await Promise.all([
-    getTotalNoLeidos(db, usuario),
-    esGestor(usuario.rol) ? contarSolicitudesGastoPendientes(db, cobIdsGasto) : Promise.resolve(0),
-    esAdmin(usuario.rol) ? contarSolicitudesNuevas(db) : Promise.resolve(0),
-    esAdmin(usuario.rol) ? contarIncidenciasAbiertas(db) : Promise.resolve(0),
-  ]);
+  // Anulaciones (dinero) y renovaciones pendientes también burbujean al nav (antes
+  // solo gastos tenía badge → quedaban invisibles). Acotadas por zona: anulaciones
+  // por `alcance` (su RLS es ancha); renovaciones por la RLS 0096 bajo la sesión.
+  const [noLeidos, gastosPendientes, anulacionesPendientes, renovacionesPendientes, leadsNuevos, incidenciasAbiertas] =
+    await Promise.all([
+      getTotalNoLeidos(db, usuario),
+      esGestor(usuario.rol) ? contarSolicitudesGastoPendientes(db, cobIdsGasto) : Promise.resolve(0),
+      esGestor(usuario.rol) ? getAnulacionesPendientes(db, alcance).then((a) => a.length) : Promise.resolve(0),
+      esGestor(usuario.rol) ? getRenovacionesPendientes(db).then((r) => r.length) : Promise.resolve(0),
+      esAdmin(usuario.rol) ? contarSolicitudesNuevas(db) : Promise.resolve(0),
+      esAdmin(usuario.rol) ? contarIncidenciasAbiertas(db) : Promise.resolve(0),
+    ]);
   const tema = (await cookies()).get("tema")?.value === "oscuro" ? "oscuro" : "claro";
   const iniciales = usuario.nombre
     .split(" ")
@@ -82,7 +90,7 @@ export default async function PanelLayout({
             </span>
           </div>
         </div>
-        <SidebarNav rol={usuario.rol} noLeidos={noLeidos} gastosPendientes={gastosPendientes} leadsNuevos={leadsNuevos} incidenciasAbiertas={incidenciasAbiertas} esDev={usuario.es_dev} />
+        <SidebarNav rol={usuario.rol} noLeidos={noLeidos} gastosPendientes={gastosPendientes} anulacionesPendientes={anulacionesPendientes} renovacionesPendientes={renovacionesPendientes} leadsNuevos={leadsNuevos} incidenciasAbiertas={incidenciasAbiertas} esDev={usuario.es_dev} />
       </aside>
 
       {/* Contenido */}
@@ -126,7 +134,7 @@ export default async function PanelLayout({
       </div>
 
       {/* Navegación inferior (mobile): el flujo del día + Menú con todo. */}
-      <PanelBottomNav rol={usuario.rol} noLeidos={noLeidos} gastosPendientes={gastosPendientes} leadsNuevos={leadsNuevos} incidenciasAbiertas={incidenciasAbiertas} esDev={usuario.es_dev} />
+      <PanelBottomNav rol={usuario.rol} noLeidos={noLeidos} gastosPendientes={gastosPendientes} anulacionesPendientes={anulacionesPendientes} renovacionesPendientes={renovacionesPendientes} leadsNuevos={leadsNuevos} incidenciasAbiertas={incidenciasAbiertas} esDev={usuario.es_dev} />
 
       {/* Telemetría de uso (0064): registra qué sección abre este usuario. */}
       <RegistroUso />

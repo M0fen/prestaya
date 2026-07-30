@@ -23,6 +23,8 @@ export function PanelBottomNav({
   rol,
   noLeidos = 0,
   gastosPendientes = 0,
+  anulacionesPendientes = 0,
+  renovacionesPendientes = 0,
   leadsNuevos = 0,
   incidenciasAbiertas = 0,
   esDev = false,
@@ -30,10 +32,25 @@ export function PanelBottomNav({
   rol: Rol;
   noLeidos?: number;
   gastosPendientes?: number;
+  anulacionesPendientes?: number;
+  renovacionesPendientes?: number;
   leadsNuevos?: number;
   incidenciasAbiertas?: number;
   esDev?: boolean;
 }) {
+  // Badge (conteo + color) por ruta del nav.
+  const badgeDe = (href: string): { n: number; bg: string; fg: string } => {
+    switch (href) {
+      case "/admin/chat": return { n: noLeidos, bg: "#E06A6A", fg: "#fff" };
+      case "/admin/gastos": return { n: gastosPendientes, bg: "#E8A317", fg: "#0F1B3D" };
+      case "/admin/anulaciones": return { n: anulacionesPendientes, bg: "#E06A6A", fg: "#fff" };
+      case "/admin/renovaciones": return { n: renovacionesPendientes, bg: "#6B8FF7", fg: "#fff" };
+      case "/admin/tienda": return { n: leadsNuevos, bg: "#1FA971", fg: "#fff" };
+      case "/admin/incidencias": return { n: incidenciasAbiertas, bg: "#E06A6A", fg: "#fff" };
+      default: return { n: 0, bg: "#E06A6A", fg: "#fff" };
+    }
+  };
+  const hayPendiente = noLeidos + gastosPendientes + anulacionesPendientes + renovacionesPendientes + leadsNuevos + incidenciasAbiertas > 0;
   const pathname = usePathname();
   const [abierto, setAbierto] = useState(false);
   const visibles = new Set(navVisible(rol, esDev).map((i) => i.href));
@@ -77,10 +94,10 @@ export function PanelBottomNav({
         >
           <span className="relative leading-none">
             <Icono name="menu" className="h-[22px] w-[22px]" />
-            {(noLeidos > 0 || gastosPendientes > 0 || leadsNuevos > 0 || incidenciasAbiertas > 0) && (
+            {hayPendiente && (
               <span
                 className="absolute -top-1 -right-1.5 h-2 w-2 rounded-full"
-                style={{ background: noLeidos > 0 ? "#E06A6A" : gastosPendientes > 0 ? "#E8A317" : "#1FA971" }}
+                style={{ background: noLeidos > 0 || anulacionesPendientes > 0 ? "#E06A6A" : gastosPendientes > 0 ? "#E8A317" : "#1FA971" }}
               />
             )}
           </span>
@@ -118,19 +135,22 @@ export function PanelBottomNav({
                 <div key={grupo} className="mt-2">
                   <span className="px-3 text-[10px] font-bold uppercase tracking-wide text-white/40">{grupo}</span>
                   <div className="mt-0.5 flex flex-col gap-0.5">
-                    {items.map((i) => (
-                      <ItemSheet
-                        key={i.href}
-                        href={i.href}
-                        icon={i.icon}
-                        label={i.label}
-                        activo={activo(i.href)}
-                        badge={i.href === "/admin/chat" ? noLeidos : i.href === "/admin/gastos" ? gastosPendientes : i.href === "/admin/tienda" ? leadsNuevos : i.href === "/admin/incidencias" ? incidenciasAbiertas : 0}
-                        amber={i.href === "/admin/gastos"}
-                        green={i.href === "/admin/tienda"}
-                        onNav={() => setAbierto(false)}
-                      />
-                    ))}
+                    {items.map((i) => {
+                      const b = badgeDe(i.href);
+                      return (
+                        <ItemSheet
+                          key={i.href}
+                          href={i.href}
+                          icon={i.icon}
+                          label={i.label}
+                          activo={activo(i.href)}
+                          badge={b.n}
+                          bg={b.bg}
+                          fg={b.fg}
+                          onNav={() => setAbierto(false)}
+                        />
+                      );
+                    })}
                   </div>
                 </div>
               ))}
@@ -148,8 +168,8 @@ function ItemSheet({
   label,
   activo,
   badge = 0,
-  amber = false,
-  green = false,
+  bg = "#E06A6A",
+  fg = "#fff",
   onNav,
 }: {
   href: string;
@@ -157,8 +177,8 @@ function ItemSheet({
   label: string;
   activo: boolean;
   badge?: number;
-  amber?: boolean;
-  green?: boolean;
+  bg?: string;
+  fg?: string;
   onNav: () => void;
 }) {
   return (
@@ -176,7 +196,7 @@ function ItemSheet({
       {badge > 0 && (
         <span
           className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-black"
-          style={amber ? { background: "#E8A317", color: "#0F1B3D" } : green ? { background: "#1FA971", color: "#fff" } : { background: "#E06A6A", color: "#fff" }}
+          style={{ background: bg, color: fg }}
         >
           {badge > 9 ? "9+" : badge}
         </span>
