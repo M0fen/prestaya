@@ -3,10 +3,11 @@
 // Buscador + chips de categoría + orden + fila de destacados + grilla de catálogo
 // (marca, antes/ahora, "en N cuotas de $X") + modal de detalle con carrusel/video
 // y "Me interesa" (lead, sin generar crédito). Tono cliente: claro, aspiracional.
-import { useState, useMemo, useTransition } from "react";
+import { useState, useMemo, useRef, useTransition } from "react";
 import { UYU } from "@/lib/format";
 import { registrarInteres } from "@/app/c/[token]/actions";
 import { registrarInteresPublico } from "@/lib/acciones/leadsPublicos";
+import { comprarComoEmpleado } from "@/lib/acciones/comprasEmpleado";
 import { soloDigitos } from "@/lib/telefono";
 import { calcularPlanVenta } from "@/lib/venta";
 import type { ProductoParaCliente, FrecuenciaProducto } from "@/lib/data/tienda";
@@ -29,7 +30,7 @@ function financiacion(p: ProductoParaCliente) {
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
 export function TiendaCliente({
-  productos, token, conEncabezado = true, abrirId = null, preview = false, modoPublico = false,
+  productos, token, conEncabezado = true, abrirId = null, preview = false, modoPublico = false, modoEmpleado = false,
 }: {
   productos: ProductoParaCliente[];
   token: string | null;
@@ -40,6 +41,8 @@ export function TiendaCliente({
   preview?: boolean;
   /** Tienda PÚBLICA (/tienda): visitante sin token → "Me interesa" pide contacto. */
   modoPublico?: boolean;
+  /** El que mira es EMPLEADO logueado (cobrador/supervisor) → compra a crédito (0113). */
+  modoEmpleado?: boolean;
 }) {
   // Si venimos del banner del cartón (?producto=id), abrimos su detalle de una.
   const [abierto, setAbierto] = useState<ProductoParaCliente | null>(
@@ -241,6 +244,7 @@ export function TiendaCliente({
           token={token}
           preview={preview}
           modoPublico={modoPublico}
+          modoEmpleado={modoEmpleado}
           relacionados={relacionadosDe(abierto, productos)}
           onAbrirOtro={setAbierto}
           onClose={() => setAbierto(null)}
@@ -297,13 +301,14 @@ function Precio({ p }: { p: ProductoParaCliente }) {
 }
 
 function DetalleProducto({
-  p, token, onClose, preview = false, modoPublico = false, relacionados, onAbrirOtro,
+  p, token, onClose, preview = false, modoPublico = false, modoEmpleado = false, relacionados, onAbrirOtro,
 }: {
   p: ProductoParaCliente;
   token: string | null;
   onClose: () => void;
   preview?: boolean;
   modoPublico?: boolean;
+  modoEmpleado?: boolean;
   relacionados: ProductoParaCliente[];
   onAbrirOtro: (p: ProductoParaCliente) => void;
 }) {
@@ -314,6 +319,11 @@ function DetalleProducto({
   const [nombre, setNombre] = useState("");
   const [tel, setTel] = useState("");
   const [form, setForm] = useState(false); // form de contacto abierto (modo público)
+  // Compra del EQUIPO (0113): cuotas elegidas + nonce estable por apertura (idempotencia).
+  const [cuotasEmp, setCuotasEmp] = useState(6);
+  const opRef = useRef<string>(crypto.randomUUID());
+  const cuotaEmp = Math.ceil(p.precio / Math.max(1, cuotasEmp)); // interés 0 (perk del equipo)
+  const superaTope = p.precio > 30000;
   const { total: totalCuotas, cuota } = financiacion(p);
   const medios = p.fotos.length > 0 ? p.fotos : [];
   const total = medios.length + (p.videoUrl ? 1 : 0);
@@ -335,6 +345,16 @@ function DetalleProducto({
         const r = await registrarInteres({ token, productoId: p.id });
         if (r.ok) setEstado("ok"); else { setEstado("error"); setMsg(r.error); }
       }
+    });
+
+  // Compra del EQUIPO: el empleado logueado compra para sí; la cuota se descuenta
+  // de su comisión. Idempotente por el nonce de la apertura (opRef).
+  const comprar = () =>
+    start(async () => {
+      setMsg(null);
+      const r = await comprarComoEmpleado({ productoId: p.id, cuotas: cuotasEmp, opId: opRef.current });
+      if (r.ok) setEstado("ok");
+      else { setEstado("error"); setMsg(r.error); }
     });
 
   return (
@@ -453,11 +473,40 @@ function DetalleProducto({
             <div className="w-full rounded-full bg-[#EEF3FF] px-5 py-3 text-center text-[14px] font-bold text-azul">Vista previa · así lo ve tu cliente</div>
           ) : estado === "ok" ? (
             <div className="rounded-[14px] bg-[#E4F5EC] px-4 py-2.5 text-center">
-              <p className="text-[15px] font-extrabold text-[#157A50]">¡Listo! 💚</p>
-              <p className="text-[12.5px] font-medium text-[#3E8E67]">{modoPublico ? "Te vamos a contactar para darte los detalles." : "Tu cobrador te va a contar cómo llevártelo."}</p>
+              <p className="text-[15px] font-extrabold text-[#157A50]">{modoEmpleado ? "¡Compra registrada! 💚" : "¡Listo! 💚"}</p>
+              <p className="text-[12.5px] font-medium text-[#3E8E67]">{modoEmpleado ? "Se irá descontando de tu comisión." : modoPublico ? "Te vamos a contactar para darte los detalles." : "Tu cobrador te va a contar cómo llevártelo."}</p>
             </div>
           ) : sinStock ? (
             <div className="w-full rounded-full bg-[#FBE4E2] px-5 py-3 text-center text-[15px] font-extrabold text-[#C0392B]">Sin stock por ahora 😔</div>
+          ) : modoEmpleado ? (
+            superaTope ? (
+              <div className="rounded-[14px] bg-[#FBE4E2] px-4 py-3 text-center text-[13px] font-bold text-[#C0392B]">
+                Supera el tope de compra del equipo ($30.000). Pedísela al administrador.
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[12px] font-bold text-cuerpo">Elegí en cuántas veces pagarlo:</span>
+                  <div className="flex gap-1.5">
+                    {[1, 3, 6, 12].map((nn) => (
+                      <button key={nn} type="button" onClick={() => setCuotasEmp(nn)}
+                        className={`flex-1 rounded-[10px] border px-2 py-2 text-[13px] font-bold ${cuotasEmp === nn ? "border-[#1E47C8] bg-[#EEF3FF] text-[#1E47C8]" : "border-[#DCE3F4] bg-white text-cuerpo"}`}>
+                        {nn}×
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded-[12px] bg-[#F4FBF7] px-3 py-2 text-center text-[13px] font-semibold text-[#157A50]">
+                  {cuotasEmp} cuotas de <b className="tabular-nums">{UYU(cuotaEmp)}</b> · se descuenta de tu comisión
+                </div>
+                <button type="button" onClick={comprar} disabled={pend}
+                  className="w-full rounded-full bg-[#157A50] px-5 py-3.5 text-[16px] font-extrabold text-white shadow-[0_6px_18px_rgba(21,122,80,0.28)] active:scale-[0.99] disabled:opacity-60">
+                  {pend ? "Registrando…" : "Comprar a crédito"}
+                </button>
+                {estado === "error" && msg && <p className="text-center text-[12px] font-semibold text-[#E06A6A]">{msg}</p>}
+                <p className="text-center text-[10.5px] font-medium text-tenue">Compra del equipo · se descuenta de tu comisión al liquidarla.</p>
+              </div>
+            )
           ) : modoPublico && form ? (
             <div className="flex flex-col gap-2">
               <input value={nombre} onChange={(e) => { setNombre(e.target.value); setMsg(null); }} placeholder="Tu nombre" maxLength={80}

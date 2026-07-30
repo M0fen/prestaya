@@ -16,6 +16,7 @@ import { registrarMovimientoCaja } from "@/lib/data/caja";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { crearReciboDb } from "@/lib/data/recibos";
 import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
+import { descontarComprasEmpleadoDb } from "@/lib/data/comprasEmpleado";
 import { opIdDeterminista, esViolacionUnica } from "@/lib/idempotencia";
 
 type Resultado = { ok: true } | { ok: false; error: string };
@@ -149,41 +150,61 @@ export async function liquidarComision(input: {
   // catch de abajo borraba el candado y el reintento pagaba la comisión DOS veces.
   const opIdEgreso = opIdDeterminista("comision", input.cobradorId, periodoKey);
   try {
-    await registrarMovimientoCaja(db, {
-      tipo: "egreso",
-      monto,
-      categoria: "Comisión",
-      descripcion: `Comisión ${periodoLabel} · ${nombre}`,
-      cobradorId: input.cobradorId,
-      registradoPor: u.id,
-      opId: opIdEgreso,
+    // REPAGO de compras del equipo (0113): antes del egreso, descontar las cuotas
+    // del período de las compras a crédito del cobrador/supervisor, hasta el tope de
+    // su comisión. Atómico e idempotente por período (RPC descontar_compras_empleado);
+    // si falta la migración 0113 devuelve 0 y la liquidación sigue igual. El egreso a
+    // caja sale NETO (comisión − descuento): la plata del repago queda en la casa.
+    const descuento = await descontarComprasEmpleadoDb(db, {
+      empleadoId: input.cobradorId,
+      periodoKey,
+      tope: monto,
+      creadoPor: u.id,
     });
+    const montoNeto = Math.max(0, monto - descuento);
+    const notaDesc = descuento > 0 ? ` (−$${descuento.toLocaleString("es-UY")} a compras del equipo)` : "";
+
+    // Si la comisión se fue entera a repago (neto 0) no se registra egreso (monto>0).
+    if (montoNeto > 0) {
+      await registrarMovimientoCaja(db, {
+        tipo: "egreso",
+        monto: montoNeto,
+        categoria: "Comisión",
+        descripcion: `Comisión ${periodoLabel} · ${nombre}${notaDesc}`,
+        cobradorId: input.cobradorId,
+        registradoPor: u.id,
+        opId: opIdEgreso,
+      });
+    }
     await registrarAuditoria(db, {
       actorId: u.id,
       actorNombre: u.nombre,
       accion: "Liquidó comisión",
       entidad: "cobrador",
       entidadId: input.cobradorId,
-      detalle: `${nombre}: $${monto.toLocaleString("es-UY")} (${periodoLabel})`,
+      detalle: `${nombre}: $${monto.toLocaleString("es-UY")}${descuento > 0 ? ` (neto $${montoNeto.toLocaleString("es-UY")}${notaDesc})` : ""} (${periodoLabel})`,
     });
 
     // Emite el comprobante de pago de la comisión (numerado, con monto en letras).
     // Best-effort: si falta 0046 (recibos) NO rompe la liquidación, que ya cerró.
+    // El recibo refleja el NETO efectivamente pagado + nota del descuento.
     let reciboNumero: number | undefined;
-    try {
-      const recibo = await crearReciboDb(db, {
-        trabajadorId: input.cobradorId,
-        trabajadorNombre: nombre,
-        concepto: "Comisión",
-        monto,
-        periodo: periodoLabel,
-        nota: null,
-        emitidoPor: u.id,
-        emitidoPorNombre: u.nombre,
-      });
-      reciboNumero = recibo.numero;
-    } catch {
-      /* recibos (0046) no disponible → la comisión queda liquidada igual */
+    if (montoNeto > 0) {
+      try {
+        const recibo = await crearReciboDb(db, {
+          trabajadorId: input.cobradorId,
+          trabajadorNombre: nombre,
+          concepto: "Comisión",
+          monto: montoNeto,
+          periodo: periodoLabel,
+          nota: descuento > 0 ? `Descuento por compras del equipo: $${descuento.toLocaleString("es-UY")}` : null,
+          emitidoPor: u.id,
+          emitidoPorNombre: u.nombre,
+        });
+        reciboNumero = recibo.numero;
+      } catch {
+        /* recibos (0046) no disponible → la comisión queda liquidada igual */
+      }
     }
 
     revalidatePath("/admin/comisiones");

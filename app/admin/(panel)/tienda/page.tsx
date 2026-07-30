@@ -56,15 +56,15 @@ export default async function TiendaPage() {
         const curbePend = pedidosCurbe.filter((p) => p.estado === "pendiente").length;
         const curbeCount = productos.filter((p) => p.proveedor === "curbe").length;
         return (
-          <div className="grid gap-2.5 md:grid-cols-2">
+          <div className="grid gap-2.5 md:grid-cols-3">
             {(curbeCount > 0 || pedidosCurbe.length > 0) && (
               <Link href="/admin/tienda/curbe" className="flex items-center justify-between gap-3 rounded-[16px] border border-[#C9B8F0] bg-[#F3EEFC] p-4 hover:brightness-[0.99]">
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[14px] font-extrabold text-tinta">💎 Integración Curbe</span>
-                  <span className="text-[12px] font-medium text-gris">{curbeCount} productos · catálogo, ventas y despacho.</span>
+                  <span className="text-[12px] font-medium text-gris">{curbeCount} productos · catálogo y despacho.</span>
                 </div>
                 <div className="flex flex-shrink-0 items-center gap-2">
-                  {curbePend > 0 && <span className="rounded-full bg-[#E8A317] px-2.5 py-1 text-[11px] font-black text-[#0F1B3D]">{curbePend} por despachar</span>}
+                  {curbePend > 0 && <span className="rounded-full bg-[#E8A317] px-2.5 py-1 text-[11px] font-black text-[#0F1B3D]">{curbePend}</span>}
                   <span className="text-[18px] text-[#6D4AC7]">→</span>
                 </div>
               </Link>
@@ -72,9 +72,16 @@ export default async function TiendaPage() {
             <Link href="/admin/tienda/proyeccion" className="flex items-center justify-between gap-3 rounded-[16px] border border-[#BFE6D2] bg-[#EAF7F0] p-4 hover:brightness-[0.99]">
               <div className="flex flex-col gap-0.5">
                 <span className="text-[14px] font-extrabold text-tinta">📈 Proyección de ventas</span>
-                <span className="text-[12px] font-medium text-gris">Estimá cuánto puede facturar la tienda con tus clientes.</span>
+                <span className="text-[12px] font-medium text-gris">Estimá cuánto puede facturar la tienda.</span>
               </div>
               <span className="flex-shrink-0 text-[18px] text-[#0F7A48]">→</span>
+            </Link>
+            <Link href="/admin/tienda/equipo" className="flex items-center justify-between gap-3 rounded-[16px] border border-[#BFD4F5] bg-[#EEF3FF] p-4 hover:brightness-[0.99]">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[14px] font-extrabold text-tinta">🧾 Compras del equipo</span>
+                <span className="text-[12px] font-medium text-gris">Lo que el equipo compró a crédito (descuento de comisión).</span>
+              </div>
+              <span className="flex-shrink-0 text-[18px] text-azul">→</span>
             </Link>
           </div>
         );

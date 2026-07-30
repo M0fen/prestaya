@@ -4,9 +4,11 @@
 import Link from "next/link";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getProductosPublicos } from "@/lib/data/tienda";
+import { getMisComprasEmpleado } from "@/lib/data/comprasEmpleado";
 import { getUsuarioActual, rutaHome } from "@/lib/auth";
 import { conTimeout } from "@/lib/timeout";
 import { TiendaCliente } from "@/components/tienda/TiendaCliente";
+import { MisComprasEmpleado } from "@/components/tienda/MisComprasEmpleado";
 import { HeroCarrusel, type HeroSlide } from "@/components/tienda/HeroCarrusel";
 import { NEGOCIO } from "@/lib/negocio";
 
@@ -33,6 +35,9 @@ export default async function TiendaPublicaPage({
   ]);
   const logueado = usuario && usuario.activo ? usuario : null;
   const primerNombre = logueado ? logueado.nombre.split(" ")[0] : "";
+  // Empleado (cobrador/supervisor) logueado → compra a crédito (0113) + ve sus compras.
+  const esEmpleado = !!logueado && (logueado.rol === "cobrador" || logueado.rol === "supervisor");
+  const misCompras = esEmpleado ? await getMisComprasEmpleado(db, logueado!.id).catch(() => []) : [];
 
   // CARRUSEL del hero: la tienda es GENERAL (no solo perfumes) → un banner de Presta
   // Ya + un banner de Curbe, cada uno con SU imagen coherente (nunca "perfumes" con
@@ -104,6 +109,15 @@ export default async function TiendaPublicaPage({
           <span className="shrink-0 rounded-full bg-white px-3 py-1.5 text-[11.5px] font-extrabold text-[#6D4AC7]">Ver curbe.uy →</span>
         </a>
 
+        {/* Empleado logueado: sus compras a crédito (inicio + historial de descuentos). */}
+        {esEmpleado && <MisComprasEmpleado compras={misCompras} />}
+
+        {esEmpleado && (
+          <div className="rounded-[12px] border border-[#D7EADD] bg-[#F1FAF4] px-4 py-2.5 text-center text-[12.5px] font-semibold text-[#157A50]">
+            💚 Sos parte del equipo: podés comprar a crédito y se descuenta de tu comisión.
+          </div>
+        )}
+
         {productos.length === 0 ? (
           <div className="mt-4 flex flex-col items-center gap-2 rounded-[18px] border border-[#ECEFF8] bg-white px-6 py-12 text-center">
             <span className="text-[40px]" aria-hidden="true">🛒</span>
@@ -111,7 +125,7 @@ export default async function TiendaPublicaPage({
             <p className="max-w-[280px] text-[13px] font-medium text-gris">Estamos preparando el catálogo. Volvé en unos días.</p>
           </div>
         ) : (
-          <TiendaCliente productos={productos} token={null} modoPublico conEncabezado={false} abrirId={producto ?? null} />
+          <TiendaCliente productos={productos} token={null} modoPublico modoEmpleado={esEmpleado} conEncabezado={false} abrirId={producto ?? null} />
         )}
 
         <p className="mt-2 text-center text-[11px] font-medium text-tenue">
