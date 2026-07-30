@@ -709,6 +709,22 @@ function DetalleProducto({
   const ahorro = p.precioAnterior > p.precio ? p.precioAnterior - p.precio : 0;
   const ahorroPct = ahorro > 0 && p.precioAnterior > 0 ? Math.round((ahorro / p.precioAnterior) * 100) : 0;
   const sinStock = p.agotado || p.stock === 0;
+  const [compartido, setCompartido] = useState(false);
+
+  // Compartir la ficha (link + preview con foto y precio) — como Mercado Libre.
+  const compartir = async () => {
+    const url = `${window.location.origin}/tienda/${p.id}`;
+    const texto = `${p.nombre} · ${UYU(p.precio)}${p.cuotas > 0 && cuota > 0 ? ` (${p.cuotas}× ${UYU(cuota)})` : ""} — Tienda Presta Ya`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: p.nombre, text: texto, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        setCompartido(true);
+        setTimeout(() => setCompartido(false), 1800);
+      }
+    } catch { /* el usuario canceló: sin drama */ }
+  };
 
   // A11y del modal: cerrar con Escape + bloquear el scroll del fondo mientras está abierto.
   useEffect(() => {
@@ -802,7 +818,15 @@ function DetalleProducto({
             {[p.marca, p.categoriaNombre].filter(Boolean).length > 0 && (
               <span className="text-[11.5px] font-bold uppercase tracking-wide text-azul">{[p.marca, p.categoriaNombre].filter(Boolean).join(" · ")}</span>
             )}
-            <h3 className="text-[22px] font-extrabold leading-tight text-tinta">{p.nombre}</h3>
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="text-[22px] font-extrabold leading-tight text-tinta">{p.nombre}</h3>
+              {!preview && (
+                <button type="button" onClick={compartir} aria-label="Compartir producto"
+                  className="mt-0.5 flex shrink-0 items-center gap-1 rounded-full border border-[#DCE3F4] bg-white px-2.5 py-1.5 text-[11.5px] font-bold text-azul transition hover:bg-suave active:scale-95">
+                  {compartido ? "¡Copiado!" : "🔗 Compartir"}
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Precio + cuotas */}

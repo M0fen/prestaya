@@ -310,6 +310,20 @@ export async function getProductosPublicos(db: SupabaseClient): Promise<Producto
   }
 }
 
+/** Un producto público por id (para la ficha compartible /tienda/[id] + su Open Graph). */
+export async function getProductoPublicoPorId(db: SupabaseClient, id: string): Promise<ProductoParaCliente | null> {
+  try {
+    const { data, error } = await db.from("productos").select(COLS).eq("id", id).eq("activo", true).maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+    const p = mapProducto(data);
+    if (p.segmentoDef) return null; // producto con audiencia restringida → no es público
+    return { ...p, precioPersonalizado: false };
+  } catch {
+    return null;
+  }
+}
+
 export async function getProductosParaCliente(
   db: SupabaseClient,
   cliente: ClientePrecio,
