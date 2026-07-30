@@ -346,8 +346,8 @@ export function TiendaCliente({
       {filtrados.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-[16px] border border-[#ECEFF8] bg-white px-6 py-10 text-center">
           <span className="text-[30px]" aria-hidden="true">🔍</span>
-          <p className="text-[14px] font-bold text-tinta">No encontramos ese artículo</p>
-          <p className="text-[12.5px] font-medium text-gris">Probá con otra palabra o mirá otra categoría.</p>
+          <p className="text-[15px] font-bold text-tinta">No encontramos eso por ahora</p>
+          <p className="text-[13px] font-medium text-gris">Probá con otra palabra, mirá otra categoría, o escribinos y lo conseguimos.</p>
           {hayFiltro && (
             <button type="button" onClick={limpiarTodo}
               className="mt-1 rounded-full bg-[#1E47C8] px-4 py-2 text-[12.5px] font-bold text-white active:scale-95">
@@ -393,12 +393,12 @@ export function TiendaCliente({
                 ) : p.marca ? (
                   <span className="text-[10px] font-bold uppercase tracking-wide text-gris">{p.marca}</span>
                 ) : null}
-                <span className="line-clamp-2 text-[13.5px] font-bold leading-tight text-tinta">{p.nombre}</span>
+                <span className="line-clamp-2 text-[14.5px] font-bold leading-snug text-tinta">{p.nombre}</span>
                 <Precio p={p} />
                 {conCarrito && !(p.agotado || p.stock === 0) && (
                   <button type="button" onClick={(e) => { e.stopPropagation(); agregarAlCarrito(p); }}
-                    className="mt-1.5 flex items-center justify-center gap-1 rounded-full bg-[#EEF3FF] py-1.5 text-[12px] font-bold text-azul transition hover:bg-[#1E47C8] hover:text-white active:scale-95">
-                    🛒 Agregar
+                    className="mt-1.5 flex items-center justify-center gap-1.5 rounded-full bg-[#EEF3FF] py-2 text-[13px] font-bold text-azul transition hover:bg-[#1E47C8] hover:text-white active:scale-95">
+                    Agregar al carrito
                   </button>
                 )}
               </div>
@@ -511,8 +511,8 @@ function CategoriaTile({ emoji, nombre, n, activo, onClick }: { emoji: string; n
     <button type="button" onClick={onClick}
       className={`flex min-w-[74px] shrink-0 flex-col items-center gap-1 rounded-[14px] border px-2.5 py-2.5 transition active:scale-95 ${activo ? "border-[#1E47C8] bg-[#EEF3FF]" : "border-[#ECEFF8] bg-white hover:border-[#D5DEF3] hover:shadow-[0_4px_14px_rgba(15,27,61,0.08)]"}`}>
       <span className="text-[22px] leading-none" aria-hidden>{emoji}</span>
-      <span className={`max-w-[70px] truncate text-center text-[11px] font-bold leading-tight ${activo ? "text-[#1E47C8]" : "text-cuerpo"}`}>{nombre}</span>
-      <span className="text-[9.5px] font-semibold text-gris tabular-nums">{n}</span>
+      <span className={`max-w-[74px] truncate text-center text-[12px] font-bold leading-tight ${activo ? "text-[#1E47C8]" : "text-cuerpo"}`}>{nombre}</span>
+      <span className="text-[10px] font-semibold text-gris tabular-nums">{n}</span>
     </button>
   );
 }
@@ -553,9 +553,9 @@ function Precio({ p }: { p: ProductoParaCliente }) {
         </span>
       )}
       <div className="flex flex-wrap items-baseline gap-x-1.5">
-        <span className={`font-black tabular-nums text-[#157A50] ${conCuota ? "text-[12.5px]" : "text-[16px]"}`}>{UYU(p.precio)}</span>
-        {enOferta && <span className="text-[10.5px] font-semibold tabular-nums text-tenue line-through">{UYU(p.precioAnterior)}</span>}
-        {conCuota && p.interesPct === 0 && <span className="rounded-full bg-[#E4F5EC] px-1.5 py-[1px] text-[9.5px] font-bold text-[#157A50]">sin interés</span>}
+        <span className={`font-black tabular-nums text-[#157A50] ${conCuota ? "text-[13px]" : "text-[16.5px]"}`}>{UYU(p.precio)}</span>
+        {enOferta && <span className="text-[11px] font-semibold tabular-nums text-tenue line-through">{UYU(p.precioAnterior)}</span>}
+        {conCuota && p.interesPct === 0 && <span className="rounded-full bg-[#E4F5EC] px-1.5 py-[1px] text-[10px] font-bold text-[#157A50]">sin interés</span>}
       </div>
     </div>
   );
@@ -722,6 +722,12 @@ function DetalleProducto({
   const cuotaEmp = Math.ceil(p.precio / Math.max(1, cuotasEmp)); // interés 0 (perk del equipo)
   const superaTope = p.precio > 30000;
   const { total: totalCuotas, cuota } = financiacion(p);
+  // Simulador de cuotas para el cliente: elegir el plazo y ver la cuota estimada.
+  const [plazoSel, setPlazoSel] = useState(p.cuotas);
+  const plazos = p.cuotas > 1
+    ? [...new Set([Math.max(1, Math.round(p.cuotas / 2)), p.cuotas, Math.round(p.cuotas * 1.5)])].filter((n) => n >= 1 && n <= 1000).sort((a, b) => a - b)
+    : [];
+  const cuotaSel = plazoSel === p.cuotas ? cuota : Math.ceil(totalCuotas / Math.max(1, plazoSel));
   const medios = p.fotos.length > 0 ? p.fotos : [];
   const total = medios.length + (p.videoUrl ? 1 : 0);
   const esVideo = p.videoUrl && i === medios.length;
@@ -867,11 +873,25 @@ function DetalleProducto({
               {ahorro > 0 && <span className="rounded-full bg-[#E4F5EC] px-2 py-0.5 text-[11px] font-black text-[#157A50]">Ahorrás {UYU(ahorro)}</span>}
             </div>
             {p.cuotas > 0 && cuota > 0 && (
-              <div className="flex items-center gap-2 rounded-[12px] bg-white px-3 py-2">
-                <IconoTarjeta className="h-[18px] w-[18px] text-[#1E47C8]" />
-                <span className="text-[14px] font-semibold text-cuerpo">
-                  <b className="text-[#1E47C8]">{p.cuotas} cuotas</b> de <b className="tabular-nums text-[#1E47C8]">{UYU(cuota)}</b> {FREC_LABEL[p.frecuencia]}
-                </span>
+              <div className="flex flex-col gap-2 rounded-[12px] bg-white px-3 py-2.5">
+                <div className="flex items-center gap-2">
+                  <IconoTarjeta className="h-[19px] w-[19px] text-[#1E47C8]" />
+                  <span className="text-[14.5px] font-semibold text-cuerpo">
+                    <b className="text-[#1E47C8]">{plazoSel} cuotas</b> de <b className="tabular-nums text-[#1E47C8]">{UYU(cuotaSel)}</b> {FREC_LABEL[p.frecuencia]}
+                  </span>
+                </div>
+                {!modoEmpleado && plazos.length > 1 && (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[11.5px] font-bold text-gris">Elegí el plan:</span>
+                    {plazos.map((n) => (
+                      <button key={n} type="button" onClick={() => setPlazoSel(n)}
+                        className={`rounded-full px-3 py-1 text-[12px] font-bold transition ${plazoSel === n ? "bg-[#1E47C8] text-white" : "border border-[#DCE3F4] bg-white text-cuerpo hover:border-azul"}`}>
+                        {n}×
+                      </button>
+                    ))}
+                    <span className="w-full text-[10.5px] font-medium text-tenue">Cuota estimada · el plan final lo confirma tu cobrador.</span>
+                  </div>
+                )}
               </div>
             )}
             {p.interesPct > 0 && p.cuotas > 0 && (
