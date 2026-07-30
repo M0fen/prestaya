@@ -196,19 +196,29 @@ export default async function JornadaPage({
   // lee con el cliente admin acotado por `cobIds` (mismo patrón que el resto del
   // panel); la escritura (setApertura) sí corre bajo la RLS del gestor.
   let basesCobradores: CobradorBase[] = [];
+  const supervisoresPorZona: Record<string, string[]> = {};
   if (acto === "apertura" && esHoy) {
     const cobIds = alcance.global ? null : alcance.cobradorIds;
     let cq = adminZ.from("usuarios").select("id, nombre, zona_id").eq("rol", "cobrador").eq("activo", true);
     if (cobIds) cq = cobIds.length > 0 ? cq.in("id", cobIds) : cq.eq("id", "00000000-0000-0000-0000-000000000000");
-    const [cobsRes, bases, zonasRes] = await Promise.all([
+    const [cobsRes, bases, zonasRes, supZonasRes, supsRes] = await Promise.all([
       cq.order("nombre", { ascending: true }),
       getAperturasDia(db, hoy, cobIds),
       adminZ.from("zonas").select("id, nombre"),
+      adminZ.from("supervisor_zonas").select("supervisor_id, zona_id"),
+      adminZ.from("usuarios").select("id, nombre").eq("rol", "supervisor"),
     ]);
     const zonaN = new Map((zonasRes.data ?? []).map((z) => [z.id as string, z.nombre as string]));
+    // Supervisores por zona (para el encabezado de cada grupo de la base de caja).
+    const supN = new Map((supsRes.data ?? []).map((u) => [u.id as string, u.nombre as string]));
+    for (const sz of supZonasRes.data ?? []) {
+      const nombre = supN.get(sz.supervisor_id as string);
+      if (nombre) (supervisoresPorZona[sz.zona_id as string] ??= []).push(nombre);
+    }
     basesCobradores = (cobsRes.data ?? []).map((u) => ({
       id: u.id as string,
       nombre: u.nombre as string,
+      zonaId: (u.zona_id as string | null) ?? null,
       zonaNombre: u.zona_id ? (zonaN.get(u.zona_id as string) ?? null) : null,
       base: bases.get(u.id as string) ?? 0,
     }));
@@ -370,7 +380,7 @@ export default async function JornadaPage({
           renovables={renovables}
         />
       )}
-      {acto === "apertura" && esHoy && <BaseCajaManager cobradores={basesCobradores} />}
+      {acto === "apertura" && esHoy && <BaseCajaManager cobradores={basesCobradores} supervisoresPorZona={supervisoresPorZona} />}
       {acto === "vivo" && (
         <EnVivo
           cobradoRuta={cobradoRuta}
