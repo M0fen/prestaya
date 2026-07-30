@@ -57,32 +57,13 @@ export default async function TiendaPage() {
         const curbeCount = productos.filter((p) => p.proveedor === "curbe").length;
         return (
           <div className="grid gap-2.5 md:grid-cols-3">
+            <ToolCard href="/admin/tienda/ganancias" emoji="💰" titulo="Ganancias" desc="Cuánto ganás y de dónde viene cada peso." borde="border-[#BFE6D2] bg-[#EAF7F0]" flecha="#0F7A48" />
+            <ToolCard href="/admin/tienda/clientes" emoji="🧑‍🤝‍🧑" titulo="Ventas a clientes" desc="Quién compró qué y cuánto pagó." borde="border-[#BFD4F5] bg-[#EEF3FF]" flecha="#1E47C8" />
+            <ToolCard href="/admin/tienda/equipo" emoji="🧾" titulo="Compras del equipo" desc="Compras a crédito del equipo (descuento de comisión)." borde="border-[#BFD4F5] bg-[#EEF3FF]" flecha="#1E47C8" />
+            <ToolCard href="/admin/tienda/proyeccion" emoji="📈" titulo="Proyección de ventas" desc="Estimá cuánto puede facturar la tienda." borde="border-[#BFE6D2] bg-[#EAF7F0]" flecha="#0F7A48" />
             {(curbeCount > 0 || pedidosCurbe.length > 0) && (
-              <Link href="/admin/tienda/curbe" className="flex items-center justify-between gap-3 rounded-[16px] border border-[#C9B8F0] bg-[#F3EEFC] p-4 hover:brightness-[0.99]">
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-[14px] font-extrabold text-tinta">💎 Integración Curbe</span>
-                  <span className="text-[12px] font-medium text-gris">{curbeCount} productos · catálogo y despacho.</span>
-                </div>
-                <div className="flex flex-shrink-0 items-center gap-2">
-                  {curbePend > 0 && <span className="rounded-full bg-[#E8A317] px-2.5 py-1 text-[11px] font-black text-[#0F1B3D]">{curbePend}</span>}
-                  <span className="text-[18px] text-[#6D4AC7]">→</span>
-                </div>
-              </Link>
+              <ToolCard href="/admin/tienda/curbe" emoji="💎" titulo="Integración Curbe" desc={`${curbeCount} productos · catálogo y despacho.`} badge={curbePend} borde="border-[#C9B8F0] bg-[#F3EEFC]" flecha="#6D4AC7" />
             )}
-            <Link href="/admin/tienda/proyeccion" className="flex items-center justify-between gap-3 rounded-[16px] border border-[#BFE6D2] bg-[#EAF7F0] p-4 hover:brightness-[0.99]">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[14px] font-extrabold text-tinta">📈 Proyección de ventas</span>
-                <span className="text-[12px] font-medium text-gris">Estimá cuánto puede facturar la tienda.</span>
-              </div>
-              <span className="flex-shrink-0 text-[18px] text-[#0F7A48]">→</span>
-            </Link>
-            <Link href="/admin/tienda/equipo" className="flex items-center justify-between gap-3 rounded-[16px] border border-[#BFD4F5] bg-[#EEF3FF] p-4 hover:brightness-[0.99]">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[14px] font-extrabold text-tinta">🧾 Compras del equipo</span>
-                <span className="text-[12px] font-medium text-gris">Lo que el equipo compró a crédito (descuento de comisión).</span>
-              </div>
-              <span className="flex-shrink-0 text-[18px] text-azul">→</span>
-            </Link>
           </div>
         );
       })()}
@@ -94,5 +75,22 @@ export default async function TiendaPage() {
         esAdmin={esAdmin(u.rol)}
       />
     </div>
+  );
+}
+
+// Tarjeta de acceso a una herramienta de la tienda (a nivel de módulo: no se puede
+// crear un componente dentro del render).
+function ToolCard({ href, emoji, titulo, desc, badge, borde, flecha }: { href: string; emoji: string; titulo: string; desc: string; badge?: number; borde: string; flecha: string }) {
+  return (
+    <Link href={href} className={`flex items-center justify-between gap-3 rounded-[16px] border p-4 hover:brightness-[0.99] ${borde}`}>
+      <div className="flex flex-col gap-0.5">
+        <span className="text-[14px] font-extrabold text-tinta">{emoji} {titulo}</span>
+        <span className="text-[12px] font-medium text-gris">{desc}</span>
+      </div>
+      <div className="flex flex-shrink-0 items-center gap-2">
+        {badge != null && badge > 0 && <span className="rounded-full bg-[#E8A317] px-2.5 py-1 text-[11px] font-black text-[#0F1B3D]">{badge}</span>}
+        <span className="text-[18px]" style={{ color: flecha }}>→</span>
+      </div>
+    </Link>
   );
 }

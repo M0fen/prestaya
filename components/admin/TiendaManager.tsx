@@ -78,7 +78,7 @@ function Tab({ activo, onClick, children }: { activo: boolean; onClick: () => vo
 // ── PRODUCTOS ────────────────────────────────────────────────────────────────
 const PRODUCTO_VACIO: RawProducto = {
   nombre: "", marca: "", descripcion: "", categoriaId: null, precio: 0, precioAnterior: 0,
-  interesPct: 0, cuotas: 0, frecuencia: "diario", fotos: [], videoUrl: null, activo: true, destacado: false, agotado: false, stock: null, orden: 0, proveedor: null,
+  interesPct: 0, cuotas: 0, frecuencia: "diario", fotos: [], videoUrl: null, activo: true, destacado: false, agotado: false, stock: null, orden: 0, proveedor: null, costo: null,
 };
 
 function Productos({ productos, categorias, zonas }: { productos: Producto[]; categorias: CategoriaProducto[]; zonas: ZonaOpcion[] }) {
@@ -331,6 +331,14 @@ function EditorProducto({
         </Campo>
         <Campo label="Precio (UYU)">
           <input type="number" inputMode="numeric" value={f.precio || ""} onChange={(e) => set("precio", Math.round(Number(e.target.value) || 0))} className={INPUT} />
+        </Campo>
+        <Campo label="Costo (lo que te cuesta)">
+          <input type="number" inputMode="numeric" value={f.costo ?? ""} onChange={(e) => set("costo", e.target.value === "" ? null : Math.max(0, Math.round(Number(e.target.value) || 0)))} className={INPUT} placeholder="para calcular tu ganancia" />
+          {f.costo != null && f.precio > 0 && (
+            <span className={`mt-1 text-[11.5px] font-bold ${f.precio - f.costo >= 0 ? "text-[#157A50]" : "text-[#C0392B]"}`}>
+              Ganás {UYU(f.precio - f.costo)} · {Math.round(((f.precio - f.costo) / f.precio) * 100)}% de margen
+            </span>
+          )}
         </Campo>
         <Campo label="Precio antes (opcional, para 'oferta')">
           <input type="number" inputMode="numeric" value={f.precioAnterior || ""} onChange={(e) => set("precioAnterior", Math.round(Number(e.target.value) || 0))} className={INPUT} placeholder="mayor al precio actual" />

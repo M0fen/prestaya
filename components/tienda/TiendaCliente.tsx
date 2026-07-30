@@ -321,7 +321,7 @@ function DetalleProducto({
   const [form, setForm] = useState(false); // form de contacto abierto (modo público)
   // Compra del EQUIPO (0113): cuotas elegidas + nonce estable por apertura (idempotencia).
   const [cuotasEmp, setCuotasEmp] = useState(6);
-  const opRef = useRef<string>(crypto.randomUUID());
+  const opRef = useRef<string>(""); // se genera al primer click (no en render: crypto es impuro)
   const cuotaEmp = Math.ceil(p.precio / Math.max(1, cuotasEmp)); // interés 0 (perk del equipo)
   const superaTope = p.precio > 30000;
   const { total: totalCuotas, cuota } = financiacion(p);
@@ -352,6 +352,7 @@ function DetalleProducto({
   const comprar = () =>
     start(async () => {
       setMsg(null);
+      if (!opRef.current) opRef.current = crypto.randomUUID(); // nonce estable por compra
       const r = await comprarComoEmpleado({ productoId: p.id, cuotas: cuotasEmp, opId: opRef.current });
       if (r.ok) setEstado("ok");
       else { setEstado("error"); setMsg(r.error); }

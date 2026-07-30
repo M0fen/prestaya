@@ -72,6 +72,8 @@ export interface RawProducto {
   segmentoDef?: DefinicionSegmento | null;
   /** Quién despacha (0112): null/'propio' = propio; 'curbe' = lo despacha Curbe. */
   proveedor?: string | null;
+  /** Costo para Presta Ya (0114). null/vacío = sin definir. */
+  costo?: number | null;
 }
 
 function sanearProducto(raw: RawProducto): ProductoInput | null {
@@ -100,6 +102,8 @@ function sanearProducto(raw: RawProducto): ProductoInput | null {
     segmentoDef: esSegmentoTodos(defRaw) ? null : defRaw,
     // Proveedor: solo 'curbe' habilita la cola de despacho; cualquier otra cosa = propio.
     proveedor: raw.proveedor === "curbe" ? "curbe" : null,
+    // Costo: null/vacío = sin definir; si viene, entero ≥ 0 (sin float para dinero).
+    costo: raw.costo == null ? null : Math.max(0, Math.round(Number(raw.costo) || 0)),
   };
 }
 

@@ -56,6 +56,9 @@ export interface Producto {
   /** Quién DESPACHA (0112): null = propio (lo lleva el cobrador); 'curbe' = lo
    *  despacha Curbe → al vender genera un pedido en la cola de despacho. */
   proveedor: string | null;
+  /** Costo para Presta Ya (0114): lo que pagamos por el producto. null = sin definir.
+   *  Ganancia = total cobrado − costo. */
+  costo: number | null;
 }
 
 /** Producto con el PRECIO RESUELTO para un cliente (override o base). */
@@ -151,6 +154,7 @@ function mapProducto(r: Record<string, unknown>): Producto {
     orden: N(r.orden),
     segmentoDef: (r.segmento_def as DefinicionSegmento | null) ?? null,
     proveedor: (r.proveedor as string | null) ?? null, // defensivo: sin 0112 → null (propio)
+    costo: r.costo == null ? null : N(r.costo),          // defensivo: sin 0114 → null
   };
 }
 
@@ -540,6 +544,8 @@ export interface ProductoInput {
   segmentoDef: DefinicionSegmento | null;
   /** Quién despacha (0112): null = propio; 'curbe' = lo despacha Curbe. */
   proveedor: string | null;
+  /** Costo para Presta Ya (0114). null = sin definir. */
+  costo: number | null;
 }
 
 function rowProducto(p: ProductoInput) {
@@ -551,6 +557,7 @@ function rowProducto(p: ProductoInput) {
     stock: p.stock, orden: N(p.orden),
     segmento_def: p.segmentoDef,
     proveedor: p.proveedor, // 0112: null = propio; 'curbe' = despacha Curbe
+    costo: p.costo, // 0114: costo para Presta Ya (null = sin definir)
   };
 }
 
