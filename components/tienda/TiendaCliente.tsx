@@ -14,7 +14,7 @@ import { comprarComoEmpleado } from "@/lib/acciones/comprasEmpleado";
 import { soloDigitos } from "@/lib/telefono";
 import { calcularPlanVenta } from "@/lib/venta";
 import type { ProductoParaCliente, FrecuenciaProducto } from "@/lib/data/tienda";
-import { GaleriaEmbla, Confeti, folioNuevo, guardarPedidoLocal, BarraTienda, MiTienda, SeccionTienda, AtajosTienda, registrarVisto, leerVistos, type Atajo, type CompraTienda } from "./piezas";
+import { GaleriaEmbla, Confeti, folioNuevo, guardarPedidoLocal, BarraTienda, MiTienda, SeccionTienda, AtajosTienda, BannerPromo, registrarVisto, leerVistos, type Atajo, type CompraTienda } from "./piezas";
 
 const FREC_LABEL: Record<FrecuenciaProducto, string> = {
   diario: "por día", semanal: "por semana", quincenal: "por quincena", mensual: "por mes",
@@ -147,6 +147,13 @@ export function TiendaCliente({
     return vistos.map((id) => byId.get(id)).filter((p): p is ProductoParaCliente => !!p);
   }, [vistos, productos]);
 
+  // Fotos representativas para los banners promocionales (electro/general con foto).
+  const bannerFotos = useMemo(() => productos.filter((p) => !p.proveedor && p.fotos[0]).map((p) => p.fotos[0]!), [productos]);
+  const irAlCatalogo = () => {
+    limpiarTodo();
+    setTimeout(() => document.getElementById("sec-catalogo")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+  };
+
   // Foto REPRESENTATIVA por categoría (primer producto con foto) → tiles con imagen.
   const fotoCat = useMemo(() => {
     const m = new Map<string, string>();
@@ -262,6 +269,13 @@ export function TiendaCliente({
           </div>
         )}
       </SeccionTienda>
+
+      {/* BANNER promocional (como los de Electrolux/Motorola en ML). Solo sin filtro. */}
+      {!hayFiltro && bannerFotos.length > 0 && (
+        <BannerPromo tema="azul" eyebrow="TODO PARA ESTRENAR" titulo="Renová tu casa, en cuotas"
+          sub="Electrodomésticos, tecnología y mucho más" badge="Hasta 12 cuotas" ctaLabel="Ver todo →"
+          img={bannerFotos[0]} onClick={irAlCatalogo} />
+      )}
 
       {/* Hero: el destacado principal, grande (sensación de tienda). Solo sin filtro. */}
       {hero && (
@@ -385,6 +399,13 @@ export function TiendaCliente({
         </SeccionTienda>
       )}
 
+      {/* BANNER 2 promocional (otro ángulo: servicio/entrega). Solo sin filtro. */}
+      {!hayFiltro && bannerFotos.length > 1 && (
+        <BannerPromo tema="oscuro" eyebrow="SIN VUELTAS" titulo="Elegí y te lo llevamos a tu casa"
+          sub="Te lo lleva tu cobrador · sin trámites complicados" badge="Entrega a domicilio" ctaLabel="Empezá ahora →"
+          img={bannerFotos[1]} onClick={irAlCatalogo} />
+      )}
+
       {/* Colección CURBE — banner de ORO + fila de piezas (más visibilidad al lujo). */}
       {!hayFiltro && curbeProds.length > 0 && (
         <div className="flex flex-col gap-2.5 overflow-hidden rounded-[20px] bg-[linear-gradient(135deg,#1C1608,#2C2211)] p-4 shadow-[0_10px_28px_rgba(28,22,8,0.28)]">
@@ -434,7 +455,7 @@ export function TiendaCliente({
       )}
 
       {/* Catálogo — sección en TARJETA (título + orden + grilla). */}
-      <section className="rounded-[18px] bg-white p-3.5 shadow-[0_1px_5px_rgba(15,27,61,0.06)] md:p-4">
+      <section id="sec-catalogo" className="scroll-mt-16 rounded-[18px] bg-white p-3.5 shadow-[0_1px_5px_rgba(15,27,61,0.06)] md:p-4">
       <div className="mb-3 flex items-center justify-between gap-2">
         <span className="text-[14.5px] font-extrabold tracking-[-0.01em] text-tinta">
           {hayFiltro ? `${filtrados.length} ${filtrados.length === 1 ? "resultado" : "resultados"}${cat ? ` · ${cat}` : ""}` : "Todos los productos"}
@@ -507,6 +528,9 @@ export function TiendaCliente({
                 ) : null}
                 <span className="line-clamp-2 text-[14.5px] font-bold leading-snug text-tinta">{p.nombre}</span>
                 <Precio p={p} />
+                {!(p.agotado || p.stock === 0) && (
+                  <span className="mt-0.5 flex w-fit items-center gap-1 text-[10.5px] font-bold text-[#157A50]">🚚 A domicilio</span>
+                )}
                 {conCarrito && !(p.agotado || p.stock === 0) && (
                   <button type="button" onClick={(e) => { e.stopPropagation(); agregarAlCarrito(p); }}
                     className="mt-1.5 flex items-center justify-center gap-1.5 rounded-full bg-[#EEF3FF] py-2 text-[13px] font-bold text-azul transition hover:bg-[#1E47C8] hover:text-white active:scale-95">

@@ -10,6 +10,8 @@ import { conTimeout } from "@/lib/timeout";
 import { TiendaCliente } from "@/components/tienda/TiendaCliente";
 import { MisComprasEmpleado } from "@/components/tienda/MisComprasEmpleado";
 import { HeroCarrusel, type HeroSlide } from "@/components/tienda/HeroCarrusel";
+import { UYU } from "@/lib/format";
+import { calcularPlanVenta } from "@/lib/venta";
 import { NEGOCIO } from "@/lib/negocio";
 
 export const dynamic = "force-dynamic";
@@ -48,6 +50,12 @@ export default async function TiendaPublicaPage({
   // foto de heladera). El banner de Curbe doblega como pieza publicitaria.
   const curbePerfume = productos.find((p) => p.proveedor === "curbe" && p.categoriaNombre !== "Oro 18k" && p.fotos[0]);
   const electro = productos.find((p) => !p.proveedor && p.fotos[0]);
+  // Etiqueta de precio flotante del hero (precio + cuota), como los tags de ML.
+  const tagDe = (p?: typeof electro): HeroSlide["tag"] => {
+    if (!p) return undefined;
+    const cuota = p.cuotas > 0 ? calcularPlanVenta({ precio: p.precio, interesPct: p.interesPct, cuotas: p.cuotas }).cuota : 0;
+    return { linea1: UYU(p.precio), linea2: cuota > 0 ? `${p.cuotas}× ${UYU(cuota)}` : undefined };
+  };
   const slidesHero: HeroSlide[] = [
     {
       tema: "prestaya",
@@ -58,6 +66,7 @@ export default async function TiendaPublicaPage({
       img: electro?.fotos[0] ?? curbePerfume?.fotos[0] ?? null,
       imgLabel: electro?.nombre ?? curbePerfume?.nombre ?? null,
       pills: ["Hasta 12 cuotas", "0% de interés"],
+      tag: tagDe(electro ?? curbePerfume),
       cta: { label: "Ver productos ↓", href: "#catalogo" },
     },
     {
@@ -69,6 +78,7 @@ export default async function TiendaPublicaPage({
       img: curbePerfume?.fotos[0] ?? null,
       imgLabel: curbePerfume?.nombre ?? null,
       pills: ["Perfumes de autor", "Oro 18k italiano"],
+      tag: tagDe(curbePerfume),
       cta: { label: "Ver curbe.uy →", href: "https://curbe.uy" },
     },
   ];

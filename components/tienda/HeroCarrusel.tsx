@@ -23,6 +23,8 @@ export type HeroSlide = {
   imgLabel?: string | null;
   /** Pills de valor GRANDES (como "Hasta 50% OFF" / "12 cuotas" de Mercado Libre). */
   pills?: string[];
+  /** Etiqueta de precio FLOTANTE sobre el producto (como los "$X" de ML). */
+  tag?: { linea1: string; linea2?: string };
   cta?: { label: string; href: string } | null;
 };
 
@@ -95,15 +97,24 @@ function Slide({ s }: { s: HeroSlide }) {
           )}
         </div>
         {s.img && (
-          <div className="relative mx-auto w-full max-w-[260px] md:mx-0 md:w-[280px] md:flex-shrink-0">
-            <div className="absolute -inset-3 rounded-[26px] blur-xl" style={{ background: `radial-gradient(circle, ${t.accent}44, transparent 70%)` }} aria-hidden />
-            <div className="relative overflow-hidden rounded-[20px] border border-white/10 bg-white/[0.05] p-3 backdrop-blur">
+          <div className="relative mx-auto w-full max-w-[270px] shrink-0 md:mx-0 md:w-[320px]">
+            {/* Halo detrás del producto (glow del color de acento). */}
+            <div className="absolute -inset-5 rounded-[36px] blur-2xl" style={{ background: `radial-gradient(circle at 50% 45%, ${t.accent}55, transparent 68%)` }} aria-hidden />
+            {/* Panel blanco del producto (nuestras fotos vienen sobre blanco). */}
+            <div className="relative overflow-hidden rounded-[22px] bg-white p-3 shadow-[0_26px_54px_rgba(0,0,0,0.32)]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={s.img} alt={s.imgLabel ?? ""} draggable={false} className="mx-auto aspect-square w-full select-none rounded-[14px] bg-white object-contain p-2" />
+              <img src={s.img} alt={s.imgLabel ?? ""} draggable={false} className="mx-auto aspect-square w-full select-none object-contain p-1" />
               {s.imgLabel && (
-                <span className="mt-2 block truncate px-1 text-[12px] font-bold text-white">{s.imgLabel}</span>
+                <span className="mt-1.5 block truncate px-1 text-[12.5px] font-bold text-tinta">{s.imgLabel}</span>
               )}
             </div>
+            {/* Etiqueta de precio FLOTANTE, superpuesta (estilo Mercado Libre). */}
+            {s.tag && (
+              <div className="absolute -right-2 -top-3 z-20 rounded-[14px] px-3 py-1.5 text-right shadow-[0_10px_24px_rgba(0,0,0,0.35)]" style={{ background: t.accent }}>
+                {s.tag.linea2 && <span className="block text-[9px] font-black uppercase leading-tight tracking-wide text-[#0F1B3D]/60">{s.tag.linea2}</span>}
+                <span className="block text-[16px] font-black leading-tight tabular-nums text-[#0F1B3D]">{s.tag.linea1}</span>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -238,6 +238,49 @@ export function SeccionTienda({ titulo, verTodos, verTodosLabel = "Ver todos ›
   );
 }
 
+// ── BANNER promocional horizontal (como los de Electrolux/Motorola en ML) ────
+export function BannerPromo({ tema = "azul", eyebrow, titulo, sub, badge, ctaLabel = "Ver todo →", img, onClick }: {
+  tema?: "azul" | "oscuro" | "dorado";
+  eyebrow?: string;
+  titulo: string;
+  sub?: string;
+  badge?: string;
+  ctaLabel?: string;
+  img?: string | null;
+  onClick: () => void;
+}) {
+  const bg = tema === "oscuro"
+    ? "linear-gradient(120deg,#0F1B3D 0%,#1A2A57 100%)"
+    : tema === "dorado"
+      ? "linear-gradient(120deg,#1C1608 0%,#2C2211 100%)"
+      : "linear-gradient(120deg,#2453DC 0%,#13308C 100%)";
+  const acento = tema === "dorado" ? "#E8C56E" : "#8FE7C0";
+  return (
+    <button type="button" onClick={onClick}
+      className="group relative flex items-stretch overflow-hidden rounded-[18px] text-left shadow-[0_10px_28px_rgba(15,27,61,0.25)] transition active:scale-[0.99]"
+      style={{ background: bg }}>
+      <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: `radial-gradient(120% 120% at 100% 0%, ${acento}22, transparent 55%)` }} />
+      <div className="relative flex flex-1 flex-col justify-center gap-1 p-4 text-white md:p-5">
+        {eyebrow && <span className="text-[10px] font-black uppercase tracking-[0.14em]" style={{ color: acento }}>{eyebrow}</span>}
+        <span className="text-[17px] font-black leading-tight tracking-[-0.01em] md:text-[21px]">{titulo}</span>
+        {sub && <span className="text-[12px] font-medium text-white/70">{sub}</span>}
+        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+          {badge && <span className="rounded-full bg-white px-3 py-1 text-[11.5px] font-black text-[#13308C]">{badge}</span>}
+          <span className="rounded-full bg-white/15 px-3 py-1 text-[12px] font-bold text-white ring-1 ring-white/20 transition group-hover:bg-white/25">{ctaLabel}</span>
+        </div>
+      </div>
+      {img && (
+        <div className="relative flex w-[40%] max-w-[168px] shrink-0 items-center justify-center p-3">
+          <div className="aspect-square w-full overflow-hidden rounded-[16px] bg-white p-1.5 shadow-[0_10px_24px_rgba(0,0,0,0.28)]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={img} alt="" loading="lazy" className="h-full w-full object-contain" />
+          </div>
+        </div>
+      )}
+    </button>
+  );
+}
+
 // ── Fila de ATAJOS (como "Compra tu carrito / Visto recientemente" de ML) ─────
 export type Atajo = { key: string; icono: string; titulo: string; sub: string; onClick: () => void; tono?: string };
 export function AtajosTienda({ atajos }: { atajos: Atajo[] }) {
