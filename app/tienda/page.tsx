@@ -32,6 +32,8 @@ export default async function TiendaPublicaPage({
   ]);
   const logueado = usuario && usuario.activo ? usuario : null;
   const primerNombre = logueado ? logueado.nombre.split(" ")[0] : "";
+  // Producto para lucir en el hero (destacado con foto; si no, el primero con foto).
+  const estrella = productos.find((p) => p.destacado && p.fotos[0]) ?? productos.find((p) => p.fotos[0]) ?? null;
 
   return (
     <div className="flex min-h-screen justify-center bg-fondo text-tinta">
@@ -55,17 +57,45 @@ export default async function TiendaPublicaPage({
           )}
         </div>
 
-        {/* Hero de bienvenida */}
-        <div className="relative overflow-hidden rounded-[20px] bg-[linear-gradient(135deg,#2453DC,#13308C)] px-5 py-5 text-white shadow-[0_12px_30px_rgba(19,48,140,0.3)] md:px-8 md:py-8">
-          <span className="text-[26px] md:text-[32px]" aria-hidden="true">🛍️</span>
-          <h1 className="mt-1 text-[22px] font-extrabold leading-tight md:text-[30px]">Tienda Presta Ya</h1>
-          <p className="mt-1 max-w-[560px] text-[13.5px] font-medium text-white/85 md:text-[15px]">Llevate lo que necesitás y pagalo en <b className="text-white">cuotas cómodas</b>. Elegí un producto y te pasamos tu plan.</p>
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            <span className="rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-bold md:text-[12.5px]">🚚 Entrega a domicilio</span>
-            <span className="rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-bold md:text-[12.5px]">💳 En cuotas</span>
-            <span className="rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-bold md:text-[12.5px]">🛡️ Con garantía</span>
+        {/* Hero PREMIUM (perfumería & joyería, en cuotas). Fondo noche + acento oro. */}
+        <section className="relative overflow-hidden rounded-[24px] bg-[#0E1834] text-white shadow-[0_18px_44px_rgba(9,16,40,0.35)]">
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+            <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_88%_-15%,rgba(232,197,110,0.20),transparent_55%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(90%_90%_at_-5%_110%,rgba(36,83,220,0.28),transparent_60%)]" />
           </div>
-        </div>
+          <div className="relative flex flex-col gap-5 p-6 md:flex-row md:items-center md:justify-between md:p-10">
+            <div className="flex max-w-[480px] flex-col gap-3">
+              <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#E8C56E]">Perfumería &amp; Joyería · en cuotas</span>
+              <h1 className="text-[27px] font-black leading-[1.06] tracking-[-0.02em] md:text-[40px]">
+                Perfumes de autor y <span className="text-[#E8C56E]">oro 18k</span>, a tu ritmo.
+              </h1>
+              <p className="max-w-[440px] text-[13.5px] font-medium text-white/70 md:text-[15px]">
+                Elegí lo que te gusta y pagalo en <b className="font-bold text-white">cuotas cómodas</b>. Te lo llevamos a tu casa.
+              </p>
+              <div className="mt-1 flex flex-wrap gap-2 text-[11.5px] font-semibold text-white/80">
+                <span className="rounded-full border border-white/15 bg-white/[0.06] px-3 py-1.5">🚚 Entrega a domicilio</span>
+                <span className="rounded-full border border-white/15 bg-white/[0.06] px-3 py-1.5">💳 Cuotas cómodas</span>
+                <span className="rounded-full border border-white/15 bg-white/[0.06] px-3 py-1.5">🛡️ Garantía</span>
+              </div>
+            </div>
+            {estrella?.fotos[0] && (
+              <div className="relative mx-auto w-full max-w-[280px] md:mx-0 md:w-[300px] md:flex-shrink-0">
+                <div className="absolute -inset-3 rounded-[26px] bg-[radial-gradient(circle,rgba(232,197,110,0.28),transparent_70%)] blur-xl" aria-hidden="true" />
+                <div className="relative overflow-hidden rounded-[20px] border border-white/10 bg-white/[0.04] p-3 backdrop-blur">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={estrella.fotos[0]} alt={estrella.nombre} className="mx-auto aspect-square w-full rounded-[14px] bg-white object-contain p-2" />
+                  <div className="mt-2.5 flex items-center justify-between gap-2 px-1">
+                    <div className="flex min-w-0 flex-col">
+                      <span className="text-[9.5px] font-bold uppercase tracking-wide text-[#E8C56E]">⭐ Destacado</span>
+                      <span className="truncate text-[12.5px] font-bold text-white">{estrella.nombre}</span>
+                    </div>
+                    <span className="flex-shrink-0 text-[15px] font-black tabular-nums text-white">${Math.round(estrella.precio).toLocaleString("es-UY")}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
 
         {/* Atribución CURBE: las fragancias y joyas son de curbe.uy, con link al sitio. */}
         <a

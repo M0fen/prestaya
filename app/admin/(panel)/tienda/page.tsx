@@ -51,25 +51,32 @@ export default async function TiendaPage() {
         </span>
       </header>
       <ProspectosPublicos leads={leadsPublicos} />
+      {/* Accesos a las herramientas de la tienda (Curbe + Proyección) */}
       {(() => {
         const curbePend = pedidosCurbe.filter((p) => p.estado === "pendiente").length;
         const curbeCount = productos.filter((p) => p.proveedor === "curbe").length;
-        if (curbeCount === 0 && pedidosCurbe.length === 0) return null;
         return (
-          <Link href="/admin/tienda/curbe" className="flex items-center justify-between gap-3 rounded-[16px] border border-[#C9B8F0] bg-[#F3EEFC] p-4 hover:brightness-[0.99]">
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[14px] font-extrabold text-tinta">💎 Integración Curbe</span>
-              <span className="text-[12px] font-medium text-gris">
-                {curbeCount} productos · catálogo, ventas, ingresos y despacho en un solo lugar.
-              </span>
-            </div>
-            <div className="flex flex-shrink-0 items-center gap-2">
-              {curbePend > 0 && (
-                <span className="rounded-full bg-[#E8A317] px-2.5 py-1 text-[11px] font-black text-[#0F1B3D]">{curbePend} por despachar</span>
-              )}
-              <span className="text-[18px] text-[#6D4AC7]">→</span>
-            </div>
-          </Link>
+          <div className="grid gap-2.5 md:grid-cols-2">
+            {(curbeCount > 0 || pedidosCurbe.length > 0) && (
+              <Link href="/admin/tienda/curbe" className="flex items-center justify-between gap-3 rounded-[16px] border border-[#C9B8F0] bg-[#F3EEFC] p-4 hover:brightness-[0.99]">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[14px] font-extrabold text-tinta">💎 Integración Curbe</span>
+                  <span className="text-[12px] font-medium text-gris">{curbeCount} productos · catálogo, ventas y despacho.</span>
+                </div>
+                <div className="flex flex-shrink-0 items-center gap-2">
+                  {curbePend > 0 && <span className="rounded-full bg-[#E8A317] px-2.5 py-1 text-[11px] font-black text-[#0F1B3D]">{curbePend} por despachar</span>}
+                  <span className="text-[18px] text-[#6D4AC7]">→</span>
+                </div>
+              </Link>
+            )}
+            <Link href="/admin/tienda/proyeccion" className="flex items-center justify-between gap-3 rounded-[16px] border border-[#BFE6D2] bg-[#EAF7F0] p-4 hover:brightness-[0.99]">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[14px] font-extrabold text-tinta">📈 Proyección de ventas</span>
+                <span className="text-[12px] font-medium text-gris">Estimá cuánto puede facturar la tienda con tus clientes.</span>
+              </div>
+              <span className="flex-shrink-0 text-[18px] text-[#0F7A48]">→</span>
+            </Link>
+          </div>
         );
       })()}
       <TiendaManager

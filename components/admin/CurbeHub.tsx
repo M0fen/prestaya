@@ -37,6 +37,16 @@ export function CurbeHub({
   productos: Producto[];
   pedidos: PedidoCurbe[];
 }) {
+  const porCategoria = Object.values(
+    productos.reduce<Record<string, { nombre: string; n: number; min: number }>>((acc, p) => {
+      const k = p.categoriaNombre ?? "Otros";
+      const e = (acc[k] ??= { nombre: k, n: 0, min: Infinity });
+      e.n += 1;
+      e.min = Math.min(e.min, p.precio);
+      return acc;
+    }, {}),
+  ).sort((a, b) => b.n - a.n);
+
   return (
     <div className="flex flex-col gap-5">
       <header className="flex flex-col gap-2">
@@ -76,52 +86,47 @@ export function CurbeHub({
         </div>
       )}
 
-      {/* Catálogo Curbe */}
-      <section className="flex flex-col gap-3">
+      {/* Catálogo Curbe — vista COMPACTA (breakdown por categoría + rail de
+          miniaturas). La edición completa vive en /admin/tienda. */}
+      <section className="flex flex-col gap-3 rounded-[16px] border border-borde bg-tarjeta p-4">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-[15px] font-extrabold text-tinta">Catálogo Curbe ({productos.length})</h2>
+          <h2 className="text-[14px] font-extrabold text-tinta">Catálogo · {productos.length} productos</h2>
           <Link href="/admin/tienda" className="text-[12px] font-bold text-azul">Editar en Tienda →</Link>
         </div>
         {productos.length === 0 ? (
-          <div className="rounded-[16px] border border-dashed border-borde bg-tarjeta p-5 text-center">
-            <p className="text-[13px] font-bold text-tinta">Todavía no hay productos de Curbe</p>
-            <p className="mt-1 text-[12px] font-medium text-gris">
-              Corré <code className="font-bold">scripts/importar-curbe.mjs</code> o creá un producto en Tienda eligiendo “💎 Curbe” como despacho.
-            </p>
-          </div>
+          <p className="py-3 text-center text-[12px] font-medium text-gris">
+            Todavía no hay productos de Curbe. Corré <code className="font-bold">scripts/importar-curbe.mjs</code> o creá uno en Tienda eligiendo “💎 Curbe”.
+          </p>
         ) : (
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
-            {productos.map((p) => {
-              const cat = p.categoriaNombre ? CAT_COLOR[p.categoriaNombre] : undefined;
-              return (
-                <div key={p.id} className="flex flex-col overflow-hidden rounded-[14px] border border-borde bg-tarjeta">
-                  <div className="relative aspect-square bg-suave">
-                    {p.fotos[0] ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={p.fotos[0]} alt={p.nombre} className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-[28px]">💎</div>
-                    )}
-                    {!p.activo && (
-                      <span className="absolute left-1.5 top-1.5 rounded-full bg-[#F1F3F9] px-2 py-0.5 text-[10px] font-bold text-gris">Pausado</span>
-                    )}
+          <>
+            {/* Desglose por categoría */}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {porCategoria.map((c) => {
+                const col = CAT_COLOR[c.nombre] ?? { bg: "#EEF1F8", fg: "#6B7494" };
+                return (
+                  <div key={c.nombre} className="flex flex-col gap-0.5 rounded-[12px] border border-linea p-2.5" style={{ background: col.bg + "55" }}>
+                    <span className="text-[11px] font-bold" style={{ color: col.fg }}>{c.nombre}</span>
+                    <span className="text-[19px] font-black leading-none text-tinta tabular-nums">{c.n}</span>
+                    <span className="text-[10.5px] font-medium text-gris">desde {money(c.min)}</span>
                   </div>
-                  <div className="flex flex-1 flex-col gap-1 p-2.5">
-                    <span className="line-clamp-2 text-[12.5px] font-bold leading-tight text-tinta">{p.nombre}</span>
-                    <div className="mt-auto flex items-center justify-between gap-1 pt-1">
-                      <span className="text-[13px] font-black text-tinta tabular-nums">{money(p.precio)}</span>
-                      {cat && (
-                        <span className="rounded-full px-2 py-0.5 text-[9.5px] font-bold" style={{ background: cat.bg, color: cat.fg }}>
-                          {p.categoriaNombre}
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-[10.5px] font-medium text-gris">{p.cuotas} cuotas · {p.frecuencia}</span>
-                  </div>
+                );
+              })}
+            </div>
+            {/* Rail de miniaturas (scroll horizontal, compacto) */}
+            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]">
+              {productos.map((p) => (
+                <div key={p.id} className="group relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-[10px] border border-linea bg-suave" title={`${p.nombre} · ${money(p.precio)}`}>
+                  {p.fotos[0] ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={p.fotos[0]} alt={p.nombre} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-[18px]">💎</div>
+                  )}
+                  {!p.activo && <span className="absolute inset-0 bg-white/60" />}
                 </div>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          </>
         )}
       </section>
     </div>
