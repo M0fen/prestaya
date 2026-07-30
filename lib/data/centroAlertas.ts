@@ -116,7 +116,12 @@ export async function getCentroAlertas(
   }
 
   // 4) Cobros fuera de zona / float alto (del control de cobranza).
+  // Dedup: si el cobrador YA salió como "Sin rendir" (sección 2), su "float alto" es
+  // el MISMO hecho (recaudó y no rindió) → no lo repetimos, para que el chip de
+  // "medias" no cuente dos veces a la misma persona.
+  const sinRendirIds = new Set(pendientes.filter((p) => p.recaudado > 0).map((p) => p.cobradorId));
   for (const a of control.alertas) {
+    if (a.id.startsWith("float-") && sinRendirIds.has(a.id.slice("float-".length))) continue;
     alertas.push({
       id: a.id,
       severidad: a.severidad === "alta" ? "alta" : "media",
@@ -131,7 +136,7 @@ export async function getCentroAlertas(
   try {
     let q = db
       .from("movimientos_caja")
-      .select("monto, categoria, descripcion, cobrador_id, registrado_en")
+      .select("id, monto, categoria, descripcion, cobrador_id, registrado_en")
       .eq("tipo", "desembolso")
       .gte("registrado_en", desde)
       .gte("monto", UMBRAL_DESEMBOLSO_ALERTA);
@@ -140,7 +145,7 @@ export async function getCentroAlertas(
     if (error) throw error;
     for (const m of data ?? []) {
       alertas.push({
-        id: `desembolso-${(m.registrado_en as string)}-${Math.round(Number(m.monto))}`,
+        id: `desembolso-${m.id as string}`,
         severidad: "media",
         categoria: "Desembolso grande",
         titulo: `Desembolso de ${UYU(Number(m.monto))}`,

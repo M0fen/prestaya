@@ -226,14 +226,7 @@ export async function getControlCobranza(
     const enZona = zona ? zona.enZona : null;
     if (zona && !zona.enZona) {
       fueraZona++;
-      if (a) a.anomalias += 1;
-      const cob = cobradores.find((c) => c.id === cobradorId);
-      alertas.push({
-        id: `zona-${p.prestamo_id}-${recaudadoHoy}`,
-        severidad: "alta",
-        titulo: "Pago fuera de zona",
-        detalle: `${cob?.nombre ?? "Cobrador"} cobró a ${cli?.nombre ?? "cliente"} lejos de su domicilio (GPS ⚠).`,
-      });
+      if (a) a.anomalias += 1; // se agrega por cobrador abajo (1 alerta, no 1 por pago)
     }
     if (num(p.gps_lat) != null && num(p.gps_lng) != null)
       puntos.push({
@@ -266,6 +259,20 @@ export async function getControlCobranza(
     for (const r of data ?? []) rendidos.add(r.cobrador_id as string);
   } catch {
     /* 0013 ausente → nadie figura como rendido; se mantiene la alerta de siempre. */
+  }
+
+  // Fuera de zona: UNA alerta AGREGADA por cobrador (antes se emitía una por CADA
+  // pago fuera de la geo-cerca → un cobrador con 8 cobros fuera de zona inflaba el
+  // chip de "altas" a 8 cuando es 1 problema/persona).
+  for (const c of cobradores) {
+    const a = acc.get(c.id)!;
+    if (a.anomalias > 0)
+      alertas.push({
+        id: `zona-${c.id}`,
+        severidad: "alta",
+        titulo: "Pagos fuera de zona",
+        detalle: `${c.nombre} registró ${a.anomalias} cobro(s) lejos del domicilio del cliente hoy (GPS ⚠).`,
+      });
   }
 
   // Alertas de float alto — solo para quien AÚN no rindió (efectivo en la calle).
