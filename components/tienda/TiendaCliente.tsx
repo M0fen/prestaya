@@ -43,6 +43,7 @@ export function TiendaCliente({
   );
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<string | null>(null);
+  const [marca, setMarca] = useState<string | null>(null);
   const [orden, setOrden] = useState<Orden>("destacados");
 
   const categorias = useMemo(() => {
@@ -51,10 +52,19 @@ export function TiendaCliente({
     return [...set.entries()].map(([nombre, n]) => ({ nombre, n }));
   }, [productos]);
 
+  // Marcas presentes (para el filtro por marca, estilo e-commerce). Solo se muestran
+  // si hay al menos 2 marcas distintas (si no, el filtro no aporta).
+  const marcas = useMemo(() => {
+    const set = new Map<string, number>();
+    for (const p of productos) { if (p.marca) set.set(p.marca, (set.get(p.marca) ?? 0) + 1); }
+    return [...set.entries()].map(([nombre, n]) => ({ nombre, n })).sort((a, b) => b.n - a.n);
+  }, [productos]);
+
   const filtrados = useMemo(() => {
     const t = norm(q.trim());
     let r = productos.filter((p) => {
       if (cat && (p.categoriaNombre ?? "Más productos") !== cat) return false;
+      if (marca && p.marca !== marca) return false;
       if (!t) return true;
       return norm(`${p.nombre} ${p.marca ?? ""} ${p.categoriaNombre ?? ""} ${p.descripcion ?? ""}`).includes(t);
     });
@@ -62,10 +72,14 @@ export function TiendaCliente({
     else if (orden === "mayor") r = [...r].sort((a, b) => b.precio - a.precio);
     else r = [...r].sort((a, b) => Number(b.destacado) - Number(a.destacado));
     return r;
-  }, [productos, q, cat, orden]);
+  }, [productos, q, cat, marca, orden]);
 
   const destacados = productos.filter((p) => p.destacado);
-  const hayFiltro = Boolean(q.trim() || cat);
+  const hayFiltro = Boolean(q.trim() || cat || marca);
+  // Hero: el mejor destacado (primero en oferta, si hay). Solo sin filtro.
+  const hero = !hayFiltro
+    ? [...destacados].sort((a, b) => Number(b.precioAnterior > b.precio) - Number(a.precioAnterior > a.precio))[0] ?? null
+    : null;
 
   if (!productos || productos.length === 0) return null;
 
@@ -105,12 +119,51 @@ export function TiendaCliente({
         ))}
       </div>
 
-      {/* Destacados (solo sin filtro) */}
-      {!hayFiltro && destacados.length > 0 && (
+      {/* Filtro por MARCA (solo si hay 2+ marcas). Completa la sensación de e-commerce. */}
+      {marcas.length >= 2 && (
+        <div className="-mx-[18px] flex items-center gap-1.5 overflow-x-auto px-[18px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <span className="shrink-0 text-[11px] font-bold text-gris">Marca:</span>
+          <Chip activo={!marca} onClick={() => setMarca(null)}>Todas</Chip>
+          {marcas.map((m) => (
+            <Chip key={m.nombre} activo={marca === m.nombre} onClick={() => setMarca(marca === m.nombre ? null : m.nombre)}>{m.nombre}</Chip>
+          ))}
+        </div>
+      )}
+
+      {/* Hero: el destacado principal, grande (sensación de tienda). Solo sin filtro. */}
+      {hero && (
+        <button type="button" onClick={() => setAbierto(hero)}
+          className="group overflow-hidden rounded-[22px] bg-[linear-gradient(135deg,#173063,#0F1B3D)] text-left shadow-[0_14px_34px_rgba(15,27,61,0.3)] active:scale-[0.99]">
+          <div className="flex items-stretch">
+            <div className="relative w-[42%] shrink-0 bg-white">
+              <Foto p={hero} className="aspect-square" />
+              {hero.precioAnterior > hero.precio && (
+                <span className="absolute left-2 top-2 rounded-full bg-[#D64545] px-2 py-0.5 text-[10px] font-black text-white">OFERTA</span>
+              )}
+            </div>
+            <div className="flex flex-1 flex-col justify-center gap-1 px-4 py-3.5 text-white">
+              <span className="text-[10.5px] font-black uppercase tracking-wide text-[#FFD37E]">⭐ Destacado</span>
+              {hero.marca && <span className="text-[10px] font-bold uppercase tracking-wide text-white/45">{hero.marca}</span>}
+              <span className="line-clamp-2 text-[16px] font-extrabold leading-tight">{hero.nombre}</span>
+              <div className="mt-0.5 flex items-baseline gap-2">
+                <span className="text-[21px] font-black tabular-nums leading-none text-[#34E0A1]">{UYU(hero.precio)}</span>
+                {hero.precioAnterior > hero.precio && <span className="text-[12px] tabular-nums text-white/40 line-through">{UYU(hero.precioAnterior)}</span>}
+              </div>
+              {hero.cuotas > 0 && financiacion(hero).cuota > 0 && (
+                <span className="text-[12px] font-semibold text-white/70">{hero.cuotas}× {UYU(financiacion(hero).cuota)} {FREC_LABEL[hero.frecuencia]}</span>
+              )}
+              <span className="mt-1.5 w-fit rounded-full bg-white px-3.5 py-1.5 text-[12px] font-extrabold text-[#13308C]">Ver oferta →</span>
+            </div>
+          </div>
+        </button>
+      )}
+
+      {/* Más destacados (fila horizontal, excluye el hero). Solo sin filtro. */}
+      {!hayFiltro && destacados.filter((p) => p.id !== hero?.id).length > 0 && (
         <div className="flex flex-col gap-2">
-          <span className="px-1 text-[13px] font-extrabold text-tinta">⭐ Destacados</span>
+          <span className="px-1 text-[13px] font-extrabold text-tinta">⭐ Más destacados</span>
           <div className="-mx-[18px] flex gap-3 overflow-x-auto px-[18px] pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {destacados.map((p) => (
+            {destacados.filter((p) => p.id !== hero?.id).map((p) => (
               <button key={p.id} type="button" onClick={() => setAbierto(p)}
                 className="flex w-[160px] shrink-0 flex-col overflow-hidden rounded-[16px] border border-[#ECEFF8] bg-white text-left shadow-[0_2px_10px_rgba(15,27,61,0.05)] active:scale-[0.98]">
                 <Foto p={p} className="aspect-square" />
