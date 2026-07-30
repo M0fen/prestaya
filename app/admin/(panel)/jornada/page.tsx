@@ -254,6 +254,22 @@ export default async function JornadaPage({
   // los aprueba el admin.
   const gastosPend = await contarSolicitudesGastoPendientes(db, alcance.global ? null : alcance.cobradorIds);
 
+  // ── Estado del cierre (para el peak-end): ¿todas las zonas que puedo sellar ya
+  //    están cerradas? + resumen del día para el Acto 3. ──
+  const cerradasPendientes = cierre.consolidado.zonas.filter(
+    (z) => cerrables.includes(z.zonaId ?? CLAVE_SIN_ZONA) && !z.confirmado,
+  ).length;
+  const todasCerradas = cierre.disponible && cerrables.length > 0 && cerradasPendientes === 0;
+  const resumenDia = {
+    recaudado: recaudacion.hoy,
+    esperado: esperadoTotal,
+    avancePct: avanceDiaPct,
+    renovables,
+    sinRendir: sinRendirN,
+    faltante: cons.totalFaltante,
+    alertasAltas,
+  };
+
   return (
     <div className="flex flex-col gap-5">
       {/* Encabezado personalizado */}
@@ -354,11 +370,13 @@ export default async function JornadaPage({
                 <span className={`text-[11px] font-bold uppercase tracking-wide ${activo ? "text-azul" : "text-tenue"}`}>
                   Acto {a.n}
                 </span>
-                {chip > 0 && (
+                {a.id === "cierre" && todasCerradas ? (
+                  <span className="rounded-full bg-[#E4F5EC] px-1.5 py-0.5 text-[10px] font-bold text-[#157A50]">✓ Cerrado</span>
+                ) : chip > 0 ? (
                   <span className="rounded-full bg-[#FBE4E2] px-1.5 py-0.5 text-[10px] font-bold text-[#C0392B] tabular-nums">
                     {chip}
                   </span>
-                )}
+                ) : null}
               </div>
               <span className={`flex items-center gap-1.5 text-[14px] font-extrabold ${activo ? "text-tinta" : "text-cuerpo"}`}>
                 <Icono name={a.icon} className="h-[15px] w-[15px]" />
@@ -398,7 +416,7 @@ export default async function JornadaPage({
           supervisoresPorZona={supervisoresPorZona}
         />
       )}
-      {acto === "cierre" && <Cierre cierre={cierre} cerrables={cerrables} />}
+      {acto === "cierre" && <Cierre cierre={cierre} cerrables={cerrables} resumenDia={resumenDia} todasCerradas={todasCerradas} />}
 
       {/* Bitácora del día: lo que YA hiciste (descarga de memoria + cierre de loop). */}
       <BitacoraDia entradas={bitacora} />
@@ -674,7 +692,14 @@ function EnVivo({
 }
 
 /* ── ACTO 3 · CIERRE (cuadre de caja) ──────────────────────────────────── */
-function Cierre({ cierre, cerrables }: { cierre: ResumenCierreZonas; cerrables: string[] }) {
+function Cierre({
+  cierre, cerrables, resumenDia, todasCerradas,
+}: {
+  cierre: ResumenCierreZonas;
+  cerrables: string[];
+  resumenDia: { recaudado: number; esperado: number; avancePct: number; renovables: number; sinRendir: number; faltante: number; alertasAltas: number };
+  todasCerradas: boolean;
+}) {
   const c = cierre.consolidado;
   const diferencia = c.totalSobrante - c.totalFaltante;
   return (
@@ -683,6 +708,43 @@ function Cierre({ cierre, cerrables }: { cierre: ResumenCierreZonas; cerrables: 
         titulo="Cerrá el día"
         bajada="Recibí el efectivo de cada cobrador, revisá que cuadre y cerrá la jornada."
       />
+
+      {/* PEAK-END: al sellar la última zona, cierre emocional del día. */}
+      {todasCerradas && (
+        <div className="relative overflow-hidden rounded-[20px] bg-[linear-gradient(135deg,#1FA971_0%,#157A50_100%)] px-5 py-5 text-white shadow-[0_14px_34px_rgba(21,122,80,0.32)]">
+          <span aria-hidden className="pointer-events-none absolute -right-6 -top-8 h-28 w-28 rounded-full bg-white/10" />
+          <span aria-hidden className="pointer-events-none absolute -bottom-10 right-10 h-24 w-24 rounded-full bg-white/10" />
+          <span className="text-[30px]" aria-hidden>🎉</span>
+          <h3 className="mt-1 text-[20px] font-black leading-tight">¡Día cerrado! Buen laburo.</h3>
+          <p className="mt-0.5 text-[13px] font-medium text-white/85">
+            {c.totalFaltante > 0
+              ? `Cerraste todas las zonas. Quedó un faltante de ${UYU(c.totalFaltante)} para revisar mañana.`
+              : "Todas las zonas cuadradas y selladas. La caja quedó prolija. A descansar. 💚"}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-[12.5px] font-semibold text-white/80">
+            <span>Recaudado {UYU(resumenDia.recaudado)}</span>
+            <span>{resumenDia.avancePct}% de la meta</span>
+            <span>{c.rendidos} {c.rendidos === 1 ? "rendición" : "rendiciones"}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Resumen del ARCO del día (más potente que solo el cuadre). */}
+      {!todasCerradas && (
+        <div className="flex flex-col gap-2 rounded-[16px] border border-borde bg-tarjeta p-4">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-[13px] font-extrabold text-tinta">Resumen del día</span>
+            <span className="text-[12px] font-bold text-gris tabular-nums">{resumenDia.avancePct}% de la meta</span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-[#EEF1F8]">
+            <div className="h-full rounded-full bg-[linear-gradient(90deg,#34E0A1,#1FA971)]" style={{ width: `${resumenDia.avancePct}%` }} />
+          </div>
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 text-[12px] font-medium text-gris">
+            <span>Recaudado <b className="tabular-nums text-tinta">{UYU(resumenDia.recaudado)}</b> de {UYU(resumenDia.esperado)}</span>
+            <span>{resumenDia.renovables} listos para renovar · {resumenDia.alertasAltas} en riesgo alto</span>
+          </div>
+        </div>
+      )}
 
       {!cierre.disponible ? (
         <LineaCalma texto="El cierre de jornada necesita la migración de rendición (0013)." />
