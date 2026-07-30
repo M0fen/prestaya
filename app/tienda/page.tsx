@@ -53,6 +53,7 @@ export default async function TiendaPublicaPage({
       sub: "Electrodomésticos, tecnología, fragancias y mucho más. Elegís, te pasamos el plan y te lo llevamos a tu casa.",
       img: electro?.fotos[0] ?? curbePerfume?.fotos[0] ?? null,
       imgLabel: electro?.nombre ?? curbePerfume?.nombre ?? null,
+      pills: ["Hasta 12 cuotas", "0% de interés"],
       cta: { label: "Ver productos ↓", href: "#catalogo" },
     },
     {
@@ -63,6 +64,7 @@ export default async function TiendaPublicaPage({
       sub: "Fragancias inspiradas en las grandes marcas y joyas de oro italiano 18k, en cuotas cómodas.",
       img: curbePerfume?.fotos[0] ?? null,
       imgLabel: curbePerfume?.nombre ?? null,
+      pills: ["Perfumes de autor", "Oro 18k italiano"],
       cta: { label: "Ver curbe.uy →", href: "https://curbe.uy" },
     },
   ];
@@ -70,7 +72,7 @@ export default async function TiendaPublicaPage({
   return (
     <div className="flex min-h-screen justify-center bg-fondo text-tinta">
       {/* Mobile: columna angosta (480). Desktop: se ensancha a una tienda de verdad. */}
-      <div className="flex w-full max-w-[480px] flex-col gap-3 bg-app px-[18px] pt-4 pb-12 shadow-[0_0_60px_rgba(15,27,61,0.08)] md:max-w-[1120px] md:px-8 md:pt-6">
+      <div className="flex w-full max-w-[480px] flex-col gap-3 bg-[#EBEEF5] px-[18px] pt-4 pb-12 shadow-[0_0_60px_rgba(15,27,61,0.08)] md:max-w-[1120px] md:px-8 md:pt-6">
         {/* Barra de marca */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">

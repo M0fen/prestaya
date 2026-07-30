@@ -185,6 +185,48 @@ export function leerPedidosLocal(scope: string): PedidoLocal[] {
   }
 }
 
+// ── SECCIÓN en TARJETA blanca (como los bloques de Mercado Libre) ────────────
+/** Envuelve un bloque en una tarjeta blanca con título en negrita + "Ver todos ›".
+ *  Sobre el fondo gris de la página, esto es lo que hace que las secciones "se vean". */
+export function SeccionTienda({ titulo, verTodos, verTodosLabel = "Ver todos ›", children }: {
+  titulo?: React.ReactNode;
+  verTodos?: () => void;
+  verTodosLabel?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-[18px] bg-white p-3.5 shadow-[0_1px_5px_rgba(15,27,61,0.06)] md:p-4">
+      {(titulo || verTodos) && (
+        <div className="mb-2.5 flex items-center justify-between gap-2">
+          <span className="text-[14.5px] font-extrabold tracking-[-0.01em] text-tinta">{titulo}</span>
+          {verTodos && (
+            <button type="button" onClick={verTodos} className="shrink-0 rounded-full px-2 py-1 text-[12px] font-bold text-azul active:scale-95">{verTodosLabel}</button>
+          )}
+        </div>
+      )}
+      {children}
+    </section>
+  );
+}
+
+// ── Fila de ATAJOS (como "Compra tu carrito / Visto recientemente" de ML) ─────
+export type Atajo = { key: string; icono: string; titulo: string; sub: string; onClick: () => void; tono?: string };
+export function AtajosTienda({ atajos }: { atajos: Atajo[] }) {
+  if (atajos.length === 0) return null;
+  return (
+    <div className="flex gap-2.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {atajos.map((a) => (
+        <button key={a.key} type="button" onClick={a.onClick}
+          className="flex w-[132px] shrink-0 flex-col gap-1.5 rounded-[16px] bg-white p-3 text-left shadow-[0_1px_5px_rgba(15,27,61,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(15,27,61,0.1)] active:scale-[0.98]">
+          <span className="grid h-9 w-9 place-items-center rounded-full text-[18px]" style={{ background: a.tono ?? "#EEF3FF" }}>{a.icono}</span>
+          <span className="text-[13px] font-extrabold leading-tight text-tinta">{a.titulo}</span>
+          <span className="line-clamp-1 text-[11px] font-semibold text-gris">{a.sub}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function fechaCorta(iso: string): string {
   try {
     const d = new Date(iso);

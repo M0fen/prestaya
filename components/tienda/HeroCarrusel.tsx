@@ -21,6 +21,8 @@ export type HeroSlide = {
   sub: string;
   img: string | null;
   imgLabel?: string | null;
+  /** Pills de valor GRANDES (como "Hasta 50% OFF" / "12 cuotas" de Mercado Libre). */
+  pills?: string[];
   cta?: { label: string; href: string } | null;
 };
 
@@ -68,6 +70,13 @@ function Slide({ s }: { s: HeroSlide }) {
             <Titulo titulo={s.titulo} acento={s.acento} color={t.accent} />
           </h2>
           <p className="max-w-[460px] text-[13.5px] font-medium text-white/72 md:text-[15px]">{s.sub}</p>
+          {s.pills && s.pills.length > 0 && (
+            <div className="mt-1.5 flex flex-wrap gap-2">
+              {s.pills.map((pill, k) => (
+                <span key={k} className="rounded-full bg-white px-4 py-2 text-[13px] font-black text-[#13308C] shadow-[0_4px_14px_rgba(0,0,0,0.18)]" style={k === 1 ? { color: t.accent === "#E8C56E" ? "#8A6A16" : "#0F7A48" } : undefined}>{pill}</span>
+              ))}
+            </div>
+          )}
           <div className="mt-1 flex flex-wrap items-center gap-2 text-[11.5px] font-semibold text-white/80">
             <span className="rounded-full border border-white/15 bg-white/[0.06] px-3 py-1.5">🚚 Entrega a domicilio</span>
             <span className="rounded-full border border-white/15 bg-white/[0.06] px-3 py-1.5">💳 Cuotas cómodas</span>

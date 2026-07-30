@@ -14,7 +14,7 @@ import { comprarComoEmpleado } from "@/lib/acciones/comprasEmpleado";
 import { soloDigitos } from "@/lib/telefono";
 import { calcularPlanVenta } from "@/lib/venta";
 import type { ProductoParaCliente, FrecuenciaProducto } from "@/lib/data/tienda";
-import { GaleriaEmbla, Confeti, folioNuevo, guardarPedidoLocal, BarraTienda, MiTienda } from "./piezas";
+import { GaleriaEmbla, Confeti, folioNuevo, guardarPedidoLocal, BarraTienda, MiTienda, SeccionTienda, AtajosTienda, type Atajo } from "./piezas";
 
 const FREC_LABEL: Record<FrecuenciaProducto, string> = {
   diario: "por día", semanal: "por semana", quincenal: "por quincena", mensual: "por mes",
@@ -71,6 +71,7 @@ export function TiendaCliente({
 
   // ── CARRITO (público + cliente; el empleado compra directo, no usa carrito) ──
   const conCarrito = !preview && !modoEmpleado;
+  const soporte = process.env.NEXT_PUBLIC_SOPORTE_WHATSAPP ?? null; // WhatsApp de ayuda (inlined en build)
   const CLAVE_CARRITO = `carrito:${token ?? "publico"}`;
   const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
   const [carritoAbierto, setCarritoAbierto] = useState(false);
@@ -199,29 +200,40 @@ export function TiendaCliente({
         )}
       </div>
 
-      {/* Comprá por CATEGORÍA — TILES con ícono + conteo (estilo Mercado Libre). */}
-      {!hayFiltro && <span className="px-1 text-[13px] font-extrabold text-tinta">Comprá por categoría</span>}
-      <div className="-mx-[18px] -mt-1 flex gap-2 overflow-x-auto px-[18px] pb-1 md:mx-0 md:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <CategoriaTile emoji="🏬" nombre="Todo" n={productos.length} activo={!cat && !soloFav} onClick={() => { setCat(null); setSoloFav(false); }} />
-        {categorias.map((c) => (
-          <CategoriaTile key={c.nombre} emoji={emojiDe(c.nombre)} nombre={c.nombre} n={c.n}
-            activo={cat === c.nombre} onClick={() => { setSoloFav(false); setCat(cat === c.nombre ? null : c.nombre); }} />
-        ))}
-        {favoritos.length > 0 && (
-          <CategoriaTile emoji="❤️" nombre="Favoritos" n={favoritos.length} activo={soloFav} onClick={() => { setCat(null); setSoloFav(!soloFav); }} />
-        )}
-      </div>
-
-      {/* Filtro por MARCA (solo si hay 2+ marcas). Completa la sensación de e-commerce. */}
-      {marcas.length >= 2 && (
-        <div className="-mx-[18px] flex items-center gap-1.5 overflow-x-auto px-[18px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <span className="shrink-0 text-[11px] font-bold text-gris">Marca:</span>
-          <Chip activo={!marca} onClick={() => setMarca(null)}>Todas</Chip>
-          {marcas.map((m) => (
-            <Chip key={m.nombre} activo={marca === m.nombre} onClick={() => setMarca(marca === m.nombre ? null : m.nombre)}>{m.nombre}</Chip>
-          ))}
-        </div>
+      {/* Fila de ATAJOS (como "Compra tu carrito / Visto recientemente" de ML). */}
+      {conCarrito && !hayFiltro && (
+        <AtajosTienda atajos={[
+          ...(itemsCarrito > 0 ? [{ key: "carrito", icono: "🛒", titulo: "Tu carrito", sub: `${itemsCarrito} producto(s)`, onClick: () => setCarritoAbierto(true), tono: "#EEF3FF" }] : []),
+          ...(favoritos.length > 0 ? [{ key: "fav", icono: "❤️", titulo: "Favoritos", sub: `${favoritos.length} guardado(s)`, onClick: () => { setCat(null); setMarca(null); setSoloFav(true); }, tono: "#FDE8EF" }] : []),
+          ...(ofertas.length > 0 ? [{ key: "of", icono: "🔥", titulo: "Ofertas", sub: `${ofertas.length} en oferta`, onClick: () => document.getElementById("sec-ofertas")?.scrollIntoView({ behavior: "smooth", block: "start" }), tono: "#FBE4E2" }] : []),
+          { key: "ped", icono: "📦", titulo: "Mis pedidos", sub: "Seguí tu pedido", onClick: () => setPerfilAbierto(true), tono: "#EAF7F0" },
+          ...(soporte ? [{ key: "ayuda", icono: "💬", titulo: "Ayuda", sub: "Escribinos", onClick: () => window.open(`https://wa.me/${soporte.replace(/[^\d]/g, "")}`, "_blank") }] : []),
+        ] as Atajo[]} />
       )}
+
+      {/* Comprá por CATEGORÍA — sección en tarjeta (estilo Mercado Libre). */}
+      <SeccionTienda titulo="Comprá por categoría">
+        <div className="-mx-3.5 flex gap-2 overflow-x-auto px-3.5 pb-1 md:-mx-4 md:px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <CategoriaTile emoji="🏬" nombre="Todo" n={productos.length} activo={!cat && !soloFav} onClick={() => { setCat(null); setSoloFav(false); }} />
+          {categorias.map((c) => (
+            <CategoriaTile key={c.nombre} emoji={emojiDe(c.nombre)} nombre={c.nombre} n={c.n}
+              activo={cat === c.nombre} onClick={() => { setSoloFav(false); setCat(cat === c.nombre ? null : c.nombre); }} />
+          ))}
+          {favoritos.length > 0 && (
+            <CategoriaTile emoji="❤️" nombre="Favoritos" n={favoritos.length} activo={soloFav} onClick={() => { setCat(null); setSoloFav(!soloFav); }} />
+          )}
+        </div>
+        {/* Filtro por MARCA (solo si hay 2+ marcas). */}
+        {marcas.length >= 2 && (
+          <div className="mt-2.5 -mx-3.5 flex items-center gap-1.5 overflow-x-auto border-t border-[#F1F4FB] px-3.5 pt-2.5 md:-mx-4 md:px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <span className="shrink-0 text-[11px] font-bold text-gris">Marca:</span>
+            <Chip activo={!marca} onClick={() => setMarca(null)}>Todas</Chip>
+            {marcas.map((m) => (
+              <Chip key={m.nombre} activo={marca === m.nombre} onClick={() => setMarca(marca === m.nombre ? null : m.nombre)}>{m.nombre}</Chip>
+            ))}
+          </div>
+        )}
+      </SeccionTienda>
 
       {/* Hero: el destacado principal, grande (sensación de tienda). Solo sin filtro. */}
       {hero && (
@@ -252,11 +264,11 @@ export function TiendaCliente({
         </button>
       )}
 
-      {/* 🔥 OFERTAS — el gancho más fuerte arriba (como Mercado Libre). Solo si hay. */}
+      {/* 🔥 OFERTAS — el gancho más fuerte (sección en tarjeta, como Mercado Libre). */}
       {!hayFiltro && ofertas.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <span className="px-1 text-[13px] font-extrabold text-[#C0392B]">🔥 Ofertas</span>
-          <div className="-mx-[18px] flex gap-3 overflow-x-auto px-[18px] pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div id="sec-ofertas" className="scroll-mt-16">
+        <SeccionTienda titulo={<span className="text-[#C0392B]">🔥 Ofertas</span>}>
+          <div className="-mx-3.5 flex gap-3 overflow-x-auto px-3.5 pb-1 md:-mx-4 md:px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {ofertas.map((p) => (
               <button key={p.id} type="button" onClick={() => setAbierto(p)}
                 className="group flex w-[160px] shrink-0 flex-col overflow-hidden rounded-[16px] border border-[#ECEFF8] bg-white text-left shadow-[0_2px_10px_rgba(15,27,61,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(15,27,61,0.12)] active:scale-[0.98]">
@@ -271,17 +283,14 @@ export function TiendaCliente({
               </button>
             ))}
           </div>
+        </SeccionTienda>
         </div>
       )}
 
-      {/* ❤️ Tus favoritos — estante personal (solo si hay guardados y sin filtro). */}
+      {/* ❤️ Tus favoritos — estante personal (sección en tarjeta, sin filtro). */}
       {!hayFiltro && favProductos.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center justify-between px-1">
-            <span className="text-[13px] font-extrabold text-[#E0245E]">❤️ Tus favoritos</span>
-            <button type="button" onClick={() => { setCat(null); setMarca(null); setSoloFav(true); }} className="text-[12px] font-bold text-azul active:scale-95">Ver todos →</button>
-          </div>
-          <div className="-mx-[18px] flex gap-3 overflow-x-auto px-[18px] pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <SeccionTienda titulo={<span className="text-[#E0245E]">❤️ Tus favoritos</span>} verTodos={() => { setCat(null); setMarca(null); setSoloFav(true); }}>
+          <div className="-mx-3.5 flex gap-3 overflow-x-auto px-3.5 pb-1 md:-mx-4 md:px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {favProductos.map((p) => (
               <button key={p.id} type="button" onClick={() => setAbierto(p)}
                 className="group flex w-[160px] shrink-0 flex-col overflow-hidden rounded-[16px] border border-[#ECEFF8] bg-white text-left shadow-[0_2px_10px_rgba(15,27,61,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(15,27,61,0.12)] active:scale-[0.98]">
@@ -296,14 +305,13 @@ export function TiendaCliente({
               </button>
             ))}
           </div>
-        </div>
+        </SeccionTienda>
       )}
 
-      {/* Más destacados (fila horizontal, excluye el hero). Solo sin filtro. */}
+      {/* Más destacados (sección en tarjeta, excluye el hero). Solo sin filtro. */}
       {!hayFiltro && destacados.filter((p) => p.id !== hero?.id).length > 0 && (
-        <div className="flex flex-col gap-2">
-          <span className="px-1 text-[13px] font-extrabold text-tinta">⭐ Más destacados</span>
-          <div className="-mx-[18px] flex gap-3 overflow-x-auto px-[18px] pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <SeccionTienda titulo="⭐ Más destacados">
+          <div className="-mx-3.5 flex gap-3 overflow-x-auto px-3.5 pb-1 md:-mx-4 md:px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {destacados.filter((p) => p.id !== hero?.id).map((p) => (
               <button key={p.id} type="button" onClick={() => setAbierto(p)}
                 className="group flex w-[160px] shrink-0 flex-col overflow-hidden rounded-[16px] border border-[#ECEFF8] bg-white text-left shadow-[0_2px_10px_rgba(15,27,61,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(15,27,61,0.12)] active:scale-[0.98]">
@@ -328,7 +336,7 @@ export function TiendaCliente({
               </button>
             ))}
           </div>
-        </div>
+        </SeccionTienda>
       )}
 
       {/* Colección CURBE — banner de ORO + fila de piezas (más visibilidad al lujo). */}
@@ -366,7 +374,7 @@ export function TiendaCliente({
       {/* Filtros ACTIVOS (chips removibles) + "Ver todo". STICKY: el reset queda
           siempre a la vista aunque bajes por la grilla (como Zara/Uniqlo). */}
       {hayFiltro && (
-        <div className="sticky top-0 z-20 -mx-[18px] flex flex-wrap items-center gap-1.5 border-b border-[#EEF1F8] bg-app/95 px-[18px] py-2 backdrop-blur md:mx-0 md:rounded-[12px] md:border md:px-3">
+        <div className="flex flex-wrap items-center gap-1.5 rounded-[14px] border border-[#E4E9F5] bg-white px-3 py-2 shadow-[0_1px_4px_rgba(15,27,61,0.05)]">
           <span className="text-[11.5px] font-bold text-gris">Filtrando:</span>
           {soloFav && <FiltroChip label="❤️ Favoritos" onQuitar={() => setSoloFav(false)} />}
           {q.trim() && <FiltroChip label={`“${q.trim()}”`} onQuitar={() => setQ("")} />}
@@ -379,10 +387,11 @@ export function TiendaCliente({
         </div>
       )}
 
-      {/* Barra de resultados + orden */}
-      <div className="flex items-center justify-between px-1">
-        <span className="text-[12px] font-semibold text-gris">
-          {filtrados.length} {filtrados.length === 1 ? "artículo" : "artículos"}{cat ? ` · ${cat}` : ""}
+      {/* Catálogo — sección en TARJETA (título + orden + grilla). */}
+      <section className="rounded-[18px] bg-white p-3.5 shadow-[0_1px_5px_rgba(15,27,61,0.06)] md:p-4">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <span className="text-[14.5px] font-extrabold tracking-[-0.01em] text-tinta">
+          {hayFiltro ? `${filtrados.length} ${filtrados.length === 1 ? "resultado" : "resultados"}${cat ? ` · ${cat}` : ""}` : "Todos los productos"}
         </span>
         <select value={orden} onChange={(e) => setOrden(e.target.value as Orden)}
           className="rounded-full border border-[#DCE3F4] bg-white px-3 py-1.5 text-[16px] font-semibold text-cuerpo outline-none">
@@ -463,6 +472,7 @@ export function TiendaCliente({
           ))}
         </div>
       )}
+      </section>
 
       <p className="px-1 pt-1 text-center text-[12px] font-medium text-gris">
         Precios de referencia. Tocá "Me interesa" y tu cobrador te pasa el precio y las cuotas para vos. 🙂
