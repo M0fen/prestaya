@@ -6,8 +6,10 @@ import { redirect } from "next/navigation";
 import { requireGestor, esAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getProductosAdmin, getCategorias, getSolicitudes } from "@/lib/data/tienda";
+import { getLeadsPublicos } from "@/lib/data/leadsPublicos";
 import { getZonas } from "@/lib/data/zonas";
 import { TiendaManager } from "@/components/admin/TiendaManager";
+import { ProspectosPublicos } from "@/components/admin/ProspectosPublicos";
 
 export const dynamic = "force-dynamic";
 
@@ -15,11 +17,12 @@ export default async function TiendaPage() {
   const u = await requireGestor();
   if (!esAdmin(u.rol)) redirect("/admin/jornada"); // la tienda la gobierna el dueño
   const db = await createSupabaseServer();
-  const [productos, categorias, solicitudes, zonas] = await Promise.all([
+  const [productos, categorias, solicitudes, zonas, leadsPublicos] = await Promise.all([
     getProductosAdmin(db),
     getCategorias(db, false),
     getSolicitudes(db),
     getZonas(db),
+    getLeadsPublicos(db),
   ]);
   return (
     <div className="flex flex-col gap-5">
@@ -29,17 +32,20 @@ export default async function TiendaPage() {
             <span className="text-[12px] font-bold uppercase tracking-wide text-azul">Para tus clientes</span>
             <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">Tienda</h1>
           </div>
-          <Link
-            href="/admin/tienda/vista"
-            className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-borde bg-tarjeta px-3.5 py-2 text-[12.5px] font-bold text-azul hover:bg-suave"
-          >
-            👁️ Ver como cliente
-          </Link>
+          <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
+            <Link href="/tienda" target="_blank" className="flex items-center gap-1.5 rounded-full border border-borde bg-tarjeta px-3.5 py-2 text-[12.5px] font-bold text-azul hover:bg-suave">
+              🌐 Tienda pública
+            </Link>
+            <Link href="/admin/tienda/vista" className="flex items-center gap-1.5 rounded-full border border-borde bg-tarjeta px-3.5 py-2 text-[12.5px] font-bold text-azul hover:bg-suave">
+              👁️ Ver como cliente
+            </Link>
+          </div>
         </div>
         <span className="text-[13px] font-medium text-gris">
           Publicá productos a crédito con fotos y video. El cliente los ve en su cartón y deja su interés.
         </span>
       </header>
+      <ProspectosPublicos leads={leadsPublicos} />
       <TiendaManager
         productos={productos}
         categorias={categorias}
