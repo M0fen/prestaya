@@ -82,6 +82,7 @@ export function TiendaCliente({
   }, [productos, q, cat, marca, orden]);
 
   const destacados = productos.filter((p) => p.destacado);
+  const curbeProds = productos.filter((p) => p.proveedor === "curbe"); // colección de lujo (oro)
   const hayFiltro = Boolean(q.trim() || cat || marca);
   // Hero: el mejor destacado (primero en oferta, si hay). Solo sin filtro.
   const hero = !hayFiltro
@@ -186,6 +187,35 @@ export function TiendaCliente({
         </div>
       )}
 
+      {/* Colección CURBE — banner de ORO + fila de piezas (más visibilidad al lujo). */}
+      {!hayFiltro && curbeProds.length > 0 && (
+        <div className="flex flex-col gap-2.5 overflow-hidden rounded-[20px] bg-[linear-gradient(135deg,#1C1608,#2C2211)] p-4 shadow-[0_10px_28px_rgba(28,22,8,0.28)]">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex min-w-0 flex-col">
+              <span className="text-[14px] font-black tracking-[-0.01em] text-[#E8C56E]">💎 Colección Curbe</span>
+              <span className="text-[11.5px] font-medium text-[#CBB98A]">Perfumes de autor y joyas de oro 18k italiano</span>
+            </div>
+            <a href="https://curbe.uy" target="_blank" rel="noopener noreferrer"
+              className="shrink-0 rounded-full bg-[linear-gradient(135deg,#E8C56E,#C9A24B)] px-3 py-1.5 text-[11.5px] font-black text-[#2A2110] shadow">curbe.uy →</a>
+          </div>
+          <div className="-mx-1 flex gap-2.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {curbeProds.map((p) => (
+              <button key={p.id} type="button" onClick={() => setAbierto(p)}
+                className="flex w-[148px] shrink-0 flex-col overflow-hidden rounded-[14px] border border-[#4A3D1E] bg-[#0E0B04] text-left active:scale-[0.98]">
+                <div className="relative">
+                  <Foto p={p} className="aspect-square" />
+                  <span className="absolute right-1.5 top-1.5 rounded-full bg-[linear-gradient(135deg,#E8C56E,#C9A24B)] px-1.5 py-0.5 text-[9.5px] font-black text-[#3A2E0A] shadow">💎</span>
+                </div>
+                <div className="flex flex-col gap-0.5 px-2.5 py-2">
+                  <span className="line-clamp-2 text-[12px] font-bold leading-tight text-white">{p.nombre}</span>
+                  <span className="text-[13px] font-black tabular-nums text-[#E8C56E]">{UYU(p.precio)}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Barra de resultados + orden */}
       <div className="flex items-center justify-between px-1">
         <span className="text-[12px] font-semibold text-gris">
@@ -222,9 +252,16 @@ export function TiendaCliente({
                 ) : p.precioAnterior > p.precio ? (
                   <span className="absolute left-2 top-2 rounded-full bg-[#D64545] px-2 py-0.5 text-[10px] font-black text-white">OFERTA</span>
                 ) : null}
+                {p.proveedor === "curbe" && (
+                  <span className="absolute right-2 top-2 rounded-full bg-[linear-gradient(135deg,#E8C56E,#C9A24B)] px-1.5 py-0.5 text-[10px] font-black text-[#3A2E0A] shadow">💎</span>
+                )}
               </div>
               <div className="flex flex-1 flex-col gap-0.5 px-3 py-2.5">
-                {p.marca && <span className="text-[10px] font-bold uppercase tracking-wide text-gris">{p.marca}</span>}
+                {p.proveedor === "curbe" ? (
+                  <span className="w-fit rounded-full bg-[linear-gradient(135deg,#FBF3DE,#F4E7C3)] px-2 py-0.5 text-[9.5px] font-black text-[#8A6A16]">💎 Curbe</span>
+                ) : p.marca ? (
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-gris">{p.marca}</span>
+                ) : null}
                 <span className="line-clamp-2 text-[13.5px] font-bold leading-tight text-tinta">{p.nombre}</span>
                 <Precio p={p} />
                 <span className="mt-1.5 w-fit rounded-full bg-[#EEF3FF] px-2.5 py-1 text-[11.5px] font-bold text-azul">Ver detalle</span>
@@ -381,6 +418,9 @@ function DetalleProducto({
             {ahorroPct > 0 && !sinStock && (
               <span className="absolute left-3 top-3 rounded-full bg-[#D64545] px-2.5 py-1 text-[11px] font-black text-white shadow">−{ahorroPct}%</span>
             )}
+            {p.proveedor === "curbe" && (
+              <span className={`absolute left-3 ${ahorroPct > 0 && !sinStock ? "top-11" : "top-3"} rounded-full bg-[linear-gradient(135deg,#E8C56E,#C9A24B)] px-2.5 py-1 text-[11px] font-black text-[#3A2E0A] shadow`}>💎 Curbe</span>
+            )}
             <button type="button" onClick={onClose} className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-[14px] font-black text-tinta shadow active:scale-90">✕</button>
           </div>
           {total > 1 && (
@@ -402,7 +442,13 @@ function DetalleProducto({
 
         {/* Contenido */}
         <div className="flex flex-1 flex-col gap-3.5 overflow-y-auto px-5 py-4">
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1.5">
+            {p.proveedor === "curbe" && (
+              <a href="https://curbe.uy" target="_blank" rel="noopener noreferrer"
+                className="flex w-fit items-center gap-1.5 rounded-full border border-[#E6D3A0] bg-[linear-gradient(135deg,#FBF3DE,#F4E7C3)] px-3 py-1 text-[11.5px] font-black text-[#8A6A16] shadow-sm">
+                💎 Pieza de Curbe · curbe.uy →
+              </a>
+            )}
             {[p.marca, p.categoriaNombre].filter(Boolean).length > 0 && (
               <span className="text-[11.5px] font-bold uppercase tracking-wide text-azul">{[p.marca, p.categoriaNombre].filter(Boolean).join(" · ")}</span>
             )}

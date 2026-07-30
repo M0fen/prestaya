@@ -97,16 +97,16 @@ export default async function TiendaPublicaPage({
           href="https://curbe.uy"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-between gap-3 rounded-[16px] border border-[#E4DAF7] bg-[#F5F0FD] px-4 py-3 transition hover:brightness-[0.99]"
+          className="flex items-center justify-between gap-3 rounded-[16px] border border-[#E6D3A0] bg-[linear-gradient(135deg,#FBF3DE,#F4E7C3)] px-4 py-3 shadow-[0_4px_16px_rgba(201,162,75,0.18)] transition hover:brightness-[0.99]"
         >
           <div className="flex items-center gap-2.5">
             <span className="text-[22px]" aria-hidden="true">💎</span>
             <div className="flex flex-col">
-              <span className="text-[13px] font-extrabold text-[#4A2E9E] md:text-[14px]">Fragancias &amp; joyas por Curbe</span>
-              <span className="text-[11.5px] font-medium text-[#6D4AC7] md:text-[12.5px]">Perfumes inspirados y oro 18k italiano · curbe.uy</span>
+              <span className="text-[13px] font-extrabold text-[#7A5E12] md:text-[14px]">Fragancias &amp; joyas por Curbe</span>
+              <span className="text-[11.5px] font-medium text-[#96792A] md:text-[12.5px]">Perfumes inspirados y oro 18k italiano · curbe.uy</span>
             </div>
           </div>
-          <span className="shrink-0 rounded-full bg-white px-3 py-1.5 text-[11.5px] font-extrabold text-[#6D4AC7]">Ver curbe.uy →</span>
+          <span className="shrink-0 rounded-full bg-[linear-gradient(135deg,#E8C56E,#C9A24B)] px-3 py-1.5 text-[11.5px] font-black text-[#2A2110] shadow-sm">Ver curbe.uy →</span>
         </a>
 
         {/* Empleado logueado: sus compras a crédito (inicio + historial de descuentos). */}
