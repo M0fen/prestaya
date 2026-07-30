@@ -40,7 +40,13 @@ function Titulo({ titulo, acento, color }: { titulo: string; acento?: string; co
   return (
     <>
       {pre}
-      <span style={{ color }}>{acento}</span>
+      {/* Palabra de acento con SHIMMER sutil (toque premium, como e-commerce top). */}
+      <span
+        className="hero-acento"
+        style={{ backgroundImage: `linear-gradient(100deg, ${color} 35%, #ffffff 50%, ${color} 65%)` }}
+      >
+        {acento}
+      </span>
       {post}
     </>
   );
@@ -58,6 +64,13 @@ export function HeroCarrusel({ slides }: { slides: HeroSlide[] }) {
       className="relative overflow-hidden rounded-[24px] shadow-[0_18px_44px_rgba(9,16,40,0.32)]"
       aria-roledescription="carrusel"
     >
+      <style>{`
+        .hero-acento{background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:heroShimmer 3.8s linear infinite}
+        @keyframes heroShimmer{to{background-position:-200% center}}
+        .hero-in{animation:heroIn .5s cubic-bezier(.2,.7,.2,1) both}
+        @keyframes heroIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+        @media (prefers-reduced-motion: reduce){.hero-acento{animation:none}.hero-in{animation:none}}
+      `}</style>
       {/* Pila de slides (crossfade). El activo manda el alto. */}
       <div className="relative">
         {slides.map((s, idx) => {
@@ -71,7 +84,7 @@ export function HeroCarrusel({ slides }: { slides: HeroSlide[] }) {
               style={{ background: t.bg }}
             >
               <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: t.glow.replace(/_/g, " ") }} />
-              <div className="relative flex flex-col gap-5 p-6 text-white md:flex-row md:items-center md:justify-between md:p-10">
+              <div key={activo ? "on" : "off"} className={`relative flex flex-col gap-5 p-6 text-white md:flex-row md:items-center md:justify-between md:p-10 ${activo ? "hero-in" : ""}`}>
                 <div className="flex max-w-[500px] flex-col gap-3">
                   <span className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: t.accent }}>{s.eyebrow}</span>
                   <h1 className="text-[27px] font-black leading-[1.06] tracking-[-0.02em] md:text-[40px]">

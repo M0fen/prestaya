@@ -92,6 +92,28 @@ export default async function TiendaPublicaPage({
         {/* Hero = CARRUSEL de banners (Presta Ya general + Curbe publicitario). */}
         <HeroCarrusel slides={slidesHero} />
 
+        {/* Ticker de beneficios con movimiento sutil (como los e-commerce top). */}
+        <div className="tienda-ticker relative overflow-hidden rounded-full border border-[#E4EAF6] bg-white py-2.5 shadow-[0_2px_10px_rgba(15,27,61,0.05)]">
+          <div className="tienda-ticker-track flex w-max gap-8 whitespace-nowrap px-4 text-[12.5px] font-bold text-cuerpo">
+            {[0, 1].map((k) => (
+              <div key={k} className="flex gap-8" aria-hidden={k === 1}>
+                <span>🚚 Entrega a domicilio</span>
+                <span>💳 Cuotas cómodas</span>
+                <span>🛡️ Con garantía</span>
+                <span>🔒 Compra segura</span>
+                <span>🤝 Te lo lleva tu cobrador</span>
+                <span>💎 Perfumes y joyas por Curbe</span>
+              </div>
+            ))}
+          </div>
+          <style>{`
+            .tienda-ticker-track{animation:tickerMove 28s linear infinite}
+            .tienda-ticker:hover .tienda-ticker-track{animation-play-state:paused}
+            @keyframes tickerMove{to{transform:translateX(-50%)}}
+            @media (prefers-reduced-motion: reduce){.tienda-ticker-track{animation:none}}
+          `}</style>
+        </div>
+
         {/* Empleado logueado: sus compras a crédito (inicio + historial de descuentos). */}
         {esEmpleado && <MisComprasEmpleado compras={misCompras} />}
 

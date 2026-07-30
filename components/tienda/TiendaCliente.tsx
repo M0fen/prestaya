@@ -3,9 +3,10 @@
 // Buscador + chips de categoría + orden + fila de destacados + grilla de catálogo
 // (marca, antes/ahora, "en N cuotas de $X") + modal de detalle con carrusel/video
 // y "Me interesa" (lead, sin generar crédito). Tono cliente: claro, aspiracional.
-import { useState, useMemo, useRef, useTransition } from "react";
+import { useState, useMemo, useRef, useEffect, useTransition } from "react";
 import { UYU } from "@/lib/format";
 import { registrarInteres } from "@/app/c/[token]/actions";
+import { pedirCarritoPublico } from "@/lib/acciones/leadsPublicos";
 import { registrarInteresPublico } from "@/lib/acciones/leadsPublicos";
 import { comprarComoEmpleado } from "@/lib/acciones/comprasEmpleado";
 import { soloDigitos } from "@/lib/telefono";
@@ -16,6 +17,18 @@ const FREC_LABEL: Record<FrecuenciaProducto, string> = {
   diario: "por día", semanal: "por semana", quincenal: "por quincena", mensual: "por mes",
 };
 type Orden = "destacados" | "menor" | "mayor";
+
+/** Ítem del carrito (persistido en localStorage). */
+type ItemCarrito = {
+  id: string;
+  nombre: string;
+  precio: number;
+  foto: string | null;
+  cuota: number;
+  cuotas: number;
+  frecuencia: FrecuenciaProducto;
+  cantidad: number;
+};
 
 /** Cuota + TOTAL a cobrar (= cuota × cuotas), con la fórmula CANÓNICA (lib/venta), la
  *  misma que usa la conversión a crédito y el cartón → el cliente ve exactamente lo que
@@ -52,6 +65,35 @@ export function TiendaCliente({
   const [cat, setCat] = useState<string | null>(null);
   const [marca, setMarca] = useState<string | null>(null);
   const [orden, setOrden] = useState<Orden>("destacados");
+
+  // ── CARRITO (público + cliente; el empleado compra directo, no usa carrito) ──
+  const conCarrito = !preview && !modoEmpleado;
+  const CLAVE_CARRITO = `carrito:${token ?? "publico"}`;
+  const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
+  const [carritoAbierto, setCarritoAbierto] = useState(false);
+  const [pulso, setPulso] = useState(0); // anima el FAB al agregar
+  // Cargar/guardar el carrito en el navegador (persiste entre visitas).
+  useEffect(() => {
+    try { const raw = localStorage.getItem(CLAVE_CARRITO); if (raw) setCarrito(JSON.parse(raw)); } catch { /* sin storage */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    try { localStorage.setItem(CLAVE_CARRITO, JSON.stringify(carrito)); } catch { /* sin storage */ }
+  }, [carrito, CLAVE_CARRITO]);
+
+  const agregarAlCarrito = (p: ProductoParaCliente) => {
+    setCarrito((c) => {
+      const ex = c.find((i) => i.id === p.id);
+      if (ex) return c.map((i) => (i.id === p.id ? { ...i, cantidad: i.cantidad + 1 } : i));
+      return [...c, { id: p.id, nombre: p.nombre, precio: p.precio, foto: p.fotos[0] ?? null, cuota: financiacion(p).cuota, cuotas: p.cuotas, frecuencia: p.frecuencia, cantidad: 1 }];
+    });
+    setPulso((n) => n + 1);
+  };
+  const cambiarCantidad = (id: string, delta: number) =>
+    setCarrito((c) => c.map((i) => (i.id === id ? { ...i, cantidad: Math.max(1, i.cantidad + delta) } : i)));
+  const quitarDelCarrito = (id: string) => setCarrito((c) => c.filter((i) => i.id !== id));
+  const vaciarCarrito = () => setCarrito([]);
+  const itemsCarrito = carrito.reduce((a, i) => a + i.cantidad, 0);
 
   const categorias = useMemo(() => {
     const set = new Map<string, number>();
@@ -261,8 +303,9 @@ export function TiendaCliente({
         // del cliente queda en 2 (se ve en el teléfono, no tocamos su densidad).
         <div className={`grid gap-3 grid-cols-2 ${modoPublico ? "sm:grid-cols-3 lg:grid-cols-4" : ""}`}>
           {filtrados.map((p) => (
-            <button key={p.id} type="button" onClick={() => setAbierto(p)}
-              className="group flex flex-col overflow-hidden rounded-[16px] border border-[#ECEFF8] bg-white text-left shadow-[0_2px_10px_rgba(15,27,61,0.05)] transition duration-200 hover:-translate-y-0.5 hover:border-[#D5DEF3] hover:shadow-[0_10px_24px_rgba(15,27,61,0.12)] active:scale-[0.98]">
+            <div key={p.id} role="button" tabIndex={0} onClick={() => setAbierto(p)}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setAbierto(p); } }}
+              className="group flex cursor-pointer flex-col overflow-hidden rounded-[16px] border border-[#ECEFF8] bg-white text-left shadow-[0_2px_10px_rgba(15,27,61,0.05)] transition duration-200 hover:-translate-y-0.5 hover:border-[#D5DEF3] hover:shadow-[0_10px_24px_rgba(15,27,61,0.12)] focus-visible:ring-2 focus-visible:ring-[#1E47C8]/40">
               <div className="relative overflow-hidden">
                 <div className="transition-transform duration-300 group-hover:scale-[1.04]">
                   <Foto p={p} className="aspect-square" />
@@ -292,8 +335,14 @@ export function TiendaCliente({
                 ) : null}
                 <span className="line-clamp-2 text-[13.5px] font-bold leading-tight text-tinta">{p.nombre}</span>
                 <Precio p={p} />
+                {conCarrito && !(p.agotado || p.stock === 0) && (
+                  <button type="button" onClick={(e) => { e.stopPropagation(); agregarAlCarrito(p); }}
+                    className="mt-1.5 flex items-center justify-center gap-1 rounded-full bg-[#EEF3FF] py-1.5 text-[12px] font-bold text-azul transition hover:bg-[#1E47C8] hover:text-white active:scale-95">
+                    🛒 Agregar
+                  </button>
+                )}
               </div>
-            </button>
+            </div>
           ))}
         </div>
       )}
@@ -309,11 +358,36 @@ export function TiendaCliente({
           preview={preview}
           modoPublico={modoPublico}
           modoEmpleado={modoEmpleado}
+          conCarrito={conCarrito}
+          onAgregar={agregarAlCarrito}
           relacionados={relacionadosDe(abierto, productos)}
           onAbrirOtro={setAbierto}
           onClose={() => setAbierto(null)}
         />
       )}
+
+      {/* Botón flotante del CARRITO + panel. */}
+      {conCarrito && itemsCarrito > 0 && !carritoAbierto && (
+        <button type="button" onClick={() => setCarritoAbierto(true)}
+          className="fixed bottom-5 right-5 z-[60] flex items-center gap-2 rounded-full bg-[#1E47C8] px-4 py-3 text-[14px] font-extrabold text-white shadow-[0_10px_28px_rgba(19,48,140,0.4)] transition active:scale-95"
+          style={{ animation: pulso ? "carritoPulso 0.35s ease" : undefined }} key={pulso}>
+          <span className="text-[18px]">🛒</span>
+          <span>Ver carrito</span>
+          <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-white px-1.5 text-[12px] font-black text-[#1E47C8]">{itemsCarrito}</span>
+        </button>
+      )}
+      {conCarrito && carritoAbierto && (
+        <CarritoDrawer
+          items={carrito}
+          token={token}
+          modoPublico={modoPublico}
+          onCerrar={() => setCarritoAbierto(false)}
+          onCambiarCantidad={cambiarCantidad}
+          onQuitar={quitarDelCarrito}
+          onVaciar={vaciarCarrito}
+        />
+      )}
+      <style>{"@keyframes carritoPulso{0%{transform:scale(1)}40%{transform:scale(1.15)}100%{transform:scale(1)}}"}</style>
     </section>
   );
 }
@@ -379,8 +453,142 @@ function Precio({ p }: { p: ProductoParaCliente }) {
   );
 }
 
+/** Panel del CARRITO (público + cliente): ítems, cantidades y checkout. */
+function CarritoDrawer({
+  items, token, modoPublico, onCerrar, onCambiarCantidad, onQuitar, onVaciar,
+}: {
+  items: ItemCarrito[];
+  token: string | null;
+  modoPublico: boolean;
+  onCerrar: () => void;
+  onCambiarCantidad: (id: string, delta: number) => void;
+  onQuitar: (id: string) => void;
+  onVaciar: () => void;
+}) {
+  const [pend, start] = useTransition();
+  const [estado, setEstado] = useState<"idle" | "ok" | "error">("idle");
+  const [msg, setMsg] = useState<string | null>(null);
+  const [nombre, setNombre] = useState("");
+  const [tel, setTel] = useState("");
+  const totalContado = items.reduce((a, i) => a + i.precio * i.cantidad, 0);
+  const totalCuota = items.reduce((a, i) => a + i.cuota * i.cantidad, 0);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onCerrar(); };
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
+  }, [onCerrar]);
+
+  const enviar = () =>
+    start(async () => {
+      setMsg(null);
+      if (items.length === 0) return;
+      if (modoPublico) {
+        if (nombre.trim().length < 2) { setEstado("error"); setMsg("Poné tu nombre."); return; }
+        if (soloDigitos(tel).length < 6) { setEstado("error"); setMsg("Poné un teléfono/WhatsApp válido."); return; }
+        const r = await pedirCarritoPublico({
+          items: items.map((i) => ({ productoId: i.id, productoNombre: i.nombre, cantidad: i.cantidad })),
+          nombre: nombre.trim(), telefono: tel.trim(),
+        });
+        if (r.ok) { setEstado("ok"); onVaciar(); } else { setEstado("error"); setMsg(r.error); }
+      } else if (token) {
+        for (const it of items) { await registrarInteres({ token, productoId: it.id }); }
+        setEstado("ok"); onVaciar();
+      } else {
+        setEstado("error"); setMsg("Volvé a abrir tu enlace para pedir.");
+      }
+    });
+
+  return (
+    <div className="fixed inset-0 z-[75] flex justify-end bg-black/55" onClick={onCerrar}>
+      <div className="flex h-full w-full max-w-[420px] flex-col bg-white shadow-[0_0_60px_rgba(15,27,61,0.4)]" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Carrito">
+        <div className="flex shrink-0 items-center justify-between border-b border-[#EEF1F8] px-5 py-4">
+          <span className="text-[17px] font-extrabold text-tinta">🛒 Tu carrito</span>
+          <button type="button" onClick={onCerrar} aria-label="Cerrar" className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F1F4FB] text-[14px] font-black text-tinta active:scale-90">✕</button>
+        </div>
+
+        {estado === "ok" ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
+            <span className="text-[46px]" aria-hidden>🎉</span>
+            <p className="text-[18px] font-extrabold text-[#157A50]">¡Pedido enviado!</p>
+            <p className="max-w-[260px] text-[13px] font-medium text-gris">{modoPublico ? "Te vamos a contactar para coordinar el precio y las cuotas." : "Tu cobrador te va a contar cómo llevártelo."}</p>
+            <button type="button" onClick={onCerrar} className="mt-1 rounded-full bg-[#1E47C8] px-5 py-2.5 text-[13.5px] font-bold text-white">Seguir viendo</button>
+          </div>
+        ) : items.length === 0 ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-2 p-6 text-center">
+            <span className="text-[40px]" aria-hidden>🛒</span>
+            <p className="text-[15px] font-bold text-tinta">Tu carrito está vacío</p>
+            <p className="max-w-[240px] text-[12.5px] font-medium text-gris">Agregá productos y pedilos todos juntos.</p>
+            <button type="button" onClick={onCerrar} className="mt-1 rounded-full bg-[#1E47C8] px-5 py-2.5 text-[13.5px] font-bold text-white">Ver productos</button>
+          </div>
+        ) : (
+          <>
+            <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-4">
+              {items.map((it) => (
+                <div key={it.id} className="flex gap-3 rounded-[14px] border border-[#EEF1F8] p-2.5">
+                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded-[10px] bg-[linear-gradient(180deg,#FBFCFF,#F1F4FB)]">
+                    {it.foto ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={it.foto} alt={it.nombre} loading="lazy" decoding="async" className="h-full w-full object-contain p-1" />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-[22px]">🛒</div>
+                    )}
+                  </div>
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <span className="line-clamp-2 text-[13px] font-bold leading-tight text-tinta">{it.nombre}</span>
+                    {it.cuotas > 0 && it.cuota > 0 && <span className="text-[12px] font-black text-[#1E47C8] tabular-nums">{it.cuotas}× {UYU(it.cuota)}</span>}
+                    <span className="text-[11.5px] font-semibold text-[#157A50] tabular-nums">{UYU(it.precio)} contado</span>
+                    <div className="mt-1 flex items-center gap-2.5">
+                      <div className="flex items-center rounded-full border border-[#DCE3F4]">
+                        <button type="button" onClick={() => onCambiarCantidad(it.id, -1)} aria-label="Menos" className="px-2.5 py-0.5 text-[16px] font-black text-gris">−</button>
+                        <span className="w-6 text-center text-[13px] font-bold tabular-nums">{it.cantidad}</span>
+                        <button type="button" onClick={() => onCambiarCantidad(it.id, 1)} aria-label="Más" className="px-2.5 py-0.5 text-[16px] font-black text-gris">+</button>
+                      </div>
+                      <button type="button" onClick={() => onQuitar(it.id)} className="text-[11.5px] font-bold text-[#C0392B]">Quitar</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex shrink-0 flex-col gap-2.5 border-t border-[#EEF1F8] p-4">
+              <div className="flex items-center justify-between">
+                <span className="text-[13px] font-semibold text-gris">Total contado</span>
+                <span className="text-[18px] font-black tabular-nums text-[#157A50]">{UYU(totalContado)}</span>
+              </div>
+              {totalCuota > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] font-medium text-gris">En cuotas (aprox.)</span>
+                  <span className="text-[13px] font-bold tabular-nums text-[#1E47C8]">≈ {UYU(totalCuota)} por período</span>
+                </div>
+              )}
+              {modoPublico && (
+                <div className="flex flex-col gap-2 pt-1">
+                  <input value={nombre} onChange={(e) => { setNombre(e.target.value); setMsg(null); }} placeholder="Tu nombre" maxLength={80}
+                    className="rounded-[12px] border border-[#DCE3F4] px-3.5 py-2.5 text-[15px] text-tinta outline-none focus:border-azul" />
+                  <input value={tel} onChange={(e) => { setTel(e.target.value); setMsg(null); }} placeholder="Tu teléfono o WhatsApp" inputMode="tel" maxLength={30}
+                    className="rounded-[12px] border border-[#DCE3F4] px-3.5 py-2.5 text-[15px] text-tinta outline-none focus:border-azul" />
+                </div>
+              )}
+              <button type="button" onClick={enviar} disabled={pend}
+                className="w-full rounded-full bg-[#1E47C8] px-5 py-3.5 text-[16px] font-extrabold text-white shadow-[0_6px_18px_rgba(19,48,140,0.28)] transition active:scale-[0.99] disabled:opacity-60">
+                {pend ? "Enviando…" : "Pedir estos productos"}
+              </button>
+              {estado === "error" && msg && <p className="text-center text-[12px] font-semibold text-[#E06A6A]">{msg}</p>}
+              <button type="button" onClick={onVaciar} className="text-center text-[11.5px] font-semibold text-gris hover:text-tinta">Vaciar carrito</button>
+              <p className="text-center text-[10.5px] font-medium text-tenue">Sin compromiso. Coordinamos el precio y las cuotas con vos.</p>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function DetalleProducto({
-  p, token, onClose, preview = false, modoPublico = false, modoEmpleado = false, relacionados, onAbrirOtro,
+  p, token, onClose, preview = false, modoPublico = false, modoEmpleado = false, conCarrito = false, onAgregar, relacionados, onAbrirOtro,
 }: {
   p: ProductoParaCliente;
   token: string | null;
@@ -388,6 +596,8 @@ function DetalleProducto({
   preview?: boolean;
   modoPublico?: boolean;
   modoEmpleado?: boolean;
+  conCarrito?: boolean;
+  onAgregar?: (p: ProductoParaCliente) => void;
   relacionados: ProductoParaCliente[];
   onAbrirOtro: (p: ProductoParaCliente) => void;
 }) {
@@ -410,6 +620,15 @@ function DetalleProducto({
   const ahorro = p.precioAnterior > p.precio ? p.precioAnterior - p.precio : 0;
   const ahorroPct = ahorro > 0 && p.precioAnterior > 0 ? Math.round((ahorro / p.precioAnterior) * 100) : 0;
   const sinStock = p.agotado || p.stock === 0;
+
+  // A11y del modal: cerrar con Escape + bloquear el scroll del fondo mientras está abierto.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
+  }, [onClose]);
 
   const enviar = () =>
     start(async () => {
@@ -605,6 +824,14 @@ function DetalleProducto({
                 <p className="text-center text-[10.5px] font-medium text-tenue">Compra del equipo · se descuenta de tu comisión al liquidarla.</p>
               </div>
             )
+          ) : conCarrito ? (
+            <div className="flex flex-col gap-2">
+              <button type="button" onClick={() => { onAgregar?.(p); onClose(); }}
+                className="w-full rounded-full bg-[#1E47C8] px-5 py-3.5 text-[16px] font-extrabold text-white shadow-[0_6px_18px_rgba(19,48,140,0.28)] transition active:scale-[0.99]">
+                🛒 Agregar al carrito
+              </button>
+              <p className="text-center text-[10.5px] font-medium text-tenue">Sumalo al carrito y pedí todo junto. Sin compromiso.</p>
+            </div>
           ) : modoPublico && form ? (
             <div className="flex flex-col gap-2">
               <input value={nombre} onChange={(e) => { setNombre(e.target.value); setMsg(null); }} placeholder="Tu nombre" maxLength={80}

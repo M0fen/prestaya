@@ -52,6 +52,44 @@ export async function registrarInteresPublico(input: {
   }
 }
 
+/**
+ * Checkout del CARRITO público: un visitante anónimo pide varios productos de una.
+ * Crea un lead por ítem (el admin ve cada producto). Validado + rate-limit por IP.
+ */
+export async function pedirCarritoPublico(input: {
+  items: { productoId?: string | null; productoNombre?: string | null; cantidad?: number }[];
+  nombre: string;
+  telefono: string;
+}): Promise<Resultado> {
+  const nombre = (input.nombre ?? "").toString().trim().slice(0, 80);
+  const tel = (input.telefono ?? "").toString().trim().slice(0, 30);
+  if (nombre.length < 2) return { ok: false, error: "Poné tu nombre." };
+  if (soloDigitos(tel).length < 6) return { ok: false, error: "Poné un teléfono/WhatsApp válido." };
+  const items = (Array.isArray(input.items) ? input.items : []).slice(0, 20);
+  if (items.length === 0) return { ok: false, error: "Tu carrito está vacío." };
+  const ip = ipDesdeHeaders((await headers()) as unknown as Headers);
+  if (!(await permitir("tienda_publica", ip))) {
+    return { ok: false, error: "Recibimos varios pedidos tuyos. Probá de nuevo en unos minutos." };
+  }
+  try {
+    const db = createSupabaseAdmin();
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      const cant = Math.max(1, Math.min(50, Math.round(Number(it.cantidad) || 1)));
+      await crearLeadPublicoDb(db, {
+        productoId: it.productoId && esUuid(it.productoId) ? it.productoId : null,
+        productoNombre: (it.productoNombre ?? "").toString().trim().slice(0, 120) || null,
+        nombre,
+        telefono: tel,
+        mensaje: `🛒 Pedido del carrito (${i + 1}/${items.length})${cant > 1 ? ` · x${cant}` : ""}`,
+      });
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "No se pudo enviar el pedido. Probá de nuevo." };
+  }
+}
+
 export async function resolverLeadPublico(input: { id: string; estado: string }): Promise<Resultado> {
   const u = await getUsuarioActual();
   if (!u || !u.activo || !esGestor(u.rol)) return { ok: false, error: "No tenés permisos." };
