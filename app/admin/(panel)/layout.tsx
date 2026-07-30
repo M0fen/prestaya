@@ -137,7 +137,8 @@ export default async function PanelLayout({
         {esGestor(usuario.rol) && <AsesorFlotante />}
 
         {/* Reportar un problema (0107): cualquier gestor registra un bug/incidencia. */}
-        <ReportarProblema />
+        {/* Con el asesor Aureo presente, el 🐞 se apila arriba para no taparlo. */}
+        <ReportarProblema conAsesor={esGestor(usuario.rol)} />
 
         {/* Avisos flotantes + notificaciones en vivo del chat. */}
         <Toaster />

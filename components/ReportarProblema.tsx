@@ -14,7 +14,7 @@ const CATS: { v: string; label: string }[] = [
   { v: "otro", label: "Otro" },
 ];
 
-export function ReportarProblema() {
+export function ReportarProblema({ conAsesor = false }: { conAsesor?: boolean }) {
   const [abierto, setAbierto] = useState(false);
   const [desc, setDesc] = useState("");
   const [cat, setCat] = useState("bug");
@@ -40,13 +40,21 @@ export function ReportarProblema() {
 
   const input = "rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[13.5px] text-tinta outline-none focus:border-azul";
 
+  // Con el asesor Aureo presente (panel admin), el botón se APILA ARRIBA del de la
+  // IA (que vive fijo abajo-derecha: right-4, bottom-4 en desktop / bottom-[5.5rem]
+  // en móvil, 56px de alto) para no taparlo. Sin asesor (app del cobrador) queda en
+  // su posición normal abajo-derecha (no hay con qué chocar).
+  const pos = conAsesor
+    ? "right-4 bottom-[9.5rem] md:bottom-[5rem]"
+    : "right-3 bottom-20 md:bottom-5";
+
   return (
     <>
       <button
         type="button"
         onClick={() => setAbierto(true)}
         aria-label="Reportar un problema"
-        className="fixed bottom-20 right-3 z-[60] flex items-center gap-1.5 rounded-full bg-[#13308C]/90 px-3.5 py-2 text-[12.5px] font-bold text-white shadow-[0_6px_20px_rgba(19,48,140,0.35)] backdrop-blur active:scale-95 md:bottom-5"
+        className={`fixed ${pos} z-[60] flex items-center gap-1.5 rounded-full bg-[#13308C]/90 px-3.5 py-2 text-[12.5px] font-bold text-white shadow-[0_6px_20px_rgba(19,48,140,0.35)] backdrop-blur active:scale-95`}
       >
         <span aria-hidden>🐞</span>
         <span className="hidden sm:inline">Reportar</span>
