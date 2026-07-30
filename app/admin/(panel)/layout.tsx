@@ -18,6 +18,7 @@ import { alcanceDelActor } from "@/lib/data/alcance";
 import { contarSolicitudesNuevas } from "@/lib/data/tienda";
 import { contarIncidenciasAbiertas } from "@/lib/data/incidencias";
 import { ReportarProblema } from "@/components/ReportarProblema";
+import { PanelGastosFlotante } from "@/components/admin/PanelGastosFlotante";
 import { AsesorFlotante } from "@/components/asesor/AsesorFlotante";
 import { CommandPalette } from "@/components/admin/CommandPalette";
 import { Toaster } from "@/components/ui/Toaster";
@@ -147,6 +148,9 @@ export default async function PanelLayout({
         {/* Reportar un problema (0107): cualquier gestor registra un bug/incidencia. */}
         {/* Con el asesor Aureo presente, el 🐞 se apila arriba para no taparlo. */}
         <ReportarProblema conAsesor={esGestor(usuario.rol)} />
+
+        {/* Panel flotante de aprobación de gastos (solo admin, solo si hay pendientes). */}
+        {esAdmin(usuario.rol) && <PanelGastosFlotante pendientes={gastosPendientes} />}
 
         {/* Avisos flotantes + notificaciones en vivo del chat. */}
         <Toaster />

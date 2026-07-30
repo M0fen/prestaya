@@ -14,7 +14,7 @@ import { reportarError } from "@/lib/observabilidad";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getUsuarioActual } from "@/lib/auth";
 import { registrarMovimientoCaja } from "@/lib/data/caja";
-import { getSolicitudGasto } from "@/lib/data/solicitudesGasto";
+import { getSolicitudGasto, getSolicitudesGastoPendientes, type SolicitudGasto } from "@/lib/data/solicitudesGasto";
 import { registrarBitacora } from "@/lib/data/bitacora";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { enviarMensajeDb } from "@/lib/data/chat";
@@ -140,6 +140,23 @@ export async function subirComprobanteGasto(
 }
 
 /** (Admin) Aprueba: crea el egreso real y marca la solicitud aprobada. */
+/** Lista los gastos PENDIENTES para el panel flotante del admin (los carga al
+ *  abrir el panel, no en cada navegación). Solo admin (es quien aprueba). */
+export async function listarGastosPendientes(): Promise<
+  { ok: true; items: SolicitudGasto[] } | { ok: false; error: string }
+> {
+  const usuario = await getUsuarioActual();
+  if (!usuario || !usuario.activo || usuario.rol !== "admin") {
+    return { ok: false, error: "Solo el administrador." };
+  }
+  try {
+    const db = await createSupabaseServer();
+    return { ok: true, items: await getSolicitudesGastoPendientes(db, null) };
+  } catch {
+    return { ok: false, error: "No se pudieron cargar los gastos." };
+  }
+}
+
 export async function aprobarGastoRuta(input: { solicitudId: string }): Promise<Resultado> {
   const usuario = await getUsuarioActual();
   if (!usuario || !usuario.activo || usuario.rol !== "admin") {
