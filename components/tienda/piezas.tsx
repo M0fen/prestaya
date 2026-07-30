@@ -185,7 +185,6 @@ export function leerPedidosLocal(scope: string): PedidoLocal[] {
   }
 }
 
-// ── "Mis pedidos" — panel con los pedidos enviados desde este dispositivo ─────
 function fechaCorta(iso: string): string {
   try {
     const d = new Date(iso);
@@ -194,62 +193,151 @@ function fechaCorta(iso: string): string {
   } catch { return ""; }
 }
 
-/** Botón + sheet "Mis pedidos" (se auto-oculta si no hay ninguno en este equipo). */
-export function MisPedidos({ scope }: { scope: string }) {
-  const [open, setOpen] = useState(false);
-  const [n, setN] = useState(0);
+// ── Íconos de línea para la barra de tienda ──────────────────────────────────
+function IcoCorazon({ lleno = false }: { lleno?: boolean }) {
+  return (<svg viewBox="0 0 24 24" width="21" height="21" fill={lleno ? "currentColor" : "none"} stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 20.5S3.5 15 3.5 8.9A4.4 4.4 0 0 1 12 6.9a4.4 4.4 0 0 1 8.5 2C20.5 15 12 20.5 12 20.5Z" /></svg>);
+}
+function IcoCarrito() {
+  return (<svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M3.5 4.5h2l1.7 10.2a1.4 1.4 0 0 0 1.4 1.2h7.2a1.4 1.4 0 0 0 1.4-1.1l1.3-6.4H6.4" /><circle cx="9.5" cy="20" r="1.4" /><circle cx="17" cy="20" r="1.4" /></svg>);
+}
+function IcoPersona() {
+  return (<svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="8" r="3.6" /><path d="M4.8 20c0-3.6 3.2-6 7.2-6s7.2 2.4 7.2 6" /></svg>);
+}
+
+/** Botón de acción de la barra con badge de conteo (favoritos/carrito). */
+function AccionBarra({ onClick, label, activo = false, badge = 0, badgeColor = "#1E47C8", pop = 0, children }: {
+  onClick: () => void; label: string; activo?: boolean; badge?: number; badgeColor?: string; pop?: number; children: React.ReactNode;
+}) {
+  return (
+    <button type="button" onClick={onClick} aria-label={label}
+      className={`relative flex h-11 w-11 items-center justify-center rounded-full transition active:scale-90 ${activo ? "bg-[#EEF3FF] text-[#1E47C8]" : "text-tinta hover:bg-[#F1F4FB]"}`}>
+      {children}
+      {badge > 0 && (
+        <span key={pop} style={{ background: badgeColor }}
+          className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-black tabular-nums text-white shadow ring-2 ring-app motion-safe:animate-[popBadge_0.3s_ease]">{badge}</span>
+      )}
+    </button>
+  );
+}
+
+/** BARRA DE TIENDA (sticky): identidad + favoritos + carrito + Mi tienda, siempre
+ *  a la vista. Es lo que hace que "se sienta" un e-commerce (chrome persistente). */
+export function BarraTienda({ titulo, favN, cartN, favActivo, onFav, onCart, onPerfil, pulso }: {
+  titulo: string; favN: number; cartN: number; favActivo: boolean;
+  onFav: () => void; onCart: () => void; onPerfil: () => void; pulso: number;
+}) {
+  return (
+    <div className="sticky top-0 z-40 -mx-[18px] flex items-center justify-between gap-2 border-b border-[#E4E9F5] bg-app/90 px-[18px] py-2 backdrop-blur-md md:mx-0 md:rounded-[16px] md:border md:px-3">
+      <style>{`@keyframes popBadge{0%{transform:scale(1)}45%{transform:scale(1.5)}100%{transform:scale(1)}}`}</style>
+      <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="flex min-w-0 items-center gap-2">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] bg-[linear-gradient(135deg,#2453DC,#13308C)] text-[15px] shadow-[0_4px_12px_rgba(19,48,140,0.35)]">🛍️</span>
+        <span className="truncate text-[15px] font-black tracking-[-0.01em] text-tinta">{titulo}</span>
+      </button>
+      <div className="flex shrink-0 items-center gap-0.5">
+        <AccionBarra onClick={onFav} label="Favoritos" activo={favActivo} badge={favN} badgeColor="#E0245E"><span className={favActivo ? "text-[#E0245E]" : ""}><IcoCorazon lleno={favActivo || favN > 0} /></span></AccionBarra>
+        <AccionBarra onClick={onCart} label="Carrito" badge={cartN} pop={pulso}><IcoCarrito /></AccionBarra>
+        <AccionBarra onClick={onPerfil} label="Mi tienda"><IcoPersona /></AccionBarra>
+      </div>
+    </div>
+  );
+}
+
+type FavItem = { id: string; nombre: string; foto: string | null; precio: number };
+
+/** HUB "MI TIENDA" (perfil): pedidos + favoritos + ayuda. El "gestionar pedidos". */
+export function MiTienda({ open, onOpenChange, scope, favoritos, onVerFavoritos, onQuitarFav, onAbrirProducto, soporte }: {
+  open: boolean; onOpenChange: (o: boolean) => void; scope: string;
+  favoritos: FavItem[];
+  onVerFavoritos: () => void;
+  onQuitarFav: (id: string) => void;
+  onAbrirProducto: (id: string) => void;
+  soporte?: string | null;
+}) {
   const [pedidos, setPedidos] = useState<PedidoLocal[]>([]);
-
-  // Conteo tras montar (evita mismatch de hidratación: en SSR arranca en 0/oculto).
-  useEffect(() => { setN(leerPedidosLocal(scope).length); }, [scope, open]);
-  const abrir = () => { setPedidos(leerPedidosLocal(scope)); setOpen(true); };
-
-  if (n === 0) return null;
+  useEffect(() => { if (open) setPedidos(leerPedidosLocal(scope)); }, [open, scope]);
+  const wa = soporte ? `https://wa.me/${soporte.replace(/[^\d]/g, "")}` : null;
 
   return (
-    <>
-      <button type="button" onClick={abrir}
-        className="flex w-fit items-center gap-1.5 rounded-full border border-[#DCE3F4] bg-white px-3 py-1.5 text-[12.5px] font-bold text-[#1E47C8] shadow-sm transition active:scale-95">
-        📦 Mis pedidos
-        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#EEF3FF] px-1.5 text-[11px] font-black tabular-nums">{n}</span>
-      </button>
-
-      <Drawer.Root open={open} onOpenChange={setOpen}>
-        <Drawer.Portal>
-          <Drawer.Overlay className="fixed inset-0 z-[74] bg-black/55" />
-          <Drawer.Content className="fixed inset-x-0 bottom-0 z-[75] mx-auto flex max-h-[82vh] w-full max-w-[460px] flex-col rounded-t-[24px] bg-white shadow-[0_-10px_60px_rgba(15,27,61,0.35)] outline-none">
-            <Drawer.Title className="sr-only">Mis pedidos</Drawer.Title>
-            <div className="mx-auto mt-2.5 h-1.5 w-11 shrink-0 rounded-full bg-[#E0E5F0]" aria-hidden />
-            <div className="flex items-center justify-between px-5 pb-1 pt-2">
-              <span className="text-[16px] font-extrabold text-tinta">📦 Mis pedidos</span>
-              <button type="button" onClick={() => setOpen(false)} aria-label="Cerrar" className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F1F4FB] text-[14px] font-black text-tinta active:scale-90">✕</button>
+    <Drawer.Root open={open} onOpenChange={onOpenChange}>
+      <Drawer.Portal>
+        <Drawer.Overlay className="fixed inset-0 z-[74] bg-black/55" />
+        <Drawer.Content className="fixed inset-x-0 bottom-0 z-[75] mx-auto flex max-h-[90vh] w-full max-w-[460px] flex-col rounded-t-[24px] bg-[#F6F8FD] shadow-[0_-10px_60px_rgba(15,27,61,0.35)] outline-none">
+          <Drawer.Title className="sr-only">Mi tienda</Drawer.Title>
+          <div className="mx-auto mt-2.5 h-1.5 w-11 shrink-0 rounded-full bg-[#E0E5F0]" aria-hidden />
+          {/* Encabezado del perfil */}
+          <div className="flex items-center gap-3 px-5 pb-3 pt-2">
+            <div className="grid h-12 w-12 place-items-center rounded-full bg-[linear-gradient(135deg,#2453DC,#13308C)] text-white shadow-[0_6px_16px_rgba(19,48,140,0.35)]"><IcoPersona /></div>
+            <div className="flex min-w-0 flex-col">
+              <span className="text-[17px] font-extrabold text-tinta">Mi tienda</span>
+              <span className="text-[12px] font-medium text-gris">Tus pedidos y favoritos</span>
             </div>
-            <div className="flex flex-col gap-2.5 overflow-y-auto px-4 pb-6 pt-2">
+            <button type="button" onClick={() => onOpenChange(false)} aria-label="Cerrar" className="ml-auto flex h-9 w-9 items-center justify-center rounded-full bg-white text-[14px] font-black text-tinta shadow-sm active:scale-90">✕</button>
+          </div>
+
+          <div className="flex flex-col gap-4 overflow-y-auto px-4 pb-6">
+            {/* Pedidos */}
+            <section className="flex flex-col gap-2 rounded-[16px] bg-white p-3.5 shadow-[0_1px_4px_rgba(15,27,61,0.05)]">
+              <span className="text-[13.5px] font-extrabold text-tinta">📦 Mis pedidos</span>
               {pedidos.length === 0 ? (
-                <p className="p-6 text-center text-[13px] font-medium text-gris">Todavía no enviaste pedidos desde este dispositivo.</p>
+                <p className="py-3 text-center text-[12.5px] font-medium text-gris">Cuando envíes un pedido, aparece acá con su folio y estado.</p>
               ) : (
                 pedidos.map((pe) => (
-                  <div key={pe.folio} className="flex flex-col gap-1 rounded-[14px] border border-[#EEF1F8] bg-white p-3">
+                  <div key={pe.folio} className="flex flex-col gap-1 rounded-[12px] border border-[#EEF1F8] p-2.5">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-[13.5px] font-black tracking-wide tabular-nums text-[#1E47C8]">{pe.folio}</span>
-                      <span className="shrink-0 rounded-full bg-[#FDF3E2] px-2.5 py-1 text-[10.5px] font-black text-[#B9770E]">⏳ Pendiente de aprobación</span>
+                      <span className="text-[13px] font-black tracking-wide tabular-nums text-[#1E47C8]">{pe.folio}</span>
+                      <span className="shrink-0 rounded-full bg-[#FDF3E2] px-2 py-0.5 text-[10px] font-black text-[#B9770E]">⏳ Pendiente</span>
                     </div>
-                    <span className="text-[11.5px] font-semibold text-gris">
-                      {fechaCorta(pe.fechaIso)} · {pe.items.reduce((a, i) => a + i.cantidad, 0)} producto(s) · {UYU(pe.total)}
-                    </span>
-                    <span className="line-clamp-2 text-[12px] font-medium text-cuerpo">
-                      {pe.items.map((i) => `${i.cantidad}× ${i.nombre}`).join(" · ")}
-                    </span>
+                    <span className="text-[11.5px] font-semibold text-gris">{fechaCorta(pe.fechaIso)} · {pe.items.reduce((a, i) => a + i.cantidad, 0)} producto(s) · {UYU(pe.total)}</span>
+                    <span className="line-clamp-2 text-[12px] font-medium text-cuerpo">{pe.items.map((i) => `${i.cantidad}× ${i.nombre}`).join(" · ")}</span>
                   </div>
                 ))
               )}
-              <p className="px-1 pt-1 text-center text-[11px] font-medium text-gris">
-                Estos son los pedidos que enviaste desde este dispositivo. La oficina los revisa antes de aprobarlos.
-              </p>
-            </div>
-          </Drawer.Content>
-        </Drawer.Portal>
-      </Drawer.Root>
-    </>
+            </section>
+
+            {/* Favoritos */}
+            <section className="flex flex-col gap-2 rounded-[16px] bg-white p-3.5 shadow-[0_1px_4px_rgba(15,27,61,0.05)]">
+              <div className="flex items-center justify-between">
+                <span className="text-[13.5px] font-extrabold text-tinta">❤️ Favoritos <span className="text-gris">({favoritos.length})</span></span>
+                {favoritos.length > 0 && (
+                  <button type="button" onClick={() => { onVerFavoritos(); onOpenChange(false); }} className="rounded-full bg-[#EEF3FF] px-3 py-1 text-[11.5px] font-bold text-[#1E47C8] active:scale-95">Ver todos</button>
+                )}
+              </div>
+              {favoritos.length === 0 ? (
+                <p className="py-3 text-center text-[12.5px] font-medium text-gris">Tocá el 🤍 en un producto para guardarlo acá.</p>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  {favoritos.slice(0, 6).map((f) => (
+                    <div key={f.id} className="relative overflow-hidden rounded-[12px] border border-[#EEF1F8]">
+                      <button type="button" onClick={() => { onAbrirProducto(f.id); onOpenChange(false); }} className="flex w-full flex-col text-left active:scale-[0.98]">
+                        <div className="aspect-[4/3] w-full bg-[linear-gradient(180deg,#FBFCFF,#F1F4FB)]">
+                          {f.foto ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={f.foto} alt={f.nombre} loading="lazy" className="h-full w-full object-contain p-1.5" />
+                          ) : <div className="flex h-full items-center justify-center text-[24px]">🛒</div>}
+                        </div>
+                        <div className="flex flex-col gap-0.5 px-2 py-1.5">
+                          <span className="line-clamp-1 text-[11.5px] font-bold text-tinta">{f.nombre}</span>
+                          <span className="text-[12px] font-black tabular-nums text-[#157A50]">{UYU(f.precio)}</span>
+                        </div>
+                      </button>
+                      <button type="button" onClick={() => onQuitarFav(f.id)} aria-label="Quitar de favoritos" className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-[12px] shadow-sm active:scale-90">✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* Ayuda */}
+            {wa && (
+              <a href={wa} target="_blank" rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 rounded-[16px] bg-[#25D366] px-4 py-3 text-[13.5px] font-extrabold text-white shadow-[0_6px_16px_rgba(37,211,102,0.3)] active:scale-[0.99]">
+                💬 ¿Necesitás ayuda? Escribinos
+              </a>
+            )}
+            <p className="px-1 text-center text-[11px] font-medium text-gris">Tus pedidos y favoritos se guardan en este dispositivo. La oficina revisa cada pedido antes de aprobarlo.</p>
+          </div>
+        </Drawer.Content>
+      </Drawer.Portal>
+    </Drawer.Root>
   );
 }

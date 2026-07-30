@@ -117,6 +117,18 @@ export function HeroCarrusel({ slides }: { slides: HeroSlide[] }) {
     return () => { embla.off("select", onSel); };
   }, [embla]);
 
+  // Auto-rotación SUTIL (como los banners de e-commerce). Se detiene apenas el
+  // usuario toma el carrusel (pointerDown) — no le movemos el contenido en la mano.
+  // Respeta prefers-reduced-motion y no avanza si la pestaña está oculta.
+  useEffect(() => {
+    if (!embla || n <= 1) return;
+    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    const id = setInterval(() => { if (!document.hidden) embla.scrollNext(); }, 5500);
+    const parar = () => clearInterval(id);
+    embla.on("pointerDown", parar);
+    return () => { clearInterval(id); embla.off("pointerDown", parar); };
+  }, [embla, n]);
+
   return (
     <section
       className="relative overflow-hidden rounded-[24px] shadow-[0_18px_44px_rgba(9,16,40,0.32)]"

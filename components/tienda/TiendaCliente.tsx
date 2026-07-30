@@ -14,7 +14,7 @@ import { comprarComoEmpleado } from "@/lib/acciones/comprasEmpleado";
 import { soloDigitos } from "@/lib/telefono";
 import { calcularPlanVenta } from "@/lib/venta";
 import type { ProductoParaCliente, FrecuenciaProducto } from "@/lib/data/tienda";
-import { GaleriaEmbla, Confeti, folioNuevo, guardarPedidoLocal, MisPedidos } from "./piezas";
+import { GaleriaEmbla, Confeti, folioNuevo, guardarPedidoLocal, BarraTienda, MiTienda } from "./piezas";
 
 const FREC_LABEL: Record<FrecuenciaProducto, string> = {
   diario: "por día", semanal: "por semana", quincenal: "por quincena", mensual: "por mes",
@@ -74,7 +74,8 @@ export function TiendaCliente({
   const CLAVE_CARRITO = `carrito:${token ?? "publico"}`;
   const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
   const [carritoAbierto, setCarritoAbierto] = useState(false);
-  const [pulso, setPulso] = useState(0); // anima el FAB al agregar
+  const [perfilAbierto, setPerfilAbierto] = useState(false); // hub "Mi tienda"
+  const [pulso, setPulso] = useState(0); // anima el badge del carrito al agregar
   // Cargar/guardar el carrito en el navegador (persiste entre visitas).
   useEffect(() => {
     try { const raw = localStorage.getItem(CLAVE_CARRITO); if (raw) setCarrito(JSON.parse(raw)); } catch { /* sin storage */ }
@@ -125,6 +126,11 @@ export function TiendaCliente({
   }, [favoritos]);
   const esFav = (id: string) => favoritos.includes(id);
   const toggleFav = (id: string) => setFavoritos((f) => (f.includes(id) ? f.filter((x) => x !== id) : [...f, id]));
+  // Productos favoritos resueltos (para el hub "Mi tienda" y el estante de favoritos).
+  const favProductos = useMemo(
+    () => productos.filter((p) => favoritos.includes(p.id)),
+    [productos, favoritos],
+  );
 
   const filtrados = useMemo(() => {
     const t = norm(q.trim());
@@ -157,7 +163,19 @@ export function TiendaCliente({
     <LazyMotion features={domAnimation}>
     <MotionConfig reducedMotion="user">
     <section className="flex flex-col gap-3">
-      {conEncabezado && (
+      {conCarrito ? (
+        /* BARRA STICKY: favoritos + carrito + Mi tienda siempre a la vista. */
+        <BarraTienda
+          titulo={modoPublico ? "Tienda Presta Ya" : "Nuestra tienda"}
+          favN={favoritos.length}
+          cartN={itemsCarrito}
+          favActivo={soloFav}
+          onFav={() => { setCat(null); setMarca(null); setSoloFav((v) => !v); }}
+          onCart={() => setCarritoAbierto(true)}
+          onPerfil={() => setPerfilAbierto(true)}
+          pulso={pulso}
+        />
+      ) : conEncabezado ? (
         <div className="flex items-center gap-2 px-1">
           <span className="text-[20px]" aria-hidden="true">🛍️</span>
           <div className="flex flex-col">
@@ -165,14 +183,7 @@ export function TiendaCliente({
             <span className="text-[12.5px] font-medium text-gris">Llevate lo que necesitás, en cuotas cómodas.</span>
           </div>
         </div>
-      )}
-
-      {/* Acceso rápido a "Mis pedidos" (se auto-oculta si no hay ninguno). */}
-      {conCarrito && (
-        <div className="px-1">
-          <MisPedidos scope={token ?? "publico"} />
-        </div>
-      )}
+      ) : null}
 
       {/* Buscador PROTAGONISTA (search-first, como los mejores e-commerce). */}
       <div className="relative">
@@ -189,7 +200,8 @@ export function TiendaCliente({
       </div>
 
       {/* Comprá por CATEGORÍA — TILES con ícono + conteo (estilo Mercado Libre). */}
-      <div className="-mx-[18px] flex gap-2 overflow-x-auto px-[18px] pb-1 md:mx-0 md:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {!hayFiltro && <span className="px-1 text-[13px] font-extrabold text-tinta">Comprá por categoría</span>}
+      <div className="-mx-[18px] -mt-1 flex gap-2 overflow-x-auto px-[18px] pb-1 md:mx-0 md:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <CategoriaTile emoji="🏬" nombre="Todo" n={productos.length} activo={!cat && !soloFav} onClick={() => { setCat(null); setSoloFav(false); }} />
         {categorias.map((c) => (
           <CategoriaTile key={c.nombre} emoji={emojiDe(c.nombre)} nombre={c.nombre} n={c.n}
@@ -251,6 +263,31 @@ export function TiendaCliente({
                 <div className="relative overflow-hidden">
                   <Foto p={p} className="aspect-square" />
                   <span className="absolute left-2 top-2 rounded-full bg-[#D64545] px-2 py-0.5 text-[11px] font-black text-white shadow">−{Math.round((1 - p.precio / p.precioAnterior) * 100)}%</span>
+                </div>
+                <div className="flex flex-col gap-0.5 px-3 py-2.5">
+                  <span className="line-clamp-2 text-[13px] font-bold leading-tight text-tinta">{p.nombre}</span>
+                  <Precio p={p} />
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ❤️ Tus favoritos — estante personal (solo si hay guardados y sin filtro). */}
+      {!hayFiltro && favProductos.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-[13px] font-extrabold text-[#E0245E]">❤️ Tus favoritos</span>
+            <button type="button" onClick={() => { setCat(null); setMarca(null); setSoloFav(true); }} className="text-[12px] font-bold text-azul active:scale-95">Ver todos →</button>
+          </div>
+          <div className="-mx-[18px] flex gap-3 overflow-x-auto px-[18px] pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {favProductos.map((p) => (
+              <button key={p.id} type="button" onClick={() => setAbierto(p)}
+                className="group flex w-[160px] shrink-0 flex-col overflow-hidden rounded-[16px] border border-[#ECEFF8] bg-white text-left shadow-[0_2px_10px_rgba(15,27,61,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(15,27,61,0.12)] active:scale-[0.98]">
+                <div className="relative overflow-hidden">
+                  <Foto p={p} className="aspect-square" />
+                  <span className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-[15px] shadow-sm">❤️</span>
                 </div>
                 <div className="flex flex-col gap-0.5 px-3 py-2.5">
                   <span className="line-clamp-2 text-[13px] font-bold leading-tight text-tinta">{p.nombre}</span>
@@ -398,11 +435,13 @@ export function TiendaCliente({
                     )}
                   </>
                 )}
-                {/* Favorito ❤️ (guardar, como Mercado Libre). */}
+                {/* Favorito ❤️ (guardar, como Mercado Libre) — bien visible sobre la foto. */}
                 <button type="button" onClick={(e) => { e.stopPropagation(); toggleFav(p.id); }}
                   aria-label={esFav(p.id) ? "Quitar de favoritos" : "Guardar en favoritos"}
-                  className="absolute right-2 top-2 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-[16px] shadow-sm backdrop-blur transition hover:scale-110 active:scale-90">
-                  {esFav(p.id) ? "❤️" : "🤍"}
+                  className={`absolute right-2 top-2 flex h-10 w-10 items-center justify-center rounded-full text-[19px] shadow-[0_3px_10px_rgba(15,27,61,0.22)] ring-1 backdrop-blur transition hover:scale-110 active:scale-90 ${esFav(p.id) ? "bg-white ring-[#F3C6D2]" : "bg-white/95 ring-black/5"}`}>
+                  <m.span key={esFav(p.id) ? "on" : "off"} initial={{ scale: 0.6 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 400, damping: 12 }}>
+                    {esFav(p.id) ? "❤️" : "🤍"}
+                  </m.span>
                 </button>
               </div>
               <div className="flex flex-1 flex-col gap-0.5 px-3 py-2.5">
@@ -442,7 +481,7 @@ export function TiendaCliente({
         onClose={() => setAbierto(null)}
       />
 
-      {/* Botón flotante del CARRITO. */}
+      {/* FAB flotante "Ver carrito" — refuerzo al scrollear (además del ícono de la barra). */}
       {conCarrito && itemsCarrito > 0 && !carritoAbierto && (
         <m.button type="button" onClick={() => setCarritoAbierto(true)}
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} whileTap={{ scale: 0.95 }}
@@ -454,17 +493,29 @@ export function TiendaCliente({
         </m.button>
       )}
       {conCarrito && (
-        <CarritoSheet
-          open={carritoAbierto}
-          onOpenChange={setCarritoAbierto}
-          items={carrito}
-          token={token}
-          scope={token ?? "publico"}
-          modoPublico={modoPublico}
-          onCambiarCantidad={cambiarCantidad}
-          onQuitar={quitarDelCarrito}
-          onVaciar={vaciarCarrito}
-        />
+        <>
+          <CarritoSheet
+            open={carritoAbierto}
+            onOpenChange={setCarritoAbierto}
+            items={carrito}
+            token={token}
+            scope={token ?? "publico"}
+            modoPublico={modoPublico}
+            onCambiarCantidad={cambiarCantidad}
+            onQuitar={quitarDelCarrito}
+            onVaciar={vaciarCarrito}
+          />
+          <MiTienda
+            open={perfilAbierto}
+            onOpenChange={setPerfilAbierto}
+            scope={token ?? "publico"}
+            favoritos={favProductos.map((p) => ({ id: p.id, nombre: p.nombre, foto: p.fotos[0] ?? null, precio: p.precio }))}
+            onVerFavoritos={() => { setCat(null); setMarca(null); setSoloFav(true); }}
+            onQuitarFav={toggleFav}
+            onAbrirProducto={(id) => { const pp = productos.find((x) => x.id === id); if (pp) setAbierto(pp); }}
+            soporte={process.env.NEXT_PUBLIC_SOPORTE_WHATSAPP ?? null}
+          />
+        </>
       )}
     </section>
     </MotionConfig>
