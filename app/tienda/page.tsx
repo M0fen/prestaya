@@ -7,6 +7,7 @@ import { getProductosPublicos } from "@/lib/data/tienda";
 import { getUsuarioActual, rutaHome } from "@/lib/auth";
 import { conTimeout } from "@/lib/timeout";
 import { TiendaCliente } from "@/components/tienda/TiendaCliente";
+import { HeroCarrusel, type HeroSlide } from "@/components/tienda/HeroCarrusel";
 import { NEGOCIO } from "@/lib/negocio";
 
 export const dynamic = "force-dynamic";
@@ -32,8 +33,34 @@ export default async function TiendaPublicaPage({
   ]);
   const logueado = usuario && usuario.activo ? usuario : null;
   const primerNombre = logueado ? logueado.nombre.split(" ")[0] : "";
-  // Producto para lucir en el hero (destacado con foto; si no, el primero con foto).
-  const estrella = productos.find((p) => p.destacado && p.fotos[0]) ?? productos.find((p) => p.fotos[0]) ?? null;
+
+  // CARRUSEL del hero: la tienda es GENERAL (no solo perfumes) → un banner de Presta
+  // Ya + un banner de Curbe, cada uno con SU imagen coherente (nunca "perfumes" con
+  // foto de heladera). El banner de Curbe doblega como pieza publicitaria.
+  const curbePerfume = productos.find((p) => p.proveedor === "curbe" && p.categoriaNombre !== "Oro 18k" && p.fotos[0]);
+  const electro = productos.find((p) => !p.proveedor && p.fotos[0]);
+  const slidesHero: HeroSlide[] = [
+    {
+      tema: "prestaya",
+      eyebrow: "Tu tienda en cuotas",
+      titulo: "Todo lo que necesitás, en cuotas cómodas.",
+      acento: "en cuotas cómodas",
+      sub: "Electrodomésticos, tecnología, fragancias y mucho más. Elegís, te pasamos el plan y te lo llevamos a tu casa.",
+      img: electro?.fotos[0] ?? curbePerfume?.fotos[0] ?? null,
+      imgLabel: electro?.nombre ?? curbePerfume?.nombre ?? null,
+      cta: null,
+    },
+    {
+      tema: "curbe",
+      eyebrow: "Perfumería & joyería · por Curbe",
+      titulo: "Perfumes de autor y oro 18k.",
+      acento: "oro 18k",
+      sub: "Fragancias inspiradas en las grandes marcas y joyas de oro italiano 18k, en cuotas cómodas.",
+      img: curbePerfume?.fotos[0] ?? null,
+      imgLabel: curbePerfume?.nombre ?? null,
+      cta: { label: "Ver curbe.uy →", href: "https://curbe.uy" },
+    },
+  ];
 
   return (
     <div className="flex min-h-screen justify-center bg-fondo text-tinta">
@@ -57,45 +84,8 @@ export default async function TiendaPublicaPage({
           )}
         </div>
 
-        {/* Hero PREMIUM (perfumería & joyería, en cuotas). Fondo noche + acento oro. */}
-        <section className="relative overflow-hidden rounded-[24px] bg-[#0E1834] text-white shadow-[0_18px_44px_rgba(9,16,40,0.35)]">
-          <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-            <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_88%_-15%,rgba(232,197,110,0.20),transparent_55%)]" />
-            <div className="absolute inset-0 bg-[radial-gradient(90%_90%_at_-5%_110%,rgba(36,83,220,0.28),transparent_60%)]" />
-          </div>
-          <div className="relative flex flex-col gap-5 p-6 md:flex-row md:items-center md:justify-between md:p-10">
-            <div className="flex max-w-[480px] flex-col gap-3">
-              <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#E8C56E]">Perfumería &amp; Joyería · en cuotas</span>
-              <h1 className="text-[27px] font-black leading-[1.06] tracking-[-0.02em] md:text-[40px]">
-                Perfumes de autor y <span className="text-[#E8C56E]">oro 18k</span>, a tu ritmo.
-              </h1>
-              <p className="max-w-[440px] text-[13.5px] font-medium text-white/70 md:text-[15px]">
-                Elegí lo que te gusta y pagalo en <b className="font-bold text-white">cuotas cómodas</b>. Te lo llevamos a tu casa.
-              </p>
-              <div className="mt-1 flex flex-wrap gap-2 text-[11.5px] font-semibold text-white/80">
-                <span className="rounded-full border border-white/15 bg-white/[0.06] px-3 py-1.5">🚚 Entrega a domicilio</span>
-                <span className="rounded-full border border-white/15 bg-white/[0.06] px-3 py-1.5">💳 Cuotas cómodas</span>
-                <span className="rounded-full border border-white/15 bg-white/[0.06] px-3 py-1.5">🛡️ Garantía</span>
-              </div>
-            </div>
-            {estrella?.fotos[0] && (
-              <div className="relative mx-auto w-full max-w-[280px] md:mx-0 md:w-[300px] md:flex-shrink-0">
-                <div className="absolute -inset-3 rounded-[26px] bg-[radial-gradient(circle,rgba(232,197,110,0.28),transparent_70%)] blur-xl" aria-hidden="true" />
-                <div className="relative overflow-hidden rounded-[20px] border border-white/10 bg-white/[0.04] p-3 backdrop-blur">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={estrella.fotos[0]} alt={estrella.nombre} className="mx-auto aspect-square w-full rounded-[14px] bg-white object-contain p-2" />
-                  <div className="mt-2.5 flex items-center justify-between gap-2 px-1">
-                    <div className="flex min-w-0 flex-col">
-                      <span className="text-[9.5px] font-bold uppercase tracking-wide text-[#E8C56E]">⭐ Destacado</span>
-                      <span className="truncate text-[12.5px] font-bold text-white">{estrella.nombre}</span>
-                    </div>
-                    <span className="flex-shrink-0 text-[15px] font-black tabular-nums text-white">${Math.round(estrella.precio).toLocaleString("es-UY")}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
+        {/* Hero = CARRUSEL de banners (Presta Ya general + Curbe publicitario). */}
+        <HeroCarrusel slides={slidesHero} />
 
         {/* Atribución CURBE: las fragancias y joyas son de curbe.uy, con link al sitio. */}
         <a
