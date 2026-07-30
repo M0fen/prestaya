@@ -84,7 +84,8 @@ export function TiendaCliente({
   const agregarAlCarrito = (p: ProductoParaCliente) => {
     setCarrito((c) => {
       const ex = c.find((i) => i.id === p.id);
-      if (ex) return c.map((i) => (i.id === p.id ? { ...i, cantidad: i.cantidad + 1 } : i));
+      if (ex) return c.map((i) => (i.id === p.id ? { ...i, cantidad: Math.min(50, i.cantidad + 1) } : i));
+      if (c.length >= 20) return c; // tope de productos DISTINTOS por pedido (coherente con el server)
       return [...c, { id: p.id, nombre: p.nombre, precio: p.precio, foto: p.fotos[0] ?? null, cuota: financiacion(p).cuota, cuotas: p.cuotas, frecuencia: p.frecuencia, cantidad: 1 }];
     });
     setPulso((n) => n + 1);
@@ -413,6 +414,7 @@ export function TiendaCliente({
 
       {abierto && (
         <DetalleProducto
+          key={abierto.id}
           p={abierto}
           token={token}
           preview={preview}
@@ -602,7 +604,14 @@ function CarritoDrawer({
         });
         if (r.ok) { setEstado("ok"); onVaciar(); } else { setEstado("error"); setMsg(r.error); }
       } else if (token) {
-        for (const it of items) { await registrarInteres({ token, productoId: it.id }); }
+        // Chequear CADA resultado: no confirmar "enviado" ni vaciar si alguno falló
+        // (registrarInteres no lanza; devuelve {ok:false} por stock/rate-limit/audiencia).
+        const rs = await Promise.all(items.map((it) => registrarInteres({ token, productoId: it.id })));
+        if (rs.some((r) => !r.ok)) {
+          setEstado("error");
+          setMsg("No pudimos registrar todos los productos. Probá de nuevo en un rato.");
+          return;
+        }
         setEstado("ok"); onVaciar();
       } else {
         setEstado("error"); setMsg("Volvé a abrir tu enlace para pedir.");

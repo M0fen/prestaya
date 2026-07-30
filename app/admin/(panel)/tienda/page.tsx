@@ -61,6 +61,7 @@ export default async function TiendaPage() {
             <ToolCard href="/admin/tienda/clientes" emoji="🧑‍🤝‍🧑" titulo="Ventas a clientes" desc="Quién compró qué y cuánto pagó." borde="border-[#BFD4F5] bg-[#EEF3FF]" flecha="#1E47C8" />
             <ToolCard href="/admin/tienda/equipo" emoji="🧾" titulo="Compras del equipo" desc="Compras a crédito del equipo (descuento de comisión)." borde="border-[#BFD4F5] bg-[#EEF3FF]" flecha="#1E47C8" />
             <ToolCard href="/admin/tienda/proyeccion" emoji="📈" titulo="Proyección de ventas" desc="Estimá cuánto puede facturar la tienda." borde="border-[#BFE6D2] bg-[#EAF7F0]" flecha="#0F7A48" />
+            <ToolCard href="/admin/tienda/calculadora" emoji="🧮" titulo="Calculadora de precios" desc="Margen, financiación, ganancia y precio sugerido." borde="border-[#F2D9A8] bg-[#FDF6E9]" flecha="#B9770E" />
             {(curbeCount > 0 || pedidosCurbe.length > 0) && (
               <ToolCard href="/admin/tienda/curbe" emoji="💎" titulo="Integración Curbe" desc={`${curbeCount} productos · catálogo y despacho.`} badge={curbePend} borde="border-[#C9B8F0] bg-[#F3EEFC]" flecha="#6D4AC7" />
             )}

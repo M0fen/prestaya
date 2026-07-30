@@ -65,8 +65,10 @@ export async function pedirCarritoPublico(input: {
   const tel = (input.telefono ?? "").toString().trim().slice(0, 30);
   if (nombre.length < 2) return { ok: false, error: "Poné tu nombre." };
   if (soloDigitos(tel).length < 6) return { ok: false, error: "Poné un teléfono/WhatsApp válido." };
-  const items = (Array.isArray(input.items) ? input.items : []).slice(0, 20);
+  const items = Array.isArray(input.items) ? input.items : [];
   if (items.length === 0) return { ok: false, error: "Tu carrito está vacío." };
+  // No truncar en silencio: rechazar si supera el tope (el cliente pediría en dos tandas).
+  if (items.length > 20) return { ok: false, error: "Demasiados productos en un pedido (máximo 20). Pedí en dos tandas." };
   const ip = ipDesdeHeaders((await headers()) as unknown as Headers);
   if (!(await permitir("tienda_publica", ip))) {
     return { ok: false, error: "Recibimos varios pedidos tuyos. Probá de nuevo en unos minutos." };

@@ -25,7 +25,7 @@ export async function getBaseProyeccion(): Promise<BaseProyeccion> {
     const [cli, prods, ventas] = await Promise.all([
       admin.from("clientes").select("*", { count: "exact", head: true }).eq("activo", true),
       admin.from("productos").select("precio").eq("activo", true).limit(3000),
-      admin.from("prestamos").select("monto").eq("origen", "tienda").limit(10000),
+      admin.from("prestamos").select("monto").eq("origen", "tienda").neq("estado", "anulado").limit(10000),
     ]);
     const precios = (prods.data ?? []).map((r) => Math.round(Number(r.precio) || 0)).filter((n) => n > 0);
     const precioPromedio = precios.length ? Math.round(precios.reduce((a, b) => a + b, 0) / precios.length) : 0;
