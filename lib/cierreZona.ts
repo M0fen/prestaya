@@ -100,7 +100,9 @@ export interface CierreConsolidado {
 }
 
 const NOMBRE_SIN_ZONA = "Sin zona";
-const CLAVE_SIN_ZONA = "__sin_zona__";
+/** Clave del bucket de cobradores sin zona (interior / no asignados a un supervisor).
+ *  El ADMIN puede sellar su "Caja del día" con esta clave (ver cierreZona action). */
+export const CLAVE_SIN_ZONA = "__sin_zona__";
 
 /** Prioridad de orden dentro de una zona: faltantes → pendientes → resto. */
 function prioridad(estado: EstadoCobradorCierre): number {

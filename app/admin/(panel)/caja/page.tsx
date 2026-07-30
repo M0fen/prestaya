@@ -8,6 +8,7 @@ import { puedeVerZona } from "@/lib/permisos";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getResumenCajaRango, type LineaLibro } from "@/lib/data/caja";
 import { getCierrePorZona } from "@/lib/data/cierreZona";
+import { CLAVE_SIN_ZONA } from "@/lib/cierreZona";
 import { FormMovimientoCaja } from "@/components/admin/FormMovimientoCaja";
 import { CierrePorZona } from "@/components/admin/CierrePorZona";
 import { BotonImprimir } from "@/components/admin/BotonImprimir";
@@ -63,11 +64,13 @@ export default async function CajaPage({
   const actor = await getActorActual();
   const cierre = esHoy ? await conTimeout(getCierrePorZona(db), TOPE_MS, "admin.caja.cierre") : null;
   // Zonas que el usuario actual puede cerrar (supervisor de la zona; admin todas).
+  // El admin además puede sellar la "Caja del día" (bucket sin zona: interior /
+  // no asignados). El supervisor solo sus zonas explícitas.
   const cerrables =
     actor && cierre
       ? cierre.consolidado.zonas
-          .filter((z) => z.zonaId && puedeVerZona(actor, z.zonaId))
-          .map((z) => z.zonaId as string)
+          .filter((z) => (z.zonaId ? puedeVerZona(actor, z.zonaId) : actor.rol === "admin"))
+          .map((z) => z.zonaId ?? CLAVE_SIN_ZONA)
       : [];
 
   const qs = new URLSearchParams({ desde, hasta, periodo: esHoy ? "hoy" : "mes" });

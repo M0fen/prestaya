@@ -14,6 +14,7 @@ import { getUsuarioActual, getActorActual } from "@/lib/auth";
 import { puedeVerZona } from "@/lib/permisos";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { getCierrePorZona } from "@/lib/data/cierreZona";
+import { CLAVE_SIN_ZONA } from "@/lib/cierreZona";
 import { UYU } from "@/lib/format";
 
 type Resultado = { ok: true } | { ok: false; error: string };
@@ -32,15 +33,19 @@ export async function confirmarCierreZona(input: {
   const actor = await getActorActual();
   if (!actor) return { ok: false, error: "Sesión no válida." };
 
-  // Solo el admin, o el supervisor de ESA zona, cierra la zona.
-  const puede =
-    actor.rol === "admin" || (actor.rol === "supervisor" && puedeVerZona(actor, input.zonaId));
-  if (!puede) return { ok: false, error: "No podés cerrar esta zona." };
+  // El bucket "sin zona" (Caja del día de cobradores del interior / no asignados a
+  // un supervisor): SOLO el admin lo sella. Una zona normal: el admin, o el
+  // supervisor de ESA zona. Sin esto, ese efectivo (interior) no tenía sello nunca.
+  const esSinZona = input.zonaId === CLAVE_SIN_ZONA;
+  const zonaIdReal = esSinZona ? null : input.zonaId;
+  const puede = esSinZona
+    ? actor.rol === "admin"
+    : actor.rol === "admin" || (actor.rol === "supervisor" && puedeVerZona(actor, input.zonaId));
+  if (!puede) return { ok: false, error: "No podés cerrar esta caja." };
 
-  // Kill switch (modo solo-lectura): el cierre de zona es una escritura de
-  // custodia de efectivo (registro autoritativo de handoff + unique por zona/día),
-  // así que durante un freeze SÍ se bloquea, igual que el resto de las escrituras
-  // de plata. Se puede reintentar cuando se levanta el modo solo-lectura.
+  // Kill switch (modo solo-lectura): el cierre es una escritura de custodia de
+  // efectivo (registro autoritativo de handoff + unique por zona/día), así que
+  // durante un freeze SÍ se bloquea, igual que el resto de las escrituras de plata.
   const bloqueo = await bloqueoSoloLectura();
   if (bloqueo) return bloqueo;
 
@@ -48,15 +53,15 @@ export async function confirmarCierreZona(input: {
 
   // Totales AUTORITATIVOS del servidor: se recalculan del cierre real de hoy.
   const { consolidado } = await getCierrePorZona(db);
-  const zona = consolidado.zonas.find((z) => z.zonaId === input.zonaId);
-  if (!zona) return { ok: false, error: "No hay recaudo en esa zona hoy." };
+  const zona = consolidado.zonas.find((z) => (z.zonaId ?? CLAVE_SIN_ZONA) === input.zonaId);
+  if (!zona) return { ok: false, error: "No hay recaudo para cerrar hoy." };
 
   const diferencia = zona.totalEntregado - zona.totalEsperado;
   const notas = (input.notas ?? "").toString().trim().slice(0, 300) || null;
 
   try {
     const { error } = await db.from("cierres_zona").insert({
-      zona_id: input.zonaId,
+      zona_id: zonaIdReal,
       supervisor_id: u.id,
       supervisor_nombre: u.nombre,
       total_esperado: zona.totalEsperado,
@@ -71,19 +76,20 @@ export async function confirmarCierreZona(input: {
     await registrarAuditoria(db, {
       actorId: u.id,
       actorNombre: u.nombre,
-      accion: "Cerró la caja de una zona",
+      accion: esSinZona ? "Cerró la Caja del día (sin zona)" : "Cerró la caja de una zona",
       entidad: "cierre_zona",
-      entidadId: input.zonaId,
-      detalle: `${zona.zonaNombre}: entregó ${UYU(zona.totalEntregado)} (esperado ${UYU(
+      entidadId: zonaIdReal ?? undefined,
+      detalle: `${esSinZona ? "Caja del día" : zona.zonaNombre}: entregó ${UYU(zona.totalEntregado)} (esperado ${UYU(
         zona.totalEsperado,
       )}${diferencia !== 0 ? `, ${diferencia < 0 ? "faltan" : "sobran"} ${UYU(Math.abs(diferencia))}` : ""})`,
     });
     revalidatePath("/admin/caja");
     return { ok: true };
   } catch (e) {
-    if (esDuplicado(e)) return { ok: false, error: "Esa zona ya se cerró hoy." };
+    if (esDuplicado(e))
+      return { ok: false, error: esSinZona ? "La Caja del día ya se cerró hoy." : "Esa zona ya se cerró hoy." };
     // Custodia de efectivo: un fallo real acá debe dejar rastro (antes se tragaba).
     reportarError("cerrarCajaZona", e, { zonaId: input.zonaId, supervisorId: u.id });
-    return { ok: false, error: "No se pudo cerrar la zona. Probá de nuevo." };
+    return { ok: false, error: "No se pudo cerrar. Probá de nuevo." };
   }
 }

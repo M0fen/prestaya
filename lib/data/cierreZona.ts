@@ -14,6 +14,7 @@ import { getRendicionesDia, type ResumenRendiciones } from "./rendicion";
 import { tablaFaltante } from "./errores";
 import {
   consolidarPorZona,
+  CLAVE_SIN_ZONA,
   type CierreConsolidado,
   type ConfirmacionCierre,
   type RendidaLite,
@@ -90,14 +91,16 @@ export async function getCierrePorZona(
     if (error) throw error;
     const porZona = new Map<string, ConfirmacionCierre>();
     for (const c of data ?? []) {
-      porZona.set(c.zona_id as string, {
+      // Un cierre con zona_id NULL (la "Caja del día" del bucket sin zona, 0110) se
+      // indexa bajo la clave sentinel para adjuntarlo al bucket correspondiente.
+      porZona.set((c.zona_id as string | null) ?? CLAVE_SIN_ZONA, {
         supervisorNombre: (c.supervisor_nombre as string | null) ?? null,
         totalEntregado: Number(c.total_entregado),
         creadoEn: c.creado_en as string,
       });
     }
     for (const z of consolidado.zonas) {
-      if (z.zonaId) z.confirmado = porZona.get(z.zonaId) ?? null;
+      z.confirmado = porZona.get(z.zonaId ?? CLAVE_SIN_ZONA) ?? null;
     }
   } catch (e) {
     if (tablaFaltante(e)) confirmacionesDisponible = false;

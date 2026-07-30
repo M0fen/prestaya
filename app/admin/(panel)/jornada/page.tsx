@@ -13,6 +13,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getResumenFinanciero } from "@/lib/data/asesor";
 import { getCierrePorZona, type ResumenCierreZonas } from "@/lib/data/cierreZona";
+import { CLAVE_SIN_ZONA } from "@/lib/cierreZona";
 import { getCentroAlertas, type Alerta } from "@/lib/data/centroAlertas";
 import { getResumenCompromisos, type ResumenCompromisos } from "@/lib/data/gestionesCobranza";
 import { getActivosConPagos } from "@/lib/data/activos";
@@ -166,7 +167,9 @@ export default async function JornadaPage({
   const { cartera, recaudacion, mora, cobradores } = resumen;
   // Zonas que este gestor puede sellar (supervisor de la zona; admin todas).
   const cerrables = actor
-    ? cierre.consolidado.zonas.filter((z) => z.zonaId && puedeVerZona(actor, z.zonaId)).map((z) => z.zonaId as string)
+    ? cierre.consolidado.zonas
+        .filter((z) => (z.zonaId ? puedeVerZona(actor, z.zonaId) : actor.rol === "admin"))
+        .map((z) => z.zonaId ?? CLAVE_SIN_ZONA)
     : [];
 
   const hora = horaMontevideo();

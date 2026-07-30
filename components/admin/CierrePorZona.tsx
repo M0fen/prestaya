@@ -5,7 +5,7 @@
 import Link from "next/link";
 import { UYU } from "@/lib/format";
 import type { ResumenCierreZonas } from "@/lib/data/cierreZona";
-import type { EstadoCobradorCierre } from "@/lib/cierreZona";
+import { CLAVE_SIN_ZONA, type EstadoCobradorCierre } from "@/lib/cierreZona";
 import { BotonCerrarZona } from "./BotonCerrarZona";
 
 // Tokens tema-aware (globals.css): en oscuro flipean a superficie teñida + texto
@@ -60,7 +60,9 @@ export function CierrePorZona({
         </div>
       </div>
 
-      {consolidado.zonas.map((z) => (
+      {consolidado.zonas.map((z) => {
+        const clave = z.zonaId ?? CLAVE_SIN_ZONA;
+        return (
         <div
           key={z.zonaId ?? "sin-zona"}
           className="rounded-[16px] border border-borde bg-tarjeta p-4"
@@ -135,16 +137,19 @@ export function CierrePorZona({
             })}
           </ul>
 
-          {/* Cerrar la zona (solo supervisor de la zona / admin, y si 0047 corrió) */}
-          {z.zonaId && !z.confirmado && resumen.confirmacionesDisponible && cerrable.has(z.zonaId) && (
+          {/* Cerrar (supervisor de la zona / admin; el admin además la "Caja del día"
+              del bucket sin zona). Requiere 0047. */}
+          {!z.confirmado && resumen.confirmacionesDisponible && cerrable.has(clave) && (
             <BotonCerrarZona
-              zonaId={z.zonaId}
+              zonaId={clave}
               totalEntregado={z.totalEntregado}
               pendientes={z.pendientes}
+              esSinZona={!z.zonaId}
             />
           )}
         </div>
-      ))}
+        );
+      })}
 
       {(consolidado.totalFaltante > 0 || consolidado.porRendir > 0) && (
         <p className="text-[11px] leading-[1.5] font-medium text-tenue-2">
