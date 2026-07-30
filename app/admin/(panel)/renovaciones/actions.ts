@@ -13,11 +13,13 @@ import {
   crearSolicitudDb,
   getSolicitudPorId,
   resolverSolicitudDb,
+  cerrarSolicitudPendienteDeAnterior,
 } from "@/lib/data/solicitudesRenovacion";
 import { getPrestamoPorId } from "@/lib/data/prestamos";
 import { evaluarRenovacion, RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
+import { reportarError } from "@/lib/observabilidad";
 import { UYU } from "@/lib/format";
 import type { FrecuenciaPrestamo } from "@/types/db";
 
@@ -112,6 +114,12 @@ export async function renovarCredito(input: {
     creadoPor: usuario.id,
   });
   if (!res.ok) return res;
+  // Si este crédito tenía una SOLICITUD pendiente y se renovó por alta directa, se
+  // cierra para que no quede huérfana apuntando a un crédito ya finalizado
+  // (best-effort: el crédito ya está creado, esto es solo limpieza de la cola).
+  try {
+    if (res.prestamoId) await cerrarSolicitudPendienteDeAnterior(db, input.prestamoAnteriorId, res.prestamoId, usuario.id);
+  } catch { /* no bloquea la renovación ya hecha */ }
   await registrarAuditoria(db, {
     actorId: usuario.id,
     actorNombre: usuario.nombre,
@@ -130,47 +138,10 @@ export async function renovarCredito(input: {
 }
 
 // ── Flujo de APROBACIÓN (supervisor solicita → admin resuelve) ─────────────
-
-/** El gestor (típicamente supervisor) SOLICITA una renovación (queda pendiente). */
-export async function solicitarRenovacion(input: {
-  clienteId: string;
-  prestamoAnteriorId: string;
-  monto: number;
-  totalDias: number;
-  frecuencia: FrecuenciaPrestamo;
-}): Promise<ResultadoSimple> {
-  const u = await getUsuarioActual();
-  if (!u || !u.activo || !esGestor(u.rol)) return { ok: false, error: "No tenés permisos." };
-  const monto = Math.round(Number(input.monto));
-  const totalDias = Math.round(Number(input.totalDias));
-  if (!(monto > 0) || !(totalDias > 0)) return { ok: false, error: "Revisá el monto y las cuotas." };
-  try {
-    const db = await createSupabaseServer();
-    await crearSolicitudDb(db, {
-      clienteId: input.clienteId,
-      prestamoAnteriorId: input.prestamoAnteriorId,
-      monto,
-      totalDias,
-      frecuencia: input.frecuencia,
-      solicitadoPor: u.id,
-      solicitadoPorNombre: u.nombre,
-    });
-    await registrarAuditoria(db, {
-      actorId: u.id,
-      actorNombre: u.nombre,
-      accion: "Solicitó renovación",
-      entidad: "cliente",
-      entidadId: input.clienteId,
-      detalle: `${UYU(monto)} × ${totalDias} (${input.frecuencia})`,
-    });
-    revalidatePath("/admin/renovaciones");
-    return { ok: true };
-  } catch (e) {
-    if ((e as { code?: string } | null)?.code === "23505")
-      return { ok: false, error: "Ya hay una solicitud pendiente para este crédito." };
-    return { ok: false, error: "No se pudo enviar. ¿Corriste la migración 0029?" };
-  }
-}
+// La CREACIÓN de solicitudes vive dentro de renovarCredito (supervisor sobre-tope),
+// que pasa por todos los gates (CAP, tramo, saldado, kill-switch). No hay una acción
+// `solicitarRenovacion` suelta (se removió: era código muerto con validación más débil
+// que habría permitido solicitudes sobre-CAP imposibles de aprobar).
 
 /** El ADMIN aprueba: crea el crédito de renovación y cierra la solicitud. */
 export async function aprobarSolicitud(id: string): Promise<ResultadoAlta> {
@@ -192,7 +163,14 @@ export async function aprobarSolicitud(id: string): Promise<ResultadoAlta> {
       creadoPor: u.id,
     });
     if (!res.ok) return res;
-    await resolverSolicitudDb(db, id, { estado: "aprobada", resueltoPor: u.id, prestamoNuevoId: res.prestamoId });
+    // El crédito YA se creó (fuente de verdad). Marcar la solicitud es best-effort:
+    // si falla (blip), NO devolvemos error — el reintento chocaría con el anterior ya
+    // finalizado. Se registra el fallo pero la aprobación se considera exitosa.
+    try {
+      await resolverSolicitudDb(db, id, { estado: "aprobada", resueltoPor: u.id, prestamoNuevoId: res.prestamoId });
+    } catch (e) {
+      reportarError("aprobarSolicitud:resolver", e, { solicitudId: id, prestamoId: res.prestamoId });
+    }
     await registrarAuditoria(db, {
       actorId: u.id,
       actorNombre: u.nombre,

@@ -282,6 +282,10 @@ export default async function FichaClientePage({
                         {activos.length > 1 ? `Crédito ${idx + 1} · ` : ""}desde {fechaCorta(activo.fechaInicio)}
                       </span>
                     )}
+                    {/* Linaje (0116): este crédito vino de renovar uno anterior. */}
+                    {activo.renovadoDe && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-[#EDE7FB] px-2.5 py-1 text-[11px] font-bold text-[#6D4AC7]">🔄 Renovación</span>
+                    )}
                   </div>
                   <RegistrarPagoPanel clienteId={id} prestamoId={activo.id} cuota={activo.cuota} />
                 </div>
@@ -377,8 +381,9 @@ export default async function FichaClientePage({
               className="flex items-center justify-between rounded-[12px] bg-suave px-3 py-2.5"
             >
               <div className="flex flex-col">
-                <span className="text-[13.5px] font-bold text-tinta">
+                <span className="flex flex-wrap items-center gap-1.5 text-[13.5px] font-bold text-tinta">
                   {c.origen === "tienda" ? "🛒 " : ""}{UYU(c.monto)} · cuota {UYU(c.cuota)} × {c.totalDias}
+                  {c.renovadoDe && <span className="rounded-full bg-[#EDE7FB] px-2 py-0.5 text-[10px] font-bold text-[#6D4AC7]">🔄 Renovación</span>}
                 </span>
                 <span className="text-[11.5px] font-medium text-tenue">
                   {c.origen === "tienda" && c.productoNombre ? `${c.productoNombre} · ` : ""}Desde {fechaCorta(c.fechaInicio)} · pagó {UYU(c.pagadoTotal)}

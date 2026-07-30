@@ -120,3 +120,28 @@ export async function resolverSolicitudDb(
     .eq("estado", "pendiente"); // no re-resolver
   if (error) throw error;
 }
+
+/**
+ * Cierra (aprobada) cualquier solicitud PENDIENTE de un crédito anterior. Se usa
+ * cuando ese crédito se renovó por OTRA vía (alta directa del admin): así la
+ * solicitud no queda huérfana apuntando a un crédito ya finalizado. Idempotente
+ * (solo toca las pendientes). Best-effort: no bloquea la renovación ya hecha.
+ */
+export async function cerrarSolicitudPendienteDeAnterior(
+  db: SupabaseClient,
+  prestamoAnteriorId: string,
+  prestamoNuevoId: string,
+  resueltoPor: string,
+): Promise<void> {
+  const { error } = await db
+    .from("solicitudes_renovacion")
+    .update({
+      estado: "aprobada",
+      resuelto_por: resueltoPor,
+      resuelto_en: new Date().toISOString(),
+      prestamo_nuevo_id: prestamoNuevoId,
+    })
+    .eq("prestamo_anterior_id", prestamoAnteriorId)
+    .eq("estado", "pendiente");
+  if (error) throw error;
+}

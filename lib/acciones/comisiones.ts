@@ -16,7 +16,7 @@ import { registrarMovimientoCaja } from "@/lib/data/caja";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { crearReciboDb } from "@/lib/data/recibos";
 import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
-import { descontarComprasEmpleadoDb } from "@/lib/data/comprasEmpleado";
+import { descontarComprasEmpleadoDb, revertirDescuentoComprasEmpleadoDb } from "@/lib/data/comprasEmpleado";
 import { opIdDeterminista, esViolacionUnica } from "@/lib/idempotencia";
 
 type Resultado = { ok: true } | { ok: false; error: string };
@@ -152,15 +152,18 @@ export async function liquidarComision(input: {
   try {
     // REPAGO de compras del equipo (0113): antes del egreso, descontar las cuotas
     // del período de las compras a crédito del cobrador/supervisor, hasta el tope de
-    // su comisión. Atómico e idempotente por período (RPC descontar_compras_empleado);
-    // si falta la migración 0113 devuelve 0 y la liquidación sigue igual. El egreso a
-    // caja sale NETO (comisión − descuento): la plata del repago queda en la casa.
-    const descuento = await descontarComprasEmpleadoDb(db, {
-      empleadoId: input.cobradorId,
-      periodoKey,
-      tope: monto,
-      creadoPor: u.id,
-    });
+    // su comisión. Idempotente a nivel PERÍODO (0117). El egreso sale NETO.
+    // CADENCIA: solo se descuenta en liquidaciones NO-diarias (semana/mes/año). Con
+    // cadencia 'dia' se saldaría una cuota por día → rompería el cronograma pactado.
+    const puedeDescontar = !periodoKey.startsWith("dia:");
+    const descuento = puedeDescontar
+      ? await descontarComprasEmpleadoDb(db, {
+          empleadoId: input.cobradorId,
+          periodoKey,
+          tope: monto,
+          creadoPor: u.id,
+        })
+      : 0;
     const montoNeto = Math.max(0, monto - descuento);
     const notaDesc = descuento > 0 ? ` (−$${descuento.toLocaleString("es-UY")} a compras del equipo)` : "";
 
@@ -233,6 +236,10 @@ export async function liquidarComision(input: {
     reportarError("liquidarComision", e, { cobradorId: input.cobradorId, periodoKey });
     // Fallo REAL del egreso (no ambiguo) → revertir el candado para no dejar
     // "liquidado" sin egreso. El op_id determinista protege igual el reintento.
+    // TAMBIÉN se revierte el DESCUENTO de compras del período (restaura saldo): si no,
+    // el saldo del empleado quedaría bajado sin egreso (descuento huérfano). Así el
+    // reintento recomputa desde cero. Best-effort (no lanza).
+    await revertirDescuentoComprasEmpleadoDb(db, { empleadoId: input.cobradorId, periodoKey }).catch(() => {});
     await db
       .from("comisiones_liquidadas")
       .delete()

@@ -72,7 +72,6 @@ export function FormRenovacion({
   // al supervisor: genera una SOLICITUD para el admin (Tanda 6).
   const bloqueado = evalu ? evalu.superaCap : false;
   const esSolicitud = evalu ? evalu.excedePct && !esAdmin : false;
-  const iraDirecto = evalu ? evalu.autoAprobable || (esAdmin && !evalu.superaCap) : true;
 
   const enviar = async () => {
     setOcupado(true);

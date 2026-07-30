@@ -146,6 +146,8 @@ export interface Prestamo {
   creado_en: string;
   actualizado_en: string;
   finalizado_en: string | null;
+  /** Crédito anterior que este renovó (linaje, 0116). null = no vino de renovación. */
+  renovado_de?: string | null;
 }
 
 export interface Pago {

@@ -132,7 +132,7 @@ export async function getResumenFinanciero(
         nombre: c.nombre,
         riesgo: c.alerta.riesgo,
         nivel: c.alerta.nivel,
-        deudaVencida: c.alerta.senales.deudaVencida,
+        deudaVencida: c.alerta.senales.montoVencido, // deuda vencida REAL (sin hoy) para insights/prompt
         diasSinPagar: c.alerta.senales.diasSinPagar,
         cobrador: c.cobradorNombre,
       })),
@@ -368,7 +368,7 @@ export async function tableroMoraTexto(
   for (const c of t.enRiesgo.slice(0, 12)) {
     const s = c.alerta.senales;
     L.push(
-      `- ${c.nombre}: riesgo ${c.alerta.riesgo}/100 (${c.alerta.nivel}), debe ${UYU(s.deudaVencida)}, ${s.diasSinPagar} día(s) sin pagar${c.cobradorNombre ? `, cobrador ${c.cobradorNombre}` : ""}. Acción: ${c.alerta.accionSugerida}`,
+      `- ${c.nombre}: riesgo ${c.alerta.riesgo}/100 (${c.alerta.nivel}), debe ${UYU(s.montoVencido)}, ${s.diasSinPagar} día(s) sin pagar${c.cobradorNombre ? `, cobrador ${c.cobradorNombre}` : ""}. Acción: ${c.alerta.accionSugerida}`,
     );
   }
   return L.join("\n");

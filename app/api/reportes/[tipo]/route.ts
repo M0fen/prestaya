@@ -155,7 +155,7 @@ export async function GET(
         c.cobradorNombre ?? "",
         NIVEL[c.alerta.nivel],
         c.alerta.senales.atrasosTotales,
-        c.alerta.senales.deudaVencida,
+        c.alerta.senales.montoVencido, // deuda vencida REAL (sin hoy), igual que la pantalla
         c.recargoMora,
       ]),
     );

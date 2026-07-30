@@ -35,6 +35,8 @@ export interface CreditoFicha {
   /** 'tienda' = compra financiada; 'credito' = préstamo normal (0101). */
   origen: "credito" | "tienda";
   productoNombre: string | null;
+  /** Crédito anterior que este renovó (linaje, 0116). null = no vino de renovación. */
+  renovadoDe: string | null;
 }
 export interface CreditoActivoFicha {
   id: string;
@@ -51,6 +53,8 @@ export interface CreditoActivoFicha {
   /** Origen del crédito, para distinguir el dinero en la ficha (0101). */
   origen: "credito" | "tienda";
   productoNombre: string | null;
+  /** Crédito anterior que este renovó (linaje, 0116). null = no vino de renovación. */
+  renovadoDe: string | null;
 }
 export interface FichaCliente {
   cliente: Cliente;
@@ -101,6 +105,7 @@ export async function getFichaCliente(
       fechaInicio: pr.fecha_inicio,
       origen: pr.origen,
       productoNombre: pr.producto_nombre,
+      renovadoDe: (pr.renovado_de as string | null | undefined) ?? null,
     };
   });
 
@@ -115,6 +120,7 @@ export async function getFichaCliente(
     pagadoTotal: (historial.pagosPorPrestamo[p.id] ?? []).reduce((s, x) => s + x.monto, 0),
     origen: p.origen,
     productoNombre: p.producto_nombre,
+    renovadoDe: (p.renovado_de as string | null | undefined) ?? null,
   }));
 
   // Historial de pagos (todos los créditos), del más reciente al más viejo.

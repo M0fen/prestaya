@@ -355,7 +355,7 @@ export default async function JornadaPage({
               ? faltantesN + sinRendirN + mora.criticos + compromisos.venceHoy.length + compromisos.incumplidos.length
               : a.id === "vivo"
                 ? alertasAltas
-                : sinRendirN;
+                : sinRendirN + cerradasPendientes; // cierre: sin-rendir + zonas sin sellar
           return (
             <Link
               key={a.id}
@@ -371,7 +371,11 @@ export default async function JornadaPage({
                   Acto {a.n}
                 </span>
                 {a.id === "cierre" && todasCerradas ? (
-                  <span className="rounded-full bg-[#E4F5EC] px-1.5 py-0.5 text-[10px] font-bold text-[#157A50]">✓ Cerrado</span>
+                  sinRendirN > 0 ? (
+                    <span className="rounded-full bg-[#FDF3E2] px-1.5 py-0.5 text-[10px] font-bold text-[#8A6D1E]">✓ · {sinRendirN} sin rendir</span>
+                  ) : (
+                    <span className="rounded-full bg-[#E4F5EC] px-1.5 py-0.5 text-[10px] font-bold text-[#157A50]">✓ Cerrado</span>
+                  )
                 ) : chip > 0 ? (
                   <span className="rounded-full bg-[#FBE4E2] px-1.5 py-0.5 text-[10px] font-bold text-[#C0392B] tabular-nums">
                     {chip}
@@ -719,7 +723,9 @@ function Cierre({
           <p className="mt-0.5 text-[13px] font-medium text-white/85">
             {c.totalFaltante > 0
               ? `Cerraste todas las zonas. Quedó un faltante de ${UYU(c.totalFaltante)} para revisar mañana.`
-              : "Todas las zonas cuadradas y selladas. La caja quedó prolija. A descansar. 💚"}
+              : c.pendientes > 0
+                ? `Cerraste todas las zonas. Quedan ${c.pendientes} sin rendir (${UYU(c.porRendir)} en la calle) para mañana.`
+                : "Todas las zonas cuadradas y selladas. La caja quedó prolija. A descansar. 💚"}
           </p>
           <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-[12.5px] font-semibold text-white/80">
             <span>Recaudado {UYU(resumenDia.recaudado)}</span>
@@ -741,7 +747,10 @@ function Cierre({
           </div>
           <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 text-[12px] font-medium text-gris">
             <span>Recaudado <b className="tabular-nums text-tinta">{UYU(resumenDia.recaudado)}</b> de {UYU(resumenDia.esperado)}</span>
-            <span>{resumenDia.renovables} listos para renovar · {resumenDia.alertasAltas} en riesgo alto</span>
+            <span className="flex flex-wrap gap-x-3">
+              <Link href="/admin/renovaciones" className="font-semibold text-azul hover:underline">{resumenDia.renovables} listos para renovar</Link>
+              <Link href="/admin/mora?nivel=alto" className="font-semibold text-azul hover:underline">{resumenDia.alertasAltas} en riesgo alto</Link>
+            </span>
           </div>
         </div>
       )}

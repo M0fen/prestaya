@@ -29,6 +29,7 @@ function mapPrestamo(r: Record<string, unknown>): Prestamo {
     creado_en: r.creado_en as string,
     actualizado_en: r.actualizado_en as string,
     finalizado_en: (r.finalizado_en as string | null) ?? null,
+    renovado_de: (r.renovado_de as string | null | undefined) ?? null, // linaje (0116)
   };
 }
 

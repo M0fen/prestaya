@@ -182,3 +182,24 @@ export async function descontarComprasEmpleadoDb(
     throw e;
   }
 }
+
+/**
+ * Revierte el descuento de compras de un período (restaura saldo + borra filas). Se
+ * usa cuando el egreso de la comisión falla, para no dejar un descuento huérfano.
+ * Best-effort: si falta la migración 0117 no rompe.
+ */
+export async function revertirDescuentoComprasEmpleadoDb(
+  db: SupabaseClient,
+  p: { empleadoId: string; periodoKey: string },
+): Promise<void> {
+  try {
+    const { error } = await db.rpc("revertir_descuento_compras_empleado", {
+      p_empleado_id: p.empleadoId,
+      p_periodo_key: p.periodoKey,
+    });
+    if (error) throw error;
+  } catch (e) {
+    if (funcionFaltante(e) || tablaFaltante(e)) return;
+    throw e;
+  }
+}
