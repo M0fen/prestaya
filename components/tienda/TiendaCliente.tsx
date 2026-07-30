@@ -103,17 +103,17 @@ export function TiendaCliente({
         </div>
       )}
 
-      {/* Buscador */}
+      {/* Buscador PROTAGONISTA (search-first, como los mejores e-commerce). */}
       <div className="relative">
-        <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] text-gris">🔎</span>
+        <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[18px] text-gris">🔎</span>
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Buscar (heladera, LG, TV…)"
-          className="w-full rounded-full border border-[#DCE3F4] bg-white py-2.5 pl-10 pr-4 text-[14px] outline-none focus:border-azul"
+          placeholder="Buscá heladera, TV, perfume…"
+          className="w-full rounded-full border border-[#DCE3F4] bg-white py-3.5 pl-12 pr-10 text-[16px] shadow-[0_2px_12px_rgba(15,27,61,0.06)] outline-none focus:border-azul focus:ring-2 focus:ring-[#1E47C8]/25"
         />
         {q && (
-          <button type="button" onClick={() => setQ("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[15px] font-bold text-gris">✕</button>
+          <button type="button" onClick={() => setQ("")} aria-label="Limpiar búsqueda" className="absolute right-4 top-1/2 -translate-y-1/2 text-[17px] font-bold text-gris hover:text-tinta">✕</button>
         )}
       </div>
 
@@ -216,6 +216,20 @@ export function TiendaCliente({
         </div>
       )}
 
+      {/* Filtros ACTIVOS (chips removibles) + "Ver todo" → volver a mostrar todo. */}
+      {hayFiltro && (
+        <div className="flex flex-wrap items-center gap-1.5 px-1">
+          <span className="text-[11.5px] font-bold text-gris">Filtrando:</span>
+          {q.trim() && <FiltroChip label={`“${q.trim()}”`} onQuitar={() => setQ("")} />}
+          {cat && <FiltroChip label={cat} onQuitar={() => setCat(null)} />}
+          {marca && <FiltroChip label={marca} onQuitar={() => setMarca(null)} />}
+          <button type="button" onClick={() => { setQ(""); setCat(null); setMarca(null); setOrden("destacados"); }}
+            className="ml-0.5 rounded-full bg-[#1E47C8] px-3 py-1 text-[11.5px] font-bold text-white active:scale-95">
+            Ver todo
+          </button>
+        </div>
+      )}
+
       {/* Barra de resultados + orden */}
       <div className="flex items-center justify-between px-1">
         <span className="text-[12px] font-semibold text-gris">
@@ -231,10 +245,16 @@ export function TiendaCliente({
 
       {/* Grilla */}
       {filtrados.length === 0 ? (
-        <div className="flex flex-col items-center gap-1.5 rounded-[16px] border border-[#ECEFF8] bg-white px-6 py-10 text-center">
+        <div className="flex flex-col items-center gap-2 rounded-[16px] border border-[#ECEFF8] bg-white px-6 py-10 text-center">
           <span className="text-[30px]" aria-hidden="true">🔍</span>
           <p className="text-[14px] font-bold text-tinta">No encontramos ese artículo</p>
           <p className="text-[12.5px] font-medium text-gris">Probá con otra palabra o mirá otra categoría.</p>
+          {hayFiltro && (
+            <button type="button" onClick={() => { setQ(""); setCat(null); setMarca(null); setOrden("destacados"); }}
+              className="mt-1 rounded-full bg-[#1E47C8] px-4 py-2 text-[12.5px] font-bold text-white active:scale-95">
+              Ver todos los productos
+            </button>
+          )}
         </div>
       ) : (
         // En la tienda PÚBLICA la grilla crece en desktop (2→3→4 col); en el cartón
@@ -242,16 +262,24 @@ export function TiendaCliente({
         <div className={`grid gap-3 grid-cols-2 ${modoPublico ? "sm:grid-cols-3 lg:grid-cols-4" : ""}`}>
           {filtrados.map((p) => (
             <button key={p.id} type="button" onClick={() => setAbierto(p)}
-              className="flex flex-col overflow-hidden rounded-[16px] border border-[#ECEFF8] bg-white text-left shadow-[0_2px_10px_rgba(15,27,61,0.05)] active:scale-[0.98]">
-              <div className="relative">
-                <Foto p={p} className="aspect-square" />
+              className="group flex flex-col overflow-hidden rounded-[16px] border border-[#ECEFF8] bg-white text-left shadow-[0_2px_10px_rgba(15,27,61,0.05)] transition duration-200 hover:-translate-y-0.5 hover:border-[#D5DEF3] hover:shadow-[0_10px_24px_rgba(15,27,61,0.12)] active:scale-[0.98]">
+              <div className="relative overflow-hidden">
+                <div className="transition-transform duration-300 group-hover:scale-[1.04]">
+                  <Foto p={p} className="aspect-square" />
+                </div>
+                {/* Descuento −X% (gancho más fuerte que "OFERTA") y escasez PUEDEN coexistir. */}
                 {p.agotado || p.stock === 0 ? (
                   <span className="absolute left-2 top-2 rounded-full bg-[#6B7494] px-2 py-0.5 text-[10px] font-black text-white">Agotado</span>
-                ) : p.stock != null && p.stock <= 5 ? (
-                  <span className="absolute left-2 top-2 rounded-full bg-[#E8A317] px-2 py-0.5 text-[10px] font-black text-white">¡Últimas {p.stock}!</span>
-                ) : p.precioAnterior > p.precio ? (
-                  <span className="absolute left-2 top-2 rounded-full bg-[#D64545] px-2 py-0.5 text-[10px] font-black text-white">OFERTA</span>
-                ) : null}
+                ) : (
+                  <>
+                    {p.precioAnterior > p.precio && (
+                      <span className="absolute left-2 top-2 rounded-full bg-[#D64545] px-2 py-0.5 text-[11px] font-black text-white shadow">−{Math.round((1 - p.precio / p.precioAnterior) * 100)}%</span>
+                    )}
+                    {p.stock != null && p.stock <= 5 && (
+                      <span className={`absolute left-2 ${p.precioAnterior > p.precio ? "top-9" : "top-2"} rounded-full bg-[#E8A317] px-2 py-0.5 text-[10px] font-black text-white`}>¡Últimas {p.stock}!</span>
+                    )}
+                  </>
+                )}
                 {p.proveedor === "curbe" && (
                   <span className="absolute right-2 top-2 rounded-full bg-[linear-gradient(135deg,#E8C56E,#C9A24B)] px-1.5 py-0.5 text-[10px] font-black text-[#3A2E0A] shadow">💎</span>
                 )}
@@ -264,7 +292,6 @@ export function TiendaCliente({
                 ) : null}
                 <span className="line-clamp-2 text-[13.5px] font-bold leading-tight text-tinta">{p.nombre}</span>
                 <Precio p={p} />
-                <span className="mt-1.5 w-fit rounded-full bg-[#EEF3FF] px-2.5 py-1 text-[11.5px] font-bold text-azul">Ver detalle</span>
               </div>
             </button>
           ))}
@@ -308,12 +335,22 @@ function Chip({ activo, onClick, children }: { activo: boolean; onClick: () => v
   );
 }
 
+/** Chip de un filtro activo, con ✕ para quitarlo (patrón e-commerce). */
+function FiltroChip({ label, onQuitar }: { label: string; onQuitar: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-[#DCE3F4] bg-white px-2.5 py-1 text-[11.5px] font-semibold text-cuerpo">
+      {label}
+      <button type="button" onClick={onQuitar} aria-label={`Quitar filtro ${label}`} className="text-[13px] font-black leading-none text-gris hover:text-tinta">×</button>
+    </span>
+  );
+}
+
 function Foto({ p, className = "" }: { p: ProductoParaCliente; className?: string }) {
   return (
-    <div className={`w-full bg-white ${className}`}>
+    <div className={`w-full bg-[linear-gradient(180deg,#FBFCFF,#F1F4FB)] ${className}`}>
       {p.fotos[0] ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={p.fotos[0]} alt={p.nombre} className="h-full w-full object-contain p-1.5" />
+        <img src={p.fotos[0]} alt={p.nombre} loading="lazy" decoding="async" className="h-full w-full object-contain p-2" />
       ) : (
         <div className="flex h-full items-center justify-center text-[34px]">🛒</div>
       )}
@@ -321,18 +358,23 @@ function Foto({ p, className = "" }: { p: ProductoParaCliente; className?: strin
   );
 }
 
-/** Precio con "antes" tachado (si hay oferta) + cuota. */
+/** Precio con la CUOTA como protagonista (el negocio es cuotas) + "sin interés". */
 function Precio({ p }: { p: ProductoParaCliente }) {
   const { cuota } = financiacion(p);
+  const conCuota = p.cuotas > 0 && cuota > 0;
+  const enOferta = p.precioAnterior > p.precio;
   return (
-    <div className="mt-0.5 flex flex-col">
-      <div className="flex items-baseline gap-1.5">
-        <span className="text-[16px] font-black tabular-nums text-[#157A50]">{UYU(p.precio)}</span>
-        {p.precioAnterior > p.precio && <span className="text-[11.5px] font-semibold tabular-nums text-tenue line-through">{UYU(p.precioAnterior)}</span>}
-      </div>
-      {p.cuotas > 0 && cuota > 0 && (
-        <span className="text-[11px] font-semibold text-[#1E47C8]">{p.cuotas}× {UYU(cuota)} {FREC_LABEL[p.frecuencia]}</span>
+    <div className="mt-0.5 flex flex-col gap-0.5">
+      {conCuota && (
+        <span className="w-fit rounded-md bg-[#EEF3FF] px-1.5 py-0.5 text-[13.5px] font-black tabular-nums text-[#1E47C8]">
+          {p.cuotas}× {UYU(cuota)}
+        </span>
       )}
+      <div className="flex flex-wrap items-baseline gap-x-1.5">
+        <span className={`font-black tabular-nums text-[#157A50] ${conCuota ? "text-[12.5px]" : "text-[16px]"}`}>{UYU(p.precio)}</span>
+        {enOferta && <span className="text-[10.5px] font-semibold tabular-nums text-tenue line-through">{UYU(p.precioAnterior)}</span>}
+        {conCuota && p.interesPct === 0 && <span className="rounded-full bg-[#E4F5EC] px-1.5 py-[1px] text-[9.5px] font-bold text-[#157A50]">sin interés</span>}
+      </div>
     </div>
   );
 }
@@ -516,6 +558,15 @@ function DetalleProducto({
 
         {/* CTA fijo abajo (queda visible al scrollear la ficha). */}
         <div className="shrink-0 border-t border-[#EEF1F8] bg-white px-5 py-3">
+          {/* Precio + cuota SIEMPRE a la vista junto al CTA (la financiación es el gancho). */}
+          {estado !== "ok" && !preview && (
+            <div className="mb-2 flex items-baseline justify-between gap-3">
+              <span className="text-[20px] font-black tabular-nums leading-none text-[#157A50]">{UYU(p.precio)}</span>
+              {p.cuotas > 0 && cuota > 0 && (
+                <span className="text-[12.5px] font-bold text-[#1E47C8]">{p.cuotas}× <span className="tabular-nums">{UYU(cuota)}</span> {FREC_LABEL[p.frecuencia]}</span>
+              )}
+            </div>
+          )}
           {preview ? (
             <div className="w-full rounded-full bg-[#EEF3FF] px-5 py-3 text-center text-[14px] font-bold text-azul">Vista previa · así lo ve tu cliente</div>
           ) : estado === "ok" ? (

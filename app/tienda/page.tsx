@@ -53,7 +53,7 @@ export default async function TiendaPublicaPage({
       sub: "Electrodomésticos, tecnología, fragancias y mucho más. Elegís, te pasamos el plan y te lo llevamos a tu casa.",
       img: electro?.fotos[0] ?? curbePerfume?.fotos[0] ?? null,
       imgLabel: electro?.nombre ?? curbePerfume?.nombre ?? null,
-      cta: null,
+      cta: { label: "Ver productos ↓", href: "#catalogo" },
     },
     {
       tema: "curbe",
@@ -92,23 +92,6 @@ export default async function TiendaPublicaPage({
         {/* Hero = CARRUSEL de banners (Presta Ya general + Curbe publicitario). */}
         <HeroCarrusel slides={slidesHero} />
 
-        {/* Atribución CURBE: las fragancias y joyas son de curbe.uy, con link al sitio. */}
-        <a
-          href="https://curbe.uy"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center justify-between gap-3 rounded-[16px] border border-[#E6D3A0] bg-[linear-gradient(135deg,#FBF3DE,#F4E7C3)] px-4 py-3 shadow-[0_4px_16px_rgba(201,162,75,0.18)] transition hover:brightness-[0.99]"
-        >
-          <div className="flex items-center gap-2.5">
-            <span className="text-[22px]" aria-hidden="true">💎</span>
-            <div className="flex flex-col">
-              <span className="text-[13px] font-extrabold text-[#7A5E12] md:text-[14px]">Fragancias &amp; joyas por Curbe</span>
-              <span className="text-[11.5px] font-medium text-[#96792A] md:text-[12.5px]">Perfumes inspirados y oro 18k italiano · curbe.uy</span>
-            </div>
-          </div>
-          <span className="shrink-0 rounded-full bg-[linear-gradient(135deg,#E8C56E,#C9A24B)] px-3 py-1.5 text-[11.5px] font-black text-[#2A2110] shadow-sm">Ver curbe.uy →</span>
-        </a>
-
         {/* Empleado logueado: sus compras a crédito (inicio + historial de descuentos). */}
         {esEmpleado && <MisComprasEmpleado compras={misCompras} />}
 
@@ -118,6 +101,7 @@ export default async function TiendaPublicaPage({
           </div>
         )}
 
+        <div id="catalogo" className="scroll-mt-4" />
         {productos.length === 0 ? (
           <div className="mt-4 flex flex-col items-center gap-2 rounded-[18px] border border-[#ECEFF8] bg-white px-6 py-12 text-center">
             <span className="text-[40px]" aria-hidden="true">🛒</span>

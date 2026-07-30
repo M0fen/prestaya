@@ -6,7 +6,7 @@
 //  de Curbe (que doblega como pieza publicitaria, con su imagen y link a curbe.uy).
 //  Cada slide trae SU propia imagen → nunca un titular de perfumes con foto de heladera.
 // ─────────────────────────────────────────────────────────────────────────
-import { useEffect, useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 
 export type HeroSlide = {
   tema: "prestaya" | "curbe";
@@ -49,21 +49,13 @@ function Titulo({ titulo, acento, color }: { titulo: string; acento?: string; co
 export function HeroCarrusel({ slides }: { slides: HeroSlide[] }) {
   const n = slides.length;
   const [i, setI] = useState(0);
-  const [pausa, setPausa] = useState(false);
   const ir = useCallback((k: number) => setI(((k % n) + n) % n), [n]);
-
-  useEffect(() => {
-    if (pausa || n <= 1) return;
-    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
-    const t = setInterval(() => setI((p) => (p + 1) % n), 6000);
-    return () => clearInterval(t);
-  }, [pausa, n]);
+  // Sin auto-avance: mover el contenido antes de que el usuario (incl. adultos
+  // mayores) termine de leer/tocar es contraproducente. Navegación 100% manual.
 
   return (
     <section
       className="relative overflow-hidden rounded-[24px] shadow-[0_18px_44px_rgba(9,16,40,0.32)]"
-      onMouseEnter={() => setPausa(true)}
-      onMouseLeave={() => setPausa(false)}
       aria-roledescription="carrusel"
     >
       {/* Pila de slides (crossfade). El activo manda el alto. */}
