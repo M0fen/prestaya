@@ -331,3 +331,41 @@ html[data-contraste="1"] {
     animation: none;
   }
 }
+
+/* ── Carrusel de novedades: barra de auto-avance que se llena en cada slide,
+   señal calma de que el banner rota solo (no casino). Se reinicia por slide
+   (key={i} → remonta). Se oculta con reduced-motion (ahí no hay auto-avance). */
+.py-banner-progress {
+  transform-origin: left;
+  transform: scaleX(0);
+  animation: py-banner-progress var(--dur, 5000ms) linear forwards;
+  will-change: transform;
+}
+@keyframes py-banner-progress {
+  to {
+    transform: scaleX(1);
+  }
+}
+/* Entrada suave del banner al cargar (aparece subiendo, gentil). */
+.py-reveal {
+  animation: py-reveal 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes py-reveal {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .py-banner-progress {
+    animation: none;
+    display: none;
+  }
+  .py-reveal {
+    animation: none;
+  }
+}

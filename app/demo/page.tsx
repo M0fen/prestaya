@@ -21,6 +21,7 @@ function anuncioDemo(
   tema: Anuncio["tema"],
   prioridad: number,
   cta_texto: string | null = null,
+  etiqueta: string | null = null,
 ): Anuncio {
   return {
     id,
@@ -29,7 +30,7 @@ function anuncioDemo(
     cta_texto,
     cta_url: cta_texto ? "#" : null,
     imagen_url: null,
-    etiqueta: null,
+    etiqueta,
     tema,
     prioridad,
     activo: true,
@@ -54,18 +55,35 @@ const anunciosDemo: Anuncio[] = [
   ),
   anuncioDemo(
     "a2",
-    "Feriado: cerramos el jueves 18/6 📅",
-    "Ese día no pasa el cobrador. Podés adelantar tu cuota el miércoles.",
+    "Farmacia del Pueblo 💊",
+    "15% de descuento presentando tu app Presta Ya al pagar en caja.",
+    "dorado",
+    25,
+    "Ver más",
+    "Publicidad",
+  ),
+  anuncioDemo(
+    "a3",
+    "Feriado: no pasa el cobrador el jueves 📅",
+    "Ese día podés adelantar tu cuota el miércoles y quedás al día.",
     "ambar",
     20,
   ),
   anuncioDemo(
-    "a3",
+    "a4",
     "Premio a tu constancia 🎁",
     "Pagá 10 días seguidos sin atrasos y accedé a un descuento en tu próximo crédito.",
     "verde",
-    10,
+    15,
     "Ver beneficios",
+  ),
+  anuncioDemo(
+    "a5",
+    "Renová y accedé a más 📈",
+    "Al terminar tu crédito estando al día, podés pedir un monto mayor.",
+    "oscuro",
+    5,
+    "Ver cómo",
   ),
 ];
 

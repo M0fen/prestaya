@@ -32,17 +32,22 @@ const INTERVALO = 5000;
 
 export function BannerCarrusel({ anuncios }: { anuncios: Anuncio[] }) {
   const [i, setI] = useState(0);
+  const [reduce, setReduce] = useState(false);
   const dragX = useRef<number | null>(null);
   const n = anuncios.length;
 
-  // Auto-avance (pausado si el usuario prefiere menos movimiento o hay 1 solo).
+  // ¿El usuario pidió menos movimiento? → se pausa el auto-avance y se oculta la
+  // barra de progreso (nada de animación que no haya pedido).
   useEffect(() => {
-    if (n <= 1) return;
-    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduce) return;
+    setReduce(matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }, []);
+
+  // Auto-avance (pausado si prefiere menos movimiento o hay 1 solo).
+  useEffect(() => {
+    if (n <= 1 || reduce) return;
     const id = setInterval(() => setI((v) => (v + 1) % n), INTERVALO);
     return () => clearInterval(id);
-  }, [n]);
+  }, [n, reduce]);
 
   if (n === 0) return null;
 
@@ -60,7 +65,7 @@ export function BannerCarrusel({ anuncios }: { anuncios: Anuncio[] }) {
   return (
     <section aria-label="Novedades" className="flex flex-col gap-2">
       <div
-        className="relative overflow-hidden rounded-[22px] shadow-[0_12px_28px_rgba(19,48,140,0.22)]"
+        className="py-reveal relative overflow-hidden rounded-[22px] shadow-[0_12px_28px_rgba(19,48,140,0.22)]"
         onPointerDown={onDown}
         onPointerUp={onUp}
       >
@@ -73,6 +78,17 @@ export function BannerCarrusel({ anuncios }: { anuncios: Anuncio[] }) {
             <Slide key={a.id} anuncio={a} />
           ))}
         </div>
+
+        {/* Barra de auto-avance: deja CLARO que el banner rota solo (se reinicia
+            en cada slide vía key={i}). Se oculta con reduced-motion. */}
+        {n > 1 && !reduce && (
+          <span
+            key={i}
+            aria-hidden
+            className="py-banner-progress absolute bottom-0 left-0 h-[3px] w-full bg-white/55"
+            style={{ "--dur": `${INTERVALO}ms` } as React.CSSProperties}
+          />
+        )}
       </div>
 
       {/* Puntos de navegación */}
