@@ -217,6 +217,7 @@ export default async function VistaPorToken({
   //     precio resuelto para este cliente. Resiliente: nunca rompe la vista.
   let hayTienda = false;
   let productoDestacado: ProductoParaCliente | null = null;
+  let destacados: ProductoParaCliente[] = [];
   try {
     // AUDIENCE-AWARE: el botón "Ir a la tienda" solo se muestra si este cliente tiene
     // productos VISIBLES (mismo filtro por segmento que el catálogo real). Antes usaba
@@ -224,10 +225,20 @@ export default async function VistaPorToken({
     // en la tienda vacía (dead-end confuso para un adulto mayor).
     const visibles = await getProductosParaCliente(db, cliente);
     hayTienda = visibles.length > 0;
-    if (hayTienda) productoDestacado = await getProductoDestacadoParaCliente(db, cliente);
+    if (hayTienda) {
+      productoDestacado = await getProductoDestacadoParaCliente(db, cliente);
+      // VITRINA: hasta 6 destacados CON foto (precio ya resuelto en `visibles`) para el
+      // banner profesional. Sin query extra. Si no hay destacados con foto, cualquiera con foto.
+      const conFoto = visibles.filter((p) => p.fotos[0]);
+      destacados = (conFoto.filter((p) => p.destacado).length > 0
+        ? conFoto.filter((p) => p.destacado)
+        : conFoto
+      ).slice(0, 6);
+    }
   } catch {
     hayTienda = false;
     productoDestacado = null;
+    destacados = [];
   }
 
   // 5) Reputación positiva — resiliente: nunca rompe la vista.
@@ -256,6 +267,7 @@ export default async function VistaPorToken({
       anuncios={anuncios}
       hayTienda={hayTienda}
       productoDestacado={productoDestacado}
+      destacados={destacados}
       token={token}
       prestamoId={prestamo.id}
       rifa={rifa}

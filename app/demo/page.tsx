@@ -89,11 +89,15 @@ export default async function DemoVistaCliente() {
   } catch {
     productos = [];
   }
-  // Destacamos un electro PROPIO con foto (o el primero con foto que haya).
-  const destacado =
-    productos.find((p) => !p.proveedor && p.destacado && p.fotos[0]) ??
-    productos.find((p) => p.fotos[0]) ??
-    null;
+  // VITRINA: hasta 6 destacados CON foto para el banner profesional (si no hay
+  // destacados con foto, cae a cualquiera con foto). Nada inventado: productos reales.
+  const conFoto = productos.filter((p) => p.fotos[0]);
+  const destacados = (
+    conFoto.filter((p) => p.destacado).length > 0
+      ? conFoto.filter((p) => p.destacado)
+      : conFoto
+  ).slice(0, 6);
+  const destacado = destacados[0] ?? null;
 
   const v = construirVistaCliente({
     cliente: clienteMock,
@@ -109,6 +113,7 @@ export default async function DemoVistaCliente() {
       anuncios={anunciosDemo}
       hayTienda={productos.length > 0}
       productoDestacado={destacado}
+      destacados={destacados}
       reputacion={{ calificacion: clienteMock.calificacion, creditosPagados: 2 }}
       promo={{
         raspaDisponibles: 1,

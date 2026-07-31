@@ -5,6 +5,7 @@ import type { VistaCredito } from "@/types/cartones";
 import type { Anuncio, Calificacion } from "@/types/db";
 import type { ProductoParaCliente } from "@/lib/data/tienda";
 import { TiendaBanner } from "@/components/tienda/TiendaBanner";
+import { VitrinaCliente } from "@/components/tienda/VitrinaCliente";
 import { PromoCliente, type PromoData } from "@/components/promos/PromoCliente";
 import { Header } from "@/components/Header";
 import { Saludo } from "@/components/Saludo";
@@ -30,6 +31,7 @@ export function VistaClienteScreen({
   anuncios = [],
   hayTienda = false,
   productoDestacado = null,
+  destacados = [],
   token = null,
   prestamoId = null,
   reputacion = null,
@@ -42,8 +44,10 @@ export function VistaClienteScreen({
   anuncios?: Anuncio[];
   /** ¿Hay productos activos? → muestra el botón "Ir a la tienda" (página aparte). */
   hayTienda?: boolean;
-  /** Producto destacado (con precio resuelto para el cliente) → banner del cartón. */
+  /** Producto destacado (con precio resuelto) → banner simple (fallback). */
   productoDestacado?: ProductoParaCliente | null;
+  /** Destacados con foto (precio resuelto) → VITRINA profesional del cartón. */
+  destacados?: ProductoParaCliente[];
   /** Rifa promocional a mostrarle a este cliente (o null). */
   rifa?: RifaVista | null;
   /** Selector de crédito (si el cliente tiene varios activos). Se pinta arriba. */
@@ -96,12 +100,15 @@ export function VistaClienteScreen({
             PRIMERO que ve el cliente (rota solo si hay varios). Esa es la gracia. */}
         <BannerCarrusel anuncios={anuncios} />
 
-        {/* TIENDA a PRIMER VISTAZO (comercial): banner del producto destacado (con
-            su foto real) + entrada al catálogo, arriba de todo. Con token → tienda
-            del cliente; sin token (demo) → tienda pública. */}
-        {productoDestacado && (
+        {/* TIENDA a PRIMER VISTAZO (comercial): VITRINA profesional que rota fotos de
+            producto grandes (estilo e-commerce) + entrada al catálogo. Con token →
+            tienda del cliente; sin token (demo) → tienda pública. Si no hay varios
+            destacados con foto, cae al banner simple del destacado. */}
+        {destacados.length > 0 ? (
+          <VitrinaCliente productos={destacados} token={token} />
+        ) : productoDestacado ? (
           <TiendaBanner producto={productoDestacado} token={token} />
-        )}
+        ) : null}
         {hayTienda && (
           <Link
             href={token ? `/c/${token}/tienda` : "/tienda"}
