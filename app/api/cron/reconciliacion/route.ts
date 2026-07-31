@@ -11,6 +11,7 @@ import { cronAutorizado } from "@/lib/seguridad/cron";
 import { reconciliarDia, logReconciliacion } from "@/lib/data/reconciliacion";
 import { getSuscripcionesDeRoles, borrarSuscripcionDb } from "@/lib/data/push";
 import { enviarPush, pushConfigurado } from "@/lib/push/enviar";
+import { enviarEmailAlerta, emailConfigurado } from "@/lib/alertas/email";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -73,6 +74,27 @@ export async function GET(req: Request): Promise<Response> {
       new Error(`${r.criticos} hallazgo(s) crítico(s) de dinero (${r.hallazgos.length} en total)`),
       { criticos: r.criticos, total: r.hallazgos.length, recaudoLibro: r.recaudoLibro },
     );
+  }
+
+  // Alerta por EMAIL ante lo CRÍTICO — canal AUTÓNOMO, no depende de que un admin
+  // haya instalado la PWA y tocado "activar avisos" en su teléfono (frágil). Es el
+  // camino que sí llega solo. Best-effort: si Resend falla o no está configurado,
+  // no rompe el cron (el crítico igual quedó en Sentry + el panel + el push).
+  if (r.criticos > 0 && emailConfigurado()) {
+    let origen = "https://prestaya-blush.vercel.app";
+    try {
+      origen = process.env.NEXT_PUBLIC_APP_URL || new URL(req.url).origin;
+    } catch {
+      /* req.url raro → usar el fallback */
+    }
+    await enviarEmailAlerta({
+      asunto: `⚠️ Presta Ya — revisar la plata (${r.criticos} crítico${r.criticos === 1 ? "" : "s"})`,
+      cuerpo:
+        `La reconciliación de hoy encontró ${r.criticos} hallazgo(s) crítico(s) de dinero ` +
+        `(${r.hallazgos.length} en total).\n\n` +
+        `Entrá al panel para ver el detalle (qué crédito y de cuánto):\n${origen}/admin/empalme\n\n` +
+        `Si algún día NO te llega este mail, es buena señal: significa que la plata cuadró.`,
+    });
   }
 
   // Alerta push SOLO ante lo CRÍTICO: drift del denormalizado (los saldos mienten) o
