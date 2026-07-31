@@ -138,15 +138,19 @@ export function useSync(usuarioId: string | null, onSynced?: () => void) {
         }
       }
 
-      // Escalar SOLO las ambiguas que son PER-OP: fallaron mientras el batch AVANZÓ
-      // (alguna otra op subió OK) o ya venían sospechosas (intentos>0 de un pase previo).
-      // Un corte sistémico (red caída: ninguna avanza y todas son nuevas) NO acumula
-      // intentos → no marca cobros reales como atascados durante el freeze. Con
-      // marcarIntento, tras MAX_INTENTOS_SYNC pases la op cae a "atascada": sale del
-      // loop de reintento y aparece en el cierre para descartar/re-registrar (su op_id
-      // sigue protegido por idempotencia, así que re-registrar no duplica).
-      for (const op of ambiguas) {
-        if (algunoOk || (op.intentos ?? 0) > 0) marcarIntento(op.id);
+      // Escalar las ambiguas SIEMPRE que NO haya habido freno SISTÉMICO en este pase.
+      // frenoSistemico=false significa que el server RESPONDIÓ a cada op (no fue una
+      // caída de red ni el kill switch): entonces una ambigua es un fallo PER-OP
+      // (determinista sobre ese crédito) o un hipo transitorio del server. En ambos
+      // casos hay que ACUMULAR intento: un hipo se recupera en pocos pases, y una op
+      // envenenada (aunque sea la ÚNICA de la cola) llega a MAX_INTENTOS_SYNC y cae a
+      // "atascada" → sale del reintento y aparece en el cierre para descartar/
+      // re-registrar (op_id protegido por idempotencia, no duplica). Sin esto, una op
+      // poison solitaria (algunoOk=false, intentos=0) reintentaba para siempre y
+      // bloqueaba el cierre de la jornada. Durante un corte de red (frenoSistemico),
+      // NO se escala: no marcamos cobros reales como atascados en pleno freeze.
+      if (!frenoSistemico) {
+        for (const op of ambiguas) marcarIntento(op.id);
       }
     } finally {
       flushing.current = false;

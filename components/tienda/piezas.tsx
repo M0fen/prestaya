@@ -362,7 +362,7 @@ export function BarraTienda({ titulo, favN, cartN, favActivo, onFav, onCart, onP
   onFav: () => void; onCart: () => void; onPerfil: () => void; pulso: number;
 }) {
   return (
-    <div className="sticky top-0 z-40 -mx-[18px] flex items-center justify-between gap-2 border-b border-[#E4E9F5] bg-app/90 px-[18px] py-2 backdrop-blur-md md:mx-0 md:rounded-[16px] md:border md:px-3">
+    <div className="sticky top-0 z-40 -mx-[18px] flex items-center justify-between gap-2 border-b border-[#E4E9F5] bg-[#EBEEF5]/92 px-[18px] py-2 backdrop-blur-md md:mx-0 md:rounded-[16px] md:border md:px-3">
       <style>{`@keyframes popBadge{0%{transform:scale(1)}45%{transform:scale(1.5)}100%{transform:scale(1)}}`}</style>
       <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="flex min-w-0 items-center gap-2">
         <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] bg-[linear-gradient(135deg,#2453DC,#13308C)] text-[15px] shadow-[0_4px_12px_rgba(19,48,140,0.35)]">🛍️</span>
@@ -486,7 +486,7 @@ export function MiTienda({ open, onOpenChange, scope, titulo = "Mi tienda", comp
                           <span className="text-[12px] font-black tabular-nums text-[#157A50]">{UYU(f.precio)}</span>
                         </div>
                       </button>
-                      <button type="button" onClick={() => onQuitarFav(f.id)} aria-label="Quitar de favoritos" className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-[12px] shadow-sm active:scale-90">✕</button>
+                      <button type="button" onClick={() => onQuitarFav(f.id)} aria-label="Quitar de favoritos" className="absolute right-1 top-1 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-[13px] shadow-sm active:scale-90">✕</button>
                     </div>
                   ))}
                 </div>

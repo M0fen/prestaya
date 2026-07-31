@@ -39,15 +39,29 @@ export function CobrosRecientes({ pagos }: { pagos: PagoReciente[] }) {
 
   const deshacer = (id: string) => {
     setError(null);
+    // Deshacer necesita RED (server action). La ficha se sirve cacheada offline, así
+    // que sin señal hay que avisar y NO marcar optimista (evita que el await reviente
+    // la pantalla con un fetch-failed).
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      setError("Necesitás señal para deshacer un cobro.");
+      return;
+    }
     setDeshechos((s) => new Set(s).add(id)); // efecto inmediato en la UI
     startTransition(async () => {
-      const r = await deshacerPagoAction({ pagoId: id });
-      if (!r.ok) {
-        // Falló: revertir el optimismo y avisar.
+      try {
+        const r = await deshacerPagoAction({ pagoId: id });
+        if (!r.ok) {
+          // Falló: revertir el optimismo y avisar.
+          setDeshechos((s) => { const n = new Set(s); n.delete(id); return n; });
+          setError(r.error);
+        } else {
+          router.refresh(); // el pago ya quedó anulado; el cartón se actualiza por detrás
+        }
+      } catch {
+        // La red se cayó a mitad del round-trip: revertir y avisar INLINE (no dejar que
+        // el error escape del transition y tire el error boundary del cobrador).
         setDeshechos((s) => { const n = new Set(s); n.delete(id); return n; });
-        setError(r.error);
-      } else {
-        router.refresh(); // el pago ya quedó anulado; el cartón se actualiza por detrás
+        setError("No pudimos deshacer (sin señal). Probá de nuevo con conexión.");
       }
     });
   };

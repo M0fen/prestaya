@@ -468,7 +468,14 @@ export async function convertirLeadEnVenta(input: {
 
   const frecuencia: FrecuenciaProducto =
     input.frecuencia && FRECUENCIAS.includes(input.frecuencia) ? input.frecuencia : producto.frecuencia;
-  const plazo = input.plazo != null ? Math.round(Number(input.plazo)) : terminos.cuotas;
+  // Si el cliente tiene un OVERRIDE que cambia las cuotas respecto al producto base,
+  // se usa el plan RESUELTO (el que el cliente vio en su vitrina): no se le puede
+  // cobrar un plazo distinto al que se le mostró. Solo cuando no hay override de
+  // cuotas se respeta el plazo que el admin eligió a mano (o el resuelto por defecto).
+  const overrideCambiaCuotas = terminos.cuotas > 0 && terminos.cuotas !== producto.cuotas;
+  const plazo = overrideCambiaCuotas
+    ? terminos.cuotas
+    : (input.plazo != null ? Math.round(Number(input.plazo)) : terminos.cuotas);
   if (!Number.isInteger(plazo) || plazo < 1 || plazo > 1000) return { ok: false, error: "Revisá la cantidad de cuotas (entre 1 y 1000)." };
 
   const plan = calcularPlanVenta({ precio: terminos.precio, interesPct: terminos.interesPct, cuotas: plazo });

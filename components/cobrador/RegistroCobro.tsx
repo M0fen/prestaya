@@ -115,6 +115,12 @@ export function RegistroCobro({
   // OTRA cuota con otro op_id → doble cobro). Se libera al vencer el hold o al deshacer.
   const [cobroReciente, setCobroReciente] = useState(false);
   const cobroTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Tras cobrar la cuota COMPLETA, el saldo/cartón no se refresca sin router.refresh
+  // (imposible offline) → el botón volvía idéntico a "Registrar pago" y un re-tap
+  // cobraba OTRA cuota. Marcamos localmente que la cuota de hoy ya se cobró y pedimos
+  // una confirmación extra para "adelantar" la próxima (no repetir el CTA verde).
+  const [hoyCobrado, setHoyCobrado] = useState(false);
+  const [confirmarAdelanto, setConfirmarAdelanto] = useState(false);
   // Anti-doble-registro: un segundo toque instantáneo no encola otro cobro.
   const bloqueado = useRef(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -202,6 +208,9 @@ export function RegistroCobro({
     if (cobroTimer.current) clearTimeout(cobroTimer.current);
     setCobroReciente(true);
     cobroTimer.current = setTimeout(() => setCobroReciente(false), HOLD_MS);
+    // Cobro de cuota COMPLETA → la de hoy quedó cubierta (para el botón anti doble-cobro).
+    if (!esAbono) setHoyCobrado(true);
+    setConfirmarAdelanto(false);
     setAbono(false);
     setMontoAbono("");
     // Comprobante profesional (recibo con trazabilidad), compartible por WhatsApp.
@@ -295,6 +304,8 @@ export function RegistroCobro({
     vibrar(30);
     if (cobroTimer.current) clearTimeout(cobroTimer.current);
     setCobroReciente(false); // deshecho: se puede volver a cobrar ya
+    setHoyCobrado(false);
+    setConfirmarAdelanto(false);
     setUndo(null);
     setModalAbierto(false);
     setComprobante(null);
@@ -316,21 +327,38 @@ export function RegistroCobro({
         </p>
       )}
 
-      <button
-        type="button"
-        disabled={ocupado || saldado || cobroReciente}
-        onClick={() => cobrar(null)}
-        className="rounded-full bg-[#1FA971] px-5 py-3.5 text-[15px] font-extrabold text-white shadow-[0_8px_20px_rgba(31,169,113,0.35)] active:scale-[0.98] disabled:opacity-60"
-        style={{ transition: "transform .1s" }}
-      >
-        {saldado
-          ? "Crédito saldado ✓"
-          : cobroReciente
-            ? "Cobro registrado ✓"
-            : ocupado
-              ? "Registrando…"
-              : `Registrar pago · ${UYU(cuotaEfectiva)}`}
-      </button>
+      {hoyCobrado && !cobroReciente && !saldado && !ocupado ? (
+        // La cuota de hoy YA se cobró: el botón deja de ser el CTA verde idéntico.
+        // Requiere una confirmación extra para "adelantar" otra cuota (anti doble-cobro).
+        <button
+          type="button"
+          onClick={() => (confirmarAdelanto ? cobrar(null) : setConfirmarAdelanto(true))}
+          className={`rounded-full px-5 py-3.5 text-[14px] font-extrabold active:scale-[0.98] ${
+            confirmarAdelanto
+              ? "bg-[#1FA971] text-white shadow-[0_8px_20px_rgba(31,169,113,0.35)]"
+              : "border border-[#BFE6D2] bg-[#F1FBF6] text-[#157A50]"
+          }`}
+          style={{ transition: "transform .1s" }}
+        >
+          {confirmarAdelanto ? `Sí, adelantar otra cuota · ${UYU(cuotaEfectiva)}` : "✓ Cuota de hoy cobrada · adelantar próxima"}
+        </button>
+      ) : (
+        <button
+          type="button"
+          disabled={ocupado || saldado || cobroReciente}
+          onClick={() => cobrar(null)}
+          className="rounded-full bg-[#1FA971] px-5 py-3.5 text-[15px] font-extrabold text-white shadow-[0_8px_20px_rgba(31,169,113,0.35)] active:scale-[0.98] disabled:opacity-60"
+          style={{ transition: "transform .1s" }}
+        >
+          {saldado
+            ? "Crédito saldado ✓"
+            : cobroReciente
+              ? "Cobro registrado ✓"
+              : ocupado
+                ? "Registrando…"
+                : `Registrar pago · ${UYU(cuotaEfectiva)}`}
+        </button>
+      )}
 
       <div className="flex gap-2.5">
         {/* Botón que CAMBIA de estado al abrirse (antes quedaba gris y no se
@@ -450,21 +478,21 @@ export function RegistroCobro({
       {toast && (
         <div className="fixed inset-x-0 bottom-24 z-40 flex justify-center px-4" role="status">
           <div
-            className="flex items-center gap-2.5 rounded-full px-4 py-2.5 text-white shadow-[0_10px_30px_rgba(0,0,0,0.3)]"
+            className="flex max-w-[calc(100vw-2rem)] items-center gap-2.5 rounded-full px-4 py-2.5 text-white shadow-[0_10px_30px_rgba(0,0,0,0.3)]"
             style={{
               background:
                 toast.tono === "ok" ? "#157A50" : toast.tono === "alerta" ? "#C0392B" : "#13308C",
             }}
           >
-            <span className="text-[15px]">{toast.tono === "alerta" ? "⚠️" : "✓"}</span>
-            <div className="flex flex-col leading-tight">
-              <span className="text-[13px] font-bold">{toast.texto}</span>
+            <span className="shrink-0 text-[15px]">{toast.tono === "alerta" ? "⚠️" : "✓"}</span>
+            <div className="flex min-w-0 flex-col leading-tight">
+              <span className="truncate text-[13px] font-bold">{toast.texto}</span>
               {toast.sub && (
-                <span className="text-[11px] font-medium text-white/70">{toast.sub}</span>
+                <span className="truncate text-[11px] font-medium text-white/70">{toast.sub}</span>
               )}
             </div>
             {toast.acciones && (
-              <div className="ml-1.5 flex items-center gap-1.5">
+              <div className="ml-1.5 flex shrink-0 items-center gap-1.5">
                 {toast.acciones.recibo && (
                   <button
                     type="button"

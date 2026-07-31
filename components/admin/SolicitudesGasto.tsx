@@ -45,9 +45,9 @@ export function SolicitudesGasto({
 
   if (solicitudes.length === 0) {
     return (
-      <section className="rounded-[16px] border border-[#CFEBDD] bg-[#F1FBF6] px-4 py-6 text-center">
-        <span className="text-[13px] font-bold text-[#157A50]">Sin solicitudes pendientes. ✓</span>
-        <p className="mt-1 text-[12px] font-medium text-[#4E9E79]">
+      <section className="rounded-[16px] border border-borde bg-verde-suave px-4 py-6 text-center">
+        <span className="text-[13px] font-bold text-verde-osc">Sin solicitudes pendientes. ✓</span>
+        <p className="mt-1 text-[12px] font-medium text-verde-osc">
           Cuando un cobrador pida un gasto, aparece acá {puedeAprobar ? "para tu aprobación" : "para que lo sigas"}.
         </p>
       </section>
@@ -58,14 +58,14 @@ export function SolicitudesGasto({
 
   return (
     <section className="flex flex-col gap-2.5">
-      {error && <p className="rounded-[10px] bg-[#FBE4E2] px-3 py-2 text-[12px] font-bold text-[#C0392B]">{error}</p>}
+      {error && <p className="rounded-[10px] bg-rojo-suave px-3 py-2 text-[12px] font-bold text-rojo-osc">{error}</p>}
 
       {/* Resumen: cuánto efectivo está esperando salir de caja, de un vistazo. */}
-      <div className="flex items-center justify-between rounded-[12px] bg-[#FDF3E2] px-4 py-2.5">
-        <span className="text-[12.5px] font-bold text-[#B9770E]">
+      <div className="flex items-center justify-between rounded-[12px] bg-ambar-suave px-4 py-2.5">
+        <span className="text-[12.5px] font-bold text-ambar-osc">
           {solicitudes.length} solicitud{solicitudes.length === 1 ? "" : "es"} esperando {puedeAprobar ? "tu aprobación" : "aprobación del admin"}
         </span>
-        <span className="text-[15px] font-extrabold tabular-nums text-[#B9770E]">{UYU(totalPendiente)}</span>
+        <span className="text-[15px] font-extrabold tabular-nums text-ambar-osc">{UYU(totalPendiente)}</span>
       </div>
 
       {solicitudes.map((s) => (
@@ -82,7 +82,7 @@ export function SolicitudesGasto({
                 Ver su campo →
               </Link>
             </div>
-            <span className="flex-shrink-0 text-[18px] font-black tabular-nums text-[#C0392B]">{UYU(s.monto)}</span>
+            <span className="flex-shrink-0 text-[18px] font-black tabular-nums text-rojo-osc">{UYU(s.monto)}</span>
           </div>
 
           {/* Comprobante que adjuntó el cobrador (foto/factura): verificalo antes de aprobar. */}
@@ -102,7 +102,7 @@ export function SolicitudesGasto({
               <span className="flex-1 text-[12px] font-bold text-azul">📎 Ver comprobante adjunto →</span>
             </a>
           ) : (
-            <span className="w-fit rounded-[10px] bg-[#FBF1DC] px-2.5 py-1.5 text-[11.5px] font-semibold text-[#9A6A0E]">
+            <span className="w-fit rounded-[10px] bg-ambar-suave px-2.5 py-1.5 text-[11.5px] font-semibold text-ambar-osc">
               Sin comprobante adjunto
             </span>
           )}

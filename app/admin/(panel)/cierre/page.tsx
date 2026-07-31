@@ -379,8 +379,8 @@ function EstadoCobrador({
     rendido.estado === "cuadra"
       ? { bg: "#E4F5EC", fg: "#157A50", txt: "Cuadra" }
       : rendido.estado === "faltante"
-        ? { bg: "#FBE4E2", fg: "#C0392B", txt: `Faltante ${UYU(rendido.diferencia)}` }
-        : { bg: "#EAF0FF", fg: "#1E47C8", txt: `Sobrante ${UYU(rendido.diferencia)}` };
+        ? { bg: "#FBE4E2", fg: "#C0392B", txt: `Faltante ${UYU(Math.abs(rendido.diferencia))}` }
+        : { bg: "#EAF0FF", fg: "#1E47C8", txt: `Sobrante ${UYU(Math.abs(rendido.diferencia))}` };
   return (
     <span
       className="flex-shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold"

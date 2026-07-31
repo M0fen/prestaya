@@ -442,8 +442,8 @@ function EditorProducto({
       {/* Precios especiales (solo al editar un producto ya creado) */}
       {raw.id && (
         <>
-          <PrecioPorSegmento productoId={raw.id} zonas={zonas} baseInteres={raw.interesPct} baseCuotas={raw.cuotas} />
-          <PrecioPorCliente productoId={raw.id} baseInteres={raw.interesPct} baseCuotas={raw.cuotas} />
+          <PrecioPorSegmento productoId={raw.id} zonas={zonas} baseInteres={f.interesPct} baseCuotas={f.cuotas} />
+          <PrecioPorCliente productoId={raw.id} baseInteres={f.interesPct} baseCuotas={f.cuotas} />
         </>
       )}
     </div>
@@ -532,7 +532,7 @@ function PrecioPorSegmento({ productoId, zonas, baseInteres, baseCuotas }: { pro
         <input type="number" inputMode="numeric" placeholder={`Cuot. (${baseCuotas})`} value={cuotas} onChange={(e) => setCuotas(e.target.value)} className={`${INPUT} w-24`} />
         <button type="button" onClick={agregar} disabled={pend} className="rounded-full bg-[#2453DC] px-3 py-2.5 text-[12px] font-bold text-white">Fijar</button>
       </div>
-      <span className="text-[11px] font-medium text-gris">Si dejás <b>% interés</b> o <b>cuotas</b> en blanco, se usa el del producto base ({baseInteres}% · {baseCuotas} cuotas).</span>
+      <span className="text-[11px] font-medium text-gris">Si dejás <b>% interés</b> o <b>cuotas</b> en blanco, se copia el valor ACTUAL del producto ({baseInteres}% · {baseCuotas} cuotas). Si después cambiás el interés base, esta regla no se actualiza sola.</span>
       {tipo === "zona" && zonas.length === 0 && (
         <span className="text-[11px] font-medium text-gris">No hay zonas cargadas todavía. Creá zonas en Configuración → Zonas.</span>
       )}
@@ -627,7 +627,7 @@ function PrecioPorCliente({ productoId, baseInteres, baseCuotas }: { productoId:
             <button type="button" onClick={agregar} disabled={pend} className="rounded-full bg-[#2453DC] px-3 py-2.5 text-[12px] font-bold text-white">Fijar</button>
           </div>
         )}
-        {sel && <span className="text-[11px] font-medium text-gris">En blanco = usa el interés/cuotas del producto base ({baseInteres}% · {baseCuotas} cuotas).</span>}
+        {sel && <span className="text-[11px] font-medium text-gris">En blanco = copia el valor actual del producto ({baseInteres}% · {baseCuotas} cuotas).</span>}
         {error && <span className="text-[11.5px] font-semibold text-[#C0392B]">{error}</span>}
       </div>
     </section>

@@ -24,7 +24,7 @@ import { numeroSuerte } from "@/lib/quiniela";
 import { calcularEstadosCarton } from "@/lib/cartones";
 import { getRifaParaCliente, getParticipacionRifaCliente } from "@/lib/data/rifas";
 import { construirVistaCliente } from "@/lib/vistaCliente";
-import { hayProductosActivos, getProductoDestacadoParaCliente, type ProductoParaCliente } from "@/lib/data/tienda";
+import { getProductosParaCliente, getProductoDestacadoParaCliente, type ProductoParaCliente } from "@/lib/data/tienda";
 import { conTimeout } from "@/lib/timeout";
 import { hoyUY } from "@/lib/fecha";
 import type { Anuncio } from "@/types/db";
@@ -218,7 +218,12 @@ export default async function VistaPorToken({
   let hayTienda = false;
   let productoDestacado: ProductoParaCliente | null = null;
   try {
-    hayTienda = await hayProductosActivos(db);
+    // AUDIENCE-AWARE: el botón "Ir a la tienda" solo se muestra si este cliente tiene
+    // productos VISIBLES (mismo filtro por segmento que el catálogo real). Antes usaba
+    // un conteo global → un cliente sin productos en su audiencia veía el botón y caía
+    // en la tienda vacía (dead-end confuso para un adulto mayor).
+    const visibles = await getProductosParaCliente(db, cliente);
+    hayTienda = visibles.length > 0;
     if (hayTienda) productoDestacado = await getProductoDestacadoParaCliente(db, cliente);
   } catch {
     hayTienda = false;

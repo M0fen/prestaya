@@ -57,8 +57,10 @@ export default async function ComisionesPage({
   // ¿El período todavía NO terminó? Si se liquida en curso, se paga solo lo recaudado
   // hasta hoy y el candado (unique por período) deja el resto sin poder liquidarse en
   // la app. Se avisa para que el admin espere al cierre o elija una cadencia cerrada.
+  // >= : el DÍA en curso (hasta == hoy) también cuenta como "en curso" — es la cadencia
+  // más propensa a liquidarse a mitad de jornada, justo donde más se necesita el aviso.
   const rangoFull = rangoDePeriodoKey(r.periodoKey);
-  const periodoEnCurso = !!rangoFull && rangoFull.hasta > toIso(hoyUY());
+  const periodoEnCurso = !!rangoFull && rangoFull.hasta >= toIso(hoyUY());
 
   return (
     <div className="mx-auto flex max-w-[720px] flex-col gap-5">

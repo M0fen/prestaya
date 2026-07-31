@@ -247,6 +247,10 @@ export function construirVistaCliente(params: {
   let mensajeAliento: string;
   if (alDia) {
     mensajeAliento = "¡Vas excelente! Estás al día 🎉";
+  } else if (soloHoy) {
+    // Al día salvo la cuota de HOY (que el cobrador aún no pasó a cobrar): sin
+    // "ponerse al día" — HOY nunca debe sentirse como reproche (regla de tono).
+    mensajeAliento = "Vas al día 🙂 Solo resta la cuota de hoy.";
   } else if (r.progresoPct >= 50) {
     mensajeAliento = `¡Ya vas ${r.progresoPct}% de tu meta! Sigamos al día 💪`;
   } else {

@@ -158,7 +158,7 @@ export default async function TiendaPublicaPage({
           </div>
         ) : (
           <TiendaCliente productos={productos} token={null} modoPublico modoEmpleado={esEmpleado} conEncabezado={false} abrirId={producto ?? null}
-            compras={comprasPerfil} perfilTitulo={logueado ? `Hola, ${primerNombre}` : "Mi tienda"} />
+            compras={comprasPerfil} perfilTitulo={logueado ? `Hola, ${primerNombre}` : "Mi tienda"} conHeroExterno />
         )}
 
         <p className="mt-2 text-center text-[11px] font-medium text-tenue">

@@ -6,8 +6,8 @@
 //  general de Presta Ya y uno de Curbe (que dobla como pieza publicitaria, con
 //  su imagen y link a curbe.uy). Cada slide trae SU propia imagen.
 //  Embla da swipe táctil con momentum (sensación e-commerce) + dots/flechas
-//  sincronizados. SIN auto-avance: mover el contenido antes de que el usuario
-//  (incl. adultos mayores) termine de leer/tocar es contraproducente.
+//  sincronizados. Auto-avance LENTO (9s) para dar tiempo a leer (incl. adultos
+//  mayores); se detiene apenas el usuario toca/pasa el mouse y respeta reduced-motion.
 // ─────────────────────────────────────────────────────────────────────────
 import { useState, useCallback, useEffect } from "react";
 import useEmblaCarousel from "embla-carousel-react";
@@ -137,16 +137,18 @@ export function HeroCarrusel({ slides }: { slides: HeroSlide[] }) {
     return () => { embla.off("select", onSel); };
   }, [embla]);
 
-  // Auto-rotación SUTIL (como los banners de e-commerce). Se detiene apenas el
-  // usuario toma el carrusel (pointerDown) — no le movemos el contenido en la mano.
-  // Respeta prefers-reduced-motion y no avanza si la pestaña está oculta.
+  // Auto-rotación LENTA (9s: tiempo de lectura para adultos mayores). Se detiene al
+  // primer gesto (touch/drag) o al pasar el mouse por encima — no le movemos el
+  // contenido en la mano. Respeta prefers-reduced-motion y no avanza con la pestaña oculta.
   useEffect(() => {
     if (!embla || n <= 1) return;
     if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
-    const id = setInterval(() => { if (!document.hidden) embla.scrollNext(); }, 5500);
+    const id = setInterval(() => { if (!document.hidden) embla.scrollNext(); }, 9000);
     const parar = () => clearInterval(id);
     embla.on("pointerDown", parar);
-    return () => { clearInterval(id); embla.off("pointerDown", parar); };
+    const root = embla.rootNode();
+    root?.addEventListener("mouseenter", parar);
+    return () => { clearInterval(id); embla.off("pointerDown", parar); root?.removeEventListener("mouseenter", parar); };
   }, [embla, n]);
 
   return (

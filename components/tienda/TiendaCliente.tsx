@@ -46,7 +46,7 @@ function financiacion(p: ProductoParaCliente) {
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
 export function TiendaCliente({
-  productos, token, conEncabezado = true, abrirId = null, preview = false, modoPublico = false, modoEmpleado = false, compras = [], perfilTitulo = "Mi tienda",
+  productos, token, conEncabezado = true, abrirId = null, preview = false, modoPublico = false, modoEmpleado = false, compras = [], perfilTitulo = "Mi tienda", conHeroExterno = false,
 }: {
   productos: ProductoParaCliente[];
   token: string | null;
@@ -63,6 +63,8 @@ export function TiendaCliente({
   compras?: CompraTienda[];
   /** Título del hub según el perfil (ej. "Hola, Juan"). */
   perfilTitulo?: string;
+  /** La página ya trae un HeroCarrusel externo → ocultar el hero interno (no duplicar). */
+  conHeroExterno?: boolean;
 }) {
   // Si venimos del banner del cartón (?producto=id), abrimos su detalle de una.
   const [abierto, setAbierto] = useState<ProductoParaCliente | null>(
@@ -90,17 +92,25 @@ export function TiendaCliente({
     try { localStorage.setItem(CLAVE_CARRITO, JSON.stringify(carrito)); } catch { /* sin storage */ }
   }, [carrito, CLAVE_CARRITO]);
 
+  const [avisoCarrito, setAvisoCarrito] = useState<string | null>(null);
   const agregarAlCarrito = (p: ProductoParaCliente) => {
+    const ex = carrito.find((i) => i.id === p.id);
+    // Tope de 20 productos DISTINTOS por pedido (coherente con el server): si está
+    // lleno y es uno nuevo, avisar y NO pulsar (feedback falso de "agregado").
+    if (!ex && carrito.length >= 20) {
+      setAvisoCarrito("Llegaste al máximo de 20 productos por pedido.");
+      setTimeout(() => setAvisoCarrito(null), 2600);
+      return;
+    }
     setCarrito((c) => {
-      const ex = c.find((i) => i.id === p.id);
-      if (ex) return c.map((i) => (i.id === p.id ? { ...i, cantidad: Math.min(50, i.cantidad + 1) } : i));
-      if (c.length >= 20) return c; // tope de productos DISTINTOS por pedido (coherente con el server)
+      const e = c.find((i) => i.id === p.id);
+      if (e) return c.map((i) => (i.id === p.id ? { ...i, cantidad: Math.min(50, i.cantidad + 1) } : i));
       return [...c, { id: p.id, nombre: p.nombre, precio: p.precio, foto: p.fotos[0] ?? null, cuota: financiacion(p).cuota, cuotas: p.cuotas, frecuencia: p.frecuencia, cantidad: 1 }];
     });
     setPulso((n) => n + 1);
   };
   const cambiarCantidad = (id: string, delta: number) =>
-    setCarrito((c) => c.map((i) => (i.id === id ? { ...i, cantidad: Math.max(1, i.cantidad + delta) } : i)));
+    setCarrito((c) => c.map((i) => (i.id === id ? { ...i, cantidad: Math.min(50, Math.max(1, i.cantidad + delta)) } : i)));
   const quitarDelCarrito = (id: string) => setCarrito((c) => c.filter((i) => i.id !== id));
   const vaciarCarrito = () => setCarrito([]);
   const itemsCarrito = carrito.reduce((a, i) => a + i.cantidad, 0);
@@ -120,15 +130,18 @@ export function TiendaCliente({
     return [...set.entries()].map(([nombre, n]) => ({ nombre, n })).sort((a, b) => b.n - a.n);
   }, [productos, cat]);
 
-  // FAVORITOS ❤️ (localStorage) — como los "guardados" de Mercado Libre.
+  // FAVORITOS ❤️ (localStorage) — scopeado por token igual que carrito/vistos, para
+  // que en un teléfono compartido un cliente no herede los favoritos de otro.
+  const CLAVE_FAV = `favoritos_tienda:${token ?? "publico"}`;
   const [favoritos, setFavoritos] = useState<string[]>([]);
   const [soloFav, setSoloFav] = useState(false);
   useEffect(() => {
-    try { const raw = localStorage.getItem("favoritos_tienda"); if (raw) setFavoritos(JSON.parse(raw)); } catch { /* sin storage */ }
-  }, []);
+    try { const raw = localStorage.getItem(CLAVE_FAV); if (raw) setFavoritos(JSON.parse(raw)); } catch { /* sin storage */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [CLAVE_FAV]);
   useEffect(() => {
-    try { localStorage.setItem("favoritos_tienda", JSON.stringify(favoritos)); } catch { /* sin storage */ }
-  }, [favoritos]);
+    try { localStorage.setItem(CLAVE_FAV, JSON.stringify(favoritos)); } catch { /* sin storage */ }
+  }, [favoritos, CLAVE_FAV]);
   const esFav = (id: string) => favoritos.includes(id);
   const toggleFav = (id: string) => setFavoritos((f) => (f.includes(id) ? f.filter((x) => x !== id) : [...f, id]));
   // Productos favoritos resueltos (para el hub "Mi tienda" y el estante de favoritos).
@@ -217,7 +230,7 @@ export function TiendaCliente({
         /* BARRA STICKY: favoritos + carrito + Mi tienda siempre a la vista. */
         <BarraTienda
           titulo={modoPublico ? "Tienda Presta Ya" : "Nuestra tienda"}
-          favN={favoritos.length}
+          favN={favProductos.length}
           cartN={itemsCarrito}
           favActivo={soloFav}
           onFav={() => { setCat(null); setMarca(null); setSoloFav((v) => !v); }}
@@ -253,7 +266,7 @@ export function TiendaCliente({
       {conCarrito && !hayFiltro && (
         <AtajosTienda atajos={[
           ...(itemsCarrito > 0 ? [{ key: "carrito", icono: "🛒", titulo: "Tu carrito", sub: `${itemsCarrito} producto(s)`, onClick: () => setCarritoAbierto(true), tono: "#EEF3FF" }] : []),
-          ...(favoritos.length > 0 ? [{ key: "fav", icono: "❤️", titulo: "Favoritos", sub: `${favoritos.length} guardado(s)`, onClick: () => { setCat(null); setMarca(null); setSoloFav(true); }, tono: "#FDE8EF" }] : []),
+          ...(favProductos.length > 0 ? [{ key: "fav", icono: "❤️", titulo: "Favoritos", sub: `${favProductos.length} guardado(s)`, onClick: () => { setCat(null); setMarca(null); setSoloFav(true); }, tono: "#FDE8EF" }] : []),
           ...(ofertas.length > 0 ? [{ key: "of", icono: "🔥", titulo: "Ofertas", sub: `${ofertas.length} en oferta`, onClick: () => document.getElementById("sec-ofertas")?.scrollIntoView({ behavior: "smooth", block: "start" }), tono: "#FBE4E2" }] : []),
           { key: "ped", icono: "📦", titulo: "Mis pedidos", sub: "Seguí tu pedido", onClick: () => setPerfilAbierto(true), tono: "#EAF7F0" },
           ...(soporte ? [{ key: "ayuda", icono: "💬", titulo: "Ayuda", sub: "Escribinos", onClick: () => window.open(`https://wa.me/${soporte.replace(/[^\d]/g, "")}`, "_blank") }] : []),
@@ -268,8 +281,8 @@ export function TiendaCliente({
             <CategoriaTile key={c.nombre} emoji={emojiDe(c.nombre)} foto={fotoCat.get(c.nombre) ?? null} nombre={c.nombre} n={c.n}
               activo={cat === c.nombre} onClick={() => { setSoloFav(false); setCat(cat === c.nombre ? null : c.nombre); }} />
           ))}
-          {favoritos.length > 0 && (
-            <CategoriaTile emoji="❤️" nombre="Favoritos" n={favoritos.length} activo={soloFav} onClick={() => { setCat(null); setSoloFav(!soloFav); }} />
+          {favProductos.length > 0 && (
+            <CategoriaTile emoji="❤️" nombre="Favoritos" n={favProductos.length} activo={soloFav} onClick={() => { setCat(null); setSoloFav(!soloFav); }} />
           )}
         </div>
         {/* Filtro por MARCA (solo si hay 2+ marcas). */}
@@ -292,7 +305,7 @@ export function TiendaCliente({
       )}
 
       {/* Hero: el destacado principal, grande (sensación de tienda). Solo sin filtro. */}
-      {hero && (
+      {hero && !conHeroExterno && (
         <button type="button" onClick={() => setAbierto(hero)}
           className="group overflow-hidden rounded-[22px] bg-[linear-gradient(135deg,#173063,#0F1B3D)] text-left shadow-[0_14px_34px_rgba(15,27,61,0.3)] active:scale-[0.99]">
           <div className="flex items-stretch">
@@ -507,9 +520,9 @@ export function TiendaCliente({
       {/* Grilla */}
       {filtrados.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-[16px] border border-[#ECEFF8] bg-white px-6 py-10 text-center">
-          <span className="text-[30px]" aria-hidden="true">🔍</span>
-          <p className="text-[15px] font-bold text-tinta">No encontramos eso por ahora</p>
-          <p className="text-[13px] font-medium text-gris">Probá con otra palabra, mirá otra categoría, o escribinos y lo conseguimos.</p>
+          <span className="text-[30px]" aria-hidden="true">{soloFav ? "🤍" : "🔍"}</span>
+          <p className="text-[15px] font-bold text-tinta">{soloFav ? "Todavía no guardaste favoritos" : "No encontramos eso por ahora"}</p>
+          <p className="text-[13px] font-medium text-gris">{soloFav ? "Tocá el 🤍 en un producto para guardarlo acá y encontrarlo rápido." : "Probá con otra palabra, mirá otra categoría, o escribinos y lo conseguimos."}</p>
           {hayFiltro && (
             <button type="button" onClick={limpiarTodo}
               className="mt-1 rounded-full bg-[#1E47C8] px-4 py-2 text-[12.5px] font-bold text-white active:scale-95">
@@ -635,6 +648,12 @@ export function TiendaCliente({
           />
         </>
       )}
+      {/* Aviso transitorio del carrito (tope alcanzado, etc.). */}
+      {avisoCarrito && (
+        <div className="fixed bottom-24 left-1/2 z-[80] -translate-x-1/2 rounded-full bg-[#0F1B3D] px-4 py-2.5 text-center text-[12.5px] font-bold text-white shadow-[0_8px_24px_rgba(15,27,61,0.4)]">
+          {avisoCarrito}
+        </div>
+      )}
     </section>
     </MotionConfig>
     </LazyMotion>
@@ -719,9 +738,9 @@ function CategoriaTile({ emoji, foto = null, nombre, n, activo, onClick }: { emo
 /** Chip de un filtro activo, con ✕ para quitarlo (patrón e-commerce). */
 function FiltroChip({ label, onQuitar }: { label: string; onQuitar: () => void }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-[#DCE3F4] bg-white px-2.5 py-1 text-[11.5px] font-semibold text-cuerpo">
+    <span className="inline-flex items-center gap-0.5 rounded-full border border-[#DCE3F4] bg-white py-1 pl-2.5 pr-0.5 text-[11.5px] font-semibold text-cuerpo">
       {label}
-      <button type="button" onClick={onQuitar} aria-label={`Quitar filtro ${label}`} className="text-[13px] font-black leading-none text-gris hover:text-tinta">×</button>
+      <button type="button" onClick={onQuitar} aria-label={`Quitar filtro ${label}`} className="-my-1 flex h-8 w-8 items-center justify-center rounded-full text-[15px] font-black leading-none text-gris hover:text-tinta">×</button>
     </span>
   );
 }
@@ -800,6 +819,9 @@ function CarritoSheet({
   const [folio, setFolio] = useState<string | null>(null);
   const totalContado = items.reduce((a, i) => a + i.precio * i.cantidad, 0);
   const totalCuota = items.reduce((a, i) => a + i.cuota * i.cantidad, 0);
+  // Solo tiene sentido sumar cuotas si TODAS son de la misma frecuencia (no mezclar
+  // $/día con $/mes en un solo número). Si no, mostramos una aclaración.
+  const frecUnica = items.length > 0 && items.every((i) => i.frecuencia === items[0].frecuencia) ? items[0].frecuencia : null;
 
   // Al abrir el carrito, arrancar siempre en "revisar" y limpiar un éxito anterior.
   useEffect(() => {
@@ -873,12 +895,14 @@ function CarritoSheet({
               </div>
               {folio && (
                 <div className="rounded-[12px] border border-dashed border-[#C7D2EC] bg-[#F7F9FF] px-4 py-2">
-                  <span className="text-[11px] font-semibold text-gris">Tu folio</span>
+                  <span className="text-[11px] font-semibold text-gris">Tu código de referencia (guardalo)</span>
                   <p className="text-[18px] font-black tracking-wider tabular-nums text-[#1E47C8]">{folio}</p>
                 </div>
               )}
-              <p className="max-w-[280px] text-[13px] font-medium text-gris">
-                {modoPublico ? "Lo revisamos y te contactamos para coordinar el precio y las cuotas." : "Tu cobrador lo revisa y te confirma el plan. ¡Gracias!"}
+              <p className="max-w-[290px] text-[13px] font-medium text-gris">
+                {modoPublico
+                  ? "Lo revisamos y te contactamos para coordinar precio, cuotas y cantidades."
+                  : "Tu cobrador coordina con vos el precio, las cuotas y las cantidades. ¡Gracias!"}
               </p>
               <button type="button" onClick={() => onOpenChange(false)} className="mt-1 w-full rounded-full bg-[#1E47C8] px-5 py-3 text-[14px] font-extrabold text-white active:scale-[0.99]">Seguir viendo</button>
             </div>
@@ -927,12 +951,14 @@ function CarritoSheet({
                       <span className="text-[13px] font-semibold text-gris">Total contado</span>
                       <span className="text-[18px] font-black tabular-nums text-[#157A50]">{UYU(totalContado)}</span>
                     </div>
-                    {totalCuota > 0 && (
+                    {totalCuota > 0 && frecUnica ? (
                       <div className="flex items-center justify-between">
                         <span className="text-[12px] font-medium text-gris">En cuotas (aprox.)</span>
-                        <span className="text-[13px] font-bold tabular-nums text-[#1E47C8]">≈ {UYU(totalCuota)} por período</span>
+                        <span className="text-[13px] font-bold tabular-nums text-[#1E47C8]">≈ {UYU(totalCuota)} {FREC_LABEL[frecUnica]}</span>
                       </div>
-                    )}
+                    ) : totalCuota > 0 ? (
+                      <span className="text-[11.5px] font-medium text-gris">Cada producto tiene su propio plan de cuotas · lo coordina tu cobrador.</span>
+                    ) : null}
                     <button type="button" disabled={pend}
                       onClick={() => (modoPublico ? setPaso("datos") : confirmar())}
                       className="w-full rounded-full bg-[#1E47C8] px-5 py-3.5 text-[16px] font-extrabold text-white shadow-[0_6px_18px_rgba(19,48,140,0.28)] active:scale-[0.99] disabled:opacity-60">
@@ -997,14 +1023,17 @@ function DetalleSheet({
 }) {
   const [vivo, setVivo] = useState<ProductoParaCliente | null>(producto);
   const [seq, setSeq] = useState(0);
+  const esDesktop = useEsDesktop();
   useEffect(() => { if (producto) { setVivo(producto); setSeq((s) => s + 1); } }, [producto]);
   return (
-    <Drawer.Root open={!!producto} onOpenChange={(o) => { if (!o) onClose(); }}>
+    <Drawer.Root open={!!producto} onOpenChange={(o) => { if (!o) onClose(); }} direction={esDesktop ? "right" : "bottom"}>
       <Drawer.Portal>
         <Drawer.Overlay className="fixed inset-0 z-[70] bg-black/55" />
-        <Drawer.Content className="fixed inset-x-0 bottom-0 z-[71] mx-auto flex max-h-[94vh] w-full max-w-[480px] flex-col rounded-t-[26px] bg-white shadow-[0_-12px_60px_rgba(15,27,61,0.4)] outline-none">
+        <Drawer.Content className={esDesktop
+          ? "fixed inset-y-0 right-0 z-[71] flex h-full w-full max-w-[460px] flex-col bg-white shadow-[-16px_0_60px_rgba(15,27,61,0.28)] outline-none"
+          : "fixed inset-x-0 bottom-0 z-[71] mx-auto flex max-h-[94vh] w-full max-w-[480px] flex-col rounded-t-[26px] bg-white shadow-[0_-12px_60px_rgba(15,27,61,0.4)] outline-none"}>
           <Drawer.Title className="sr-only">{vivo?.nombre ?? "Producto"}</Drawer.Title>
-          <div className="mx-auto mt-2 h-1.5 w-11 shrink-0 rounded-full bg-[#E0E5F0]" aria-hidden />
+          {!esDesktop && <div className="mx-auto mt-2 h-1.5 w-11 shrink-0 rounded-full bg-[#E0E5F0]" aria-hidden />}
           {vivo && (
             <DetalleProducto
               key={`${vivo.id}:${seq}`}
@@ -1057,7 +1086,9 @@ function DetalleProducto({
   const plazos = p.cuotas > 1
     ? [...new Set([Math.max(1, Math.round(p.cuotas / 2)), p.cuotas, Math.round(p.cuotas * 1.5)])].filter((n) => n >= 1 && n <= 1000).sort((a, b) => a - b)
     : [];
-  const cuotaSel = plazoSel === p.cuotas ? cuota : Math.ceil(totalCuotas / Math.max(1, plazoSel));
+  // Cuota del plazo elegido con la fórmula CANÓNICA (misma que la venta real), no
+  // un reparto del total base (así el plazo largo no subestima el costo).
+  const cuotaSel = plazoSel === p.cuotas ? cuota : calcularPlanVenta({ precio: p.precio, interesPct: p.interesPct, cuotas: Math.max(1, plazoSel) }).cuota;
   const ahorro = p.precioAnterior > p.precio ? p.precioAnterior - p.precio : 0;
   const ahorroPct = ahorro > 0 && p.precioAnterior > 0 ? Math.round((ahorro / p.precioAnterior) * 100) : 0;
   const sinStock = p.agotado || p.stock === 0;
@@ -1223,7 +1254,7 @@ function DetalleProducto({
             <div className="mb-2 flex items-baseline justify-between gap-3">
               <span className="text-[20px] font-black tabular-nums leading-none text-[#157A50]">{UYU(p.precio)}</span>
               {p.cuotas > 0 && cuota > 0 && (
-                <span className="text-[12.5px] font-bold text-[#1E47C8]">{p.cuotas}× <span className="tabular-nums">{UYU(cuota)}</span> {FREC_LABEL[p.frecuencia]}</span>
+                <span className="text-[12.5px] font-bold text-[#1E47C8]">{plazoSel}× <span className="tabular-nums">{UYU(cuotaSel)}</span> {FREC_LABEL[p.frecuencia]}</span>
               )}
             </div>
           )}

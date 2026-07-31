@@ -84,7 +84,7 @@ export function ReportarDiscrepancia({ token, prestamoId }: { token: string; pre
               value={dia}
               onChange={(e) => setDia(e.target.value)}
               placeholder="Ej. 11"
-              className="rounded-[10px] border border-[#DCE3F4] px-3 py-2 text-[14px] outline-none focus:border-azul"
+              className="rounded-[10px] border border-[#DCE3F4] px-3 py-2 text-[16px] outline-none focus:border-azul"
             />
           </label>
 
@@ -98,7 +98,7 @@ export function ReportarDiscrepancia({ token, prestamoId }: { token: string; pre
               rows={3}
               maxLength={500}
               placeholder="Ej. Pagué $20.000 el lunes y no figura."
-              className="resize-none rounded-[10px] border border-[#DCE3F4] px-3 py-2 text-[14px] outline-none focus:border-azul"
+              className="resize-none rounded-[10px] border border-[#DCE3F4] px-3 py-2 text-[16px] outline-none focus:border-azul"
             />
           </label>
 

@@ -34,7 +34,7 @@ export function BienvenidaCliente() {
         type="button"
         onClick={cerrar}
         aria-label="Entendido, cerrar"
-        className="absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-full bg-white text-[14px] font-bold text-gris shadow-[0_1px_3px_rgba(15,27,61,0.12)] active:scale-95"
+        className="absolute right-2.5 top-2.5 flex h-11 w-11 items-center justify-center rounded-full bg-white text-[14px] font-bold text-gris shadow-[0_1px_3px_rgba(15,27,61,0.12)] active:scale-95"
       >
         ✕
       </button>

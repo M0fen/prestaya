@@ -79,9 +79,10 @@ export function ResumenCard({
         </div>
         <div className="flex flex-col text-right leading-[1.25]">
           <span className="text-[11px] font-semibold tracking-[0.03em] text-white/[0.66] uppercase">
-            Te falta
+            Restan
           </span>
-          <span className="text-[15.5px] font-bold tabular-nums">{falta}</span>
+          {/* Dato COMPLEMENTARIO (no repetir el saldo, que ya está grande arriba). */}
+          <span className="text-[15.5px] font-bold tabular-nums">{Math.max(0, totalDias - diaActual)} {unidad.plural}</span>
         </div>
       </div>
 

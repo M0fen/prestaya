@@ -70,7 +70,13 @@ export default function CensarPage() {
   }, []);
 
   const gpsOk = gpsUtilizable(gps);
-  const precisionMala = gpsOk && gps.precision != null && gps.precision > 100;
+  // El SERVER descarta el ancla si la precisión supera esto (lib/geo.ts: MAX_PRECISION_ANCLA_M).
+  // El cliente DEBE usar el mismo umbral: si no, con señal urbana pobre (±150-500 m) la
+  // pantalla decía "✓ Capturada" y "Guardar cliente" pero el server tiraba la ubicación a
+  // null → el cliente quedaba sin geo-cerca y nadie se enteraba.
+  const MAX_PRECISION_ANCLA_M = 120;
+  const anclaUsable = gpsOk && gps.precision != null && gps.precision <= MAX_PRECISION_ANCLA_M;
+  const precisionMala = anclaUsable && gps.precision! > 100; // usable pero conviene mejorar
 
   const enviar = (formData: FormData) =>
     start(async () => {
@@ -86,10 +92,11 @@ export default function CensarPage() {
           telefono: String(formData.get("telefono") ?? "") || null,
           direccion: String(formData.get("direccion") ?? "") || null,
           notas: String(formData.get("notas") ?? "") || null,
-          // Solo se manda el ancla si es utilizable (nunca 0,0 ni null como ubicación).
-          gpsLat: gpsOk ? gps.lat : null,
-          gpsLng: gpsOk ? gps.lng : null,
-          gpsPrecision: gpsOk ? gps.precision : null,
+          // Solo se manda el ancla si es utilizable (nunca 0,0/null y con precisión que el
+          // server acepta): así lo que ve el cobrador coincide con lo que se guarda.
+          gpsLat: anclaUsable ? gps.lat : null,
+          gpsLng: anclaUsable ? gps.lng : null,
+          gpsPrecision: anclaUsable ? gps.precision : null,
           fotoDataUrl: foto,
         });
         if (res.ok) router.push(`/cobrador/cliente/${res.id}`);
@@ -111,9 +118,11 @@ export default function CensarPage() {
         ? "Este teléfono no da ubicación"
         : gps?.estado === "timeout" || gps?.estado === "sin_fix"
           ? "No se pudo ubicar — reintentá con señal / cielo abierto"
-          : gpsOk
-            ? `✓ Capturada${gps.precision != null ? ` (±${Math.round(gps.precision)} m)` : ""}`
-            : "Tocá para capturar el GPS";
+          : anclaUsable
+            ? `✓ Ubicación capturada (±${Math.round(gps.precision!)} m)`
+            : gpsOk
+              ? `Señal muy débil (±${Math.round(gps.precision!)} m) — se guardará SIN ubicación`
+              : "Tocá para capturar el GPS";
 
   return (
     <div className="flex flex-col gap-4">
@@ -171,12 +180,13 @@ export default function CensarPage() {
             una mejor ubicación.
           </span>
         )}
-        {/* Sin ubicación válida: se puede guardar igual, pero se avisa (la geo-cerca
-            de este cliente quedaría ciega). El botón cambia a "sin ubicación". */}
-        {!gpsOk && !ubicando && gps && (
+        {/* Sin ubicación USABLE (denegó/falló, o precisión que el server descarta): se
+            puede guardar igual, pero se avisa (la geo-cerca quedaría ciega) y el botón
+            cambia a "sin ubicación". */}
+        {!anclaUsable && !ubicando && gps && (
           <span className="text-[11.5px] font-medium text-[#8A93AD]">
             Sin ubicación no se podrá validar la geo-cerca de este cliente. Podés guardar
-            igual, pero mejor reintentá con señal.
+            igual, pero mejor acercate a la casa y recapturá con señal.
           </span>
         )}
 
@@ -187,7 +197,7 @@ export default function CensarPage() {
           disabled={pending}
           className="rounded-full bg-azul px-5 py-3 text-[14px] font-bold text-white disabled:opacity-60"
         >
-          {pending ? "Guardando…" : gpsOk ? "Guardar cliente" : "Guardar sin ubicación"}
+          {pending ? "Guardando…" : anclaUsable ? "Guardar cliente" : "Guardar sin ubicación"}
         </button>
       </form>
     </div>

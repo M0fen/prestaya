@@ -42,7 +42,7 @@ export default async function ProductoPublicoPage({ params }: { params: Promise<
 
   return (
     <div className="flex min-h-screen justify-center bg-fondo text-tinta">
-      <div className="flex w-full max-w-[480px] flex-col gap-3 bg-app px-[18px] pt-4 pb-12 shadow-[0_0_60px_rgba(15,27,61,0.08)] md:max-w-[1120px] md:px-8 md:pt-6">
+      <div className="flex w-full max-w-[480px] flex-col gap-3 bg-[#EBEEF5] px-[18px] pt-4 pb-12 shadow-[0_0_60px_rgba(15,27,61,0.08)] md:max-w-[1120px] md:px-8 md:pt-6">
         <div className="flex items-center justify-between">
           <Link href="/tienda" className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-[9px] bg-[linear-gradient(135deg,#2453DC,#13308C)] text-[15px] font-black text-white">P</div>

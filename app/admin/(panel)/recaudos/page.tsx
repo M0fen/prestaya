@@ -116,12 +116,15 @@ export default async function RecaudosPage({
           </span>
         </div>
         <div className="flex gap-2 print:hidden">
-          <a
-            href={csvHref}
-            className="inline-flex items-center gap-1.5 rounded-full border border-borde bg-tarjeta px-4 py-2 text-[13px] font-bold text-azul hover:bg-suave"
-          >
-            ⬇️ Exportar CSV
-          </a>
+          {/* El endpoint /api/reportes es ADMIN-ONLY (403 al supervisor) → solo al admin. */}
+          {admin && (
+            <a
+              href={csvHref}
+              className="inline-flex items-center gap-1.5 rounded-full border border-borde bg-tarjeta px-4 py-2 text-[13px] font-bold text-azul hover:bg-suave"
+            >
+              ⬇️ Exportar CSV
+            </a>
+          )}
           <BotonImprimir />
         </div>
       </div>
@@ -247,7 +250,7 @@ export default async function RecaudosPage({
 }
 
 const INPUT =
-  "rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[13.5px] outline-none focus:border-azul";
+  "rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[16px] outline-none focus:border-azul";
 
 function Campo({ label, children }: { label: string; children: React.ReactNode }) {
   return (

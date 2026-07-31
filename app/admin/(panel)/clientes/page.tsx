@@ -2,7 +2,7 @@
 // · #Créditos · Reportado · Dirección. Buscable por nombre/documento; filtro de
 // Archivados; exportación CSV. Cada fila abre la ficha completa.
 import Link from "next/link";
-import { requireGestor } from "@/lib/auth";
+import { requireGestor, esAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getClientesListaAdmin } from "@/lib/data/clientes";
 import { FichaRapidaBoton } from "@/components/admin/FichaRapida";
@@ -26,7 +26,8 @@ export default async function ClientesPage({
   searchParams: Promise<{ q?: string; archivados?: string }>;
 }) {
   const sp = await searchParams;
-  await requireGestor();
+  const usuario = await requireGestor();
+  const admin = esAdmin(usuario.rol);
   const db = await createSupabaseServer();
   const archivados = sp.archivados === "1";
   const q = (sp.q ?? "").trim() || null;
@@ -52,12 +53,15 @@ export default async function ClientesPage({
         <div className="flex flex-wrap gap-2 print:hidden">
           {/* El alta de clientes se hace en ruta (censo del cobrador) / oficina;
               no se ofrece desde el panel para no duplicar el flujo. */}
-          <a
-            href="/api/reportes/clientes"
-            className="inline-flex items-center gap-1.5 rounded-full border border-borde bg-tarjeta px-4 py-2 text-[13px] font-bold text-azul-claro hover:bg-suave"
-          >
-            ⬇️ Exportar CSV
-          </a>
+          {/* /api/reportes es ADMIN-ONLY (403 al supervisor) → solo al admin. */}
+          {admin && (
+            <a
+              href="/api/reportes/clientes"
+              className="inline-flex items-center gap-1.5 rounded-full border border-borde bg-tarjeta px-4 py-2 text-[13px] font-bold text-azul-claro hover:bg-suave"
+            >
+              ⬇️ Exportar CSV
+            </a>
+          )}
           <Link
             href={archivados ? "/admin/clientes" : "/admin/clientes?archivados=1"}
             className={`rounded-full px-4 py-2 text-[13px] font-bold ${
