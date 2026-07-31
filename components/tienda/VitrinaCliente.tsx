@@ -69,7 +69,7 @@ export function VitrinaCliente({
 
   return (
     <section
-      className="py-reveal relative mx-auto w-full max-w-[440px] overflow-hidden rounded-[24px] shadow-[0_18px_44px_rgba(9,16,40,0.32)]"
+      className="py-reveal relative mx-auto w-full max-w-[440px] overflow-hidden rounded-[20px] shadow-[0_12px_28px_rgba(9,16,40,0.24)]"
       style={{ background: "linear-gradient(150deg,#2453DC 0%,#1E47C8 45%,#13308C 100%)" }}
       role="group"
       aria-roledescription="carrusel"
@@ -134,19 +134,47 @@ function Slide({ p, token }: { p: ProductoParaCliente; token?: string | null }) 
   const href = token ? `/c/${token}/tienda?producto=${p.id}` : `/tienda?producto=${p.id}`;
 
   return (
-    <div className="relative flex min-w-0 flex-[0_0_100%] flex-col items-center gap-3 px-6 pt-7 pb-5 text-white">
-      <span className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#8FE7C0]">
-        Nuestra tienda · a cuotas
-      </span>
+    <div className="relative flex min-w-0 flex-[0_0_100%] items-center gap-3.5 px-4 py-4 pb-5 text-white">
+      {/* IZQUIERDA: texto (eyebrow, nombre, cuota reina, CTA). */}
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#8FE7C0]">
+          Nuestra tienda · a cuotas
+        </span>
+        <span className="line-clamp-2 text-[16.5px] font-black leading-[1.12] tracking-[-0.01em]">
+          {p.nombre}
+        </span>
 
-      {/* PROTAGONISTA: la foto, sobre panel blanco, con halo y sombra (levita). */}
-      <div className="py-float relative mx-auto w-full max-w-[260px]">
+        {/* CUOTA — la reina (lo que decide la compra a crédito). */}
+        {cuota > 0 && p.cuotas > 0 ? (
+          <span className="mt-0.5 w-fit rounded-full bg-[#1FA971] px-3 py-1.5 text-[14px] font-extrabold text-white shadow-[0_5px_14px_rgba(31,169,113,0.30)] [font-variant-numeric:tabular-nums]">
+            {p.cuotas}× {UYU(cuota)} {FREC[p.frecuencia]}
+          </span>
+        ) : (
+          <span className="mt-0.5 w-fit rounded-full bg-[#1FA971] px-3 py-1.5 text-[14px] font-extrabold text-white shadow-[0_5px_14px_rgba(31,169,113,0.30)] [font-variant-numeric:tabular-nums]">
+            {UYU(p.precio)}
+          </span>
+        )}
+        <span className="text-[10.5px] font-semibold text-white/70">
+          {p.interesPct === 0 ? "0% interés" : `${p.interesPct}% interés`} · 🚚 Entrega a domicilio
+        </span>
+
+        {/* CTA (objetivo táctil claro, ámbar sobre azul = máximo contraste). */}
+        <Link
+          href={href}
+          className="mt-1.5 flex h-[42px] w-fit items-center justify-center gap-1 rounded-full bg-[#E8A317] px-4 text-[14px] font-extrabold text-[#0F1B3D] shadow-[0_6px_16px_rgba(0,0,0,0.20)] transition active:scale-[0.98]"
+        >
+          Ver en la tienda ›
+        </Link>
+      </div>
+
+      {/* DERECHA: la FOTO, sobre panel blanco con halo + etiqueta de precio flotante. */}
+      <div className="relative w-[132px] shrink-0">
         <div
           aria-hidden
-          className="absolute -inset-6 -z-10 rounded-[36px] blur-2xl"
+          className="absolute -inset-3 -z-10 rounded-[28px] blur-2xl"
           style={{ background: "radial-gradient(circle at 50% 45%,#8FE7C055,transparent 68%)" }}
         />
-        <div className="py-shine relative overflow-hidden rounded-[22px] bg-white p-3 shadow-[0_26px_54px_rgba(0,0,0,0.32)]">
+        <div className="py-shine relative overflow-hidden rounded-[16px] bg-white p-2 shadow-[0_16px_34px_rgba(0,0,0,0.30)]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={p.fotos[0]}
@@ -154,63 +182,21 @@ function Slide({ p, token }: { p: ProductoParaCliente; token?: string | null }) 
             loading="lazy"
             decoding="async"
             draggable={false}
-            className="mx-auto aspect-square w-full max-w-[240px] select-none bg-white object-contain p-1"
+            className="mx-auto aspect-square w-full select-none bg-white object-contain"
           />
         </div>
         {/* Etiqueta de precio FLOTANTE (estilo Mercado Libre). */}
-        <div className="absolute -right-2 -top-3 z-20 rounded-[14px] bg-[#E8A317] px-3 py-1.5 text-right shadow-[0_10px_24px_rgba(0,0,0,0.35)]">
+        <div className="absolute -right-1.5 -top-2.5 z-20 rounded-[12px] bg-[#E8A317] px-2.5 py-1 text-right shadow-[0_8px_18px_rgba(0,0,0,0.32)]">
           {oferta && (
-            <span className="block text-[9px] font-black uppercase leading-tight tracking-wide text-[#0F1B3D]/60">
+            <span className="block text-[8px] font-black uppercase leading-tight tracking-wide text-[#0F1B3D]/60">
               Oferta
             </span>
           )}
-          <span className="block text-[17px] font-black leading-tight tabular-nums text-[#0F1B3D]">
+          <span className="block text-[14.5px] font-black leading-tight tabular-nums text-[#0F1B3D]">
             {UYU(p.precio)}
           </span>
         </div>
       </div>
-
-      {/* Nombre (alto mínimo fijo para que el banner no salte entre slides). */}
-      {p.marca && (
-        <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#8FE7C0]">{p.marca}</span>
-      )}
-      <span className="line-clamp-2 min-h-[2.2em] text-center text-[22px] font-black leading-[1.08] tracking-[-0.02em]">
-        {p.nombre}
-      </span>
-
-      {/* CUOTA — la reina (lo que decide la compra a crédito). Verde tranquilizador. */}
-      {cuota > 0 && p.cuotas > 0 ? (
-        <span className="inline-flex items-center gap-1 rounded-full bg-[#1FA971] px-4 py-2 text-[16px] font-extrabold text-white shadow-[0_6px_16px_rgba(31,169,113,0.30)] [font-variant-numeric:tabular-nums]">
-          {p.cuotas}× {UYU(cuota)} {FREC[p.frecuencia]}
-        </span>
-      ) : (
-        <span className="inline-flex items-center rounded-full bg-[#1FA971] px-4 py-2 text-[16px] font-extrabold text-white shadow-[0_6px_16px_rgba(31,169,113,0.30)] [font-variant-numeric:tabular-nums]">
-          {UYU(p.precio)}
-        </span>
-      )}
-      {oferta && (
-        <span className="-mt-1 text-[12px] font-semibold text-white/55 line-through [font-variant-numeric:tabular-nums]">
-          {UYU(p.precioAnterior)}
-        </span>
-      )}
-
-      {/* Pills de valor (confianza, gramática e-commerce). */}
-      <div className="flex flex-wrap justify-center gap-2">
-        <span className="rounded-full bg-white px-3.5 py-1.5 text-[13px] font-black text-[#13308C] shadow-[0_4px_14px_rgba(0,0,0,0.18)]">
-          {p.interesPct === 0 ? "0% interés" : `${p.interesPct}% interés`}
-        </span>
-        <span className="rounded-full bg-white px-3.5 py-1.5 text-[13px] font-black text-[#13308C] shadow-[0_4px_14px_rgba(0,0,0,0.18)]">
-          🚚 Entrega a domicilio
-        </span>
-      </div>
-
-      {/* CTA ancho (objetivo táctil claro, ámbar sobre azul = máximo contraste). */}
-      <Link
-        href={href}
-        className="mt-1 flex h-[52px] w-full items-center justify-center gap-2 rounded-full bg-[#E8A317] px-5 text-[16px] font-extrabold text-[#0F1B3D] shadow-[0_8px_20px_rgba(0,0,0,0.22)] transition active:scale-[0.98]"
-      >
-        Ver en la tienda ›
-      </Link>
     </div>
   );
 }
