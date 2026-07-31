@@ -65,4 +65,17 @@ export async function reasignarCliente(
       { onConflict: "cobrador_id,cliente_id" },
     );
   if (on.error) throw on.error;
+
+  // 3) Sincronizar el DUEÑO de los créditos ACTIVOS del cliente. La ruta se arma
+  // desde `asignaciones`, pero `prestamos.cobrador_id` es la fuente de verdad del
+  // dueño de la ruta para comisiones (RPC app_comision_por_ruta) y auditorías. Sin
+  // esto quedaba STALE: comisión y auditoría apuntaban al cobrador viejo. Solo los
+  // ACTIVOS (los finalizados conservan su historia). Los pagos ya hechos guardan su
+  // registrado_por, no se tocan.
+  const upd = await db
+    .from("prestamos")
+    .update({ cobrador_id: nuevoCobradorId })
+    .eq("cliente_id", clienteId)
+    .eq("estado", "activo");
+  if (upd.error) throw upd.error;
 }

@@ -16,7 +16,11 @@ type Props = Pick<
   | "totalDias"
   | "fechaFinLarga"
   | "unidad"
->;
+> & {
+  /** true si el crédito es una COMPRA de la tienda (no un préstamo en efectivo):
+   *  cambia el rótulo para no confundir un dinero con el otro (regla del proyecto). */
+  esCompra?: boolean;
+};
 
 export function ResumenCard({
   estadoGeneral,
@@ -31,6 +35,7 @@ export function ResumenCard({
   totalDias,
   fechaFinLarga,
   unidad,
+  esCompra = false,
 }: Props) {
   return (
     <section className="relative overflow-hidden rounded-[24px] bg-[linear-gradient(150deg,#2453DC_0%,#1E47C8_45%,#13308C_100%)] px-[22px] pt-6 pb-[22px] text-white shadow-[0_16px_34px_rgba(19,48,140,0.34)]">
@@ -88,7 +93,7 @@ export function ResumenCard({
 
       <div className="relative mt-[18px] flex items-center justify-between border-t border-white/[0.16] pt-3.5">
         <span className="text-[12.5px] font-medium text-white/[0.78]">
-          Préstamo de{" "}
+          {esCompra ? "Producto de" : "Préstamo de"}{" "}
           <strong className="font-bold text-white">{montoPrestado}</strong>
         </span>
         <span className="text-[12.5px] font-semibold text-white/[0.78]">

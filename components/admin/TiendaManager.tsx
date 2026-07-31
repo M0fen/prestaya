@@ -14,7 +14,7 @@ import {
   fijarPrecioCliente, quitarPrecioCliente, preciosDeProducto,
   fijarPrecioSegmento, quitarPrecioSegmento, segmentosDeProducto,
   resolverSolicitud, subirImagenTienda, crearUrlSubidaTienda, generarDescripcionIA,
-  convertirLeadEnVenta,
+  convertirLeadEnVenta, getDatosVentaLead,
   type RawProducto,
 } from "@/lib/acciones/tienda";
 import { calcularPlanVenta } from "@/lib/venta";
@@ -28,6 +28,13 @@ const INPUT = "rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[16p
 
 /** Opción de zona para el dropdown de "precio por segmento". */
 export type ZonaOpcion = { id: string; nombre: string };
+
+/** Datos resueltos para el form de conversión de un lead (precio del cliente + cobrador). */
+type DatosVenta = {
+  precio: number; interesPct: number; cuotas: number; frecuencia: FrecuenciaProducto;
+  personalizado: boolean; tieneCobrador: boolean; cobradorNombre: string | null;
+  cobradores: { id: string; nombre: string }[];
+};
 /** Calificaciones que puede tener un cliente (para el dropdown de segmento). */
 const CALIFICACIONES: { valor: string; label: string }[] = [
   { valor: "nuevo", label: "Nuevo" },
@@ -749,24 +756,44 @@ function LeadCard({ s, producto, esAdmin }: { s: SolicitudProducto; producto?: P
   const [plazo, setPlazo] = useState<number>(producto?.cuotas || 20);
   const [frecuencia, setFrecuencia] = useState<FrecuenciaProducto>(producto?.frecuencia ?? "diario");
   const [msgVenta, setMsgVenta] = useState<string | null>(null);
+  // Datos RESUELTOS para el form (precio del cliente + si tiene cobrador). Se traen al
+  // abrir el form. Mientras cargan, el preview usa el precio base como guía.
+  const [datos, setDatos] = useState<DatosVenta | null>(null);
+  const [cobradorSel, setCobradorSel] = useState("");
   const abierto = s.estado === "nueva" || s.estado === "contactado";
   const puedeVender = esAdmin && abierto && !!producto;
-  // Preview del plan con el PRECIO BASE del producto (el precio real del cliente
-  // —si tiene uno especial— se resuelve en el SERVIDOR al confirmar; esto es guía).
-  const planPreview = producto ? calcularPlanVenta({ precio: producto.precio, interesPct: producto.interesPct, cuotas: plazo }) : null;
+
+  useEffect(() => {
+    if (!ventaAbierta || datos) return;
+    let vivo = true;
+    getDatosVentaLead({ solicitudId: s.id }).then((d) => {
+      if (!vivo || !d.ok) return;
+      setDatos(d);
+      if (d.cuotas > 0) setPlazo(d.cuotas); // prefill con el plazo resuelto del cliente
+      if (d.frecuencia) setFrecuencia(d.frecuencia);
+    });
+    return () => { vivo = false; };
+  }, [ventaAbierta, datos, s.id]);
+
+  // Preview con el precio RESUELTO del cliente (si ya cargó); si no, el base como guía.
+  const precioPrev = datos?.precio ?? producto?.precio ?? 0;
+  const interesPrev = datos?.interesPct ?? producto?.interesPct ?? 0;
+  const planPreview = producto ? calcularPlanVenta({ precio: precioPrev, interesPct: interesPrev, cuotas: plazo }) : null;
+  const faltaCobrador = !!datos && !datos.tieneCobrador;
   const venderAhora = () =>
     start(async () => {
       setMsgVenta(null);
-      const r = await convertirLeadEnVenta({ solicitudId: s.id, plazo, frecuencia });
+      const r = await convertirLeadEnVenta({ solicitudId: s.id, plazo, frecuencia, cobradorId: cobradorSel || undefined });
       if (r.ok) {
-        setMsgVenta(
-          r.yaConvertido
-            ? "Este pedido ya estaba vendido."
-            : `¡Venta creada! Cuota ${UYU(r.cuota)}${r.sinCobrador ? " · ⚠️ el cliente no tiene cobrador asignado (asignale uno para que entre a la ruta)" : ""}`,
-        );
+        setMsgVenta(r.yaConvertido ? "Este pedido ya estaba vendido." : `¡Venta creada! Cuota ${UYU(r.cuota)}`);
         router.refresh();
       } else {
         setMsgVenta(r.error);
+        // Si el server pide cobrador y todavía no lo cargamos, traer la lista para el select.
+        if (r.faltaCobrador && !datos) {
+          const d = await getDatosVentaLead({ solicitudId: s.id });
+          if (d.ok) setDatos(d);
+        }
       }
     });
   const t = ESTADO_TONO[s.estado];
@@ -869,11 +896,30 @@ function LeadCard({ s, producto, esAdmin }: { s: SolicitudProducto; producto?: P
               {planPreview && (
                 <p className="text-[12px] font-medium text-cuerpo">
                   ≈ <b className="tabular-nums">{UYU(planPreview.cuota)}</b>/{frecuencia === "diario" ? "día" : "cuota"} · total a cobrar <b className="tabular-nums">{UYU(planPreview.totalACobrar)}</b>
-                  <span className="mt-0.5 block text-[10.5px] text-tenue">Precio base; si el cliente tiene precio especial, se aplica al confirmar.</span>
+                  <span className="mt-0.5 block text-[10.5px] text-tenue">
+                    {datos
+                      ? datos.personalizado
+                        ? "✓ Precio ESPECIAL de este cliente (lo que se le cobra)."
+                        : "✓ Precio del producto (lo que se le cobra)."
+                      : "Precio base (guía); el del cliente se confirma al vender."}
+                  </span>
                 </p>
               )}
+
+              {/* Cliente sin cobrador: elegir uno acá, sino la venta queda fuera de ruta. */}
+              {faltaCobrador && datos && (
+                <label className="flex flex-col gap-1 rounded-[10px] border border-[#F0C98A] bg-[#FFF7E8] p-2.5">
+                  <span className="text-[11px] font-bold text-[#8A6D1E]">⚠️ Este cliente no tiene cobrador · elegí quién lo va a cobrar</span>
+                  <select value={cobradorSel} onChange={(e) => setCobradorSel(e.target.value)}
+                    className="rounded-[8px] border border-campo bg-tarjeta px-2 py-2 text-[16px] outline-none focus:border-azul">
+                    <option value="">Elegí un cobrador…</option>
+                    {datos.cobradores.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                  </select>
+                </label>
+              )}
+
               <div className="flex gap-1.5">
-                <button type="button" onClick={venderAhora} disabled={pend}
+                <button type="button" onClick={venderAhora} disabled={pend || (faltaCobrador && !cobradorSel)}
                   className="rounded-full bg-[#1FA971] px-3.5 py-1.5 text-[12.5px] font-extrabold text-white disabled:opacity-50">
                   {pend ? "Creando…" : "Confirmar venta"}
                 </button>

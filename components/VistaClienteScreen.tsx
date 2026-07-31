@@ -156,6 +156,7 @@ export function VistaClienteScreen({
           totalDias={v.totalDias}
           fechaFinLarga={v.fechaFinLarga}
           unidad={v.unidad}
+          esCompra={compra != null}
         />
 
         {/* Cuánto pagar hoy para quedar al día. Solo si hace falta. */}

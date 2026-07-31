@@ -26,7 +26,7 @@ import {
 } from "@/lib/data/tienda";
 import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
 import { getClientePorId } from "@/lib/data/clientes";
-import { getCobradorDeCliente } from "@/lib/data/asignaciones";
+import { getCobradorDeCliente, reasignarCliente } from "@/lib/data/asignaciones";
 import { crearPedidoCurbeDb } from "@/lib/data/pedidosCurbe";
 import { calcularPlanVenta } from "@/lib/venta";
 import { RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
@@ -414,7 +414,51 @@ export async function resolverSolicitud(id: string, estado: string, nota?: strin
 // ── Convertir un LEAD en una VENTA (crédito real) — P3b, money-critical ─────
 export type ResultadoConversion =
   | { ok: true; prestamoId: string; clienteId: string; cuota: number; totalACobrar: number; sinCobrador: boolean; yaConvertido?: boolean }
-  | { ok: false; error: string };
+  | { ok: false; error: string; faltaCobrador?: boolean };
+
+/** Datos para el FORM de conversión (display): precio RESUELTO para el cliente (no
+ *  el base) + si el cliente tiene cobrador (para exigir uno si falta, y no crear la
+ *  venta fuera de ruta). La verdad se re-resuelve server-side al confirmar. Solo admin. */
+export async function getDatosVentaLead(input: { solicitudId: string }): Promise<
+  | {
+      ok: true;
+      precio: number; interesPct: number; cuotas: number; frecuencia: FrecuenciaProducto;
+      personalizado: boolean; tieneCobrador: boolean; cobradorNombre: string | null;
+      cobradores: { id: string; nombre: string }[];
+    }
+  | { ok: false; error: string }
+> {
+  const u = await soloAdmin();
+  if (!u) return { ok: false, error: "Solo el administrador." };
+  if (!esUuid(input.solicitudId)) return { ok: false, error: "Pedido inválido." };
+  const db = await createSupabaseServer();
+  const lead = await getSolicitudProductoPorId(db, input.solicitudId);
+  if (!lead || !lead.productoId) return { ok: false, error: "No se encontró el pedido o su producto." };
+  const [producto, cliente] = await Promise.all([
+    getProductoAdmin(db, lead.productoId),
+    getClientePorId(db, lead.clienteId),
+  ]);
+  if (!producto || !cliente) return { ok: false, error: "El producto o el cliente ya no existe." };
+  const terminos = await getTerminosVentaParaCliente(db, producto, { id: cliente.id, calificacion: cliente.calificacion });
+  const cob = await getCobradorDeCliente(db, cliente.id);
+  // Solo se trae la lista de cobradores si hace falta elegir uno (cliente sin cobrador).
+  let cobradores: { id: string; nombre: string }[] = [];
+  if (!cob) {
+    const { data } = await db.from("usuarios").select("id, nombre").eq("rol", "cobrador").eq("activo", true).order("nombre");
+    cobradores = (data ?? []).map((c) => ({ id: c.id as string, nombre: c.nombre as string }));
+  }
+  return {
+    ok: true,
+    precio: terminos.precio,
+    interesPct: terminos.interesPct,
+    cuotas: terminos.cuotas,
+    frecuencia: producto.frecuencia,
+    personalizado: terminos.origen !== "base",
+    tieneCobrador: !!cob,
+    cobradorNombre: cob?.cobradorNombre ?? null,
+    cobradores,
+  };
+}
 
 /**
  * Convierte un pedido de tienda (lead) en un CRÉDITO real de venta. Money-critical:
@@ -434,6 +478,8 @@ export async function convertirLeadEnVenta(input: {
   /** Cuotas del plan (override del admin). Si falta, usa las del producto. */
   plazo?: number;
   frecuencia?: FrecuenciaProducto;
+  /** Cobrador a asignar SI el cliente no tiene uno (sino la venta queda fuera de ruta). */
+  cobradorId?: string;
 }): Promise<ResultadoConversion> {
   const u = await soloAdmin();
   if (!u) return { ok: false, error: "Solo el administrador puede convertir un pedido en venta." };
@@ -480,13 +526,35 @@ export async function convertirLeadEnVenta(input: {
 
   const plan = calcularPlanVenta({ precio: terminos.precio, interesPct: terminos.interesPct, cuotas: plazo });
   if (!(plan.monto > 0) || !(plan.cuota > 0)) return { ok: false, error: "El precio o la cuota del producto son inválidos. Revisalos." };
+  // CAP sobre el CAPITAL colocado (plan.monto = precio del producto, sin interés).
+  // Decisión de negocio (Carlos, 07-31): el tope aplica al capital, NO a la deuda
+  // total con interés — el admin valora al cliente antes de aprobar cada venta. No
+  // es un bug: es intencional. Si algún día se quiere topar la deuda total, cambiar
+  // acá y en el CAP defensivo de la RPC (comparar cuota*total_dias).
   if (plan.monto > RENOVACION_CAP_TOTAL) {
     return { ok: false, error: `La venta no puede superar $${RENOVACION_CAP_TOTAL.toLocaleString("es-UY")} (tope de crédito).` };
   }
 
-  // Cobrador del cliente (para que la venta entre a una ruta). Puede no tener aún.
-  const cob = await getCobradorDeCliente(db, cliente.id);
-  const cobradorId = cob?.cobradorId ?? null;
+  // Cobrador del cliente: la venta SOLO entra a una ruta si el cliente tiene un
+  // cobrador ASIGNADO (la ruta se arma desde `asignaciones`, NO desde prestamos.cobrador_id).
+  // Si no tiene, el admin DEBE elegir uno acá; sino la venta quedaría cobrable en el
+  // cartón del cliente pero INVISIBLE para todo cobrador (plata colocada fuera de ruta).
+  const cobExistente = await getCobradorDeCliente(db, cliente.id);
+  let cobradorId = cobExistente?.cobradorId ?? null;
+  if (!cobradorId) {
+    const elegido = input.cobradorId;
+    if (!elegido || !esUuid(elegido)) {
+      return { ok: false, error: "Este cliente no tiene cobrador. Elegí quién lo va a cobrar para aprobar la venta.", faltaCobrador: true };
+    }
+    const { data: cobU } = await db.from("usuarios").select("rol, activo").eq("id", elegido).maybeSingle();
+    if (!cobU || (cobU as { rol?: string }).rol !== "cobrador" || !(cobU as { activo?: boolean }).activo) {
+      return { ok: false, error: "Elegí un cobrador válido.", faltaCobrador: true };
+    }
+    // El cliente no tenía cobrador → se le asigna éste (crea la asignación activa),
+    // así la venta entra a su ruta. reasignarCliente respeta el índice único.
+    await reasignarCliente(db, cliente.id, elegido);
+    cobradorId = elegido;
+  }
 
   const opId = opIdDeterminista("venta", input.solicitudId);
   const fechaInicio = toIso(hoyUY());
