@@ -9,6 +9,27 @@ rutina diaria de control, el freno de emergencia y cómo medimos si salió bien.
 
 ---
 
+## ⛔ PRE-VUELO — 2 bloqueantes de infra (verificado en vivo el 2026-07-30)
+
+> **El código y los 3 perfiles están listos.** Lo que falta para arrancar "en serio"
+> son **2 cosas que solo puede hacer Carlos en Vercel** (encienden la red de seguridad,
+> no el cobro). Se puede COBRAR el día 1 sin esto, pero el vigilante de dinero está apagado.
+
+| # | Bloqueante | Estado hoy (verificado) | Qué hacer |
+|---|---|---|---|
+| 🔴 1 | **`CRON_SECRET` en Vercel** — enciende la reconciliación diaria automática | ❌ **el cron NUNCA corrió** (última reconciliación: 2026-07-15, hace ~15 días; `reconciliacion_log` solo tiene 1 fila `origen=manual`) | `openssl rand -hex 32` → cargar `CRON_SECRET` en Vercel **Production** → **redeploy** → al otro día verificar una fila `origen='cron'` en `/admin/empalme`. Confirmar que el plan de Vercel corre crons diarios (Pro recomendado). |
+| 🔴 2 | **VAPID + suscribir 1 admin** — canal de alerta push | ❌ **0 suscripciones** (aunque el cron corra, un crítico no avisa a nadie) | `node scripts/gen-vapid.mjs` → cargar `NEXT_PUBLIC_VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` + `VAPID_SUBJECT` en Vercel → **redeploy** → un admin toca **"Activar avisos"** en su teléfono. (Mitigado: un crítico ya va SIEMPRE a Sentry aunque el push falle.) |
+
+**✅ Ya resuelto desde el snapshot anterior:** los **13 cobradores sin zona → 0** (custodia sellada).
+Núcleo de dinero verificado sólido el 2026-07-29 (`pagado_acum == Σpagos` cuadra, 0 huérfanos, sin drift nuevo).
+
+**Cómo re-verificar este pre-vuelo** (read-only): mirá el banner de `/admin/empalme` (avisa en
+rojo si la reconciliación automática lleva >26 h sin correr) y `/admin/dev` (expone si `CRON_SECRET`
+está seteado). El resto del backlog de Carlos (PITR, monitor externo, Upstash, legal, 2FA) es
+**post-arranque** — endurece, no bloquea.
+
+---
+
 ## 0) Estado de preparación (verificado el 2026-07-15)
 
 Corré `node --env-file=.env.local scripts/verificar-piloto.mjs` para regenerar esta foto.
