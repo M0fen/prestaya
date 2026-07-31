@@ -587,6 +587,27 @@ export async function setProductoActivoDb(db: SupabaseClient, id: string, activo
   const { error } = await db.from("productos").update({ activo }).eq("id", id);
   if (error) throw error;
 }
+/** Actualiza SOLO el pricing de un producto (precio/costo/interés/cuotas/frecuencia)
+ *  sin tocar fotos/descripción/etc. Lo usa la Calculadora para "guardar precios" en un
+ *  producto existente sin riesgo de pisar el resto (un update completo lo borraría). */
+export async function actualizarPreciosProductoDb(
+  db: SupabaseClient,
+  id: string,
+  p: { precio: number; costo: number | null; interesPct: number; cuotas: number; frecuencia: FrecuenciaProducto },
+): Promise<void> {
+  const { error } = await db
+    .from("productos")
+    .update({
+      precio: p.precio,
+      costo: p.costo,
+      interes_pct: p.interesPct,
+      cuotas: p.cuotas,
+      frecuencia: p.frecuencia,
+      actualizado_en: new Date().toISOString(),
+    })
+    .eq("id", id);
+  if (error) throw error;
+}
 export async function borrarProductoDb(db: SupabaseClient, id: string): Promise<void> {
   const { error } = await db.from("productos").delete().eq("id", id);
   if (error) throw error;

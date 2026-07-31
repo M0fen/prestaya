@@ -15,7 +15,7 @@ export default async function CalculadoraPage() {
   const db = await createSupabaseServer();
   const productos = await getProductosAdmin(db);
   const items = productos.map((p) => ({
-    id: p.id, nombre: p.nombre, precio: p.precio, costo: p.costo, interesPct: p.interesPct, cuotas: p.cuotas,
+    id: p.id, nombre: p.nombre, precio: p.precio, costo: p.costo, interesPct: p.interesPct, cuotas: p.cuotas, frecuencia: p.frecuencia,
   }));
   return (
     <div className="flex flex-col gap-5">
@@ -23,7 +23,8 @@ export default async function CalculadoraPage() {
         <Link href="/admin/tienda" className="text-[12px] font-bold text-azul">← Volver a Tienda</Link>
         <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">🧮 Calculadora de precios</h1>
         <span className="text-[13px] font-medium text-gris">
-          Fijá precios con margen, financiación y ganancia. Precargá un producto o probá valores.
+          Poné el costo y te dice <b className="text-cuerpo">a cuánto venderlo</b>, cómo quedan las <b className="text-cuerpo">cuotas</b> y
+          cuánto <b className="text-cuerpo">ganás</b>. Podés <b className="text-cuerpo">crear el producto</b> directo desde acá.
         </span>
       </header>
       <CalculadoraPrecios productos={items} />

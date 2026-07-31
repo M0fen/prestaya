@@ -16,7 +16,7 @@ import { hrefSeguro } from "@/lib/seguridad";
 import { esUuid, opIdDeterminista } from "@/lib/idempotencia";
 import { normalizarSegmento, esSegmentoTodos, type DefinicionSegmento } from "@/lib/segmentos";
 import {
-  crearProductoDb, actualizarProductoDb, setProductoActivoDb, borrarProductoDb,
+  crearProductoDb, actualizarProductoDb, actualizarPreciosProductoDb, setProductoActivoDb, borrarProductoDb,
   crearCategoriaDb, actualizarCategoriaDb, borrarCategoriaDb,
   setPrecioClienteDb, borrarPrecioClienteDb, resolverSolicitudDb, getPreciosDeProducto,
   setPrecioSegmentoDb, borrarPrecioSegmentoDb, getSegmentosDeProducto,
@@ -173,6 +173,36 @@ export async function guardarProducto(raw: RawProducto): Promise<Resultado> {
       actorId: u.id, actorNombre: u.nombre, accion: raw.id ? "Editó producto" : "Creó producto",
       entidad: "producto", entidadId: raw.id ?? undefined,
       detalle: `${input.nombre} · $${input.precio.toLocaleString("es-UY")}${input.activo ? "" : " (inactivo)"}`,
+    });
+    revalidatePath("/admin/tienda");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "No se pudo guardar. Probá de nuevo." };
+  }
+}
+
+/** Guarda SOLO los precios (precio/costo/interés/cuotas/frecuencia) en un producto
+ *  existente, desde la Calculadora, sin pisar fotos/descripción. Solo admin. */
+export async function guardarPreciosProducto(input: {
+  id: string; precio: number; costo: number | null; interesPct: number; cuotas: number; frecuencia: string;
+}): Promise<Resultado> {
+  const u = await soloAdmin();
+  if (!u) return { ok: false, error: "Solo el administrador gestiona la tienda." };
+  if (!esUuid(input.id)) return { ok: false, error: "Producto inválido." };
+  const precio = Math.max(0, Math.round(Number(input.precio) || 0));
+  const cuotas = Math.max(1, Math.round(Number(input.cuotas) || 1));
+  const interesPct = Math.max(0, Number(input.interesPct) || 0);
+  const costo = input.costo == null ? null : Math.max(0, Math.round(Number(input.costo) || 0));
+  const frecuencia: FrecuenciaProducto = FRECUENCIAS.includes(input.frecuencia as FrecuenciaProducto) ? (input.frecuencia as FrecuenciaProducto) : "diario";
+  if (precio <= 0) return { ok: false, error: "El precio debe ser mayor a 0." };
+  if (cuotas > 1000) return { ok: false, error: "Revisá la cantidad de cuotas (1 a 1000)." };
+  try {
+    const db = await createSupabaseServer();
+    await actualizarPreciosProductoDb(db, input.id, { precio, costo, interesPct, cuotas, frecuencia });
+    await registrarAuditoria(db, {
+      actorId: u.id, actorNombre: u.nombre, accion: "Actualizó precios de un producto (calculadora)",
+      entidad: "producto", entidadId: input.id,
+      detalle: `$${precio.toLocaleString("es-UY")} · ${cuotas} cuotas · ${interesPct}% · ${frecuencia}`,
     });
     revalidatePath("/admin/tienda");
     return { ok: true };
