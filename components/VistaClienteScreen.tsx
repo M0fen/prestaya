@@ -96,14 +96,15 @@ export function VistaClienteScreen({
             PRIMERO que ve el cliente (rota solo si hay varios). Esa es la gracia. */}
         <BannerCarrusel anuncios={anuncios} />
 
-        {/* TIENDA a PRIMER VISTAZO (comercial): banner del producto destacado (si
-            el admin lo marcó) + entrada al catálogo, arriba de todo. Solo vista real. */}
-        {productoDestacado && token && (
+        {/* TIENDA a PRIMER VISTAZO (comercial): banner del producto destacado (con
+            su foto real) + entrada al catálogo, arriba de todo. Con token → tienda
+            del cliente; sin token (demo) → tienda pública. */}
+        {productoDestacado && (
           <TiendaBanner producto={productoDestacado} token={token} />
         )}
-        {hayTienda && token && (
+        {hayTienda && (
           <Link
-            href={`/c/${token}/tienda`}
+            href={token ? `/c/${token}/tienda` : "/tienda"}
             className="flex items-center gap-3 rounded-[18px] bg-[linear-gradient(135deg,#2453DC,#13308C)] px-4 py-3.5 text-white shadow-[0_8px_22px_rgba(19,48,140,0.24)] active:scale-[0.99]"
           >
             <span className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-white/15 text-[24px]">🛍️</span>

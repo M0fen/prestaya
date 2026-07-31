@@ -1,6 +1,9 @@
 // DEMO de la vista de cliente con datos mock (forma real de la BD).
 // Sirve para MOSTRAR el producto sin una cuenta real. La vista real por link
 // vive en app/c/[token]; la misma pantalla, distinto origen de datos.
+//
+// La TIENDA sí es real: trae productos vivos (con su foto) del catálogo público
+// para que se vea el banner de producto + el link a la tienda tal cual el cliente.
 import {
   clienteMock,
   prestamoMock,
@@ -10,10 +13,17 @@ import {
 import { NEGOCIO } from "@/lib/negocio";
 import { construirVistaCliente } from "@/lib/vistaCliente";
 import { VistaClienteScreen } from "@/components/VistaClienteScreen";
+import { createSupabaseAdmin } from "@/lib/supabase/admin";
+import { getProductosPublicos } from "@/lib/data/tienda";
+import { conTimeout } from "@/lib/timeout";
 import type { Anuncio } from "@/types/db";
 
-// Anuncios de ejemplo para el demo (en producción vienen de Supabase).
-// Muestran cómo el admin carga eventos y avisos para sus clientes.
+// Trae productos reales → siempre datos frescos (no se prerenderiza estático).
+export const dynamic = "force-dynamic";
+
+// Anuncios de ejemplo para el demo (en producción vienen de Supabase). Son
+// mensajes HONESTOS sobre lo nuestro (programa de puntos, la tienda, renovación).
+// La tienda con imágenes de producto se muestra abajo con datos REALES.
 function anuncioDemo(
   id: string,
   titulo: string,
@@ -55,39 +65,36 @@ const anunciosDemo: Anuncio[] = [
   ),
   anuncioDemo(
     "a2",
-    "Farmacia del Pueblo 💊",
-    "15% de descuento presentando tu app Presta Ya al pagar en caja.",
-    "dorado",
-    25,
-    "Ver más",
-    "Publicidad",
-  ),
-  anuncioDemo(
-    "a3",
-    "Feriado: no pasa el cobrador el jueves 📅",
-    "Ese día podés adelantar tu cuota el miércoles y quedás al día.",
-    "ambar",
+    "Todo en cuotas cómodas 🛍️",
+    "Electrodomésticos, tecnología y más en tu tienda Presta Ya. Mirá el catálogo abajo.",
+    "verde",
     20,
   ),
   anuncioDemo(
-    "a4",
-    "Premio a tu constancia 🎁",
-    "Pagá 10 días seguidos sin atrasos y accedé a un descuento en tu próximo crédito.",
-    "verde",
-    15,
-    "Ver beneficios",
-  ),
-  anuncioDemo(
-    "a5",
+    "a3",
     "Renová y accedé a más 📈",
     "Al terminar tu crédito estando al día, podés pedir un monto mayor.",
     "oscuro",
-    5,
-    "Ver cómo",
+    10,
   ),
 ];
 
-export default function DemoVistaCliente() {
+export default async function DemoVistaCliente() {
+  // Productos REALES de la tienda (con su foto) para mostrar la tienda de verdad
+  // — nada inventado. Degrada a sin-tienda si la consulta falla (el demo igual anda).
+  let productos: Awaited<ReturnType<typeof getProductosPublicos>> = [];
+  try {
+    const db = createSupabaseAdmin();
+    productos = await conTimeout(getProductosPublicos(db), 8_000, "demo.tienda");
+  } catch {
+    productos = [];
+  }
+  // Destacamos un electro PROPIO con foto (o el primero con foto que haya).
+  const destacado =
+    productos.find((p) => !p.proveedor && p.destacado && p.fotos[0]) ??
+    productos.find((p) => p.fotos[0]) ??
+    null;
+
   const v = construirVistaCliente({
     cliente: clienteMock,
     prestamo: prestamoMock,
@@ -100,6 +107,8 @@ export default function DemoVistaCliente() {
     <VistaClienteScreen
       v={v}
       anuncios={anunciosDemo}
+      hayTienda={productos.length > 0}
+      productoDestacado={destacado}
       reputacion={{ calificacion: clienteMock.calificacion, creditosPagados: 2 }}
       promo={{
         raspaDisponibles: 1,

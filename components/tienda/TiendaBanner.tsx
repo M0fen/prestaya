@@ -15,16 +15,20 @@ export function TiendaBanner({
   token,
 }: {
   producto: ProductoParaCliente;
-  token: string;
+  /** Con token → tienda del cliente; sin token (demo/pública) → tienda pública. */
+  token?: string | null;
 }) {
   // Mismo cálculo que la vitrina: precio con interés → cuota (framing "N× $X").
   const conInteres = Math.round(producto.precio * (1 + producto.interesPct / 100));
   const cuota = producto.cuotas > 0 ? Math.ceil(conInteres / producto.cuotas) : 0;
   const oferta = producto.precioAnterior > producto.precio;
+  const href = token
+    ? `/c/${token}/tienda?producto=${producto.id}`
+    : `/tienda?producto=${producto.id}`;
 
   return (
     <Link
-      href={`/c/${token}/tienda?producto=${producto.id}`}
+      href={href}
       className="flex items-stretch gap-3 overflow-hidden rounded-[18px] border border-[#E6ECFA] bg-white p-2.5 shadow-[0_6px_20px_rgba(19,48,140,0.10)] active:scale-[0.99]"
     >
       {/* Foto de portada */}
