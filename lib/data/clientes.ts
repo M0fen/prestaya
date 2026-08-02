@@ -8,6 +8,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Cliente } from "@/types/db";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { alcanceDelActor, enLotes } from "./alcance";
+import { traerTodo } from "./paginado";
 
 /** Sanea un término de búsqueda libre antes de un `.or(ilike…)`: neutraliza la
  *  sintaxis de filtro de PostgREST (coma/paréntesis/comillas/asterisco → espacio)
@@ -154,13 +155,22 @@ export async function getClientesAsignados(
   const admin = createSupabaseAdmin();
   const alcance = await alcanceDelActor();
   if (alcance.global) {
-    const { data, error } = await admin
-      .from("clientes")
-      .select("*")
-      .eq("activo", true)
-      .order("nombre", { ascending: true });
-    if (error) throw error;
-    return (data ?? []).map(mapCliente);
+    // PAGINADO obligatorio: PostgREST corta en 1000 y hay ~13.000 clientes activos.
+    // Ordenado por nombre, esa truncación devolvía SOLO la primera letra del abecedario
+    // en silencio (y de acá salen los candidatos a renovación → capital sin colocar).
+    // Se pagina por `id` (orden único y estable, requisito de traerTodo) y se ordena
+    // por nombre en memoria, que es lo que espera la UI.
+    const filasTodas = await traerTodo<Record<string, unknown>>((d, h) =>
+      admin
+        .from("clientes")
+        .select("*")
+        .eq("activo", true)
+        .order("id", { ascending: true })
+        .range(d, h),
+    );
+    return filasTodas
+      .map(mapCliente)
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
   }
   if (alcance.clienteIds.length === 0) return [];
   // Supervisor: `.in(id, ...)` EN LOTES (URL de PostgREST) y se une en JS.

@@ -236,6 +236,100 @@ export function invLeadConvertido(rows: readonly LeadRecon[]): Hallazgo[] {
   return out;
 }
 
+/** Rendición de un día YA CERRADO vs el libro de pagos de ese día (por cobrador). */
+export interface RendicionRecon {
+  cobradorId: string;
+  /** Día UY "YYYY-MM-DD" al que corresponde. */
+  fecha: string;
+  /** `recaudado` congelado en la rendición, o null si ese día NO rindió. */
+  recaudadoRendicion: number | null;
+  /** Σ pagos VIGENTES (no anulados) que registró ese día (recalculado del libro). */
+  pagosSuma: number;
+}
+
+/**
+ * INVARIANTE 8 — Rendición histórica == libro. Re-mira un día YA CERRADO (ayer):
+ *  · rindió pero el libro difiere → cobró DESPUÉS de rendir (efectivo sin sello de
+ *    entrega) o se ANULÓ un pago después (rendición congelada descuadrada). Alto.
+ *  · recaudó y NO rindió → la plata quedó en la calle sin rendición; al día
+ *    siguiente desaparecía de todas las pantallas de cierre. Alto.
+ * Sin esto, todo lo que pasa después del cierre muere a medianoche sin detector.
+ */
+export function invRendicionVsLibro(rows: readonly RendicionRecon[]): Hallazgo[] {
+  const out: Hallazgo[] = [];
+  for (const r of rows) {
+    const libro = Math.round(r.pagosSuma);
+    if (r.recaudadoRendicion == null) {
+      if (libro >= DRIFT_TOL) {
+        out.push({
+          invariante: "rendicion-existe",
+          severidad: "alto",
+          detalle: `cobrador ${r.cobradorId} (${r.fecha}): recaudó ${libro} y NO rindió (efectivo sin entregar)`,
+        });
+      }
+      continue;
+    }
+    const delta = libro - Math.round(r.recaudadoRendicion);
+    if (Math.abs(delta) >= DRIFT_TOL) {
+      out.push({
+        invariante: "rendicion==libro",
+        severidad: "alto",
+        detalle:
+          `cobrador ${r.cobradorId} (${r.fecha}): rendición ${Math.round(r.recaudadoRendicion)} ≠ libro ${libro} ` +
+          `(Δ ${delta}: ${delta > 0 ? "cobró DESPUÉS de rendir — efectivo sin sello" : "se anuló un pago tras rendir — histórico descuadrado"})`,
+      });
+    }
+  }
+  return out;
+}
+
+/** Gastos que una rendición descontó vs el respaldo real (aprobado) de ese día. */
+export interface GastosRecon {
+  cobradorId: string;
+  fecha: string;
+  /** `gastos` congelados en la rendición (lo que redujo el esperado). */
+  gastosRendicion: number;
+  /** Σ solicitudes APROBADAS con solicitado_en de ese día. */
+  gastosAprobados: number;
+  /** Σ solicitudes aún PENDIENTES de ese día (sin resolver). */
+  gastosPendientes: number;
+}
+
+/**
+ * INVARIANTE 9 — Gastos de la rendición respaldados por APROBADOS (D+1). El cierre
+ * admite pendientes en el tope (a propósito: no castigar al honesto cuyo supervisor
+ * aprueba tarde); esta invariante re-mira AYER, cuando ya hubo tiempo de resolver:
+ *  · gastos > aprobados y el hueco NO lo cubren pendientes → el gasto se RECHAZÓ
+ *    después del cierre: la rendición descontó plata que no existió (faltante
+ *    invisible). Alto.
+ *  · gastos > aprobados pero hay pendientes que lo cubren → falta RESOLVER la
+ *    solicitud que respaldó una rendición. Medio (perseguir al aprobador).
+ */
+export function invGastosRendicion(rows: readonly GastosRecon[]): Hallazgo[] {
+  const out: Hallazgo[] = [];
+  for (const r of rows) {
+    const gastos = Math.round(r.gastosRendicion);
+    const aprobados = Math.round(r.gastosAprobados);
+    const pendientes = Math.round(r.gastosPendientes);
+    const exceso = gastos - aprobados;
+    if (exceso < DRIFT_TOL) continue;
+    if (pendientes >= exceso) {
+      out.push({
+        invariante: "gastos-respaldados",
+        severidad: "medio",
+        detalle: `cobrador ${r.cobradorId} (${r.fecha}): la rendición descontó ${gastos} con ${pendientes} aún PENDIENTES de aprobar — resolver la solicitud`,
+      });
+    } else {
+      out.push({
+        invariante: "gastos-respaldados",
+        severidad: "alto",
+        detalle: `cobrador ${r.cobradorId} (${r.fecha}): la rendición descontó ${gastos} pero lo aprobado es ${aprobados} (hueco ${exceso} sin respaldo — ¿gasto rechazado tras el cierre?)`,
+      });
+    }
+  }
+  return out;
+}
+
 export interface ResumenReconciliacion {
   ok: boolean;
   totalCreditos: number;

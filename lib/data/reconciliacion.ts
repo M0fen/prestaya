@@ -10,13 +10,17 @@ import {
   invRecaudoDia,
   invBaseCaja,
   invLeadConvertido,
+  invRendicionVsLibro,
+  invGastosRendicion,
   type CreditoRecon,
   type Hallazgo,
   type BaseCajaRecon,
   type LeadRecon,
+  type RendicionRecon,
+  type GastosRecon,
   type ResumenReconciliacion,
 } from "@/lib/reconciliacion";
-import { inicioDiaUYIso, hoyUY } from "@/lib/fecha";
+import { inicioDiaUYIso, hoyUY, sumarDiasYmd, diaUYInicioIso } from "@/lib/fecha";
 import { toIso } from "@/lib/format";
 import { saldoCredito } from "@/lib/cartones";
 import { reportarError } from "@/lib/observabilidad";
@@ -298,13 +302,21 @@ export async function getInfoEmpalme(db: SupabaseClient): Promise<InfoEmpalme> {
  */
 async function hallazgosExtraDelDia(db: SupabaseClient, hoy: Date): Promise<Hallazgo[]> {
   const fecha = toIso(hoyUY(hoy));
+  // AYER: el último día COMPLETO. Las invariantes históricas (INV6/INV8/INV9) se
+  // evalúan sobre ayer, no sobre hoy: el cron corre a las 07:00 UY, cuando el día
+  // recién nace (apertura/rendición/gastos de HOY aún no existen → chequear hoy es
+  // estructuralmente inútil; era el hueco por el que una base editada de noche, un
+  // cobro post-rendición o un gasto rechazado tras el cierre morían a medianoche).
+  const ayer = sumarDiasYmd(fecha, -1);
   const out: Hallazgo[] = [];
 
-  // INV6 — base de caja consistente (apertura vs rendición del mismo cobrador/día).
+  // INV6 — base de caja consistente (apertura vs rendición del mismo cobrador/día),
+  // sobre AYER: la ventana real donde ambas coexisten (≈17:00→23:59) solo es
+  // observable al día siguiente.
   try {
     const [ap, re] = await Promise.all([
-      db.from("aperturas_caja").select("cobrador_id, base").eq("fecha", fecha),
-      db.from("rendiciones").select("cobrador_id, base").eq("fecha", fecha),
+      db.from("aperturas_caja").select("cobrador_id, base").eq("fecha", ayer),
+      db.from("rendiciones").select("cobrador_id, base").eq("fecha", ayer),
     ]);
     if (ap.error) throw ap.error;
     if (re.error) throw re.error;
@@ -314,14 +326,93 @@ async function hallazgosExtraDelDia(db: SupabaseClient, hoy: Date): Promise<Hall
       const cid = a.cobrador_id as string;
       return {
         cobradorId: cid,
-        fecha,
+        fecha: ayer,
         baseApertura: N(a.base),
-        baseRendicion: baseRend.has(cid) ? baseRend.get(cid)! : null, // null = aún no rindió → no aplica
+        baseRendicion: baseRend.has(cid) ? baseRend.get(cid)! : null, // null = no rindió → no aplica
       };
     });
     out.push(...invBaseCaja(rows));
   } catch (e) {
     if (!tablaFaltante(e)) reportarError("reconciliarDia:baseCaja", e);
+  }
+
+  // INV8/INV9 — rendiciones de AYER vs libro + gastos respaldados. Re-mira el día
+  // ya cerrado: cobro post-rendición, anulación posterior, cobrador que no rindió,
+  // y gastos descontados que luego se rechazaron. Solo COBRADORES (un gestor que
+  // registra un pago desde el panel deja esa plata en caja central: no rinde).
+  try {
+    const desdeAyer = diaUYInicioIso(ayer);
+    const desdeHoy = diaUYInicioIso(fecha);
+    const [{ data: rends, error: eR }, pagosAyer] = await Promise.all([
+      db.from("rendiciones").select("cobrador_id, recaudado, gastos").eq("fecha", ayer),
+      traerTodo<{ monto: unknown; registrado_por: string | null }>((d, h) =>
+        db
+          .from("pagos")
+          .select("monto, registrado_por")
+          .eq("anulado", false)
+          .gte("registrado_en", desdeAyer)
+          .lt("registrado_en", desdeHoy)
+          .order("id", { ascending: true })
+          .range(d, h),
+      ),
+    ]);
+    if (eR) throw eR;
+    const libroDe = new Map<string, number>();
+    for (const p of pagosAyer) {
+      if (!p.registrado_por) continue;
+      libroDe.set(p.registrado_por, (libroDe.get(p.registrado_por) ?? 0) + N(p.monto));
+    }
+    // Rol de cada registrador: los pagos de gestores (oficina) NO exigen rendición.
+    const ids = [...new Set([...libroDe.keys(), ...(rends ?? []).map((r) => r.cobrador_id as string)])];
+    const esCobrador = new Set<string>();
+    if (ids.length > 0) {
+      for (let i = 0; i < ids.length; i += 200) {
+        const { data: us } = await db.from("usuarios").select("id, rol").in("id", ids.slice(i, i + 200));
+        for (const u of us ?? []) if (u.rol === "cobrador") esCobrador.add(u.id as string);
+      }
+    }
+    const rendDe = new Map<string, { recaudado: number; gastos: number }>();
+    for (const r of rends ?? []) rendDe.set(r.cobrador_id as string, { recaudado: N(r.recaudado), gastos: N(r.gastos) });
+    const filas: RendicionRecon[] = [];
+    for (const id of new Set([...libroDe.keys(), ...rendDe.keys()])) {
+      if (!esCobrador.has(id)) continue;
+      filas.push({
+        cobradorId: id,
+        fecha: ayer,
+        recaudadoRendicion: rendDe.get(id)?.recaudado ?? null,
+        pagosSuma: libroDe.get(id) ?? 0,
+      });
+    }
+    out.push(...invRendicionVsLibro(filas));
+
+    // INV9 — gastos de las rendiciones de ayer vs solicitudes APROBADAS de ayer.
+    const conGastos = [...rendDe.entries()].filter(([, v]) => v.gastos > 0);
+    if (conGastos.length > 0) {
+      const { data: sols, error: eS } = await db
+        .from("solicitudes_gasto")
+        .select("cobrador_id, monto, estado")
+        .gte("solicitado_en", desdeAyer)
+        .lt("solicitado_en", desdeHoy)
+        .in("cobrador_id", conGastos.map(([id]) => id));
+      if (eS) throw eS;
+      const apr = new Map<string, number>();
+      const pen = new Map<string, number>();
+      for (const s of sols ?? []) {
+        const cid = s.cobrador_id as string;
+        if (s.estado === "aprobada") apr.set(cid, (apr.get(cid) ?? 0) + N(s.monto));
+        else if (s.estado === "pendiente") pen.set(cid, (pen.get(cid) ?? 0) + N(s.monto));
+      }
+      const filasG: GastosRecon[] = conGastos.map(([id, v]) => ({
+        cobradorId: id,
+        fecha: ayer,
+        gastosRendicion: v.gastos,
+        gastosAprobados: apr.get(id) ?? 0,
+        gastosPendientes: pen.get(id) ?? 0,
+      }));
+      out.push(...invGastosRendicion(filasG));
+    }
+  } catch (e) {
+    if (!tablaFaltante(e)) reportarError("reconciliarDia:rendicionesAyer", e);
   }
 
   // INV7 — lead de tienda 'convertida' → crédito existente de origen 'tienda'.

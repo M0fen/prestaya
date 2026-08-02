@@ -13,6 +13,9 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getUsuarioActual } from "@/lib/auth";
 import { getZonasDeSupervisor } from "@/lib/data/zonas";
+import { upsertDiscrepanciaDb } from "@/lib/data/discrepancias";
+import { hoyUY } from "@/lib/fecha";
+import { toIso } from "@/lib/format";
 import {
   actorDesde,
   puedeAnularPagoDirecto,
@@ -58,20 +61,46 @@ async function flipAnulado(pagoId: string, u: Usuario, motivo: string): Promise<
   // VISIBILIDAD (caza 07-28): anular un pago de un crédito NO activo (finalizado/
   // renovado) baja pagado_acum sin reabrir el crédito → el saldo que queda impago no
   // lo cobra nadie y una renovación pudo otorgarse sobre ese pago. La reconciliación
-  // (pagado_acum==Σpagos, sin sobre-cobro) NO lo detecta (ambos bajan). Deja rastro
-  // durable para revisar la cascada. Best-effort: no rompe la anulación.
+  // (pagado_acum==Σpagos, sin sobre-cobro) NO lo detecta (ambos bajan).
+  // Antes esto solo emitía un evento de Sentry: EFÍMERO y fuera del circuito del
+  // negocio (nadie del equipo lo mira) → el write-off quedaba sin dueño. Ahora
+  // además se ABRE UNA DISCREPANCIA (0109), que es la cola de triage que el admin
+  // ya usa y que el panel del empalme muestra hasta que alguien la resuelve/acepta.
+  // Best-effort en ambos canales: nunca rompe la anulación (el libro ya cambió).
   if (ok) {
     try {
       const prestamoId = data![0].prestamo_id as string;
-      const { data: pre } = await admin.from("prestamos").select("estado").eq("id", prestamoId).maybeSingle();
-      const estado = (pre as { estado?: string } | null)?.estado;
+      const { data: pre } = await admin
+        .from("prestamos")
+        .select("estado, cuota_diaria, total_dias, pagado_acum")
+        .eq("id", prestamoId)
+        .maybeSingle();
+      const p = pre as { estado?: string; cuota_diaria?: number; total_dias?: number; pagado_acum?: number } | null;
+      const estado = p?.estado;
       if (estado && estado !== "activo") {
         reportarError("anulacion.credito-no-activo", new Error(`Anulación de pago en crédito ${estado} (write-off silencioso, revisar renovación)`), {
           pagoId, prestamoId, estado, anuladoPor: u.id,
         });
+        // Saldo que queda impago y que ya NADIE va a cobrar (el crédito no está
+        // en ninguna ruta): es la magnitud del write-off que hay que revisar.
+        const saldo = Math.max(
+          0,
+          Math.round(Number(p?.cuota_diaria ?? 0) * Number(p?.total_dias ?? 0)) - Math.round(Number(p?.pagado_acum ?? 0)),
+        );
+        await upsertDiscrepanciaDb(admin, {
+          creditoId: prestamoId,
+          estado: "abierto",
+          tipo: "anulacion-credito-no-activo",
+          montoDiferencia: saldo,
+          nota:
+            `Se anuló un pago de un crédito ${estado}. Queda un saldo de $${saldo.toLocaleString("es-UY")} ` +
+            `que ninguna ruta cobra (el crédito no está activo). Revisar si la renovación se otorgó sobre ese pago.`,
+          adminId: u.id,
+          ahoraIso: new Date().toISOString(),
+        });
       }
     } catch {
-      /* la visibilidad es best-effort */
+      /* la visibilidad es best-effort: el libro ya quedó consistente */
     }
   }
   return ok;
@@ -108,6 +137,24 @@ export async function deshacerPagoAction(input: { pagoId: string }): Promise<Res
   const registradoEn = new Date(pago.registrado_en as string).getTime();
   if (!Number.isFinite(registradoEn) || Date.now() - registradoEn > VENTANA_DESHACER_MS)
     return { ok: false, error: "Pasó más de 1 hora: ya no se puede deshacer. Pedí una anulación." };
+
+  // CUSTODIA: si ese día YA rindió, el recaudado quedó CONGELADO en la rendición
+  // (y el efectivo ya se entregó al supervisor). Deshacer ahora deja la rendición
+  // histórica diciendo que cobró algo que en el libro no existe → descuadre mudo
+  // entre libro/rendición/cierre de zona, y el cliente vuelve a figurar impago
+  // (se le cobraría dos veces). Pasada la rendición, solo anulación con doble registro.
+  const pagoDia = toIso(hoyUY(new Date(pago.registrado_en as string)));
+  const { data: rend } = await admin
+    .from("rendiciones")
+    .select("id")
+    .eq("cobrador_id", u.id)
+    .eq("fecha", pagoDia)
+    .maybeSingle();
+  if (rend)
+    return {
+      ok: false,
+      error: "Ya cerraste la jornada de ese día y entregaste el efectivo. Pedí una anulación para corregirlo.",
+    };
 
   const ok = await flipAnulado(input.pagoId, u, "Deshecho por quien lo registró (dentro de 1 h)");
   if (!ok) return { ok: false, error: "No se pudo deshacer el pago." };

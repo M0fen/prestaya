@@ -8,6 +8,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Cliente, Prestamo } from "@/types/db";
 import type { ResultadoScore } from "@/types/scoring";
 import { getClientesAsignados } from "./clientes";
+import { traerTodo } from "./paginado";
 import { getPagosDePrestamo } from "./pagos";
 import { getActivosConPagos, pagosDeActivo } from "./activos";
 import { getPrestamoPorId } from "./prestamos";
@@ -60,11 +61,18 @@ export async function getCandidatosRenovacion(
   const clientes = await getClientesAsignados(db);
   if (clientes.length === 0) return [];
 
-  const { data: presRaw, error } = await db
-    .from("prestamos")
-    .select("id, cliente_id, cobrador_id, monto_prestado, cuota_diaria, total_dias, frecuencia, fecha_inicio")
-    .eq("estado", "activo");
-  if (error) throw error;
+  // PAGINADO obligatorio: PostgREST corta en 1000 filas. Con ~2.300 créditos
+  // activos, sin esto la lista de candidatos a renovación perdía en SILENCIO más
+  // de la mitad de la cartera → clientes que ya calificaban nunca se le ofrecían
+  // al gestor (capital que no se vuelve a colocar). Orden estable por `id`.
+  const presRaw = await traerTodo<Record<string, unknown>>((d, h) =>
+    db
+      .from("prestamos")
+      .select("id, cliente_id, cobrador_id, monto_prestado, cuota_diaria, total_dias, frecuencia, fecha_inicio")
+      .eq("estado", "activo")
+      .order("id", { ascending: true })
+      .range(d, h),
+  );
 
   // Agrupamos TODOS los créditos activos por cliente. Indexar por cliente_id con
   // set() perdía todos menos el último → los 94 clientes multi-crédito (0037 quitó

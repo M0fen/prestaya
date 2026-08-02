@@ -6,6 +6,8 @@ import {
   invSobrecobro,
   invRecaudoDia,
   invHuerfanos,
+  invRendicionVsLibro,
+  invGastosRendicion,
   reconciliar,
   type CreditoRecon,
 } from "./reconciliacion";
@@ -145,5 +147,68 @@ describe("reconciliar — resumen global", () => {
   it("solo hallazgos ALTOS → peorSeveridad='alto' (no salta a crítico ni baja a medio)", () => {
     const r = reconciliar([credito()], invRecaudoDia({ pagos: 100000, caja: 90000 }));
     expect(r.peorSeveridad).toBe("alto");
+  });
+});
+
+// ── INV8: la rendición de un día YA CERRADO vs el libro ─────────────────────
+// Es el detector del efectivo que se movía DESPUÉS del cierre y se volvía
+// invisible a medianoche (cobro post-rendición, anulación posterior, no-rendición).
+describe("invRendicionVsLibro — re-mira el día ya cerrado", () => {
+  const base = { cobradorId: "cob-1", fecha: "2026-08-01" };
+
+  it("rendición == libro → sin hallazgos (el día cuadra)", () => {
+    expect(invRendicionVsLibro([{ ...base, recaudadoRendicion: 38000, pagosSuma: 38000 }])).toEqual([]);
+  });
+
+  it("cobró DESPUÉS de rendir → alto (efectivo sin sello de entrega)", () => {
+    const r = invRendicionVsLibro([{ ...base, recaudadoRendicion: 38000, pagosSuma: 44000 }]);
+    expect(r).toHaveLength(1);
+    expect(r[0].severidad).toBe("alto");
+    expect(r[0].invariante).toBe("rendicion==libro");
+    expect(r[0].detalle).toMatch(/DESPUÉS de rendir/);
+  });
+
+  it("se ANULÓ un pago tras rendir → alto (histórico descuadrado)", () => {
+    const r = invRendicionVsLibro([{ ...base, recaudadoRendicion: 38000, pagosSuma: 37000 }]);
+    expect(r).toHaveLength(1);
+    expect(r[0].detalle).toMatch(/se anuló un pago/);
+  });
+
+  it("recaudó y NO rindió → alto (la plata quedó en la calle)", () => {
+    const r = invRendicionVsLibro([{ ...base, recaudadoRendicion: null, pagosSuma: 50000 }]);
+    expect(r).toHaveLength(1);
+    expect(r[0].invariante).toBe("rendicion-existe");
+    expect(r[0].detalle).toMatch(/50000/);
+  });
+
+  it("no rindió porque NO recaudó (día libre) → sin hallazgos (no acusa al honesto)", () => {
+    expect(invRendicionVsLibro([{ ...base, recaudadoRendicion: null, pagosSuma: 0 }])).toEqual([]);
+  });
+});
+
+// ── INV9: gastos de la rendición respaldados por APROBADOS (D+1) ────────────
+describe("invGastosRendicion — el gasto declarado tenía respaldo real", () => {
+  const base = { cobradorId: "cob-1", fecha: "2026-08-01" };
+
+  it("gastos == aprobados → sin hallazgos", () => {
+    expect(invGastosRendicion([{ ...base, gastosRendicion: 4000, gastosAprobados: 4000, gastosPendientes: 0 }])).toEqual([]);
+  });
+
+  it("gasto RECHAZADO tras el cierre → alto (descontó plata que no existió)", () => {
+    const r = invGastosRendicion([{ ...base, gastosRendicion: 4000, gastosAprobados: 0, gastosPendientes: 0 }]);
+    expect(r).toHaveLength(1);
+    expect(r[0].severidad).toBe("alto");
+    expect(r[0].detalle).toMatch(/sin respaldo/);
+  });
+
+  it("todavía PENDIENTE de aprobar → medio (perseguir al aprobador, no al cobrador)", () => {
+    const r = invGastosRendicion([{ ...base, gastosRendicion: 4000, gastosAprobados: 0, gastosPendientes: 4000 }]);
+    expect(r).toHaveLength(1);
+    expect(r[0].severidad).toBe("medio");
+    expect(r[0].detalle).toMatch(/PENDIENTES/);
+  });
+
+  it("declaró MENOS de lo aprobado → sin hallazgos (nunca acusa por gastar de menos)", () => {
+    expect(invGastosRendicion([{ ...base, gastosRendicion: 1000, gastosAprobados: 4000, gastosPendientes: 0 }])).toEqual([]);
   });
 });

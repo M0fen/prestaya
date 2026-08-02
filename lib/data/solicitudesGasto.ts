@@ -3,7 +3,7 @@
 //  admin aprueba (y recién ahí nace el egreso). Degrada a vacío si falta 0057.
 // ─────────────────────────────────────────────────────────────────────────
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { inicioDiaUYIso } from "@/lib/fecha";
+import { inicioDiaUYIso, fechaISOUY, diaUYFinIso } from "@/lib/fecha";
 import { tablaFaltante } from "./errores";
 
 export type EstadoSolicitudGasto = "pendiente" | "aprobada" | "rechazada";
@@ -55,6 +55,12 @@ export async function getSolicitudesGastoCobrador(
       .select("*")
       .eq("cobrador_id", cobradorId)
       .gte("solicitado_en", inicioDiaUYIso(hoy))
+      // Tope SUPERIOR del bucket (fin EXCLUSIVO del día): sin él, una solicitud con
+      // `solicitado_en` FUTURO (forjable por PostgREST crudo — la policy no ata la
+      // fecha) caía en el bucket de HOY... y en el de mañana, y el de pasado: un
+      // "vale fantasma" permanente que respaldaba gastos en el cierre de TODOS los
+      // días. Acotado a [hoy 00:00, mañana 00:00) cada solicitud vive en UN día.
+      .lt("solicitado_en", diaUYFinIso(fechaISOUY(hoy)))
       .order("solicitado_en", { ascending: false });
     if (error) throw error;
     const items = (data ?? []).map(map);
