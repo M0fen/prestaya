@@ -56,6 +56,19 @@ export async function confirmarCierreZona(input: {
   const zona = consolidado.zonas.find((z) => (z.zonaId ?? CLAVE_SIN_ZONA) === input.zonaId);
   if (!zona) return { ok: false, error: "No hay recaudo para cerrar hoy." };
 
+  // CUSTODIA: no sellar la zona si quedan cobradores SIN RENDIR (su plata sigue en la
+  // calle). El cierre es único e inmutable por zona/día (unique zona/fecha) y solo suma
+  // a los rendidos; si se sella con pendientes, lo que rindan DESPUÉS nunca entra a este
+  // sello → descuadre permanente entre Σrendiciones y el cierre. Se exige que rindan
+  // todos primero (no se puede firmar por efectivo que todavía no se recibió).
+  if (zona.pendientes > 0) {
+    const s = zona.pendientes === 1 ? "" : "es";
+    return {
+      ok: false,
+      error: `Faltan ${zona.pendientes} cobrador${s} por rendir su caja. Esperá a que rindan todos antes de cerrar la zona (si no, ese efectivo queda fuera del cierre).`,
+    };
+  }
+
   const diferencia = zona.totalEntregado - zona.totalEsperado;
   const notas = (input.notas ?? "").toString().trim().slice(0, 300) || null;
 

@@ -228,6 +228,10 @@ export function construirVistaCliente(params: {
     meses[fFin.getMonth()];
 
   const inicial = (cliente.nombre.trim().charAt(0) || "").toUpperCase();
+  // Pago por ADELANTADO: excedente FIFO que cayó en cuotas FUTURAS. El historial
+  // excluye los días futuros, así que "Pagado" quedaría mayor que la suma de recibos
+  // visibles. Lo exponemos como una línea de reconciliación (encuadre positivo).
+  const adelantado = r.dias.reduce((a, d) => (d.estado === "futuro" ? a + d.montoPagado : a), 0);
   const alDia = !r.hayPendiente;
   // "Solo hoy": no hay días atrasados ni abonos parciales de días anteriores; lo
   // único sin cubrir es la cuota de HOY (aún sin cobrar). Es la vivencia diaria
@@ -292,7 +296,13 @@ export function construirVistaCliente(params: {
     proxFechaLarga,
     proxRelativo,
     montoParaAlDia: UYU(r.montoParaAlDia),
-    necesitaPonerseAlDia: r.montoParaAlDia > 0,
+    // Solo mostramos "Para ponerte al día" si hay deuda VENCIDA real (montoVencido
+    // EXCLUYE la cuota de hoy). Un cliente al día cuyo cobrador aún no pasó tiene
+    // montoParaAlDia = cuota_de_hoy > 0, pero eso NO es atraso: mostrarle "ponerte al
+    // día" contradice el mensaje "Vas al día 🙂" y rompe la regla de tono (hoy jamás
+    // como reproche). La Próxima cuota ya cubre ese caso.
+    necesitaPonerseAlDia: r.montoVencido > 0,
+    montoAdelantado: adelantado > 0 ? UYU(adelantado) : null,
     fechaFinLarga,
     alDia,
     creditoCompletado: r.falta === 0,

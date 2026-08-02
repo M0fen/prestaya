@@ -5,10 +5,14 @@ export function Aliento({
   alDia,
   mensaje,
   mejorRacha,
+  unidadPlural = "días",
 }: {
   alDia: boolean;
   mensaje: string;
   mejorRacha: number;
+  /** Unidad de la cuota en plural ("días"/"semanas"/…): la racha cuenta CUOTAS, no
+   *  días calendario, así que un crédito semanal muestra "3 semanas", no "3 días". */
+  unidadPlural?: string;
 }) {
   const bg = alDia
     ? "linear-gradient(135deg,#E7F6EF,#DCF3E8)"
@@ -32,9 +36,9 @@ export function Aliento({
         <span
           className="flex flex-shrink-0 items-center gap-1 rounded-full bg-white/70 px-2.5 py-1 text-[12px] font-extrabold whitespace-nowrap"
           style={{ color: colorTexto }}
-          title="Tu mejor racha de días al día"
+          title="Tu mejor racha al día"
         >
-          🔥 {mejorRacha} días
+          🔥 {mejorRacha} {unidadPlural}
         </span>
       )}
     </section>

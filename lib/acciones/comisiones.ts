@@ -9,10 +9,10 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { reportarError } from "@/lib/observabilidad";
 import { getUsuarioActual, esAdmin } from "@/lib/auth";
-import { setComisionPctDb, getComisionesPeriodo, rangoDePeriodoKey, rangosSeSolapan, rangoPgDePeriodo } from "@/lib/data/comisiones";
+import { setComisionPctDb, getComisionesPeriodo, rangoDePeriodoKey, rangoDeRangoPg, rangosSeSolapan, rangoPgDePeriodo } from "@/lib/data/comisiones";
 import { columnaFaltante } from "@/lib/data/errores";
 import type { Periodo } from "@/lib/data/periodo";
-import { registrarMovimientoCaja } from "@/lib/data/caja";
+import { registrarMovimientoCaja, existeMovimientoPorOpId } from "@/lib/data/caja";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { crearReciboDb } from "@/lib/data/recibos";
 import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
@@ -98,15 +98,35 @@ export async function liquidarComision(input: {
   // rango se cruza con el que se intenta (excluida la misma clave, que la maneja el
   // unique de abajo con su propio mensaje).
   const nuevoRango = { desde: resumen.desde, hasta: resumen.hasta };
-  const { data: yaLiquidadas, error: eYa } = await db
-    .from("comisiones_liquidadas")
-    .select("periodo_key")
-    .eq("cobrador_id", input.cobradorId);
-  if (eYa) return { ok: false, error: "No se pudo verificar. Probá de nuevo." };
+  // Traer el rango REAL guardado (periodo_rango) además de la clave. Con el rango real
+  // la guardia no bloquea de más cuando una liquidación previa fue de un período EN
+  // CURSO (rango truncado). Si falta la columna (0083 sin correr) degradamos a solo la
+  // clave → rango teórico (más estricto, pero seguro: nunca paga de más).
+  let yaLiquidadas: { periodo_key: string; periodo_rango?: string | null }[] | null = null;
+  {
+    const conRango = await db
+      .from("comisiones_liquidadas")
+      .select("periodo_key, periodo_rango")
+      .eq("cobrador_id", input.cobradorId);
+    if (conRango.error && columnaFaltante(conRango.error)) {
+      const soloKey = await db
+        .from("comisiones_liquidadas")
+        .select("periodo_key")
+        .eq("cobrador_id", input.cobradorId);
+      if (soloKey.error) return { ok: false, error: "No se pudo verificar. Probá de nuevo." };
+      yaLiquidadas = soloKey.data as { periodo_key: string }[];
+    } else if (conRango.error) {
+      return { ok: false, error: "No se pudo verificar. Probá de nuevo." };
+    } else {
+      yaLiquidadas = conRango.data as { periodo_key: string; periodo_rango?: string | null }[];
+    }
+  }
   for (const l of yaLiquidadas ?? []) {
-    const key = l.periodo_key as string;
+    const key = l.periodo_key;
     if (key === periodoKey) continue; // misma clave → la maneja el candado unique
-    const r = rangoDePeriodoKey(key);
+    // Preferir el rango REAL guardado (puede estar truncado por período en curso);
+    // caer al rango teórico de la clave solo si no está.
+    const r = rangoDeRangoPg(l.periodo_rango) ?? rangoDePeriodoKey(key);
     if (r && rangosSeSolapan(r, nuevoRango))
       return {
         ok: false,
@@ -234,17 +254,53 @@ export async function liquidarComision(input: {
       return { ok: true };
     }
     reportarError("liquidarComision", e, { cobradorId: input.cobradorId, periodoKey });
-    // Fallo REAL del egreso (no ambiguo) → revertir el candado para no dejar
-    // "liquidado" sin egreso. El op_id determinista protege igual el reintento.
-    // TAMBIÉN se revierte el DESCUENTO de compras del período (restaura saldo): si no,
-    // el saldo del empleado quedaría bajado sin egreso (descuento huérfano). Así el
-    // reintento recomputa desde cero. Best-effort (no lanza).
-    await revertirDescuentoComprasEmpleadoDb(db, { empleadoId: input.cobradorId, periodoKey }).catch(() => {});
-    await db
-      .from("comisiones_liquidadas")
-      .delete()
-      .eq("cobrador_id", input.cobradorId)
-      .eq("periodo_key", periodoKey);
-    return { ok: false, error: "No se pudo registrar el egreso. Probá de nuevo." };
+    // COMMIT AMBIGUO (money-critical): un timeout/504/red DESPUÉS de que el egreso YA
+    // commiteó NO es 23505 (no colisiona el op_id porque el que colisiona es un
+    // REINTENTO, no este primer intento), pero la plata YA salió. Antes, el catch
+    // borraba el candado a ciegas → si el admin reintentaba con OTRA cadencia
+    // (semana en vez de mes), el op_id cambiaba, no colisionaba, y se pagaba DOS
+    // VECES. Ahora verificamos por el op_id determinista si el egreso existe:
+    //  · existe   → fue un éxito con respuesta perdida → CONSERVAR candado+descuento.
+    //  · no existe → fallo real → revertir candado+descuento (reintento limpio).
+    //  · no verificable → sesgo money-safe: NO tocar el candado (jamás pagar 2×).
+    let egresoConfirmado: boolean | null = null;
+    try {
+      egresoConfirmado = await existeMovimientoPorOpId(db, opIdEgreso);
+    } catch {
+      egresoConfirmado = null;
+    }
+    if (egresoConfirmado === true) {
+      // El egreso realmente salió: dejar rastro (best-effort) y devolver OK.
+      await registrarAuditoria(db, {
+        actorId: u.id,
+        actorNombre: u.nombre,
+        accion: "Liquidó comisión",
+        entidad: "cobrador",
+        entidadId: input.cobradorId,
+        detalle: `${nombre}: $${monto.toLocaleString("es-UY")} (${periodoLabel})`,
+      }).catch(() => {});
+      revalidatePath("/admin/comisiones");
+      revalidatePath("/admin/caja");
+      return { ok: true };
+    }
+    if (egresoConfirmado === false) {
+      // El egreso NO salió → revertir el candado para no dejar "liquidado" sin egreso,
+      // y revertir el DESCUENTO del período (restaura saldo; si no, quedaría bajado sin
+      // egreso). Así el reintento recomputa desde cero. Best-effort (no lanza).
+      await revertirDescuentoComprasEmpleadoDb(db, { empleadoId: input.cobradorId, periodoKey }).catch(() => {});
+      await db
+        .from("comisiones_liquidadas")
+        .delete()
+        .eq("cobrador_id", input.cobradorId)
+        .eq("periodo_key", periodoKey);
+      return { ok: false, error: "No se pudo registrar el egreso. Probá de nuevo." };
+    }
+    // No se pudo verificar si el egreso salió → NO borrar el candado (evitar el
+    // doble-pago). El admin revisa la caja; si no salió, reintenta el MISMO período
+    // (idempotente por op_id). Se conserva el descuento por la misma razón.
+    return {
+      ok: false,
+      error: "No pudimos confirmar la comisión. Revisá la caja y, si no figura, reintentá el mismo período.",
+    };
   }
 }

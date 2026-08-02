@@ -7,6 +7,7 @@
 import { revalidatePath } from "next/cache";
 import { getUsuarioActual, esAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { esUuid } from "@/lib/idempotencia";
@@ -69,8 +70,12 @@ export async function cancelarCompraEmpleado(input: { id: string }): Promise<Res
   if (!u || !esAdmin(u.rol)) return { ok: false, error: "Solo el administrador cancela compras del equipo." };
   if (!esUuid(input.id)) return { ok: false, error: "Compra inválida." };
   try {
-    const db = await createSupabaseServer();
-    await cancelarCompraEmpleadoDb(db, input.id);
+    // Cliente ADMIN (service_role): la escritura de cancelación es un UPDATE directo y
+    // `compras_empleado` no tiene policy de UPDATE (RLS solo SELECT) → con el cliente
+    // de sesión sería un no-op fantasma. La acción ya está gateada a admin arriba.
+    const db = createSupabaseAdmin();
+    const cancelada = await cancelarCompraEmpleadoDb(db, input.id);
+    if (!cancelada) return { ok: false, error: "La compra no existe o ya no estaba activa." };
     await registrarAuditoria(db, {
       actorId: u.id, actorNombre: u.nombre, accion: "Canceló compra del equipo",
       entidad: "producto", entidadId: input.id,

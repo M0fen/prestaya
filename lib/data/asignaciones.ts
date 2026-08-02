@@ -41,6 +41,26 @@ export async function getCobradorDeCliente(
 }
 
 /**
+ * COMPENSACIÓN: baja una asignación activa cliente↔cobrador recién creada cuando la
+ * operación que la motivó (p. ej. una venta de tienda) falló. Evita dejar al cliente
+ * en la ruta de un cobrador sin crédito. NO toca prestamos.cobrador_id (no conocemos
+ * el valor previo); revierte solo la RUTA. Idempotente. Best-effort en el llamador.
+ */
+export async function desactivarAsignacion(
+  db: SupabaseClient,
+  clienteId: string,
+  cobradorId: string,
+): Promise<void> {
+  const { error } = await db
+    .from("asignaciones")
+    .update({ activo: false })
+    .eq("cliente_id", clienteId)
+    .eq("cobrador_id", cobradorId)
+    .eq("activo", true);
+  if (error) throw error;
+}
+
+/**
  * Reasigna un cliente a un nuevo cobrador: baja la asignación activa actual y
  * activa la del nuevo (respeta el índice "un cobrador activo por cliente").
  */

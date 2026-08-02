@@ -176,8 +176,14 @@ export interface VistaCredito {
   proxRelativo: string;
   /** Monto formateado para ponerse al día hoy (p. ej. "$30.000"). */
   montoParaAlDia: string;
-  /** true si hay un monto vencido/de hoy por cubrir (montoParaAlDia > 0). */
+  /** true si hay deuda VENCIDA por cubrir (montoVencido > 0). La cuota de hoy sin
+   *  cobrar NO cuenta (no es atraso) → no dispara la tarjeta "ponerte al día". */
   necesitaPonerseAlDia: boolean;
+  /** Monto pagado por ADELANTADO (excedente FIFO que cae en cuotas FUTURAS),
+   *  formateado, o null si no hay. Reconcilia "Pagado" con los recibos visibles del
+   *  historial (que excluyen los días futuros): sin esto el total pagado se ve mayor
+   *  que la suma de recibos y el cliente podría creer que falta registrar un pago. */
+  montoAdelantado: string | null;
   /** Fecha de finalización en español, p. ej. "jueves, 2 de julio". */
   fechaFinLarga: string;
   /** true si no hay días atrasados ni pendientes. */

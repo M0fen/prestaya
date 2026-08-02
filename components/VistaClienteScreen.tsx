@@ -94,6 +94,7 @@ export function VistaClienteScreen({
           alDia={v.alDia}
           mensaje={v.mensajeAliento}
           mejorRacha={v.mejorRacha}
+          unidadPlural={v.unidad.plural}
         />
 
         {/* Banner de bienvenida/novedades del prestamista: ARRIBA DE TODO, de lo
@@ -179,6 +180,15 @@ export function VistaClienteScreen({
             califica (soloMejores). Es COMUNICACIÓN al cliente, no un juego → visible
             aunque el bloque lúdico esté en pausa. */}
         {rifa && <RifaBanner rifa={rifa} token={token} />}
+
+        {/* Pago por adelantado: reconcilia "Pagado" con los recibos visibles (que
+            excluyen las cuotas futuras) para que el total cuadre y el cliente no crea
+            que falta registrar un pago. Encuadre positivo (adelantar = ir ganando). */}
+        {v.montoAdelantado && (
+          <p className="rounded-[14px] border border-[#CDECDD] bg-[#EAF7F0] px-4 py-3 text-[13px] leading-[1.45] font-semibold text-[#157A50]">
+            🙌 Adelantaste {v.montoAdelantado}. Esa plata ya cubre tus próximas cuotas y está sumada en tu total pagado.
+          </p>
+        )}
 
         {/* Historial de pagos (con % de la cuota cubierto + descuento). */}
         <Historial historial={v.historial} />

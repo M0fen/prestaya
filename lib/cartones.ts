@@ -257,8 +257,11 @@ export function calcularEstadosCarton(
     }
   }
 
-  // Próxima cuota = primer día futuro.
-  const prox = dias.find((d) => d.estado === "futuro");
+  // Próxima cuota = primer día futuro AÚN NO cubierto. Si el cliente pagó por
+  // adelantado, el excedente FIFO "llena" cuotas futuras (montoPagado>0 en días
+  // "futuro"); saltear las ya cubiertas evita pedirle pagar de nuevo una cuota que
+  // ya abonó. Misma tolerancia sub-peso que el estado "pagado".
+  const prox = dias.find((d) => d.estado === "futuro" && d.montoPagado < cuota - 0.5);
   const proxima = prox
     ? {
         dia: prox.dia,

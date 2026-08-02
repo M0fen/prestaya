@@ -166,6 +166,23 @@ describe("confirmarCierreZona — gates (custodia de efectivo del supervisor)", 
     expect(r).toEqual({ ok: false, error: "Sistema en modo solo lectura." });
     expect(getCierrePorZona).not.toHaveBeenCalled();
   });
+
+  it("NO sella la zona si quedan cobradores SIN RENDIR (custodia parcial)", async () => {
+    getUsuarioActual.mockResolvedValue(ADMIN);
+    getActorActual.mockResolvedValue({ id: "u-admin", rol: "admin" });
+    puedeVerZona.mockReturnValue(true);
+    // Zona con 2 cobradores pendientes de rendir: su plata sigue en la calle.
+    getCierrePorZona.mockResolvedValue({
+      consolidado: {
+        zonas: [
+          { zonaId: UUID, zonaNombre: "Centro", pendientes: 2, rendidos: 3, totalEntregado: 1000, totalEsperado: 1000 },
+        ],
+      },
+    });
+    const r = await confirmarCierreZona({ zonaId: UUID });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/rendir/i);
+  });
 });
 
 describe("resolverDiscrepancia — gates (triage del empalme)", () => {

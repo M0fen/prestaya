@@ -153,6 +153,22 @@ export function rangoPgDePeriodo(desde: string, hasta: string): string {
   return `[${desde},${finExcl})`;
 }
 
+/** INVERSO de rangoPgDePeriodo: parsea un daterange guardado "[lo,hi)" al rango
+ *  {desde, hasta} INCLUSIVO (hasta = hi − 1 día). Recupera el rango REAL de una
+ *  liquidación, que puede estar TRUNCADO si se liquidó un período EN CURSO (p. ej.
+ *  liquidar 'mes:2026-07' el día 16 cubre [07-01, 07-16], no el mes entero). Usarlo
+ *  en la guardia de solapamiento evita bloquear de más el resto del período.
+ *  Devuelve null si el string no es un daterange reconocible. */
+export function rangoDeRangoPg(pg: string | null | undefined): { desde: string; hasta: string } | null {
+  const m = /^\[(\d{4}-\d{2}-\d{2}),(\d{4}-\d{2}-\d{2})\)$/.exec((pg ?? "").trim());
+  if (!m) return null;
+  const desde = m[1];
+  const hasta = new Date(new Date(`${m[2]}T00:00:00Z`).getTime() - 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  return { desde, hasta };
+}
+
 /** ¿Se solapan dos rangos de fechas [desde,hasta] (strings YYYY-MM-DD, comparables
  *  lexicográficamente)? Comparten al menos un día. */
 export function rangosSeSolapan(

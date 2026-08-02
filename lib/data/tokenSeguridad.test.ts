@@ -22,6 +22,19 @@ function fakeDb(tablas: Record<string, Fila[]>) {
       const filas = tablas[nombre] ?? [];
       const conds: Array<[string, unknown]> = [];
       const aplica = () => filas.filter((r) => conds.every(([c, v]) => r[c] === v));
+      // Resultado de una consulta ordenada: awaitable (lista completa) y encadena
+      // `.limit(n)` y OTRO `.order()` (desempate secundario). El orden no se simula
+      // (el test valida el SCOPING por cliente, no la clave de desempate).
+      type Res = Promise<{ data: Fila[]; error: null }> & {
+        limit: (n: number) => Promise<{ data: Fila[]; error: null }>;
+        order: () => Res;
+      };
+      const resultado = (): Res => {
+        const p = Promise.resolve({ data: aplica(), error: null }) as Res;
+        p.limit = (n: number) => Promise.resolve({ data: aplica().slice(0, n), error: null });
+        p.order = () => resultado();
+        return p;
+      };
       const builder = {
         select: () => builder,
         eq: (col: string, val: unknown) => {
@@ -29,15 +42,7 @@ function fakeDb(tablas: Record<string, Fila[]>) {
           return builder;
         },
         maybeSingle: () => Promise.resolve({ data: aplica()[0] ?? null, error: null }),
-        // `.order()` es awaitable (lista completa) y además encadena `.limit(n)`.
-        order: () => {
-          const p = Promise.resolve({ data: aplica(), error: null }) as Promise<{
-            data: Fila[];
-            error: null;
-          }> & { limit?: (n: number) => Promise<{ data: Fila[]; error: null }> };
-          p.limit = (n: number) => Promise.resolve({ data: aplica().slice(0, n), error: null });
-          return p;
-        },
+        order: () => resultado(),
       };
       return builder;
     },

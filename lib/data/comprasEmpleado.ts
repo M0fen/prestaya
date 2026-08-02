@@ -153,10 +153,23 @@ export async function getResumenComprasEmpleado(db: SupabaseClient): Promise<Res
   }
 }
 
-/** Cancela una compra (admin): sin más descuentos. NO revierte stock (best-effort). */
-export async function cancelarCompraEmpleadoDb(db: SupabaseClient, id: string): Promise<void> {
-  const { error } = await db.from("compras_empleado").update({ estado: "cancelada", actualizada_en: new Date().toISOString() }).eq("id", id).eq("estado", "activa");
+/**
+ * Cancela una compra (admin): sin más descuentos. NO revierte stock (best-effort).
+ * Devuelve `true` si realmente cambió una fila. ⚠️ `compras_empleado` tiene RLS con
+ * SOLO policy de SELECT (las escrituras van por RPC SECURITY DEFINER), así que este
+ * UPDATE DIRECTO debe hacerse con el cliente ADMIN (service_role); con el cliente de
+ * sesión afectaría 0 filas SIN error → cancelación fantasma que sigue descontando la
+ * comisión. El `.select("id")` confirma que la fila cambió (no un no-op silencioso).
+ */
+export async function cancelarCompraEmpleadoDb(db: SupabaseClient, id: string): Promise<boolean> {
+  const { data, error } = await db
+    .from("compras_empleado")
+    .update({ estado: "cancelada", actualizada_en: new Date().toISOString() })
+    .eq("id", id)
+    .eq("estado", "activa")
+    .select("id");
   if (error) throw error;
+  return (data?.length ?? 0) > 0;
 }
 
 /**

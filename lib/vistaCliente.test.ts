@@ -75,6 +75,47 @@ describe("construirVistaCliente (demo)", () => {
   });
 });
 
+describe("construirVistaCliente — solo la cuota de HOY (no es atraso)", () => {
+  // Días 1–11 pagados completos; el día 12 (HOY_DEMO) aún sin cobrar. No hay atraso.
+  const v = construirVistaCliente({
+    cliente: clienteMock,
+    prestamo: prestamoMock,
+    pagos: Array.from({ length: 11 }, (_, i) => ({ ...pagosMock[0], id: `d${i + 1}`, dia_credito: i + 1, monto: 1000 })),
+    negocio: NEGOCIO,
+    hoy: HOY_DEMO,
+  });
+  it("NO muestra 'ponerse al día' cuando lo único sin cubrir es la cuota de hoy", () => {
+    // Regla de tono: hoy jamás es reproche. montoVencido = 0 aunque montoParaAlDia > 0.
+    expect(v.necesitaPonerseAlDia).toBe(false);
+    expect(v.montoParaAlDia).toBe("$1.000");
+  });
+  it("mensaje gentil de solo-hoy (sin reproche)", () => {
+    expect(v.mensajeAliento).toMatch(/solo resta la cuota de hoy/i);
+    expect(v.estadoGeneral).toBe("Te falta la cuota de hoy");
+  });
+});
+
+describe("construirVistaCliente — pago adelantado (reconciliación del total)", () => {
+  // 13 cuotas pagadas de una vez: cubre hasta hoy (día 12) + 1 día futuro (día 13).
+  const v = construirVistaCliente({
+    cliente: clienteMock,
+    prestamo: prestamoMock,
+    pagos: [{ ...pagosMock[0], id: "ade", dia_credito: 1, monto: 13000 }],
+    negocio: NEGOCIO,
+    hoy: HOY_DEMO,
+  });
+  it("expone el monto adelantado para que 'Pagado' cuadre con los recibos visibles", () => {
+    // El día 13 (futuro) quedó cubierto por el adelanto → $1.000 adelantado.
+    expect(v.montoAdelantado).toBe("$1.000");
+  });
+  it("sin adelanto → montoAdelantado null", () => {
+    const v2 = construirVistaCliente({
+      cliente: clienteMock, prestamo: prestamoMock, pagos: pagosMock, negocio: NEGOCIO, hoy: HOY_DEMO,
+    });
+    expect(v2.montoAdelantado).toBeNull();
+  });
+});
+
 describe("construirVistaCliente — crédito completado", () => {
   it("falta 0 → creditoCompletado true", () => {
     const v = construirVistaCliente({

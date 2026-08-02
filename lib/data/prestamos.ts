@@ -50,6 +50,9 @@ export async function getPrestamoActivoPorCliente(
     .eq("cliente_id", clienteId)
     .eq("estado", "activo")
     .order("fecha_inicio", { ascending: false })
+    // Desempate estable por PK: sin él, dos activos con la misma fecha_inicio quedan
+    // en orden indefinido y el "principal" podría diferir entre cliente y cobrador.
+    .order("id", { ascending: false })
     .limit(1);
 
   if (error) throw error;
@@ -69,7 +72,9 @@ export async function getPrestamosActivosPorCliente(
     .select("*")
     .eq("cliente_id", clienteId)
     .eq("estado", "activo")
-    .order("fecha_inicio", { ascending: false });
+    .order("fecha_inicio", { ascending: false })
+    // Desempate estable por PK (orden consistente cross-rol ante misma fecha_inicio).
+    .order("id", { ascending: false });
 
   if (error) throw error;
   return (data ?? []).map(mapPrestamo);

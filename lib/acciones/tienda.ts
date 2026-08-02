@@ -26,7 +26,7 @@ import {
 } from "@/lib/data/tienda";
 import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
 import { getClientePorId } from "@/lib/data/clientes";
-import { getCobradorDeCliente, reasignarCliente } from "@/lib/data/asignaciones";
+import { getCobradorDeCliente, reasignarCliente, desactivarAsignacion } from "@/lib/data/asignaciones";
 import { crearPedidoCurbeDb } from "@/lib/data/pedidosCurbe";
 import { calcularPlanVenta } from "@/lib/venta";
 import { RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
@@ -571,6 +571,11 @@ export async function convertirLeadEnVenta(input: {
   // cartón del cliente pero INVISIBLE para todo cobrador (plata colocada fuera de ruta).
   const cobExistente = await getCobradorDeCliente(db, cliente.id);
   let cobradorId = cobExistente?.cobradorId ?? null;
+  // ¿Creamos la asignación recién para esta venta? Si la venta falla después, la
+  // compensamos (no dejar al cliente en una ruta sin crédito). El orden —asignar
+  // ANTES del RPC— es el seguro: si el RPC falla, no se colocó plata; solo queda una
+  // asignación que revertimos acá.
+  let asignacionCreada = false;
   if (!cobradorId) {
     const elegido = input.cobradorId;
     if (!elegido || !esUuid(elegido)) {
@@ -584,6 +589,7 @@ export async function convertirLeadEnVenta(input: {
     // así la venta entra a su ruta. reasignarCliente respeta el índice único.
     await reasignarCliente(db, cliente.id, elegido);
     cobradorId = elegido;
+    asignacionCreada = true;
   }
 
   const opId = opIdDeterminista("venta", input.solicitudId);
@@ -603,7 +609,13 @@ export async function convertirLeadEnVenta(input: {
     opId,
     creadoPor: u.id,
   });
-  if (!res.ok) return { ok: false, error: res.error };
+  if (!res.ok) {
+    // Compensación: si asignamos un cobrador recién para esta venta y la venta falló
+    // (CAP defensivo, carrera de stock P0409, blip del RPC), bajamos la asignación
+    // para no dejar al cliente en una ruta sin crédito. Best-effort (no tapa el error).
+    if (asignacionCreada) await desactivarAsignacion(db, cliente.id, cobradorId).catch(() => {});
+    return { ok: false, error: res.error };
+  }
 
   await registrarAuditoria(db, {
     actorId: u.id,

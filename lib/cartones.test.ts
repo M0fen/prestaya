@@ -195,6 +195,16 @@ describe("calcularEstadosCarton — próxima cuota", () => {
     const r = calcularEstadosCarton(corto, [{ dia_credito: 1, monto: 20000 }], HOY);
     expect(r.proxima).toBeNull();
   });
+
+  // Regresión: pago ADELANTADO. El excedente FIFO "llena" cuotas futuras; próxima
+  // debe saltear las ya cubiertas (si no, le pedía pagar una cuota que ya abonó).
+  it("saltea las cuotas futuras cubiertas por un pago adelantado", () => {
+    // 13 cuotas pagadas de una vez (260.000) sobre un crédito cuyo día en curso es el 12.
+    const adelantado = [{ dia_credito: 1, monto: 20000 * 13 }];
+    const r = calcularEstadosCarton(prestamoBase, adelantado, HOY);
+    // El día 13 (futuro) quedó cubierto por el adelanto → próxima es el 14, no el 13.
+    expect(r.proxima?.dia).toBe(14);
+  });
 });
 
 describe("calcularEstadosCarton — al día (sin pendientes)", () => {

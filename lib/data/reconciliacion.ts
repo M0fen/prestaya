@@ -8,10 +8,16 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   reconciliar,
   invRecaudoDia,
+  invBaseCaja,
+  invLeadConvertido,
   type CreditoRecon,
+  type Hallazgo,
+  type BaseCajaRecon,
+  type LeadRecon,
   type ResumenReconciliacion,
 } from "@/lib/reconciliacion";
-import { inicioDiaUYIso } from "@/lib/fecha";
+import { inicioDiaUYIso, hoyUY } from "@/lib/fecha";
+import { toIso } from "@/lib/format";
 import { saldoCredito } from "@/lib/cartones";
 import { reportarError } from "@/lib/observabilidad";
 import { tablaFaltante } from "./errores";
@@ -281,6 +287,80 @@ export async function getInfoEmpalme(db: SupabaseClient): Promise<InfoEmpalme> {
 }
 
 /**
+ * Invariantes dinero-adyacentes del DÍA que NO vienen del RPC de saldos:
+ *  · INV6 base de caja — la base del cierre = la de la apertura (una base editada
+ *    tras el cierre re-escribe el "esperado" y puede enmascarar un faltante).
+ *  · INV7 tienda — todo lead 'convertida' apunta a un crédito real de origen 'tienda'
+ *    (una conversión a medias = deuda de tienda mal trazada, invisible sin esto).
+ * Consultas ACOTADAS (por día / por estado). Degradan a [] si falta su migración; un
+ * fallo real se reporta a Sentry pero NUNCA tumba el cron (best-effort).
+ * INV5 (estrellas fantasma) es promocional/más pesada → follow-up separado.
+ */
+async function hallazgosExtraDelDia(db: SupabaseClient, hoy: Date): Promise<Hallazgo[]> {
+  const fecha = toIso(hoyUY(hoy));
+  const out: Hallazgo[] = [];
+
+  // INV6 — base de caja consistente (apertura vs rendición del mismo cobrador/día).
+  try {
+    const [ap, re] = await Promise.all([
+      db.from("aperturas_caja").select("cobrador_id, base").eq("fecha", fecha),
+      db.from("rendiciones").select("cobrador_id, base").eq("fecha", fecha),
+    ]);
+    if (ap.error) throw ap.error;
+    if (re.error) throw re.error;
+    const baseRend = new Map<string, number>();
+    for (const r of re.data ?? []) baseRend.set(r.cobrador_id as string, N(r.base));
+    const rows: BaseCajaRecon[] = (ap.data ?? []).map((a) => {
+      const cid = a.cobrador_id as string;
+      return {
+        cobradorId: cid,
+        fecha,
+        baseApertura: N(a.base),
+        baseRendicion: baseRend.has(cid) ? baseRend.get(cid)! : null, // null = aún no rindió → no aplica
+      };
+    });
+    out.push(...invBaseCaja(rows));
+  } catch (e) {
+    if (!tablaFaltante(e)) reportarError("reconciliarDia:baseCaja", e);
+  }
+
+  // INV7 — lead de tienda 'convertida' → crédito existente de origen 'tienda'.
+  try {
+    const { data: leads, error } = await db
+      .from("solicitudes_producto")
+      .select("id, estado, prestamo_id")
+      .eq("estado", "convertida");
+    if (error) throw error;
+    const filas = leads ?? [];
+    if (filas.length > 0) {
+      const pids = [
+        ...new Set(filas.map((l) => l.prestamo_id as string | null).filter((x): x is string => !!x)),
+      ];
+      const origenDe = new Map<string, string | null>();
+      if (pids.length > 0) {
+        const { data: pr } = await db.from("prestamos").select("id, origen").in("id", pids);
+        for (const p of pr ?? []) origenDe.set(p.id as string, (p.origen as string | null) ?? null);
+      }
+      const rows: LeadRecon[] = filas.map((l) => {
+        const pid = (l.prestamo_id as string | null) ?? null;
+        return {
+          leadId: l.id as string,
+          estado: l.estado as string,
+          prestamoId: pid,
+          prestamoExiste: pid ? origenDe.has(pid) : false,
+          prestamoOrigen: pid ? (origenDe.get(pid) ?? null) : null,
+        };
+      });
+      out.push(...invLeadConvertido(rows));
+    }
+  } catch (e) {
+    if (!tablaFaltante(e)) reportarError("reconciliarDia:leadTienda", e);
+  }
+
+  return out;
+}
+
+/**
  * Corre la reconciliación del día. `caja` opcional: si el caller ya tiene el
  * recaudo de caja, se compara contra el libro (invariante recaudo-consistente).
  */
@@ -334,10 +414,15 @@ export async function reconciliarDia(
   );
   const recaudoLibro = pg.reduce((s, p) => s + N(p.monto), 0);
 
-  const extra =
-    cajaDelDia != null && cajaDelDia > 0
+  // Extra del día: recaudo libro↔caja (INV3, si el caller pasó la caja) + base de caja
+  // (INV6) + lead de tienda (INV7). Antes solo corrían INV1/INV2 (saldos) — INV6/INV7
+  // eran código de detección MUERTO (existían y testeadas, pero nada las ejecutaba).
+  const extra: Hallazgo[] = [
+    ...(cajaDelDia != null && cajaDelDia > 0
       ? invRecaudoDia({ pagos: recaudoLibro, caja: cajaDelDia })
-      : [];
+      : []),
+    ...(await hallazgosExtraDelDia(db, hoy)),
+  ];
 
   const resumen = reconciliar(creditos, extra);
   // Triage humano (0109): una divergencia ya RESUELTA/ACEPTADA (baseline conocido)
@@ -358,7 +443,8 @@ export async function reconciliarDia(
         (c.totalAPagar > 0 && exceso >= c.totalAPagar * 0.05));
     return driftAcum || (c.estado === "activo" && sobreMaterial);
   }).length;
-  // Sumar también los hallazgos de recaudo-consistente (caja ≠ libro) como críticos.
-  const criticosRecaudo = extra.filter((h) => h.severidad === "alto" || h.severidad === "critico").length;
-  return { ...resumen, disponible: true, recaudoLibro, criticos: criticos + criticosRecaudo };
+  // Sumar los hallazgos EXTRA alto/crítico (recaudo caja≠libro, base de caja editada,
+  // lead de tienda mal convertido) a los críticos alertables del día.
+  const criticosExtra = extra.filter((h) => h.severidad === "alto" || h.severidad === "critico").length;
+  return { ...resumen, disponible: true, recaudoLibro, criticos: criticos + criticosExtra };
 }

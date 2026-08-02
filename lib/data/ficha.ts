@@ -87,7 +87,14 @@ export async function getFichaCliente(
   // Créditos activos + cartón de cada uno (desde 0037 pueden ser varios).
   const prestamosActivos = historial.prestamos
     .filter((p) => p.estado === "activo")
-    .sort((a, b) => (a.fecha_inicio < b.fecha_inicio ? 1 : -1));
+    // Desempate determinista por id cuando comparten fecha_inicio: así el "principal"
+    // (activos[0]) es el MISMO en cliente/cobrador/admin (evita que cada rol muestre
+    // un crédito distinto por defecto ante dos activos del mismo día).
+    .sort((a, b) =>
+      a.fecha_inicio !== b.fecha_inicio
+        ? a.fecha_inicio < b.fecha_inicio ? 1 : -1
+        : a.id < b.id ? 1 : -1,
+    );
   const activos: CreditoActivoFicha[] = prestamosActivos.map((pr) => {
     const pagos = historial.pagosPorPrestamo[pr.id] ?? [];
     const r = calcularEstadosCarton(pr, pagos, hoyCal);
@@ -98,7 +105,8 @@ export async function getFichaCliente(
       diasAtraso: r.dias.filter((d) => d.estado === "atrasado").length,
       pagados: r.dias.filter((d) => d.estado === "pagado").length,
       totalDias: pr.total_dias,
-      progresoPct: r.progresoPct,
+      // Cap 100% igual que cliente/cobrador: un sobre-pago no debe mostrar "103%".
+      progresoPct: Math.min(100, r.progresoPct),
       proximaFecha: r.proxima?.fecha ?? null,
       dias: r.dias,
       cuota: pr.cuota_diaria,

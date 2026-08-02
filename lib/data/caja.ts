@@ -260,6 +260,29 @@ export interface NuevoMovimiento {
   opId?: string | null;
 }
 
+/**
+ * ¿Existe ya un movimiento de caja con este `op_id`? Resuelve un COMMIT AMBIGUO:
+ * si un egreso commiteó pero la respuesta se perdió (timeout/504 → error que NO es
+ * 23505), esto confirma que la plata YA salió → el llamador NO debe revertir ni
+ * reintentar. El índice único `op_id` (0074) garantiza a lo sumo una fila.
+ * Lanza si no se puede verificar (columna `op_id` ausente o la lectura falla): el
+ * llamador debe tratar "no verificable" con el sesgo money-safe (no pagar de nuevo).
+ */
+export async function existeMovimientoPorOpId(
+  db: SupabaseClient,
+  opId: string,
+): Promise<boolean> {
+  if (!opId) return false;
+  const { data, error } = await db
+    .from("movimientos_caja")
+    .select("id")
+    .eq("op_id", opId)
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data != null;
+}
+
 export async function registrarMovimientoCaja(
   db: SupabaseClient,
   m: NuevoMovimiento,
