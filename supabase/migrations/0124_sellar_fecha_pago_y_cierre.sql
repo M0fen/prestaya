@@ -92,7 +92,11 @@ $$;
 grant execute on function registrar_pago_seguro(uuid, int, numeric, uuid, numeric, numeric, timestamptz, uuid) to authenticated, service_role;
 
 -- ══ (B) cierres_zona: snapshot de custodia inmutable ═════════════════════════
+-- IDEMPOTENTE: se dropean TODOS los nombres (el viejo `for all` y los nuevos) antes
+-- de crear — así el archivo se puede re-correr entero sin el 42710 "already exists".
 drop policy if exists cierres_zona_gestor_all on cierres_zona;
+drop policy if exists cierres_zona_select on cierres_zona;
+drop policy if exists cierres_zona_insert on cierres_zona;
 
 -- Lectura: igual que antes (admin, supervisor sin zonas, o supervisor de la zona).
 create policy cierres_zona_select on cierres_zona for select to authenticated
