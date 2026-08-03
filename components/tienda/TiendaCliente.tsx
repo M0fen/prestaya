@@ -297,10 +297,10 @@ export function TiendaCliente({
         ] as Atajo[]} />
       )}
 
-      {/* Comprá por CATEGORÍA — sección en tarjeta (estilo Mercado Libre). */}
+      {/* Comprá por CATEGORÍA — rail de círculos con flechas en desktop. */}
       <SeccionTienda titulo="Categorías">
-        <div className="-mx-3.5 flex gap-2 overflow-x-auto px-3.5 pb-1 md:-mx-4 md:px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <CategoriaTile emoji="🏬" nombre="Todo" n={productos.length} activo={!cat && !soloFav} onClick={() => { setCat(null); setSoloFav(false); }} />
+        <FilaScroll className="gap-1">
+          <CategoriaTile emoji="🏬" nombre="Ver todo" n={productos.length} activo={!cat && !soloFav} onClick={() => { setCat(null); setSoloFav(false); }} />
           {categorias.map((c) => (
             <CategoriaTile key={c.nombre} emoji={emojiDe(c.nombre)} foto={fotoCat.get(c.nombre) ?? null} nombre={c.nombre} n={c.n}
               activo={cat === c.nombre} onClick={() => { setSoloFav(false); setCat(cat === c.nombre ? null : c.nombre); }} />
@@ -308,7 +308,7 @@ export function TiendaCliente({
           {favProductos.length > 0 && (
             <CategoriaTile emoji="❤️" nombre="Favoritos" n={favProductos.length} activo={soloFav} onClick={() => { setCat(null); setSoloFav(!soloFav); }} />
           )}
-        </div>
+        </FilaScroll>
         {/* Filtro por MARCA (solo si hay 2+ marcas). */}
         {marcas.length >= 2 && (
           <div className="mt-2.5 -mx-3.5 flex items-center gap-1.5 overflow-x-auto border-t border-[#F1F4FB] px-3.5 pt-2.5 md:-mx-4 md:px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -683,21 +683,33 @@ function emojiDe(nombre: string): string {
   return "🛍️";
 }
 
-/** Tile de categoría con FOTO de producto en círculo (estilo Mercado Libre). */
+/**
+ * Categoría: FOTO en círculo + nombre, sin tarjeta alrededor.
+ *
+ * Antes cada una era una tarjeta con borde y, debajo, la CANTIDAD de productos.
+ * Con un catálogo donde casi todas las categorías tienen 1 producto, ese número
+ * gritaba "acá no hay nada" en cada casilla — el peor cartel posible en una
+ * vidriera. Las tiendas grandes no publican el inventario por rubro: muestran el
+ * rubro. Sin el borde y sin el número, la fila queda más liviana, entran más
+ * categorías en pantalla y el círculo con la foto es lo que guía el ojo.
+ * El nombre completo queda en `title` para el que quiera confirmarlo.
+ */
 function CategoriaTile({ emoji, foto = null, nombre, n, activo, onClick }: { emoji: string; foto?: string | null; nombre: string; n: number; activo: boolean; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick}
-      className={`flex w-[82px] shrink-0 flex-col items-center gap-1.5 rounded-[16px] border px-1.5 py-2.5 transition active:scale-95 ${activo ? "border-[#1E47C8] bg-[#EEF3FF]" : "border-[#ECEFF8] bg-white hover:border-[#D5DEF3] hover:shadow-[0_4px_14px_rgba(15,27,61,0.08)]"}`}>
-      <span className={`grid h-14 w-14 place-items-center overflow-hidden rounded-full ring-1 ${activo ? "bg-white ring-[#C7D6F7]" : "bg-[#F4F6FC] ring-[#ECEFF8]"}`}>
+    <button type="button" onClick={onClick} title={`${nombre} · ${n} producto${n === 1 ? "" : "s"}`}
+      aria-pressed={activo}
+      className="flex w-[76px] shrink-0 flex-col items-center gap-1.5 rounded-[14px] py-1 transition active:scale-95">
+      <span className={`grid h-[62px] w-[62px] place-items-center overflow-hidden rounded-full transition ${
+        activo ? "bg-white ring-2 ring-[#1E47C8]" : "bg-[#F4F6FC] ring-1 ring-[#E8ECF7] hover:ring-[#C7D6F7]"
+      }`}>
         {foto ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={foto} alt="" loading="lazy" className="h-full w-full object-contain p-1.5" />
+          <img src={foto} alt="" loading="lazy" className="h-full w-full object-contain p-2" />
         ) : (
           <span className="text-[24px] leading-none" aria-hidden>{emoji}</span>
         )}
       </span>
-      <span className={`max-w-[80px] truncate text-center text-[12px] font-bold leading-tight ${activo ? "text-[#1E47C8]" : "text-cuerpo"}`}>{nombre}</span>
-      <span className="text-[10px] font-semibold text-gris tabular-nums">{n}</span>
+      <span className={`line-clamp-2 text-center text-[11.5px] leading-[1.2] ${activo ? "font-bold text-[#1E47C8]" : "font-semibold text-cuerpo"}`}>{nombre}</span>
     </button>
   );
 }
@@ -731,7 +743,7 @@ function Foto({ p, className = "" }: { p: ProductoParaCliente; className?: strin
  *
  *    $ 500.000                          ← precio anterior tachado, chico y gris
  *    $ 385.000   23% OFF                ← PRECIO protagonista + descuento en verde
- *    12 cuotas de $ 32.083 sin interés  ← financiación en verde, una línea
+ *    12 cuotas de $ 32.083                ← financiación en verde, una línea
  *
  * Antes la cuota iba en una cajita azul arriba y el precio quedaba chico y verde:
  * se leía como una etiqueta de sistema, no como una vidriera. El precio manda
@@ -758,7 +770,6 @@ function Precio({ p, grande = false }: { p: ProductoParaCliente; grande?: boolea
         <span className="text-[12px] font-semibold leading-tight text-[#00A650]">
           {p.cuotas} {FREC_CUOTA[p.frecuencia] ?? "cuotas"} de{" "}
           <span className="tabular-nums">{UYU(cuota)}</span>
-          {p.interesPct === 0 ? " sin interés" : ""}
         </span>
       )}
     </div>

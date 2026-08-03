@@ -21,6 +21,10 @@ export type HeroSlide = {
   sub: string;
   img: string | null;
   imgLabel?: string | null;
+  /** Otros productos del catálogo (máx. 2) que acompañan al principal. Un banner
+   *  con UN solo producto vende ese producto; con tres, vende que hay CATÁLOGO —
+   *  que es lo que este banner tiene que comunicar en la entrada de la tienda. */
+  imgsExtra?: string[];
   /** Pills de valor GRANDES (como "Hasta 50% OFF" / "12 cuotas" de Mercado Libre). */
   pills?: string[];
   /** Etiqueta de precio FLOTANTE sobre el producto (como los "$X" de ML). */
@@ -113,6 +117,24 @@ function Slide({ s }: { s: HeroSlide }) {
               <div className="absolute -right-2 -top-3 z-20 rounded-[14px] px-3 py-1.5 text-right shadow-[0_10px_24px_rgba(0,0,0,0.35)]" style={{ background: t.accent }}>
                 {s.tag.linea2 && <span className="block text-[9px] font-black uppercase leading-tight tracking-wide text-[#0F1B3D]/60">{s.tag.linea2}</span>}
                 <span className="block text-[16px] font-black leading-tight tabular-nums text-[#0F1B3D]">{s.tag.linea1}</span>
+              </div>
+            )}
+            {/* Dos productos MÁS del catálogo, en FILA DEBAJO del principal: un banner
+                con un solo producto vende ese producto; con tres, se lee que atrás hay
+                una tienda. Van en flujo normal (no superpuestos) para no taparle el
+                nombre al producto principal. Solo desde `sm`: en el teléfono el alto
+                es el recurso escaso y el principal ya cuenta la historia. */}
+            {(s.imgsExtra?.length ?? 0) > 0 && (
+              <div className="mt-2.5 hidden justify-center gap-2 sm:flex">
+                {s.imgsExtra!.slice(0, 2).map((src, k) => (
+                  <div key={k} className="h-[58px] w-[58px] overflow-hidden rounded-[13px] bg-white p-1.5 shadow-[0_8px_18px_rgba(0,0,0,0.26)] ring-1 ring-black/5 md:h-[68px] md:w-[68px]">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={src} alt="" loading="lazy" draggable={false} className="h-full w-full select-none object-contain" />
+                  </div>
+                ))}
+                <span className="grid h-[58px] w-[58px] place-items-center rounded-[13px] bg-white/12 text-center text-[10.5px] font-bold leading-tight text-white/80 ring-1 ring-white/20 md:h-[68px] md:w-[68px]">
+                  y muchos<br />más
+                </span>
               </div>
             )}
           </div>

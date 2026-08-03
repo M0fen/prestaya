@@ -154,8 +154,12 @@ function Slide({ p, token }: { p: ProductoParaCliente; token?: string | null }) 
             {UYU(p.precio)}
           </span>
         )}
+        {/* No se anuncia la tasa: el cliente ve la CUOTA y el total, que es lo que
+            de verdad va a pagar. Publicitar "0% interés" además de ser discutible
+            (el costo ya está dentro del precio del producto) invita a comparar
+            números que no significan lo mismo. */}
         <span className="text-[10.5px] font-semibold text-white/70">
-          {p.interesPct === 0 ? "0% interés" : `${p.interesPct}% interés`} · 🚚 Entrega a domicilio
+          🚚 Entrega a domicilio
         </span>
 
         {/* CTA (objetivo táctil claro, ámbar sobre azul = máximo contraste). */}

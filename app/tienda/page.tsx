@@ -50,6 +50,13 @@ export default async function TiendaPublicaPage({
   // foto de heladera). El banner de Curbe doblega como pieza publicitaria.
   const curbePerfume = productos.find((p) => p.proveedor === "curbe" && p.categoriaNombre !== "Oro 18k" && p.fotos[0]);
   const electro = productos.find((p) => !p.proveedor && p.fotos[0]);
+  // Acompañantes del producto principal: dos fotos MÁS del mismo rubro (nunca la
+  // del principal repetida). Es lo que hace que el banner se lea como catálogo.
+  const acompanan = (principal: typeof electro, curbe: boolean) =>
+    productos
+      .filter((p) => (curbe ? p.proveedor === "curbe" : !p.proveedor) && p.fotos[0] && p.id !== principal?.id)
+      .slice(0, 2)
+      .map((p) => p.fotos[0]!);
   // Etiqueta de precio flotante del hero (precio + cuota), como los tags de ML.
   const tagDe = (p?: typeof electro): HeroSlide["tag"] => {
     if (!p) return undefined;
@@ -65,7 +72,8 @@ export default async function TiendaPublicaPage({
       sub: "Electrodomésticos, tecnología, fragancias y mucho más. Elegís, te pasamos el plan y te lo llevamos a tu casa.",
       img: electro?.fotos[0] ?? curbePerfume?.fotos[0] ?? null,
       imgLabel: electro?.nombre ?? curbePerfume?.nombre ?? null,
-      pills: ["Hasta 12 cuotas", "0% de interés"],
+      imgsExtra: acompanan(electro ?? curbePerfume, false),
+      pills: ["Hasta 12 cuotas", "Sin trámites"],
       tag: tagDe(electro ?? curbePerfume),
       cta: { label: "Ver productos ↓", href: "#catalogo" },
     },
@@ -77,6 +85,7 @@ export default async function TiendaPublicaPage({
       sub: "Fragancias inspiradas en las grandes marcas y joyas de oro italiano 18k, en cuotas cómodas.",
       img: curbePerfume?.fotos[0] ?? null,
       imgLabel: curbePerfume?.nombre ?? null,
+      imgsExtra: acompanan(curbePerfume, true),
       pills: ["Perfumes de autor", "Oro 18k italiano"],
       tag: tagDe(curbePerfume),
       cta: { label: "Ver curbe.uy →", href: "https://curbe.uy" },
@@ -127,8 +136,8 @@ export default async function TiendaPublicaPage({
                     <path d="M1 3h13v13H1zM14 8h4l3 3v5h-7z" /><circle cx="5.5" cy="18.5" r="2" /><circle cx="17.5" cy="18.5" r="2" />
                   </svg>
                   <span className="text-[12.5px] font-medium leading-tight text-cuerpo">
-                    <b className="font-extrabold text-[#00A650]">Entrega a domicilio</b> y hasta{" "}
-                    <b className="font-extrabold text-tinta">12 cuotas sin interés</b> en todo el catálogo.
+                    <b className="font-extrabold text-[#00A650]">Entrega a domicilio</b> y{" "}
+                    <b className="font-extrabold text-tinta">cuotas a tu medida</b> en todo el catálogo.
                   </span>
                 </div>
 
