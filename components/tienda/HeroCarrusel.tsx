@@ -65,21 +65,21 @@ function Slide({ s }: { s: HeroSlide }) {
   return (
     <div className="relative min-w-0 flex-[0_0_100%]" style={{ background: t.bg }}>
       <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: t.glow }} />
-      <div className="relative flex flex-col gap-5 p-6 text-white md:flex-row md:items-center md:justify-between md:p-10">
-        <div className="flex max-w-[500px] flex-col gap-3">
+      <div className="relative flex flex-col gap-3.5 p-4 text-white md:flex-row md:items-center md:justify-between md:gap-5 md:p-10">
+        <div className="flex max-w-[500px] flex-col gap-2 md:gap-3">
           <span className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: t.accent }}>{s.eyebrow}</span>
-          <h2 className="text-[27px] font-black leading-[1.06] tracking-[-0.02em] md:text-[40px]">
+          <h2 className="text-[22px] font-black leading-[1.08] tracking-[-0.02em] md:text-[40px]">
             <Titulo titulo={s.titulo} acento={s.acento} color={t.accent} />
           </h2>
-          <p className="max-w-[460px] text-[13.5px] font-medium text-white/72 md:text-[15px]">{s.sub}</p>
+          <p className="line-clamp-2 max-w-[460px] text-[12.5px] font-medium text-white/72 md:line-clamp-none md:text-[15px]">{s.sub}</p>
           {s.pills && s.pills.length > 0 && (
-            <div className="mt-1.5 flex flex-wrap gap-2">
+            <div className="mt-0.5 flex flex-wrap gap-2">
               {s.pills.map((pill, k) => (
-                <span key={k} className="rounded-full bg-white px-4 py-2 text-[13px] font-black text-[#13308C] shadow-[0_4px_14px_rgba(0,0,0,0.18)]" style={k === 1 ? { color: t.accent === "#E8C56E" ? "#8A6A16" : "#0F7A48" } : undefined}>{pill}</span>
+                <span key={k} className="rounded-full bg-white px-3 py-1.5 text-[12px] font-black md:px-4 md:py-2 md:text-[13px] text-[#13308C] shadow-[0_4px_14px_rgba(0,0,0,0.18)]" style={k === 1 ? { color: t.accent === "#E8C56E" ? "#8A6A16" : "#0F7A48" } : undefined}>{pill}</span>
               ))}
             </div>
           )}
-          <div className="mt-1 flex flex-wrap items-center gap-2 text-[11.5px] font-semibold text-white/80">
+          <div className="mt-1 hidden flex-wrap items-center gap-2 text-[11.5px] font-semibold text-white/80 md:flex">
             <span className="rounded-full border border-white/15 bg-white/[0.06] px-3 py-1.5">🚚 Entrega a domicilio</span>
             <span className="rounded-full border border-white/15 bg-white/[0.06] px-3 py-1.5">💳 Cuotas cómodas</span>
             <span className="rounded-full border border-white/15 bg-white/[0.06] px-3 py-1.5">🛡️ Garantía</span>
@@ -97,7 +97,7 @@ function Slide({ s }: { s: HeroSlide }) {
           )}
         </div>
         {s.img && (
-          <div className="relative mx-auto w-full max-w-[270px] shrink-0 md:mx-0 md:w-[320px]">
+          <div className="relative mx-auto w-full max-w-[168px] shrink-0 md:mx-0 md:w-[320px] md:max-w-[320px]">
             {/* Halo detrás del producto (glow del color de acento). */}
             <div className="absolute -inset-5 rounded-[36px] blur-2xl" style={{ background: `radial-gradient(circle at 50% 45%, ${t.accent}55, transparent 68%)` }} aria-hidden />
             {/* Panel blanco del producto (nuestras fotos vienen sobre blanco). */}

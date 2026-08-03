@@ -8,7 +8,7 @@
 //   · pedidos local — registro de "mis pedidos" en el navegador (UX de estado
 //                     "pendiente de aprobación" SIN tocar la base de datos).
 // ─────────────────────────────────────────────────────────────────────────
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { Drawer } from "vaul";
 import { UYU } from "@/lib/format";
@@ -259,6 +259,63 @@ export function SeccionTienda({ titulo, verTodos, verTodosLabel = "Ver todos ›
   );
 }
 
+// ── FILA horizontal con FLECHAS (el carrusel de estantería de un e-commerce) ──
+/**
+ * Contenedor scrolleable con botones ‹ › que aparecen SOLO en desktop y solo
+ * cuando hay algo hacia ese lado. En el teléfono se desliza con el dedo (las
+ * flechas serían ruido); en la computadora, sin flechas, un carrusel parece una
+ * fila cortada — es lo que separa una estantería de verdad de un overflow.
+ */
+export function FilaScroll({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [puede, setPuede] = useState({ izq: false, der: false });
+
+  const medir = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    const margen = 8; // tolerancia: el scroll no siempre cae en el píxel exacto
+    setPuede({
+      izq: el.scrollLeft > margen,
+      der: el.scrollLeft + el.clientWidth < el.scrollWidth - margen,
+    });
+  }, []);
+
+  useEffect(() => {
+    medir();
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(medir);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [medir, children]);
+
+  const mover = (dir: -1 | 1) => {
+    const el = ref.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * Math.round(el.clientWidth * 0.8), behavior: "smooth" });
+  };
+
+  return (
+    <div className="group/fila relative">
+      <div ref={ref} onScroll={medir}
+        className={`-mx-3.5 flex gap-2.5 overflow-x-auto scroll-smooth px-3.5 pb-1 md:-mx-4 md:px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${className}`}>
+        {children}
+      </div>
+      {([["izq", -1], ["der", 1]] as const).map(([lado, dir]) =>
+        puede[lado] ? (
+          <button key={lado} type="button" onClick={() => mover(dir)}
+            aria-label={dir < 0 ? "Ver anteriores" : "Ver siguientes"}
+            className={`absolute top-1/2 hidden h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white text-[18px] font-bold text-tinta opacity-0 shadow-[0_2px_12px_rgba(15,27,61,0.22)] ring-1 ring-black/5 transition hover:scale-105 group-hover/fila:opacity-100 md:grid ${
+              dir < 0 ? "-left-2" : "-right-2"
+            }`}>
+            {dir < 0 ? "‹" : "›"}
+          </button>
+        ) : null,
+      )}
+    </div>
+  );
+}
+
 // ── BANNER promocional horizontal (como los de Electrolux/Motorola en ML) ────
 export function BannerPromo({ tema = "azul", eyebrow, titulo, sub, badge, ctaLabel = "Ver todo →", img, onClick }: {
   tema?: "azul" | "oscuro" | "dorado";
@@ -340,38 +397,82 @@ function IcoPersona() {
 }
 
 /** Botón de acción de la barra con badge de conteo (favoritos/carrito). */
-function AccionBarra({ onClick, label, activo = false, badge = 0, badgeColor = "#1E47C8", pop = 0, children }: {
+function AccionBarra({ onClick, label, activo = false, badge = 0, badgeColor = "#E0245E", pop = 0, children }: {
   onClick: () => void; label: string; activo?: boolean; badge?: number; badgeColor?: string; pop?: number; children: React.ReactNode;
 }) {
   return (
     <button type="button" onClick={onClick} aria-label={label}
-      className={`relative flex h-11 w-11 items-center justify-center rounded-full transition active:scale-90 ${activo ? "bg-[#EEF3FF] text-[#1E47C8]" : "text-tinta hover:bg-[#F1F4FB]"}`}>
+      className={`relative flex h-11 w-11 items-center justify-center rounded-full text-white transition active:scale-90 ${activo ? "bg-white/20" : "hover:bg-white/15"}`}>
       {children}
       {badge > 0 && (
         <span key={pop} style={{ background: badgeColor }}
-          className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-black tabular-nums text-white shadow ring-2 ring-app motion-safe:animate-[popBadge_0.3s_ease]">{badge}</span>
+          className="absolute right-0 top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-black tabular-nums text-white shadow ring-2 ring-[#1E47C8] motion-safe:animate-[popBadge_0.3s_ease]">{badge}</span>
       )}
     </button>
   );
 }
 
-/** BARRA DE TIENDA (sticky): identidad + favoritos + carrito + Mi tienda, siempre
- *  a la vista. Es lo que hace que "se sienta" un e-commerce (chrome persistente). */
-export function BarraTienda({ titulo, favN, cartN, favActivo, onFav, onCart, onPerfil, pulso }: {
+/**
+ * CABECERA DE LA TIENDA (sticky, full-bleed): marca + BUSCADOR + acciones en UNA
+ * sola banda de color, como la barra amarilla de Mercado Libre.
+ *
+ * Antes eran tres piezas apiladas —fila de marca, barra sticky y un input suelto
+ * debajo—: ocupaban media pantalla de teléfono antes del primer producto y no
+ * leían como una tienda, sino como tres widgets. Juntarlas en una banda le da a
+ * la página el "chrome" que uno espera de un e-commerce, deja el buscador SIEMPRE
+ * a mano (es la principal vía de compra en móvil) y recupera alto para el catálogo.
+ */
+export function BarraTienda({ titulo, favN, cartN, favActivo, onFav, onCart, onPerfil, pulso, q, onQ, placeholder = "Buscar en la tienda…", derecha }: {
   titulo: string; favN: number; cartN: number; favActivo: boolean;
   onFav: () => void; onCart: () => void; onPerfil: () => void; pulso: number;
+  /** Buscador integrado (controlado por el padre, que es quien filtra). */
+  q?: string;
+  onQ?: (v: string) => void;
+  placeholder?: string;
+  /** Slot opcional a la derecha del título (ej. "Hola, Carlos" / "Ingresar"). */
+  derecha?: React.ReactNode;
 }) {
+  const conBuscador = typeof q === "string" && !!onQ;
   return (
-    <div className="sticky top-0 z-40 -mx-[18px] flex items-center justify-between gap-2 border-b border-[#E4E9F5] bg-[#EBEEF5]/92 px-[18px] py-2 backdrop-blur-md md:mx-0 md:rounded-[16px] md:border md:px-3">
+    // `before:` pinta la banda de lado a lado de la PANTALLA sin sacar el contenido
+    // de la columna centrada: en desktop una cabecera que termina donde termina el
+    // contenido se ve como un widget flotando, no como la barra de una tienda.
+    // (La página raíz lleva overflow-x-clip para que el 100vw no genere scroll.)
+    <div className="sticky top-0 z-40 -mx-[18px] px-[18px] pb-2.5 pt-2 shadow-[0_2px_14px_rgba(15,27,61,0.22)] before:absolute before:inset-y-0 before:left-1/2 before:-z-10 before:w-[100vw] before:-translate-x-1/2 before:bg-[linear-gradient(135deg,#2453DC,#13308C)] before:content-[''] md:-mx-8 md:px-8">
       <style>{`@keyframes popBadge{0%{transform:scale(1)}45%{transform:scale(1.5)}100%{transform:scale(1)}}`}</style>
-      <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="flex min-w-0 items-center gap-2">
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] bg-[linear-gradient(135deg,#2453DC,#13308C)] text-[15px] shadow-[0_4px_12px_rgba(19,48,140,0.35)]">🛍️</span>
-        <span className="truncate text-[15px] font-black tracking-[-0.01em] text-tinta">{titulo}</span>
-      </button>
-      <div className="flex shrink-0 items-center gap-0.5">
-        <AccionBarra onClick={onFav} label="Favoritos" activo={favActivo} badge={favN} badgeColor="#E0245E"><span className={favActivo ? "text-[#E0245E]" : ""}><IcoCorazon lleno={favActivo || favN > 0} /></span></AccionBarra>
-        <AccionBarra onClick={onCart} label="Carrito" badge={cartN} pop={pulso}><IcoCarrito /></AccionBarra>
-        <AccionBarra onClick={onPerfil} label="Mi tienda"><IcoPersona /></AccionBarra>
+      {/* Una sola fila que se REPARTE: en desktop marca · buscador · acciones (como
+          la barra amarilla de ML). En teléfono el buscador salta a la línea de abajo
+          a ancho completo, que es donde el pulgar lo alcanza. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="order-1 flex min-w-0 items-center gap-2">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] bg-white/15 text-[15px] ring-1 ring-white/25">🛍️</span>
+          <span className="truncate text-[15px] font-black tracking-[-0.01em] text-white">{titulo}</span>
+        </button>
+        <div className="order-2 ml-auto flex shrink-0 items-center gap-0.5 md:order-3 md:ml-0">
+          {derecha}
+          <AccionBarra onClick={onFav} label="Favoritos" activo={favActivo} badge={favN}><IcoCorazon lleno={favActivo || favN > 0} /></AccionBarra>
+          <AccionBarra onClick={onCart} label="Carrito" badge={cartN} badgeColor="#00A650" pop={pulso}><IcoCarrito /></AccionBarra>
+          <AccionBarra onClick={onPerfil} label="Mi tienda"><IcoPersona /></AccionBarra>
+        </div>
+        {conBuscador && (
+          <div className="relative order-3 w-full md:order-2 md:min-w-[240px] md:flex-1">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+              className="pointer-events-none absolute left-3.5 top-1/2 h-[17px] w-[17px] -translate-y-1/2 text-gris" aria-hidden>
+              <circle cx="11" cy="11" r="7" /><path d="m20 20-3.2-3.2" />
+            </svg>
+            <input
+              value={q}
+              onChange={(e) => onQ!(e.target.value)}
+              placeholder={placeholder}
+              aria-label="Buscar productos"
+              className="w-full rounded-[8px] border-0 bg-white py-2.5 pl-11 pr-10 text-[16px] text-tinta shadow-[0_2px_8px_rgba(0,0,0,0.14)] outline-none placeholder:text-gris focus:ring-2 focus:ring-white/70"
+            />
+            {q && (
+              <button type="button" onClick={() => onQ!("")} aria-label="Limpiar búsqueda"
+                className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center text-[17px] font-bold text-gris hover:text-tinta">✕</button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

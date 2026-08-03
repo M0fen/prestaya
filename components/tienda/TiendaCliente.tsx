@@ -14,10 +14,15 @@ import { comprarComoEmpleado } from "@/lib/acciones/comprasEmpleado";
 import { soloDigitos } from "@/lib/telefono";
 import { calcularPlanVenta } from "@/lib/venta";
 import type { ProductoParaCliente, FrecuenciaProducto } from "@/lib/data/tienda";
-import { GaleriaEmbla, Confeti, folioNuevo, guardarPedidoLocal, BarraTienda, MiTienda, SeccionTienda, AtajosTienda, BannerPromo, useEsDesktop, claseDrawer, registrarVisto, leerVistos, type Atajo, type CompraTienda } from "./piezas";
+import { GaleriaEmbla, Confeti, folioNuevo, guardarPedidoLocal, BarraTienda, MiTienda, SeccionTienda, FilaScroll, AtajosTienda, BannerPromo, useEsDesktop, claseDrawer, registrarVisto, leerVistos, type Atajo, type CompraTienda } from "./piezas";
 
 const FREC_LABEL: Record<FrecuenciaProducto, string> = {
   diario: "por día", semanal: "por semana", quincenal: "por quincena", mensual: "por mes",
+};
+/** Sustantivo de la cuota para la línea de financiación: "12 cuotas de $4.158",
+ *  "24 pagos diarios de $350". Habla como la gente, no como la base de datos. */
+const FREC_CUOTA: Record<FrecuenciaProducto, string> = {
+  diario: "pagos diarios", semanal: "pagos semanales", quincenal: "pagos quincenales", mensual: "cuotas",
 };
 type Orden = "destacados" | "menor" | "mayor";
 
@@ -47,6 +52,7 @@ const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,
 
 export function TiendaCliente({
   productos, token, conEncabezado = true, abrirId = null, preview = false, modoPublico = false, modoEmpleado = false, compras = [], perfilTitulo = "Mi tienda", conHeroExterno = false,
+  previo = null, slotHeader = null,
 }: {
   productos: ProductoParaCliente[];
   token: string | null;
@@ -65,6 +71,12 @@ export function TiendaCliente({
   perfilTitulo?: string;
   /** La página ya trae un HeroCarrusel externo → ocultar el hero interno (no duplicar). */
   conHeroExterno?: boolean;
+  /** Contenido de la página (hero, franja de beneficios) que va JUSTO DEBAJO de la
+   *  barra sticky. Se pasa acá y no antes del componente para que la cabecera de la
+   *  tienda sea de verdad lo primero de la página, como en cualquier e-commerce. */
+  previo?: React.ReactNode;
+  /** Slot dentro de la barra, a la izquierda de los íconos (ej. "Hola, Carlos"). */
+  slotHeader?: React.ReactNode;
 }) {
   // Si venimos del banner del cartón (?producto=id), abrimos su detalle de una.
   const [abierto, setAbierto] = useState<ProductoParaCliente | null>(
@@ -237,6 +249,10 @@ export function TiendaCliente({
           onCart={() => setCarritoAbierto(true)}
           onPerfil={() => setPerfilAbierto(true)}
           pulso={pulso}
+          q={q}
+          onQ={setQ}
+          placeholder="Buscá heladera, TV, perfume…"
+          derecha={slotHeader}
         />
       ) : conEncabezado ? (
         <div className="flex items-center gap-2 px-1">
@@ -248,19 +264,27 @@ export function TiendaCliente({
         </div>
       ) : null}
 
-      {/* Buscador PROTAGONISTA (search-first, como los mejores e-commerce). */}
-      <div className="relative">
-        <IconoLupa className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gris" />
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Buscá heladera, TV, perfume…"
-          className="w-full rounded-full border border-[#DCE3F4] bg-white py-3.5 pl-12 pr-10 text-[16px] shadow-[0_2px_12px_rgba(15,27,61,0.06)] outline-none focus:border-azul focus:ring-2 focus:ring-[#1E47C8]/25"
-        />
-        {q && (
-          <button type="button" onClick={() => setQ("")} aria-label="Limpiar búsqueda" className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center text-[17px] font-bold text-gris hover:text-tinta">✕</button>
-        )}
-      </div>
+      {/* Contenido de la página (hero + beneficios) DESPUÉS de la cabecera. */}
+      {previo}
+
+      {/* El buscador vive DENTRO de la barra sticky (ver BarraTienda): queda siempre
+          a mano y deja de comerse una fila entera antes del primer producto. Cuando
+          no hay barra —el cartón del cliente sin carrito— se muestra suelto acá. */}
+      {!conCarrito && (
+        <div className="relative">
+          <IconoLupa className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gris" />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Buscá heladera, TV, perfume…"
+            aria-label="Buscar productos"
+            className="w-full rounded-full border border-[#DCE3F4] bg-white py-3.5 pl-12 pr-10 text-[16px] shadow-[0_2px_12px_rgba(15,27,61,0.06)] outline-none focus:border-azul focus:ring-2 focus:ring-[#1E47C8]/25"
+          />
+          {q && (
+            <button type="button" onClick={() => setQ("")} aria-label="Limpiar búsqueda" className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center text-[17px] font-bold text-gris hover:text-tinta">✕</button>
+          )}
+        </div>
+      )}
 
       {/* Fila de ATAJOS (como "Compra tu carrito / Visto recientemente" de ML). */}
       {conCarrito && !hayFiltro && (
@@ -274,7 +298,7 @@ export function TiendaCliente({
       )}
 
       {/* Comprá por CATEGORÍA — sección en tarjeta (estilo Mercado Libre). */}
-      <SeccionTienda titulo="Comprá por categoría">
+      <SeccionTienda titulo="Categorías">
         <div className="-mx-3.5 flex gap-2 overflow-x-auto px-3.5 pb-1 md:-mx-4 md:px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <CategoriaTile emoji="🏬" nombre="Todo" n={productos.length} activo={!cat && !soloFav} onClick={() => { setCat(null); setSoloFav(false); }} />
           {categorias.map((c) => (
@@ -335,94 +359,47 @@ export function TiendaCliente({
 
       {/* 🔥 OFERTAS — el gancho más fuerte (sección en tarjeta, como Mercado Libre). */}
       {!hayFiltro && ofertas.length > 0 && (
-        <div id="sec-ofertas" className="scroll-mt-16">
-        <SeccionTienda titulo={<span className="text-[#C0392B]">🔥 Ofertas</span>}>
-          <div className="-mx-3.5 flex gap-3 overflow-x-auto px-3.5 pb-1 md:-mx-4 md:px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div id="sec-ofertas" className="scroll-mt-[104px]">
+        <SeccionTienda titulo="Ofertas del día">
+          <FilaScroll>
             {ofertas.map((p) => (
-              <button key={p.id} type="button" onClick={() => setAbierto(p)}
-                className="group flex w-[160px] shrink-0 flex-col overflow-hidden rounded-[16px] border border-[#ECEFF8] bg-white text-left shadow-[0_2px_10px_rgba(15,27,61,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(15,27,61,0.12)] active:scale-[0.98]">
-                <div className="relative overflow-hidden">
-                  <Foto p={p} className="aspect-square" />
-                  <span className="absolute left-2 top-2 rounded-full bg-[#D64545] px-2 py-0.5 text-[11px] font-black text-white shadow">−{Math.round((1 - p.precio / p.precioAnterior) * 100)}%</span>
-                </div>
-                <div className="flex flex-col gap-0.5 px-3 py-2.5">
-                  <span className="line-clamp-2 text-[13px] font-bold leading-tight text-tinta">{p.nombre}</span>
-                  <Precio p={p} />
-                </div>
-              </button>
+              <TarjetaCarrusel key={p.id} p={p} onClick={() => setAbierto(p)} />
             ))}
-          </div>
+          </FilaScroll>
         </SeccionTienda>
         </div>
       )}
 
       {/* 👁 Visto recientemente — historial local (como Mercado Libre). */}
       {!hayFiltro && vistosProductos.length > 0 && (
-        <SeccionTienda titulo="👁 Visto recientemente">
-          <div className="-mx-3.5 flex gap-3 overflow-x-auto px-3.5 pb-1 md:-mx-4 md:px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <SeccionTienda titulo="Visto recientemente">
+          <FilaScroll>
             {vistosProductos.map((p) => (
-              <button key={p.id} type="button" onClick={() => setAbierto(p)}
-                className="group flex w-[150px] shrink-0 flex-col overflow-hidden rounded-[16px] border border-[#ECEFF8] bg-white text-left shadow-[0_2px_10px_rgba(15,27,61,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(15,27,61,0.12)] active:scale-[0.98]">
-                <Foto p={p} className="aspect-square" />
-                <div className="flex flex-col gap-0.5 px-3 py-2.5">
-                  <span className="line-clamp-2 text-[13px] font-bold leading-tight text-tinta">{p.nombre}</span>
-                  <Precio p={p} />
-                </div>
-              </button>
+              <TarjetaCarrusel key={p.id} p={p} onClick={() => setAbierto(p)} ancho={148} />
             ))}
-          </div>
+          </FilaScroll>
         </SeccionTienda>
       )}
 
       {/* ❤️ Tus favoritos — estante personal (sección en tarjeta, sin filtro). */}
       {!hayFiltro && favProductos.length > 0 && (
-        <SeccionTienda titulo={<span className="text-[#E0245E]">❤️ Tus favoritos</span>} verTodos={() => { setCat(null); setMarca(null); setSoloFav(true); }}>
-          <div className="-mx-3.5 flex gap-3 overflow-x-auto px-3.5 pb-1 md:-mx-4 md:px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <SeccionTienda titulo="Tus favoritos" verTodos={() => { setCat(null); setMarca(null); setSoloFav(true); }}>
+          <FilaScroll>
             {favProductos.map((p) => (
-              <button key={p.id} type="button" onClick={() => setAbierto(p)}
-                className="group flex w-[160px] shrink-0 flex-col overflow-hidden rounded-[16px] border border-[#ECEFF8] bg-white text-left shadow-[0_2px_10px_rgba(15,27,61,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(15,27,61,0.12)] active:scale-[0.98]">
-                <div className="relative overflow-hidden">
-                  <Foto p={p} className="aspect-square" />
-                  <span className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-[15px] shadow-sm">❤️</span>
-                </div>
-                <div className="flex flex-col gap-0.5 px-3 py-2.5">
-                  <span className="line-clamp-2 text-[13px] font-bold leading-tight text-tinta">{p.nombre}</span>
-                  <Precio p={p} />
-                </div>
-              </button>
+              <TarjetaCarrusel key={p.id} p={p} onClick={() => setAbierto(p)} />
             ))}
-          </div>
+          </FilaScroll>
         </SeccionTienda>
       )}
 
       {/* Más destacados (sección en tarjeta, excluye el hero). Solo sin filtro. */}
       {!hayFiltro && destacados.filter((p) => p.id !== hero?.id).length > 0 && (
-        <SeccionTienda titulo="⭐ Más destacados">
-          <div className="-mx-3.5 flex gap-3 overflow-x-auto px-3.5 pb-1 md:-mx-4 md:px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <SeccionTienda titulo="Destacados para vos">
+          <FilaScroll>
             {destacados.filter((p) => p.id !== hero?.id).map((p) => (
-              <button key={p.id} type="button" onClick={() => setAbierto(p)}
-                className="group flex w-[160px] shrink-0 flex-col overflow-hidden rounded-[16px] border border-[#ECEFF8] bg-white text-left shadow-[0_2px_10px_rgba(15,27,61,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(15,27,61,0.12)] active:scale-[0.98]">
-                <div className="relative overflow-hidden">
-                  <Foto p={p} className="aspect-square" />
-                  {p.precioAnterior > p.precio && (
-                    <span className="absolute left-2 top-2 rounded-full bg-[#D64545] px-2 py-0.5 text-[11px] font-black text-white shadow">−{Math.round((1 - p.precio / p.precioAnterior) * 100)}%</span>
-                  )}
-                  {p.proveedor === "curbe" && (
-                    <span className="absolute right-2 top-2 rounded-full bg-[linear-gradient(135deg,#E8C56E,#C9A24B)] px-1.5 py-0.5 text-[10px] font-black text-[#3A2E0A] shadow">💎</span>
-                  )}
-                </div>
-                <div className="flex flex-col gap-0.5 px-3 py-2.5">
-                  {p.proveedor === "curbe" ? (
-                    <span className="w-fit rounded-full bg-[linear-gradient(135deg,#FBF3DE,#F4E7C3)] px-2 py-0.5 text-[9.5px] font-black text-[#8A6A16]">💎 Curbe</span>
-                  ) : p.marca ? (
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-gris">{p.marca}</span>
-                  ) : null}
-                  <span className="line-clamp-2 text-[13px] font-bold leading-tight text-tinta">{p.nombre}</span>
-                  <Precio p={p} />
-                </div>
-              </button>
+              <TarjetaCarrusel key={p.id} p={p} onClick={() => setAbierto(p)} />
             ))}
-          </div>
+          </FilaScroll>
         </SeccionTienda>
       )}
 
@@ -467,23 +444,13 @@ export function TiendaCliente({
 
       {/* Estantes por CATEGORÍA ("Lo mejor en X") — sensación de catálogo grande. */}
       {!hayFiltro && shelvesCategorias.map((sh) => (
-        <SeccionTienda key={sh.nombre} titulo={`${emojiDe(sh.nombre)} ${sh.nombre}`}
+        <SeccionTienda key={sh.nombre} titulo={`Lo mejor en ${sh.nombre}`}
           verTodos={() => { setSoloFav(false); setMarca(null); setCat(sh.nombre); setTimeout(() => document.getElementById("sec-catalogo")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60); }}>
-          <div className="-mx-3.5 flex gap-3 overflow-x-auto px-3.5 pb-1 md:-mx-4 md:px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <FilaScroll>
             {sh.items.map((p) => (
-              <button key={p.id} type="button" onClick={() => setAbierto(p)}
-                className="group flex w-[150px] shrink-0 flex-col overflow-hidden rounded-[16px] border border-[#ECEFF8] bg-white text-left shadow-[0_2px_10px_rgba(15,27,61,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(15,27,61,0.12)] active:scale-[0.98]">
-                <div className="relative overflow-hidden">
-                  <Foto p={p} className="aspect-square" />
-                  {p.precioAnterior > p.precio && <span className="absolute left-2 top-2 rounded-full bg-[#D64545] px-2 py-0.5 text-[11px] font-black text-white shadow">−{Math.round((1 - p.precio / p.precioAnterior) * 100)}%</span>}
-                </div>
-                <div className="flex flex-col gap-0.5 px-3 py-2.5">
-                  <span className="line-clamp-2 text-[13px] font-bold leading-tight text-tinta">{p.nombre}</span>
-                  <Precio p={p} />
-                </div>
-              </button>
+              <TarjetaCarrusel key={p.id} p={p} onClick={() => setAbierto(p)} ancho={148} />
             ))}
-          </div>
+          </FilaScroll>
         </SeccionTienda>
       ))}
 
@@ -504,7 +471,7 @@ export function TiendaCliente({
       )}
 
       {/* Catálogo — sección en TARJETA (título + orden + grilla). */}
-      <section id="sec-catalogo" className="scroll-mt-16 rounded-[18px] bg-white p-3.5 shadow-[0_1px_5px_rgba(15,27,61,0.06)] md:p-4">
+      <section id="sec-catalogo" className="scroll-mt-[104px] rounded-[18px] bg-white p-3.5 shadow-[0_1px_5px_rgba(15,27,61,0.06)] md:p-4">
       <div className="mb-3 flex items-center justify-between gap-2">
         <span className="text-[14.5px] font-extrabold tracking-[-0.01em] text-tinta">
           {hayFiltro ? `${filtrados.length} ${filtrados.length === 1 ? "resultado" : "resultados"}${cat ? ` · ${cat}` : ""}` : "Todos los productos"}
@@ -533,7 +500,7 @@ export function TiendaCliente({
       ) : (
         // En la tienda PÚBLICA la grilla crece en desktop (2→3→4 col); en el cartón
         // del cliente queda en 2 (se ve en el teléfono, no tocamos su densidad).
-        <div className={`grid gap-3 grid-cols-2 ${modoPublico ? "sm:grid-cols-3 lg:grid-cols-4" : ""}`}>
+        <div className={`grid gap-3 grid-cols-2 ${modoPublico ? "sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" : ""}`}>
           {filtrados.map((p, idx) => (
             <m.div key={p.id} role="button" tabIndex={0} onClick={() => setAbierto(p)}
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setAbierto(p); } }}
@@ -547,18 +514,16 @@ export function TiendaCliente({
                 <div className="transition-transform duration-300 group-hover:scale-[1.04]">
                   <Foto p={p} className="aspect-square" />
                 </div>
-                {/* Descuento −X% (gancho más fuerte que "OFERTA") y escasez PUEDEN coexistir. */}
+                {/* Sobre la FOTO solo va lo que no es precio: agotado y escasez. El
+                    descuento se mudó al bloque de precio (en verde, al lado del monto),
+                    que es donde lo busca el ojo y donde lo ponen las tiendas grandes:
+                    un cartel rojo tapando el producto ensucia la vidriera. */}
                 {p.agotado || p.stock === 0 ? (
                   <span className="absolute left-2 top-2 rounded-full bg-[#6B7494] px-2 py-0.5 text-[10px] font-black text-white">Agotado</span>
                 ) : (
-                  <>
-                    {p.precioAnterior > p.precio && (
-                      <span className="absolute left-2 top-2 rounded-full bg-[#D64545] px-2 py-0.5 text-[11px] font-black text-white shadow">−{Math.round((1 - p.precio / p.precioAnterior) * 100)}%</span>
-                    )}
-                    {p.stock != null && p.stock <= 5 && (
-                      <span className={`absolute left-2 ${p.precioAnterior > p.precio ? "top-9" : "top-2"} rounded-full bg-[#E8A317] px-2 py-0.5 text-[10px] font-black text-white`}>¡Últimas {p.stock}!</span>
-                    )}
-                  </>
+                  p.stock != null && p.stock <= 5 && (
+                    <span className="absolute left-2 top-2 rounded-full bg-[#E8A317] px-2 py-0.5 text-[10px] font-black text-white">¡Últimas {p.stock}!</span>
+                  )
                 )}
                 {/* Favorito ❤️ (guardar, como Mercado Libre) — bien visible sobre la foto. */}
                 <button type="button" onClick={(e) => { e.stopPropagation(); toggleFav(p.id); }}
@@ -575,14 +540,16 @@ export function TiendaCliente({
                 ) : p.marca ? (
                   <span className="text-[10px] font-bold uppercase tracking-wide text-gris">{p.marca}</span>
                 ) : null}
-                <span className="line-clamp-2 text-[14.5px] font-bold leading-snug text-tinta">{p.nombre}</span>
+                {/* Título en peso NORMAL: en una grilla, si todo está en negrita nada
+                    resalta. El que tiene que ganar el ojo es el precio. */}
+                <span className="line-clamp-2 text-[13.5px] font-medium leading-snug text-cuerpo">{p.nombre}</span>
                 <Precio p={p} />
                 {!(p.agotado || p.stock === 0) && (
-                  <span className="mt-0.5 flex w-fit items-center gap-1 text-[10.5px] font-bold text-[#157A50]">🚚 A domicilio</span>
+                  <span className="mt-0.5 text-[12px] font-bold text-[#00A650]">Envío a domicilio</span>
                 )}
                 {conCarrito && !(p.agotado || p.stock === 0) && (
                   <button type="button" onClick={(e) => { e.stopPropagation(); agregarAlCarrito(p); }}
-                    className="mt-1.5 flex items-center justify-center gap-1.5 rounded-full bg-[#EEF3FF] py-2 text-[13px] font-bold text-azul transition hover:bg-[#1E47C8] hover:text-white active:scale-95">
+                    className="mt-2 flex items-center justify-center gap-1.5 rounded-[6px] bg-[#EEF3FF] py-2 text-[13px] font-bold text-azul transition hover:bg-[#1E47C8] hover:text-white active:scale-95">
                     Agregar al carrito
                   </button>
                 )}
@@ -758,24 +725,71 @@ function Foto({ p, className = "" }: { p: ProductoParaCliente; className?: strin
   );
 }
 
-/** Precio con la CUOTA como protagonista (el negocio es cuotas) + "sin interés". */
-function Precio({ p }: { p: ProductoParaCliente }) {
+/**
+ * Bloque de precio con la ANATOMÍA de un e-commerce grande (referencia: Mercado
+ * Libre), que es la que la gente ya sabe leer de un vistazo:
+ *
+ *    $ 500.000                          ← precio anterior tachado, chico y gris
+ *    $ 385.000   23% OFF                ← PRECIO protagonista + descuento en verde
+ *    12 cuotas de $ 32.083 sin interés  ← financiación en verde, una línea
+ *
+ * Antes la cuota iba en una cajita azul arriba y el precio quedaba chico y verde:
+ * se leía como una etiqueta de sistema, no como una vidriera. El precio manda
+ * (es lo que la gente compara) y la cuota lo acompaña, que es exactamente cómo
+ * lo resuelven las tiendas grandes sin perder el gancho de la financiación.
+ */
+function Precio({ p, grande = false }: { p: ProductoParaCliente; grande?: boolean }) {
   const { cuota } = financiacion(p);
   const conCuota = p.cuotas > 0 && cuota > 0;
   const enOferta = p.precioAnterior > p.precio;
+  const off = enOferta ? Math.round((1 - p.precio / p.precioAnterior) * 100) : 0;
   return (
-    <div className="mt-0.5 flex flex-col gap-0.5">
+    <div className="mt-1 flex flex-col gap-[3px]">
+      {enOferta && (
+        <span className="text-[11.5px] font-medium tabular-nums text-tenue line-through">{UYU(p.precioAnterior)}</span>
+      )}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+        <span className={`font-semibold tabular-nums tracking-[-0.02em] text-tinta ${grande ? "text-[26px]" : "text-[19px]"}`}>
+          {UYU(p.precio)}
+        </span>
+        {off > 0 && <span className="text-[12.5px] font-bold text-[#00A650]">{off}% OFF</span>}
+      </div>
       {conCuota && (
-        <span className="w-fit rounded-md bg-[#EEF3FF] px-1.5 py-0.5 text-[13.5px] font-black tabular-nums text-[#1E47C8]">
-          {p.cuotas}× {UYU(cuota)}
+        <span className="text-[12px] font-semibold leading-tight text-[#00A650]">
+          {p.cuotas} {FREC_CUOTA[p.frecuencia] ?? "cuotas"} de{" "}
+          <span className="tabular-nums">{UYU(cuota)}</span>
+          {p.interesPct === 0 ? " sin interés" : ""}
         </span>
       )}
-      <div className="flex flex-wrap items-baseline gap-x-1.5">
-        <span className={`font-black tabular-nums text-[#157A50] ${conCuota ? "text-[13px]" : "text-[16.5px]"}`}>{UYU(p.precio)}</span>
-        {enOferta && <span className="text-[11px] font-semibold tabular-nums text-tenue line-through">{UYU(p.precioAnterior)}</span>}
-        {conCuota && p.interesPct === 0 && <span className="rounded-full bg-[#E4F5EC] px-1.5 py-[1px] text-[10px] font-bold text-[#157A50]">sin interés</span>}
-      </div>
     </div>
+  );
+}
+
+/**
+ * Tarjeta de producto para los CARRUSELES (ofertas, vistos, destacados, estantes).
+ * Existía repetida cuatro veces con medidas y pesos distintos —160px acá, 150px
+ * allá, título en bold en una y no en otra—, así que las estanterías nunca se veían
+ * como parte de la misma tienda. Una sola pieza = un solo lenguaje visual.
+ */
+function TarjetaCarrusel({ p, onClick, ancho = 158 }: { p: ProductoParaCliente; onClick: () => void; ancho?: number }) {
+  return (
+    <button type="button" onClick={onClick} style={{ width: ancho }}
+      className="group flex shrink-0 flex-col overflow-hidden rounded-[10px] border border-[#ECEFF8] bg-white text-left transition hover:shadow-[0_8px_22px_rgba(15,27,61,0.13)] active:scale-[0.98]">
+      <div className="relative overflow-hidden">
+        <div className="transition-transform duration-300 group-hover:scale-[1.04]">
+          <Foto p={p} className="aspect-square" />
+        </div>
+        {p.agotado || p.stock === 0 ? (
+          <span className="absolute left-2 top-2 rounded-full bg-[#6B7494] px-2 py-0.5 text-[10px] font-black text-white">Agotado</span>
+        ) : p.proveedor === "curbe" ? (
+          <span className="absolute right-2 top-2 rounded-full bg-[linear-gradient(135deg,#E8C56E,#C9A24B)] px-1.5 py-0.5 text-[10px] font-black text-[#3A2E0A] shadow">💎</span>
+        ) : null}
+      </div>
+      <div className="flex flex-1 flex-col px-2.5 pb-2.5 pt-2">
+        <span className="line-clamp-2 text-[12.5px] font-medium leading-snug text-cuerpo">{p.nombre}</span>
+        <Precio p={p} />
+      </div>
+    </button>
   );
 }
 

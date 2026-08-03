@@ -84,72 +84,11 @@ export default async function TiendaPublicaPage({
   ];
 
   return (
-    <div className="flex min-h-screen justify-center bg-fondo text-tinta">
+    // overflow-x-clip: la cabecera pinta su fondo a 100vw (ver BarraTienda) y sin
+    // esto ese ancho completo puede generar un scroll horizontal de un par de píxeles.
+    <div className="flex min-h-screen justify-center overflow-x-clip bg-fondo text-tinta">
       {/* Mobile: columna angosta (480). Desktop: se ensancha a una tienda de verdad. */}
-      <div className="flex w-full max-w-[480px] flex-col gap-3 bg-[#EBEEF5] px-[18px] pt-4 pb-12 shadow-[0_0_60px_rgba(15,27,61,0.08)] md:max-w-[1120px] md:px-8 md:pt-6">
-        {/* Barra de marca */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-[9px] bg-[linear-gradient(135deg,#2453DC,#13308C)] text-[15px] font-black text-white md:h-9 md:w-9 md:text-[17px]">P</div>
-            <span className="text-[15px] font-extrabold text-tinta md:text-[17px]">{NEGOCIO.nombre}</span>
-          </div>
-          {logueado ? (
-            <Link href={rutaHome(logueado.rol)} className="flex items-center gap-1.5 rounded-full border border-[#DCE3F4] bg-white px-2 py-1 pr-3 text-[12.5px] font-bold text-azul hover:bg-suave">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[linear-gradient(135deg,#2453DC,#13308C)] text-[10.5px] font-black text-white">
-                {logueado.nombre.slice(0, 1).toUpperCase()}
-              </span>
-              Hola, {primerNombre}
-            </Link>
-          ) : (
-            <Link href="/ingresar" className="rounded-full border border-[#DCE3F4] bg-white px-3.5 py-1.5 text-[12.5px] font-bold text-azul hover:bg-suave">Ingresar</Link>
-          )}
-        </div>
-
-        {/* Hero = CARRUSEL de banners (Presta Ya general + Curbe publicitario). */}
-        <HeroCarrusel slides={slidesHero} />
-
-        {/* Marquesina de beneficios: chips con ícono en círculo de color + fade en los
-            bordes (se ve intencional, no un texto corriendo genérico). */}
-        <div className="tienda-ticker relative overflow-hidden rounded-[16px] border border-[#E4EAF6] bg-white py-2.5 shadow-[0_2px_10px_rgba(15,27,61,0.05)]">
-          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 bg-[linear-gradient(90deg,white,transparent)]" aria-hidden />
-          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-[linear-gradient(270deg,white,transparent)]" aria-hidden />
-          <div className="tienda-ticker-track flex w-max items-center gap-2.5 whitespace-nowrap px-4">
-            {[0, 1].map((k) => (
-              <div key={k} className="flex items-center gap-2.5" aria-hidden={k === 1}>
-                {[
-                  { i: "🚚", t: "Entrega a domicilio", c: "#EAF7F0" },
-                  { i: "💳", t: "Hasta 12 cuotas", c: "#EEF3FF" },
-                  { i: "🛡️", t: "Con garantía", c: "#F1F0FB" },
-                  { i: "🔒", t: "Compra segura", c: "#EAF7F0" },
-                  { i: "🤝", t: "Te lo lleva tu cobrador", c: "#EEF3FF" },
-                  { i: "💎", t: "Perfumes y joyas por Curbe", c: "#FBF3DE" },
-                ].map((b, idx) => (
-                  <div key={idx} className="flex shrink-0 items-center gap-2 rounded-full bg-[#F6F8FD] py-1 pl-1 pr-3.5">
-                    <span className="grid h-7 w-7 place-items-center rounded-full text-[14px]" style={{ background: b.c }}>{b.i}</span>
-                    <span className="text-[12.5px] font-bold text-cuerpo">{b.t}</span>
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-          <style>{`
-            .tienda-ticker-track{animation:tickerMove 34s linear infinite}
-            .tienda-ticker:hover .tienda-ticker-track{animation-play-state:paused}
-            @keyframes tickerMove{to{transform:translateX(-50%)}}
-            @media (prefers-reduced-motion: reduce){.tienda-ticker-track{animation:none}}
-          `}</style>
-        </div>
-
-        {/* Empleado logueado: sus compras a crédito (inicio + historial de descuentos). */}
-        {esEmpleado && <MisComprasEmpleado compras={misCompras} />}
-
-        {esEmpleado && (
-          <div className="rounded-[12px] border border-[#D7EADD] bg-[#F1FAF4] px-4 py-2.5 text-center text-[12.5px] font-semibold text-[#157A50]">
-            💚 Sos parte del equipo: podés comprar a crédito y se descuenta de tu comisión.
-          </div>
-        )}
-
-        <div id="catalogo" className="scroll-mt-4" />
+      <div className="flex w-full max-w-[480px] flex-col gap-3 bg-[#EBEEF5] px-[18px] pt-0 pb-12 shadow-[0_0_60px_rgba(15,27,61,0.08)] md:max-w-[1240px] md:bg-transparent md:px-8 md:shadow-none">
         {productos.length === 0 ? (
           <div className="mt-4 flex flex-col items-center gap-2 rounded-[18px] border border-[#ECEFF8] bg-white px-6 py-12 text-center">
             <span className="text-[40px]" aria-hidden="true">🛒</span>
@@ -158,7 +97,54 @@ export default async function TiendaPublicaPage({
           </div>
         ) : (
           <TiendaCliente productos={productos} token={null} modoPublico modoEmpleado={esEmpleado} conEncabezado={false} abrirId={producto ?? null}
-            compras={comprasPerfil} perfilTitulo={logueado ? `Hola, ${primerNombre}` : "Mi tienda"} conHeroExterno />
+            compras={comprasPerfil} perfilTitulo={logueado ? `Hola, ${primerNombre}` : "Mi tienda"} conHeroExterno
+            slotHeader={
+              logueado ? (
+                <Link href={rutaHome(logueado.rol)} title={`Ir a mi panel (${logueado.nombre})`}
+                  className="mr-1 hidden items-center gap-1.5 rounded-full bg-white/15 py-1.5 pl-1.5 pr-3 text-[12.5px] font-bold text-white ring-1 ring-white/25 hover:bg-white/25 sm:flex">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-[10.5px] font-black text-[#13308C]">
+                    {logueado.nombre.slice(0, 1).toUpperCase()}
+                  </span>
+                  {primerNombre}
+                </Link>
+              ) : (
+                <Link href="/ingresar" className="mr-1 hidden rounded-full bg-white/15 px-3.5 py-1.5 text-[12.5px] font-bold text-white ring-1 ring-white/25 hover:bg-white/25 sm:block">
+                  Ingresar
+                </Link>
+              )
+            }
+            previo={
+              <>
+                {/* Hero = CARRUSEL de banners (Presta Ya general + Curbe publicitario). */}
+                <HeroCarrusel slides={slidesHero} />
+
+                {/* UNA promesa concreta, no una marquesina de seis. La franja de
+                    Mercado Libre dice un número ("envío gratis desde $60.000") y por
+                    eso se cree; un carrusel de virtudes girando se lee como relleno y
+                    la gente lo saltea. Acá el gancho real del negocio son las cuotas. */}
+                <div className="flex items-center justify-center gap-2 rounded-[8px] bg-white px-4 py-2.5 text-center shadow-[0_1px_5px_rgba(15,27,61,0.06)]">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#00A650" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px] shrink-0" aria-hidden>
+                    <path d="M1 3h13v13H1zM14 8h4l3 3v5h-7z" /><circle cx="5.5" cy="18.5" r="2" /><circle cx="17.5" cy="18.5" r="2" />
+                  </svg>
+                  <span className="text-[12.5px] font-medium leading-tight text-cuerpo">
+                    <b className="font-extrabold text-[#00A650]">Entrega a domicilio</b> y hasta{" "}
+                    <b className="font-extrabold text-tinta">12 cuotas sin interés</b> en todo el catálogo.
+                  </span>
+                </div>
+
+                {/* Empleado logueado: sus compras a crédito (inicio + historial). */}
+                {esEmpleado && <MisComprasEmpleado compras={misCompras} />}
+                {esEmpleado && (
+                  <div className="rounded-[8px] border border-[#D7EADD] bg-[#F1FAF4] px-4 py-2.5 text-center text-[12.5px] font-semibold text-[#157A50]">
+                    Sos parte del equipo: podés comprar a crédito y se descuenta de tu comisión.
+                  </div>
+                )}
+
+                {/* Ancla del CTA del hero ("Ver productos ↓"): cae justo donde arranca
+                    el catálogo, no antes de la cabecera. */}
+                <div id="catalogo" className="scroll-mt-[104px]" />
+              </>
+            } />
         )}
 
         <p className="mt-2 text-center text-[11px] font-medium text-tenue">
