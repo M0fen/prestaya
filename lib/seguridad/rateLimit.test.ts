@@ -93,3 +93,38 @@ describe("login: IP compartida por varias personas", () => {
     expect(intentos[BUCKETS.login_ip.limite]).toBe(false);
   });
 });
+
+// ── Vista del cliente por token: aguanta un barrio, corta un bot ────────────
+// Es la ruta más expuesta (sin sesión, arma el cartón entero por request). El
+// token es de 192 bits → nadie lo adivina; el tope frena el martilleo. Bajo el
+// CGNAT de la operadora varios clientes comparten IP: no puede ser tacaño.
+describe("vista_cliente: tope por IP", () => {
+  it("deja pasar a muchos clientes reales tras una misma IP compartida", () => {
+    const l = new LimitadorMemoria();
+    const ip = "190.64.7.7";
+    // 40 visitas en un minuto desde una IP (varios clientes bajo el mismo NAT).
+    const ok = Array.from({ length: 40 }, () =>
+      l.permitir(`vista_cliente:${ip}`, BUCKETS.vista_cliente.limite, BUCKETS.vista_cliente.ventanaSeg),
+    );
+    expect(ok.every(Boolean)).toBe(true);
+  });
+
+  it("corta el martilleo cuando pasa del tope", () => {
+    const l = new LimitadorMemoria();
+    const ip = "190.64.7.7";
+    const r = Array.from({ length: BUCKETS.vista_cliente.limite + 1 }, () =>
+      l.permitir(`vista_cliente:${ip}`, BUCKETS.vista_cliente.limite, BUCKETS.vista_cliente.ventanaSeg),
+    );
+    expect(r.slice(0, BUCKETS.vista_cliente.limite).every(Boolean)).toBe(true);
+    expect(r[BUCKETS.vista_cliente.limite]).toBe(false);
+  });
+
+  it("el tope es por IP: una IP saturada no afecta a otra", () => {
+    const l = new LimitadorMemoria();
+    for (let i = 0; i <= BUCKETS.vista_cliente.limite; i++) {
+      l.permitir("vista_cliente:1.1.1.1", BUCKETS.vista_cliente.limite, BUCKETS.vista_cliente.ventanaSeg);
+    }
+    expect(l.permitir("vista_cliente:1.1.1.1", BUCKETS.vista_cliente.limite, BUCKETS.vista_cliente.ventanaSeg)).toBe(false);
+    expect(l.permitir("vista_cliente:2.2.2.2", BUCKETS.vista_cliente.limite, BUCKETS.vista_cliente.ventanaSeg)).toBe(true);
+  });
+});

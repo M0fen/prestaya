@@ -9,6 +9,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { after } from "next/server";
+import { headers } from "next/headers";
+import { permitir, ipDesdeHeaders } from "@/lib/seguridad/rateLimit";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getClientePorToken } from "@/lib/data/clientes";
 import { marcarAccesoVisto } from "@/lib/data/acceso";
@@ -67,6 +69,30 @@ export default async function VistaPorToken({
 }) {
   const { token } = await params;
   const { credito } = await searchParams;
+
+  // 0) TOPE por IP. Ésta es la ruta más expuesta que tenemos: sin sesión, pública
+  //    en internet, y cada visita arma el cartón entero (cliente + créditos +
+  //    libro de pagos + promos) = trabajo real de base por request. El token es de
+  //    192 bits, así que nadie lo adivina; lo que este tope frena es el martilleo
+  //    desde afuera. El límite es alto (90/min por IP) porque bajo el CGNAT de la
+  //    operadora muchos clientes comparten una IP pública: tiene que aguantar a un
+  //    barrio mirando su cartón y aun así cortarle las patas a un bot.
+  const ip = ipDesdeHeaders(await headers());
+  if (!(await permitir("vista_cliente", ip))) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-fondo px-6 text-center">
+        <div className="flex max-w-[320px] flex-col gap-2">
+          <span className="text-[34px]" aria-hidden>⏳</span>
+          <p className="text-[16px] font-extrabold text-tinta">Esperá un momentito</p>
+          <p className="text-[13.5px] font-medium leading-[1.5] text-gris">
+            Estamos recibiendo muchas visitas desde tu conexión. Probá de nuevo en un minuto —
+            tu información está a salvo.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const db = createSupabaseAdmin();
 
   // 1) Validar el token → cliente. Si no existe, 404 (no revelamos nada).

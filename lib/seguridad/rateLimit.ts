@@ -32,6 +32,14 @@ export const BUCKETS = {
   buscar: { limite: 30, ventanaSeg: 60 }, // por usuario
   reportes: { limite: 10, ventanaSeg: 60 }, // por usuario
   tienda_publica: { limite: 6, ventanaSeg: 300 }, // por IP (lead público anti-spam)
+  // Vista del cliente por token (/c/[token]): la ruta MÁS expuesta del sistema
+  // —sin sesión, y cada visita arma el cartón completo (cliente + créditos +
+  // libro de pagos + promos), o sea trabajo real de base por request—. El token
+  // es de 192 bits, así que adivinarlo es imposible; lo que este tope frena es
+  // el MARTILLEO (agotar la base desde afuera). Generoso a propósito: varios
+  // clientes comparten IP bajo el CGNAT de la operadora, así que tiene que
+  // aguantar a un barrio entero mirando su cartón y aun así cortar un bot.
+  vista_cliente: { limite: 90, ventanaSeg: 60 },
 } satisfies Record<string, ConfigBucket>;
 
 export type Bucket = keyof typeof BUCKETS;
