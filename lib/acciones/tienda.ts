@@ -587,7 +587,22 @@ export async function convertirLeadEnVenta(input: {
     }
     // El cliente no tenía cobrador → se le asigna éste (crea la asignación activa),
     // así la venta entra a su ruta. reasignarCliente respeta el índice único.
-    await reasignarCliente(db, cliente.id, elegido);
+    // Va en try: desde 08-03 esa función LANZA si la ruta cambió pero no se pudo
+    // mover el dueño de los créditos activos (la comisión quedaría en el cobrador
+    // viejo). Sin capturarlo, el admin vería un error genérico de servidor en vez
+    // del motivo — y acá todavía no se colocó plata, así que se corta limpio.
+    try {
+      await reasignarCliente(db, cliente.id, elegido);
+    } catch (e) {
+      const detalle = e instanceof Error ? e.message : "";
+      return {
+        ok: false,
+        error: detalle.startsWith("La ruta se cambió")
+          ? `${detalle} No se creó la venta; avisá a la oficina.`
+          : "No se pudo asignar el cobrador. Probá de nuevo.",
+        faltaCobrador: true,
+      };
+    }
     cobradorId = elegido;
     asignacionCreada = true;
   }
