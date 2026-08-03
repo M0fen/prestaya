@@ -14,7 +14,8 @@ import { getEstadoJornada, crearRendicionDb } from "@/lib/data/rendicion";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { registrarBitacora } from "@/lib/data/bitacora";
 import { calcularRendicion, type EstadoRendicion } from "@/lib/rendicion";
-import { UYU } from "@/lib/format";
+import { UYU, toIso } from "@/lib/format";
+import { hoyUY } from "@/lib/fecha";
 
 type Resultado =
   | { ok: true; estado: EstadoRendicion; diferencia: number; esperado: number }
@@ -36,7 +37,12 @@ export async function cerrarJornada(input: {
   if (bloqueo) return bloqueo;
 
   const db = await createSupabaseServer();
-  const estado = await getEstadoJornada(db, usuario.id);
+  // "Hoy" se captura UNA sola vez y viaja hasta el INSERT: antes la `fecha` de la
+  // rendición la ponía el default de la BD AL MOMENTO del insert → un cierre
+  // confirmado 23:59 que commiteaba 00:00 quedaba fechado MAÑANA con la plata de
+  // HOY (hoy figuraba "sin rendir" y mañana quedaba bloqueado por el unique).
+  const hoy = new Date();
+  const estado = await getEstadoJornada(db, usuario.id, hoy);
   if (!estado.disponible) {
     return { ok: false, error: "El cierre de jornada todavía no está habilitado." };
   }
@@ -66,6 +72,7 @@ export async function cerrarJornada(input: {
   try {
     await crearRendicionDb({
       cobradorId: usuario.id,
+      fecha: toIso(hoyUY(hoy)),
       recaudado: estado.recaudado,
       cobrosCantidad: estado.cobrosCantidad,
       gastos,

@@ -15,7 +15,8 @@ import { puedeVerZona } from "@/lib/permisos";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { getCierrePorZona } from "@/lib/data/cierreZona";
 import { CLAVE_SIN_ZONA } from "@/lib/cierreZona";
-import { UYU } from "@/lib/format";
+import { UYU, toIso } from "@/lib/format";
+import { hoyUY } from "@/lib/fecha";
 
 type Resultado = { ok: true } | { ok: false; error: string };
 
@@ -52,7 +53,10 @@ export async function confirmarCierreZona(input: {
   const db = await createSupabaseServer();
 
   // Totales AUTORITATIVOS del servidor: se recalculan del cierre real de hoy.
-  const { consolidado } = await getCierrePorZona(db);
+  // "Hoy" se captura UNA vez y viaja al INSERT (misma razón que la rendición: el
+  // default de la BD fechaba al momento del commit → carrera de medianoche).
+  const hoy = new Date();
+  const { consolidado } = await getCierrePorZona(db, hoy);
   const zona = consolidado.zonas.find((z) => (z.zonaId ?? CLAVE_SIN_ZONA) === input.zonaId);
   if (!zona) return { ok: false, error: "No hay recaudo para cerrar hoy." };
 
@@ -75,6 +79,7 @@ export async function confirmarCierreZona(input: {
   try {
     const { error } = await db.from("cierres_zona").insert({
       zona_id: zonaIdReal,
+      fecha: toIso(hoyUY(hoy)),
       supervisor_id: u.id,
       supervisor_nombre: u.nombre,
       total_esperado: zona.totalEsperado,

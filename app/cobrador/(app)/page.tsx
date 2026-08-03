@@ -7,7 +7,7 @@ import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getRutaCobrador } from "@/lib/data/ruta";
 import { getBannerCobradorActivo } from "@/lib/data/bannerCobrador";
 import { BannerEquipo } from "@/components/cobrador/BannerEquipo";
-import { getEstadoJornada } from "@/lib/data/rendicion";
+import { getEstadoJornada, getDeudaRendicionAyer } from "@/lib/data/rendicion";
 import { getSolicitudesGastoCobrador } from "@/lib/data/solicitudesGasto";
 import { getUsuarioActual } from "@/lib/auth";
 import { conTimeout } from "@/lib/timeout";
@@ -39,7 +39,7 @@ export default async function RutaPage() {
   );
   // El nombre de la zona se resuelve con el cliente ADMIN: la tabla `zonas` está
   // bloqueada por RLS para el cobrador (0 filas), y esto es solo una etiqueta.
-  const [jornada, solicitudesGasto, zonaNombre] = await conTimeout(
+  const [jornada, solicitudesGasto, zonaNombre, deudaAyer] = await conTimeout(
     Promise.all([
       usuario ? getEstadoJornada(db, usuario.id) : Promise.resolve(null),
       usuario ? getSolicitudesGastoCobrador(db, usuario.id) : Promise.resolve(null),
@@ -51,6 +51,9 @@ export default async function RutaPage() {
             .maybeSingle()
             .then((r) => r.data?.nombre ?? null)
         : Promise.resolve<string | null>(null),
+      // ¿Ayer cobró y NO rindió? La plata sigue en su bolsillo sin sello: el banner
+      // se lo recuerda apenas abre la app (espejo humano de la invariante del cron).
+      usuario ? getDeudaRendicionAyer(db, usuario.id) : Promise.resolve(null),
     ]),
     TOPE_MS,
     "cobrador.jornada",
@@ -252,6 +255,21 @@ export default async function RutaPage() {
           {/* Pre-carga las fichas de la ruta con señal → se pueden abrir/cobrar offline. */}
           <PrecargarFichas ids={vista.map((v) => v.id)} />
         </>
+      )}
+
+      {/* AYER cobró y NO rindió: la plata de esa jornada sigue en su bolsillo sin
+          sello de entrega. Se le recuerda apenas abre la app (la rendición de un día
+          pasado ya no se puede crear acá → la entrega es en mano, con el supervisor). */}
+      {deudaAyer && (
+        <div className="rounded-[14px] border border-[#F0D9A8] bg-[#FEFBF3] px-4 py-3">
+          <span className="text-[13px] font-extrabold text-[#9A6A0E]">
+            ⚠️ Te quedó una jornada sin rendir
+          </span>
+          <p className="mt-1 text-[12.5px] leading-[1.45] font-medium text-[#9A6A0E]">
+            Ayer registraste {UYU(deudaAyer.monto)} ({deudaAyer.cobros} cobro{deudaAyer.cobros === 1 ? "" : "s"}) y no
+            cerraste la jornada. Entregale ese efectivo hoy a tu supervisor apenas lo veas.
+          </p>
+        </div>
       )}
 
       {/* Gastos de ruta: el cobrador SOLICITA; el admin aprueba (0057). */}

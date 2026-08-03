@@ -288,6 +288,17 @@ export function CerrarJornada({
         </button>
       ) : (
         <div className="mt-3 flex flex-col gap-2">
+          {/* Cierre con $0 recaudado: casi siempre es un error de DÍA (ej. abrir la
+              app 00:10 para "cerrar ayer" — ya es el día nuevo y la rendición de ayer
+              no se puede crear acá). Sin este freno, esa rendición en $0 bloqueaba el
+              día nuevo (unique cobrador+fecha) y todo lo que cobrara después quedaba
+              post-cierre. Se avisa fuerte antes de confirmar. */}
+          {recaudado === 0 && cobrosCantidad === 0 && (
+            <p className="rounded-[11px] border border-[#F0D9A8] bg-[#FEFBF3] px-3 py-2 text-center text-[12px] font-bold text-[#9A6A0E]">
+              ⚠️ Vas a cerrar con $0 recaudado. Si querías cerrar la jornada de AYER,
+              ya cambió el día: entregale el efectivo al supervisor y no cierres esta.
+            </p>
+          )}
           <p className="text-center text-[12.5px] font-semibold text-gris">
             Vas a rendir {UYU(entregadoN)}. El cierre no se puede deshacer.
           </p>

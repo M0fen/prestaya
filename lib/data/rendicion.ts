@@ -5,7 +5,7 @@
 //  Degrada si 0013 aún no existe (disponible=false): la UI avisa, no rompe.
 // ─────────────────────────────────────────────────────────────────────────
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { inicioDiaUYIso, hoyUY } from "@/lib/fecha";
+import { inicioDiaUYIso, hoyUY, sumarDiasYmd, diaUYInicioIso } from "@/lib/fecha";
 import { toIso } from "@/lib/format";
 import type { EstadoRendicion } from "@/lib/rendicion";
 import { getSolicitudesGastoCobrador } from "./solicitudesGasto";
@@ -144,8 +144,60 @@ export async function getEstadoJornada(
   };
 }
 
+/**
+ * ¿AYER quedó recaudo SIN rendir? Devuelve el monto si el cobrador registró pagos
+ * ayer y NO existe su rendición de ese día (la plata sigue en su bolsillo sin sello
+ * de entrega); null si rindió o no cobró. Alimenta el banner del cobrador — el
+ * espejo humano de la invariante INV8 del cron (que alerta al admin): acá se le
+ * recuerda al PROPIO cobrador que entregue, antes de que sea un incidente.
+ * Degrada a null si falta 0013 (sin tabla no hay flujo de rendición).
+ */
+export async function getDeudaRendicionAyer(
+  db: SupabaseClient,
+  cobradorId: string,
+  hoy: Date = new Date(),
+): Promise<{ fecha: string; monto: number; cobros: number } | null> {
+  const fechaHoy = toIso(hoyUY(hoy));
+  const ayer = sumarDiasYmd(fechaHoy, -1);
+  try {
+    const { data: rend, error } = await db
+      .from("rendiciones")
+      .select("id")
+      .eq("cobrador_id", cobradorId)
+      .eq("fecha", ayer)
+      .maybeSingle();
+    if (error) throw error;
+    if (rend) return null; // ya rindió ayer → sin deuda
+  } catch (e) {
+    if (tablaFaltante(e)) return null;
+    throw e;
+  }
+  // Pagos vigentes de AYER [inicio ayer, inicio hoy) — admin client (mismo motivo
+  // que recaudadoHoyDe: el RLS por-fila no siempre deja contar pagos reasignados).
+  const admin = createSupabaseAdmin();
+  const pagos = await traerTodo<{ monto: number }>((d, h) =>
+    admin
+      .from("pagos")
+      .select("monto")
+      .eq("anulado", false)
+      .eq("registrado_por", cobradorId)
+      .gte("registrado_en", diaUYInicioIso(ayer))
+      .lt("registrado_en", diaUYInicioIso(fechaHoy))
+      .order("id", { ascending: true })
+      .range(d, h),
+  );
+  const monto = pagos.reduce((s, r) => s + Math.round(Number(r.monto)), 0);
+  return monto > 0 ? { fecha: ayer, monto, cobros: pagos.length } : null;
+}
+
 export interface NuevaRendicion {
   cobradorId: string;
+  /** Día UY "YYYY-MM-DD" al que pertenece la jornada (capturado UNA vez en la
+   *  action, el MISMO con el que se computó el recaudado). Antes lo ponía el
+   *  default de la BD al momento del INSERT → una confirmación 23:59 que
+   *  commiteaba 00:00 fechaba la rendición en el día siguiente (con la plata de
+   *  ayer): ayer quedaba "sin rendir" y hoy bloqueado por el unique. */
+  fecha: string;
   recaudado: number;
   cobrosCantidad: number;
   gastos: number;
@@ -158,8 +210,10 @@ export interface NuevaRendicion {
 }
 
 /**
- * Inserta la rendición. La `fecha` la pone la BD (día de Uruguay). El único
- * índice (cobrador_id, fecha) impide dos rendiciones el mismo día.
+ * Inserta la rendición. La `fecha` viene EXPLÍCITA de la action (día UY capturado
+ * al inicio, el mismo del recaudado) — no el default de la BD, que fechaba al
+ * momento del INSERT y en la medianoche envenenaba dos días. El único índice
+ * (cobrador_id, fecha) impide dos rendiciones el mismo día.
  *
  * ⚠️ MONEY-CRITICAL: el INSERT va con SERVICE_ROLE (admin), NO con la sesión del
  * cobrador. Los campos de dinero (recaudado/gastos/entregado/diferencia/base) los
@@ -174,6 +228,7 @@ export async function crearRendicionDb(r: NuevaRendicion): Promise<void> {
   const admin = createSupabaseAdmin();
   const fila: Record<string, unknown> = {
     cobrador_id: r.cobradorId,
+    fecha: r.fecha,
     recaudado: r.recaudado,
     cobros_cantidad: r.cobrosCantidad,
     gastos: r.gastos,
