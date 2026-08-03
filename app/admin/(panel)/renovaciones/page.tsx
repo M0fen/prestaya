@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { requireGestor, esAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { getCandidatosRenovacion } from "@/lib/data/renovaciones";
+import { listarCandidatosRenovacion } from "@/lib/data/renovaciones";
 import { getSolicitudesPendientes } from "@/lib/data/solicitudesRenovacion";
 import type { BandaScore, AccionRenovacion } from "@/types/scoring";
 import { UYU } from "@/lib/format";
@@ -28,13 +28,19 @@ const ACCION: Record<AccionRenovacion, { label: string; bg: string; fg: string }
   manual: { label: "Evaluar", bg: "#7A4DD6", fg: "#fff" },
 };
 
-export default async function RenovacionesPage() {
+export default async function RenovacionesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
   const usuario = await requireGestor();
   const db = await createSupabaseServer();
-  const [candidatos, solicitudes] = await Promise.all([
-    getCandidatosRenovacion(db),
+  const q = ((await searchParams).q ?? "").trim().slice(0, 60);
+  const [lista, solicitudes] = await Promise.all([
+    listarCandidatosRenovacion(db, new Date(), 0.75, 60, q || null),
     getSolicitudesPendientes(db),
   ]);
+  const { candidatos, totalQueCalifican, ocultos } = lista;
   const esAdminV = esAdmin(usuario.rol);
 
   return (
@@ -52,10 +58,45 @@ export default async function RenovacionesPage() {
       {/* Solicitudes pendientes: el admin aprueba/rechaza; el supervisor las ve. */}
       <SolicitudesRenovacion solicitudes={solicitudes} esAdmin={esAdminV} />
 
+      {/* Buscador por nombre o cédula. Filtra ANTES del corte de la lista: sin esto,
+          quien no entraba en los 60 más avanzados era inalcanzable. */}
+      <form method="get" className="flex gap-2">
+        <input
+          type="search"
+          name="q"
+          defaultValue={q}
+          placeholder="Buscar por nombre o cédula…"
+          aria-label="Buscar candidato por nombre o cédula"
+          className="min-h-[44px] flex-1 rounded-full border border-borde bg-tarjeta px-4 text-[16px] font-medium text-tinta outline-none focus:border-azul"
+        />
+        <button
+          type="submit"
+          className="min-h-[44px] rounded-full bg-[#2453DC] px-5 text-[13px] font-bold text-white"
+        >
+          Buscar
+        </button>
+        {q && (
+          <Link
+            href="/admin/renovaciones"
+            className="flex min-h-[44px] items-center rounded-full border border-borde bg-tarjeta px-4 text-[13px] font-bold text-gris"
+          >
+            Limpiar
+          </Link>
+        )}
+      </form>
+
+      {ocultos > 0 && (
+        <p className="rounded-[12px] bg-[#FDF3E2] px-4 py-2.5 text-[12.5px] font-semibold text-[#8A6D1E]">
+          Hay {totalQueCalifican} clientes en condiciones de renovar y se muestran los {candidatos.length}{" "}
+          más avanzados. Buscá por nombre o cédula para llegar a los otros {ocultos}.
+        </p>
+      )}
+
       {candidatos.length === 0 && (
         <p className="rounded-[14px] bg-tarjeta px-4 py-6 text-center text-[13px] font-medium text-gris">
-          Nadie está cerca de completar su crédito todavía. Aparecerán acá al
-          superar el 75% pagado.
+          {q
+            ? `Nadie con "${q}" está cerca de completar su crédito. Si ya lo terminó de pagar, buscalo en Clientes y dale un crédito nuevo desde su ficha.`
+            : "Nadie está cerca de completar su crédito todavía. Aparecerán acá al superar el 75% pagado."}
         </p>
       )}
 

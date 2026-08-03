@@ -12,12 +12,14 @@ import {
   invLeadConvertido,
   invRendicionVsLibro,
   invGastosRendicion,
+  invRutaCredito,
   type CreditoRecon,
   type Hallazgo,
   type BaseCajaRecon,
   type LeadRecon,
   type RendicionRecon,
   type GastosRecon,
+  type RutaRecon,
   type ResumenReconciliacion,
 } from "@/lib/reconciliacion";
 import { inicioDiaUYIso, hoyUY, sumarDiasYmd, diaUYInicioIso } from "@/lib/fecha";
@@ -300,7 +302,7 @@ export async function getInfoEmpalme(db: SupabaseClient): Promise<InfoEmpalme> {
  * fallo real se reporta a Sentry pero NUNCA tumba el cron (best-effort).
  * INV5 (estrellas fantasma) es promocional/más pesada → follow-up separado.
  */
-async function hallazgosExtraDelDia(db: SupabaseClient, hoy: Date): Promise<Hallazgo[]> {
+export async function hallazgosExtraDelDia(db: SupabaseClient, hoy: Date): Promise<Hallazgo[]> {
   const fecha = toIso(hoyUY(hoy));
   // AYER: el último día COMPLETO. Las invariantes históricas (INV6/INV8/INV9) se
   // evalúan sobre ayer, no sobre hoy: el cron corre a las 07:00 UY, cuando el día
@@ -413,6 +415,52 @@ async function hallazgosExtraDelDia(db: SupabaseClient, hoy: Date): Promise<Hall
     }
   } catch (e) {
     if (!tablaFaltante(e)) reportarError("reconciliarDia:rendicionesAyer", e);
+  }
+
+  // INV10 — todo crédito ACTIVO tiene ruta y su dueño es quien lo cobra. Caza el
+  // "cliente fantasma" (crédito activo que no está en la ruta de nadie) y la
+  // comisión desalineada. No depende del día: es una foto del estado actual, y es
+  // justamente el agujero que hubo que encontrar a mano en la auditoría del 08-02.
+  try {
+    const [pres, asigs, clis] = await Promise.all([
+      traerTodo<Record<string, unknown>>((d, h) =>
+        db
+          .from("prestamos")
+          .select("id, cliente_id, cobrador_id, cuota_diaria, total_dias, pagado_acum")
+          .eq("estado", "activo")
+          .order("id", { ascending: true })
+          .range(d, h),
+      ),
+      traerTodo<{ cliente_id: string; cobrador_id: string }>((d, h) =>
+        db
+          .from("asignaciones")
+          .select("cliente_id, cobrador_id")
+          .eq("activo", true)
+          .order("id", { ascending: true })
+          .range(d, h),
+      ),
+      // Solo los ARCHIVADOS: son un puñado, y alcanza para marcar al resto como vivo.
+      traerTodo<{ id: string }>((d, h) =>
+        db.from("clientes").select("id").eq("activo", false).order("id", { ascending: true }).range(d, h),
+      ),
+    ]);
+    const rutaDe = new Map<string, string[]>();
+    for (const a of asigs) rutaDe.set(a.cliente_id, [...(rutaDe.get(a.cliente_id) ?? []), a.cobrador_id]);
+    const archivados = new Set(clis.map((c) => c.id));
+    const filas: RutaRecon[] = pres.map((p) => {
+      const enRuta = rutaDe.get(p.cliente_id as string) ?? [];
+      return {
+        creditoId: p.id as string,
+        saldo: saldoCredito(N(p.cuota_diaria), Number(p.total_dias || 0), N(p.pagado_acum)),
+        tieneRuta: enRuta.length > 0,
+        clienteActivo: !archivados.has(p.cliente_id as string),
+        duenoCredito: (p.cobrador_id as string | null) ?? null,
+        cobradoresEnRuta: enRuta,
+      };
+    });
+    out.push(...invRutaCredito(filas));
+  } catch (e) {
+    if (!tablaFaltante(e)) reportarError("reconciliarDia:rutaCredito", e);
   }
 
   // INV7 — lead de tienda 'convertida' → crédito existente de origen 'tienda'.

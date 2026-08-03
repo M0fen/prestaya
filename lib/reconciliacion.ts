@@ -330,6 +330,72 @@ export function invGastosRendicion(rows: readonly GastosRecon[]): Hallazgo[] {
   return out;
 }
 
+/** Un crédito ACTIVO y a quién le toca cobrarlo, según cada una de las dos fuentes. */
+export interface RutaRecon {
+  creditoId: string;
+  /** Saldo pendiente (lo que falta cobrar). Dimensiona la gravedad. */
+  saldo: number;
+  /** ¿El cliente tiene ALGUNA asignación activa? false = no está en ninguna ruta. */
+  tieneRuta: boolean;
+  /** `clientes.activo`. Un cliente archivado desaparece de la ruta del cobrador
+   *  (getRutaDelDia filtra activo=true) pero su deuda sigue contando en la cartera
+   *  del admin (app_cartera_activa no filtra) → nadie lo cobra y el capital "existe". */
+  clienteActivo: boolean;
+  /** `prestamos.cobrador_id` — de acá salen las COMISIONES. */
+  duenoCredito: string | null;
+  /** Cobradores con asignación activa sobre el cliente — de acá sale la RUTA real. */
+  cobradoresEnRuta: readonly string[];
+}
+
+/**
+ * INVARIANTE 10 — Todo crédito ACTIVO tiene ruta, y su dueño es quien lo cobra.
+ *
+ * Dos fuentes describen "de quién es" un crédito: `asignaciones` arma la ruta que
+ * ve el cobrador, y `prestamos.cobrador_id` decide la COMISIÓN. Nada las ataba:
+ *  · sin asignación activa → plata en la calle que NO aparece en la ruta de nadie
+ *    (el "cliente fantasma"). Nadie lo visita, nadie lo reclama, y ninguna pantalla
+ *    lo lista: se descubrió recién en una auditoría manual (46 créditos / $634.666).
+ *    Crítico: es cartera que se pierde en silencio.
+ *  · con ruta pero dueño distinto → el que camina la calle cobra y la comisión se
+ *    le paga a otro. Alto: no se pierde capital, pero sí sale plata mal dirigida.
+ * Un crédito cuyo dueño es UNO de varios cobradores en ruta es legítimo (0038).
+ */
+export function invRutaCredito(rows: readonly RutaRecon[]): Hallazgo[] {
+  const out: Hallazgo[] = [];
+  for (const r of rows) {
+    // Cliente ARCHIVADO con crédito vivo: el otro sabor de fantasma. Sale de la
+    // ruta del cobrador (que filtra clientes.activo) pero su saldo sigue sumando
+    // en la cartera del admin → deuda que nadie va a cobrar nunca.
+    if (!r.clienteActivo) {
+      out.push({
+        invariante: "credito-de-cliente-archivado",
+        severidad: "critico",
+        creditoId: r.creditoId,
+        detalle: `crédito ACTIVO con saldo ${Math.round(r.saldo)} de un cliente ARCHIVADO: no aparece en ninguna ruta pero sigue contando en la cartera`,
+      });
+      continue;
+    }
+    if (!r.tieneRuta || r.cobradoresEnRuta.length === 0) {
+      out.push({
+        invariante: "credito-sin-ruta",
+        severidad: "critico",
+        creditoId: r.creditoId,
+        detalle: `crédito ACTIVO con saldo ${Math.round(r.saldo)} sin asignación: no está en la ruta de ningún cobrador`,
+      });
+      continue;
+    }
+    if (r.duenoCredito && !r.cobradoresEnRuta.includes(r.duenoCredito)) {
+      out.push({
+        invariante: "comision-desalineada",
+        severidad: "alto",
+        creditoId: r.creditoId,
+        detalle: `la comisión va a ${r.duenoCredito} pero lo cobra ${r.cobradoresEnRuta.join("/")}`,
+      });
+    }
+  }
+  return out;
+}
+
 export interface ResumenReconciliacion {
   ok: boolean;
   totalCreditos: number;

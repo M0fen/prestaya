@@ -48,18 +48,50 @@ export interface CandidatoRenovacion {
   moroso: boolean;
 }
 
+/** Resultado de la búsqueda de candidatos + cuántos quedaron fuera del corte. */
+export interface ListaCandidatos {
+  candidatos: CandidatoRenovacion[];
+  /** Total que califica (antes de cortar en `limite`). */
+  totalQueCalifican: number;
+  /** Cuántos quedaron sin mostrar por el corte (0 = se ven todos). */
+  ocultos: number;
+}
+
+/** Normaliza para comparar: sin tildes, minúsculas. Así "GARCIA" encuentra "García". */
+function normalizar(s: string): string {
+  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+}
+
 /**
  * Candidatos a renovación: clientes con préstamo activo cuyo avance supera
  * `umbral` (por completar) o que ya completaron. Ordenados por el más avanzado.
+ *
+ * `q` filtra por NOMBRE o DOCUMENTO **antes** del corte de `limite`. Sin eso, la
+ * lista se cortaba en los 60 más avanzados y el resto quedaba INALCANZABLE: hoy
+ * hay 155 créditos saldados, o sea 95 clientes que terminaron de pagar y a los
+ * que la oficina no podía renovarles nada porque no había forma de buscarlos.
  */
 export async function getCandidatosRenovacion(
   db: SupabaseClient,
   hoy: Date = new Date(),
   umbral = 0.75,
   limite = 60,
+  q: string | null = null,
 ): Promise<CandidatoRenovacion[]> {
+  return (await listarCandidatosRenovacion(db, hoy, umbral, limite, q)).candidatos;
+}
+
+/** Igual que `getCandidatosRenovacion` pero informa cuántos quedaron ocultos. */
+export async function listarCandidatosRenovacion(
+  db: SupabaseClient,
+  hoy: Date = new Date(),
+  umbral = 0.75,
+  limite = 60,
+  q: string | null = null,
+): Promise<ListaCandidatos> {
+  const vacio: ListaCandidatos = { candidatos: [], totalQueCalifican: 0, ocultos: 0 };
   const clientes = await getClientesAsignados(db);
-  if (clientes.length === 0) return [];
+  if (clientes.length === 0) return vacio;
 
   // PAGINADO obligatorio: PostgREST corta en 1000 filas. Con ~2.300 créditos
   // activos, sin esto la lista de candidatos a renovación perdía en SILENCIO más
@@ -129,12 +161,24 @@ export async function getCandidatosRenovacion(
     }
   }
 
-  // 2) Los más avanzados primero; el SCORE histórico (caro: 1 + N queries por
-  //    cliente) se calcula SOLO para los top `limite` → evita cientos de N+1.
-  pre.sort((a, b) => b.progresoPct - a.progresoPct);
-  const top = pre.slice(0, limite);
+  // 2) BÚSQUEDA antes del corte. Sin esto, el `slice(limite)` de abajo dejaba
+  //    fuera del alcance a todo el que no estuviera entre los 60 más avanzados,
+  //    y no había manera de llegar a él (la página no tenía filtro).
+  const termino = normalizar(q ?? "");
+  const filtrados = termino
+    ? pre.filter(
+        (p) =>
+          normalizar(p.cliente.nombre).includes(termino) ||
+          normalizar(p.cliente.documento ?? "").includes(termino),
+      )
+    : pre;
 
-  // 3) Score en paralelo (bounded a `limite`).
+  // 3) Los más avanzados primero; el SCORE histórico (caro: 1 + N queries por
+  //    cliente) se calcula SOLO para los top `limite` → evita cientos de N+1.
+  filtrados.sort((a, b) => b.progresoPct - a.progresoPct);
+  const top = filtrados.slice(0, limite);
+
+  // 4) Score en paralelo (bounded a `limite`).
   const candidatos: CandidatoRenovacion[] = await Promise.all(
     top.map(async (p): Promise<CandidatoRenovacion> => {
       const historial = await getHistorialCrediticio(db, p.cliente.id);
@@ -158,7 +202,7 @@ export async function getCandidatosRenovacion(
     }),
   );
 
-  // 4) Marca de moroso de cada candidato (aviso al renovar). Degrada si falta 0027.
+  // 5) Marca de moroso de cada candidato (aviso al renovar). Degrada si falta 0027.
   const ids = candidatos.map((c) => c.cliente.id);
   if (ids.length > 0) {
     const { data } = await db.from("clientes").select("id, moroso").in("id", ids);
@@ -166,7 +210,13 @@ export async function getCandidatosRenovacion(
     for (const c of candidatos) c.moroso = marca.get(c.cliente.id) ?? false;
   }
 
-  return candidatos; // ya vienen ordenados por progreso (top `limite`)
+  // `ocultos` alimenta el aviso de la página: que el gestor SEPA que hay más
+  // gente esperando renovación de la que está viendo (antes se cortaba mudo).
+  return {
+    candidatos, // ya vienen ordenados por progreso (top `limite`)
+    totalQueCalifican: filtrados.length,
+    ocultos: Math.max(0, filtrados.length - candidatos.length),
+  };
 }
 
 // ── ALTA REAL del crédito de renovación (escribe dinero) ───────────────────

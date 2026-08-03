@@ -8,10 +8,13 @@ import { getFichaCliente } from "@/lib/data/ficha";
 import { getPendientesDePagos } from "@/lib/data/anulaciones";
 import { getCobradorDeCliente } from "@/lib/data/asignaciones";
 import { getEquipoConZona } from "@/lib/data/zonas";
+import { alcanceDelActor } from "@/lib/data/alcance";
 import { puedeReasignarCliente } from "@/lib/permisos";
 import { AnularPago } from "@/components/admin/AnularPago";
 import { RegistrarPagoPanel } from "@/components/admin/RegistrarPagoPanel";
 import { ReasignarCliente, type CobradorOpcion } from "@/components/admin/ReasignarCliente";
+import { FormCreditoNuevo } from "@/components/admin/FormCreditoNuevo";
+import { getUltimoCreditoDe } from "@/lib/data/creditoNuevo";
 import { RotarToken } from "@/components/admin/RotarToken";
 import { AccesoQrCliente } from "@/components/admin/AccesoQrCliente";
 import { urlCartonCliente } from "@/lib/urlApp";
@@ -94,6 +97,21 @@ export default async function FichaClientePage({
       ? cobradores
       : cobradores.filter((c) => c.zona_id != null && c.zona_id === zonaActual)
   ).map((c) => ({ id: c.id, nombre: c.nombre }));
+
+  // ── Alta de crédito NUEVO (cliente sin crédito activo) ──
+  // Cobradores elegibles = los MISMOS que acepta la Server Action (alcance por
+  // zona), no los de `candidatos`: ese filtro se ancla en la zona del cobrador
+  // ACTUAL, que para un cliente sin ruta es null → le habría dado una lista
+  // vacía al supervisor justo en el caso que este formulario existe para cubrir.
+  const alcanceAlta = activos.length === 0 ? await alcanceDelActor(actor) : null;
+  const cobradoresAlta: CobradorOpcion[] =
+    alcanceAlta == null
+      ? []
+      : (alcanceAlta.global
+          ? cobradores
+          : cobradores.filter((c) => alcanceAlta.cobradorIds.includes(c.id))
+        ).map((c) => ({ id: c.id, nombre: c.nombre }));
+  const ultimoCredito = activos.length === 0 ? await getUltimoCreditoDe(db, id) : null;
 
   // Saldo de estrellas del cliente (respeta el ciclo definido por el admin).
   // Con varios créditos activos, el ciclo "por crédito" se ancla en el principal.
@@ -259,9 +277,32 @@ export default async function FichaClientePage({
           </span>
         </div>
         {activos.length === 0 ? (
-          <p className="mt-2 text-[13px] font-medium text-gris">
-            Sin crédito activo. El alta de créditos la hace la oficina.
-          </p>
+          <>
+            <p className="mt-2 text-[13px] font-medium text-gris">
+              {ultimoCredito
+                ? `Sin crédito activo. Su último crédito (${ESTADO_CREDITO[ultimoCredito.estado as Prestamo["estado"]] ?? ultimoCredito.estado}) empezó el ${fechaCorta(ultimoCredito.fechaInicio)}.`
+                : "Sin crédito activo. Todavía no tuvo ninguno."}
+            </p>
+            <FormCreditoNuevo
+              clienteId={id}
+              clienteNombre={cliente.nombre}
+              base={
+                ultimoCredito
+                  ? {
+                      monto: ultimoCredito.monto,
+                      cuota: ultimoCredito.cuota,
+                      totalDias: ultimoCredito.totalDias,
+                      frecuencia: ultimoCredito.frecuencia,
+                      fechaInicio: ultimoCredito.fechaInicio,
+                      estado: ultimoCredito.estado,
+                    }
+                  : null
+              }
+              cobradores={cobradoresAlta}
+              cobradorSugerido={ultimoCredito?.cobradorId ?? cobradorActual?.cobradorId ?? null}
+              esAdmin={esAdminRol(usuario.rol)}
+            />
+          </>
         ) : (
           <div className="mt-2 flex flex-col gap-4">
             {activos.map((activo, idx) => (

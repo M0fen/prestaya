@@ -7,6 +7,7 @@ import {
   getInfoEmpalme,
   getSaludEmpalme,
   getHistorialReconciliacion,
+  hallazgosExtraDelDia,
 } from "@/lib/data/reconciliacion";
 import { KillSwitch } from "@/components/admin/KillSwitch";
 import { ResolverDiscrepancia } from "@/components/admin/ResolverDiscrepancia";
@@ -30,11 +31,18 @@ function soloFecha(iso: string): string {
 export default async function EmpalmePage() {
   await requireAdmin();
   const db = createSupabaseAdmin();
-  const [info, salud, historial] = await Promise.all([
+  const [info, salud, historial, operativos] = await Promise.all([
     getInfoEmpalme(db),
     getSaludEmpalme(db),
     getHistorialReconciliacion(db, 14),
+    // Invariantes OPERATIVAS (rendición vs libro, base de caja, gastos sin respaldo,
+    // lead de tienda, crédito sin ruta). El cron ya las evaluaba y avisaba por push,
+    // pero esta página —la que mira un humano— sólo mostraba diferencias de SALDO:
+    // podía decir "✅ la plata cuadra" con un cobrador que no rindió o un crédito
+    // fuera de toda ruta. Mostrarlas acá alinea el panel con el vigilante.
+    hallazgosExtraDelDia(db, new Date()).catch(() => []),
   ]);
+  const opCriticos = operativos.filter((h) => h.severidad === "critico" || h.severidad === "alto");
 
   // FRESCURA del vigilante: la reconciliación AUTOMÁTICA (origen 'cron') corre 1×/día.
   // Si la última pasó hace >26h (o nunca corrió), el vigilante está CAÍDO → hay que
@@ -127,6 +135,52 @@ export default async function EmpalmePage() {
           </div>
         </section>
       )}
+
+      {/* ── HALLAZGOS OPERATIVOS (lo que NO es diferencia de saldo) ── */}
+      <section className="flex flex-col gap-2">
+        <h2 className="px-0.5 text-[15px] font-extrabold text-tinta">Controles del día</h2>
+        {operativos.length === 0 ? (
+          <p className="rounded-[14px] border border-borde bg-tarjeta px-4 py-3 text-[12.5px] font-medium text-gris">
+            ✅ Sin hallazgos: las rendiciones de ayer coinciden con el libro, los gastos están
+            respaldados, las bases de caja cuadran y todo crédito activo está en la ruta de alguien.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            {operativos.slice(0, 40).map((h, i) => {
+              const grave = h.severidad === "critico" || h.severidad === "alto";
+              return (
+                <div
+                  key={i}
+                  className="flex items-start gap-2.5 rounded-[12px] border px-3.5 py-2.5"
+                  style={{
+                    borderColor: grave ? "var(--color-rojo-osc)" : "var(--color-borde)",
+                    background: grave ? "var(--color-rojo-suave)" : "var(--color-tarjeta)",
+                  }}
+                >
+                  <span
+                    className="mt-0.5 flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase"
+                    style={{
+                      background: grave ? "var(--color-rojo-osc)" : "var(--color-ambar-suave)",
+                      color: grave ? "#fff" : "var(--color-ambar-osc)",
+                    }}
+                  >
+                    {h.severidad}
+                  </span>
+                  <div className="flex min-w-0 flex-col">
+                    <span className="text-[12.5px] font-bold text-tinta">{h.invariante}</span>
+                    <span className="text-[12px] leading-[1.45] font-medium break-words text-gris">{h.detalle}</span>
+                  </div>
+                </div>
+              );
+            })}
+            {operativos.length > 40 && (
+              <p className="px-1 text-[11.5px] font-medium text-tenue-2">
+                y {operativos.length - 40} más ({opCriticos.length} graves en total).
+              </p>
+            )}
+          </div>
+        )}
+      </section>
 
       {/* ── HISTORIAL DE CORRIDAS ── */}
       {historial.length > 0 && (

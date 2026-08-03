@@ -69,15 +69,17 @@ export async function reasignarCliente(
   clienteId: string,
   nuevoCobradorId: string,
 ): Promise<void> {
-  // 1) Bajar la(s) activa(s) del cliente.
-  const off = await db
-    .from("asignaciones")
-    .update({ activo: false })
-    .eq("cliente_id", clienteId)
-    .eq("activo", true);
-  if (off.error) throw off.error;
-
-  // 2) Activar la del nuevo cobrador (upsert: puede haber una vieja inactiva).
+  // ORDEN DELIBERADO: primero SE SUBE la nueva, después se bajan las viejas.
+  //
+  // Son dos requests distintas (no hay transacción). Al revés —bajar y después
+  // subir— un corte en el medio (504 / cierre de la función serverless / red)
+  // dejaba al cliente SIN NINGUNA asignación activa: desaparecía de la ruta de
+  // todos mientras seguía debiendo, y nadie se enteraba porque ninguna pantalla
+  // lista "créditos sin ruta". Es el "cliente fantasma", y ya pasó de verdad
+  // (46 créditos activos / $634.666 huérfanos, reparados a mano en la auditoría
+  // del 08-02). En este orden, el peor caso es que el cliente quede un instante
+  // en DOS rutas: molesto, visible y sin plata perdida — desde 0038 la tabla
+  // admite varios cobradores activos por cliente, así que no viola nada.
   const on = await db
     .from("asignaciones")
     .upsert(
@@ -85,6 +87,15 @@ export async function reasignarCliente(
       { onConflict: "cobrador_id,cliente_id" },
     );
   if (on.error) throw on.error;
+
+  // 2) Bajar las OTRAS activas (nunca la que acabamos de subir).
+  const off = await db
+    .from("asignaciones")
+    .update({ activo: false })
+    .eq("cliente_id", clienteId)
+    .eq("activo", true)
+    .neq("cobrador_id", nuevoCobradorId);
+  if (off.error) throw off.error;
 
   // 3) Sincronizar el DUEÑO de los créditos ACTIVOS del cliente. La ruta se arma
   // desde `asignaciones`, pero `prestamos.cobrador_id` es la fuente de verdad del
@@ -96,6 +107,24 @@ export async function reasignarCliente(
     .from("prestamos")
     .update({ cobrador_id: nuevoCobradorId })
     .eq("cliente_id", clienteId)
-    .eq("estado", "activo");
+    .eq("estado", "activo")
+    .select("id");
   if (upd.error) throw upd.error;
+
+  // Un UPDATE que no matchea filas bajo RLS NO es un error en PostgREST: vuelve
+  // vacío y en silencio. Si el cliente tiene créditos activos y ninguno se movió,
+  // la ruta cambió pero la COMISIÓN sigue yendo al cobrador viejo → hay que verlo,
+  // no tragárselo. (Cero filas con cero créditos activos es normal y no avisa.)
+  if ((upd.data?.length ?? 0) === 0) {
+    const { count } = await db
+      .from("prestamos")
+      .select("id", { count: "exact", head: true })
+      .eq("cliente_id", clienteId)
+      .eq("estado", "activo");
+    if ((count ?? 0) > 0) {
+      throw new Error(
+        "La ruta se cambió pero no se pudo mover el dueño de los créditos activos (la comisión seguiría yendo al cobrador anterior).",
+      );
+    }
+  }
 }

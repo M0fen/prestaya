@@ -60,7 +60,16 @@ export async function reasignarClienteAction(input: {
     });
     revalidatePath(`/admin/clientes/${input.clienteId}`);
     return { ok: true };
-  } catch {
-    return { ok: false, error: "No se pudo reasignar el cliente." };
+  } catch (e) {
+    // La reasignación son varias escrituras; si falla la del DUEÑO de los créditos
+    // (comisión) el cambio quedó a medias y el gestor tiene que saberlo con
+    // precisión, no con un "no se pudo" que sugiere que no pasó nada.
+    const detalle = e instanceof Error ? e.message : "";
+    return {
+      ok: false,
+      error: detalle.startsWith("La ruta se cambió")
+        ? `${detalle} Avisá a la oficina para corregirlo.`
+        : "No se pudo reasignar el cliente.",
+    };
   }
 }

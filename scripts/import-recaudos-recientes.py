@@ -15,11 +15,18 @@ mapeo de pago) pero SOLO inserta los recaudos como pagos con `ignore=True`
 los nuevos. NO toca usuarios/clientes/créditos ni la reconstrucción. El total queda
 correcto: existente (= Pagos_Disapp del último corte) + nuevos recaudos.
 
+🔴 NO CORRER sobre fechas en que la zona YA ESTÁ VIVA en Presta Ya. El `ignore=True`
+deduplica contra lo ya importado (disapp_pago_id), pero NO contra los pagos que el
+cobrador registró en la app (esos tienen disapp_pago_id = NULL): el mismo cobro
+físico entraría dos veces y el saldo del cliente bajaría de más. Desde 2026-08-03
+el script CHEQUEA eso y aborta solo; `--forzar` lo saltea a sabiendas.
+
   Dry-run:  python scripts/import-recaudos-recientes.py
   Escribir: python scripts/import-recaudos-recientes.py --commit
   Opcional: --src PATH (default C:\\Users\\Carlos\\migracion)
             --desde YYYY-MM-DD (default 2026-07-01: solo pagos de esa fecha en adelante)
             --env-file PATH (default .env.prueba)
+            --forzar (saltea la guardia anti doble-conteo; usar sólo con criterio)
 """
 import sys, os
 import datetime as dt
@@ -95,6 +102,56 @@ for k in sorted(por_dia):
     print(f"    {k}: {por_dia[k]}")
 suma = round(sum(x["monto"] for x in filas))
 print(f"  suma $ candidatas: {suma:,}")
+
+# ── GUARDIA ANTI DOBLE-CONTEO (zona ya viva en la app) ─────────────────────
+# `ignore=True` deduplica contra lo YA IMPORTADO (por disapp_pago_id), pero NO
+# contra los pagos que el cobrador registró en Presta Ya: esos tienen
+# disapp_pago_id = NULL, así que no colisionan con nada. Si una zona ya está
+# operando en la app y alguien corre este importador sobre esas fechas, el MISMO
+# cobro físico entra dos veces -> el saldo del cliente baja de más = plata perdida
+# de verdad, y encima queda grabada (los pagos no se borran, se anulan).
+# Se chequea crédito+día contra los pagos NATIVOS de la app y se corta.
+dias_import = sorted(por_dia.keys())
+if dias_import:
+    nativos = E.get_rows(
+        db, "pagos", "id,prestamo_id,registrado_en,monto,origen",
+        {"anulado": "eq.false", "origen": "neq.disapp_import",
+         "registrado_en": f"gte.{dias_import[0]}"},
+    )
+    # Clave (crédito, día UY). PostgREST devuelve el timestamptz en UTC: cortar el
+    # string a 10 daría el día UTC, y un cobro de la tarde-noche uruguaya cae al día
+    # UTC SIGUIENTE (UY = UTC−3) → la guardia no vería el choque justo en los cobros
+    # tardíos. Se pasa a hora de Uruguay antes de sacar la fecha.
+    UY = dt.timezone(dt.timedelta(hours=-3))
+    def dia_uy(ts):
+        if not ts:
+            return None
+        try:
+            return dt.datetime.fromisoformat(str(ts).replace("Z", "+00:00")).astimezone(UY).date().isoformat()
+        except ValueError:
+            return str(ts)[:10]
+    nativo_en = {}
+    for n in nativos:
+        ts = dia_uy(n.get("registrado_en"))
+        if ts:
+            nativo_en.setdefault((n["prestamo_id"], ts), 0)
+            nativo_en[(n["prestamo_id"], ts)] += float(n.get("monto") or 0)
+    choques = [f for f in filas if (f["prestamo_id"], dia_uy(f["registrado_en"])) in nativo_en]
+    if choques:
+        monto_choque = round(sum(x["monto"] for x in choques))
+        print(f"\n🔴 ABORTA: {len(choques)} recaudos (${monto_choque:,}) caen en créditos+días que YA")
+        print("   tienen un pago registrado EN LA APP. Importarlos contaría la misma plata dos")
+        print("   veces y le bajaría el saldo al cliente sin que nadie haya pagado de más.")
+        print("   Esa zona ya está viva en Presta Ya: no se importa, se deja que la app mande.")
+        print("   Si de verdad hace falta, acotá con --desde a fechas ANTERIORES al arranque")
+        print("   de la zona, o pasá --forzar (a sabiendas) para saltear esta guardia.")
+        for f in choques[:10]:
+            print(f"     · crédito {f['prestamo_id'][:8]}… {str(f['registrado_en'])[:10]} ${round(f['monto']):,}")
+        if "--forzar" not in sys.argv:
+            sys.exit(1)
+        print("   ⚠ --forzar activo: se importan igual (bajo tu responsabilidad).")
+    else:
+        print(f"  ✓ sin choques con pagos nativos de la app ({len(nativos)} revisados)")
 
 if not COMMIT:
     print("\nDRY-RUN: no se escribió nada. Volvé a correr con --commit para insertar.")
