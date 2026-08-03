@@ -137,6 +137,24 @@ export function CierrePorZona({
             })}
           </ul>
 
+          {/* Plantel que hoy no aparece por ningún lado. No son "sin rendir" (no hay
+              plata declarada), pero el cierre es inmutable: si alguno estaba sin señal
+              y su recaudo sube después, ya no entra a este sello. Que el supervisor
+              lo vea ANTES de firmar. */}
+          {!z.confirmado && (z.sinActividad?.length ?? 0) > 0 && (
+            <div className="mt-2 rounded-[10px] border border-borde bg-suave px-3 py-2">
+              <span className="text-[11.5px] font-bold text-tinta">
+                {z.sinActividad!.length} cobrador{z.sinActividad!.length === 1 ? "" : "es"} sin
+                actividad hoy
+              </span>
+              <p className="mt-0.5 text-[11px] leading-[1.45] font-medium text-gris">
+                {z.sinActividad!.map((c) => c.nombre).join(" · ")}. No registraron ningún cobro. Si
+                alguno estuvo trabajando sin señal, esperá a que suban sus cobros: el cierre no se
+                puede modificar después.
+              </p>
+            </div>
+          )}
+
           {/* Cerrar (supervisor de la zona / admin; el admin además la "Caja del día"
               del bucket sin zona). Requiere 0047. */}
           {!z.confirmado && resumen.confirmacionesDisponible && cerrable.has(clave) && (

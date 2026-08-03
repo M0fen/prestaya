@@ -301,6 +301,8 @@ export default async function FichaClientePage({
               cobradores={cobradoresAlta}
               cobradorSugerido={ultimoCredito?.cobradorId ?? cobradorActual?.cobradorId ?? null}
               esAdmin={esAdminRol(usuario.rol)}
+              moroso={morosidad.moroso}
+              reportado={cliente.reportado}
             />
           </>
         ) : (

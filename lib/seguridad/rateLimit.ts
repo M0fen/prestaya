@@ -17,7 +17,17 @@ export interface ConfigBucket {
 
 // Números confirmados con Carlos.
 export const BUCKETS = {
-  login: { limite: 5, ventanaSeg: 60 }, // por IP (fuerza bruta)
+  // Fuerza bruta contra UNA cuenta: la clave es (IP + email), no la IP sola.
+  // Con la IP sola, un equipo entero detrás de un mismo wifi de oficina —o del
+  // CGNAT de la operadora, donde muchos celulares comparten una IPv4 pública—
+  // comparte el contador: el 6º cobrador de la mañana no entra AUNQUE ponga bien
+  // la clave, y el mensaje lo culpa a él. Eso es un incidente de arranque, no
+  // seguridad. Adivinar una contraseña sigue costando 5 intentos/minuto.
+  login: { limite: 5, ventanaSeg: 60 },
+  // Techo por IP sola, mucho más flojo: frena el "password spraying" (un intento
+  // contra muchas cuentas desde el mismo origen) sin castigar a un equipo real
+  // logueándose junto. 52 personas entrando en el mismo minuto caben de sobra.
+  login_ip: { limite: 60, ventanaSeg: 60 },
   asesor: { limite: 20, ventanaSeg: 60 }, // por usuario (cuesta $)
   buscar: { limite: 30, ventanaSeg: 60 }, // por usuario
   reportes: { limite: 10, ventanaSeg: 60 }, // por usuario

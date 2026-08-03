@@ -101,6 +101,31 @@ export type ResultadoAltaNueva =
   | { ok: false; error: string };
 
 /**
+ * Deja UNA sola ruta activa: la del cobrador que se acaba de hacer cargo. Un
+ * cliente que terminó su crédito anterior puede seguir asignado a su cobrador
+ * viejo; sin esto, tras el alta aparecería en DOS rutas y dos personas irían a
+ * cobrarle la misma cuota. Corre DESPUÉS de que el crédito existe (así un fallo
+ * acá deja "dos rutas" —visible y molesto— y nunca "ninguna ruta", que es el
+ * fantasma). Best-effort a propósito: el crédito ya está bien creado.
+ */
+async function consolidarRuta(
+  db: SupabaseClient,
+  clienteId: string,
+  cobradorId: string,
+): Promise<void> {
+  try {
+    await db
+      .from("asignaciones")
+      .update({ activo: false })
+      .eq("cliente_id", clienteId)
+      .eq("activo", true)
+      .neq("cobrador_id", cobradorId);
+  } catch {
+    /* el crédito ya quedó creado y con ruta; una ruta vieja de más no pierde plata */
+  }
+}
+
+/**
  * Da de alta el crédito nuevo. Ver el encabezado para el orden de escritura.
  * NO finaliza nada (no hay crédito anterior activo que cerrar): solo coloca.
  */
@@ -141,6 +166,7 @@ export async function crearCreditoNuevoDb(
     .single();
 
   if (!alta.error && alta.data) {
+    await consolidarRuta(db, input.clienteId, input.cobradorId);
     return { ok: true, prestamoId: alta.data.id as string, repetido: false };
   }
 

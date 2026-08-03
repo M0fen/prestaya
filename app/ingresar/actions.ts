@@ -18,10 +18,18 @@ export async function iniciarSesion(
   const password = String(formData.get("password") ?? "");
   if (!email || !password) return { error: "Completá correo y contraseña." };
 
-  // Anti-fuerza bruta: máx. 5 intentos por minuto por IP.
+  // Anti-fuerza bruta en DOS niveles. El contador ajustado (5/min) va por
+  // IP+CUENTA: con la IP sola, todo un equipo detrás del wifi de la oficina —o
+  // del CGNAT de la operadora— comparte el cupo y el 6º cobrador de la mañana no
+  // entra aunque su clave esté bien. El techo por IP sola queda flojo (60/min)
+  // para frenar el spraying sin bloquear a gente real logueándose junta.
   const ip = ipDesdeHeaders(await headers());
-  if (!(await permitir("login", ip))) {
-    return { error: "Demasiados intentos. Esperá un minuto y probá de nuevo." };
+  const cuenta = email.toLowerCase();
+  if (!(await permitir("login", `${ip}|${cuenta}`))) {
+    return { error: "Demasiados intentos con este correo. Esperá un minuto y probá de nuevo." };
+  }
+  if (!(await permitir("login_ip", ip))) {
+    return { error: "Demasiados intentos desde esta conexión. Esperá un minuto y probá de nuevo." };
   }
 
   const db = await createSupabaseServer();

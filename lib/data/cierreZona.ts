@@ -81,6 +81,34 @@ export async function getCierrePorZona(
 
   const consolidado = consolidarPorZona(rendidas, pendientes, cobradorZona, zonaNombre);
 
+  // Cobradores ACTIVOS del plantel que hoy no aparecen por ningún lado (ni rindieron
+  // ni registraron un cobro). El consolidado se arma desde la ACTIVIDAD del día, así
+  // que un cobrador que no tocó la app es invisible — y el cierre de zona es único e
+  // inmutable: si su recaudo aparece después, ya no entra. Se lista para que el
+  // supervisor confirme a conciencia (franco / sin señal / app rota).
+  try {
+    let q = db.from("usuarios").select("id, nombre, zona_id").eq("rol", "cobrador").eq("activo", true);
+    if (!alcance.global && alcance.cobradorIds.length > 0) q = q.in("id", alcance.cobradorIds);
+    const { data: plantel, error } = await q;
+    if (error) throw error;
+    const conActividad = new Set<string>();
+    for (const z of consolidado.zonas) for (const c of z.cobradores) conActividad.add(c.cobradorId);
+    const porZona = new Map<string, { cobradorId: string; nombre: string }[]>();
+    for (const u of plantel ?? []) {
+      const id = u.id as string;
+      if (conActividad.has(id)) continue;
+      const clave = (u.zona_id as string | null) ?? CLAVE_SIN_ZONA;
+      porZona.set(clave, [...(porZona.get(clave) ?? []), { cobradorId: id, nombre: (u.nombre as string) ?? "Cobrador" }]);
+    }
+    for (const z of consolidado.zonas) {
+      z.sinActividad = (porZona.get(z.zonaId ?? CLAVE_SIN_ZONA) ?? []).sort((a, b) =>
+        a.nombre.localeCompare(b.nombre, "es"),
+      );
+    }
+  } catch {
+    /* informativo: si no se puede leer el plantel, el cierre sigue funcionando igual */
+  }
+
   // Confirmaciones del supervisor (0047). Degrada si la tabla no existe.
   let confirmacionesDisponible = true;
   try {

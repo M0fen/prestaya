@@ -14,8 +14,10 @@ import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getUsuarioActual } from "@/lib/auth";
 import { getZonasDeSupervisor } from "@/lib/data/zonas";
 import { upsertDiscrepanciaDb } from "@/lib/data/discrepancias";
+import { rangoDeRangoPg, rangoDePeriodoKey } from "@/lib/data/comisiones";
 import { hoyUY } from "@/lib/fecha";
 import { toIso } from "@/lib/format";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   actorDesde,
   puedeAnularPagoDirecto,
@@ -43,6 +45,51 @@ async function actorYUsuario() {
   return { u, actor: actorDesde(u, zonas) };
 }
 
+/**
+ * ¿El pago anulado cae dentro de un período cuya comisión YA se le liquidó a quien
+ * lo registró? Si sí, abre una discrepancia con el monto del pago para que la
+ * oficina descuente esa comisión a mano. Silencioso cuando no aplica.
+ */
+async function avisarComisionYaLiquidada(
+  admin: SupabaseClient,
+  pago: Record<string, unknown>,
+  u: Usuario,
+): Promise<void> {
+  const cobradorId = (pago.registrado_por as string | null) ?? null;
+  const registradoEn = pago.registrado_en as string | null;
+  if (!cobradorId || !registradoEn) return;
+  const diaPago = toIso(hoyUY(new Date(registradoEn)));
+
+  const { data: liqs } = await admin
+    .from("comisiones_liquidadas")
+    .select("periodo_key, periodo_rango, monto")
+    .eq("cobrador_id", cobradorId);
+  if (!liqs || liqs.length === 0) return;
+
+  // Se prefiere el rango REAL guardado (0083); si esa columna no está, se deriva
+  // de la clave canónica — las dos rutas ya existen y están testeadas.
+  const cubre = liqs.find((l) => {
+    const r =
+      rangoDeRangoPg(l.periodo_rango as string | null) ?? rangoDePeriodoKey(l.periodo_key as string);
+    return r != null && diaPago >= r.desde && diaPago <= r.hasta;
+  });
+  if (!cubre) return;
+
+  const monto = Math.round(Number(pago.monto) || 0);
+  await upsertDiscrepanciaDb(admin, {
+    creditoId: pago.prestamo_id as string,
+    estado: "abierto",
+    tipo: "anulacion-con-comision-liquidada",
+    montoDiferencia: monto,
+    nota:
+      `Se anuló un pago de $${monto.toLocaleString("es-UY")} del ${diaPago}, pero la comisión del ` +
+      `período ${cubre.periodo_key} de ese cobrador YA se liquidó ($${Math.round(Number(cubre.monto) || 0).toLocaleString("es-UY")}). ` +
+      `Se le pagó comisión sobre un cobro que ya no existe: descontarlo en la próxima liquidación.`,
+    adminId: u.id,
+    ahoraIso: new Date().toISOString(),
+  });
+}
+
 /** Marca el pago anulado con service_role (RLS: anular = solo admin). */
 async function flipAnulado(pagoId: string, u: Usuario, motivo: string): Promise<boolean> {
   const admin = createSupabaseAdmin();
@@ -56,8 +103,23 @@ async function flipAnulado(pagoId: string, u: Usuario, motivo: string): Promise<
     })
     .eq("id", pagoId)
     .eq("anulado", false) // idempotente: no re-anula uno ya anulado
-    .select("id, prestamo_id");
+    .select("id, prestamo_id, monto, registrado_por, registrado_en");
   const ok = !error && (data?.length ?? 0) > 0;
+
+  // COMISIÓN YA PAGADA sobre plata que dejó de existir. La comisión se liquida
+  // sobre el recaudo de un período; si después se anula un pago de ESE período,
+  // el egreso ya salió de la caja y nada lo revisa: el candado unique(cobrador,
+  // periodo_key) impide re-liquidar, así que tampoco se auto-corrige en la
+  // siguiente vuelta. No se hace clawback automático (es una decisión del
+  // negocio, y tocar un egreso ya entregado es peor): se deja una discrepancia
+  // en la cola de triage con el monto exacto para descontarlo a mano.
+  if (ok) {
+    try {
+      await avisarComisionYaLiquidada(admin, data![0] as Record<string, unknown>, u);
+    } catch {
+      /* best-effort: el libro ya quedó consistente, esto es visibilidad */
+    }
+  }
   // VISIBILIDAD (caza 07-28): anular un pago de un crédito NO activo (finalizado/
   // renovado) baja pagado_acum sin reabrir el crédito → el saldo que queda impago no
   // lo cobra nadie y una renovación pudo otorgarse sobre ese pago. La reconciliación

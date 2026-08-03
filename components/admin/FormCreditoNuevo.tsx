@@ -38,6 +38,8 @@ export function FormCreditoNuevo({
   cobradores,
   cobradorSugerido,
   esAdmin = false,
+  moroso = false,
+  reportado = false,
 }: {
   clienteId: string;
   clienteNombre: string;
@@ -46,6 +48,10 @@ export function FormCreditoNuevo({
   cobradores: { id: string; nombre: string }[];
   cobradorSugerido: string | null;
   esAdmin?: boolean;
+  /** Marcado como moroso: aviso antes de volver a prestarle. */
+  moroso?: boolean;
+  /** Reportado al buró: aviso antes de volver a prestarle. */
+  reportado?: boolean;
 }) {
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
@@ -143,6 +149,19 @@ export function FormCreditoNuevo({
   return (
     <div className="mt-3 flex flex-col gap-3 rounded-[14px] border border-borde bg-suave p-3.5">
       <span className="text-[12px] font-bold text-tinta">Crédito nuevo para {clienteNombre}</span>
+
+      {/* Antecedentes: este cliente ya no está en la cartera, así que el gestor no
+          tiene el cartón a la vista para acordarse de cómo pagó la vez pasada. */}
+      {(moroso || reportado) && (
+        <p className="rounded-[10px] bg-[#FBE4E2] px-3 py-2 text-[12px] font-bold text-[#C0392B]">
+          {moroso && reportado
+            ? "⛔ Cliente marcado como MOROSO y REPORTADO al buró."
+            : moroso
+              ? "⛔ Cliente marcado como MOROSO."
+              : "⛔ Cliente REPORTADO al buró."}{" "}
+          Revisá bien antes de volver a prestarle.
+        </p>
+      )}
 
       {conHistorial ? (
         <p className="rounded-[10px] bg-[#EAF0FF] px-3 py-2 text-[12px] font-semibold text-[#1E47C8]">

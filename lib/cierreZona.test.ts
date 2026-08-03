@@ -98,3 +98,68 @@ describe("consolidarPorZona", () => {
     expect(c.porRendir).toBe(0);
   });
 });
+
+// ── Cobro DESPUÉS de rendir: el sello de la zona tiene que ser honesto ──────
+// El cierre de zona es ÚNICO e INMUTABLE por zona/día. Si un cobrador cobra
+// después de haber rendido, ese efectivo está en su bolsillo y NO entró en su
+// rendición: si el sello no lo cuenta, nace declarando un total que ya sabemos
+// incompleto y no hay forma de corregirlo (no puede re-rendir, el cierre no se
+// edita). Tiene que aflorar como faltante EN EL MOMENTO del cierre.
+describe("consolidarPorZona — cobro post-rendición", () => {
+  const zonaNombre = new Map([["z1", "Centro"]]);
+  const cobradorZona = new Map<string, string | null>([["c1", "z1"]]);
+
+  it("suma al esperado lo cobrado después de rendir y lo muestra como faltante", () => {
+    const rendidas: RendidaLite[] = [
+      {
+        cobradorId: "c1", nombre: "Ana", recaudado: 1000, gastos: 0,
+        entregado: 1000, diferencia: 0, estado: "cuadra",
+        recaudadoVivo: 1300, // cobró 300 más DESPUÉS de cerrar
+      },
+    ];
+    const { zonas } = consolidarPorZona(rendidas, [], cobradorZona, zonaNombre);
+    const z = zonas[0];
+    expect(z.cobradores[0].cobroPostCierre).toBe(300);
+    expect(z.totalEsperado).toBe(1300); // 1000 rendidos + 300 en el bolsillo
+    expect(z.totalEntregado).toBe(1000);
+    expect(z.totalFaltante).toBe(300); // el hueco se ve al cerrar, no mañana
+    expect(z.totalRecaudado).toBe(1300);
+  });
+
+  it("acumula el post-rendición sobre un faltante que ya existía", () => {
+    const rendidas: RendidaLite[] = [
+      {
+        cobradorId: "c1", nombre: "Ana", recaudado: 1000, gastos: 0,
+        entregado: 900, diferencia: -100, estado: "faltante",
+        recaudadoVivo: 1200,
+      },
+    ];
+    const { zonas, totalFaltante } = consolidarPorZona(rendidas, [], cobradorZona, zonaNombre);
+    expect(zonas[0].totalEsperado).toBe(1200);
+    expect(zonas[0].totalFaltante).toBe(300); // 100 del cierre + 200 cobrados después
+    expect(totalFaltante).toBe(300);
+  });
+
+  it("un sobrante mayor al post-rendición sigue siendo sobrante", () => {
+    const rendidas: RendidaLite[] = [
+      {
+        cobradorId: "c1", nombre: "Ana", recaudado: 1000, gastos: 0,
+        entregado: 1500, diferencia: 500, estado: "sobrante",
+        recaudadoVivo: 1200,
+      },
+    ];
+    const { zonas } = consolidarPorZona(rendidas, [], cobradorZona, zonaNombre);
+    expect(zonas[0].totalSobrante).toBe(300); // 500 de sobrante − 200 en el bolsillo
+    expect(zonas[0].totalFaltante).toBe(0);
+  });
+
+  it("sin recaudadoVivo (o igual al congelado) no cambia nada", () => {
+    const rendidas: RendidaLite[] = [
+      { cobradorId: "c1", nombre: "Ana", recaudado: 1000, gastos: 0, entregado: 1000, diferencia: 0, estado: "cuadra" },
+    ];
+    const { zonas } = consolidarPorZona(rendidas, [], cobradorZona, zonaNombre);
+    expect(zonas[0].totalEsperado).toBe(1000);
+    expect(zonas[0].totalFaltante).toBe(0);
+    expect(zonas[0].cobradores[0].cobroPostCierre).toBe(0);
+  });
+});

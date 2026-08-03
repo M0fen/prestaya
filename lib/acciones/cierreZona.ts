@@ -74,7 +74,21 @@ export async function confirmarCierreZona(input: {
   }
 
   const diferencia = zona.totalEntregado - zona.totalEsperado;
-  const notas = (input.notas ?? "").toString().trim().slice(0, 300) || null;
+  let notas = (input.notas ?? "").toString().trim().slice(0, 300) || null;
+
+  // Cobros hechos DESPUÉS de rendir: ese efectivo no entró en ninguna rendición y
+  // ya está sumado al esperado de la zona (ver consolidarPorZona). Se deja escrito
+  // en el sello —que es inmutable— para que mañana se sepa de dónde salió el
+  // faltante, en vez de que parezca un descuadre sin explicación.
+  const postRendicion = zona.cobradores.reduce((s, c) => s + (c.cobroPostCierre ?? 0), 0);
+  if (postRendicion > 0) {
+    const quienes = zona.cobradores
+      .filter((c) => (c.cobroPostCierre ?? 0) > 0)
+      .map((c) => `${c.nombre} ${UYU(c.cobroPostCierre ?? 0)}`)
+      .join(", ");
+    const aviso = `Incluye ${UYU(postRendicion)} cobrados DESPUÉS de rendir (${quienes}): ese efectivo no entró en su rendición.`;
+    notas = notas ? `${aviso} · ${notas}`.slice(0, 300) : aviso.slice(0, 300);
+  }
 
   try {
     const { error } = await db.from("cierres_zona").insert({

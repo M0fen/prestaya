@@ -85,6 +85,12 @@ export interface CierreZona {
   pendientes: number;
   /** Confirmación del supervisor si ya cerró la zona (se adjunta en la capa de datos). */
   confirmado?: ConfirmacionCierre | null;
+  /** Cobradores ACTIVOS de la zona que hoy no registraron NI UN cobro (la adjunta la
+   *  capa de datos, que es la que conoce el plantel). No son "pendientes" —no tienen
+   *  plata declarada— pero el supervisor tiene que verlos antes de sellar: puede ser
+   *  franco, o puede ser que la app no le esté funcionando a alguien y su recaudo del
+   *  día entero quede fuera de un cierre que es inmutable. */
+  sinActividad?: { cobradorId: string; nombre: string }[];
 }
 
 /** Consolidado de todas las zonas visibles + su gran total. */
@@ -167,11 +173,21 @@ export function consolidarPorZona(
     });
     // Redondeo defensivo por simetría con `esperado` (hoy los valores ya son enteros
     // desde la capa de datos; esto blinda contra un monto fraccionario a futuro).
-    z.totalRecaudado += Math.round(r.recaudado);
-    z.totalEsperado += esperado;
+    z.totalRecaudado += Math.round(r.recaudado) + cobroPostCierre;
+    // El esperado de la ZONA incluye lo que el cobrador cobró DESPUÉS de rendir:
+    // esa plata está físicamente en su bolsillo y el supervisor la tiene que
+    // recibir hoy. Si no se suma, el sello —que es ÚNICO e INMUTABLE por zona/día
+    // (0047 + 0124)— nace declarando un total que ya sabemos incompleto, y no hay
+    // forma de corregirlo después: el cobrador no puede volver a rendir (unique
+    // cobrador+fecha) y el cierre no se puede editar. Sumándolo, el hueco aflora
+    // como FALTANTE en el mismo momento del cierre, que es cuando todavía se puede
+    // ir a buscar el efectivo. (La fila del cobrador conserva la `diferencia` que
+    // él firmó en su rendición; el badge "cobró después" ya la muestra aparte.)
+    z.totalEsperado += esperado + cobroPostCierre;
     z.totalEntregado += Math.round(r.entregado);
-    if (r.diferencia < 0) z.totalFaltante += -Math.round(r.diferencia);
-    else if (r.diferencia > 0) z.totalSobrante += Math.round(r.diferencia);
+    const faltanteFila = -Math.round(r.diferencia) + cobroPostCierre;
+    if (faltanteFila > 0) z.totalFaltante += faltanteFila;
+    else if (faltanteFila < 0) z.totalSobrante += -faltanteFila;
     z.rendidos += 1;
   }
 
