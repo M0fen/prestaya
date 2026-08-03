@@ -6,6 +6,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getUsuarioActual, esAdmin } from "@/lib/auth";
 import { setTokenCliente } from "@/lib/data/clientes";
 import { nuevoToken } from "@/lib/seguridad/token";
@@ -24,7 +25,10 @@ export async function rotarTokenAction(
   try {
     const db = await createSupabaseServer();
     const token = nuevoToken();
-    await setTokenCliente(db, clienteId, token);
+    // service_role: desde 0126 el token del cliente está CONGELADO para los roles
+    // de API (un gestor no puede reescribirlo por REST y suplantar la vista del
+    // cliente). Esta acción —gateada a admin arriba— es la única vía de rotación.
+    await setTokenCliente(createSupabaseAdmin(), clienteId, token);
     await registrarAuditoria(db, {
       actorId: u.id,
       actorNombre: u.nombre,

@@ -30,6 +30,15 @@ begin
   end if;
 end $$;
 
+-- Privilegios por DEFECTO como los de Supabase: en un proyecto real, TODAS las
+-- tablas/secuencias creadas en `public` reciben GRANT para anon/authenticated/
+-- service_role (la RLS es la que recorta después). Sin esto, un test que opera
+-- como `authenticated` directo sobre una tabla (p. ej. los de triggers de
+-- inmutabilidad) muere con 42501 antes de llegar al trigger/policy bajo prueba.
+grant usage on schema public to anon, authenticated, service_role;
+alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
+
 -- Extensión que la migración inicial (0001) asume disponible.
 create extension if not exists pgcrypto;
 

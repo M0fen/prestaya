@@ -151,6 +151,47 @@ export interface SaludEmpalme {
 }
 
 /** Una corrida registrada de reconciliación (historial/tendencia). */
+/** Estado del último RESPALDO verificado (0126). `null` = nunca hubo uno. */
+export interface EstadoRespaldo {
+  corridoEn: string;
+  filas: number;
+  bytes: number;
+  verificado: boolean;
+  incompleto: boolean;
+  horas: number;
+}
+
+/**
+ * Último respaldo VERIFICADO. Un respaldo que dejó de correr es la falla más
+ * silenciosa que existe: nadie lo nota hasta el día que hace falta. El panel
+ * muestra la antigüedad y grita pasados los 7 días. Degrada a null si la 0126
+ * todavía no corrió (la tabla no existe).
+ */
+export async function getUltimoRespaldo(db: SupabaseClient): Promise<EstadoRespaldo | null> {
+  try {
+    const { data, error } = await db
+      .from("backups_log")
+      .select("corrido_en, filas_total, bytes, verificado, incompleto")
+      .eq("verificado", true)
+      .eq("incompleto", false)
+      .order("corrido_en", { ascending: false })
+      .limit(1);
+    if (error) throw error;
+    const r = data?.[0];
+    if (!r) return null;
+    return {
+      corridoEn: r.corrido_en as string,
+      filas: Number(r.filas_total) || 0,
+      bytes: Number(r.bytes) || 0,
+      verificado: Boolean(r.verificado),
+      incompleto: Boolean(r.incompleto),
+      horas: (Date.now() - new Date(r.corrido_en as string).getTime()) / 3_600_000,
+    };
+  } catch {
+    return null; // 0126 sin correr → la UI muestra "sin registro"
+  }
+}
+
 export interface CorridaRecon {
   corridaEn: string;
   ok: boolean;

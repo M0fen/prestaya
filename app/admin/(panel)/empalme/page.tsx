@@ -8,6 +8,7 @@ import {
   getSaludEmpalme,
   getHistorialReconciliacion,
   hallazgosExtraDelDia,
+  getUltimoRespaldo,
 } from "@/lib/data/reconciliacion";
 import { KillSwitch } from "@/components/admin/KillSwitch";
 import { ResolverDiscrepancia } from "@/components/admin/ResolverDiscrepancia";
@@ -31,7 +32,7 @@ function soloFecha(iso: string): string {
 export default async function EmpalmePage() {
   await requireAdmin();
   const db = createSupabaseAdmin();
-  const [info, salud, historial, operativos] = await Promise.all([
+  const [info, salud, historial, operativos, respaldo] = await Promise.all([
     getInfoEmpalme(db),
     getSaludEmpalme(db),
     getHistorialReconciliacion(db, 14),
@@ -41,8 +42,13 @@ export default async function EmpalmePage() {
     // podía decir "✅ la plata cuadra" con un cobrador que no rindió o un crédito
     // fuera de toda ruta. Mostrarlas acá alinea el panel con el vigilante.
     hallazgosExtraDelDia(db, new Date()).catch(() => []),
+    getUltimoRespaldo(db),
   ]);
   const opCriticos = operativos.filter((h) => h.severidad === "critico" || h.severidad === "alto");
+
+  // FRESCURA del RESPALDO. Un backup que dejó de correr no avisa: se descubre el
+  // día que hace falta, que es el peor día posible. >7 días (o ninguno) = rojo.
+  const respaldoViejo = !respaldo || respaldo.horas > 24 * 7;
 
   // FRESCURA del vigilante: la reconciliación AUTOMÁTICA (origen 'cron') corre 1×/día.
   // Si la última pasó hace >26h (o nunca corrió), el vigilante está CAÍDO → hay que
@@ -84,6 +90,45 @@ export default async function EmpalmePage() {
           </p>
         </section>
       )}
+
+      {/* ── RESPALDO (la última red: si todo lo demás falla, esto es lo que queda) ── */}
+      <section
+        className="flex items-center justify-between gap-3 rounded-[16px] border px-4 py-3"
+        style={{
+          borderColor: respaldoViejo ? "var(--color-rojo-osc)" : "var(--color-borde)",
+          background: respaldoViejo ? "var(--color-rojo-suave)" : "var(--color-tarjeta)",
+        }}
+      >
+        <div className="flex min-w-0 flex-col">
+          <span
+            className="text-[13.5px] font-extrabold"
+            style={{ color: respaldoViejo ? "var(--color-rojo-osc)" : "var(--color-tinta)" }}
+          >
+            {respaldo
+              ? respaldoViejo
+                ? `⚠️ El último respaldo verificado es de hace ${Math.round(respaldo.horas / 24)} días`
+                : `✅ Respaldo verificado hace ${respaldo.horas < 24 ? `${Math.round(respaldo.horas)} h` : `${Math.round(respaldo.horas / 24)} día(s)`}`
+              : "⚠️ No hay ningún respaldo verificado registrado"}
+          </span>
+          <span
+            className="text-[12px] leading-[1.5] font-medium"
+            style={{ color: respaldoViejo ? "var(--color-rojo-osc)" : "var(--color-gris)" }}
+          >
+            {respaldo
+              ? `${respaldo.filas.toLocaleString("es-UY")} filas · ${(respaldo.bytes / 1024 / 1024).toFixed(1)} MB · ${fechaHora(respaldo.corridoEn)}`
+              : "Corré  node --env-file=.env.local scripts/backup-completo.mjs  y después  scripts/verificar-backup.mjs. Ver docs/RUNBOOK-RESPALDOS.md."}
+          </span>
+        </div>
+        <span
+          className="shrink-0 rounded-full px-3 py-1 text-[11.5px] font-bold"
+          style={{
+            background: respaldoViejo ? "var(--color-rojo-osc)" : "var(--color-verde-suave)",
+            color: respaldoViejo ? "#fff" : "var(--color-verde-osc)",
+          }}
+        >
+          {respaldoViejo ? "Respaldar hoy" : "Al día"}
+        </span>
+      </section>
 
       {/* ── SALUD DEL EMPALME ── */}
       <section className="flex flex-col gap-2">

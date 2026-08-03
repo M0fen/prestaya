@@ -28,3 +28,6 @@ reporte-*.html
 # Exports de Disapp (PDF/planilla) — datos, no van al repo
 *DISAPP*.pdf
 Lista de Cr*.pdf
+
+# Respaldos logicos de la base (DATOS DE CLIENTES — jamas a git)
+backups/

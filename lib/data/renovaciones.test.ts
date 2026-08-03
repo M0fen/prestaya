@@ -300,7 +300,10 @@ describe("crearRenovacion — carreras y fallos (money-critical)", () => {
       failInsert: true,
     };
     const db = fakeDb(state);
-    const r = await crearRenovacion(db, ALTA_OK, HOY);
+    // El 4º parámetro es el cliente ELEVADO de la compensación (en prod:
+    // service_role, porque 0126 veta resucitar créditos a los roles de API).
+    // Acá se inyecta el mismo fake para observar la escritura.
+    const r = await crearRenovacion(db, ALTA_OK, HOY, db);
 
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toMatch(/se revirtió/i);

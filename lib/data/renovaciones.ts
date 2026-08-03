@@ -5,6 +5,7 @@
 //  Enchufa el momento de mayor conversión con la decisión de plata.
 // ─────────────────────────────────────────────────────────────────────────
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import type { Cliente, Prestamo } from "@/types/db";
 import type { ResultadoScore } from "@/types/scoring";
 import { getClientesAsignados } from "./clientes";
@@ -255,6 +256,11 @@ export async function crearRenovacion(
   db: SupabaseClient,
   input: AltaRenovacion,
   hoy: Date = new Date(),
+  // Cliente ELEVADO para la única escritura que exige service_role: la
+  // compensación (resucitar el anterior), vetada para los roles de API por 0126.
+  // Inyectable para que los tests sigan sin tocar infra; en producción, si no
+  // viene, se crea el admin real recién EN el punto de uso (lazy).
+  adminDb?: SupabaseClient,
 ): Promise<ResultadoAlta> {
   const { clienteId, prestamoAnteriorId, monto, totalDias, frecuencia, creadoPor } = input;
   const FREQ = ["diario", "semanal", "quincenal", "mensual"];
@@ -379,7 +385,11 @@ export async function crearRenovacion(
     }
     // Compensación real: el nuevo NO se creó → reactivar el anterior para no dejar
     // al cliente sin crédito. (El reintento verá el anterior activo y lo renueva bien.)
-    const comp = await db
+    // Con el cliente ADMIN: resucitar un crédito (finalizado→activo) está vetado
+    // para los roles de API desde 0126 — la máquina de estados solo avanza. Esta
+    // compensación es EL caso legítimo de vuelta atrás, y por eso va por la vía
+    // de confianza (service_role), no por la sesión del gestor.
+    const comp = await (adminDb ?? createSupabaseAdmin())
       .from("prestamos")
       .update({ estado: "activo", finalizado_en: null })
       .eq("id", ant.id);
