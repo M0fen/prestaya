@@ -52,6 +52,13 @@ FORZAR = "--forzar" in sys.argv
 SRC = arg("--src", r"C:\Users\Carlos\migracion")
 ENVF = arg("--env-file", ".env.local")
 FRONTERA = dt.date(2026, 7, 21)   # el último import de recaudos llegó hasta el 07-20
+# CORTE del export de CRÉDITOS: hasta qué día (inclusive) su columna 'Pagos'
+# refleja los recaudos. El CAP anti-duplicado solo aplica a recaudos ≤ corte;
+# los posteriores entran SIEMPRE (el target viejo no los conoce y caparlos
+# tiraría cobros reales). Si mañana llega solo el excel de recaudos del 08-04
+# sin créditos frescos: dejar --corte 2026-08-03. Si llegan créditos frescos:
+# subir el corte a la fecha de ese export.
+CORTE = dt.date.fromisoformat(arg("--corte", "2026-08-03"))
 TOL = 1.0
 HOY = dt.date.today()
 SELLO = HOY.strftime("%Y%m%d")
@@ -195,16 +202,19 @@ descartes = []           # (ref, pago) descartados por el cap
 topups = []              # ajustes exactos
 sim_final = {}           # ref -> pagado final simulado
 refs_crear = {c["ref"]: c for c in crear if c["ref"]}
+sim_corte = {}  # ref -> pagado simulado SOLO hasta el corte (base p/ top-ups)
 for ref, lst in cand_por_ref.items():
     hoy_file = ref2hoy.get(ref)
     if ref in by_ref_db:
         base_pagado = round(float(by_ref_db[ref]["pagado_acum"] or 0), 2)
     else:
         base_pagado = 0.0
+    capables = [p for p in lst if p["fecha"] <= CORTE]   # el target los conoce
+    post = [p for p in lst if p["fecha"] > CORTE]        # posteriores: entran siempre
     if hoy_file:  # hay target
         target = round(hoy_file["pagos"], 2)
-        exceso = round(base_pagado + sum(p["monto"] or 0 for p in lst) - target, 2)
-        keep = list(lst)
+        exceso = round(base_pagado + sum(p["monto"] or 0 for p in capables) - target, 2)
+        keep = list(capables)
         while exceso > TOL and keep:
             m = keep[0]["monto"] or 0
             if m <= exceso + TOL:
@@ -212,8 +222,9 @@ for ref, lst in cand_por_ref.items():
                 exceso = round(exceso - m, 2)
             else:
                 break  # el próximo no entra entero en el exceso: no tirar de más
-        insertar.extend((ref, p) for p in keep)
-        sim_final[ref] = round(base_pagado + sum(p["monto"] or 0 for p in keep), 2)
+        insertar.extend((ref, p) for p in keep + post)
+        sim_corte[ref] = round(base_pagado + sum(p["monto"] or 0 for p in keep), 2)
+        sim_final[ref] = round(sim_corte[ref] + sum(p["monto"] or 0 for p in post), 2)
     else:  # stale (activo acá, cerrado allá): sin target, entra todo lo fresco
         insertar.extend((ref, p) for p in lst)
         sim_final[ref] = round(base_pagado + sum(p["monto"] or 0 for p in lst), 2)
@@ -225,11 +236,13 @@ for ref, c in ref2hoy.items():
     if not en_db and not es_nuevo:
         continue
     base_pagado = round(float(by_ref_db[ref]["pagado_acum"] or 0), 2) if en_db else 0.0
-    fin = sim_final.get(ref, base_pagado)
-    delta = round(c["pagos"] - fin, 2)
+    # El hueco se mide contra lo simulado HASTA EL CORTE: el target no conoce
+    # los recaudos posteriores, y esos no tapan un faltante de la ventana vieja.
+    fin_corte = sim_corte.get(ref, sim_final.get(ref, base_pagado))
+    delta = round(c["pagos"] - fin_corte, 2)
     if delta > TOL:
         topups.append({"ref": ref, "cid": c["cid"], "delta": delta, "vend": c["vendedor"]})
-        sim_final[ref] = round(fin + delta, 2)
+        sim_final[ref] = round(sim_final.get(ref, base_pagado) + delta, 2)
 
 # ══ 6. Finalizar stales con saldo (excepto clientes borrados en Disapp) ═════
 finalizar = []
@@ -349,7 +362,10 @@ for ref, c in ref2hoy.items():
     if abs(gap) <= TOL: exact += 1
     elif gap > 0: under += 1
     else: over += 1
-print(f"\n  END-STATE esperado vs 'Pagos' Disapp hoy: exactos {exact} · cortos {under} · pasados {over} (de {exact+under+over})")
+n_post = sum(1 for _, p in insertar if p["fecha"] > CORTE)
+print(f"\n  END-STATE esperado vs 'Pagos' Disapp (al corte {CORTE}): exactos {exact} · cortos {under} · pasados {over} (de {exact+under+over})")
+if n_post:
+    print(f"  (recaudos POSTERIORES al corte incluidos sin cap: {n_post} — contra un target viejo van a figurar como 'pasados': esperado)")
 
 huerf = {p["ref"] for p in d["pagos"].values() if p["ref"] and p["fecha"] and p["fecha"] >= FRONTERA
          and p["ref"] not in by_ref_db and p["ref"] not in ref2hoy}
