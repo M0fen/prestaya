@@ -21,7 +21,10 @@ export default async function AltasPage() {
   const pendientes = clientes.filter((c) => c.estado === "pendiente");
   const entregados = clientes.filter((c) => c.estado === "entregado");
   const activos = clientes.filter((c) => c.estado === "activo");
-  const total = clientes.length;
+  // Los que no pueden usar la app salen del denominador (0131): si contaran,
+  // el avance nunca llegaría al 100% aunque el cobrador hiciera todo su trabajo.
+  const noAplica = clientes.filter((c) => c.estado === "no_aplica");
+  const total = clientes.length - noAplica.length;
   const pct = total > 0 ? Math.round((activos.length / total) * 100) : 0;
 
   return (
@@ -60,6 +63,7 @@ export default async function AltasPage() {
               : entregados.length > 0
                 ? `Entregaste todos · ${entregados.length} sin abrir todavía`
                 : "¡Todos tus clientes tienen su cartón! 🎉"}
+          {noAplica.length > 0 && ` · ${noAplica.length} no usa${noAplica.length === 1 ? "" : "n"} la app`}
         </span>
       </div>
 
@@ -80,6 +84,14 @@ export default async function AltasPage() {
         clientes={activos}
         vacio={null}
         pie={(c) => `Lo abrió el ${fechaHoraUY(c.vistoEn)}`}
+      />
+      {/* Fuera de la campaña, pero visibles: el cobrador tiene que poder
+          encontrarlos si alguno consigue teléfono. */}
+      <Grupo
+        titulo="No usan la app"
+        clientes={noAplica}
+        vacio={null}
+        pie={() => "Fuera de la campaña · les cobrás normal"}
       />
     </div>
   );

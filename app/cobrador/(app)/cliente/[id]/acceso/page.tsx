@@ -20,6 +20,7 @@ import { urlCartonCliente } from "@/lib/urlApp";
 import { fechaHoraUY } from "@/lib/format";
 import { QrCodigo } from "@/components/QrCodigo";
 import { AccionesAcceso } from "@/components/cobrador/AccionesAcceso";
+import { NoUsaApp } from "@/components/cobrador/NoUsaApp";
 
 export const dynamic = "force-dynamic";
 
@@ -107,7 +108,7 @@ export default async function AccesoClientePage({
         nombre={cliente.nombre}
         telefono={cliente.telefono}
         url={url}
-        entregado={estado !== "pendiente"}
+        entregado={estado === "entregado" || estado === "activo"}
       />
 
       {/* ESTADO DEL ALTA — "visto" es la prueba real: lo abrió el cliente. */}
@@ -115,6 +116,13 @@ export default async function AccesoClientePage({
         estado={estado}
         entregadoEn={cliente.acceso_entregado_en}
         vistoEn={cliente.acceso_visto_en}
+      />
+
+      {/* La salida para quien no tiene celular (0131). */}
+      <NoUsaApp
+        clienteId={id}
+        marcado={estado === "no_aplica"}
+        motivo={cliente.app_no_aplica_motivo ?? null}
       />
 
       <p className="rounded-[13px] border border-[#F0E3C8] bg-[#FDF8EC] px-3.5 py-3 text-[11.5px] font-medium text-[#7A5B10]">
@@ -139,14 +147,18 @@ function EstadoAltaCard({
       ? { bg: "#E4F5EC", fg: "#157A50", icono: "🎉", titulo: "Ya está usando la app" }
       : estado === "entregado"
         ? { bg: "#EAF0FF", fg: "#1E47C8", icono: "📨", titulo: "Link entregado" }
-        : { bg: "#F3F5FB", fg: "#6B7494", icono: "○", titulo: "Todavía sin entregar" };
+        : estado === "no_aplica"
+          ? { bg: "#F3F5FB", fg: "#6B7494", icono: "○", titulo: "No usa la app" }
+          : { bg: "#F3F5FB", fg: "#6B7494", icono: "○", titulo: "Todavía sin entregar" };
 
   const detalle =
     estado === "activo"
       ? `Abrió su cartón por primera vez el ${fechaHoraUY(vistoEn)}`
       : estado === "entregado"
         ? `Se lo entregaste el ${fechaHoraUY(entregadoEn)} · falta que lo abra`
-        : "Mostrale el código o mandale el WhatsApp";
+        : estado === "no_aplica"
+          ? "Fuera de la campaña de altas · le seguís cobrando normal"
+          : "Mostrale el código o mandale el WhatsApp";
 
   return (
     <div className="flex items-center gap-3 rounded-[14px] px-4 py-3" style={{ background: tono.bg }}>

@@ -94,6 +94,13 @@ export interface Cliente {
   acceso_entregado_por: string | null;
   /** Primera vez que el CLIENTE abrió su cartón: la prueba real del alta. */
   acceso_visto_en: string | null;
+  // ── No usa la app (0131) ───────────────────────────────────────────────
+  /** El cobrador declaró que esta persona no va a usar el cartón digital
+   *  (sin celular, teléfono fijo, no quiere). NO es una baja: sigue en la ruta
+   *  y se le cobra igual; solo sale de los pendientes de la campaña de altas. */
+  app_no_aplica_en: string | null;
+  app_no_aplica_motivo: string | null;
+  app_no_aplica_por: string | null;
   creado_en: string;
   actualizado_en: string;
 }

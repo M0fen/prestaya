@@ -42,6 +42,9 @@ export const clienteMock: Cliente = {
   acceso_entregado_en: null,
   acceso_entregado_por: null,
   acceso_visto_en: null,
+  app_no_aplica_en: null,
+  app_no_aplica_motivo: null,
+  app_no_aplica_por: null,
   creado_en: "2026-06-03T00:00:00Z",
   actualizado_en: "2026-06-03T00:00:00Z",
 };

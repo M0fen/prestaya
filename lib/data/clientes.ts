@@ -51,6 +51,10 @@ export function mapCliente(r: Record<string, unknown>): Cliente {
     acceso_entregado_en: (r.acceso_entregado_en as string | null | undefined) ?? null,
     acceso_entregado_por: (r.acceso_entregado_por as string | null | undefined) ?? null,
     acceso_visto_en: (r.acceso_visto_en as string | null | undefined) ?? null,
+    // 0131 — degradan a null si la migración aún no corrió (mismo criterio que 0084).
+    app_no_aplica_en: (r.app_no_aplica_en as string | null | undefined) ?? null,
+    app_no_aplica_motivo: (r.app_no_aplica_motivo as string | null | undefined) ?? null,
+    app_no_aplica_por: (r.app_no_aplica_por as string | null | undefined) ?? null,
     creado_en: r.creado_en as string,
     actualizado_en: r.actualizado_en as string,
   };

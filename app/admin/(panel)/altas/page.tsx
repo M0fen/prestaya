@@ -58,6 +58,11 @@ export default async function AltasAdminPage() {
                 <Chip label="Sin entregar" valor={totales.pendientes} bg="#F3F5FB" fg="#6B7494" />
                 <Chip label="Entregados sin abrir" valor={totales.entregados} bg="#EAF0FF" fg="#1E47C8" />
                 <Chip label="Activos" valor={totales.activos} bg="#E4F5EC" fg="#157A50" />
+                {/* Fuera del denominador (0131): no son trabajo pendiente, pero
+                    son un dato de negocio — cuántos clientes no alcanza la app. */}
+                {totales.noAplica > 0 && (
+                  <Chip label="No usan la app" valor={totales.noAplica} bg="#F3F5FB" fg="#6B7494" />
+                )}
               </div>
             </div>
             <div className="h-2.5 overflow-hidden rounded-full bg-[#EEF1F8]">

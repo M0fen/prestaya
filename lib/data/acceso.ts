@@ -40,6 +40,32 @@ export async function marcarAccesoEntregado(
 }
 
 /**
+ * "Este cliente NO va a usar la app" (0131). `usuarioId=null` lo revierte.
+ * Va por service_role igual que la entrega: el cobrador no tiene UPDATE sobre
+ * `clientes`. Degrada en silencio si 0131 aún no corrió.
+ */
+export async function marcarAppNoAplica(
+  clienteId: string,
+  usuarioId: string | null,
+  motivo: string | null,
+): Promise<void> {
+  const admin = createSupabaseAdmin();
+  try {
+    const { error } = await admin
+      .from("clientes")
+      .update({
+        app_no_aplica_en: usuarioId ? new Date().toISOString() : null,
+        app_no_aplica_por: usuarioId,
+        app_no_aplica_motivo: usuarioId ? motivo : null,
+      })
+      .eq("id", clienteId);
+    if (error) throw error;
+  } catch (e) {
+    if (!columnaFaltante(e)) throw e; // 0131 sin correr
+  }
+}
+
+/**
  * Sella la PRIMERA visita del cliente a su cartón. Solo escribe si estaba en
  * null (`.is(...)` lo garantiza también ante dos pestañas a la vez), así que
  * es un único UPDATE en la vida del cliente, no uno por carga.
@@ -90,7 +116,8 @@ export async function getAltasDeMiRuta(db: SupabaseClient): Promise<ClienteAlta[
     .order("nombre", { ascending: true });
   if (e2) throw e2;
 
-  const PESO: Record<EstadoAlta, number> = { pendiente: 0, entregado: 1, activo: 2 };
+  // Los que NO aplican van al fondo: no son trabajo por hacer.
+  const PESO: Record<EstadoAlta, number> = { pendiente: 0, entregado: 1, activo: 2, no_aplica: 3 };
   return (data ?? [])
     .map((r) => {
       const c = mapCliente(r);
@@ -111,17 +138,20 @@ export async function getAltasDeMiRuta(db: SupabaseClient): Promise<ClienteAlta[
 export interface FilaAltas {
   cobradorId: string;
   cobradorNombre: string;
+  /** Clientes ALCANZABLES (excluye los que no usan la app): el denominador honesto. */
   total: number;
   activos: number;
   entregados: number;
   pendientes: number;
+  /** Marcados "no usa la app" (0131). No cuentan como trabajo pendiente. */
+  noAplica: number;
 }
 
 export interface ResumenAltas {
   /** true = 0084 todavía no corrió: no se puede medir el avance. */
   migracionPendiente: boolean;
   filas: FilaAltas[];
-  totales: { total: number; activos: number; entregados: number; pendientes: number };
+  totales: { total: number; activos: number; entregados: number; pendientes: number; noAplica: number };
 }
 
 /**
@@ -140,7 +170,7 @@ export async function getResumenAltas(): Promise<ResumenAltas> {
   if (eCob) throw eCob;
   const cobradores = (cobs ?? []) as { id: string; nombre: string }[];
   if (cobradores.length === 0) {
-    return { migracionPendiente: false, filas: [], totales: { total: 0, activos: 0, entregados: 0, pendientes: 0 } };
+    return { migracionPendiente: false, filas: [], totales: { total: 0, activos: 0, entregados: 0, pendientes: 0, noAplica: 0 } };
   }
 
   // 2) Asignaciones activas de esos cobradores. PAGINADO: con miles de filas,
@@ -161,8 +191,8 @@ export async function getResumenAltas(): Promise<ResumenAltas> {
   if (asignaciones.length === 0) {
     return {
       migracionPendiente: false,
-      filas: cobradores.map((c) => ({ cobradorId: c.id, cobradorNombre: c.nombre, total: 0, activos: 0, entregados: 0, pendientes: 0 })),
-      totales: { total: 0, activos: 0, entregados: 0, pendientes: 0 },
+      filas: cobradores.map((c) => ({ cobradorId: c.id, cobradorNombre: c.nombre, total: 0, activos: 0, entregados: 0, pendientes: 0, noAplica: 0 })),
+      totales: { total: 0, activos: 0, entregados: 0, pendientes: 0, noAplica: 0 },
     };
   }
 
@@ -188,7 +218,7 @@ export async function getResumenAltas(): Promise<ResumenAltas> {
     }
   } catch (e) {
     if (columnaFaltante(e)) {
-      return { migracionPendiente: true, filas: [], totales: { total: 0, activos: 0, entregados: 0, pendientes: 0 } };
+      return { migracionPendiente: true, filas: [], totales: { total: 0, activos: 0, entregados: 0, pendientes: 0, noAplica: 0 } };
     }
     throw e;
   }
@@ -197,12 +227,18 @@ export async function getResumenAltas(): Promise<ResumenAltas> {
   //    hubiera duplicados la cuenta sigue siendo por asignación activa.
   const acc = new Map<string, FilaAltas>();
   for (const c of cobradores) {
-    acc.set(c.id, { cobradorId: c.id, cobradorNombre: c.nombre, total: 0, activos: 0, entregados: 0, pendientes: 0 });
+    acc.set(c.id, { cobradorId: c.id, cobradorNombre: c.nombre, total: 0, activos: 0, entregados: 0, pendientes: 0, noAplica: 0 });
   }
   for (const a of asignaciones) {
     const fila = acc.get(a.cobrador_id);
     const estado = estados.get(a.cliente_id);
     if (!fila || !estado) continue; // cliente dado de baja → fuera de la cuenta
+    // Los "no aplica" se cuentan aparte y NO entran al total: si entraran, el
+    // avance del cobrador nunca llegaría al 100% aunque hiciera todo su trabajo.
+    if (estado === "no_aplica") {
+      fila.noAplica += 1;
+      continue;
+    }
     fila.total += 1;
     if (estado === "activo") fila.activos += 1;
     else if (estado === "entregado") fila.entregados += 1;
@@ -216,19 +252,27 @@ export async function getResumenAltas(): Promise<ResumenAltas> {
       activos: t.activos + f.activos,
       entregados: t.entregados + f.entregados,
       pendientes: t.pendientes + f.pendientes,
+      noAplica: t.noAplica + f.noAplica,
     }),
-    { total: 0, activos: 0, entregados: 0, pendientes: 0 },
+    { total: 0, activos: 0, entregados: 0, pendientes: 0, noAplica: 0 },
   );
   return { migracionPendiente: false, filas, totales };
 }
 
 /** Estado del alta, listo para mostrar. */
-export type EstadoAlta = "activo" | "entregado" | "pendiente";
+export type EstadoAlta = "activo" | "entregado" | "pendiente" | "no_aplica";
 
+/**
+ * `no_aplica` gana sobre todo lo demás: si el cobrador ya dijo que esta persona
+ * no va a usar la app, no tiene sentido seguir mostrándola como trabajo por
+ * hacer (era el caso de los 55 clientes con teléfono fijo de Zona Centro).
+ */
 export function estadoAlta(c: {
   acceso_visto_en: string | null;
   acceso_entregado_en: string | null;
+  app_no_aplica_en?: string | null;
 }): EstadoAlta {
+  if (c.app_no_aplica_en) return "no_aplica";
   if (c.acceso_visto_en) return "activo";
   if (c.acceso_entregado_en) return "entregado";
   return "pendiente";
