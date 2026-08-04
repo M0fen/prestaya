@@ -105,14 +105,22 @@ export async function renovarDesdeCalle(input: {
   const ant = activos.find((x) => x.id === input.prestamoId);
   if (!ant) return { ok: false, error: "Ese crédito ya no está activo." };
 
-  // ¿Terminó de pagarlo? El cartón es la verdad (mismo cálculo que ve el cliente).
-  const pagos = await getPagosDePrestamo(db, ant.id);
-  const carton = calcularEstadosCarton(ant, pagos, hoyUY());
-  if (carton.falta >= 1) {
-    return {
-      ok: false,
-      error: `Todavía le falta pagar ${UYU(carton.falta)}. Se renueva cuando termine.`,
-    };
+  // ¿Terminó de pagar TODO? No solo el crédito elegido: si el cliente tiene OTRO
+  // crédito activo con saldo, renovarle este (saldado) le entrega capital nuevo
+  // con deuda viva al lado — renovación indebida (auditoría 08-05). Un multi-
+  // crédito legítimo se renueva cuando TODOS están al cero.
+  for (const cred of activos) {
+    const pagosDe = await getPagosDePrestamo(db, cred.id);
+    const carton = calcularEstadosCarton(cred, pagosDe, hoyUY());
+    if (carton.falta >= 1) {
+      return {
+        ok: false,
+        error:
+          cred.id === ant.id
+            ? `Todavía le falta pagar ${UYU(carton.falta)}. Se renueva cuando termine.`
+            : `Tiene OTRO crédito activo al que le falta ${UYU(carton.falta)}. Se renueva cuando termine todo.`,
+      };
+    }
   }
 
   const monto = Math.round(Number(ant.monto_prestado) || 0);

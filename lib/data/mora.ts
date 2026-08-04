@@ -90,8 +90,14 @@ export async function getTableroMora(
     // no infla el riesgo ni la "deuda en riesgo". Coherente con la mora del
     // dashboard (metricas.ts): un crédito muerto no es mora del día.
     if (plazoVencido(cond, hoyCal)) {
-      resumen.vencidos++;
-      resumen.carteraVencida += saldoCredito(num(p.cuota_diaria), num(p.total_dias), num(p.pagado ?? 0));
+      const saldoVencido = saldoCredito(num(p.cuota_diaria), num(p.total_dias), num(p.pagado ?? 0));
+      // Con saldo $0 no hay nada que recuperar: contar ese crédito como "vencido"
+      // inflaba el contador con créditos ya pagados (auditoría 08-05) — puro ruido
+      // que asusta en el panel sin un peso detrás.
+      if (saldoVencido > 0.5) {
+        resumen.vencidos++;
+        resumen.carteraVencida += saldoVencido;
+      }
       continue;
     }
 

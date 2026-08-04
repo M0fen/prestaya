@@ -396,6 +396,58 @@ export function invRutaCredito(rows: readonly RutaRecon[]): Hallazgo[] {
   return out;
 }
 
+// ── INV11/INV12 — SALUD DE FORMA de los créditos activos (auditoría 08-05) ──
+export interface CreditoForma {
+  creditoId: string;
+  /** Vino del empalme con Disapp (disapp_credit_id). */
+  importado: boolean;
+  capital: number;
+  totalCredito: number;
+  pagado: number;
+}
+
+/**
+ * INVARIANTE 11 — Ningún crédito IMPORTADO debe quedar `activo` estando saldado.
+ * INVARIANTE 12 — El total del crédito (cuota×días) nunca es menor que el capital.
+ *
+ * Las dos nacieron de la presentación del 08-05: el empalme dejó 678 créditos que
+ * Disapp ya había cerrado como `activo`-saldado (una línea de diseño), y NINGUNA
+ * invariante lo miraba — 915 fichas con "N créditos activos", mora inflada y
+ * Renovar ofreciendo muertos. INV11 caza el saldado-activo SOLO en importados
+ * (un nativo recién saldado es transitorio legítimo: espera su renovación).
+ * INV12 caza el interés negativo (total < capital = el crédito PIERDE plata por
+ * construcción): corrupción estática del dato, venga de donde venga.
+ */
+export function invFormaCreditoActivo(rows: readonly CreditoForma[]): Hallazgo[] {
+  const out: Hallazgo[] = [];
+  for (const r of rows) {
+    // Tolerancia $50: Disapp trae 13 créditos con cuota×cuotas $2-12 por debajo
+    // del capital (redondeo de SU lado, copiado fiel — $132 en total). Eso no es
+    // el bug que INV12 caza (el real destruye MILES por crédito); alertarlo cada
+    // mañana sería ruido que desgasta la señal.
+    if (r.totalCredito < r.capital - 50) {
+      out.push({
+        invariante: "interes-negativo",
+        severidad: "alto",
+        creditoId: r.creditoId,
+        detalle: `cuota×días = ${Math.round(r.totalCredito)} < capital prestado ${Math.round(r.capital)}: el crédito pierde plata por construcción`,
+      });
+    }
+    if (r.importado && r.pagado >= r.totalCredito - 0.5 && r.totalCredito > 0) {
+      const exceso = Math.round(r.pagado - r.totalCredito);
+      out.push({
+        invariante: "importado-saldado-sin-finalizar",
+        severidad: "alto",
+        creditoId: r.creditoId,
+        detalle:
+          `crédito importado SALDADO pero aún activo${exceso > 0 ? ` (sobre-cobrado $${exceso})` : ""}: ` +
+          `Disapp ya lo cerró — finalizarlo (deforma fichas, mora y Renovar)`,
+      });
+    }
+  }
+  return out;
+}
+
 export interface ResumenReconciliacion {
   ok: boolean;
   totalCreditos: number;

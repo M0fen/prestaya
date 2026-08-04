@@ -335,12 +335,17 @@ for p in activos_db:
         continue
     total = round(float(p["cuota_diaria"] or 0)) * int(p["total_dias"] or 0)
     fin = sim_final.get(ref, round(float(p["pagado_acum"] or 0), 2))
-    if total - fin <= TOL:
-        continue  # queda saldado con lo importado: el estado derivado ya lo refleja
     if p["cliente_id"] in borrados_en_disapp:
         mantener_borrados.append(p)  # Disapp lo borró; acá se sigue cobrando
         continue
-    finalizar.append({"id": p["id"], "ref": ref, "colgado": round(total - fin)})
+    # SALDADO y ausente del export → FINALIZAR TAMBIÉN (auditoría 08-05). El
+    # `continue` que había acá ("el cartón derivado ya lo refleja") dejó 678
+    # créditos muertos como `activo` para siempre: la ficha mostraba "N créditos
+    # activos" en ~915 clientes (Disapp real: 456), mora contaba vencidos de $0,
+    # Renovar los ofrecía como candidatos y el panel perdió credibilidad en la
+    # presentación. Un crédito que Disapp ya no lista y no debe un peso está
+    # TERMINADO: colgado=0 (nada que perseguir), pero el estado debe decirlo.
+    finalizar.append({"id": p["id"], "ref": ref, "colgado": max(0, round(total - fin))})
 
 # ══ 3. Asignaciones para créditos nuevos ════════════════════════════════════
 asig = E.get_rows(db, "asignaciones", "id,cobrador_id,cliente_id,activo")
@@ -637,7 +642,7 @@ print(f"  ✓ finalizados: {okF}/{len(finalizar)}")
 
 # ══ VERIFICACIÓN end-state real ═════════════════════════════════════════════
 print("\n═══ VERIFICACIÓN (contra la base, no simulada) ═══")
-pres2 = E.get_rows(db, "prestamos", "id,disapp_credit_ref,estado,cuota_diaria,total_dias,pagado_acum,cobrador_id")
+pres2 = E.get_rows(db, "prestamos", "id,cliente_id,disapp_credit_ref,estado,cuota_diaria,total_dias,pagado_acum,cobrador_id")
 by_ref2 = {p["disapp_credit_ref"]: p for p in pres2 if p.get("disapp_credit_ref")}
 exact = under = over = 0
 peor = []
@@ -655,4 +660,40 @@ for ref, g in sorted(peor, key=lambda x: -abs(x[1]))[:8]:
 act2 = [p for p in pres2 if p["estado"] == "activo"]
 cart = sum(max(0, round(float(p["cuota_diaria"] or 0)) * int(p["total_dias"] or 0) - round(float(p["pagado_acum"] or 0))) for p in act2)
 print(f"  activos: {len(act2)} · cartera (cuota×días−pagado): ${cart:,}")
+
+# SALUD DE FORMA (auditoría 08-05): multi-activo y sobre-cobro son las dos
+# deformaciones que el empalme puede fabricar sin tocar un peso — se miden
+# SIEMPRE y se comparan contra el export (la verdad de Disapp).
+multi_cli = defaultdict(int)
+for p in act2:
+    multi_cli[p["cliente_id"]] += 1
+n_multi = sum(1 for v in multi_cli.values() if v > 1)
+multi_export = defaultdict(int)
+for c in ref2hoy.values():
+    multi_export[c["cid"]] += 1
+n_multi_export = sum(1 for v in multi_export.values() if v > 1)
+sobre2 = sum(
+    1 for p in act2
+    if float(p["pagado_acum"] or 0) > round(float(p["cuota_diaria"] or 0)) * int(p["total_dias"] or 0) + 0.5
+)
+print(f"  clientes con >1 crédito activo: {n_multi} (Disapp: {n_multi_export}) · activos sobre-cobrados: {sobre2}")
+if n_multi > n_multi_export + 5 or sobre2 > 0:
+    print("  ⚠️  DEFORMACIÓN: la base tiene más multi-activos que Disapp o hay sobre-cobros activos. Revisar antes de dar por buena la corrida.")
+
+# LOG DE CORRIDA en disco (antes no quedaba rastro reproducible de qué se hizo).
+import json as _json
+_ahora = locals().get("ahora_iso") or dt.datetime.now().isoformat()
+_log = {
+    "corrida": _ahora, "corte": str(CORTE), "commit": COMMIT,
+    "finalizados_plan": len(finalizar), "resucitados_plan": len(resucitar),
+    "top_ups_plan": len(topups), "mantener_borrados": len(mantener_borrados),
+    "activos_final": len(act2), "cartera": cart,
+    "clientes_multi_activo": n_multi, "multi_activo_disapp": n_multi_export,
+    "activos_sobre_cobrados": sobre2,
+    "vs_pagos_disapp": {"exactos": exact, "cortos": under, "pasados": over},
+}
+_ruta_log = os.path.join(os.path.dirname(os.path.abspath(__file__)), f"_empalme_log_{_ahora[:10]}.json")
+with open(_ruta_log, "w", encoding="utf-8") as _f:
+    _json.dump(_log, _f, ensure_ascii=False, indent=1)
+print(f"  log de corrida: {_ruta_log}")
 print("\nSiguiente: correr scripts/shadow-disapp.py --env-file .env.local --src <creditos de hoy> para el diff independiente.")

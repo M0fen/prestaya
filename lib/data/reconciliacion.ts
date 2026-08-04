@@ -13,6 +13,7 @@ import {
   invRendicionVsLibro,
   invGastosRendicion,
   invRutaCredito,
+  invFormaCreditoActivo,
   type CreditoRecon,
   type Hallazgo,
   type BaseCajaRecon,
@@ -474,7 +475,7 @@ export async function hallazgosExtraDelDia(db: SupabaseClient, hoy: Date): Promi
       traerTodo<Record<string, unknown>>((d, h) =>
         db
           .from("prestamos")
-          .select("id, cliente_id, cobrador_id, cuota_diaria, total_dias, pagado_acum")
+          .select("id, cliente_id, cobrador_id, cuota_diaria, total_dias, pagado_acum, monto_prestado, disapp_credit_id")
           .eq("estado", "activo")
           .order("id", { ascending: true })
           .range(d, h),
@@ -507,6 +508,21 @@ export async function hallazgosExtraDelDia(db: SupabaseClient, hoy: Date): Promi
       };
     });
     out.push(...invRutaCredito(filas));
+
+    // INV11/INV12 — salud de FORMA sobre los mismos activos ya traídos (gratis):
+    // importado-saldado-sin-finalizar (el artefacto del empalme que deformó las
+    // fichas el 08-05) e interés-negativo (total < capital).
+    out.push(
+      ...invFormaCreditoActivo(
+        pres.map((p) => ({
+          creditoId: p.id as string,
+          importado: p.disapp_credit_id != null,
+          capital: N(p.monto_prestado),
+          totalCredito: N(p.cuota_diaria) * Number(p.total_dias || 0),
+          pagado: N(p.pagado_acum),
+        })),
+      ),
+    );
   } catch (e) {
     if (!tablaFaltante(e)) reportarError("reconciliarDia:rutaCredito", e);
   }

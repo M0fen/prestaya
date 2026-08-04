@@ -1,0 +1,5430 @@
+{
+ "descripcion": "Barrida 08-05: finalizar activos-saldados ausentes del export Disapp (revert: estado='activo', finalizado_en=null)",
+ "finalizado_en_usado": "2026-08-03T23:00:00-03:00",
+ "creditos": [
+  {
+   "id": "e95dfb56-7573-40c4-b88a-70f1bc23dba9",
+   "ref": "3550498",
+   "cliente_id": "30014b79-c9bf-4613-9829-2bccd7f01a28",
+   "pagado": 12300.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "1cff7125-a7f4-43c4-9829-a18531d85b23",
+   "ref": "STUB:PRD0003395601",
+   "cliente_id": "0c78f34f-04d2-4103-a9b6-d32a99d22db6",
+   "pagado": 120000.0,
+   "total": 120000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "ba1af0da-10f2-4616-9bea-5ab439f20e8f",
+   "ref": "3514441",
+   "cliente_id": "177ad02b-e2ae-40e3-8ded-a87cfbff2048",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "e79da4d1-489b-4abf-b4be-4873db710fd3",
+   "ref": "3478253",
+   "cliente_id": "06486c6a-e980-43f2-b565-1a1e6c44087a",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "47f8fb5a-6044-47da-92f2-40c96e0fab8f",
+   "ref": "3503158",
+   "cliente_id": "7ac97c98-a784-4ce0-9f9a-d19403beedfb",
+   "pagado": 12500.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "e50245d6-6bef-4dcc-9fa5-51eb6ba2f860",
+   "ref": "3503766",
+   "cliente_id": "60b2220f-bf2c-425c-b363-6dc58dc80fa4",
+   "pagado": 32400.0,
+   "total": 32400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "bb82ebc8-9a94-4082-897d-d64fd00daeb7",
+   "ref": "3509109",
+   "cliente_id": "06e7fcb4-fcdc-4c98-a553-6e9d40d4d574",
+   "pagado": 9600.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b4078b0c-25a8-4937-9c2c-228277c80194",
+   "ref": "3483640",
+   "cliente_id": "c2bda025-96ca-4aa6-a0fb-9e36b6951fa2",
+   "pagado": 14400.0,
+   "total": 14400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "95831fdf-33c9-4e6c-8d0f-5850b487c6e3",
+   "ref": "3444769",
+   "cliente_id": "2e81070f-5095-4660-9086-3eef93da3cdf",
+   "pagado": 28800.0,
+   "total": 28800.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "3d614526-6b9f-4ae5-9320-1ce36b713b03",
+   "ref": "3444190",
+   "cliente_id": "3e58ec2e-632e-4361-b572-c88914e4dcf8",
+   "pagado": 30000.0,
+   "total": 30000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "474a5e24-d1d6-4cbe-ad07-8553a8a29c95",
+   "ref": "3516904",
+   "cliente_id": "8ce4c470-3840-49f8-878d-504452374e98",
+   "pagado": 24800.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "ae4a5411-a684-4971-ad5b-e056bc802c96",
+   "ref": "3477990",
+   "cliente_id": "2a0fa9ae-51e6-4596-89e5-33ebfc070e18",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "556ae61d-6691-45fa-9c26-c79a370dc8bb",
+   "ref": "3480751",
+   "cliente_id": "213c2b5c-3e8e-4c43-bb43-db211e3ee2a7",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b6f50b07-faea-4a61-bf52-27e48b8d343f",
+   "ref": "3503205",
+   "cliente_id": "6e9d86ca-1fe1-433a-b83d-35eac316bf47",
+   "pagado": 7200.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "8bdf2b74-819b-4317-b7e0-1fc08af4d184",
+   "ref": "3511736",
+   "cliente_id": "4950965e-f0e4-4227-9133-d0e8f6547b93",
+   "pagado": 24800.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "670bd06b-7c02-42b1-98ef-9d2569369e83",
+   "ref": "3528857",
+   "cliente_id": "df1d6744-e9e9-4606-8ee4-68a819546b9a",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "c222a634-4bc9-423f-81ae-310152fd2819",
+   "ref": "3511284",
+   "cliente_id": "67d8000d-f826-469b-8e93-a4cfd65fae64",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "9aeb6733-873c-451f-ad32-1ef6ac0948d8",
+   "ref": "3486847",
+   "cliente_id": "a8752cfa-3893-4a92-be66-a82a22205dcc",
+   "pagado": 9600.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "deca5539-da70-430c-9570-34dab58d348e",
+   "ref": "3486785",
+   "cliente_id": "16f05a9b-b39f-48b6-bfee-87f6e3d4b733",
+   "pagado": 17360.0,
+   "total": 16800.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "74f6bc8e-a27b-4802-b020-eeda0db59b20",
+   "ref": "3410565",
+   "cliente_id": "71657c8e-f6ee-4040-8122-6f33a03d8f30",
+   "pagado": 1800.0,
+   "total": 1800.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "8a7c5181-d6ce-452d-853e-bf41d31fe77a",
+   "ref": "3410136",
+   "cliente_id": "b87e548f-857d-4976-a21c-61439d5a92e0",
+   "pagado": 8400.0,
+   "total": 8400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "ee4d9026-bd95-463d-8ad2-96fb72454224",
+   "ref": "3511961",
+   "cliente_id": "c0faf874-9198-4625-86fa-6f522e14226a",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "2dec3d8c-6705-411a-9c2b-c8d8171e6700",
+   "ref": "3541289",
+   "cliente_id": "bdefa905-e745-4814-ab1d-69ba3743027b",
+   "pagado": 38000.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "583426e5-9d70-4294-80fe-0273b5b88fc7",
+   "ref": "3541863",
+   "cliente_id": "6288d163-105b-46f1-a627-c092b3708f81",
+   "pagado": 13000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "ec4269e2-b6a6-4dc8-bab4-53b627c9e92b",
+   "ref": "3541664",
+   "cliente_id": "c42a7fcb-b608-444a-958e-974894657ffc",
+   "pagado": 21600.0,
+   "total": 21600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "71a32b9d-9028-444c-b244-4ee9676e1328",
+   "ref": "3541334",
+   "cliente_id": "50230bb0-f8f5-49c6-8ae1-9f22442fe6ae",
+   "pagado": 8400.0,
+   "total": 8400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "ecbf8aed-d31f-418c-b6d2-c63468c6476c",
+   "ref": "3541332",
+   "cliente_id": "143f5811-ca5c-403c-8041-da28cc19935e",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "00049c77-37b5-45ce-b095-28ba3f756f00",
+   "ref": "3541177",
+   "cliente_id": "ba03345d-1c8c-48fb-bde9-057a681b2b93",
+   "pagado": 2400.0,
+   "total": 2400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "4bf54c64-1310-4911-b218-693e5cbc1ed0",
+   "ref": "3541278",
+   "cliente_id": "d33c7aaa-5e9e-478c-944f-2ae0dec98096",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "0d15853b-c965-4cbd-ac8c-4f155f3b883e",
+   "ref": "3541186",
+   "cliente_id": "2aa1a4d4-ff4e-4d49-8726-24bdc243ead4",
+   "pagado": 30000.0,
+   "total": 30000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "afb9379c-a32e-4e30-8dd4-f26614018f68",
+   "ref": "3539361",
+   "cliente_id": "a72b7e98-bfdd-44c9-8412-c71643f0e87d",
+   "pagado": 12400.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d8f62dfb-6996-4630-86f1-1cbdbd36ce14",
+   "ref": "3539239",
+   "cliente_id": "358313da-dba1-4b6f-a2ff-317ed75812c3",
+   "pagado": 7200.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "77c5f8fa-dffe-4df9-acec-fd96e466006e",
+   "ref": "3539238",
+   "cliente_id": "c0712e1a-2bc5-404e-8430-5c74fe623794",
+   "pagado": 30000.0,
+   "total": 30000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "8d995231-cf44-40bc-91bb-f1ce9ec89a61",
+   "ref": "3538875",
+   "cliente_id": "ec852aeb-b33f-4330-8fa2-4cc5431852c2",
+   "pagado": 18700.0,
+   "total": 18000.06,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "0bce622c-ac15-43f0-9399-64c8b6f39053",
+   "ref": "3538727",
+   "cliente_id": "54c81c0e-ac1b-4441-be26-aecbd1892a8d",
+   "pagado": 36000.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d709d85a-abe2-42f7-afcd-48213c54ee17",
+   "ref": "3538430",
+   "cliente_id": "c5c6b283-ccc3-4baf-a5ea-5d2ec0e7c712",
+   "pagado": 26400.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "1d81dd88-ee97-446e-80cb-a8215999f507",
+   "ref": "3538374",
+   "cliente_id": "091ca432-6286-43eb-a87c-527251899584",
+   "pagado": 7200.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "9fb5ab0a-a4fc-4927-9bbf-e725658e1d90",
+   "ref": "3537910",
+   "cliente_id": "1ec2ba6b-7cb7-4e48-a987-4a06b8303072",
+   "pagado": 15600.0,
+   "total": 14400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "99df272a-1805-4689-9ed7-f2c1d952f765",
+   "ref": "3505991",
+   "cliente_id": "0e6ba8c4-889d-44c7-9e78-af15089aec16",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "3be82f19-e8dc-4439-bfbc-ba54bf19e174",
+   "ref": "3536835",
+   "cliente_id": "7b6bdc0f-f9df-4e8e-83fc-54fba881c688",
+   "pagado": 12500.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "46b4be0d-2320-4321-aad6-39d6956d6876",
+   "ref": "3536503",
+   "cliente_id": "0d8ef6e5-c455-4023-8522-f2a567f4d244",
+   "pagado": 9600.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "9077120f-5566-425c-a4b1-0435ac9513e1",
+   "ref": "3536499",
+   "cliente_id": "396856e3-1f56-41cf-a475-7b3774d28e1a",
+   "pagado": 8400.0,
+   "total": 8400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "a5042387-2814-4c25-9475-20c5255f3496",
+   "ref": "3536232",
+   "cliente_id": "90ce7aee-5021-4c56-b808-5f7d95ce05f3",
+   "pagado": 18600.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "5f973098-13cb-45a7-8117-094888953b7f",
+   "ref": "3536021",
+   "cliente_id": "b68cc067-0845-4b1f-b707-07d6309f7946",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "227a5b97-c13c-4505-b25b-a68b33245953",
+   "ref": "3511304",
+   "cliente_id": "37a036bf-6c53-46df-bad9-13885b0ded50",
+   "pagado": 36000.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "71df04bd-06dc-45cf-b283-0fc0a15ead6e",
+   "ref": "3495677",
+   "cliente_id": "f481e053-dee1-4bde-8f94-3a57f5d89833",
+   "pagado": 37200.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "c4d59c96-005f-4e51-ae37-6833ef725839",
+   "ref": "3535754",
+   "cliente_id": "84f517d7-148a-4b9a-a6be-aa005ec3a20d",
+   "pagado": 25000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "62114a43-81b6-4ebe-ade2-621393d1e572",
+   "ref": "3535725",
+   "cliente_id": "2dde8048-02be-4304-bebc-a91772fe1ae6",
+   "pagado": 19800.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "44d4a6db-56f5-4c78-9e81-e91fbec3996e",
+   "ref": "3535642",
+   "cliente_id": "9489bb42-975c-404f-b863-d287872c32ca",
+   "pagado": 4130.0,
+   "total": 3600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "38c3430b-5b49-48e4-ad06-8c1b5bcf7387",
+   "ref": "3535625",
+   "cliente_id": "2367ef8a-d922-4a50-ba83-a556aa442b83",
+   "pagado": 7500.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "83f54d91-426e-41c4-a482-974bd4882799",
+   "ref": "3534648",
+   "cliente_id": "4055df2e-9c10-4f11-bb5a-35e249f7a354",
+   "pagado": 60000.0,
+   "total": 60000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "00040b8a-113c-42c3-ac0b-10ebade48212",
+   "ref": "3534377",
+   "cliente_id": "ee7ce1c1-8cdc-41be-b9cc-bb4d2601e18b",
+   "pagado": 1200.0,
+   "total": 1200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "09745bb5-94e5-495c-84f7-209e869763e2",
+   "ref": "3523279",
+   "cliente_id": "eaa2c56e-2bfe-4a96-9068-1e20bd307f04",
+   "pagado": 30000.0,
+   "total": 30000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d8fbeacc-c7d3-4708-ba1c-b14de51645bc",
+   "ref": "3487338",
+   "cliente_id": "20d2817d-8d43-40ac-8998-afa7484863d1",
+   "pagado": 7200.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "de24b19a-7909-4bc8-9e89-88741042633e",
+   "ref": "3487112",
+   "cliente_id": "753cf458-072c-4154-bd71-84b4ac1420f0",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "ec0ee908-a1b8-4b69-953d-6f4e0ac8dc64",
+   "ref": "3486942",
+   "cliente_id": "3df9f7cd-e5d6-4ca1-b5a3-f430003fbb30",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "1d0abab7-b4f6-457c-987f-cece9da61feb",
+   "ref": "3534071",
+   "cliente_id": "66797fb3-4f37-4d36-9808-e19b467d3368",
+   "pagado": 4200.0,
+   "total": 4200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "2fa63259-ff3e-4b4b-81d4-5b1060ef8640",
+   "ref": "3533735",
+   "cliente_id": "fdb8bd58-a054-4f06-919d-f232df6e3773",
+   "pagado": 31000.0,
+   "total": 30000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "c6102167-4868-4030-b531-8fa27ce64125",
+   "ref": "3533680",
+   "cliente_id": "1d9abc0a-7327-472e-b165-f3c1dbc338bc",
+   "pagado": 11160.0,
+   "total": 10800.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "c7d8bb1d-f083-4daa-aa6b-1d77fdd68198",
+   "ref": "3533605",
+   "cliente_id": "8a32e9b0-4ad4-4eae-8758-8ca195bb9be5",
+   "pagado": 11250.0,
+   "total": 10800.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "adb14d0d-0dc2-4f14-b139-5b877679ab1f",
+   "ref": "3533458",
+   "cliente_id": "9fb3fda7-7398-44b5-ad38-8315be33e43f",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b5c77435-97b9-423d-bfbf-123a93f655a0",
+   "ref": "3533354",
+   "cliente_id": "889f78fd-c5df-44c2-8214-efa5fa005e87",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "5f8352b2-018e-4d12-be12-71932f47836f",
+   "ref": "3533339",
+   "cliente_id": "b30a01ac-b713-493f-b44f-e782cb03c715",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "0085d9f2-ebd7-4b82-b2b9-eb5894df4fd4",
+   "ref": "3533336",
+   "cliente_id": "38e85816-1732-43ae-af2d-55cb2995e275",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "4d77ad74-c9c7-4d1f-a96e-e7ea0b829448",
+   "ref": "3533254",
+   "cliente_id": "1ff5d229-7995-4209-805e-bff9cafcad1b",
+   "pagado": 7500.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d977175e-c07f-4c9e-910e-cdd2f3dd4679",
+   "ref": "3533201",
+   "cliente_id": "66a58c28-49c5-4863-8d59-d47a369b3396",
+   "pagado": 7500.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "6c968913-6dde-48e1-b7f7-0df272dbbf71",
+   "ref": "3531761",
+   "cliente_id": "caf32bbd-7188-4367-9f3f-c62e9acca88f",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "e49d3070-7487-461e-9604-0d669cf19581",
+   "ref": "3531375",
+   "cliente_id": "915989af-596d-45c4-bbc4-ef997d74f3ff",
+   "pagado": 3960.0,
+   "total": 3600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "abaae8e4-99e1-49e7-8508-b1d635733510",
+   "ref": "3520416",
+   "cliente_id": "12154034-a3b1-4206-a472-a844e625b82e",
+   "pagado": 4800.0,
+   "total": 4800.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b144a967-51c5-42b7-ba55-b20060f02dce",
+   "ref": "3531230",
+   "cliente_id": "f7efe8f5-15d2-4dc4-81a8-1f8212411c45",
+   "pagado": 123000.0,
+   "total": 120000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "3a999cfa-4743-4374-9d3d-a1986d325c73",
+   "ref": "3531165",
+   "cliente_id": "e1750342-a19b-41f8-b569-1fead8435b9f",
+   "pagado": 8750.0,
+   "total": 8400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b64decdf-6947-4e59-b574-39b1cc968c7d",
+   "ref": "3530354",
+   "cliente_id": "acf83baa-d551-409f-8c80-67a00d0dc493",
+   "pagado": 7200.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b829a83a-c095-47dc-8d8e-4bac54e8f864",
+   "ref": "3474340",
+   "cliente_id": "7af8193c-c07c-4ac6-ad90-bda430fed453",
+   "pagado": 4800.0,
+   "total": 4800.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "26d1844f-8b9d-4daf-89c5-8469a9b95620",
+   "ref": "3508441",
+   "cliente_id": "d0f20ed6-8854-41ce-8562-b03e15b61d62",
+   "pagado": 48000.0,
+   "total": 48000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "a70f1999-6d2a-4bbd-8eff-fc32cbfe1d22",
+   "ref": "3494411",
+   "cliente_id": "678e8dad-1731-4be7-ba23-a6c894520470",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d997f3c8-48d2-4d6b-bb2c-87a8c9ba9381",
+   "ref": "3503632",
+   "cliente_id": "97cd9b95-8fe0-4fbb-b8d2-72840c195b21",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "11b229aa-6434-44bb-a9ea-35c477d147ca",
+   "ref": "3491840",
+   "cliente_id": "3751ebb3-79be-4d5b-a49c-d0bcd606c76d",
+   "pagado": 6200.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "e4e01141-0872-437f-adf5-752357da0363",
+   "ref": "3468750",
+   "cliente_id": "d857eba1-54f9-49fe-b407-eb42a7315c51",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "1a12f8cd-04f0-40f8-a00a-4515c8c40903",
+   "ref": "3468748",
+   "cliente_id": "883c3fde-2e6e-4234-aa89-8579da20a3a7",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "756308f8-36bf-4e9a-b00e-ff72ad5de472",
+   "ref": "3527661",
+   "cliente_id": "def28de4-68f0-44bc-8598-a15b968f3e6b",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "e4c3c144-6f56-4ff9-9ddf-bd07f3841587",
+   "ref": "3527617",
+   "cliente_id": "6422465f-1d79-4a43-a18c-808614ce577e",
+   "pagado": 8750.0,
+   "total": 8400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "a31dad58-0c9b-4139-a01e-e64541f4b73c",
+   "ref": "3527594",
+   "cliente_id": "035f1cb9-8942-4f24-93d4-906beb46d461",
+   "pagado": 36000.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "e67429e1-6fe7-4a84-af4f-69bc321a8506",
+   "ref": "3508310",
+   "cliente_id": "85fd0174-cffe-463c-a91d-07762ff6e04c",
+   "pagado": 18750.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "99365234-966c-4e0b-8cd5-49450c32a04b",
+   "ref": "3464357",
+   "cliente_id": "8e2a622f-0c15-4583-9735-3533f92f1b63",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "bb32a0c2-71f9-4e1d-885f-9107d7e0f2dc",
+   "ref": "3527455",
+   "cliente_id": "9d792352-7a4d-4322-ae14-a7c2fe68d6d7",
+   "pagado": 25200.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "be881174-bd29-435e-ab13-9ee8dceadf32",
+   "ref": "3526633",
+   "cliente_id": "7087adbe-a541-40e9-9f9f-bca7bc7526e5",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "c865a55c-bb50-47ee-8ed6-f02e1b0ea513",
+   "ref": "3526440",
+   "cliente_id": "2b8393f6-7ea5-4c12-9dfc-2d7a565e6746",
+   "pagado": 9600.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "c59fe1dc-a272-4c4d-9363-3596eaa93b09",
+   "ref": "3525973",
+   "cliente_id": "6089a6b2-507a-456d-838b-d967376c7b12",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "ec010ccd-a661-493b-9118-54a587d82bfd",
+   "ref": "3525839",
+   "cliente_id": "a8b31dfb-cecd-4a75-8f41-92ba629a0b50",
+   "pagado": 1200.0,
+   "total": 1200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "4e0c480d-245b-4c2b-8ed3-cacfe09bfe9d",
+   "ref": "3525699",
+   "cliente_id": "5a23cced-f00f-4c8f-8fa8-88c4b895e539",
+   "pagado": 12500.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "cf94a741-69e4-44b4-8c65-f651204c6ee5",
+   "ref": "3525695",
+   "cliente_id": "7c833db4-f7e9-4b7d-a3dc-bab362fbada6",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "fe6ced15-936f-42f8-8eee-d52554d4d17e",
+   "ref": "3525584",
+   "cliente_id": "b7ff31fd-04d9-4cfd-aa06-8ec53812045b",
+   "pagado": 14400.0,
+   "total": 14400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b1dbf7ff-cd15-412f-be42-6bc234fc6924",
+   "ref": "3525170",
+   "cliente_id": "3b4e821a-62ef-4156-83cd-0a615f487efb",
+   "pagado": 8400.0,
+   "total": 8400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "db5e2ee8-4799-4577-9b07-cd79f3b68c56",
+   "ref": "3525150",
+   "cliente_id": "5a3e0315-bc48-4c69-8b99-7037ff56d970",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "c9b8c76c-8075-4697-b4b7-b511eb1b6e0d",
+   "ref": "3531423",
+   "cliente_id": "633e2882-b071-4e47-b4c7-5060d243546d",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "55ac185f-f321-4298-81e4-40ddff7cead3",
+   "ref": "3524910",
+   "cliente_id": "6528c8a9-5c7c-4dc4-a7cb-74007f4c5e52",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "1b4fdd31-6cde-4560-84dc-b0c0fa9e81b0",
+   "ref": "3524824",
+   "cliente_id": "76ee65b7-8dd9-4a2c-b701-5181c29a3204",
+   "pagado": 4950.0,
+   "total": 4800.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d752f545-b5f7-4f0c-9234-362bfbee4250",
+   "ref": "3524807",
+   "cliente_id": "281053ca-1142-405d-9e1f-fe3701f4078d",
+   "pagado": 14400.0,
+   "total": 14400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "a4a9590d-e1cd-48d0-aa75-5b6c5d291573",
+   "ref": "3524801",
+   "cliente_id": "7f6a5666-0722-4270-9fe0-7b53eb1aa62d",
+   "pagado": 9600.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "e26a72ca-3ed4-4ead-918e-db8c14913617",
+   "ref": "3488484",
+   "cliente_id": "397916c6-b7d0-445a-b547-9bd15332516b",
+   "pagado": 60000.0,
+   "total": 60000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "fea46b9e-64b4-45e2-9e9e-5d3b2bbc5e01",
+   "ref": "3396228",
+   "cliente_id": "e8472646-9216-4bc7-a7bf-f393b3d0ce39",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b4df803b-0a12-4198-8075-05c4bb634a91",
+   "ref": "3524737",
+   "cliente_id": "750f9a8d-2c52-4cf4-b010-6f2a84acebbe",
+   "pagado": 48000.0,
+   "total": 48000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "7876f5b0-5c02-4eb7-afa6-a40bbf0eb7a7",
+   "ref": "3524724",
+   "cliente_id": "c7a11463-7608-4ca6-9cc5-caf80f3047ae",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "efda8fdd-656b-49cd-896f-a4662a34a894",
+   "ref": "3523840",
+   "cliente_id": "de9d01a6-49a9-4cda-89d8-3b183b825d00",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "6594388b-06d9-496e-9bdb-6a1b46184abc",
+   "ref": "3523663",
+   "cliente_id": "a3606bbd-f327-4cf6-a0d5-5513ef9c424a",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "dc0db00e-73e9-4478-a79a-8fc42ec2a156",
+   "ref": "3523607",
+   "cliente_id": "aebc8652-c4a0-42ab-944a-85b1c9b8c70f",
+   "pagado": 16800.0,
+   "total": 16800.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "78f0b16a-9adc-4c02-861e-6e6ec118973e",
+   "ref": "3523590",
+   "cliente_id": "b6187d7d-048a-4524-afd1-6731270c9de4",
+   "pagado": 7800.0,
+   "total": 7800.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "94de3933-5584-4249-bfb3-d0f43967324e",
+   "ref": "3522943",
+   "cliente_id": "22cf46a3-04cf-4fcd-b1d6-f92650adc710",
+   "pagado": 8400.0,
+   "total": 8400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "09090d0b-82e7-40f4-8fd6-ffdeda8a2786",
+   "ref": "3522741",
+   "cliente_id": "0e66ae13-305d-44b3-8409-c23ad9734bb8",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "670080e1-fc5d-4d2d-9771-5a8a391d5d71",
+   "ref": "3418330",
+   "cliente_id": "c8a30926-d2fd-46ec-a759-35d52c1e0d23",
+   "pagado": 108000.0,
+   "total": 108000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "dee7310d-4dca-4673-bec5-eac3e3b15ff0",
+   "ref": "3411144",
+   "cliente_id": "e7c2819d-7824-4d36-b817-f5f33c0bf6eb",
+   "pagado": 20400.0,
+   "total": 20400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b8e9326c-fecb-4328-9017-beec88875fdb",
+   "ref": "3524740",
+   "cliente_id": "8191d245-95eb-4580-9129-47fda12a7db3",
+   "pagado": 36000.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "8b018a40-92a5-48a3-82f3-0e706182a856",
+   "ref": "3503144",
+   "cliente_id": "d689e024-cbe7-49ed-8463-f10d79d717e7",
+   "pagado": 42000.0,
+   "total": 42000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "914a0c55-5a4b-4a0d-a197-44d76aedcc12",
+   "ref": "3522645",
+   "cliente_id": "26d8dd56-d00b-4492-a40c-9598152c6691",
+   "pagado": 36000.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "5252b24a-4c42-422d-92d5-a1a5e7e92c15",
+   "ref": "3522618",
+   "cliente_id": "5442a0b7-3293-4c21-81a8-f26cbebe6b0c",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "9977aba0-ef93-4f47-8a97-a646c5ee0548",
+   "ref": "3522360",
+   "cliente_id": "4e463e91-da16-4d1d-b2bc-9f3cf8053b9b",
+   "pagado": 720.0,
+   "total": 720.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "4c78209d-cc2f-4afd-993d-6402ec2ce2fe",
+   "ref": "3521801",
+   "cliente_id": "eef7b112-6f43-4034-b502-97801deee5e6",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "ce99937b-fba9-47c6-9a29-dd18b9105a8c",
+   "ref": "3521754",
+   "cliente_id": "06ed94b2-727a-4b9f-a209-ce64a4e058d4",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "07d3ed29-835a-4275-9c07-f9355d05ab34",
+   "ref": "3521692",
+   "cliente_id": "de3bd591-32fe-46b7-a0c4-1f70dc49db6b",
+   "pagado": 15600.0,
+   "total": 15600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "3fba5de7-5a7d-47d3-9e2a-416a17076484",
+   "ref": "3521646",
+   "cliente_id": "bee11d79-08b4-4cbd-a121-fe2274961dd8",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b8a259dd-adb7-427e-aab7-9ebc587070c5",
+   "ref": "3525332",
+   "cliente_id": "73890c80-c533-4afe-958f-0d60753f9e14",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "eb9564e5-cdee-4642-acb9-1dd22fe1764b",
+   "ref": "3521467",
+   "cliente_id": "242b7dfb-9b93-4158-930a-892cb87b0519",
+   "pagado": 7500.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "08bd0443-fdf4-459f-a632-d86ab97eba9d",
+   "ref": "3521460",
+   "cliente_id": "ea4d9742-5c9d-4f34-95da-dd15c961c301",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "0ce65e89-5b03-4c0e-aa65-8b25fcaceba4",
+   "ref": "3520109",
+   "cliente_id": "d4a24530-44bc-4ef7-a536-863f74479e97",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "5d122b93-323b-46c7-b100-e3b7ff6a3498",
+   "ref": "3520075",
+   "cliente_id": "b197da8e-5c83-4729-97f0-c7f83289b047",
+   "pagado": 9600.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "7b7c8bda-5625-4052-946e-703e0e00c5bb",
+   "ref": "3520064",
+   "cliente_id": "ce22fe09-ac7c-404d-9b44-0c53dbe77fbd",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "1f6ad50c-2c60-439b-9aa9-c7d8114f86dc",
+   "ref": "3520007",
+   "cliente_id": "4e99d08f-c89b-46f0-9549-b8c64d702c09",
+   "pagado": 120000.0,
+   "total": 120000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "150e6b5d-2f38-4fdb-bf3e-12cf546ed98f",
+   "ref": "3519966",
+   "cliente_id": "dd5a744f-3127-4d2e-a9c9-eec2f5e4b2a2",
+   "pagado": 54000.0,
+   "total": 54000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "bb1c48a2-c1f2-44f5-a7ac-ba74ac72bcaa",
+   "ref": "3519878",
+   "cliente_id": "d23f50d1-fbda-4a70-a0d6-409a288997d3",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "923af4fe-7a32-4325-9f2a-8f49b824f81d",
+   "ref": "3519847",
+   "cliente_id": "07bdd9cf-884c-4107-a7c6-bd06ed33e429",
+   "pagado": 7200.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "f4cc035f-de76-4f32-abc1-915d0c9a6b13",
+   "ref": "3519260",
+   "cliente_id": "dc6b1692-6dfb-4945-90eb-d1d83eba9404",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "e57a3dec-4f09-4679-8a4c-0854432ff81a",
+   "ref": "3519231",
+   "cliente_id": "688f3116-7bee-430a-b478-d4c9cd960953",
+   "pagado": 14400.0,
+   "total": 14400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "1a5bcaaa-07f3-48c7-865a-4b6362be3e51",
+   "ref": "3519141",
+   "cliente_id": "13a2c9ad-3bdb-4eb3-8ad9-f7c28f44b609",
+   "pagado": 6250.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "58805e02-ac78-4859-a5fa-4bee9c090865",
+   "ref": "3519101",
+   "cliente_id": "a4fee82d-2b77-4581-bb55-ab63204934ae",
+   "pagado": 36000.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d18fc32d-a181-43be-b93b-8516369570a2",
+   "ref": "3519097",
+   "cliente_id": "04bbf415-73ae-4081-a18f-b7f12e5a39a8",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "c5b4c789-ed8c-4432-b55c-ad448fcb8d2f",
+   "ref": "3518253",
+   "cliente_id": "02faa2e0-c1dd-4536-94b7-10f7e68e61c6",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "40d4fbcb-cac9-4640-a54b-98755d85917b",
+   "ref": "3517821",
+   "cliente_id": "c6b0a4e5-5abe-46c3-9406-7c8074422cc9",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "a1069f11-6f4b-4018-af67-b1bd6d272a82",
+   "ref": "3517554",
+   "cliente_id": "65314872-c6eb-442b-a99d-cdcc22155ff2",
+   "pagado": 720.0,
+   "total": 720.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "1b7e3940-9b64-4370-857d-d55980e42a2a",
+   "ref": "3517339",
+   "cliente_id": "2152d073-5a8e-4225-9298-4f909e226862",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "6037840e-eba0-4753-b7b7-51d096d141d6",
+   "ref": "3517322",
+   "cliente_id": "515776b0-f641-420e-a401-4e1f49fa62e4",
+   "pagado": 48000.0,
+   "total": 48000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "1bc0da57-4cac-4017-b1b4-787e9036190f",
+   "ref": "3517298",
+   "cliente_id": "d59cc418-3c66-4cb2-86c4-81abd52bc378",
+   "pagado": 1800.0,
+   "total": 1800.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "3a37d474-4cbe-4065-8991-3d756e79610b",
+   "ref": "3517256",
+   "cliente_id": "db330953-54b0-44a2-b26f-a54044a70807",
+   "pagado": 6300.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "5f7ed374-de67-42cc-a0f1-eec0f8f99aaa",
+   "ref": "3517235",
+   "cliente_id": "1e86c83e-49b0-4d4e-94f0-5584c5c3ebb5",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "97e094dc-4428-43e5-ab77-a325889fa499",
+   "ref": "3516955",
+   "cliente_id": "bae8de65-c94c-435a-a80b-f7b7e6c6966a",
+   "pagado": 7500.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "3a0144b9-5263-4a04-aabb-999a7b973559",
+   "ref": "3516889",
+   "cliente_id": "4f217b3a-fc0d-4b44-9a57-52b9aa11510e",
+   "pagado": 7800.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "9a74511a-7f8d-42d5-b563-87226a951122",
+   "ref": "3516887",
+   "cliente_id": "68e8dedd-be31-4837-b9c2-29a7b68d7a13",
+   "pagado": 7000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "dd390273-0b87-48ba-ae04-694c9d5d0866",
+   "ref": "3516870",
+   "cliente_id": "5f5455d3-3672-4945-81c1-031a581196d1",
+   "pagado": 36000.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "e9c3de6e-8255-4d17-8e55-72d239f4f08c",
+   "ref": "3516864",
+   "cliente_id": "4a0034fc-4728-458f-a47f-43f8c94e3b65",
+   "pagado": 8400.0,
+   "total": 8400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "f8e2d984-1a8a-49af-ad1d-3f50d0327348",
+   "ref": "3516860",
+   "cliente_id": "980a25b1-13c6-4a7e-b04c-e89e5783d831",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "c5fc0061-fd46-411e-aa22-088c7e0db012",
+   "ref": "3516849",
+   "cliente_id": "f835f82e-5646-4cb3-91d4-a593ee14fc44",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "2c9d3740-56c0-4273-a304-1cc58a058793",
+   "ref": "3516843",
+   "cliente_id": "b267fa05-de9d-4d19-8b90-cb4e980c368c",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "f93e81c2-9c1f-4dac-ab87-bb9578b0a18b",
+   "ref": "3515747",
+   "cliente_id": "d420920d-a10d-4675-8ef5-838523db55f3",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "ac43f711-e840-457f-8129-8c03bf9411f9",
+   "ref": "3515692",
+   "cliente_id": "2d9b4332-3ca4-4e41-a005-68cfdc401c33",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "38e365f6-294f-4f43-8fc0-5fd2b1ee2c4f",
+   "ref": "3515591",
+   "cliente_id": "69a577ed-4e20-4df7-af57-f6a023825e14",
+   "pagado": 36000.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "9f39186d-8aee-414e-a73a-c6182f4a3757",
+   "ref": "3515415",
+   "cliente_id": "b612af4c-a954-42f4-950f-89de98dad2a4",
+   "pagado": 25000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "bc6ff45f-bf52-41cf-b214-5ab77f8e8799",
+   "ref": "3515195",
+   "cliente_id": "cf332de6-d648-445b-bc2b-276dbb91c71a",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "25c17ce0-ca3c-4bb7-990d-da9281bbdcb3",
+   "ref": "3515075",
+   "cliente_id": "8a92a569-3da0-4445-8d39-4dff94541d28",
+   "pagado": 9600.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "fcd8a87c-e8e1-42e0-b5f6-7e0ce9b5d088",
+   "ref": "3515046",
+   "cliente_id": "31af34c4-15d3-457a-b1f6-6f492ca485cf",
+   "pagado": 12500.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "612e534a-86a3-43bb-bd9e-909eb4084e85",
+   "ref": "3514698",
+   "cliente_id": "24860729-8029-47c1-a05d-097396b0d6a3",
+   "pagado": 42000.0,
+   "total": 42000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "8de994f9-7278-48fe-9a59-a13f6ab56870",
+   "ref": "3514477",
+   "cliente_id": "92bdf9ae-0550-4c3e-b45c-a61d66282c65",
+   "pagado": 36000.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "bc0ac5a2-69c2-459a-9cab-225ca94a11fe",
+   "ref": "3514361",
+   "cliente_id": "ae1f799f-5202-4c58-98d2-8f2d73ca0fc2",
+   "pagado": 7200.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "a218d393-9c12-42b4-88e4-8a1afe67b72a",
+   "ref": "3513986",
+   "cliente_id": "3d16955f-e680-408a-b445-07093796ee64",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "614e3bcc-ed89-4767-92ef-8d6fae5dae20",
+   "ref": "3513984",
+   "cliente_id": "a541e8ec-c1f7-4a77-b042-a6fd6935b1ba",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "5160716c-d17f-4ed1-a14c-1318ffb69b96",
+   "ref": "3513938",
+   "cliente_id": "ee6ac90f-e4c8-4e8f-9e63-0b571d5bf4b3",
+   "pagado": 12400.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "da63e3df-cbd6-4c00-a5c6-8272230cb1fc",
+   "ref": "3513934",
+   "cliente_id": "462e9ddf-6d01-41ee-8d5a-ff5da5c2141a",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "4e036db4-a900-4c72-ba31-19a4bdac13d6",
+   "ref": "3513919",
+   "cliente_id": "bebe1679-62ce-4185-a8a7-663b01006d17",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d531619a-5d8e-4922-bac6-8cb9e2e9fed6",
+   "ref": "3513893",
+   "cliente_id": "78eeca5a-8860-4c22-921c-1abc3ee410cc",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "28ccbcbc-817d-4a52-a674-b761372d2d9b",
+   "ref": "3513871",
+   "cliente_id": "926dc2e0-37bb-4806-a9b4-33dd75afa071",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "a37df223-3385-4d1a-a591-c2ffae8b4280",
+   "ref": "3513870",
+   "cliente_id": "b25d816e-c78f-4d75-a354-a2167f215d86",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "1d2103db-6898-4b27-903b-2d59afe4c217",
+   "ref": "3512423",
+   "cliente_id": "cdc6d8a6-5d83-42a5-9e0f-a0d6cb6a5e7d",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "16d354bc-1823-4124-a8e2-6b7bc6a1175e",
+   "ref": "3512394",
+   "cliente_id": "c3936a7f-b0f9-49e9-9492-0c9908285eab",
+   "pagado": 24800.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "a0467d1d-e827-4c84-922c-20ecc91fa8ac",
+   "ref": "3512238",
+   "cliente_id": "5fccb586-33c8-45b2-b51b-2bd8675a268d",
+   "pagado": 1200.0,
+   "total": 1200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "1fb0c24b-393a-4172-bdf0-f75db04d76fe",
+   "ref": "3511992",
+   "cliente_id": "59c33665-aeb9-4c3b-86ed-f2077623d765",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "e0b7d158-dfa4-43b5-84c6-053c59b660b8",
+   "ref": "3511942",
+   "cliente_id": "708dabec-e99b-4630-93eb-65a6f7bf4d06",
+   "pagado": 9600.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "dca8bd8c-7af7-45df-b9a0-90def26ed2ca",
+   "ref": "3511860",
+   "cliente_id": "ac8dc7f6-7bb7-41d0-8f4f-604a14ec50ff",
+   "pagado": 12500.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "60c04041-4eb5-48c8-a80b-f5277d2cebac",
+   "ref": "3511856",
+   "cliente_id": "b9868af3-0515-4778-ae7b-7133f9a451ab",
+   "pagado": 36000.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "bd52fa51-8770-4b91-a305-c5962ff4f736",
+   "ref": "3511848",
+   "cliente_id": "0f23b56c-b958-409d-b7c8-92ac47f8085f",
+   "pagado": 36000.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "199c9629-fe7e-460d-a7e3-4a165f381fde",
+   "ref": "3511645",
+   "cliente_id": "9fb3fda7-7398-44b5-ad38-8315be33e43f",
+   "pagado": 60000.0,
+   "total": 60000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "f2cc417b-51e3-41e6-9b6b-b27547f87ab5",
+   "ref": "3511644",
+   "cliente_id": "a66c70cb-b80e-4136-b9e0-9b2cfe1c53bd",
+   "pagado": 30000.0,
+   "total": 30000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "22373d40-451c-42f2-9d0f-ff4883219996",
+   "ref": "3511625",
+   "cliente_id": "721640a5-59f2-400b-92d5-8f3089ad7684",
+   "pagado": 12500.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "4b63440c-a22a-438e-82d7-b236ad96d608",
+   "ref": "3511513",
+   "cliente_id": "ed5a9685-a887-4d8b-8ad6-2427457ecdad",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "9893aa09-2386-4e55-a285-92bb93dce5ea",
+   "ref": "3511481",
+   "cliente_id": "9ab1861e-71e9-4137-a8e7-05ef92501e5f",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "e30de856-6796-458f-8b37-347a98fcea98",
+   "ref": "3510060",
+   "cliente_id": "216639ee-bf06-4129-b05f-d6de4eb9a568",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "fd20dc54-3dd9-4429-a576-957280a661c6",
+   "ref": "3509833",
+   "cliente_id": "22a64163-eb3d-48d7-81a0-d27397a5fbbc",
+   "pagado": 24800.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "95a8ca44-a23b-4807-ba75-6e40c448cb1b",
+   "ref": "3509770",
+   "cliente_id": "4cfda60f-41c4-4285-802b-a7d13c78ba6a",
+   "pagado": 600.0,
+   "total": 600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "4a9afc09-2f6e-440e-812b-444471313c1d",
+   "ref": "3509505",
+   "cliente_id": "9832987f-66a5-497f-b1a6-72b6043f5747",
+   "pagado": 7200.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "ccdacad1-71af-4b18-b87e-8c3543e52de2",
+   "ref": "3509390",
+   "cliente_id": "51970755-f731-4f17-9f3f-9bb60db957f7",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "bcd1e301-ef87-4232-84a8-ce8f032a54c8",
+   "ref": "3509367",
+   "cliente_id": "a7a872ad-109a-4e97-bfdc-78cd765d1fd3",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "54707052-b6af-4adb-b1fb-10ba426abd9b",
+   "ref": "3509326",
+   "cliente_id": "13e9fefb-9ecd-4919-a76c-5fcba0b53bb1",
+   "pagado": 15600.0,
+   "total": 15600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "3345bfc5-bcc5-48af-a9a8-2dc6c2fee55d",
+   "ref": "3509223",
+   "cliente_id": "9f7ea350-b25a-4cb3-9a55-3b713b5de685",
+   "pagado": 10800.0,
+   "total": 10800.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "26e165d6-c766-40f6-8cda-b613eb5c0695",
+   "ref": "3509207",
+   "cliente_id": "296c0ce4-4c77-4bc2-bbca-be8bce6a5803",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "e2f965d2-6a76-4d5f-9932-c3bc6b2a82ee",
+   "ref": "3509183",
+   "cliente_id": "49c96f76-daeb-4dda-be80-195ef5ab0606",
+   "pagado": 3000.0,
+   "total": 3000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "c8a26bd9-f6fe-4ae1-89ba-40a5f35f1e72",
+   "ref": "3508468",
+   "cliente_id": "3a06e78e-0dba-48a5-8c60-964d7df0839b",
+   "pagado": 12500.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "617809cd-0bd2-4856-983b-75858f40e450",
+   "ref": "3508365",
+   "cliente_id": "ac376a13-6954-4c98-8d2e-97e50e3484cc",
+   "pagado": 50000.0,
+   "total": 48000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d0651e26-f2db-48e6-be47-340e053b400e",
+   "ref": "3508311",
+   "cliente_id": "730d805b-a81c-4df7-a0ed-801691516eb1",
+   "pagado": 12500.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "097ef6d6-4f2c-4dc4-950c-53cd77c2d549",
+   "ref": "3507549",
+   "cliente_id": "47f53fa9-0dd9-43af-93cc-685d2b0c297c",
+   "pagado": 8400.0,
+   "total": 8400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "1249b8b5-bac2-48ba-96f4-a83f5b1807eb",
+   "ref": "3507535",
+   "cliente_id": "11d98a1d-49c3-4d0f-9fb1-ec1fe44977d4",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "bc6ecb81-7f90-49ac-a0cd-d43b38dac349",
+   "ref": "3507483",
+   "cliente_id": "4c562e63-6ebb-4913-93fb-16a9b718e057",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "c6593ca9-4cca-44cf-b91b-93a088d09173",
+   "ref": "3507172",
+   "cliente_id": "7178850e-c55b-4c4e-a790-652ad2f5b863",
+   "pagado": 4601.0,
+   "total": 4600.8,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "ac3a9a1e-38bf-4f4b-aa2f-26ef6e21363e",
+   "ref": "3506683",
+   "cliente_id": "ee570a05-f12b-405f-b90f-923d38deda76",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "accd50e2-39e4-428f-8330-37db70575665",
+   "ref": "3506555",
+   "cliente_id": "602a12a7-7da6-418a-8a4e-f89ddd6fdda8",
+   "pagado": 8400.0,
+   "total": 8400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "c1b70910-6589-43d2-897d-229b2b5c20d0",
+   "ref": "3506228",
+   "cliente_id": "c24a2b3e-c8e2-41bb-8a67-20fc60ff8a37",
+   "pagado": 19700.0,
+   "total": 19200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "af51823d-1aa1-4787-8647-a5952a2a7805",
+   "ref": "3505848",
+   "cliente_id": "b28ce8ef-402d-42c8-8f47-51b9e1431321",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "c90c63b0-aaec-41aa-95f9-bf2a07b8f1a6",
+   "ref": "3505712",
+   "cliente_id": "8aaa4dbc-1b18-4c4f-8e14-846803386f9f",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "6ae0ac39-f4c4-40ff-bdd7-00854e71b1a1",
+   "ref": "3505692",
+   "cliente_id": "bbcd16e1-ab5b-4f95-b635-482da8d83549",
+   "pagado": 20500.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "ee69f3cf-8655-4110-9964-93449b28d6cf",
+   "ref": "3505620",
+   "cliente_id": "c02471d6-8723-4be6-8d10-257ed69bec33",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b7995821-f324-4724-b91e-3ebba346aa44",
+   "ref": "3505600",
+   "cliente_id": "754f8235-3ebc-413b-87ea-f220d4a6920f",
+   "pagado": 8400.0,
+   "total": 8400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "f6bdedd9-c62d-47fd-a01f-3dd05ca9351b",
+   "ref": "3505568",
+   "cliente_id": "283af078-b20d-4d8a-ada3-d64fe45bd66f",
+   "pagado": 54000.0,
+   "total": 54000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b7ad8ea9-0b52-4329-8f27-c586f6fba337",
+   "ref": "3503922",
+   "cliente_id": "da0bb5ba-6c4d-4dbd-a8f0-e5b35eed955d",
+   "pagado": 37200.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "feab354f-7e9d-4042-b44f-481b588f5bf7",
+   "ref": "3503761",
+   "cliente_id": "94c0d227-b9f6-4cff-85b2-f4f6ed120162",
+   "pagado": 24800.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "36c5398e-745d-46df-9172-6ce7c8371165",
+   "ref": "3503161",
+   "cliente_id": "1c7a3e08-486b-4678-9ab8-ba5a7d7fccc3",
+   "pagado": 9600.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "fa7f7820-e81d-41b9-a8e3-3a9deda9ccb5",
+   "ref": "3502055",
+   "cliente_id": "09b9743e-8529-4b3f-8532-8ae00aad81f1",
+   "pagado": 14880.0,
+   "total": 14400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "c9c8be8d-9012-4135-8875-259a800b83d7",
+   "ref": "3501805",
+   "cliente_id": "b554d0e6-ba7f-4593-905b-2b73997c1f12",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "27c3acd1-c22c-4e90-902d-1ba4d846ea50",
+   "ref": "3501443",
+   "cliente_id": "2f35a2e2-0cf4-4b93-9277-faf2a9c61529",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "3b21e079-abca-4873-8a90-aeddaffdcfd8",
+   "ref": "3501424",
+   "cliente_id": "d1caa9e0-0a5d-4b0f-b7d0-b4e10ed78e2c",
+   "pagado": 19000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "10ce8113-f2e5-4be9-8d18-03cf8c30b98a",
+   "ref": "3501411",
+   "cliente_id": "d87d8fa5-e7dd-4b14-9d96-95067b1f46f7",
+   "pagado": 9600.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "75559e34-4015-4999-a750-f21596ca27fa",
+   "ref": "3501137",
+   "cliente_id": "17853b2d-dd4d-43f7-8668-a740ee64c895",
+   "pagado": 72000.0,
+   "total": 72000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "1813d397-f0cc-4e8b-95dc-9477452a4a37",
+   "ref": "3501060",
+   "cliente_id": "ecea26e3-43d7-4b7f-93de-288409900b98",
+   "pagado": 8950.0,
+   "total": 8400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "6f221ee8-f338-4aee-8321-e17e94934983",
+   "ref": "3500892",
+   "cliente_id": "2a77590c-ca06-4fed-881c-db16874f6141",
+   "pagado": 21600.0,
+   "total": 21600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "81d1ab97-5dd5-4519-910e-4fa61567389b",
+   "ref": "3500468",
+   "cliente_id": "5bf013cf-58c6-44c4-9d24-555625bb1bbf",
+   "pagado": 30000.0,
+   "total": 30000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "9da057e0-cbae-46ff-a4bf-a06fb4193a20",
+   "ref": "3499204",
+   "cliente_id": "10375416-d542-4a40-a871-19781679fd95",
+   "pagado": 2400.0,
+   "total": 2400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "89776c73-2b51-4146-b9ee-2913d2786b29",
+   "ref": "3498598",
+   "cliente_id": "0e34511f-6665-4044-94c3-b67b335afc9e",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d4e62dfe-9c3b-4f43-bb7b-9852fd04e1cb",
+   "ref": "3498579",
+   "cliente_id": "2054fde3-6332-4ffc-9d1c-d49dea993b46",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d5b14963-e0a2-4400-97ce-d85759064a88",
+   "ref": "3498488",
+   "cliente_id": "3084b87f-9b36-4569-9276-9af0eaec26ea",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "53d58d1d-2ebd-4d3d-a3a8-1279f0c0bc27",
+   "ref": "3498188",
+   "cliente_id": "f05198d9-c048-4fb6-bc0e-97a9d782259a",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "504d4a1b-bd13-4fee-9f3b-f5b84d079b34",
+   "ref": "3497691",
+   "cliente_id": "d84dfb66-c5b4-464d-b74a-b4e57d7f9366",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "bc92677a-d5d4-4847-9907-4820603cd900",
+   "ref": "3521811",
+   "cliente_id": "de7b95ee-12a0-4cd4-9042-ab10559f5267",
+   "pagado": 48000.0,
+   "total": 48000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "84b17ca2-c9ad-4ffb-8b5d-42b256bfe22c",
+   "ref": "3497579",
+   "cliente_id": "39f6c9a5-06af-428a-b532-65a27cfbc021",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "fb5317eb-3165-48a6-abf0-948aae138668",
+   "ref": "3497568",
+   "cliente_id": "62c101ec-fbe3-401d-b2ff-7c4665a404db",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "566b3614-d382-4e85-8a85-e3e42bb08ff1",
+   "ref": "3497528",
+   "cliente_id": "f3d2a349-7ce6-49e1-a6e7-53cbd16c3783",
+   "pagado": 8400.0,
+   "total": 8400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "1341a150-1e43-41f7-9226-5b918f609a5d",
+   "ref": "3497511",
+   "cliente_id": "c7d413a9-e089-475c-94f7-c3e23d239734",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "2fce3ec7-2221-4aec-817b-589a2486a746",
+   "ref": "3497435",
+   "cliente_id": "ecf97d41-349d-4c6d-8f63-e50268c20e80",
+   "pagado": 4800.0,
+   "total": 4800.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "2820d35b-59fe-4e6b-a367-326f57bce959",
+   "ref": "3497322",
+   "cliente_id": "39aa3183-bbbd-407f-9564-e1d4374dad02",
+   "pagado": 36000.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "a55a65b6-7eb5-4b8b-930e-b5cd5520366c",
+   "ref": "3495892",
+   "cliente_id": "99bdb881-9fb3-4e89-bd88-6d9d58956113",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "dc79a28e-d83d-4a75-be46-06603a759ab9",
+   "ref": "3495470",
+   "cliente_id": "b852dac4-d3a1-4a9d-bd85-141d568e09dd",
+   "pagado": 9000.0,
+   "total": 9000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "85437309-2f31-4176-b16f-eb87eb3e8375",
+   "ref": "3495452",
+   "cliente_id": "cd2d1f67-ae62-4295-b3a5-8111f5bb4ef9",
+   "pagado": 8400.0,
+   "total": 8400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "3314e1ec-00af-4f4f-9931-05738b69c5cc",
+   "ref": "3495214",
+   "cliente_id": "e4570ddd-3abf-4473-b521-80a4fb8e47a3",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b71b6283-d435-4a87-88a1-634bc43c70d4",
+   "ref": "3495200",
+   "cliente_id": "242a5c25-3e41-4dd9-aca6-c421f4838d23",
+   "pagado": 720.0,
+   "total": 720.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "0b9aacc3-6f88-4ea1-ac9e-f7478c72a2ae",
+   "ref": "3494569",
+   "cliente_id": "877f824a-af2f-4bb1-a0fd-8dd7425c64b2",
+   "pagado": 37200.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "e6cf3574-eae1-4145-8c11-6dd0ffc092d6",
+   "ref": "3494424",
+   "cliente_id": "c4203356-ae2e-42aa-841f-a606500228b8",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "a21741c0-01b0-477f-89bf-384d26d14c77",
+   "ref": "3494406",
+   "cliente_id": "1c994bed-ff91-447f-b773-e3776b75610a",
+   "pagado": 600.0,
+   "total": 600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "fdab6e46-0434-4020-80a8-6798f717e346",
+   "ref": "3493056",
+   "cliente_id": "428d261a-2fad-437c-a735-e213736821cc",
+   "pagado": 32400.0,
+   "total": 32400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "5cc2fb8c-8a5c-4509-bbd8-369f4773934b",
+   "ref": "3493009",
+   "cliente_id": "d494c4c2-7052-4989-9b08-07a55ee5f14f",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "f1a4a20d-53f6-46bd-9647-a5a1cb36f8be",
+   "ref": "3491828",
+   "cliente_id": "6687495f-9fad-4a5c-84e9-872c2b331f6c",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "a9fba047-7d1b-4851-8bcf-0862a2878f04",
+   "ref": "3491706",
+   "cliente_id": "5ef36b46-c604-4736-8e59-03d0a42d01a2",
+   "pagado": 9600.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "1fad0cab-e44f-4d4c-986a-b433cd48148a",
+   "ref": "3491678",
+   "cliente_id": "9e93c1fa-1b99-49eb-bf38-e476cdf87162",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "8c7be0e9-2b99-490a-8844-9e87235b5136",
+   "ref": "3491543",
+   "cliente_id": "929b88f9-b55e-41f6-bd1a-e7976b6052ad",
+   "pagado": 1200.0,
+   "total": 1200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "4c31c142-b0e2-4e6c-a899-c9b1fbb82dcc",
+   "ref": "3489900",
+   "cliente_id": "476e8b14-d571-4c5c-80fa-d681eb19e96e",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "75fa184f-5d69-4c52-8e4c-0bafbc2c1481",
+   "ref": "3489165",
+   "cliente_id": "1d6adf0a-8f2a-4015-b141-47caae7e75f7",
+   "pagado": 60000.0,
+   "total": 60000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "bd118801-1e0d-4df5-aa41-99918524808a",
+   "ref": "3488927",
+   "cliente_id": "51156bb4-3b67-46b8-9d67-65845f1ebb35",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "34876252-7192-4f0a-8496-749d9616c0bb",
+   "ref": "3488906",
+   "cliente_id": "b30a01ac-b713-493f-b44f-e782cb03c715",
+   "pagado": 7200.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "3f127222-a533-4167-b7b6-fff2ce048260",
+   "ref": "3525260",
+   "cliente_id": "769ae6ca-9be7-4437-9cbd-803f1d5e8e1f",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b32204c3-9de7-47c1-871c-cacd76bde31a",
+   "ref": "3488774",
+   "cliente_id": "2546c7e9-ae21-41f3-b204-bb35f1267794",
+   "pagado": 14400.0,
+   "total": 14400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "93ba2e10-0037-462d-9385-78240da69677",
+   "ref": "3486334",
+   "cliente_id": "868b0632-fb9d-48a9-adb7-ab50736738dc",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "87eb8cd5-b7e3-439b-9194-2c4380588559",
+   "ref": "3486131",
+   "cliente_id": "c15cce30-1673-4b0f-9ea9-2a8bf20268dd",
+   "pagado": 14880.0,
+   "total": 14400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "63574269-ae9e-4bfa-a5ba-2bcf078fbc0b",
+   "ref": "3486021",
+   "cliente_id": "28c4727d-e525-4344-9c56-621add75f360",
+   "pagado": 9750.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "98305de8-e286-488f-b836-e909eb3401e4",
+   "ref": "3486018",
+   "cliente_id": "cb787270-1e6c-453e-80ef-3d7d55834c87",
+   "pagado": 30000.0,
+   "total": 30000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "e9b1dcaa-adcd-4961-af13-f6b5329e32a5",
+   "ref": "3492423",
+   "cliente_id": "1ed1a39e-7822-42d9-acb3-17a38f7da67c",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b31bbe5f-fbbd-4b2f-aa84-e9dcecf17402",
+   "ref": "3485918",
+   "cliente_id": "65b3219b-fbf5-41e9-9c92-36aab7d0c953",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "24bd24af-63ce-49c1-a205-110ee1a3cfc5",
+   "ref": "3485809",
+   "cliente_id": "bf456b62-8b07-46cc-8f8d-d92fe7042268",
+   "pagado": 36000.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d31627d5-5b6e-4e9f-a5d9-bd03400a684f",
+   "ref": "3495758",
+   "cliente_id": "2415d6dd-3bee-4c1f-bb67-fa97fadfb2a9",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "89cf765e-8894-44d9-9fd3-d61345cab802",
+   "ref": "3481665",
+   "cliente_id": "cef52c60-8cf2-499e-b428-0438d6965f74",
+   "pagado": 12400.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "60206643-0260-4a09-8210-c45d167e53f0",
+   "ref": "3481406",
+   "cliente_id": "b00804d8-362a-4edb-b9b9-cb074b274616",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "cae2a1e7-47c6-4794-b870-be72be9a6a89",
+   "ref": "3478732",
+   "cliente_id": "c3322726-254a-4385-b353-8ef095c21ce3",
+   "pagado": 11300.0,
+   "total": 10800.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b18d498e-db8e-40c7-8672-de27afa44fc2",
+   "ref": "3477849",
+   "cliente_id": "42263941-2604-42b0-ac5c-9c44295bb641",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "ff0c36d5-aa53-44d7-8120-4d8cf5f45323",
+   "ref": "3477600",
+   "cliente_id": "5cf028bb-f033-49a2-be84-6faf57b93a4d",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "497e199d-d06a-4b2d-9d19-8abc43ae736c",
+   "ref": "3477504",
+   "cliente_id": "e58a18df-a0f3-4952-90df-8afb9448edcc",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "3b4b34c7-98af-4ad2-9cab-a6dc4d2eee3b",
+   "ref": "3477475",
+   "cliente_id": "483cd161-13b1-4fa8-a901-6b5488f026fc",
+   "pagado": 12500.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "bd3bf4ba-7c4f-4f66-a57b-5e032d44181b",
+   "ref": "3477381",
+   "cliente_id": "bee071e5-0fff-4a73-be1c-1a102f14e8b8",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "dbb93d8c-1992-4932-b8f8-1d62350e6498",
+   "ref": "3477269",
+   "cliente_id": "2929c4e9-a164-48c4-8ba4-78321d25f0a2",
+   "pagado": 9600.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "f98c0bd7-3234-4249-8b7c-06801963896d",
+   "ref": "3477254",
+   "cliente_id": "fd0019ca-7fec-4d1b-a81a-0347f7a14e38",
+   "pagado": 14520.0,
+   "total": 14400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "e2b9b969-9584-48e0-898b-05e3e5c8817d",
+   "ref": "3474753",
+   "cliente_id": "bbfb5107-8641-4df7-9e56-d0061b5b7bb3",
+   "pagado": 42000.0,
+   "total": 42000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b34a5ae8-ccaf-41ea-a0ef-6d07bea97c6a",
+   "ref": "3473940",
+   "cliente_id": "31def6f9-1882-48f3-8fa5-760033dabfb0",
+   "pagado": 29900.0,
+   "total": 29900.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "c4a6986b-85a4-44d2-8af9-c11e8cb5849c",
+   "ref": "3472009",
+   "cliente_id": "ee85210d-1407-47af-87f3-54864b441953",
+   "pagado": 30000.0,
+   "total": 30000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d5020357-beb5-4ccd-a356-e8543e364fef",
+   "ref": "3468262",
+   "cliente_id": "ca1835ff-0e0e-4fd8-9324-6aee1eac4c0d",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "76784720-f5b7-4ed8-850b-f9f248698577",
+   "ref": "3468248",
+   "cliente_id": "b6b65bff-c849-440b-836b-229f5a731325",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "a1ffa5dc-abbf-406f-b706-fd0397935779",
+   "ref": "3465781",
+   "cliente_id": "4e7e6b01-d02f-463e-9eb3-dd928245f8fc",
+   "pagado": 36000.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "080312bd-c2f2-41ae-b298-f2ba60dfed63",
+   "ref": "3461179",
+   "cliente_id": "40a2a504-2bbd-43f9-a992-cbf46a75bb26",
+   "pagado": 30000.0,
+   "total": 30000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "043623de-4b9a-4332-a34c-8f5314dda591",
+   "ref": "3443683",
+   "cliente_id": "4433fb15-59f3-4e92-b7f9-536e4fd42c35",
+   "pagado": 30000.0,
+   "total": 30000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d00c1eda-293c-4924-b040-eed5069949ba",
+   "ref": "3438711",
+   "cliente_id": "e7cce047-948b-4fbe-883e-4c5cc4ad2d40",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "766e9353-9ed3-46ed-ad8e-5e1ee0767a7e",
+   "ref": "3438359",
+   "cliente_id": "3c8b56a0-3ecd-4843-9eef-a952b9c9dde3",
+   "pagado": 48000.0,
+   "total": 48000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "5502c142-3683-434a-acbb-5925e97808bc",
+   "ref": "3430921",
+   "cliente_id": "8b062db8-0f5b-493d-aa47-16d983bed4e0",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "425d3c56-d297-405a-bab3-3e2455d87039",
+   "ref": "3366208",
+   "cliente_id": "3918ae86-9085-4749-be43-98a833e20f42",
+   "pagado": 10300.0,
+   "total": 10300.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "847638ee-45a1-4f72-ba83-6b1f7e72b916",
+   "ref": "3350385",
+   "cliente_id": "da9b16f5-fcf5-4404-b64b-e0ab7d2864a5",
+   "pagado": 840.0,
+   "total": 840.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b3044c9d-1bce-4b58-b93f-8aae82cf2d5f",
+   "ref": "3262676",
+   "cliente_id": "206084a6-1d70-40fc-aa77-74079dcbca8a",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "dc78db5e-df51-40ac-ba41-6f5c6f2883b0",
+   "ref": "3515419",
+   "cliente_id": "f512726f-6ed1-4e8a-946c-76607214a272",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "46ae9480-bbcf-4491-875e-8d74ff81c5e0",
+   "ref": "3219270",
+   "cliente_id": "362756bc-c0f1-4b59-8967-542d72df6276",
+   "pagado": 60000.0,
+   "total": 60000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "2eb29854-0f2a-428a-bfdb-edb4b45ae43d",
+   "ref": "3500786",
+   "cliente_id": "da8fdf2a-55ca-4055-b6f8-db98e8359d24",
+   "pagado": 84000.0,
+   "total": 84000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "1b5cb9c9-55cd-4e1f-b765-990a9c7bbf1d",
+   "ref": "3013230",
+   "cliente_id": "ad8d4698-6ebe-49c0-982d-90dfa193b8bf",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "794cef94-9108-4e88-a1d2-6567a10d6ed8",
+   "ref": "3489194",
+   "cliente_id": "ebf20e39-9270-4bf8-93ae-409426d48dce",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "1eb96b64-3929-40d4-ba52-382cad0315ec",
+   "ref": "3499855",
+   "cliente_id": "f60ae736-3e79-42c2-9f90-70bf9095b194",
+   "pagado": 600.0,
+   "total": 600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "bedc6f75-a9f3-413a-a540-27257a667e34",
+   "ref": "3524671",
+   "cliente_id": "854faada-a61c-4777-966e-4f7535477a26",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "cd6bb442-5981-48ac-a874-bd702f0e5cea",
+   "ref": "3503481",
+   "cliente_id": "ad03fdd8-1642-49c3-a537-be68d1c2add4",
+   "pagado": 10800.0,
+   "total": 10800.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "012d8cda-8bbd-4513-864f-c163045cb4ff",
+   "ref": "3491694",
+   "cliente_id": "eb668d01-4dbc-478e-b31d-0a7ddff0cdbd",
+   "pagado": 30000.0,
+   "total": 30000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "ffe18db8-0f78-4c69-89dd-40cf910c9c65",
+   "ref": "3514445",
+   "cliente_id": "f7415174-6884-4e27-bceb-061ae5be1896",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "ff1f0ee8-1632-4825-a3f1-3b0fc754080a",
+   "ref": "3533760",
+   "cliente_id": "f0f4e40b-9f97-4db5-a79d-de062e79c261",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "222907a7-7a9f-4c12-9b34-eecb5744a762",
+   "ref": "3524854",
+   "cliente_id": "66bfb258-6fe7-43f7-847d-e707ab8a912b",
+   "pagado": 19200.0,
+   "total": 19200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "addf459d-d53a-4258-ac3a-2bd7ebc695b6",
+   "ref": "3498876",
+   "cliente_id": "a55788b3-a912-4a0a-b226-74b4bf26e3bf",
+   "pagado": 4800.0,
+   "total": 4800.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "82090885-fafd-4e2b-a308-7d20d92ed51f",
+   "ref": "3507091",
+   "cliente_id": "9827e363-e131-4e76-a257-5eef65bd62e6",
+   "pagado": 1800.0,
+   "total": 1800.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "3dcc07a9-038d-4c0d-aa0e-53804f0c4ca7",
+   "ref": "3512536",
+   "cliente_id": "617c544f-f2fa-4f92-b15c-ccb586f8d818",
+   "pagado": 720.0,
+   "total": 720.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "1026ce0d-942a-4ed9-b05f-fd17739fe960",
+   "ref": "3491861",
+   "cliente_id": "6b1869f0-f625-4048-836e-d2d0c7a0ee94",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "e365fbb8-6104-4e41-a9c0-7d883a93be8e",
+   "ref": "3490215",
+   "cliente_id": "50c19d71-6f02-4d51-9910-9e48c9e95b76",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "4c55033c-fcf1-48e8-9f5a-33abd89513ff",
+   "ref": "3499566",
+   "cliente_id": "911b11d3-5814-4b0c-9dcb-7e87231e9204",
+   "pagado": 108000.0,
+   "total": 108000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "65d82f36-74e1-4cfe-96b1-a5928a2c8d04",
+   "ref": "3498136",
+   "cliente_id": "167a6f29-927e-4c58-bef0-dbf654b5e7f6",
+   "pagado": 13200.0,
+   "total": 13200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "87c2ff1e-b90c-4a4c-ad4d-90d1e80f1c9f",
+   "ref": "3503371",
+   "cliente_id": "41995c01-6eda-4f91-b0bf-2860400546a3",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "58ef36f1-3ad9-41e0-8b58-d784c543f5cf",
+   "ref": "3503800",
+   "cliente_id": "c2bfcb07-ab14-4ae8-844f-3d2809c015b5",
+   "pagado": 156000.0,
+   "total": 156000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "9956eb53-a150-4be0-b379-2770d0b20e89",
+   "ref": "3514845",
+   "cliente_id": "41819fa5-8144-446b-860d-d48216d13c66",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "4d31bc03-7383-44fe-9fc0-433000b544be",
+   "ref": "3527619",
+   "cliente_id": "776698b8-7374-48bc-b961-931be7b93a2c",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "4e5549c1-fc10-41d0-ae5a-73246b7e8ab5",
+   "ref": "3489371",
+   "cliente_id": "6d3959e9-2f86-4dcb-a318-b7f3f818f931",
+   "pagado": 28800.0,
+   "total": 28800.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "87b47e0b-8959-42cc-aa40-1e78e9f18be8",
+   "ref": "3531303",
+   "cliente_id": "1861b1ae-1fe4-4d4c-95b1-e7cee0e26e7b",
+   "pagado": 12400.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "e22c9589-5334-4c40-a95f-3c802e9ddcf3",
+   "ref": "3497356",
+   "cliente_id": "d83c3007-6ef5-4865-be07-7c9d94109e1e",
+   "pagado": 36000.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "4da3ff44-5b5f-41ff-9316-a067386e78ae",
+   "ref": "3545764",
+   "cliente_id": "c303149f-104a-4958-9a4b-b877e8e4732b",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "2ab19702-3e0c-46b0-8946-724503bc591a",
+   "ref": "3545641",
+   "cliente_id": "9a042e20-3aa6-472e-988c-2615694033be",
+   "pagado": 7200.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "bea4740f-fbfb-461e-a917-77a86bcaa289",
+   "ref": "3545416",
+   "cliente_id": "0d911a8d-dcea-4692-baf5-469b0da2f8f7",
+   "pagado": 7200.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "0406283d-c7d6-4a8a-88eb-ee3277ad3add",
+   "ref": "3363716",
+   "cliente_id": "78a5144f-910a-4bf9-bab7-9ecb6aec0407",
+   "pagado": 60000.0,
+   "total": 60000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d31016d9-61d0-4b6c-a914-b7b81558b819",
+   "ref": "3544757",
+   "cliente_id": "ab7b736a-45b5-45d2-aac5-8448215a2b5e",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "adbe666d-2c32-4962-887f-a31ec6ab0fbf",
+   "ref": "3544399",
+   "cliente_id": "bd442c62-51c0-43f3-ac07-fc2726c8fb9f",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "5a1d1a4d-9350-46ac-902b-8c10efd0e4c8",
+   "ref": "3544242",
+   "cliente_id": "15826e30-d50d-4efc-83bb-47bf80232266",
+   "pagado": 6400.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "3f1e94c3-5448-4714-80d8-79372d824e22",
+   "ref": "3544146",
+   "cliente_id": "b2814fb0-1ae8-47a8-8da6-3445b6002fe5",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b3b7fd50-4f65-4d03-aee5-c1129a473e5f",
+   "ref": "3544117",
+   "cliente_id": "9b9295db-2ff9-4cd7-971c-f54e9f003e46",
+   "pagado": 50200.0,
+   "total": 48000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "237ca2b6-a71a-4e42-9c1c-07a42588893c",
+   "ref": "3542928",
+   "cliente_id": "72539379-6f75-4782-9397-4124dfcaa055",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "6a7aca69-315d-4171-b019-44b797f8f3bf",
+   "ref": "3527866",
+   "cliente_id": "2587f256-97fd-4403-91e8-d3f28039fbf9",
+   "pagado": 37500.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "ea60d6e1-2ce7-4ddb-91df-429d50ff5bac",
+   "ref": "3542643",
+   "cliente_id": "0a36afe2-63e8-4bd0-9f67-9b2f197dbf93",
+   "pagado": 7200.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "3a04926e-eebc-4e12-91b9-d273574db6dc",
+   "ref": "3542627",
+   "cliente_id": "97f88b16-d38e-4a39-acee-c139b2fcd92b",
+   "pagado": 29760.0,
+   "total": 28800.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "1e91e03c-cbd0-43cf-8b6b-4cb8f147da68",
+   "ref": "3542442",
+   "cliente_id": "abbdad78-7d38-4b04-907e-4c9e7e82ae55",
+   "pagado": 31000.0,
+   "total": 30000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "2dd57f64-7ac3-4755-b532-02e970502e8d",
+   "ref": "3542432",
+   "cliente_id": "15fdea45-034c-4eae-9959-e4c727d12bdd",
+   "pagado": 7500.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b76b4f19-5c3f-4da7-8c87-261f2cce9855",
+   "ref": "3491586",
+   "cliente_id": "96676191-2181-4a9b-bdbe-5adb84c94137",
+   "pagado": 17360.0,
+   "total": 16800.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "5e9132fb-7518-47e0-a5f9-5fb5d3585f22",
+   "ref": "3491544",
+   "cliente_id": "14bd74a2-a672-42d9-913e-edfd5d495892",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "501ba152-52f9-4886-8765-f61e3b820cef",
+   "ref": "3544114",
+   "cliente_id": "09172c50-9ae0-4f6d-b7dc-064360925900",
+   "pagado": 19100.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "933ea887-e840-4912-a737-125eab1fdd31",
+   "ref": "3512723",
+   "cliente_id": "ca2bb5b1-31c9-4947-8b88-7067884d5f5d",
+   "pagado": 8400.0,
+   "total": 8400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "37d8225b-3425-4f7c-80f1-8bed0c12606d",
+   "ref": "3497378",
+   "cliente_id": "6ee6c246-54e0-4248-899b-664ac7e5e57c",
+   "pagado": 14400.0,
+   "total": 14400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "50a2c54e-0bca-4514-b84b-517bc7de08ca",
+   "ref": "3471039",
+   "cliente_id": "e9981e85-8681-4da1-919a-49e55fded86f",
+   "pagado": 30000.0,
+   "total": 30000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d9469785-c590-4ba8-9b7c-ddae266e7019",
+   "ref": "3525084",
+   "cliente_id": "e241f152-aa5d-4ecd-8352-4761cbdd5cb2",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "5e66c7f7-7c3e-4843-9887-29f431104374",
+   "ref": "3541720",
+   "cliente_id": "901e845b-dead-4a79-8f43-3b1a5510cbfb",
+   "pagado": 9600.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d92d4152-7cd1-4dda-a84d-3fce76f0aa48",
+   "ref": "3495128",
+   "cliente_id": "b29068a3-68d3-4666-bff0-9ba95fa6bb19",
+   "pagado": 36000.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "9574d2bf-5009-40a1-86f9-7320831f3ca8",
+   "ref": "3541481",
+   "cliente_id": "d104c742-7f0a-40f5-ad50-9f508327f76f",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "832eea21-23de-41f4-98da-f032e06d3f30",
+   "ref": "3541479",
+   "cliente_id": "15ec0822-39b6-4f21-a04a-466feaeeaf42",
+   "pagado": 30000.0,
+   "total": 30000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "1f918b08-7e75-4a34-b805-bb28e37cdf11",
+   "ref": "3541475",
+   "cliente_id": "f546c68f-6fde-4df0-93fd-94772ec76476",
+   "pagado": 25000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "6993f9d4-9c70-4739-a99e-8cb1278825bd",
+   "ref": "3520409",
+   "cliente_id": "9d2f159a-d8a5-41a6-b1b0-14647f12c9c1",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d7351888-3b23-420a-8fc3-433fad85edd9",
+   "ref": "3544535",
+   "cliente_id": "07f51ee8-7710-4517-9a71-694b4fd14189",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "de5c46a0-0c56-4e38-9e47-6235cd15272f",
+   "ref": "3527917",
+   "cliente_id": "966339c1-c842-4d6c-b0ab-a9eed3c30eae",
+   "pagado": 36000.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "ae7e9cc3-eafc-437c-8c3e-922f63e0b4a4",
+   "ref": "3540716",
+   "cliente_id": "fd77758a-a8ba-4bbc-91e3-a22e782b3c8e",
+   "pagado": 7500.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "16b14f92-8a8d-49a6-a620-04ede071a601",
+   "ref": "3540681",
+   "cliente_id": "37fac11a-ff4b-430a-b5f1-92d069ad7eb3",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "5684279e-5662-48ba-ba0a-04368bd72b14",
+   "ref": "3533005",
+   "cliente_id": "d24df3fc-8df0-4b06-923f-1e5357bd91e1",
+   "pagado": 36000.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "8f733cbe-c369-4615-a560-fad8ca336fde",
+   "ref": "3541431",
+   "cliente_id": "6a27497f-85aa-4afd-808c-ed568e31bf4c",
+   "pagado": 8400.0,
+   "total": 8400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "f5c2a67a-d173-4979-bad9-d056137ab627",
+   "ref": "3530347",
+   "cliente_id": "3ccab477-f2cf-4b56-9897-6b253bb9cc65",
+   "pagado": 18600.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "779d560f-72d1-447d-a1e2-f24d4a308f3f",
+   "ref": "3530424",
+   "cliente_id": "38daab78-8acf-49c6-b9f8-27ea79b8968f",
+   "pagado": 6250.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "69faff0e-1779-4c7b-8526-bc7f5a9abc2a",
+   "ref": "3539642",
+   "cliente_id": "3b82d3a3-96e7-4b2b-b005-f604b726989b",
+   "pagado": 6250.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "953add8c-f2f5-406e-aa23-a5ab598d6390",
+   "ref": "3539571",
+   "cliente_id": "fddd928b-d961-4d84-8584-1e8e67132cd5",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "6246509b-618e-4974-b253-032bff44a5d3",
+   "ref": "3539533",
+   "cliente_id": "024fe18f-20ad-4eb2-a5cd-26a135806a33",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "802748f1-8fc4-49bb-ab36-9d7bd7d9c984",
+   "ref": "3539470",
+   "cliente_id": "90d182c6-7e3b-482a-ba54-3ad38620fc70",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "87878892-c824-48e4-845a-f525e5a2923f",
+   "ref": "3539376",
+   "cliente_id": "a72b7e98-bfdd-44c9-8412-c71643f0e87d",
+   "pagado": 10500.0,
+   "total": 8400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "78d72524-f1ca-40f4-9231-ceaa7599e188",
+   "ref": "3538630",
+   "cliente_id": "413e0a18-34d5-4673-a5f6-012c582afaec",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "41696f2b-b236-4645-95f5-607b6048e37e",
+   "ref": "3499186",
+   "cliente_id": "5cf48691-be52-42a9-ab03-ce7eab14b07a",
+   "pagado": 1200.0,
+   "total": 1200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "a1444e41-78a4-4211-a7e7-17d7229f5932",
+   "ref": "3493311",
+   "cliente_id": "6563b82c-f029-400e-b1a2-1783613f010a",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "7b9d6c93-0414-4cf6-92aa-3fa45c5c2d1e",
+   "ref": "3538329",
+   "cliente_id": "c2f47557-40a5-4f36-9246-c84fd60f7531",
+   "pagado": 26640.0,
+   "total": 21600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "a6253385-4746-4068-ad04-57818a48a7df",
+   "ref": "3538297",
+   "cliente_id": "bf7e4165-06da-4d8f-add4-77c75ca1e2f3",
+   "pagado": 18400.0,
+   "total": 14400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "74e5b9df-48e1-467e-adbb-68280777ffa5",
+   "ref": "3537371",
+   "cliente_id": "b382943b-0eb6-4806-95c1-f7264613af89",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "eb38ee51-368a-4b8b-ac9c-478958dc87f5",
+   "ref": "3537032",
+   "cliente_id": "31eaecbf-5a42-4453-a7f8-a68bf9bf02f8",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "afa6ae23-38e1-41dc-90b3-44986792fe10",
+   "ref": "3500329",
+   "cliente_id": "89bd87a0-25c5-443f-b3be-d9efc2933396",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "582d8b1e-96d2-472d-b4e2-a01571b01d98",
+   "ref": "3507725",
+   "cliente_id": "86b0f8ca-b840-48a4-9274-d566416c9bad",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "9cdccd3e-b564-4c10-a875-c3f784df6c69",
+   "ref": "3536525",
+   "cliente_id": "8ce4c470-3840-49f8-878d-504452374e98",
+   "pagado": 14400.0,
+   "total": 14400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "2d9a60cb-4518-480d-89e4-b0ba59613ee0",
+   "ref": "3536512",
+   "cliente_id": "24a2a081-e71c-49a4-88d5-823cd21e7064",
+   "pagado": 7200.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "29b069ca-2db6-4c9e-9f0e-f4ebe55ac7fd",
+   "ref": "3536233",
+   "cliente_id": "ad0e5c82-d0a8-4a3d-94b2-76533cd80805",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "07f08d8d-8ba7-46fc-8ca7-b0fbf3fe855d",
+   "ref": "3503429",
+   "cliente_id": "fe67fbdd-2815-4f33-9761-ccf108978383",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "0bc462fe-7599-43f8-8317-e3804115400e",
+   "ref": "3504352",
+   "cliente_id": "93c05752-979d-4ccd-ba3b-2e4233a94b6d",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "7cc838f6-1020-41ae-a3fc-0e10088e4be9",
+   "ref": "3344271",
+   "cliente_id": "f23409ca-45cc-4ba7-bee3-0da5a514499a",
+   "pagado": 16800.0,
+   "total": 16800.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "57c24e39-e00a-4738-8d91-2919434003c9",
+   "ref": "3536001",
+   "cliente_id": "ab3a2262-ab08-4dde-8da0-f3a2c92dc40a",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "90a85034-b774-4a80-ad77-8931e899438a",
+   "ref": "3535989",
+   "cliente_id": "f02e017c-4019-4c46-8654-e9d89df1a37e",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "96761863-2fbf-4676-914c-6c6ff262f4ae",
+   "ref": "3535933",
+   "cliente_id": "10b8d918-60ff-4499-9a7a-bbb209fd22d4",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "2e34e30c-e286-4f71-b3b7-3412d17c2f79",
+   "ref": "3535826",
+   "cliente_id": "11c2e323-5b89-4075-a817-1407488ae673",
+   "pagado": 30000.0,
+   "total": 30000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "a8bfaf30-0385-478c-a40a-fe18e27487cc",
+   "ref": "3535821",
+   "cliente_id": "7db5c282-25b5-48c0-b618-fb81dc752fd7",
+   "pagado": 14400.0,
+   "total": 14400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "c502bdd1-9cc8-494c-8b18-8bbb4fbf8ad1",
+   "ref": "3518392",
+   "cliente_id": "c6f19250-d5b0-456c-95df-378cf3a1c50f",
+   "pagado": 14400.0,
+   "total": 14400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "ac252d6b-70f7-43a1-9057-75cd427973d7",
+   "ref": "3535795",
+   "cliente_id": "617a04d1-ad6d-4b40-98c9-ead6b90eafd3",
+   "pagado": 7200.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d11c1589-b33c-48a7-89c5-3367121ae591",
+   "ref": "3522056",
+   "cliente_id": "f9b87f8c-0847-4fff-89f2-e38137df0011",
+   "pagado": 24800.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d45501c9-336a-4a94-a1f4-464c0d995c8b",
+   "ref": "3517797",
+   "cliente_id": "bfcc6a5d-3d04-411c-8408-3ae1d542b609",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "ae125d1f-8c5f-4dac-9daf-a4333063306f",
+   "ref": "3534664",
+   "cliente_id": "8b2012c5-9a40-46c0-9636-60f19eb51ea1",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "9d2bb65e-4aa1-4876-8706-4ba8fc1209a8",
+   "ref": "3534601",
+   "cliente_id": "b4438f9b-8a3d-4742-b7a8-bc54f53a105c",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "620d4d15-126b-4246-83c4-7fffe2fcfb21",
+   "ref": "3534229",
+   "cliente_id": "248fde7f-cc0d-428e-96b8-949f8097ead1",
+   "pagado": 30000.0,
+   "total": 30000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "3358a493-5ece-4644-829d-2b7c6fcd81a8",
+   "ref": "3534128",
+   "cliente_id": "3df58406-0f4b-4f88-8a4e-314b6915af85",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "dc5a2633-865a-4ca5-8699-1330c3b3e266",
+   "ref": "3533801",
+   "cliente_id": "4b03baa3-27c1-40a4-95d1-7c32b0cc8a58",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "6f7e3421-62bd-4476-a8a5-6c82a89f5d34",
+   "ref": "3544306",
+   "cliente_id": "d2095c46-0602-4092-b786-4aedf97f27ee",
+   "pagado": 3600.0,
+   "total": 3600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "c4a70ec2-0fce-4036-aef1-1412c8907c99",
+   "ref": "3398579",
+   "cliente_id": "3df643f3-f03f-46c0-bad6-9d10b6c69dcc",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "6f8bf904-2cab-4283-8720-82de712d2dbd",
+   "ref": "3465639",
+   "cliente_id": "4ee21552-1840-4c8f-bb59-13badea7e50a",
+   "pagado": 30400.0,
+   "total": 30000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "6b709368-f2a0-4fab-97de-675f35f07692",
+   "ref": "3512836",
+   "cliente_id": "e4d81701-6446-423b-8119-63b7d33e958e",
+   "pagado": 24800.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d50ad215-10a9-44e4-a576-b72c67e314cf",
+   "ref": "3533559",
+   "cliente_id": "c12d0ac4-dc8c-4238-ab51-6dbee4a2d0b8",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "679e0823-fff5-4319-bcaf-689bb03eaac9",
+   "ref": "3514723",
+   "cliente_id": "119ef6e9-735b-4857-bc6f-c6024fe38f8c",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "56538bb5-4954-4cfe-8a2d-0e81a1d3485f",
+   "ref": "3522922",
+   "cliente_id": "502786f0-9b1c-4337-91b9-c0a303c7097e",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "7e2d5f61-f92b-4f23-b36f-d5f9bb8fd649",
+   "ref": "3533193",
+   "cliente_id": "a01e3a61-baed-4907-b24c-ea47e423f155",
+   "pagado": 8750.0,
+   "total": 8400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "cf26e681-a21b-42e4-9cca-851de968ad5b",
+   "ref": "3533182",
+   "cliente_id": "88e4bae3-e578-47fc-81fa-3ff7bdaf0e01",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "fe897d81-e66f-4f5e-84c2-827d66a8cb72",
+   "ref": "3533152",
+   "cliente_id": "672f8c34-7db1-44b5-add3-998e5cf26102",
+   "pagado": 36000.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "0be5685c-153a-430e-ae56-0c054ebefc3e",
+   "ref": "3533151",
+   "cliente_id": "af5888a7-2c30-4377-bf31-0d4ca1d3c164",
+   "pagado": 9600.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b0225004-051f-4c88-b8d3-94285b40c888",
+   "ref": "3533146",
+   "cliente_id": "72470c10-be4c-42c0-933d-71cb1c22f802",
+   "pagado": 7200.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d157f38f-1a5e-4367-a88f-34114d04e6e0",
+   "ref": "3533137",
+   "cliente_id": "302dcb1d-9f6b-4878-bb21-b8761f30b3a5",
+   "pagado": 7500.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "4e50a2b5-cdd4-418e-9c67-7781a68967f4",
+   "ref": "3533065",
+   "cliente_id": "f156bf97-f6bb-41f7-b936-da4951ead03f",
+   "pagado": 6500.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "fa823e91-63b2-41f9-9fb8-a06758759696",
+   "ref": "3533045",
+   "cliente_id": "d1c9605c-8cff-407c-a431-bc27be341d2d",
+   "pagado": 14400.0,
+   "total": 14400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "95dd954a-d3fc-478f-9b73-fd4378fbbaa6",
+   "ref": "3533251",
+   "cliente_id": "0442faf9-60a5-43f2-ae74-e1148c3506c1",
+   "pagado": 8750.0,
+   "total": 8400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "93a5b58b-701d-42ec-8134-52c55eb0c3a7",
+   "ref": "3530470",
+   "cliente_id": "33e4732b-8b96-4cf1-8c37-31cda79ac05e",
+   "pagado": 15000.0,
+   "total": 14400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "34827862-298c-42d7-b345-1fdc1d46cb40",
+   "ref": "3531390",
+   "cliente_id": "fd10a50e-d35c-4c51-9dac-12137a796fa5",
+   "pagado": 30000.0,
+   "total": 30000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "45b8d25c-a510-469f-98cc-5df1e9ad4758",
+   "ref": "3542675",
+   "cliente_id": "772d0266-d14a-495b-8770-4e29570b183b",
+   "pagado": 31000.0,
+   "total": 30000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "c917715d-b7e4-4c15-8707-c0bde6da200e",
+   "ref": "3514730",
+   "cliente_id": "81fc82dd-9edf-472c-97ec-17373c0b0f89",
+   "pagado": 14880.0,
+   "total": 14400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "430e78d6-2859-4c36-ad8d-4a23c3d8087f",
+   "ref": "3498383",
+   "cliente_id": "326a06ef-78d0-4ad1-8897-5b102e167b27",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "52f1674d-eb15-4166-8387-68d947976d3f",
+   "ref": "3532986",
+   "cliente_id": "58e46c40-55e2-4e86-9bcd-ace6fb7d1d8f",
+   "pagado": 7200.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "63e50c24-f356-4ab9-8805-788eea0044ee",
+   "ref": "3532985",
+   "cliente_id": "f548caf7-3fb0-40ce-957f-8338a7f7a790",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "fe02b105-0f37-4991-a6d8-13adb94c2eb5",
+   "ref": "3532982",
+   "cliente_id": "fe383c4c-b892-4d8e-a035-1fc0f59f0c7e",
+   "pagado": 19200.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b838024c-4487-4e5a-9bb9-1fea68c4074d",
+   "ref": "3530724",
+   "cliente_id": "9c675e9b-0aaa-4eaf-8720-fcb3e891d718",
+   "pagado": 30000.0,
+   "total": 30000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "761d277e-6185-4e09-b4e9-b09d050ccf95",
+   "ref": "3527651",
+   "cliente_id": "e09739f4-0d31-435e-b5c3-a28bcef9cbd1",
+   "pagado": 37200.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d82fc91d-87f0-429b-88aa-8d365f6a15d7",
+   "ref": "3530649",
+   "cliente_id": "62abfebf-906e-4419-b1e1-0925632e2f23",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "e9e7cafa-b356-4d36-b352-ad0b3faf048b",
+   "ref": "3530523",
+   "cliente_id": "ae6cb770-a14b-42b0-8771-8fc7acbc84fc",
+   "pagado": 30000.0,
+   "total": 30000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b8257b35-2275-4ca7-a0f4-cf240a1c224a",
+   "ref": "3530483",
+   "cliente_id": "1d38e19f-a4aa-464e-8875-938484bfa83c",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "cb821801-a843-4fe3-9ff6-ce6ab1977e3a",
+   "ref": "3530280",
+   "cliente_id": "ce7ad70c-09da-40e3-b898-28f5d8c324b0",
+   "pagado": 3600.0,
+   "total": 3600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "cf6fbc6e-38ea-4cfc-8fd1-4afcc943f9e0",
+   "ref": "3530276",
+   "cliente_id": "c6b411e7-6cc6-4fff-9978-7598b4cebb32",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "ebe801f5-5a34-4b4e-865d-09277af7083a",
+   "ref": "3528698",
+   "cliente_id": "dad3493e-837f-468d-8581-af3f4b60b69f",
+   "pagado": 360.0,
+   "total": 360.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "ccceb92e-87b4-4256-a5b1-3bcf2de5f6a6",
+   "ref": "3528596",
+   "cliente_id": "af31fa1a-15c3-404c-9bdc-018777fe88a0",
+   "pagado": 7200.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "50b95789-707a-4c6b-857d-b9e54f09ba71",
+   "ref": "3528578",
+   "cliente_id": "897f6062-3c09-4761-b274-3a6615185d09",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "ee3067a0-2961-4c94-9756-151417c5b97b",
+   "ref": "3573037",
+   "cliente_id": "16afde40-9f8e-4169-bc21-4ac8dc2b5be1",
+   "pagado": 1300.0,
+   "total": 1300.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "80b705ab-239d-42c7-aed1-737f1d577781",
+   "ref": "3527535",
+   "cliente_id": "437e2e4f-5094-41a9-aa45-a60739a5c5ad",
+   "pagado": 3780.0,
+   "total": 3600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "35f9e4ae-49ef-4433-aa45-893dcb996f97",
+   "ref": "3527489",
+   "cliente_id": "6fa8e777-311a-409d-9543-9ab45589ff16",
+   "pagado": 1800.0,
+   "total": 1800.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d6ee96ba-da08-4f47-bc4a-dd94894f43ae",
+   "ref": "3527485",
+   "cliente_id": "3f145013-dd1b-44e2-8459-12b7dab3fc5f",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "21139030-5cc8-49cb-b48f-9bc2433f01fe",
+   "ref": "3525448",
+   "cliente_id": "38b9027a-1c2c-4f10-ad02-54aeffeb1bcd",
+   "pagado": 21600.0,
+   "total": 21600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "2dc58e42-e1f0-4a60-80d7-2fb42cc615e3",
+   "ref": "3571280",
+   "cliente_id": "840a0419-2eb0-4bed-9478-c85131b51e1f",
+   "pagado": 6250.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "993433f2-5a4c-4d0f-aad3-5c6075f749f6",
+   "ref": "3525056",
+   "cliente_id": "82b9cbed-00a0-433d-b524-e01a9d424e27",
+   "pagado": 9600.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "496d18cd-9416-4165-a036-b02a4adfad91",
+   "ref": "3569995",
+   "cliente_id": "3280af8e-e08d-4c41-a4b7-652d64e1162d",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "5fe45faa-d987-49ab-b0cf-e75df63b9924",
+   "ref": "3524877",
+   "cliente_id": "09daa039-4390-40ba-a3aa-eb240ff03312",
+   "pagado": 7200.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "16749982-c149-4633-97e4-fdd8da14e7f0",
+   "ref": "3524876",
+   "cliente_id": "e43fdc30-c6be-434a-bc74-a9028656e66f",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "21b084cf-de76-401d-963b-110c669957c7",
+   "ref": "3568680",
+   "cliente_id": "3d3a65d6-16ca-4255-b514-38b1804e9083",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "2ad8bb20-2857-4957-8c8b-650f7ddd436f",
+   "ref": "3565719",
+   "cliente_id": "9420815b-38c8-4209-9914-eb2ec3bcc6a0",
+   "pagado": 3600.0,
+   "total": 3600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "a79e5329-e6af-410f-a5e5-9419e334854d",
+   "ref": "3565682",
+   "cliente_id": "4a8cbd60-ac6c-4ac1-ada8-14a94f8b61a5",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "36b7dbd2-6f4b-474c-91c8-f80ea85414db",
+   "ref": "3522495",
+   "cliente_id": "61d98fe5-3c47-418f-84cd-35c1cf6f8d91",
+   "pagado": 42000.0,
+   "total": 42000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "83e6909f-c631-4c4d-a75e-e20c84629a4f",
+   "ref": "3564784",
+   "cliente_id": "ef3f0197-176b-42a3-8a7d-6649824b77dd",
+   "pagado": 39600.0,
+   "total": 39600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d1f4829b-f37a-4c45-958b-6532b85eed3f",
+   "ref": "3562613",
+   "cliente_id": "c3a24d6d-6de2-41fb-b7a6-13a0673d9f7d",
+   "pagado": 5000.0,
+   "total": 4800.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "cb43ad05-937b-410b-b014-830825c9e8d1",
+   "ref": "3521772",
+   "cliente_id": "63230c4b-1c8c-4c3f-848c-02527718bad2",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "a33ed260-ba97-4053-98ff-54b0818be98d",
+   "ref": "3521556",
+   "cliente_id": "7bdb63e6-0a40-42a8-80ec-feabbeb39d9f",
+   "pagado": 1200.0,
+   "total": 1200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d9db1e2d-3b6c-43aa-a693-220e88687135",
+   "ref": "3521550",
+   "cliente_id": "99e31987-a366-48e7-bb68-193ee5493875",
+   "pagado": 84000.0,
+   "total": 84000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "e9066750-e063-475c-8bb0-741691ec45b5",
+   "ref": "3520683",
+   "cliente_id": "37b9e9c2-6ecc-4b23-be68-915c63f23a3b",
+   "pagado": 13200.0,
+   "total": 13200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b0f3ae41-5539-4612-ade9-62837785c355",
+   "ref": "3561594",
+   "cliente_id": "65c63ab5-a5c8-4ed7-ba2e-a74dadb9cd94",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "81e89791-950d-4300-9601-c8b933ac84fa",
+   "ref": "3519736",
+   "cliente_id": "1ed7c1c1-b477-4eb6-96ff-49dcf6c87749",
+   "pagado": 8400.0,
+   "total": 8400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "fec3c234-d3d0-4c22-b987-e81cf0f42ab1",
+   "ref": "3519693",
+   "cliente_id": "fa677a3e-616e-4d63-b1bc-b2e611443cc1",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "0b3169c0-b4b0-4ac0-970b-09c254b190e4",
+   "ref": "3559360",
+   "cliente_id": "7d7ecc3a-df96-49a6-b426-daa6e340b8c7",
+   "pagado": 15000.0,
+   "total": 14400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "9f5748b0-efb2-4805-8a7e-de45096af872",
+   "ref": "3558702",
+   "cliente_id": "59bd4739-3662-48b8-8793-fb4486b69572",
+   "pagado": 10000.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "c3dbab43-5996-4164-91df-397ea072265c",
+   "ref": "3517611",
+   "cliente_id": "dc041ace-38fb-4bb4-9e71-184e03d72064",
+   "pagado": 31000.0,
+   "total": 30000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "76052583-c5a2-4865-b6f1-dc3a4538223a",
+   "ref": "3556763",
+   "cliente_id": "b9a12bfd-e455-4829-a2a2-b622df9ac483",
+   "pagado": 3600.0,
+   "total": 3600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "c5ac65cd-02bb-4ad5-84e7-2357e05fbae5",
+   "ref": "3555864",
+   "cliente_id": "aca7d706-0715-4350-bee6-a6ab21e71a65",
+   "pagado": 8750.0,
+   "total": 8400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "1715785d-2a8f-487e-95ae-650514d0b3c4",
+   "ref": "3555577",
+   "cliente_id": "661ea3ae-d5f6-4657-baa3-01713844686f",
+   "pagado": 3600.0,
+   "total": 3600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "3ea0d0e5-488d-42c5-bf4b-f0442b759b4f",
+   "ref": "3516817",
+   "cliente_id": "e1649fd3-62ef-47dc-8830-457b4435a0f5",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "51ae77b1-bc89-47ad-b6c1-916ff45ab643",
+   "ref": "3516773",
+   "cliente_id": "7a973f33-289c-4905-8d93-60b263440285",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "a6ca4d5e-64e2-4e9a-8808-0447e37bce5a",
+   "ref": "3516768",
+   "cliente_id": "1241de3c-e8fd-4071-9fcd-b007335c65b3",
+   "pagado": 48000.0,
+   "total": 48000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "1f8d8ab2-c89c-4edf-bb73-899e6c259fb6",
+   "ref": "3516755",
+   "cliente_id": "7cf6bc75-7172-4d54-9917-255b4f9cb838",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "19b31ab3-8c45-496d-b5f9-229b41ae607f",
+   "ref": "3516749",
+   "cliente_id": "99f12731-c681-4e61-897c-43a44c326b3a",
+   "pagado": 72000.0,
+   "total": 72000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b4e690ad-5928-4c7a-ac6a-1bc597ad6377",
+   "ref": "3555389",
+   "cliente_id": "8b7584d3-6df9-479b-8820-1c8064c49a60",
+   "pagado": 15000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "52e6444b-5cf1-4ab0-a4a4-9f0047c3ed0d",
+   "ref": "3554161",
+   "cliente_id": "37b9e9c2-6ecc-4b23-be68-915c63f23a3b",
+   "pagado": 13200.0,
+   "total": 13200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "5afea479-61fd-4303-b105-31253aed8e9e",
+   "ref": "3554134",
+   "cliente_id": "91a5570e-727d-43e6-a83c-be84a2c4f402",
+   "pagado": 10000.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b44f5654-9486-4471-becd-a9167e23c6da",
+   "ref": "3515509",
+   "cliente_id": "c56055a2-5290-466e-b459-91575d42b9e9",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d9bc844c-2064-47aa-b0b7-aa1cedaeeaae",
+   "ref": "3553753",
+   "cliente_id": "f73673df-06f8-4078-b3e6-d324b42d1d19",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "273d548c-f11c-4f1f-8cd9-df90f2da182d",
+   "ref": "3553107",
+   "cliente_id": "f44af55f-d714-4240-a031-7791b9790aed",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "00a6fa87-6bf8-48fd-9f5d-33a94c64e431",
+   "ref": "3553086",
+   "cliente_id": "0f166014-c912-4e3d-838f-e8ac77086690",
+   "pagado": 6250.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "48b78129-0e27-4bd1-9852-71aebd3bb518",
+   "ref": "3553002",
+   "cliente_id": "859350fd-56b8-4b8a-990d-20d304f63966",
+   "pagado": 3600.0,
+   "total": 3600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "3a1ceb4d-aeb0-447d-a6f4-0b158153bd0e",
+   "ref": "3552933",
+   "cliente_id": "c185913e-7b9f-4e5a-b58d-04587f1c0468",
+   "pagado": 12400.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "37692813-9024-4c00-8c54-b12c25768faf",
+   "ref": "3552930",
+   "cliente_id": "2dde8048-02be-4304-bebc-a91772fe1ae6",
+   "pagado": 10000.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "3d78d26f-0838-4eca-a2ce-d71df09a77df",
+   "ref": "3551596",
+   "cliente_id": "8a35f69c-8f0d-4c89-bdeb-7b657bc15188",
+   "pagado": 7200.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "ce88c612-3e25-4db8-ae4f-0f64fe86dc51",
+   "ref": "3553631",
+   "cliente_id": "d92f1744-7d32-46c0-bbda-aa8ec68f79ed",
+   "pagado": 64000.0,
+   "total": 60000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "169e2b7e-edde-4c92-8d76-828b522e21ba",
+   "ref": "3551081",
+   "cliente_id": "f5689179-b235-42e6-8d8a-01b402c14a36",
+   "pagado": 9600.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "ce8b3870-0f6a-44d0-bbcc-a1bca762c371",
+   "ref": "3550989",
+   "cliente_id": "e0bd745a-0de1-4bf8-a384-10724772b1b4",
+   "pagado": 17050.0,
+   "total": 15600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "6d1e72fc-478b-41a6-bffa-8f26cdda1763",
+   "ref": "3514170",
+   "cliente_id": "01fff909-b435-4b39-b8ea-509f27b2dfde",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "87df09cf-c93f-44b6-8e1d-0bd49b522893",
+   "ref": "3514169",
+   "cliente_id": "7105ec4b-b319-4283-bbbb-39bd43cdfd19",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "40462672-23ac-4b99-b875-8eb584577230",
+   "ref": "3514111",
+   "cliente_id": "80980f3c-921d-4b0b-b2e6-73d335360d29",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "243a6cf7-ad1e-4088-b459-0e9e3ba0dbec",
+   "ref": "3514063",
+   "cliente_id": "42e43bef-9298-4f58-8f6b-2dded7472f76",
+   "pagado": 9600.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "f5550e6e-ff32-448d-8909-a11a9e10a710",
+   "ref": "3514062",
+   "cliente_id": "8d762a8b-51ac-4c86-867c-3e1699afdd92",
+   "pagado": 3600.0,
+   "total": 3600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d8e3181c-b9d1-4509-aa07-b1818b41d35f",
+   "ref": "3514057",
+   "cliente_id": "bf49a40c-d353-4c3e-9a88-b2e8a02bae44",
+   "pagado": 14400.0,
+   "total": 14400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "5263e1d2-0e7c-4e97-be52-c72cc65034ec",
+   "ref": "3550759",
+   "cliente_id": "c984f36a-6bcb-4582-9c2c-2d2e7216cb93",
+   "pagado": 14400.0,
+   "total": 14400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "907756bf-dc4c-40fd-9966-a43b63b1fdcb",
+   "ref": "3550515",
+   "cliente_id": "689200f7-7d3c-4749-83c4-5037afabf1e2",
+   "pagado": 7200.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "f10ba38a-e2d8-4f26-a8e3-2617dac7c303",
+   "ref": "3550457",
+   "cliente_id": "06cbfb78-a203-4df7-8521-8fe6cd8a7ac6",
+   "pagado": 7500.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "cee25bb4-beae-464e-b73c-c87b2592f5a5",
+   "ref": "3550418",
+   "cliente_id": "1d62ad3c-fced-4526-a4e8-1cfa76fff7e9",
+   "pagado": 37200.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "7b0dd9c1-8000-4d62-898b-6e568c1eee57",
+   "ref": "3550359",
+   "cliente_id": "15024a34-7b8c-4bcc-afe7-906d64fa99ed",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "c7ab5ce0-a8ef-4ea4-9fd3-554edb9f3fe2",
+   "ref": "3550295",
+   "cliente_id": "a45af051-d354-40a4-8c2c-bb2cf3714d36",
+   "pagado": 37000.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "58a170e3-709a-4baa-94d7-96249999b231",
+   "ref": "3550249",
+   "cliente_id": "dfd6898c-e3ff-4790-8ebc-ed37409808cb",
+   "pagado": 48000.0,
+   "total": 48000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "0d85b2c5-ad3d-49f8-b4b6-0e8e843eb584",
+   "ref": "3549486",
+   "cliente_id": "011b79c3-00f2-43af-b530-5502fe2ff4e8",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "98697219-8489-4b40-a0f2-4657100b1589",
+   "ref": "3548259",
+   "cliente_id": "d461393a-35bb-4e64-8628-838bfa49e7bc",
+   "pagado": 6260.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "9271b5a3-7dd2-4452-bead-be0f5f7358a0",
+   "ref": "3548473",
+   "cliente_id": "71bd1960-fb98-4c2f-b5c2-bdad1f3d6635",
+   "pagado": 10800.0,
+   "total": 10800.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "2a2e12fe-95a5-4a75-8a08-b2bc445bb60f",
+   "ref": "3547828",
+   "cliente_id": "f44af55f-d714-4240-a031-7791b9790aed",
+   "pagado": 18750.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "ff139e53-094a-4531-8bbf-f3286b7ff7fd",
+   "ref": "3547706",
+   "cliente_id": "f9e96aa9-88e8-4023-b212-20b5dbb4abdc",
+   "pagado": 15400.0,
+   "total": 14400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "9065ddda-1036-4be5-9bc3-0f849572018b",
+   "ref": "3547647",
+   "cliente_id": "bc82f939-2c13-4c08-b8d9-a22712e2db39",
+   "pagado": 8400.0,
+   "total": 8400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "e2db6f10-897f-4798-800e-b711110909e5",
+   "ref": "3547512",
+   "cliente_id": "39ebf62e-7636-4566-a1e4-8bddc662a6ad",
+   "pagado": 12400.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "57d3f29e-1d7f-4257-9862-e699759b1dbe",
+   "ref": "3547420",
+   "cliente_id": "66a1f4b6-1119-4004-8a6e-49e374ac6e72",
+   "pagado": 10000.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "9357e2af-db9b-4ff1-bee4-d50dc64ec918",
+   "ref": "3547270",
+   "cliente_id": "12f47dbb-2cdd-4237-a8aa-53e973b1b723",
+   "pagado": 37500.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "21895965-9fc2-44d7-92b3-ff1a3d9c6875",
+   "ref": "3511253",
+   "cliente_id": "69024b63-503b-4515-b09f-069e2b405233",
+   "pagado": 31700.0,
+   "total": 31200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "cdec5bdc-e71b-4b23-87f0-00e7a0123edf",
+   "ref": "3547142",
+   "cliente_id": "13a2c9ad-3bdb-4eb3-8ad9-f7c28f44b609",
+   "pagado": 49600.0,
+   "total": 48000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "62f1fd0f-0013-4131-ace3-cce009b5fd26",
+   "ref": "3511174",
+   "cliente_id": "2fe89ada-ceaa-4392-a73d-a66b4f2d8957",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "cf72aa32-eec5-4adc-ba96-d20d69bdbb61",
+   "ref": "3511154",
+   "cliente_id": "ca619ad9-a9ce-4138-91df-b7e1f52adefa",
+   "pagado": 12500.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "87631b7d-2e14-4d87-aa21-758988d5623c",
+   "ref": "3511106",
+   "cliente_id": "455890a9-53db-4dac-9393-285f02809218",
+   "pagado": 3600.0,
+   "total": 3600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "40ea156f-3d67-4a41-845c-2a4aa299ca6d",
+   "ref": "3547088",
+   "cliente_id": "4f4f9d38-3392-49ff-bc98-ea28e2c2b55d",
+   "pagado": 12800.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "19de4f40-6e41-45a5-a1f6-ced2ea0cd027",
+   "ref": "3547084",
+   "cliente_id": "a495e47a-6661-4120-986f-e2d4d7333b98",
+   "pagado": 6350.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "aba21629-8964-4e98-bb8c-fc15bc1c83de",
+   "ref": "3508794",
+   "cliente_id": "8e497de6-3e1f-413c-ad7e-a5956d026618",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "2f726dc7-2905-43fa-8853-b342f94db684",
+   "ref": "3508775",
+   "cliente_id": "4e76b8e5-b684-4346-875a-d1a7e5cd878b",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "8a3e505e-43d7-4f1f-a1ba-a46024cd2fd4",
+   "ref": "3508741",
+   "cliente_id": "07bbb7c1-5bfa-4369-a6a3-8a6ab141e688",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "7488395e-e747-447c-bbf8-87943f349998",
+   "ref": "3508645",
+   "cliente_id": "0f9bae43-9abf-499b-8876-2f94eb645602",
+   "pagado": 60000.0,
+   "total": 60000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "69179ff7-90e6-4a6c-a1ee-f3b8acb772a0",
+   "ref": "3507081",
+   "cliente_id": "016dfffc-aee0-44f6-82ff-df7dd46d18f1",
+   "pagado": 720.0,
+   "total": 720.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b6f37b41-724e-40a7-b4f3-321458172a62",
+   "ref": "3507015",
+   "cliente_id": "240e3241-beb6-4e8a-a952-4d80c9c26998",
+   "pagado": 24800.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "14972e3d-5bcd-42cc-a831-57c43dd88e01",
+   "ref": "3506718",
+   "cliente_id": "15ec0822-39b6-4f21-a04a-466feaeeaf42",
+   "pagado": 15600.0,
+   "total": 15600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "03870587-375a-4ad2-ab48-c90919ff8585",
+   "ref": "3504357",
+   "cliente_id": "a3c1ae0a-d43e-49c6-9858-f085765de02e",
+   "pagado": 12400.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "e830c026-443b-4837-a1b2-64ee87074d65",
+   "ref": "3503098",
+   "cliente_id": "27a794f2-d006-40c7-94ad-ffb81960e387",
+   "pagado": 9600.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "26b83ea1-4bb2-48ad-ae8f-fe146fb6205b",
+   "ref": "3503034",
+   "cliente_id": "a8375860-dbd8-4f25-9eff-79534c3513a5",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "0af6f123-c06b-4567-95c9-435c55641384",
+   "ref": "3502942",
+   "cliente_id": "3f9168b0-323d-46a9-9fb3-ffdcddfa7f2c",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "e2a99f4d-e157-4cbc-9baa-704f4aa5a291",
+   "ref": "3500339",
+   "cliente_id": "761fa167-12ec-420f-aab2-1a83feaf2f77",
+   "pagado": 30000.0,
+   "total": 30000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b229853f-da98-444f-bf96-cde2c11fd2ae",
+   "ref": "3498131",
+   "cliente_id": "9a1111e3-46a8-4b7f-a809-6eda13329c7a",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "43651a64-9409-4a1e-966e-5cca5c172248",
+   "ref": "3498088",
+   "cliente_id": "442ac3c4-dd40-4d00-ad90-3a82fc7bfc37",
+   "pagado": 14400.0,
+   "total": 14400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "f73373a6-164e-4212-9c49-c90237b577b6",
+   "ref": "3497728",
+   "cliente_id": "61529151-7323-458f-9518-ec7074d66a27",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "f010e423-89d2-4f9d-a856-8645e7aeede2",
+   "ref": "3497434",
+   "cliente_id": "d119f949-aee1-4f5a-95b7-107da97fa826",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "582c56da-3831-466e-b5c5-95252975b49e",
+   "ref": "3497418",
+   "cliente_id": "3ba7e737-53c2-41d3-b14e-98d22ccbe35d",
+   "pagado": 43400.0,
+   "total": 42000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "cca78eb2-572b-471c-a4f5-53d2567d7ddc",
+   "ref": "3497389",
+   "cliente_id": "1760e005-ef5f-4367-8df6-78f87ba7104e",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "1fd542bd-9ca9-49eb-8bce-ddfcbf4cc9ca",
+   "ref": "3494473",
+   "cliente_id": "e1c01413-b0a1-4ce8-a0f2-9c8c9647b735",
+   "pagado": 9600.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "2c9163ba-b374-4b0c-a706-43baf3af48d2",
+   "ref": "3491642",
+   "cliente_id": "0c8e56b3-12d8-480f-aea5-d400bd6696c8",
+   "pagado": 14400.0,
+   "total": 14400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "cb85afb8-5784-43d9-b05e-7541d36ae125",
+   "ref": "3491614",
+   "cliente_id": "4651d019-f4d3-4f7d-8d48-c5076d57364d",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "35464959-2734-44ef-bd50-2d4c1837a9b1",
+   "ref": "3486692",
+   "cliente_id": "0e6953f9-050b-4b4d-bb93-55c60a96dff4",
+   "pagado": 13200.0,
+   "total": 13200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "e88b9063-0a3f-4935-b77d-2309dee6adc6",
+   "ref": "3486638",
+   "cliente_id": "a8d6aba7-f090-475a-83b8-935e121a05ef",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "9691410c-a2b7-45a4-a3e0-61db0a322164",
+   "ref": "3484429",
+   "cliente_id": "84e42ea9-3b66-4d3c-aac1-2684a4b82f75",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d91c36ad-430e-402c-bc13-cab8816742f1",
+   "ref": "3484239",
+   "cliente_id": "dbcc5d10-00c2-46b1-97c5-d40ab854db83",
+   "pagado": 7200.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "364fccc6-4ce5-44e5-b4ec-9c1247e59f6c",
+   "ref": "3480214",
+   "cliente_id": "a1f52035-1632-45c0-a5bd-4c3241ae4667",
+   "pagado": 30000.0,
+   "total": 30000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "4c6a358e-d079-4407-928a-23812acb0b06",
+   "ref": "3480065",
+   "cliente_id": "673f9729-89e5-41aa-afe1-ba5c2b45af6c",
+   "pagado": 14880.0,
+   "total": 14400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "c0128b92-dbee-4d39-8378-cb91dd7ffcf4",
+   "ref": "3466235",
+   "cliente_id": "e23b05d0-9521-4a33-ac74-3eb2b6cc712c",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "572ac053-4d09-457d-8b05-20ac5ef11b98",
+   "ref": "3460733",
+   "cliente_id": "1d9b1d8d-e783-40e0-bb75-3f0b54a3e3b5",
+   "pagado": 9600.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "4d0b051a-eefc-49f2-8f75-2291eabf242a",
+   "ref": "3452011",
+   "cliente_id": "4212c0f1-8ce2-4ba0-859f-eebe93ea1a0f",
+   "pagado": 7500.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "e1063663-a2bf-472c-bfc6-13c56e704e93",
+   "ref": "3439325",
+   "cliente_id": "1b8084a4-90f4-4b69-8366-57df5de976f3",
+   "pagado": 3400.0,
+   "total": 3000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "2e4f9e04-7de6-4b92-a88a-b3b9aa1f14fa",
+   "ref": "3405187",
+   "cliente_id": "43dca280-6702-452c-8cc3-d84859d32f69",
+   "pagado": 60000.0,
+   "total": 60000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d0672b26-0318-46d5-8c01-aef87b6315c3",
+   "ref": "3404257",
+   "cliente_id": "ef3bd58a-07ce-4136-8bdd-124c507f121d",
+   "pagado": 33500.0,
+   "total": 33499.98,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "4bb08b6d-b7e3-44bc-9d54-bf4848d255fe",
+   "ref": "3352759",
+   "cliente_id": "ed41ffe3-510f-4a55-bcf7-05854bdd3445",
+   "pagado": 14490.0,
+   "total": 14490.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "f9333544-dd5b-475a-ba22-5696bbc906d5",
+   "ref": "3295693",
+   "cliente_id": "9d576bc5-9941-4662-906c-4f0af572aaad",
+   "pagado": 10250.0,
+   "total": 10049.92,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "448adfc6-5fd8-4f3f-ac6e-1215d079e831",
+   "ref": "3524870",
+   "cliente_id": "992f5081-70a9-4390-b877-f192d162396c",
+   "pagado": 7500.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "57edef78-2662-44a9-9f74-06768f185b32",
+   "ref": "3520129",
+   "cliente_id": "3b8df964-7c02-43ba-bc58-fca7c2f9ff3b",
+   "pagado": 10800.0,
+   "total": 10800.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d82c126e-e644-48d3-99eb-dc69875b7f5c",
+   "ref": "3527582",
+   "cliente_id": "ba1996f3-4006-4cdf-ab30-6dc3bdb2280b",
+   "pagado": 16000.0,
+   "total": 15000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "8c78261d-f5ef-4ad3-a613-553d1c7507d4",
+   "ref": "3524644",
+   "cliente_id": "78f98abf-6baa-42cd-a601-f63dc1c92d3d",
+   "pagado": 62000.0,
+   "total": 60000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b97e1904-6775-4d95-8dba-676734606ec6",
+   "ref": "3555398",
+   "cliente_id": "0b182f66-a7b9-4f79-b985-15716a61a546",
+   "pagado": 25600.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "4da84392-c7a7-43c8-8c99-4051af856a0d",
+   "ref": "3551213",
+   "cliente_id": "72c600eb-0cfb-4c31-9d13-9ccad564ae94",
+   "pagado": 9450.0,
+   "total": 8400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "4bc4b986-ebfb-4a57-8322-de38197790b6",
+   "ref": "3525161",
+   "cliente_id": "02f51544-59d6-4d41-a71f-cdd939ef945b",
+   "pagado": 1440.0,
+   "total": 1440.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "aea83408-4366-40b1-b553-71515b1f5e6a",
+   "ref": "3522658",
+   "cliente_id": "3b7d64fe-d7a6-4d12-813f-51abc3328b8b",
+   "pagado": 32000.0,
+   "total": 30000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "aa8e4d52-c3ef-47b5-8801-c653f195b8e7",
+   "ref": "3562699",
+   "cliente_id": "7b7b871b-fae9-444b-9b8c-a613f6caa4bc",
+   "pagado": 12150.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b0f0f0e1-5462-4f99-9d0a-da0dcc0c5908",
+   "ref": "3509250",
+   "cliente_id": "39af586b-f3a4-46cb-bef3-b19a481876ed",
+   "pagado": 7800.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b0816e28-66b2-48fa-bc3e-57375642da92",
+   "ref": "3525072",
+   "cliente_id": "1387bbed-7845-4ec6-bf17-ee068a79dc06",
+   "pagado": 12500.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "331e42b7-1580-4653-86eb-0b67baf828a0",
+   "ref": "3548526",
+   "cliente_id": "15436a2b-4019-4d27-aa00-28cab89ac104",
+   "pagado": 50000.0,
+   "total": 48000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "6a7b3573-635c-4dcf-b4ee-4c73e6f51dfd",
+   "ref": "3513942",
+   "cliente_id": "f291bcad-0277-4b33-ae94-cdda7c2b4117",
+   "pagado": 12500.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "958e917e-63ce-45b8-8b3b-ffa24228f86e",
+   "ref": "3539861",
+   "cliente_id": "7917fc64-5cc4-4234-828d-9692e894889b",
+   "pagado": 7200.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "be13e053-11f7-4823-922d-491ff15cc1fe",
+   "ref": "3469957",
+   "cliente_id": "a496d221-f6ed-41d4-968a-63475968a836",
+   "pagado": 30000.0,
+   "total": 30000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "5a88493e-8229-4098-9b34-8db40e002006",
+   "ref": "3536570",
+   "cliente_id": "e421ddc9-3841-4ad8-b64c-908ea5646140",
+   "pagado": 1200.0,
+   "total": 1200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "83a0b765-f4d5-4f5a-830e-d5e05e0158c6",
+   "ref": "3551121",
+   "cliente_id": "5f7bdebb-3d5a-45f7-a135-9d865df7bdf2",
+   "pagado": 13000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "52e5581d-81ee-4a79-ac31-816abe431272",
+   "ref": "3530855",
+   "cliente_id": "e1997e8f-63aa-4069-8a59-a54f83f08048",
+   "pagado": 7200.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "303786f2-ecc3-4100-9627-65e33d16c319",
+   "ref": "3461406",
+   "cliente_id": "75ab047d-0e06-48da-a872-0b331ea12d5a",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "008f2e5c-cc39-4906-8d61-79ad87f55fcd",
+   "ref": "3537086",
+   "cliente_id": "ef97dd65-d62d-4296-8bd9-26cfbff03d51",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "6038893d-7263-47a1-8d45-485e4785194c",
+   "ref": "3515499",
+   "cliente_id": "fddd928b-d961-4d84-8584-1e8e67132cd5",
+   "pagado": 24800.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "bd81361f-ce8e-4807-be52-800f542c6cb1",
+   "ref": "3558700",
+   "cliente_id": "8b5bd8b8-0e9c-4c10-a453-d101f8735b6b",
+   "pagado": 9100.0,
+   "total": 8400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "9afcde92-5192-4115-a92b-995522e1b5a6",
+   "ref": "3535787",
+   "cliente_id": "1759f7fb-a3c2-42a5-a9e7-76e8e36cf18f",
+   "pagado": 6250.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b467762d-5203-4596-90ff-12a8e34bc89a",
+   "ref": "3531801",
+   "cliente_id": "32752a7f-4c6c-4f6b-b1d0-2237d86c3fce",
+   "pagado": 11100.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "e8f302d9-f964-4e9e-9db6-b410368da017",
+   "ref": "3548860",
+   "cliente_id": "3da2be36-fca4-4c9d-8ce8-d3da8a07cbe0",
+   "pagado": 5670.0,
+   "total": 5400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "46d77fcd-bde5-44d6-a849-8d113c98fc37",
+   "ref": "3562681",
+   "cliente_id": "daffd440-d300-493d-8c36-ad501d04b4d6",
+   "pagado": 3900.0,
+   "total": 3600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "9bd8b5fe-8307-4ac3-ac31-b30c004ef747",
+   "ref": "3512519",
+   "cliente_id": "7f67e8e5-0d2f-4942-8ee1-0e135ee2afd8",
+   "pagado": 37200.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "45d7e81a-a897-4314-bd9d-0e7500d7006a",
+   "ref": "3533293",
+   "cliente_id": "21a01307-8138-42f4-8a00-5189f378c1ff",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "32c21425-2238-406e-ac0d-191f51c903c0",
+   "ref": "3514831",
+   "cliente_id": "f447711a-1089-4be4-9f6a-9351e9239cdd",
+   "pagado": 12400.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "c84dae6c-b5e3-4c2b-887b-1e9d5654f10c",
+   "ref": "3505946",
+   "cliente_id": "a2d900f4-2999-4c1e-ad3f-b50c8015dc76",
+   "pagado": 7800.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "661a7c75-f566-462d-97a5-3d7ca7f49b48",
+   "ref": "3564593",
+   "cliente_id": "c924ff7a-a68b-4e20-8327-9218b5733bc3",
+   "pagado": 14880.0,
+   "total": 14400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "a1c93a71-abb5-43b5-9bc9-71781dc140a5",
+   "ref": "3513958",
+   "cliente_id": "dca68af1-51b2-4b71-94b0-4edfd57141c9",
+   "pagado": 14880.0,
+   "total": 14400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "bbbbe431-3585-4c02-885e-b71b6a163011",
+   "ref": "3514121",
+   "cliente_id": "932ad212-9ab9-43a8-99aa-bd1e3d18b935",
+   "pagado": 60000.0,
+   "total": 60000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "a98659f3-cceb-4c28-9919-5d5e5b9005e5",
+   "ref": "3554511",
+   "cliente_id": "fd4de3a3-bac1-4d44-a050-8d6ae486cd56",
+   "pagado": 5040.0,
+   "total": 4800.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "067e3820-6972-414b-826b-f6683af82597",
+   "ref": "3536671",
+   "cliente_id": "aba2f1d0-e1ca-40b0-a384-192abac734e8",
+   "pagado": 7500.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "4c1b6d7f-da29-42bf-a4f0-54ebc3d2bcec",
+   "ref": "3550311",
+   "cliente_id": "12f47dbb-2cdd-4237-a8aa-53e973b1b723",
+   "pagado": 75000.0,
+   "total": 72000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "eab7c45f-fbcc-40a0-88b7-3f0f8c421adc",
+   "ref": "3557465",
+   "cliente_id": "1aded293-e52b-4be7-b00b-a1c488a26a70",
+   "pagado": 3780.0,
+   "total": 3600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "3bfe6329-1d5b-44a6-9466-9c1f5d264683",
+   "ref": "3559684",
+   "cliente_id": "51482fa3-a60d-4bf6-864e-1d79c1b89a5d",
+   "pagado": 7100.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "7fbc3e19-1185-4f69-93ad-98a7814b315a",
+   "ref": "3556609",
+   "cliente_id": "9860a5dd-8f91-4ca1-bd54-29b1f091c0e2",
+   "pagado": 3900.0,
+   "total": 3600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "930ea005-2729-40fb-91f5-8d77e36f3d09",
+   "ref": "3542472",
+   "cliente_id": "18f91ea6-9486-43c1-bf6a-c1a8ac4004a4",
+   "pagado": 9920.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "bac2736d-0ab8-447e-8068-63bd7cd0c7cc",
+   "ref": "3522992",
+   "cliente_id": "7b25aa5c-da7d-4dd7-bfb5-5db7d6c81910",
+   "pagado": 360.0,
+   "total": 360.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "044a6f91-cf26-49e9-86dc-9f850a6160de",
+   "ref": "3449061",
+   "cliente_id": "a0ecbfb7-03d1-4343-b851-3670ccf7a8ea",
+   "pagado": 18300.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "87318017-3efc-467b-8b1a-88e6a5f7175c",
+   "ref": "3513881",
+   "cliente_id": "56d18884-3f75-4806-8522-df0ce4d47b31",
+   "pagado": 25000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "44fb17c3-3974-4d6a-92a4-775475a6385a",
+   "ref": "3556766",
+   "cliente_id": "b9a12bfd-e455-4829-a2a2-b622df9ac483",
+   "pagado": 6300.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "c166d3b4-866b-442f-a465-f50d43300f11",
+   "ref": "3524679",
+   "cliente_id": "6b922843-8db3-489c-845b-47e897f7cea6",
+   "pagado": 25000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "6d9bbb0f-a910-4f5f-9f56-f9cca687b7fc",
+   "ref": "3545326",
+   "cliente_id": "a357bf31-6162-40fd-aff2-8743eeafdb91",
+   "pagado": 12400.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "1755e480-0eb6-4de1-b993-970674cf8e4f",
+   "ref": "3559925",
+   "cliente_id": "90143693-a6b2-44a3-a546-ff709cc6aa51",
+   "pagado": 6250.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "e9c6adf0-b20f-42c7-9964-30fdc7b20568",
+   "ref": "3558323",
+   "cliente_id": "d1510dde-9449-4b5e-838c-7754c4277487",
+   "pagado": 6500.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "43e50004-8046-48da-adf6-3b97cb9f8668",
+   "ref": "3522652",
+   "cliente_id": "e0b8c6da-2b14-48ed-87b7-c6c4ff2b40b8",
+   "pagado": 36000.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "eb2bb972-8c18-43c6-bad5-048196ca0a0e",
+   "ref": "3516753",
+   "cliente_id": "02b912d4-be3d-4e06-9f99-24e09c288c55",
+   "pagado": 12400.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "ba21a742-2eeb-40be-9019-203aec67c53f",
+   "ref": "3491973",
+   "cliente_id": "ed113ff4-ad11-4717-906c-0d803b247df6",
+   "pagado": 14880.0,
+   "total": 14400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "ff182b8c-446d-4fb4-9ea7-6f6d09ee1a58",
+   "ref": "3521788",
+   "cliente_id": "1bdc7400-55ff-4347-abe1-f7c8acecae4b",
+   "pagado": 12400.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "88fa84fa-5264-4d00-90c3-2cde93e84bee",
+   "ref": "3555679",
+   "cliente_id": "b0d40833-e477-4212-99a4-6f914a2d2081",
+   "pagado": 10000.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "aac67812-b907-4396-991b-4f1b99eb6df2",
+   "ref": "3544388",
+   "cliente_id": "88bad3f3-b79e-414d-96b5-d19fe3921c15",
+   "pagado": 12400.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "5350062a-25dd-4138-899d-4a18aa01fb83",
+   "ref": "3545284",
+   "cliente_id": "3f1582e2-8f20-47a1-a820-9c7e2715ed31",
+   "pagado": 12400.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "fa08d33f-d8f1-4bcf-b1d3-abe7ceb6c8b6",
+   "ref": "3551189",
+   "cliente_id": "c3317a1f-7654-44ce-941f-6db7d53b92f9",
+   "pagado": 6300.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "13e74999-b971-457e-acbc-4e6b3298b9d0",
+   "ref": "3553227",
+   "cliente_id": "a80d714a-c225-4a1d-ae31-cc350dab51b4",
+   "pagado": 6250.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "ed35f980-edce-409d-93ef-fccc70f5218a",
+   "ref": "3569869",
+   "cliente_id": "d266ba1f-a266-490e-9a8c-d8e0f91206fb",
+   "pagado": 7800.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "f3337e83-fe12-41b7-a7db-ba98182c5148",
+   "ref": "3550247",
+   "cliente_id": "58b929c7-89c0-4a4d-88a5-d18e66c3ea7f",
+   "pagado": 18600.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "145ead68-6ff4-4536-b89a-944c0895875d",
+   "ref": "3544422",
+   "cliente_id": "5677745b-e4fc-4d74-9141-a505bea0c34a",
+   "pagado": 12400.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "bb502c70-c929-4b6d-bf6f-f152c01fa318",
+   "ref": "3530529",
+   "cliente_id": "2f1151fe-6a71-45f7-8497-4fde4a37e4d0",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "86c8d671-12ab-4443-8289-325766497106",
+   "ref": "3519962",
+   "cliente_id": "13486aa4-8737-4f3b-962d-6ad959503f9e",
+   "pagado": 18600.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "e33dd139-9fdf-41cb-842e-751221fbda40",
+   "ref": "3528116",
+   "cliente_id": "ef364b02-c871-48c5-8e83-54b96fba881a",
+   "pagado": 9600.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "6feefe7b-5504-474a-bb33-86e4b9b81826",
+   "ref": "3503773",
+   "cliente_id": "34e9c50f-7bc6-4c7a-985d-a7ed0a5ad779",
+   "pagado": 40720.0,
+   "total": 39600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d09b27b3-2681-4fa1-81c2-e3ef8c5e2396",
+   "ref": "3570830",
+   "cliente_id": "544c9e67-d784-4a0e-b638-ee3119bf453e",
+   "pagado": 6300.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "0ba806ca-0159-456b-ac35-4a6e4601f97f",
+   "ref": "3511601",
+   "cliente_id": "1bf4618e-5ade-4f70-a87f-f606f78bedf8",
+   "pagado": 720.0,
+   "total": 720.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "db9eea13-7bbf-4d90-94af-3c2e1c84f28e",
+   "ref": "3527522",
+   "cliente_id": "8f85af3c-d41a-40aa-aef0-14a20b9851e6",
+   "pagado": 18600.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "dbe34033-af9d-4f7e-806c-04cf429f98cd",
+   "ref": "3547542",
+   "cliente_id": "5959bf64-74fb-4bed-9733-3d9e9a3a10cb",
+   "pagado": 18750.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "273de427-8ccd-407b-8e05-53a52f735344",
+   "ref": "3547781",
+   "cliente_id": "9a5519a1-b4d1-4db8-b39b-de8685515037",
+   "pagado": 8750.0,
+   "total": 8400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "57f16b04-03b8-46ab-b3ba-db5bd42570c4",
+   "ref": "3533015",
+   "cliente_id": "90296fce-3c18-4eb1-bb8e-55b4706fe17f",
+   "pagado": 12500.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b8ecb670-584c-48f6-a290-0adb711a7830",
+   "ref": "3528019",
+   "cliente_id": "6f6843ee-f285-4e61-8757-35d03f1dbb37",
+   "pagado": 7500.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b1674d4f-90a1-41fd-a4e1-83f0f2f5a734",
+   "ref": "3550787",
+   "cliente_id": "b28ce8ef-402d-42c8-8f47-51b9e1431321",
+   "pagado": 12500.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "64f487d0-9938-4d16-8f6e-c8840b7774e6",
+   "ref": "3567848",
+   "cliente_id": "6852b92f-d038-4e1f-a0ff-9e6b9bd97e3b",
+   "pagado": 10080.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "3e629803-73fd-43e2-a0c1-b5aba25d3c88",
+   "ref": "3525189",
+   "cliente_id": "0ee2eb4b-5504-431d-bb99-03d13098040b",
+   "pagado": 31250.0,
+   "total": 30000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "f2d5c957-c4a3-472a-bc63-fae12877bcdf",
+   "ref": "3547488",
+   "cliente_id": "de200cfe-7c51-47be-a4cd-6d8779fedcdf",
+   "pagado": 10000.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "6a7a741b-c284-4b1d-880e-6d34edb8e4c6",
+   "ref": "3511251",
+   "cliente_id": "de2b60ef-0d59-47a8-8f53-2604ba1d0d89",
+   "pagado": 62000.0,
+   "total": 60000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "7a600b05-fa00-47f6-8985-1c6ff042c4c3",
+   "ref": "3483390",
+   "cliente_id": "5c1d2dcc-48a1-4f24-b945-4f8ada4e10f5",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "bb731ae2-8c2e-4caf-a15a-cfeab4042b86",
+   "ref": "3562095",
+   "cliente_id": "c3a24d6d-6de2-41fb-b7a6-13a0673d9f7d",
+   "pagado": 6250.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "de48130b-7579-4198-ba59-7d6860c87b40",
+   "ref": "3519261",
+   "cliente_id": "fdd7e1f3-fed5-4b00-86bd-dce40e9d333f",
+   "pagado": 14900.0,
+   "total": 14400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "0f7c3d9f-c2b1-4b70-a6c0-bf271dd015d7",
+   "ref": "3519937",
+   "cliente_id": "c2327d18-613b-48f0-9722-111b728cc8f9",
+   "pagado": 18500.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "9cacfe49-25cb-4cc1-9180-8603974f809e",
+   "ref": "3450091",
+   "cliente_id": "9afe224f-9ea7-4cd3-acb6-cba14344e58a",
+   "pagado": 63000.0,
+   "total": 60000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "01685305-7d65-49b1-a9a1-da57ef0f9148",
+   "ref": "3535905",
+   "cliente_id": "4365fe98-6fb7-4dc0-939c-820b83042c23",
+   "pagado": 14400.0,
+   "total": 14400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "c47bcb9c-153d-46b5-b3f4-55366197f2fb",
+   "ref": "3548288",
+   "cliente_id": "d41756f2-14a6-442e-9877-6c64d6fb1a23",
+   "pagado": 32500.0,
+   "total": 31200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "7c3872d3-69d3-488b-af53-ecdda0c51dbb",
+   "ref": "3541246",
+   "cliente_id": "d41756f2-14a6-442e-9877-6c64d6fb1a23",
+   "pagado": 18600.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "ecaaa999-8149-4782-9346-1df5636d5b15",
+   "ref": "3545093",
+   "cliente_id": "06517bed-9d45-40b4-9d0b-d864c2479631",
+   "pagado": 9600.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "06036a9f-8544-49c4-aefa-23d021020f0c",
+   "ref": "3539181",
+   "cliente_id": "4a4ca606-dfd3-425d-82f6-0a8734e4a747",
+   "pagado": 5000.0,
+   "total": 4800.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "dea8bff1-3a3c-4aeb-979b-0b961676e6a2",
+   "ref": "3544116",
+   "cliente_id": "0a4fe827-f7b2-4dc7-870d-219d0a7fdac3",
+   "pagado": 18600.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d16b0433-c953-448c-947e-4fed3e0776ef",
+   "ref": "3504596",
+   "cliente_id": "7bf1fe30-458d-46d5-8750-5bfb84741f40",
+   "pagado": 43400.0,
+   "total": 42000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "702df22d-331c-4083-9b3f-e1f8e0a37b31",
+   "ref": "3480970",
+   "cliente_id": "7fc8cd31-3032-4647-a121-b486e7a8eae2",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "4f8a897e-63ba-4c23-a2f6-78cd3dbd2546",
+   "ref": "3536202",
+   "cliente_id": "74d877b5-6c1f-4abd-be95-cb8b551883ec",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "09a24f98-3a59-4bf8-bec5-97643586858a",
+   "ref": "3519100",
+   "cliente_id": "79c0d973-801a-4cf3-bfd0-30192ef5d2b8",
+   "pagado": 36000.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "94af449a-a6cb-4891-9c4d-63b9c6bbd990",
+   "ref": "3531086",
+   "cliente_id": "18c47e19-5691-4d0c-81c8-c41edf89c3f6",
+   "pagado": 62000.0,
+   "total": 60000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "c6ff8fac-9e84-4356-85a8-77f6168fc188",
+   "ref": "3535915",
+   "cliente_id": "2736a496-ff96-4413-8ad0-a751a82cf44d",
+   "pagado": 17200.0,
+   "total": 16800.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "9aa19154-75e0-48e4-a5b7-f30c738aa1fc",
+   "ref": "3516971",
+   "cliente_id": "beb506e3-b3d1-4119-900a-f88773cc4775",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "e64120e6-a378-4a7f-a8df-ce54fb6c5cca",
+   "ref": "3511465",
+   "cliente_id": "189e4789-ae7a-4d76-8939-4b35715e32f8",
+   "pagado": 48000.0,
+   "total": 48000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "3361f89a-69c1-4942-9b5f-7524fcdcaaee",
+   "ref": "3555390",
+   "cliente_id": "178d22d5-1fff-4cdd-85df-3a001ec80d11",
+   "pagado": 18600.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "e8b8ba35-0373-4113-86ee-4211fb2e9a07",
+   "ref": "3542270",
+   "cliente_id": "7d7ecc3a-df96-49a6-b426-daa6e340b8c7",
+   "pagado": 4960.0,
+   "total": 4800.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "f6f26d40-1b2c-4e31-8c61-e7342a6afda0",
+   "ref": "3544121",
+   "cliente_id": "0706edca-3360-4866-bc73-adc696f48a2d",
+   "pagado": 2520.0,
+   "total": 2400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "ccdee800-aa9b-4e2c-abf0-052432abe427",
+   "ref": "3539129",
+   "cliente_id": "a188c6a2-eda8-46eb-8828-d55df138b942",
+   "pagado": 7500.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "3615fe5d-2a24-419a-91b2-0011b9a17c34",
+   "ref": "3533155",
+   "cliente_id": "122e790f-763c-4e4e-875e-1b18595ebdcd",
+   "pagado": 6250.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "21c47f56-28b4-45fa-add9-c9d177deb611",
+   "ref": "3524865",
+   "cliente_id": "d7ccc95c-5144-417a-bd7a-8f1039981dcd",
+   "pagado": 18750.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "c6422294-ed52-4a0e-9581-72705cb2a351",
+   "ref": "3508616",
+   "cliente_id": "d3d2f11c-d3fa-48a9-ad86-ae89aa14e1a3",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "0082581a-490f-4ddd-9f52-8afc9a490d15",
+   "ref": "3503080",
+   "cliente_id": "73e5bfae-4bb0-4d37-b052-3a85a20ae236",
+   "pagado": 37200.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "1c34f9ad-673b-48c7-9e92-d9aca2af5880",
+   "ref": "3524875",
+   "cliente_id": "226143f2-4fcf-43f5-a7be-f32de627bdb0",
+   "pagado": 12500.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "4fceffd1-aa83-4d6e-8b03-36cf61143e2f",
+   "ref": "3547423",
+   "cliente_id": "620820ef-3a9d-4af5-92bb-7c1b9c96b7d8",
+   "pagado": 49600.0,
+   "total": 48000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "19ebe505-c7fd-46e9-b7d8-abc0a39309d3",
+   "ref": "3517044",
+   "cliente_id": "1d62ad3c-fced-4526-a4e8-1cfa76fff7e9",
+   "pagado": 12400.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "48c1a4f6-0bb5-4b4d-989b-17b0f2465740",
+   "ref": "3537173",
+   "cliente_id": "829b56bb-625a-40b9-a493-df8bc1ff621f",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "4a163d2c-85ee-45e7-9ac9-a9c6db59e7d9",
+   "ref": "3517134",
+   "cliente_id": "b3c68c9f-2ff9-4a4a-be13-29c665a32285",
+   "pagado": 37200.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "4c7f032a-edcd-4a4b-89b0-4d4c20aeb00f",
+   "ref": "3556313",
+   "cliente_id": "1861b1ae-1fe4-4d4c-95b1-e7cee0e26e7b",
+   "pagado": 7500.0,
+   "total": 7200.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "5db40f21-66f4-4f01-b08c-05d44248b77c",
+   "ref": "3513981",
+   "cliente_id": "eaf73ef4-2eaf-4be0-9cc1-c3e9ff644945",
+   "pagado": 37200.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "946efb8a-4797-4863-8b3a-fbcd12f845b0",
+   "ref": "3511577",
+   "cliente_id": "cc65c960-2a3e-4259-99a3-7850b83b50d6",
+   "pagado": 6150.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "99846dcb-3225-4e88-acd0-bf26ad96d3ef",
+   "ref": "3552951",
+   "cliente_id": "0502ec8c-b5e9-43be-99e8-af770b7b3d46",
+   "pagado": 6250.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "6beb9ae9-a977-4b2e-8bfc-43be42ead9f3",
+   "ref": "3508497",
+   "cliente_id": "748b18fa-3d01-4e92-a339-9ca418b7e800",
+   "pagado": 37200.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "460d485f-dc47-4961-8653-5e457d10775b",
+   "ref": "3555732",
+   "cliente_id": "932e783d-6139-498e-be03-9ae5d52103d2",
+   "pagado": 6500.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "bd5a11b1-04a8-4494-9f16-b01c8e7b30e7",
+   "ref": "3544258",
+   "cliente_id": "08780b0e-46a9-4fd2-a079-9c3d0f636f42",
+   "pagado": 18600.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "0a3ba504-eb6a-4a93-9fc6-dbf24584283b",
+   "ref": "3550348",
+   "cliente_id": "57072da1-6d23-449e-a2bb-3de251f2a4fd",
+   "pagado": 6250.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d5fb8356-92aa-46ea-81ed-6cd077756d0f",
+   "ref": "3541443",
+   "cliente_id": "30014b79-c9bf-4613-9829-2bccd7f01a28",
+   "pagado": 12300.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "353d26af-f3c6-4a12-a1ec-1bc225ae783a",
+   "ref": "3483316",
+   "cliente_id": "e1bd442d-4d21-447d-af28-2686276c39d0",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "7f7e45da-0901-4177-ac08-5b4423ea87d8",
+   "ref": "3548268",
+   "cliente_id": "2587f256-97fd-4403-91e8-d3f28039fbf9",
+   "pagado": 37500.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "6fe4b9fe-6134-4db0-9d9a-fa8ddc64dddf",
+   "ref": "3537384",
+   "cliente_id": "4b086cf2-c15e-4dea-b8a0-4b9d92d0e09f",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "436c553b-1aa5-4000-a273-a3613ba7cb74",
+   "ref": "3570114",
+   "cliente_id": "89b05845-56c4-4544-aa8b-e33fc2d0004c",
+   "pagado": 3960.0,
+   "total": 3600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "ea5ee383-ec36-4ed9-a0ef-2cec1b5892f3",
+   "ref": "3538522",
+   "cliente_id": "1435df68-fc24-4d4e-937d-f672fcfc5383",
+   "pagado": 22320.0,
+   "total": 21600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "cb04c038-c1b3-47cc-94dd-4baa444089c8",
+   "ref": "3544179",
+   "cliente_id": "c6e5e526-e452-486b-be11-5306cfd67843",
+   "pagado": 3750.0,
+   "total": 3600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d4ddaf30-6708-46b8-9b9a-541b7a7b34f4",
+   "ref": "3547388",
+   "cliente_id": "bc86eb56-3da6-436a-9ee2-9e634b32c8c1",
+   "pagado": 6250.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "d79ac473-bbd5-4a0b-8710-7fa1c47db92c",
+   "ref": "3521520",
+   "cliente_id": "4da0caff-7dce-46c3-b342-27b844b6693e",
+   "pagado": 12400.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "cb7f343c-9b77-4e90-b0f0-a232385396ac",
+   "ref": "3521985",
+   "cliente_id": "eb77b1a8-9a70-4d86-9b94-bac8421eaf70",
+   "pagado": 12430.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "73abf9fd-7ff6-48c6-bec8-aa5c3c932add",
+   "ref": "3528014",
+   "cliente_id": "99017872-bfd5-4722-952c-c5d5f3dfafad",
+   "pagado": 36000.0,
+   "total": 36000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "7e463a52-bbc0-4729-946c-e1d0ad8b911c",
+   "ref": "3500285",
+   "cliente_id": "07e38fcc-0053-407d-a37f-e4a03159464f",
+   "pagado": 60000.0,
+   "total": 60000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "369dc438-3cc4-42fd-b300-bddb1983c4fa",
+   "ref": "3524665",
+   "cliente_id": "e6ae6796-bddf-4caf-8f0a-cae85d99cab1",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "1bce85f0-273f-4882-8d1c-5fd90b40d505",
+   "ref": "3513926",
+   "cliente_id": "a8737af7-ad42-43b7-a9a3-00abb2ed1cd2",
+   "pagado": 12400.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "dd38bf17-d6fd-4330-9eab-baed2bb080f0",
+   "ref": "3552895",
+   "cliente_id": "af576af2-ca10-44b2-a882-516c78816a08",
+   "pagado": 12400.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "3a996024-8379-4828-93ef-31049e234a59",
+   "ref": "3502947",
+   "cliente_id": "39b67ded-0c26-4e37-b5b6-a4d50842cf39",
+   "pagado": 12400.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "f0bd1574-b39f-4692-bc58-e3dd8417d03c",
+   "ref": "3535580",
+   "cliente_id": "1e86c83e-49b0-4d4e-94f0-5584c5c3ebb5",
+   "pagado": 12500.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "57eb79f4-4f3d-483a-85e2-42a2d98041ac",
+   "ref": "3550417",
+   "cliente_id": "b0b43b25-8e60-49e1-93da-2fc5976b7b94",
+   "pagado": 6000.0,
+   "total": 6000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "b84ad813-e6ee-4870-8c0d-30618c21a722",
+   "ref": "3528661",
+   "cliente_id": "96598e09-3d88-4690-b580-32a4af1a19fb",
+   "pagado": 3600.0,
+   "total": 3600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "9dd95261-40a9-417c-8b9f-21d9dc3878a8",
+   "ref": "3530977",
+   "cliente_id": "85c220a7-2826-4668-9aa5-f85a9eb8c7d2",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "5ac5141d-4818-454b-95c9-a76221108ec4",
+   "ref": "3528645",
+   "cliente_id": "b292e680-4b2c-44b9-8efb-736afc9f8479",
+   "pagado": 24000.0,
+   "total": 24000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "81ff7f10-ee30-4941-821f-1a5bad0dae7d",
+   "ref": "3516881",
+   "cliente_id": "03fed331-a2d7-49be-ab95-d8de49fdc333",
+   "pagado": 26400.0,
+   "total": 26400.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "72a49e85-714a-4786-9c20-c11d7f3e94e0",
+   "ref": "3530381",
+   "cliente_id": "cb3012a3-08c9-4cea-81b7-80b9e2a02de1",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "a670a0c2-4009-4bd2-80e5-0333f307fbdd",
+   "ref": "3477342",
+   "cliente_id": "e22f7f7b-84d9-49b7-8a16-f070159efe4d",
+   "pagado": 16800.0,
+   "total": 16800.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "c6fea250-61ff-461b-bb72-9711ed4f0292",
+   "ref": "3530509",
+   "cliente_id": "3548507e-2a9c-4085-af54-454dad2c422f",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "a721f5aa-47ec-4e38-b208-f50e1e4f9351",
+   "ref": "3472427",
+   "cliente_id": "d7c30782-9a69-4f6d-b833-02563f7a6967",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "2907669a-6e37-4da4-ab33-d864ef63b584",
+   "ref": "3469411",
+   "cliente_id": "fbd88a38-56e4-469f-b0bf-7394d80c164c",
+   "pagado": 9600.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "aaf57fc6-77a5-4497-b3be-dee8027bcbd3",
+   "ref": "3523609",
+   "cliente_id": "68879bbd-9455-4e7f-acf3-ee7792083357",
+   "pagado": 30000.0,
+   "total": 30000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "1fdbafd7-4eaa-4ed1-8725-6d5aec4bb510",
+   "ref": "3507541",
+   "cliente_id": "adf81b46-93d5-466d-8d05-c5ac660cf6bb",
+   "pagado": 9600.0,
+   "total": 9600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "425959d8-94c3-4587-b963-a2a26ba8060e",
+   "ref": "3507525",
+   "cliente_id": "72d8d829-1e31-434a-b32f-7c8ad77f999b",
+   "pagado": 21600.0,
+   "total": 21600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "7e3ad6ca-b452-4764-a2f3-7b0f5661a021",
+   "ref": "3558329",
+   "cliente_id": "2e77b46f-8e4f-4e48-9755-5f705592fd3e",
+   "pagado": 4800.0,
+   "total": 4800.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "0cadcb79-af71-435c-ad9c-c4d6b6698eb5",
+   "ref": "3481284",
+   "cliente_id": "096e9390-3a0a-42be-bd15-bcfcaf327959",
+   "pagado": 18000.0,
+   "total": 18000.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "94429cf2-4c63-4b8e-8e76-df86fdaaf25c",
+   "ref": "3535604",
+   "cliente_id": "7d25e878-dc1a-4d2b-87f2-da57d4cf8713",
+   "pagado": 10350.0,
+   "total": 10350.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "dba5664f-ab01-47d6-94d2-067f3fca9d96",
+   "ref": "3535957",
+   "cliente_id": "a344e223-4dc5-4664-b2c9-f9d2f59a833c",
+   "pagado": 3600.0,
+   "total": 3600.0,
+   "estado_previo": "activo"
+  },
+  {
+   "id": "96276d18-186b-4a62-9a51-3605b8a6dd95",
+   "ref": "3536248",
+   "cliente_id": "fb27e9fc-a6c0-4804-b9f7-0adfe5e05532",
+   "pagado": 12000.0,
+   "total": 12000.0,
+   "estado_previo": "activo"
+  }
+ ]
+}

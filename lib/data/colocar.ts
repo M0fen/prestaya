@@ -68,12 +68,24 @@ export async function getCandidatosRenovar(db: SupabaseClient): Promise<Candidat
   const cliDe = new Map((cls ?? []).map((c) => [c.id as string, c as unknown as Cliente]));
 
   const hoy = hoyUY();
+  // Saldo por crédito → y por CLIENTE: un cliente entra a "Renovar" solo si
+  // TODOS sus créditos activos están saldados (mismo gate que el servidor,
+  // auditoría 08-05). Si uno está saldado pero otro debe, renovarle el primero
+  // sería darle capital nuevo con deuda viva al lado.
+  const faltaDe = new Map<string, number>();
+  const clienteConDeuda = new Set<string>();
+  for (const p of activos) {
+    const pagos = await getPagosDePrestamo(db, p.id);
+    const carton = calcularEstadosCarton(p, pagos, hoy);
+    faltaDe.set(p.id, carton.falta);
+    if (carton.falta >= 1) clienteConDeuda.add(p.cliente_id);
+  }
   const out: CandidatoColocar[] = [];
   for (const p of activos) {
     const cli = cliDe.get(p.cliente_id);
     if (!cli || !cli.activo) continue;
-    const pagos = await getPagosDePrestamo(db, p.id);
-    const carton = calcularEstadosCarton(p, pagos, hoy);
+    if (clienteConDeuda.has(p.cliente_id)) continue;
+    const carton = { falta: faltaDe.get(p.id) ?? 0 };
     // Mismo umbral que el gate del servidor: un residuo de centavos no traba.
     if (carton.falta >= 1) continue;
     out.push({
