@@ -19,7 +19,21 @@ const puedeVerZona = vi.fn();
 const upsertDiscrepanciaDb = vi.fn();
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@/lib/supabase/server", () => ({ createSupabaseServer: vi.fn(async () => ({})) }));
+// `setApertura` consulta `rendiciones` para no editar una base ya sellada por el
+// cierre del cobrador. El fake responde lo que diga `rendicionDelDia`.
+const rendicionDelDia = vi.fn(() => null as { id: string } | null);
+vi.mock("@/lib/supabase/server", () => ({
+  createSupabaseServer: vi.fn(async () => ({
+    from: () => {
+      const b: Record<string, unknown> = {
+        select: () => b,
+        eq: () => b,
+        maybeSingle: async () => ({ data: rendicionDelDia(), error: null }),
+      };
+      return b;
+    },
+  })),
+}));
 vi.mock("@/lib/supabase/admin", () => ({ createSupabaseAdmin: vi.fn(() => ({})) }));
 vi.mock("@/lib/auth", () => ({
   getUsuarioActual: (...a: unknown[]) => getUsuarioActual(...a),
@@ -57,6 +71,7 @@ const UUID = "11111111-1111-1111-1111-111111111111";
 beforeEach(() => {
   vi.clearAllMocks();
   bloqueoSoloLectura.mockResolvedValue(null); // por defecto: sistema operativo
+  rendicionDelDia.mockReturnValue(null); // por defecto: el cobrador aún no rindió
 });
 
 describe("convertirLeadEnVenta — gates (venta money-critical)", () => {
@@ -135,6 +150,18 @@ describe("setApertura — gates (base de caja)", () => {
     setAperturaDb.mockResolvedValue(undefined);
     await setApertura({ cobradorId: UUID, base: 9_999_999 });
     expect(setAperturaDb.mock.calls[0][1]).toMatchObject({ base: 1_000_000 });
+  });
+
+  // La base entra al `esperado` de la rendición. Si se pudiera editar DESPUÉS
+  // del cierre, subirla sabiendo lo que el cobrador trae le fabrica un faltante
+  // (y bajarla, un sobrante) sobre una rendición que ya no se puede rehacer.
+  it("NO se puede tocar la base de un cobrador que YA rindió hoy", async () => {
+    getUsuarioActual.mockResolvedValue(ADMIN);
+    setAperturaDb.mockResolvedValue(undefined);
+    rendicionDelDia.mockReturnValue({ id: "rend-1" });
+    const r = await setApertura({ cobradorId: UUID, base: 5000 });
+    expect(r.ok).toBe(false);
+    expect(setAperturaDb).not.toHaveBeenCalled();
   });
 });
 

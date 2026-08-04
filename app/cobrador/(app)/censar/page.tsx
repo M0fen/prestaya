@@ -99,8 +99,12 @@ export default function CensarPage() {
           gpsPrecision: anclaUsable ? gps.precision : null,
           fotoDataUrl: foto,
         });
-        if (res.ok) router.push(`/cobrador/cliente/${res.id}`);
-        else setError(res.error);
+        if (res.ok) {
+          // Si la ficha ya existía (viene de Disapp) y estaba libre, el servidor
+          // la sumó a la ruta en vez de rebotar. Se avisa para que el cobrador
+          // entienda por qué no le pidió la foto de nuevo.
+          router.push(`/cobrador/cliente/${res.id}${res.adoptado ? "?sumado=1" : ""}`);
+        } else setError(res.error);
       } catch {
         // SIN SEÑAL (o error de red): el censo necesita conexión (sube la foto). NO
         // dejamos que el error suba al límite (perdería lo tipeado + la foto). Se

@@ -139,7 +139,8 @@ export default async function CajaPage({
           </p>
           <p>
             <b className="text-tinta">2. Rendición del cobrador.</b> Al cerrar su jornada declara gastos y efectivo
-            entregado. El sistema calcula <b>esperado = recaudado − gastos</b> y la <b>diferencia</b>:{" "}
+            entregado. El sistema calcula <b>esperado = base + recaudado − gastos</b> (la base es el efectivo con el
+            que arrancó, que también devuelve) y la <b>diferencia</b>:{" "}
             <b className="text-verde-osc">cuadra</b>, <b className="text-rojo-osc">faltante</b> o{" "}
             <b className="text-azul">sobrante</b> (ver "Cierre por zona" abajo).
           </p>

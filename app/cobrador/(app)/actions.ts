@@ -14,7 +14,7 @@ import { getUsuarioActual } from "@/lib/auth";
 import { MOTIVOS_NOPAGO, type MotivoNoPago } from "./motivos";
 import {
   crearClienteCenso,
-  getClientePorDocumento,
+  getClientePorDocumentoFlexible,
   getClienteRecientePorNombre,
   getClientePorId,
 } from "@/lib/data/clientes";
@@ -36,8 +36,9 @@ import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
 
 // ── Censo ────────────────────────────────────────────────────────────────────
 export type ResultadoCenso =
-  | { ok: true; id: string }
+  | { ok: true; id: string; adoptado?: boolean }
   | { ok: false; error: string };
+
 
 export async function relevarCliente(input: {
   nombre: string;
@@ -56,6 +57,19 @@ export async function relevarCliente(input: {
     const usuario = await getUsuarioActual();
     if (!usuario || !usuario.activo) {
       return { ok: false, error: "Tu sesión no es válida. Volvé a ingresar." };
+    }
+    // El censo AUTO-ASIGNA el cliente a quien lo da de alta (más abajo). Si lo
+    // corre un gestor, el cliente queda "en la ruta" de alguien que no camina
+    // ninguna ruta: no aparece en la app de ningún cobrador, y al colocarle un
+    // crédito nace el fantasma que INV10 marca como crítico. El alta de oficina
+    // tiene su propia pantalla en el panel.
+    if (usuario.rol !== "cobrador") {
+      return { ok: false, error: "El censo en calle lo hace el cobrador. Desde la oficina, dá de alta al cliente en el panel." };
+    }
+    // Kill-switch: el censo crea la ficha que después recibe capital. Si el
+    // sistema está en solo-lectura por un incidente, tampoco se dan altas.
+    if (await bloqueoSoloLectura()) {
+      return { ok: false, error: "El sistema está en modo consulta por unos minutos. Probá de nuevo enseguida." };
     }
 
     const nombre = (input.nombre ?? "").trim();
@@ -90,10 +104,63 @@ export async function relevarCliente(input: {
     const db = createSupabaseAdmin();
 
     if (documento) {
-      const yaExiste = await getClientePorDocumento(db, documento);
-      // No se devuelve el NOMBRE: el chequeo lee cross-zona con service_role, así que
-      // filtrar el nombre dejaría enumerar clientes de otra zona por documento (fuga PII).
-      if (yaExiste) return { ok: false, error: "Ese documento ya está registrado." };
+      // Se compara por TODAS las formas de escribir la cédula (con y sin puntos):
+      // el import de Disapp dejó los dos estilos conviviendo.
+      const yaExiste = await getClientePorDocumentoFlexible(db, documento);
+      if (yaExiste) {
+        // ── EL MURO ────────────────────────────────────────────────────────
+        // Antes esto era un callejón sin salida ("Ese documento ya está
+        // registrado") y el cobrador se quedaba parado en la puerta del
+        // cliente. Pero la base tiene 12.588 fichas heredadas de Disapp y
+        // 9.317 de ellas con cédula NO están en la ruta de nadie: encontrarse
+        // con una es lo NORMAL, no la excepción.
+        //
+        // Regla: si la ficha existe pero está libre (sin cobrador y sin
+        // crédito vivo), el cobrador la ADOPTA — que es exactamente lo que
+        // venía a hacer. Si ya tiene dueño o plata en la calle, no se toca:
+        // eso lo resuelve el supervisor (mover un cliente entre rutas mueve
+        // comisiones).
+        const [{ data: asigs }, { data: activos }] = await Promise.all([
+          db.from("asignaciones").select("cobrador_id").eq("cliente_id", yaExiste.id).eq("activo", true),
+          db.from("prestamos").select("id").eq("cliente_id", yaExiste.id).eq("estado", "activo").limit(1),
+        ]);
+        const dueños = (asigs ?? []).map((a) => a.cobrador_id as string);
+        if (dueños.includes(usuario.id)) {
+          return { ok: true, id: yaExiste.id, adoptado: true }; // ya es suyo
+        }
+        if (dueños.length > 0 || (activos ?? []).length > 0) {
+          // No se revela el NOMBRE del cliente ni del cobrador: el chequeo corre
+          // con service_role (cross-zona) y filtrarlo dejaría enumerar PII.
+          return {
+            ok: false,
+            error: "Esa persona ya está en la ruta de un compañero. Pedile a tu supervisor que te la pase.",
+          };
+        }
+        if (!yaExiste.activo) {
+          return { ok: false, error: "Esa persona está dada de baja en el sistema. Avisale a tu supervisor para reactivarla." };
+        }
+        const { error: errAdopt } = await db
+          .from("asignaciones")
+          .upsert(
+            { cobrador_id: usuario.id, cliente_id: yaExiste.id, activo: true },
+            { onConflict: "cobrador_id,cliente_id" },
+          );
+        if (errAdopt) throw errAdopt;
+        await registrarBitacora(db, {
+          actorId: usuario.id,
+          actorNombre: usuario.nombre,
+          rol: usuario.rol,
+          accion: "censo",
+          clienteId: yaExiste.id,
+          detalle: `${nombre} (ficha existente adoptada a la ruta)`,
+          gpsLat: gps_lat,
+          gpsLng: gps_lng,
+          gpsPrecision: precisionAncla,
+          gpsDenegado: gps_lat == null || gps_lng == null,
+        });
+        revalidatePath("/cobrador");
+        return { ok: true, id: yaExiste.id, adoptado: true };
+      }
     } else {
       // Sin cédula el alta no es idempotente: si se corta la red al recibir el ACK (el
       // server ya commiteó) el cobrador re-tapea "Guardar" y crearía un 2º cliente

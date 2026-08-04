@@ -141,6 +141,42 @@ export async function getClientePorDocumento(
 }
 
 /**
+ * Formas plausibles de escribir una MISMA cédula. La base convive con dos
+ * estilos (8.535 fichas en dígitos puros y 1.609 con puntos/guión, herencia del
+ * import de Disapp), así que comparar el string crudo hace pasar como "nuevo" a
+ * alguien que ya está: hoy hay 243 personas con ficha duplicada por esto. PURA.
+ */
+export function variantesDocumento(documento: string): string[] {
+  const clave = documento.replace(/[.\-\s]/g, "").toUpperCase();
+  const out = new Set<string>([documento.trim(), clave]);
+  const miles = (s: string) => s.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  if (/^\d{7,8}$/.test(clave)) {
+    const cuerpo = clave.slice(0, -1);
+    const dv = clave.slice(-1);
+    out.add(`${cuerpo}-${dv}`); // 1234567-8
+    out.add(`${miles(cuerpo)}-${dv}`); // 1.234.567-8 (el que sugiere el formulario)
+  }
+  if (/^\d+$/.test(clave)) out.add(miles(clave)); // 12.345.678 (formateo de miles a secas)
+  return [...out].filter(Boolean);
+}
+
+/** Cliente cuyo documento coincide con CUALQUIER forma de escribirlo (ver
+ *  `variantesDocumento`). Devuelve el primero; null si no hay ninguno. */
+export async function getClientePorDocumentoFlexible(
+  db: SupabaseClient,
+  documento: string,
+): Promise<Cliente | null> {
+  const { data, error } = await db
+    .from("clientes")
+    .select("*")
+    .in("documento", variantesDocumento(documento))
+    .order("creado_en", { ascending: true })
+    .limit(1);
+  if (error) throw error;
+  return data && data.length > 0 ? mapCliente(data[0]) : null;
+}
+
+/**
  * Clientes ACTIVOS visibles para el usuario. Con el cliente autenticado, el
  * RLS ya limita al cobrador a los suyos (asignados). Ordenados por nombre.
  */

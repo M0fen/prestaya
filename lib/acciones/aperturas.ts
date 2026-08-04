@@ -13,6 +13,7 @@ import { esUuid } from "@/lib/idempotencia";
 import { setAperturaDb } from "@/lib/data/aperturas";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { UYU } from "@/lib/format";
+import { fechaISOUY } from "@/lib/fecha";
 
 type Resultado = { ok: true } | { ok: false; error: string };
 
@@ -36,6 +37,25 @@ export async function setApertura(input: {
   const nota = (input.nota ?? "").trim().slice(0, 200) || null;
   try {
     const db = await createSupabaseServer();
+    // ── La base se CONGELA cuando el cobrador rinde ────────────────────────
+    // `esperado = base + recaudado − gastos`, y la rendición guarda su propia
+    // copia de la base. Editarla después no cambia lo ya rendido: solo crea una
+    // divergencia que INV6 marca a la mañana siguiente. Y en el sentido
+    // peligroso —subirla sabiendo lo que el cobrador trae— serviría para
+    // fabricarle un faltante. Cerrado acá, con mensaje que explica la salida.
+    const hoy = fechaISOUY();
+    const { data: yaRindio } = await db
+      .from("rendiciones")
+      .select("id")
+      .eq("cobrador_id", input.cobradorId)
+      .eq("fecha", hoy)
+      .maybeSingle();
+    if (yaRindio) {
+      return {
+        ok: false,
+        error: "Ese cobrador ya cerró su jornada de hoy: la base quedó sellada con su rendición. Si el monto estaba mal, anotalo como diferencia en el cierre de zona.",
+      };
+    }
     await setAperturaDb(db, { cobradorId: input.cobradorId, base, entregadaPor: u.id, nota });
     await registrarAuditoria(db, {
       actorId: u.id,

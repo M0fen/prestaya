@@ -161,8 +161,8 @@ export default async function CierrePage() {
           Cada cobrador con lo que <b>recaudó hoy</b> (del libro de pagos) y su estado de cierre de jornada:{" "}
           <b className="text-verde-osc">Cuadra</b> (entregó lo esperado),{" "}
           <b className="text-rojo-osc">Faltante</b> / <b className="text-azul">Sobrante</b> (diferencia al rendir), o{" "}
-          <b className="text-gris">En ruta</b> (todavía no cerró: el efectivo sigue en la calle). El "esperado" =
-          recaudado − gastos de ruta declarados.
+          <b className="text-gris">En ruta</b> (todavía no cerró: el efectivo sigue en la calle). El "esperado" ={" "}
+          base de arranque + recaudado − gastos de ruta declarados.
         </p>
 
         {dia.porCobrador.length === 0 ? (

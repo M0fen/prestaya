@@ -1,13 +1,13 @@
-// ─────────────────────────────────────────────────────────────────────────
-//  Capa de datos — VIGILANCIA del cobrador (admin). Agrega las señales de una
-//  ventana (30 días por defecto) por cobrador y calcula: (a) el SCORE DE
+﻿// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+//  Capa de datos â€” VIGILANCIA del cobrador (admin). Agrega las seÃ±ales de una
+//  ventana (30 dÃ­as por defecto) por cobrador y calcula: (a) el SCORE DE
 //  CONFIANZA (lib/scoreCobrador) y (b) su CUENTA CORRIENTE (recaudado vs rendido,
 //  faltantes acumulados y float sin declarar). Corre como gestor; el supervisor
 //  ve solo los cobradores de su zona (alcance).
 //
-//  Rendimiento: las tablas grandes (pagos/visitas/bitácora) se PAGINAN y se
+//  Rendimiento: las tablas grandes (pagos/visitas/bitÃ¡cora) se PAGINAN y se
 //  filtran por ventana; los agregados se hacen en JS. Verdad = tablas base.
-// ─────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { traerTodo } from "./paginado";
 import { tablaFaltante } from "./errores";
@@ -25,9 +25,9 @@ export interface VigilanciaCobrador {
   recaudado: number;
   rendido: number;
   gastos: number;
-  /** Recaudado en días SIN rendición (float que no declaró). */
+  /** Recaudado en dÃ­as SIN rendiciÃ³n (float que no declarÃ³). */
   saldoSinRendir: number;
-  /** Suma de diferencias de rendición (negativo = faltante neto). */
+  /** Suma de diferencias de rendiciÃ³n (negativo = faltante neto). */
   diferenciaAcumulada: number;
 }
 
@@ -44,7 +44,7 @@ interface Acc {
   diasRendidos: Set<string>;
   diferenciaAcumulada: number;
   gastos: number;
-  // Bitácora, agrupada por día para correr analizarSospecha.
+  // BitÃ¡cora, agrupada por dÃ­a para correr analizarSospecha.
   eventosPorDia: Map<string, EventoBitacora[]>;
 }
 
@@ -65,7 +65,7 @@ export async function getVigilanciaCobradores(
   const alcance = opts.alcance ?? (await alcanceDelActor());
   const cobIds = alcance.global ? null : alcance.cobradorIds;
 
-  // Cobradores (filas del ranking). Supervisor → solo los suyos.
+  // Cobradores (filas del ranking). Supervisor â†’ solo los suyos.
   let cobQuery = db.from("usuarios").select("id, nombre").eq("rol", "cobrador").eq("activo", true);
   if (cobIds) cobQuery = cobQuery.in("id", cobIds);
   const cobRes = await cobQuery;
@@ -82,11 +82,11 @@ export async function getVigilanciaCobradores(
   };
   for (const c of cobradores) get(c.id);
 
-  // 1) Recaudo por cobrador y día. A ESCALA (decenas de miles de pagos en la
-  //    ventana) se AGREGA EN SQL con la RPC 0043 (devuelve cobradores×días filas,
+  // 1) Recaudo por cobrador y dÃ­a. A ESCALA (decenas de miles de pagos en la
+  //    ventana) se AGREGA EN SQL con la RPC 0043 (devuelve cobradoresÃ—dÃ­as filas,
   //    no todos los pagos). Si falta la RPC, degrada: para el supervisor se puede
   //    acotar barato por sus cobradores; para el admin se omite el recaudo (evita
-  //    colgar), y la confianza igual sale de rendición/bitácora.
+  //    colgar), y la confianza igual sale de rendiciÃ³n/bitÃ¡cora.
   const sumaDia = (id: string, dia: string, monto: number, cobros: number) => {
     if (!permitido.has(id)) return;
     const a = get(id);
@@ -96,9 +96,9 @@ export async function getVigilanciaCobradores(
     a.recaudadoPorDia.set(dia, (a.recaudadoPorDia.get(dia) ?? 0) + monto);
   };
   // Las 5 lecturas de la ventana son INDEPENDIENTES (solo dependen de cobIds y
-  // fechas) → se lanzan EN PARALELO (antes iban EN SERIE: el tiempo de /admin/
-  // alertas era la SUMA de las 5). Cada una preserva su degradación (tablaFaltante);
-  // el procesamiento a `acc` se hace después, ordenado, sobre los resultados.
+  // fechas) â†’ se lanzan EN PARALELO (antes iban EN SERIE: el tiempo de /admin/
+  // alertas era la SUMA de las 5). Cada una preserva su degradaciÃ³n (tablaFaltante);
+  // el procesamiento a `acc` se hace despuÃ©s, ordenado, sobre los resultados.
   const pRecaudo: Promise<
     | { via: "rpc"; rows: { cobrador_id: string; dia: string; monto: number; cobros: number }[] }
     | { via: "fallback"; rows: { registrado_por: string | null; monto: number; registrado_en: string }[] }
@@ -114,8 +114,8 @@ export async function getVigilanciaCobradores(
         const pagos = await traerTodo<{ registrado_por: string | null; monto: number; registrado_en: string }>(
           (d, h) =>
             db.from("pagos").select("registrado_por, monto, registrado_en")
-              // Solo nativos (espejo de 0128): la vigilancia mide "recaudó y no
-              // rindió" — los días importados de Disapp hundían a TODOS los
+              // Solo nativos (espejo de 0128): la vigilancia mide "recaudÃ³ y no
+              // rindiÃ³" â€” los dÃ­as importados de Disapp hundÃ­an a TODOS los
               // cobradores a 'riesgo' con float fantasma de cientos de miles.
               .eq("anulado", false).is("origen", null).gte("registrado_en", desdeIso).in("registrado_por", cobIds)
               .order("id", { ascending: true }).range(d, h),
@@ -133,15 +133,22 @@ export async function getVigilanciaCobradores(
     return q.order("id", { ascending: true }).range(d, h);
   });
 
-  const pRend: Promise<{ cobrador_id: string; fecha: string; entregado: number; diferencia: number }[]> = (async () => {
+  const pRend: Promise<{ cobrador_id: string; fecha: string; entregado: number; diferencia: number; base?: number }[]> = (async () => {
     try {
-      return await traerTodo<{ cobrador_id: string; fecha: string; entregado: number; diferencia: number }>((d, h) => {
-        let rq = db.from("rendiciones").select("cobrador_id, fecha, entregado, diferencia").gte("fecha", desdeYmd);
+      return await traerTodo<{ cobrador_id: string; fecha: string; entregado: number; diferencia: number; base?: number }>((d, h) => {
+        // Se trae tambiÃ©n `base`: el efectivo entregado incluye la base que el
+        // cobrador DEVUELVE, que no es cobranza suya. Sin descontarla, la
+        // cuenta corriente muestra "rindiÃ³" >> "recaudÃ³" (con $5.000 de base
+        // diaria, ~$150.000 de superÃ¡vit inexistente en 30 dÃ­as).
+        let rq = db
+          .from("rendiciones")
+          .select("cobrador_id, fecha, entregado, diferencia, base")
+          .gte("fecha", desdeYmd);
         if (cobIds) rq = rq.in("cobrador_id", cobIds);
         return rq.order("id", { ascending: true }).range(d, h);
       });
     } catch (e) {
-      if (!tablaFaltante(e)) throw e; // sin 0013: sin datos de rendición
+      if (!tablaFaltante(e)) throw e; // sin 0013: sin datos de rendiciÃ³n
       return [];
     }
   })();
@@ -178,7 +185,7 @@ export async function getVigilanciaCobradores(
     pRecaudo, pVisitas, pRend, pMov, pBit,
   ]);
 
-  // 1) Recaudo por cobrador y día (RPC 0043 o fallback acotado del supervisor).
+  // 1) Recaudo por cobrador y dÃ­a (RPC 0043 o fallback acotado del supervisor).
   if (recaudo.via === "rpc") {
     for (const r of recaudo.rows) sumaDia(r.cobrador_id, r.dia, Number(r.monto), Number(r.cobros));
   } else if (recaudo.via === "fallback") {
@@ -201,22 +208,24 @@ export async function getVigilanciaCobradores(
     if (!permitido.has(id)) continue;
     const a = get(id);
     const dif = Number(r.diferencia);
-    a.rendido += Number(r.entregado);
+    // Lo entregado MENOS la base devuelta = lo que rindiÃ³ de su cobranza. AsÃ­
+    // "RecaudÃ³" y "RindiÃ³" son comparables (que es para lo que se muestran).
+    a.rendido += Number(r.entregado) - Number((r as { base?: unknown }).base ?? 0);
     a.diferenciaAcumulada += dif;
     a.diasRendidos.add(r.fecha);
     if (dif < 0) { a.faltantes += 1; a.montoFaltante += -dif; }
     else if (dif > 0) a.sobrantes += 1;
   }
 
-  // 4) Movimientos de caja (gastos de RUTA; se EXCLUYE "Comisión": un pago de
-  //    comisión NO es un gasto de ruta y distorsionaría la cuenta corriente).
+  // 4) Movimientos de caja (gastos de RUTA; se EXCLUYE "ComisiÃ³n": un pago de
+  //    comisiÃ³n NO es un gasto de ruta y distorsionarÃ­a la cuenta corriente).
   for (const m of movimientos) {
     const id = m.cobrador_id;
     if (!id || !permitido.has(id)) continue;
-    if (m.tipo === "egreso" && m.categoria !== "Comisión") get(id).gastos += Number(m.monto);
+    if (m.tipo === "egreso" && m.categoria !== "ComisiÃ³n") get(id).gastos += Number(m.monto);
   }
 
-  // 5) Bitácora → sospecha por día (planchado, fuera de zona, etc.).
+  // 5) BitÃ¡cora â†’ sospecha por dÃ­a (planchado, fuera de zona, etc.).
   for (const r of eventos) {
     const id = r.actor_id as string | null;
     if (!id || !permitido.has(id)) continue;
@@ -236,11 +245,11 @@ export async function getVigilanciaCobradores(
     a.eventosPorDia.set(dia, arr);
   }
 
-  // 6) Consolidar por cobrador → señales → confianza + cuenta corriente.
+  // 6) Consolidar por cobrador â†’ seÃ±ales â†’ confianza + cuenta corriente.
   const filas: VigilanciaCobrador[] = cobradores.map((c) => {
     const a = get(c.id);
 
-    // Sospecha de la bitácora, por día.
+    // Sospecha de la bitÃ¡cora, por dÃ­a.
     let fueraDeZona = 0, sinGps = 0, diasAlerta = 0, diasObservar = 0;
     for (const eventos of a.eventosPorDia.values()) {
       const s = analizarSospecha(eventos);
@@ -250,10 +259,10 @@ export async function getVigilanciaCobradores(
       else if (s.nivel === "observar") diasObservar += 1;
     }
 
-    // Días con recaudo que NO se rindieron + su monto (float sin declarar).
+    // DÃ­as con recaudo que NO se rindieron + su monto (float sin declarar).
     let diasSinRendir = 0, saldoSinRendir = 0;
     for (const [dia, monto] of a.recaudadoPorDia) {
-      // El día de hoy no cuenta como "sin rendir" (todavía puede rendir).
+      // El dÃ­a de hoy no cuenta como "sin rendir" (todavÃ­a puede rendir).
       if (dia === fechaISOUY(hoy)) continue;
       if (!a.diasRendidos.has(dia)) { diasSinRendir += 1; saldoSinRendir += monto; }
     }
