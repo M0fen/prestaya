@@ -114,7 +114,10 @@ export async function getVigilanciaCobradores(
         const pagos = await traerTodo<{ registrado_por: string | null; monto: number; registrado_en: string }>(
           (d, h) =>
             db.from("pagos").select("registrado_por, monto, registrado_en")
-              .eq("anulado", false).gte("registrado_en", desdeIso).in("registrado_por", cobIds)
+              // Solo nativos (espejo de 0128): la vigilancia mide "recaudó y no
+              // rindió" — los días importados de Disapp hundían a TODOS los
+              // cobradores a 'riesgo' con float fantasma de cientos de miles.
+              .eq("anulado", false).is("origen", null).gte("registrado_en", desdeIso).in("registrado_por", cobIds)
               .order("id", { ascending: true }).range(d, h),
         );
         return { via: "fallback", rows: pagos };

@@ -55,10 +55,29 @@ async function avisarComisionYaLiquidada(
   pago: Record<string, unknown>,
   u: Usuario,
 ): Promise<void> {
-  const cobradorId = (pago.registrado_por as string | null) ?? null;
+  // Un pago importado/de reconciliación jamás generó comisión (0127: la base
+  // excluye origen ≠ NULL) → anularlo no deja comisión colgada; avisar sería
+  // ruido de triage cada vez que se corrija un import.
+  if ((pago.origen as string | null) != null) return;
   const registradoEn = pago.registrado_en as string | null;
-  if (!cobradorId || !registradoEn) return;
+  if (!registradoEn) return;
   const diaPago = toIso(hoyUY(new Date(registradoEn)));
+
+  // La comisión se paga al DUEÑO DE LA RUTA (prestamos.cobrador_id, regla 0069),
+  // no a quien registró: un pago de oficina/transferencia comisiona al cobrador
+  // de la ruta. Buscar la liquidación por registrado_por callaba el aviso justo
+  // en esos casos. Fallback a registrado_por si el crédito no aparece.
+  let cobradorId = (pago.registrado_por as string | null) ?? null;
+  const prestamoId = (pago.prestamo_id as string | null) ?? null;
+  if (prestamoId) {
+    const { data: pr } = await admin
+      .from("prestamos")
+      .select("cobrador_id")
+      .eq("id", prestamoId)
+      .maybeSingle();
+    if (pr?.cobrador_id) cobradorId = pr.cobrador_id as string;
+  }
+  if (!cobradorId) return;
 
   const { data: liqs } = await admin
     .from("comisiones_liquidadas")
@@ -103,7 +122,7 @@ async function flipAnulado(pagoId: string, u: Usuario, motivo: string): Promise<
     })
     .eq("id", pagoId)
     .eq("anulado", false) // idempotente: no re-anula uno ya anulado
-    .select("id, prestamo_id, monto, registrado_por, registrado_en");
+    .select("id, prestamo_id, monto, registrado_por, registrado_en, origen");
   const ok = !error && (data?.length ?? 0) > 0;
 
   // COMISIÓN YA PAGADA sobre plata que dejó de existir. La comisión se liquida

@@ -133,7 +133,12 @@ export async function contarRenovacionesCliente(db: SupabaseClient, clienteId: s
       .from("prestamos")
       .select("*", { count: "exact", head: true })
       .eq("cliente_id", clienteId)
-      .eq("estado", "finalizado");
+      .eq("estado", "finalizado")
+      // Solo ciclos completados EN LA APP: los créditos importados del empalme
+      // llevan disapp_credit_id. Sin este filtro, un cliente con 15 créditos
+      // Disapp finalizados amanecía con 15 raspaditas (premios reales) por
+      // historia que Presta Ya nunca vio.
+      .is("disapp_credit_id", null);
     if (error) throw error;
     return count ?? 0;
   } catch (e) {

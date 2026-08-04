@@ -90,6 +90,12 @@ async function recaudadoHoyDe(
       .from("pagos")
       .select("monto")
       .eq("anulado", false)
+      // Custodia = plata EN MANO: solo pagos nativos (origen NULL). Los pagos
+      // importados de Disapp y los ajustes de reconciliación llevan el
+      // registrado_por del cobrador real pero ese efectivo rinde en el mundo
+      // viejo — sin este filtro el "esperado" del cierre le exigía al cobrador
+      // plata que nunca tocó (usar .is: neq/not.in EXCLUYEN los NULL).
+      .is("origen", null)
       .eq("registrado_por", cobradorId)
       .gte("registrado_en", desdeIso)
       .order("id", { ascending: true })
@@ -180,6 +186,10 @@ export async function getDeudaRendicionAyer(
       .from("pagos")
       .select("monto")
       .eq("anulado", false)
+      // Solo pagos nativos: sin esto, el día 1 del piloto el banner exigía
+      // rendir los top-ups del empalme ($644.806 fechados 08-04 que ningún
+      // cobrador tuvo en la mano) — deuda falsa apenas abre la app.
+      .is("origen", null)
       .eq("registrado_por", cobradorId)
       .gte("registrado_en", diaUYInicioIso(ayer))
       .lt("registrado_en", diaUYInicioIso(fechaHoy))
@@ -298,6 +308,10 @@ export async function getRendicionesDia(
       .from("pagos")
       .select("monto, registrado_por")
       .eq("anulado", false)
+      // Custodia del día = solo pagos nativos: de acá salen "pendientes de
+      // rendir", el bloqueo del sello de zona y el cobro-post-cierre. Un asiento
+      // importado/de reconciliación no es efectivo en la calle.
+      .is("origen", null)
       .gte("registrado_en", desde);
     if (soloCobradores) q = q.in("registrado_por", soloCobradores);
     return q.order("id", { ascending: true }).range(d, h);

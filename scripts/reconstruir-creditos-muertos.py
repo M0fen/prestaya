@@ -97,9 +97,25 @@ for path in sorted(glob.glob(os.path.join(SRC, "creditos*.xlsx"))):
 pres = E.get_rows(db, "prestamos", "id,disapp_credit_ref")
 refs_db = {p["disapp_credit_ref"] for p in pres if p.get("disapp_credit_ref")}
 
+# Refs muertas nuevas + REPARACIÓN de corridas cortadas: un recon-<ref> que
+# quedó creado con pagado 0 (crash entre crear el crédito e imputar sus pagos)
+# se re-procesa igual — el upsert por disapp_pago_id lo hace idempotente.
+pres_full = E.get_rows(db, "prestamos", "id,disapp_credit_id,disapp_credit_ref,pagado_acum")
+refs_recon_cero = {p["disapp_credit_ref"] for p in pres_full
+                   if str(p.get("disapp_credit_id") or "").startswith("recon-")
+                   and round(float(p["pagado_acum"] or 0)) == 0 and p.get("disapp_credit_ref")}
+if refs_recon_cero:
+    print(f"  ⚠ recon- con pagado 0 de una corrida cortada (se re-imputan): {len(refs_recon_cero)}")
 por_ref = defaultdict(list)
 for p in pagos.values():
-    if p["ref"] and p["ref"] not in refs_db and p["ref"] not in refs_file_hoy:
+    if not p["ref"]:
+        continue
+    if not p["fecha"]:
+        # Una fecha ilegible NO puede matar el batch (registrado_en es NOT NULL):
+        # se descarta la fila con aviso y el resto del crédito entra igual.
+        print(f"  ⚠ recaudo {p['id_pago']} de {p['ref']} SIN fecha legible → descartado")
+        continue
+    if (p["ref"] not in refs_db and p["ref"] not in refs_file_hoy) or p["ref"] in refs_recon_cero:
         por_ref[p["ref"]].append(p)
 # solo los muertos DE LA TRANSICIÓN (actividad reciente)
 por_ref = {ref: sorted(lst, key=lambda p: (p["fecha"] or dt.date.min, p["id_pago"]))
@@ -211,23 +227,26 @@ print(f"  ✓ clientes creados: {creados_cli}")
 
 okC = okP = 0
 filas_pago = []
+existente_por_ref = {p["disapp_credit_ref"]: p["id"] for p in pres_full if p.get("disapp_credit_ref")}
 for p in plan:
     if not p["cliente_id"]:
         continue
-    st, data = E.http(db["url"] + "/rest/v1/prestamos", "POST", key, {
-        "cliente_id": p["cliente_id"], "cobrador_id": p["cobrador"],
-        "monto_prestado": p["monto"], "cuota_diaria": p["cuota"],
-        "total_dias": p["cuotas"], "fecha_inicio": p["fecha_inicio"].isoformat(),
-        "frecuencia": p["frec"], "estado": "finalizado",
-        "finalizado_en": f"{p['ultima'].isoformat()}T12:00:00-03:00",
-        "interes_pct": 20,
-        "disapp_credit_id": f"recon-{p['ref']}", "disapp_credit_ref": p["ref"],
-    }, "return=representation")
-    if st >= 300:
-        print(f"  ✗ crédito {p['ref']}: [{st}] {str(data)[:180]}")
-        continue
+    pid = existente_por_ref.get(p["ref"])  # corrida cortada: el crédito ya existe
+    if pid is None:
+        st, data = E.http(db["url"] + "/rest/v1/prestamos", "POST", key, {
+            "cliente_id": p["cliente_id"], "cobrador_id": p["cobrador"],
+            "monto_prestado": p["monto"], "cuota_diaria": p["cuota"],
+            "total_dias": p["cuotas"], "fecha_inicio": p["fecha_inicio"].isoformat(),
+            "frecuencia": p["frec"], "estado": "finalizado",
+            "finalizado_en": f"{p['ultima'].isoformat()}T12:00:00-03:00",
+            "interes_pct": 20,
+            "disapp_credit_id": f"recon-{p['ref']}", "disapp_credit_ref": p["ref"],
+        }, "return=representation")
+        if st >= 300:
+            print(f"  ✗ crédito {p['ref']}: [{st}] {str(data)[:180]}")
+            continue
+        pid = data[0]["id"]
     okC += 1
-    pid = data[0]["id"]
     for pg in p["lst"]:
         dc = pg["cuota_num"] or 1
         dc = max(1, min(dc, p["cuotas"] or 10**6))

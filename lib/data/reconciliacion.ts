@@ -393,6 +393,13 @@ export async function hallazgosExtraDelDia(db: SupabaseClient, hoy: Date): Promi
           .from("pagos")
           .select("monto, registrado_por")
           .eq("anulado", false)
+          // SOLO pagos nativos de la app (origen NULL): los importados de Disapp
+          // y los ajustes de reconciliación llevan registrado_por del cobrador
+          // real pero NO son plata que él deba rendir acá — su custodia vive en
+          // el mundo viejo. Sin este filtro, la mañana siguiente a cada import
+          // diario el cron gritaba "cobró y no rindió" para TODA zona no-piloto
+          // (fatiga de alertas que tapa el fraude real del piloto).
+          .is("origen", null)
           .gte("registrado_en", desdeAyer)
           .lt("registrado_en", desdeHoy)
           .order("id", { ascending: true })
@@ -588,6 +595,10 @@ export async function reconciliarDia(
       .from("pagos")
       .select("monto")
       .eq("anulado", false)
+      // Solo nativos: este número va al log de reconciliación y a la tendencia
+      // del panel como "recaudo del día EN LA APP". Un día de empalme con
+      // asientos fechados hoy pintaba un pico fantasma en la serie.
+      .is("origen", null)
       .gte("registrado_en", desde)
       .order("id", { ascending: true })
       .range(d, h),

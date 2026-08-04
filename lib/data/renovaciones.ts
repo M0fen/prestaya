@@ -156,7 +156,11 @@ export async function listarCandidatosRenovacion(
         cliente,
         prestamo,
         progresoPct: r.progresoPct,
-        completo: r.falta === 0,
+        // MISMO umbral que el gate del server (crearRenovacion: falta >= 1
+        // traba): un crédito importado con cuota fraccionaria (351,04 × 24)
+        // queda con falta 0,96 incobrable — con `=== 0` la UI lo dejaba
+        // "a 1 cuota de terminar" sin botón de renovar PARA SIEMPRE.
+        completo: r.falta < 1,
         cuotasFaltantes: Math.max(0, prestamo.total_dias - cuotasCubiertas),
       });
     }

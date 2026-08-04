@@ -24,7 +24,14 @@ export async function contarPagosVigentesCliente(
     .from("pagos")
     .select("*", { count: "exact", head: true })
     .in("prestamo_id", ids)
-    .eq("anulado", false);
+    .eq("anulado", false)
+    // SOLO pagos hechos EN LA APP (origen NULL). El historial importado de
+    // Disapp (~176k pagos) daría estrellas masivas de arranque: un cliente con
+    // 200 pagos importados nacería con 40 estrellas y podría canjear el tope de
+    // 5 TODOS los meses por historia que Presta Ya nunca vio. El programa
+    // arranca de cero con el piloto. (Si el negocio quisiera honrar la historia
+    // de Disapp, es una decisión explícita de Mauricio — no un default.)
+    .is("origen", null);
   if (e2) throw e2;
   return count ?? 0;
 }

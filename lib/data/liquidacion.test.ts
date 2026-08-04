@@ -13,6 +13,7 @@ function fakeDb(tablas: Record<string, unknown[]>) {
       const builder: Record<string, unknown> = {
         select: () => builder,
         eq: () => builder,
+        is: () => builder, // filtro de origen (pagos nativos)
         gte: () => builder,
         order: () => builder,
         range: (from: number, to: number) =>

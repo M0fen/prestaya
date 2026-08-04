@@ -69,11 +69,22 @@ for r in rows[1:]:
 wb.close()
 
 # ── Presta Ya: créditos activos ──
-pres = fetch("prestamos?select=disapp_credit_ref,cuota_diaria,total_dias,pagado_acum&estado=eq.activo&order=id.asc")
+pres = fetch("prestamos?select=disapp_credit_ref,cuota_diaria,total_dias,pagado_acum,cobrador_id&estado=eq.activo&order=id.asc")
 def N(v): return round(float(v or 0))
+
+# Zonas VIVAS en la app: cobradores con pagos NATIVOS (origen NULL, filtrado acá
+# — neq/not.in excluyen NULL) desde el piloto. Sus créditos avanzan en la app y
+# el 'Pagos' de Disapp les queda congelado → estar ADELANTE es lo esperado, no
+# una anomalía. Se comparan aparte para que el veredicto no quede rojo perpetuo.
+vivos = set()
+for pg in fetch("pagos?select=registrado_por,origen&anulado=eq.false&registrado_en=gte.2026-08-05T00:00:00-03:00&order=id.asc"):
+    if pg.get("origen") is None and pg.get("registrado_por"):
+        vivos.add(pg["registrado_por"])
 
 matched = insync = atras = adelante = sinmatch = 0
 drift_atras = drift_adelante = 0
+zona_viva_n = 0
+zona_viva_adelante = 0
 peores = []
 cartera_ny = cartera_disapp = 0
 for p in pres:
@@ -85,6 +96,10 @@ for p in pres:
     if d is None:
         sinmatch += 1
         continue
+    if p.get("cobrador_id") in vivos:
+        zona_viva_n += 1
+        zona_viva_adelante += max(0, ny_pagado - round(d["pagos"]))
+        continue  # la app manda: adelanto esperado, fuera del veredicto
     matched += 1
     cartera_disapp += max(0, round(d["saldo"]))
     dr = round(d["pagos"]) - ny_pagado  # >0 = Disapp cobró más (estamos atrás)
@@ -96,6 +111,8 @@ for p in pres:
         adelante += 1; drift_adelante += -dr
 
 print(f"\n  créditos activos Presta Ya: {len(pres)}  · matcheados con Disapp: {matched}  · sin match: {sinmatch}")
+if zona_viva_n:
+    print(f"  zonas VIVAS en la app (excluidas del veredicto): {zona_viva_n} créditos · adelanto esperado ${zona_viva_adelante:,.0f}")
 print(f"  EN SYNC (pagado idéntico): {insync}")
 print(f"  ATRÁS (Disapp cobró más → nos faltan recaudos): {atras}  ·  ${drift_atras:,.0f}")
 print(f"  ADELANTE (tenemos MÁS que Disapp → revisar): {adelante}  ·  ${drift_adelante:,.0f}")

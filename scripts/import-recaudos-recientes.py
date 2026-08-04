@@ -113,11 +113,14 @@ print(f"  suma $ candidatas: {suma:,}")
 # Se chequea crédito+día contra los pagos NATIVOS de la app y se corta.
 dias_import = sorted(por_dia.keys())
 if dias_import:
+    # ⚠️ Nativo = origen IS NULL, filtrado EN PYTHON: `neq.disapp_import` EXCLUYE
+    # los NULL (SQL trivalente) → la guardia quedaba CIEGA a los pagos de la app,
+    # exactamente los que debía proteger (hallazgo auditoría 08-04).
     nativos = E.get_rows(
         db, "pagos", "id,prestamo_id,registrado_en,monto,origen",
-        {"anulado": "eq.false", "origen": "neq.disapp_import",
-         "registrado_en": f"gte.{dias_import[0]}"},
+        {"anulado": "eq.false", "registrado_en": f"gte.{dias_import[0]}"},
     )
+    nativos = [n for n in nativos if n.get("origen") is None]
     # Clave (crédito, día UY). PostgREST devuelve el timestamptz en UTC: cortar el
     # string a 10 daría el día UTC, y un cobro de la tarde-noche uruguaya cae al día
     # UTC SIGUIENTE (UY = UTC−3) → la guardia no vería el choque justo en los cobros

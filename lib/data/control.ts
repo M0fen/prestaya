@@ -126,6 +126,11 @@ export async function getControlCobranza(
           .select("prestamo_id, monto, registrado_por, gps_lat, gps_lng, prestamos!inner(estado)")
           .eq("prestamos.estado", "activo")
           .eq("anulado", false)
+          // Solo pagos nativos: este feed alimenta "float alto sin rendir",
+          // GPS fuera de zona y el ranking del día — todo mide TRABAJO EN LA
+          // APP. Un asiento importado/de reconciliación fechado hoy fabricaba
+          // float de cientos de miles que nadie tenía en la mano.
+          .is("origen", null)
           .gte("registrado_en", desde)
           // Orden estable por PK: sin él la paginación puede duplicar/saltear.
           .order("id", { ascending: true })

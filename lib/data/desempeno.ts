@@ -126,6 +126,12 @@ async function agregarPagos(
       .from("pagos")
       .select("monto, registrado_por, registrado_en")
       .eq("anulado", false)
+      // Nativos + imports REALES de Disapp (continuidad del negocio), pero SIN
+      // los ajustes sintéticos de reconciliación: esos llevan fecha de asiento
+      // (p.ej. $475k de top-ups "cobrados" el 08-04) y reventarían cualquier
+      // vista por día con la que se evalúa gente. Allowlist explícita porque
+      // PostgREST EXCLUYE los NULL en un not.in (trampa ya sufrida).
+      .or("origen.is.null,origen.eq.disapp_import")
       .gte("registrado_en", desdeIso)
       .lt("registrado_en", hastaIso);
     if (soloCob) q = q.in("registrado_por", soloCob);

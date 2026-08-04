@@ -30,13 +30,18 @@ export async function getMisNumeros(cobradorId: string, hoy: Date = new Date()):
   const desde7Str = fechaISOUY(finSemana);
   const primerDelMes = `${fechaISOUY(hoy).slice(0, 7)}-01`;
 
-  // Pagos del mes del cobrador (paginado, orden estable).
+  // Pagos del mes del cobrador (paginado, orden estable). SOLO nativos: la
+  // "Comisión ganada este mes" tiene que prometer exactamente lo que la oficina
+  // liquida (0127 = comisión solo sobre trabajo en la app). Con los imports del
+  // empalme adentro, esta pantalla prometía ~$116k de agosto que el panel del
+  // admin (post-0127) jamás iba a pagar → reclamo colectivo el día de pago.
   const pagos = await traerTodo<{ monto: number; registrado_en: string }>((d, h) =>
     admin
       .from("pagos")
       .select("monto, registrado_en")
       .eq("registrado_por", cobradorId)
       .eq("anulado", false)
+      .is("origen", null)
       .gte("registrado_en", desdeMes)
       .order("id", { ascending: true })
       .range(d, h),

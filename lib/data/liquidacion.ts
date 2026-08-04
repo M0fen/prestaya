@@ -74,7 +74,14 @@ export async function getLiquidacionDiaria(
   // Eventos de HOY (paginados con orden estable), en paralelo.
   const [pagos, visitas, movs, prestamosNuevos] = await Promise.all([
     traerTodo<{ monto: number; registrado_por: string | null }>((d, h) => {
-      let q = db.from("pagos").select("monto, registrado_por").eq("anulado", false).gte("registrado_en", desde);
+      // Solo nativos: la liquidación del día es custodia de efectivo en mano
+      // (asientos importados/de reconciliación rinden en el mundo viejo).
+      let q = db
+        .from("pagos")
+        .select("monto, registrado_por")
+        .eq("anulado", false)
+        .is("origen", null)
+        .gte("registrado_en", desde);
       if (soloCob) q = q.in("registrado_por", soloCob);
       return q.order("id", { ascending: true }).range(d, h);
     }),

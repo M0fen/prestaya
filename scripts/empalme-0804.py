@@ -49,6 +49,7 @@ def arg(flag, default=None):
 
 COMMIT = "--commit" in sys.argv
 FORZAR = "--forzar" in sys.argv
+SALTEAR = "--saltear-choques" in sys.argv  # saltea SOLO las filas que chocan (la app manda) y sigue
 SRC = arg("--src", r"C:\Users\Carlos\migracion")
 ENVF = arg("--env-file", ".env.local")
 FRONTERA = dt.date(2026, 7, 21)   # el último import de recaudos llegó hasta el 07-20
@@ -120,6 +121,17 @@ for path in sorted(_glob.glob(os.path.join(SRC, "creditos*.xlsx"))):
 ref2hoy = {c["ref"]: c for c in creds_hoy.values() if c["ref"]}
 print(f"  export créditos HOY: {len(creds_hoy)} activos · export clientes: {len(d['clientes'])} · pagos únicos: {len(d['pagos'])}")
 
+# INTERLOCK del corte: si el export de créditos es MÁS NUEVO que --corte, su
+# columna 'Pagos' ya contiene recaudos posteriores al corte → el top-up los
+# duplicaría (fila real + ajuste). Se corta acá, no en producción.
+max_fc = max((c["fecha"] for c in creds_hoy.values() if c["fecha"]), default=None)
+if max_fc and max_fc > CORTE:
+    sys.exit(
+        f"🔴 ABORTA: el export de créditos trae 'Fecha Crédito' hasta {max_fc} > corte {CORTE}.\n"
+        f"   Su 'Pagos' ya refleja días posteriores al corte: volvé a correr con --corte {max_fc}\n"
+        f"   (la fecha real del export). Con el corte viejo, cada recaudo nuevo entraría DOS veces."
+    )
+
 usuarios = E.get_rows(db, "usuarios", "id,nombre,rol,zona_id,disapp_vendedor_id,activo")
 zonas = E.get_rows(db, "zonas", "id,nombre")
 zona_nom = {z["id"]: z["nombre"] for z in zonas}
@@ -132,7 +144,7 @@ docs_db = {c["documento"] for c in clientes_db if c.get("documento")}
 ids_cli_file = set(d["clientes"].keys())
 borrados_en_disapp = {c["id"] for c in clientes_db if c.get("disapp_id") and c["disapp_id"] not in ids_cli_file}
 
-pres = E.get_rows(db, "prestamos", "id,cliente_id,cobrador_id,disapp_credit_id,disapp_credit_ref,estado,cuota_diaria,total_dias,pagado_acum")
+pres = E.get_rows(db, "prestamos", "id,cliente_id,cobrador_id,disapp_credit_id,disapp_credit_ref,estado,cuota_diaria,total_dias,pagado_acum,finalizado_en")
 by_ref_db = {p["disapp_credit_ref"]: p for p in pres if p.get("disapp_credit_ref")}
 ids_credit_db = {str(p["disapp_credit_id"]) for p in pres if p.get("disapp_credit_id")}
 activos_db = [p for p in pres if p["estado"] == "activo"]
@@ -143,6 +155,30 @@ for row in E.get_rows(db, "pagos", "id,disapp_pago_id", {"registrado_en": "gte.2
     if row.get("disapp_pago_id"):
         ya_ids.add(str(row["disapp_pago_id"]))
 print(f"  base: {len(clientes_db)} clientes · {len(pres)} créditos ({len(activos_db)} activos) · pagos recientes ya importados: {len(ya_ids)}")
+
+# ══ LA APP MANDA ═══════════════════════════════════════════════════════════
+# Desde que un cobrador registra pagos NATIVOS (origen NULL) en la app, su
+# cartera es app-autoritativa: el export de Disapp para su zona queda VIEJO
+# (ZC deja de cargar en Disapp desde el 08-05). A esos créditos NO se les
+# resucita estado, NO se les siembra top-up, NO se los finaliza por ausencia
+# en el export, y sus candidatos con fecha ≥ piloto se descartan (re-capturas).
+PILOTO_DESDE = dt.date(2026, 8, 5)
+_nativos_piloto = E.get_rows(db, "pagos", "id,registrado_por,prestamo_id,origen",
+                             {"anulado": "eq.false", "registrado_en": f"gte.{PILOTO_DESDE}T00:00:00-03:00"})
+_nativos_piloto = [n for n in _nativos_piloto if n.get("origen") is None]
+cobradores_vivos = {n["registrado_por"] for n in _nativos_piloto if n.get("registrado_por")}
+prestamos_nativos = {n["prestamo_id"] for n in _nativos_piloto}
+print(f"  app-autoritativo: {len(cobradores_vivos)} cobradores con pagos nativos desde {PILOTO_DESDE} ({len(_nativos_piloto)} pagos)")
+
+# Créditos con imports ANULADOS en la app: el admin corrigió un asiento de
+# Disapp a propósito → el target de Disapp ya no es la verdad para ese crédito;
+# sembrar top-up lo DES-anularía cada noche. Se saltean y se listan.
+_anul_imp = E.get_rows(db, "pagos", "id,prestamo_id,disapp_pago_id", {"anulado": "eq.true", "disapp_pago_id": "not.is.null"})
+prestamos_con_import_anulado = {a["prestamo_id"] for a in _anul_imp}
+_id2ref = {p["id"]: p.get("disapp_credit_ref") for p in pres}
+refs_con_import_anulado = {_id2ref.get(pid) for pid in prestamos_con_import_anulado} - {None}
+if refs_con_import_anulado:
+    print(f"  créditos con imports anulados en la app (sin top-up, a revisión): {len(refs_con_import_anulado)}")
 
 # ══ 1. Clientes nuevos ══════════════════════════════════════════════════════
 faltan_creds = [c for c in creds_hoy.values() if c["ref"] not in by_ref_db and c["cid"] not in ids_credit_db]
@@ -176,22 +212,53 @@ crear = [c for c in faltan_creds if str(c["id_vendedor"]) in vend2user]
 # La sincronización ZC del 07-21 finalizó 245 créditos porque el export de aquel
 # día no los listaba; el export de HOY dice que siguen activos (con saldo). La
 # verdad es el export más fresco → se reactivan (0126 lo permite vía service).
-resucitar = []
+resucitar, resucitar_saltados = [], []
+def _dia_de(ts):
+    return str(ts)[:10] if ts else None
 for ref, c in ref2hoy.items():
     p = by_ref_db.get(ref)
-    if p and p["estado"] != "activo":
-        resucitar.append({"id": p["id"], "ref": ref, "estado": p["estado"],
-                          "cliente_id": p["cliente_id"], "cobrador_id": p["cobrador_id"]})
+    if not p or p["estado"] == "activo":
+        continue
+    # (a) cartera app-autoritativa: una renovación/finalización hecha EN LA APP
+    #     no se revierte porque un export viejo todavía liste el ref como Activo.
+    if p["cobrador_id"] in cobradores_vivos or p["id"] in prestamos_nativos:
+        resucitar_saltados.append((ref, "zona viva (la app manda)")); continue
+    # (b) finalización de la app POSTERIOR al corte del export: la app es más nueva.
+    fe = _dia_de(p.get("finalizado_en"))
+    if fe and fe > CORTE.isoformat():
+        resucitar_saltados.append((ref, f"finalizado en la app el {fe} > corte")); continue
+    # (c) términos deben coincidir con el export (¿ref reciclado por Disapp?).
+    if round(float(p["cuota_diaria"] or 0)) != round(c["cuota"] or 0) or int(p["total_dias"] or 0) != int(c["cuotas"] or 0):
+        resucitar_saltados.append((ref, "términos distintos (¿ref reciclado?)")); continue
+    resucitar.append({"id": p["id"], "ref": ref, "estado": p["estado"],
+                      "cliente_id": p["cliente_id"], "cobrador_id": p["cobrador_id"]})
 
 # ══ 4a. Candidatos de pagos por crédito (antes de asignaciones p/ conocer scope)
+HOY_UY = dt.datetime.now(dt.timezone(dt.timedelta(hours=-3))).date()
+refs_nuevos = {c["ref"] for c in crear}
+# Créditos existentes con pagado 0 y ref en el export: quedaron a medias por un
+# corte previo (crédito creado, pagos nunca imputados) → se les da la historia
+# COMPLETA como a un nuevo, no solo lo fresco.
+refs_cero = {r for r, p in by_ref_db.items() if round(float(p["pagado_acum"] or 0)) == 0}
 cand_por_ref = defaultdict(list)
+clamp_hoy = recapturas = 0
 for p in d["pagos"].values():
     if not p["ref"] or not p["fecha"] or str(p["id_pago"]) in ya_ids:
         continue
-    es_nuevo = p["ref"] in {c["ref"] for c in crear}
-    if p["ref"] in by_ref_db and p["fecha"] >= FRONTERA:
-        cand_por_ref[p["ref"]].append(p)      # crédito existente: solo lo fresco
-    elif es_nuevo:
+    # Nunca importar recaudos del DÍA EN CURSO: contaminan la custodia de HOY
+    # (esperado del cierre, float, push). El ritual siempre importa AYER.
+    if p["fecha"] >= HOY_UY:
+        clamp_hoy += 1
+        continue
+    pdb = by_ref_db.get(p["ref"])
+    # Cartera app-autoritativa: filas del export sobre créditos que la app ya
+    # maneja y fechadas desde el piloto = re-capturas en Disapp → NO entran.
+    if pdb and p["fecha"] >= PILOTO_DESDE and (pdb["cobrador_id"] in cobradores_vivos or pdb["id"] in prestamos_nativos):
+        recapturas += 1
+        continue
+    if pdb and (p["fecha"] >= FRONTERA or p["ref"] in refs_cero):
+        cand_por_ref[p["ref"]].append(p)      # existente: lo fresco (o TODO si quedó en cero)
+    elif p["ref"] in refs_nuevos:
         cand_por_ref[p["ref"]].append(p)      # crédito nuevo: toda su historia
 for lst in cand_por_ref.values():
     lst.sort(key=lambda p: (p["fecha"], str(p["id_pago"])))
@@ -230,12 +297,22 @@ for ref, lst in cand_por_ref.items():
         sim_final[ref] = round(base_pagado + sum(p["monto"] or 0 for p in lst), 2)
 
 # ══ 5. Top-ups exactos p/ créditos con target que quedan cortos ═════════════
+topups_saltados = []
 for ref, c in ref2hoy.items():
     en_db = ref in by_ref_db
     es_nuevo = ref in refs_crear
     if not en_db and not es_nuevo:
         continue
-    base_pagado = round(float(by_ref_db[ref]["pagado_acum"] or 0), 2) if en_db else 0.0
+    pdb = by_ref_db.get(ref)
+    # La app manda: crédito con actividad nativa no recibe ajustes de Disapp.
+    if pdb and (pdb["cobrador_id"] in cobradores_vivos or pdb["id"] in prestamos_nativos):
+        continue
+    # El admin anuló un import a propósito: el target de Disapp dejó de ser la
+    # verdad para este crédito — un top-up des-anularía esa decisión cada noche.
+    if ref in refs_con_import_anulado:
+        topups_saltados.append(ref)
+        continue
+    base_pagado = round(float(pdb["pagado_acum"] or 0), 2) if pdb else 0.0
     # El hueco se mide contra lo simulado HASTA EL CORTE: el target no conoce
     # los recaudos posteriores, y esos no tapan un faltante de la ventana vieja.
     fin_corte = sim_corte.get(ref, sim_final.get(ref, base_pagado))
@@ -250,6 +327,11 @@ mantener_borrados = []
 for p in activos_db:
     ref = p.get("disapp_credit_ref")
     if not ref or ref in ref2hoy:
+        continue
+    # La app manda: si el cobrador ya opera en la app, que su crédito no esté
+    # en el export de Disapp NO significa que se cerró — significa que la zona
+    # migró (o que el export vino sin esa zona). JAMÁS finalizar por ausencia.
+    if p["cobrador_id"] in cobradores_vivos or p["id"] in prestamos_nativos:
         continue
     total = round(float(p["cuota_diaria"] or 0)) * int(p["total_dias"] or 0)
     fin = sim_final.get(ref, round(float(p["pagado_acum"] or 0), 2))
@@ -298,6 +380,24 @@ for c in crear:
         asig_activar.append(inact_pair[(cliente_id, cobrador_id)] | {"cliente_id": cliente_id})
     else:
         asig_crear.append({"cliente_id": cliente_id, "cobrador_id": cobrador_id})
+# RED DE SEGURIDAD (crash a mitad de una corrida previa): TODO crédito activo
+# matcheado con el export debe tener su par (cliente, cobrador) en ruta — no
+# solo los que este plan crea/resucita. Si una corrida anterior murió entre
+# crear créditos y asignaciones, esta pasada lo repara sola (INV10 en paz).
+for p in activos_db:
+    ref = p.get("disapp_credit_ref")
+    if not ref or ref not in ref2hoy:
+        continue
+    par = (p["cliente_id"], p["cobrador_id"])
+    if par in act_pair or par in pares_nuevos:
+        continue
+    pares_nuevos.add(par)
+    cred_act_final[par] += 1
+    if par in inact_pair:
+        asig_activar.append(inact_pair[par] | {"cliente_id": p["cliente_id"]})
+    else:
+        asig_crear.append({"cliente_id": p["cliente_id"], "cobrador_id": p["cobrador_id"]})
+
 # bajar pares activos de OTROS cobradores sin crédito activo final con ese cliente
 clientes_tocados = {cliDe.get(c["id_cliente"]) for c in crear} - {None}
 for (cli, cob), a in act_pair.items():
@@ -305,10 +405,13 @@ for (cli, cob), a in act_pair.items():
         asig_bajar.append(a)
 
 # ══ Guardia: pagos nativos de la app en la ventana ══════════════════════════
+# ⚠️ Nativo = origen IS NULL, filtrado EN PYTHON: un not.in/neq de PostgREST
+# EXCLUYE los NULL (SQL trivalente) → la guardia quedaba CIEGA justo a los pagos
+# que debía proteger. Hallazgo de la auditoría 08-04: la versión anterior
+# imprimía "✓ sin choques (0 revisados)" vacuamente.
 nativos = E.get_rows(db, "pagos", "id,prestamo_id,registrado_en,origen,disapp_pago_id",
-                     {"anulado": "eq.false", "registrado_en": f"gte.{FRONTERA}",
-                      "origen": "not.in.(disapp_import,reconciliacion_zc,reconciliacion_0804)"})
-nativos = [n for n in nativos if not str(n.get("disapp_pago_id") or "").startswith("recon-")]
+                     {"anulado": "eq.false", "registrado_en": f"gte.{FRONTERA}"})
+nativos = [n for n in nativos if n.get("origen") is None and not str(n.get("disapp_pago_id") or "").startswith("recon-")]
 UY = dt.timezone(dt.timedelta(hours=-3))
 def dia_uy(ts):
     try:
@@ -343,13 +446,24 @@ if resucitar:
     for r in resucitar:
         de[r["estado"]] += 1
     print(f"  2b) Resucitar (activos HOY en Disapp, acá {dict(de)}): {len(resucitar)}")
+if resucitar_saltados:
+    motivos = defaultdict(int)
+    for _, m in resucitar_saltados:
+        motivos[m.split(" (")[0]] += 1
+    print(f"       NO resucitados (protección): {len(resucitar_saltados)} → {dict(motivos)}")
 print(f"  3) Asignaciones: crear {len(asig_crear)} · reactivar {len(asig_activar)} · bajar {len(asig_bajar)}")
 n_ins = len(insertar); s_ins = round(sum(p['monto'] or 0 for _, p in insertar))
 print(f"  4) Recaudos a insertar: {n_ins}  ${s_ins:,}")
 print(f"       descartados por CAP (ya viven en ajustes — no duplicar): {len(descartes)}  ${round(sum(p['monto'] or 0 for _, p in descartes)):,}")
-print(f"  5) Top-ups exactos: {len(topups)}  ${round(sum(t['delta'] for t in topups)):,}")
+if clamp_hoy:
+    print(f"       ⚠ con fecha de HOY o futura (NO entran — el ritual importa AYER): {clamp_hoy}")
+if recapturas:
+    print(f"       ⚠ re-capturas en Disapp de créditos que la app ya maneja (NO entran): {recapturas}")
+print(f"  5) Top-ups exactos: {len(topups)}  ${round(sum(t['delta'] for t in topups)):,}  (fechados al corte {CORTE})")
 sup_top = [t for t in topups if "SUPERVISOR" in (t["vend"] or "").upper()]
 print(f"       de ellos en créditos de SUPERVISOR: {len(sup_top)}  ${round(sum(t['delta'] for t in sup_top)):,}")
+if topups_saltados:
+    print(f"       sin top-up por imports ANULADOS en la app (a revisión humana): {len(topups_saltados)} → {topups_saltados[:6]}")
 print(f"  6) Finalizar (cerrados en Disapp con saldo acá): {len(finalizar)}  (saldo colgado ${round(sum(f['colgado'] for f in finalizar)):,})")
 print(f"       clientes borrados en Disapp que se MANTIENEN activos: {len(mantener_borrados)}")
 
@@ -375,8 +489,15 @@ if choques:
     print(f"\n🔴 GUARDIA: {len(choques)} recaudos chocan crédito+día con pagos NATIVOS de la app.")
     for ref, p in choques[:8]:
         print(f"     {ref} {p['fecha']} ${round(p['monto'] or 0):,}")
-    if not FORZAR:
-        sys.exit("   Abortado. Revisar (o --forzar a sabiendas).")
+    if SALTEAR:
+        # En zona viva la APP es la verdad: se saltean SOLO las filas que chocan
+        # (posibles re-capturas en Disapp) y el resto del día entra normal. Así
+        # un único choque no frena el import de todas las zonas.
+        ids_choque = {id(p) for _, p in choques}
+        insertar = [(r, p) for r, p in insertar if id(p) not in ids_choque]
+        print(f"   --saltear-choques: se saltean esas {len(choques)} filas (${round(sum(p['monto'] or 0 for _, p in choques)):,}) y sigue el resto.")
+    elif not FORZAR:
+        sys.exit("   Abortado. Opciones: --saltear-choques (saltea SOLO esas filas y sigue) o --forzar (importa TODO, a sabiendas).")
 else:
     print(f"\n  ✓ guardia: sin choques con pagos nativos ({len(nativos)} revisados)")
 
@@ -493,7 +614,10 @@ for t in topups:
         "dia_credito": 1,
         "monto": t["delta"],
         "registrado_por": pdb.get("cobrador_id"),
-        "registrado_en": E.iso_ts(HOY),
+        # Fechado AL CORTE (el día cuyos libros reconcilia), nunca HOY: un
+        # asiento fechado hoy entraba a la custodia del día (esperado del
+        # cierre, float alto, push de las 21:00) como plata en mano fantasma.
+        "registrado_en": E.iso_ts(CORTE),
         "origen": "reconciliacion_0804",
         "importado_en": dt.datetime.now().isoformat(),
         "disapp_pago_id": f"recon-{SELLO}-{t['cid']}",
