@@ -23,6 +23,9 @@ export interface PremioRaspa {
   activo: boolean;
   /** Tramo de scoring al que pertenece (null = sin asignar → default). */
   segmentoId?: string | null;
+  /** Costo estimado de entregarlo, en $ (0130). 0 = sin cargar. No influye en
+   *  el sorteo: solo en el presupuesto (lib/presupuestoJuegos.ts). */
+  costo?: number;
 }
 
 /**

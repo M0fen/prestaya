@@ -16,20 +16,28 @@ import { ValidarComprobante } from "@/components/admin/ValidarComprobante";
 import { ToggleJuegos } from "@/components/admin/ToggleJuegos";
 import { PromosPreview } from "@/components/admin/PromosPreview";
 import { EtiquetaAudiencia } from "@/components/admin/EtiquetaAudiencia";
+import { PresupuestoJuegos } from "@/components/admin/PresupuestoJuegos";
+import { getResumenPresupuesto } from "@/lib/data/presupuestoJuegos";
+import { hoyUY } from "@/lib/fecha";
 
 export const dynamic = "force-dynamic";
 
 export default async function PromosPage() {
   await requireAdmin();
   const db = await createSupabaseServer();
-  const [premios, segmentos, quinielas, ajustes, zonas, resumenRaspa] = await Promise.all([
+  const [premios, segmentos, quinielas, ajustes, zonas, resumenRaspa, presupuesto] = await Promise.all([
     getPremiosRaspa(db, false),
     getSegmentosRaspa(db, false),
     getQuinielasAdmin(db),
     getAjustesJuego(db),
     getZonas(db),
     getResumenRaspaditas(db),
+    getResumenPresupuesto(db),
   ]);
+  // Para proyectar el cierre del mes: qué día es hoy y cuántos tiene el mes (UY).
+  const hoyMid = hoyUY();
+  const diaDelMes = hoyMid.getUTCDate();
+  const diasDelMes = new Date(Date.UTC(hoyMid.getUTCFullYear(), hoyMid.getUTCMonth() + 1, 0)).getUTCDate();
 
   // Datos para el preview "así lo ve el cliente".
   const quinielaAbierta = quinielas.find((q) => q.estado === "abierta") ?? null;
@@ -78,6 +86,19 @@ export default async function PromosPage() {
           "Zona de juego", otra pantalla). Si está apagado, el cliente no ve nada. */}
       <ToggleJuegos inicial={ajustes.activo} />
 
+      {/* Cuánto cuestan los premios: gasto real por período + simulador de
+          "cuánto dejo en la calle" antes de regalar (0130). Va ARRIBA de la
+          configuración a propósito: la plata primero, la letra chica después. */}
+      <PresupuestoJuegos
+        periodos={presupuesto.periodos}
+        tramos={presupuesto.tramos}
+        topeMensual={presupuesto.topeMensual}
+        premiosSinCosto={presupuesto.premiosSinCosto}
+        diaDelMes={diaDelMes}
+        diasDelMes={diasDelMes}
+        esAdmin
+      />
+
       {/* Así lo ve el cliente (snapshot fiel; cierra el ciclo configurar→ver). */}
       <PromosPreview
         quinielaTitulo={quinielaAbierta?.titulo ?? null}
@@ -93,7 +114,18 @@ export default async function PromosPage() {
 
       {/* Regalar una raspadita a una persona puntual (buscándola por su nombre),
           opcionalmente con el premio FIJADO (0103). */}
-      <OtorgarRaspadita premios={premios.filter((p) => p.activo && p.tipo === "beneficio").map((p) => ({ id: p.id, label: p.label }))} />
+      <OtorgarRaspadita
+        premios={premios
+          .filter((p) => p.activo && p.tipo === "beneficio")
+          .map((p) => ({ id: p.id, label: p.label, costo: p.costo ?? 0 }))}
+        // Costo promedio de una jugada al azar: el del tramo por defecto (el que
+        // le toca a la mayoría). Es la mejor estimación sin saber el score de la
+        // persona elegida.
+        costoPromedioAzar={
+          presupuesto.tramos.find((t) => segmentos.find((s) => s.id === t.segmentoId)?.esDefault)
+            ?.costoEsperado ?? presupuesto.tramos[0]?.costoEsperado ?? 0
+        }
+      />
 
       <PromosManager premios={premios} segmentos={segmentos} quinielas={quinielas} resumen={resumen} zonas={zonas.map((z) => ({ id: z.id, nombre: z.nombre }))} />
 

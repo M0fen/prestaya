@@ -25,6 +25,7 @@ import { registrarAuditoria } from "@/lib/data/auditoria";
 import { esUuid } from "@/lib/idempotencia";
 import { normalizarNumero } from "@/lib/quiniela";
 import { normalizarSegmento, esSegmentoTodos, type DefinicionSegmento } from "@/lib/segmentos";
+import { UYU } from "@/lib/format";
 
 type Resultado = { ok: true } | { ok: false; error: string };
 
@@ -113,12 +114,18 @@ export async function guardarPremioRaspa(input: {
   activo: boolean;
   orden: number;
   segmentoId?: string | null;
+  /** Cuánto le cuesta a la empresa entregar este premio (0130). */
+  costo?: number;
 }): Promise<Resultado> {
   const u = await gestor();
   if (!u) return { ok: false, error: "No tenés permisos." };
   const label = (input.label ?? "").trim().slice(0, 60);
   if (!label) return { ok: false, error: "Poné un texto para el premio." };
   const tipo = input.tipo === "beneficio" ? "beneficio" : "nada";
+  // Un premio "nada" no cuesta: su costo se fuerza a 0 para que no ensucie la
+  // proyección (no participa de la ruleta de premios).
+  const costo =
+    tipo === "nada" ? 0 : Math.max(0, Math.min(10_000_000, Math.round(Number(input.costo) || 0)));
   try {
     const db = await createSupabaseServer();
     await guardarPremioRaspaDb(db, {
@@ -129,11 +136,12 @@ export async function guardarPremioRaspa(input: {
       activo: Boolean(input.activo),
       orden: Math.round(Number(input.orden) || 0),
       segmentoId: input.segmentoId === undefined ? undefined : (input.segmentoId || null),
+      costo,
     });
     await registrarAuditoria(db, {
       actorId: u.id, actorNombre: u.nombre,
       accion: input.id ? "Editó premio de raspadita" : "Creó premio de raspadita",
-      entidad: "promo", detalle: `${label} (${tipo})`,
+      entidad: "promo", detalle: `${label} (${tipo}) · costo ${UYU(costo)}`,
     });
     revalidatePath("/admin/promos");
     return { ok: true };
@@ -218,6 +226,8 @@ export async function crearQuiniela(input: {
   premioTexto: string;
   /** Audiencia (0089): solo estos clientes participan. null/vacío = todos los al día. */
   segmentoDef?: DefinicionSegmento | null;
+  /** Cuánto cuesta el premio de esta quiniela (0130). Entra al presupuesto. */
+  costoPremio?: number;
 }): Promise<Resultado> {
   const u = await gestor();
   if (!u) return { ok: false, error: "No tenés permisos." };
@@ -226,14 +236,16 @@ export async function crearQuiniela(input: {
   if (!titulo || !premioTexto) return { ok: false, error: "Completá título y premio." };
   const min = Math.max(0, Math.round(Number(input.rangoMin) || 0));
   const max = Math.max(min + 1, Math.round(Number(input.rangoMax) || 99));
+  const costoPremio = Math.max(0, Math.min(10_000_000, Math.round(Number(input.costoPremio) || 0)));
   const defRaw = normalizarSegmento(input.segmentoDef ?? {});
   const segmentoDef = esSegmentoTodos(defRaw) ? null : defRaw;
   try {
     const db = await createSupabaseServer();
-    await crearQuinielaDb(db, { titulo, rangoMin: min, rangoMax: max, premioTexto, segmentoDef });
+    await crearQuinielaDb(db, { titulo, rangoMin: min, rangoMax: max, premioTexto, segmentoDef, costoPremio });
     await registrarAuditoria(db, {
       actorId: u.id, actorNombre: u.nombre,
-      accion: "Abrió quiniela", entidad: "promo", detalle: `${titulo} (${min}–${max})`,
+      accion: "Abrió quiniela", entidad: "promo",
+      detalle: `${titulo} (${min}–${max}) · premio ${UYU(costoPremio)}`,
     });
     revalidatePath("/admin/promos");
     return { ok: true };

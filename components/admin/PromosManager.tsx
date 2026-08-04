@@ -188,6 +188,8 @@ function PremioFila({
   const [tipo, setTipo] = useState(premio?.tipo ?? "beneficio");
   const [activo, setActivo] = useState(premio?.activo ?? true);
   const [segmentoId, setSegmentoId] = useState<string>(premio?.segmentoId ?? segmentoInicial ?? "");
+  // Costo (0130): sin esto el presupuesto de premios da $0 y no sirve.
+  const [costo, setCosto] = useState(premio?.costo ?? 0);
   const [ocupado, setOcupado] = useState(false);
 
   const guardar = async () => {
@@ -196,9 +198,10 @@ function PremioFila({
       id: premio?.id ?? null,
       label, tipo, peso, activo, orden: 0,
       segmentoId: segmentoId || null,
+      costo,
     });
     setOcupado(false);
-    if (nuevo) { setLabel(""); setPeso(10); }
+    if (nuevo) { setLabel(""); setPeso(10); setCosto(0); }
     onChange();
   };
   const borrar = async () => {
@@ -244,6 +247,15 @@ function PremioFila({
           <input type="number" min={0} className={`${inputCls} w-20`} value={peso}
             onChange={(e) => setPeso(Number(e.target.value))} />
         </label>
+        {tipo === "beneficio" && (
+          <label className="flex flex-col gap-0.5">
+            <span className="text-[10px] font-bold text-gris" title="Cuánto te cuesta a vos entregar este premio. Va al presupuesto.">
+              Te cuesta $
+            </span>
+            <input type="number" min={0} className={`${inputCls} w-24`} value={costo}
+              onChange={(e) => setCosto(Number(e.target.value))} />
+          </label>
+        )}
         <label className="mb-2 flex items-center gap-1.5 text-[12px] font-semibold text-tinta">
           <input type="checkbox" checked={activo} onChange={(e) => setActivo(e.target.checked)} /> Activo
         </label>

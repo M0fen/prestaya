@@ -8,9 +8,17 @@ import { useRouter } from "next/navigation";
 import { otorgarRaspaditasAction } from "@/lib/acciones/promos";
 
 type ClienteMin = { id: string; nombre: string; documento: string | null };
-type PremioMin = { id: string; label: string };
+type PremioMin = { id: string; label: string; costo?: number };
 
-export function OtorgarRaspadita({ premios = [] }: { premios?: PremioMin[] }) {
+export function OtorgarRaspadita({
+  premios = [],
+  /** Costo promedio de UNA jugada al azar (del tramo por defecto). Sirve para
+   *  decir cuánto se está dejando en la calle ANTES de confirmar el regalo. */
+  costoPromedioAzar = 0,
+}: {
+  premios?: PremioMin[];
+  costoPromedioAzar?: number;
+}) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [resultados, setResultados] = useState<ClienteMin[]>([]);
@@ -152,6 +160,32 @@ export function OtorgarRaspadita({ premios = [] }: { premios?: PremioMin[] }) {
               </select>
             </label>
           )}
+          {/* Cuánto cuesta ESTE regalo, antes de confirmarlo (0130). Con premio
+              fijado el costo es exacto (siempre toca ese); al azar es el
+              promedio del sorteo. Si no hay costos cargados, se dice en vez de
+              mostrar un $0 que parece "gratis". */}
+          {(() => {
+            const fijado = premios.find((p) => p.id === premioId);
+            const unit = premioId ? (fijado?.costo ?? 0) : costoPromedioAzar;
+            const total = Math.round(unit * cantidad);
+            if (unit <= 0) {
+              return (
+                <span className="text-[11.5px] leading-[1.5] font-semibold text-[#8A6D1F]">
+                  ⚠️ Este premio no tiene costo cargado, así que no puedo decirte cuánto te sale.
+                  Cargalo en la lista de premios para que entre al presupuesto.
+                </span>
+              );
+            }
+            return (
+              <span className="rounded-[10px] bg-[#EEF3FF] px-3 py-2 text-[12px] leading-[1.5] font-semibold text-[#3A4664]">
+                Este regalo te va a costar{" "}
+                <b className="tabular-nums text-[#1E47C8]">
+                  ${total.toLocaleString("es-UY")}
+                </b>{" "}
+                {premioId ? "(premio fijo)" : "en promedio (premio al azar)"}.
+              </span>
+            );
+          })()}
           <button
             type="button"
             onClick={otorgar}

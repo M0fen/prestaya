@@ -24,16 +24,34 @@ export async function getPremiosRaspa(
     peso: Number(r.peso),
     activo: r.activo as boolean,
     segmentoId: (r.segmento_id as string | null | undefined) ?? null,
+    // 0130: costo de lista. 0 (o ausente) = el dueño todavía no lo cargó.
+    costo: Number(r.costo ?? 0),
   });
   try {
-    let q = db.from("raspadita_premios").select("id, label, tipo, peso, activo, segmento_id").order("orden");
+    let q = db
+      .from("raspadita_premios")
+      .select("id, label, tipo, peso, activo, segmento_id, costo")
+      .order("orden");
     if (soloActivos) q = q.eq("activo", true);
     const { data, error } = await q;
     if (error) throw error;
     return (data ?? []).map((r) => map(r as Record<string, unknown>));
   } catch (e) {
-    // Defensivo: si 0042 aún no agregó segmento_id, reintentar sin esa columna.
+    // Defensivo: si falta `costo` (0130) o `segmento_id` (0042), reintentar con
+    // el set mínimo de columnas — una migración pendiente no rompe la pantalla.
     if (columnaFaltante(e)) {
+      try {
+        let q = db
+          .from("raspadita_premios")
+          .select("id, label, tipo, peso, activo, segmento_id")
+          .order("orden");
+        if (soloActivos) q = q.eq("activo", true);
+        const { data, error } = await q;
+        if (error) throw error;
+        return (data ?? []).map((r) => map(r as Record<string, unknown>));
+      } catch (e2) {
+        if (!columnaFaltante(e2)) throw e2;
+      }
       let q = db.from("raspadita_premios").select("id, label, tipo, peso, activo").order("orden");
       if (soloActivos) q = q.eq("activo", true);
       const { data, error } = await q;
@@ -280,6 +298,8 @@ export async function guardarPremioRaspaDb(
     orden: number;
     /** Tramo al que pertenece (0042). Opcional para compat con bases sin 0042. */
     segmentoId?: string | null;
+    /** Costo estimado del premio (0130). Sin esto no hay presupuesto posible. */
+    costo?: number;
   },
 ): Promise<void> {
   const fila: Record<string, unknown> = {
@@ -290,10 +310,23 @@ export async function guardarPremioRaspaDb(
     orden: input.orden,
   };
   if (input.segmentoId !== undefined) fila.segmento_id = input.segmentoId;
-  const { error } = input.id
-    ? await db.from("raspadita_premios").update(fila).eq("id", input.id)
-    : await db.from("raspadita_premios").insert(fila);
-  if (error) throw error;
+  if (input.costo !== undefined) fila.costo = input.costo;
+  const guardar = async (f: Record<string, unknown>) =>
+    input.id
+      ? await db.from("raspadita_premios").update(f).eq("id", input.id)
+      : await db.from("raspadita_premios").insert(f);
+  const { error } = await guardar(fila);
+  if (error) {
+    // Sin 0130 la columna `costo` no existe: se guarda el resto igual en vez de
+    // perder la edición del premio.
+    if (columnaFaltante(error) && fila.costo !== undefined) {
+      const { costo: _omitido, ...sinCosto } = fila;
+      const r2 = await guardar(sinCosto);
+      if (r2.error) throw r2.error;
+      return;
+    }
+    throw error;
+  }
 }
 
 export async function borrarPremioRaspaDb(db: SupabaseClient, id: string): Promise<void> {
@@ -585,23 +618,35 @@ export async function participarQuinielaDb(
 
 export async function crearQuinielaDb(
   db: SupabaseClient,
-  input: { titulo: string; rangoMin: number; rangoMax: number; premioTexto: string; segmentoDef?: DefinicionSegmento | null },
+  input: {
+    titulo: string;
+    rangoMin: number;
+    rangoMax: number;
+    premioTexto: string;
+    segmentoDef?: DefinicionSegmento | null;
+    /** Costo del premio (0130): lo que va a costar cuando salga el ganador. */
+    costoPremio?: number;
+  },
 ): Promise<void> {
   // Una sola quiniela ABIERTA a la vez: cerramos las abiertas antes de abrir la
   // nueva. El índice único parcial (0082) lo garantiza a nivel BD; si dos gestores
   // abren a la vez, el 2º insert choca 23505 → reintentamos una vez (cerrar+abrir).
-  for (let intento = 0; intento < 2; intento++) {
+  const base: Record<string, unknown> = {
+    titulo: input.titulo,
+    rango_min: input.rangoMin,
+    rango_max: input.rangoMax,
+    premio_texto: input.premioTexto,
+    segmento_def: input.segmentoDef ?? null,
+    estado: "abierta",
+  };
+  if (input.costoPremio !== undefined) base.costo_premio = input.costoPremio;
+  for (let intento = 0; intento < 3; intento++) {
     await db.from("quinielas").update({ estado: "cerrada" }).eq("estado", "abierta");
-    const { error } = await db.from("quinielas").insert({
-      titulo: input.titulo,
-      rango_min: input.rangoMin,
-      rango_max: input.rangoMax,
-      premio_texto: input.premioTexto,
-      segmento_def: input.segmentoDef ?? null,
-      estado: "abierta",
-    });
+    const fila = intento === 2 ? (({ costo_premio: _o, ...r }) => r)(base) : base; // sin 0130
+    const { error } = await db.from("quinielas").insert(fila);
     if (!error) return;
     if ((error as { code?: string }).code === "23505" && intento === 0) continue;
+    if (columnaFaltante(error) && intento < 2) continue; // reintenta sin costo_premio
     throw error;
   }
 }
