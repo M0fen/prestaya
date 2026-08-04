@@ -18,7 +18,22 @@ function base64aUint8(base64: string): Uint8Array<ArrayBuffer> {
   return out;
 }
 
-type Estado = "cargando" | "no_soportado" | "off" | "on" | "activando";
+type Estado = "cargando" | "no_soportado" | "off" | "on" | "activando" | "bloqueado";
+
+/** Dónde se re-habilitan las notificaciones cuando el navegador ya las bloqueó.
+ *  "Activalo desde el candado" no alcanza: en Android el candado no siempre está,
+ *  y en iOS la opción no vive en el navegador sino en los Ajustes del teléfono. */
+function comoDesbloquear(): string {
+  if (typeof navigator === "undefined") return "";
+  const ua = navigator.userAgent;
+  if (/iPad|iPhone|iPod/.test(ua)) {
+    return "En el iPhone: Ajustes → Notificaciones → Presta Ya → activá “Permitir notificaciones”. Después volvé acá y tocá el botón de nuevo.";
+  }
+  if (/Android/.test(ua)) {
+    return "En el celular: tocá el ícono a la izquierda de la dirección web (candado o ⓘ) → Permisos → Notificaciones → Permitir. Si no aparece, entrá a ⋮ → Configuración del sitio → Notificaciones. Después recargá la página.";
+  }
+  return "En la computadora: tocá el candado a la izquierda de la dirección web → Notificaciones → Permitir, y recargá la página.";
+}
 
 /** ¿iPhone/iPad? En iOS los avisos web SOLO existen si la app está agregada a
  *  la pantalla de inicio (Safari suelto no tiene PushManager). Sin distinguirlo,
@@ -67,6 +82,13 @@ export function ActivarAvisos({
     // había forma de saber por qué (esto era lo que le pasaba al dueño en el
     // celular). Se corre contra un tope de 3s: si no hay SW listo, igual se
     // muestra el botón —al tocarlo se pide el permiso y ahí sí se espera.
+    // Permiso YA denegado: el navegador no vuelve a preguntar nunca (requestPermission
+    // devuelve "denied" al instante, sin mostrar el cartel). Hay que decirle DÓNDE
+    // se cambia, no dejarlo tocando un botón que no puede funcionar.
+    if (Notification.permission === "denied") {
+      setEstado("bloqueado");
+      return;
+    }
     let vivo = true;
     const conTope = Promise.race([
       navigator.serviceWorker.ready,
@@ -91,8 +113,10 @@ export function ActivarAvisos({
     try {
       const permiso = await Notification.requestPermission();
       if (permiso !== "granted") {
-        setError("Permiso denegado. Activalo desde el candado del navegador.");
-        setEstado("off");
+        // "denied" acá casi siempre significa que ya estaba bloqueado de antes:
+        // el navegador ni muestra el cartel. Se pasa al estado que EXPLICA cómo
+        // desbloquearlo en ese dispositivo.
+        setEstado(permiso === "denied" ? "bloqueado" : "off");
         return;
       }
       // Acá SÍ se espera al SW (el usuario ya tocó el botón). Si no hay ninguno
@@ -151,6 +175,17 @@ export function ActivarAvisos({
       <span className="rounded-full bg-[#FDF3E2] px-3 py-1.5 text-[11px] font-bold text-[#8A6D1F]">
         🔔 Avisos sin configurar: falta <code>NEXT_PUBLIC_VAPID_PUBLIC_KEY</code> en Vercel
       </span>
+    );
+  }
+
+  // Bloqueado por el navegador: el botón NO puede funcionar hasta que el usuario
+  // cambie el permiso a mano. Se le da la ruta exacta de su dispositivo.
+  if (estado === "bloqueado") {
+    return (
+      <div className="flex max-w-[300px] flex-col items-end gap-1 rounded-[12px] bg-ambar-suave p-2.5 text-right">
+        <span className="text-[11.5px] font-bold text-ambar-osc">🔕 Los avisos están bloqueados en este navegador</span>
+        <span className="text-[11px] leading-[1.45] font-medium text-ambar-osc">{comoDesbloquear()}</span>
+      </div>
     );
   }
 

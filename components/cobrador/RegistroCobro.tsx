@@ -2,7 +2,7 @@
 // Registro de cobro del cobrador — OFFLINE-FIRST. Captura GPS + hora real y
 // encola la operación; el SyncEngine (en el layout) la sincroniza cuando hay
 // señal. Nunca "no anduvo": registra siempre, con o sin conexión.
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { configurarUsuario, encolar, parchearGps, quitar, pendientes, type OpCobro, type OpTipo } from "@/lib/cobrador/colaOffline";
 import { MOTIVOS_NOPAGO, type MotivoNoPago } from "@/app/cobrador/(app)/motivos";
 import { UYU } from "@/lib/format";
@@ -121,6 +121,24 @@ export function RegistroCobro({
   // una confirmación extra para "adelantar" la próxima (no repetir el CTA verde).
   const [hoyCobrado, setHoyCobrado] = useState(false);
   const [confirmarAdelanto, setConfirmarAdelanto] = useState(false);
+  // El estado de arriba vive en memoria del COMPONENTE: si el cobrador vuelve a
+  // la lista y entra de nuevo al mismo cliente, se re-monta en cero y el botón
+  // ofrece "Registrar pago" otra vez como si nada — un segundo toque encola un
+  // op_id distinto = DOS pagos reales por un solo cobro. Offline el servidor
+  // tampoco lo sabe (el pago sigue en la cola, no en `pagos`). Se rehidrata
+  // desde la cola: si ya hay un cobro de HOY para este cliente/crédito, se
+  // arranca en "ya cobrado".
+  useEffect(() => {
+    const hoy = new Date().toDateString();
+    const yaHay = pendientes().some(
+      (o) =>
+        o.tipo === "pago" &&
+        o.clienteId === clienteId &&
+        (o.prestamoId ?? null) === (prestamoId ?? null) &&
+        new Date(o.deviceTs).toDateString() === hoy,
+    );
+    if (yaHay) setHoyCobrado(true);
+  }, [clienteId, prestamoId]);
   // Anti-doble-registro: un segundo toque instantáneo no encola otro cobro.
   const bloqueado = useRef(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -376,7 +394,7 @@ export function RegistroCobro({
               : "border-[#DCE3F4] bg-white text-[#6B7494]"
           }`}
         >
-          Abono parcial {abono ? "▴" : "▾"}
+          Otro monto {abono ? "▴" : "▾"}
         </button>
         <button
           type="button"
@@ -398,10 +416,13 @@ export function RegistroCobro({
       {abono && (
         <div className="flex flex-col gap-2.5 rounded-[16px] border border-[#F0D9A8] bg-[#FDF9F0] p-3.5">
           <div className="flex flex-col gap-0.5">
-            <span className="text-[13.5px] font-extrabold text-[#B9770E]">Abono parcial</span>
+            {/* Se llamaba "Abono parcial" y decía "paga menos que la cuota": el
+                cobrador que tenía enfrente a alguien pagando de MÁS no abría este
+                panel, aunque es el único lugar para tipear un monto libre. */}
+            <span className="text-[13.5px] font-extrabold text-[#B9770E]">Otro monto</span>
             <span className="text-[11.5px] leading-[1.5] font-medium text-gris">
-              El cliente paga <b>menos que la cuota</b> de {UYU(cuota)}. El día queda <b>pendiente</b> hasta
-              que la complete.
+              El cliente paga un monto <b>distinto</b> a la cuota de {UYU(cuota)}. Si paga menos, el día
+              queda <b>pendiente</b>; si paga más, se <b>adelantan cuotas</b>.
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -437,9 +458,20 @@ export function RegistroCobro({
               Le quedará faltando {UYU(cuota - montoAbonoNum)} de la cuota de hoy.
             </span>
           )}
-          {abonoValido && montoAbonoNum >= cuota && (
+          {/* Verde SOLO para montos cercanos a una cuota. Un dedazo de 10× (500
+              tipeado como 5.000) pasaba la única validación que había —no superar
+              el saldo— y encima recibía este mensaje tranquilizador: el cobrador
+              veía verde y confirmaba. Desde 2 cuotas se avisa en ámbar con el
+              número de cuotas, que es la forma en que el cobrador piensa. */}
+          {abonoValido && montoAbonoNum >= cuota && montoAbonoNum < cuota * 2 && (
             <span className="text-[11.5px] font-semibold text-[#157A50] tabular-nums">
               Eso cubre la cuota completa — se registra como pago del día ✓.
+            </span>
+          )}
+          {abonoValido && cuota > 0 && montoAbonoNum >= cuota * 2 && (
+            <span className="text-[11.5px] leading-[1.45] font-bold text-[#B9770E] tabular-nums">
+              ⚠️ Son {Math.floor(montoAbonoNum / cuota)} cuotas de {UYU(cuota)}. Revisá el monto
+              antes de confirmar.
             </span>
           )}
         </div>

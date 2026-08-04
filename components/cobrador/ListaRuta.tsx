@@ -125,10 +125,14 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
         ? ordenados.filter((i) => (i.estadoHoy === "pagado" || i.estadoHoy === "abono") && !i.plazoVencido)
         : ordenados.filter((i) => i.estadoHoy === filtro && !i.plazoVencido);
 
-  // Búsqueda por nombre: si hay término, filtra y muestra TODOS los que matchean.
+  // BUSCAR IGNORA LA CHIP: antes se buscaba dentro del filtro activo, así que
+  // teclear el apellido del cliente que tenés ENFRENTE devolvía "ningún cliente
+  // coincide" solo porque la chip "Pendientes" seguía puesta y a ese ya le
+  // habías cobrado. El cobrador concluía que el cliente no era suyo. Cuando hay
+  // término, se busca sobre TODA la ruta.
   const buscando = q.trim().length > 0;
   const filtrados = buscando
-    ? porEstado.filter((i) => norm(i.nombre ?? "").includes(norm(q)))
+    ? ordenados.filter((i) => norm(i.nombre ?? "").includes(norm(q)))
     : porEstado;
   // Plegado: solo con "Todos" y sin búsqueda se pliega a TOPE_RUTA; con una chip
   // activa o buscando, se ve la lista completa de esa categoría.
@@ -240,8 +244,34 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
 
       {buscando && filtrados.length === 0 && (
         <p className="px-0.5 py-3 text-center text-[12.5px] font-medium text-[#8A93AD]">
-          Ningún cliente coincide con “{q}”.
+          Ningún cliente de tu ruta coincide con “{q}”.
         </p>
+      )}
+
+      {/* Lista vacía por la CHIP (no por búsqueda). Antes quedaba en blanco sin
+          una palabra: tocar "Cobrado" a las 8 de la mañana parecía que la app se
+          había roto o que el cobrador había perdido su ruta. */}
+      {!buscando && filtrados.length === 0 && (
+        <div className="flex flex-col items-center gap-2 px-0.5 py-5 text-center">
+          <p className="text-[12.5px] font-semibold text-[#8A93AD]">
+            {filtro === "cobrado"
+              ? "Todavía no cobraste a nadie hoy."
+              : filtro === "pendiente"
+                ? "No te queda nadie pendiente 🎉"
+                : filtro === "no_pago"
+                  ? "Ningún cliente quedó sin pagar todavía."
+                  : "No hay clientes en esta vista."}
+          </p>
+          {filtro !== "todos" && (
+            <button
+              type="button"
+              onClick={() => setFiltro("todos")}
+              className="min-h-11 rounded-full bg-[#EEF3FF] px-4 text-[12.5px] font-bold text-azul"
+            >
+              Ver todos mis clientes
+            </button>
+          )}
+        </div>
       )}
 
       {visibles.map((it, idx) => {

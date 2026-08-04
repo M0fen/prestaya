@@ -138,10 +138,24 @@ export function CerrarJornada({
     <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-4">
       <span className="text-[14px] font-extrabold text-tinta">Cerrar jornada</span>
 
-      {base > 0 && (
+      {/* La línea de la base se muestra SIEMPRE, también en $0. Antes se ocultaba
+          cuando era 0 y el cobrador no tenía forma de saber si su base estaba
+          cargada: si el supervisor le dio $5.000 en la mano y no los registró,
+          la app le pedía $5.000 menos de los que tenía en el bolsillo y salía un
+          sobrante fantasma (o se quedaba la base sin que nadie lo anotara). Hoy
+          es el primer día que se usa esta pantalla: `aperturas_caja` está vacía. */}
+      {base > 0 ? (
         <div className="mt-2 flex items-end justify-between rounded-[12px] bg-[#EEF3FF] px-3 py-2.5">
           <span className="text-[12px] font-semibold text-[#1E47C8]">Base recibida (la devolvés)</span>
           <span className="text-[16px] font-black tabular-nums text-[#1E47C8]">{UYU(base)}</span>
+        </div>
+      ) : (
+        <div className="mt-2 flex flex-col gap-0.5 rounded-[12px] bg-[#FDF3E2] px-3 py-2.5">
+          <span className="text-[12px] font-bold text-[#8A6D1F]">Base de arranque: $0</span>
+          <span className="text-[11px] leading-[1.45] font-medium text-[#8A6D1F]">
+            Si tu supervisor te dio efectivo para arrancar el día, avisale que lo cargue
+            <b> antes</b> de que cierres: si no, te va a figurar como plata de más.
+          </span>
         </div>
       )}
 
