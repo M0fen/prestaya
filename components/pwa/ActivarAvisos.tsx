@@ -60,10 +60,29 @@ export function ActivarAvisos({
       setEstado("no_soportado");
       return;
     }
-    navigator.serviceWorker.ready
-      .then((reg) => reg.pushManager.getSubscription())
-      .then((sub) => setEstado(sub ? "on" : "off"))
-      .catch(() => setEstado("off"));
+    // `serviceWorker.ready` NO resuelve hasta que hay un SW ACTIVO controlando la
+    // página; si todavía no se registró (primera visita, PWA sin instalar, o el
+    // SW tardando), la promesa queda colgada PARA SIEMPRE. El componente se
+    // quedaba en "cargando" → devolvía null → el botón no aparecía nunca y no
+    // había forma de saber por qué (esto era lo que le pasaba al dueño en el
+    // celular). Se corre contra un tope de 3s: si no hay SW listo, igual se
+    // muestra el botón —al tocarlo se pide el permiso y ahí sí se espera.
+    let vivo = true;
+    const conTope = Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise<null>((r) => setTimeout(() => r(null), 3000)),
+    ]);
+    conTope
+      .then((reg) => (reg ? reg.pushManager.getSubscription() : null))
+      .then((sub) => {
+        if (vivo) setEstado(sub ? "on" : "off");
+      })
+      .catch(() => {
+        if (vivo) setEstado("off");
+      });
+    return () => {
+      vivo = false;
+    };
   }, []);
 
   const activar = async () => {
@@ -75,6 +94,11 @@ export function ActivarAvisos({
         setError("Permiso denegado. Activalo desde el candado del navegador.");
         setEstado("off");
         return;
+      }
+      // Acá SÍ se espera al SW (el usuario ya tocó el botón). Si no hay ninguno
+      // registrado, se registra el de la PWA antes de suscribir.
+      if (!(await navigator.serviceWorker.getRegistration())) {
+        await navigator.serviceWorker.register("/sw.js").catch(() => {});
       }
       const reg = await navigator.serviceWorker.ready;
       const sub =
