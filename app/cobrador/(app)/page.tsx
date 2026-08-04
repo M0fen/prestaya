@@ -19,6 +19,7 @@ import { PrecargarFichas } from "@/components/cobrador/PrecargarFichas";
 import { GastosRuta } from "@/components/cobrador/GastosRuta";
 import { CerrarJornada } from "@/components/cobrador/CerrarJornada";
 import { BienvenidaCard } from "@/components/BienvenidaCard";
+import { MenuColocar } from "@/components/cobrador/MenuColocar";
 
 export const dynamic = "force-dynamic";
 
@@ -238,17 +239,14 @@ export default async function RutaPage() {
             </span>
           )}
         </div>
-        <Link
-          href="/cobrador/censar"
-          className="rounded-full bg-[#EEF3FF] px-3.5 py-1.5 text-[12.5px] font-bold text-azul"
-        >
-          + Censar
-        </Link>
+        {/* Antes iba directo a Censar; ahora abre las tres formas de sumar
+            plata a la ruta: Renovar · Nueva venta · Censar (decisión 08-05). */}
+        <MenuColocar />
       </div>
 
       {items.length === 0 ? (
         <p className="rounded-[14px] bg-white px-4 py-6 text-center text-[13px] font-medium text-gris">
-          Todavía no tenés clientes asignados. Usá “+ Censar” para agregar.
+          Todavía no tenés clientes asignados. Usá “+ Agregar” para censar a alguien nuevo.
         </p>
       ) : (
         <>
