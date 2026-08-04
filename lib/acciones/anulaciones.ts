@@ -22,6 +22,7 @@ import {
   actorDesde,
   puedeAnularPagoDirecto,
   puedeSolicitarAnulacion,
+  puedeSolicitarAnulacionCobrador,
   puedeConfirmarAnulacion,
   puedeVerZona,
 } from "@/lib/permisos";
@@ -289,7 +290,10 @@ export async function anularPagoDirectoAction(input: {
   return { ok: true };
 }
 
-// ── (supervisor) Solicitar anulación ─────────────────────────────────────
+// ── (supervisor / cobrador) Solicitar anulación ──────────────────────────
+//  Supervisor: pagos de SU zona. Cobrador (decisión 08-05): SOLO pagos que él
+//  mismo registró en la app — es la salida para corregir un cobro de un día
+//  anterior, con el aval de un gestor (doble registro). Nadie anula solo.
 export async function solicitarAnulacionAction(input: {
   pagoId: string;
   motivo: string;
@@ -301,16 +305,38 @@ export async function solicitarAnulacionAction(input: {
 
   const db = await createSupabaseServer();
   const zona = await getZonaDePago(db, input.pagoId);
-  if (!puedeSolicitarAnulacion(ctx.actor, zona))
-    return { ok: false, error: "Solo podés pedir anular pagos de tu zona." };
+  let autorizado = puedeSolicitarAnulacion(ctx.actor, zona);
+  if (!autorizado && ctx.u.rol === "cobrador") {
+    // registrado_por se lee con service_role (el RLS del cobrador no siempre lo
+    // deja ver); la AUTORIZACIÓN es puramente "el pago es MÍO y nació en la app"
+    // (un import/ajuste no lo corrige el cobrador: eso es de la oficina).
+    const { data: pago } = await createSupabaseAdmin()
+      .from("pagos")
+      .select("registrado_por, origen")
+      .eq("id", input.pagoId)
+      .maybeSingle();
+    autorizado =
+      puedeSolicitarAnulacionCobrador(ctx.actor, (pago?.registrado_por as string | null) ?? null) &&
+      (pago?.origen as string | null) == null;
+  }
+  if (!autorizado)
+    return {
+      ok: false,
+      error: "Solo podés pedir corregir pagos tuyos (o de tu zona, si sos supervisor).",
+    };
 
   const resumen = await getPagoResumen(db, input.pagoId);
   if (!resumen) return { ok: false, error: "No se encontró el pago." };
   if (resumen.anulado) return { ok: false, error: "Ese pago ya estaba anulado." };
-  if (await getSolicitudPendienteDePago(db, input.pagoId))
+  // Chequeo de duplicado con service_role: el RLS de la tabla no deja LEER al
+  // cobrador, y con `db` el chequeo daría "no hay" aunque hubiera una pendiente
+  // (el unique igual la frenaría, pero con un error genérico).
+  if (await getSolicitudPendienteDePago(createSupabaseAdmin(), input.pagoId))
     return { ok: false, error: "Ya hay una solicitud pendiente para ese pago." };
 
-  const { error } = await db.from("solicitudes_anulacion").insert({
+  // Insert con service_role: el RLS de la tabla es de gestores y el cobrador
+  // quedaría afuera — la autorización real ya pasó ARRIBA (y queda auditada).
+  const { error } = await createSupabaseAdmin().from("solicitudes_anulacion").insert({
     pago_id: input.pagoId,
     motivo,
     solicitado_por: ctx.u.id,
@@ -328,6 +354,7 @@ export async function solicitarAnulacionAction(input: {
   });
   revalidatePath(`/admin/clientes/${resumen.clienteId}`);
   revalidatePath("/admin/anulaciones");
+  revalidatePath("/cobrador");
   return { ok: true };
 }
 

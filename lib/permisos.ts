@@ -122,6 +122,19 @@ export function puedeSolicitarAnulacion(actor: Actor, zonaPago: string | null): 
 }
 
 /**
+ * (2b) El COBRADOR puede PEDIR corrección (anulación) de un pago que ÉL MISMO
+ * registró (decisión 08-05): pasada la ventana de deshacer de 1 h, antes su única
+ * salida era avisar por nota/WhatsApp. La solicitud la confirma un gestor (doble
+ * registro, abajo) — el cobrador jamás anula solo, y solo lo suyo.
+ */
+export function puedeSolicitarAnulacionCobrador(
+  actor: Actor,
+  registradoPor: string | null,
+): boolean {
+  return actor.rol === "cobrador" && registradoPor != null && actor.usuarioId === registradoPor;
+}
+
+/**
  * (2) Doble registro: la anulación pedida por `solicitanteId` la CONFIRMA otra
  * persona gestora DISTINTA (no la misma que la pidió). El admin califica.
  */

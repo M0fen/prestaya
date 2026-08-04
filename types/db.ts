@@ -23,6 +23,9 @@ export interface Usuario {
   /** Comisión (%) del cobrador sobre lo recaudado. null/0 = sin comisión. Viene
    *  en la fila propia (select *); opcional para no romper otros constructores. */
   comision_pct?: number | null;
+  /** Sobrenombre elegido por el trabajador (0132). Se muestra a TERCEROS (p. ej.
+   *  el comprobante que se comparte por WhatsApp) en lugar del nombre real. */
+  apodo?: string | null;
   creado_en: string;
   actualizado_en: string;
 }
@@ -168,6 +171,9 @@ export interface Pago {
   registrado_en: string;
   gps_lat: number | null;
   gps_lng: number | null;
+  /** null = trabajo hecho EN LA APP; otro valor = importado/ajuste (disapp_import,
+   *  ajuste_migracion, reconciliacion_*). Regla del ORIGEN — ver 0127/0128. */
+  origen?: string | null;
   // Reversión sin borrar (la verdad del dinero es inmutable).
   anulado: boolean;
   anulado_por: string | null;

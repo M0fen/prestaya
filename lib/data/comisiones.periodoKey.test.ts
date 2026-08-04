@@ -29,6 +29,11 @@ describe("periodoKeyDe — clave canónica del período (candado 0049)", () => {
     expect(periodoKeyDe("semana", "2026-07-06")).toBe("semana:2026-07-06");
   });
 
+  it("quincena → inicio de la quincena: quincena:YYYY-MM-01 / -16 (cadencia de pago 08-05)", () => {
+    expect(periodoKeyDe("quincena", "2026-08-01")).toBe("quincena:2026-08-01");
+    expect(periodoKeyDe("quincena", "2026-08-16")).toBe("quincena:2026-08-16");
+  });
+
   it("períodos DISTINTOS nunca colisionan en la misma clave", () => {
     const claves = [
       periodoKeyDe("mes", "2026-07-09"),
@@ -36,6 +41,8 @@ describe("periodoKeyDe — clave canónica del período (candado 0049)", () => {
       periodoKeyDe("anio", "2026-07-09"),
       periodoKeyDe("dia", "2026-07-09"),
       periodoKeyDe("semana", "2026-07-06"),
+      periodoKeyDe("quincena", "2026-07-01"),
+      periodoKeyDe("quincena", "2026-07-16"),
     ];
     expect(new Set(claves).size).toBe(claves.length);
   });
@@ -57,6 +64,14 @@ describe("rangoDePeriodoKey — rango de fechas que cubre una clave", () => {
   });
   it("año → [YYYY-01-01, YYYY-12-31]", () => {
     expect(rangoDePeriodoKey("anio:2026")).toEqual({ desde: "2026-01-01", hasta: "2026-12-31" });
+  });
+  it("quincena 1ª → [01, 15] · 2ª → [16, fin de mes] (feb y bisiesto incluidos)", () => {
+    expect(rangoDePeriodoKey("quincena:2026-08-01")).toEqual({ desde: "2026-08-01", hasta: "2026-08-15" });
+    expect(rangoDePeriodoKey("quincena:2026-08-16")).toEqual({ desde: "2026-08-16", hasta: "2026-08-31" });
+    expect(rangoDePeriodoKey("quincena:2026-02-16")).toEqual({ desde: "2026-02-16", hasta: "2026-02-28" });
+    expect(rangoDePeriodoKey("quincena:2028-02-16")).toEqual({ desde: "2028-02-16", hasta: "2028-02-29" });
+    // Un inicio que no sea 01 ni 16 NO es una quincena válida (clave forjada).
+    expect(rangoDePeriodoKey("quincena:2026-08-10")).toBeNull();
   });
   it("clave irreconocible → null", () => {
     expect(rangoDePeriodoKey("basura")).toBeNull();

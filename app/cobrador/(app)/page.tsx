@@ -93,6 +93,7 @@ export default async function RutaPage() {
     calificacion: i.cliente.calificacion,
     plazoVencido: i.plazoVencido,
     recuperadoHoy: i.recuperadoHoy,
+    orden: i.orden,
   }));
 
   // Avance de la ruta: clientes "resueltos" hoy (cobrados + no-pago) sobre el
@@ -202,6 +203,40 @@ export default async function RutaPage() {
         )}
       </section>
 
+      {/* CAJA DIARIA del cobrador (decisión 08-05): el efectivo que lleva encima,
+          siempre a la vista — no recién al cierre. Mismos números que la rendición
+          (base de apertura + recaudado − gastos aprobados), así el cierre nunca
+          lo sorprende. Los gastos pedidos y AÚN no aprobados se avisan aparte. */}
+      {jornada && jornada.disponible && (
+        <section className="rounded-[16px] border border-[#E4E8F4] bg-white p-4 shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
+          <div className="mb-2.5 flex items-center justify-between">
+            <span className="text-[13px] font-extrabold text-tinta">💼 Tu caja de hoy</span>
+            {jornada.yaRendida ? (
+              <span className="rounded-full bg-[#E4F5EC] px-2.5 py-1 text-[10.5px] font-bold text-[#157A50]">
+                Jornada rendida ✓
+              </span>
+            ) : (
+              <span className="text-[16px] font-black text-tinta tabular-nums">
+                {UYU(Math.max(0, jornada.base + jornada.recaudado - jornada.gastosHoy))}
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <CajaDato label="Base recibida" valor={UYU(jornada.base)} />
+            <CajaDato label="Cobrado" valor={UYU(jornada.recaudado)} tono="#157A50" />
+            <CajaDato label="Gastos" valor={jornada.gastosHoy > 0 ? `−${UYU(jornada.gastosHoy)}` : UYU(0)} tono={jornada.gastosHoy > 0 ? "#B9770E" : undefined} />
+          </div>
+          {!jornada.yaRendida && (
+            <p className="mt-2 text-[11px] leading-[1.45] font-medium text-[#8A93AD]">
+              Es lo que deberías tener encima ahora — y lo que el cierre te va a pedir entregar
+              {jornada.base > 0 ? " (la base se devuelve)" : ""}.
+              {gastosPendientes > 0 &&
+                ` Tenés ${UYU(gastosPendientes)} en gastos pedidos sin aprobar: no se descuentan todavía.`}
+            </p>
+          )}
+        </section>
+      )}
+
       {/* Campaña de ALTAS: aparece solo mientras queden clientes sin su cartón,
           y desaparece sola cuando están todos entregados. */}
       {sinAlta > 0 && (
@@ -286,6 +321,17 @@ export default async function RutaPage() {
           disponible={jornada.disponible}
         />
       )}
+    </div>
+  );
+}
+
+function CajaDato({ label, valor, tono }: { label: string; valor: string; tono?: string }) {
+  return (
+    <div className="flex flex-col rounded-[11px] bg-[#F6F8FD] px-2.5 py-2">
+      <span className="text-[10px] font-semibold text-[#8A93AD]">{label}</span>
+      <span className="text-[13.5px] font-extrabold tabular-nums" style={{ color: tono ?? "#0F1B3D" }}>
+        {valor}
+      </span>
     </div>
   );
 }

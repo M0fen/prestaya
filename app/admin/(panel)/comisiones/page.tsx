@@ -44,7 +44,9 @@ export default async function ComisionesPage({
   // LIQUIDAR (egreso de caja) queda para el admin (las acciones exigen esAdmin en
   // el server, y la tabla oculta esos botones si no es admin — ver puedeGestionar).
   const usuario = await requireGestor();
-  const periodo = normalizarPeriodo((await searchParams).periodo);
+  // La comisión se liquida por QUINCENA (decisión 08-05): sin querystring, la
+  // pantalla abre en la quincena en curso. Las otras cadencias siguen a un toque.
+  const periodo = normalizarPeriodo((await searchParams).periodo ?? "quincena");
   const db = await createSupabaseServer();
   const [r, historial] = await conTimeout(
     Promise.all([getComisionesPeriodo(db, periodo), getHistorialLiquidaciones(db)]),
@@ -78,7 +80,7 @@ export default async function ComisionesPage({
             return (
               <Link
                 key={p.id}
-                href={p.id === "dia" ? "/admin/comisiones" : `/admin/comisiones?periodo=${p.id}`}
+                href={`/admin/comisiones?periodo=${p.id}`}
                 className={`rounded-full px-3.5 py-1.5 text-[12.5px] font-bold transition-colors ${
                   activo ? "bg-tarjeta text-azul shadow-[0_1px_2px_rgba(26,34,71,0.1)]" : "text-gris hover:text-tinta"
                 }`}

@@ -74,9 +74,10 @@ export async function relevarCliente(input: {
 
     const nombre = (input.nombre ?? "").trim();
     if (nombre.length < 2) return { ok: false, error: "Poné el nombre del cliente." };
-    // Foto OBLIGATORIA en el alta (anti cliente-fantasma). Se valida en el
-    // servidor, no solo en el form (que es fácil de saltar).
-    if (!input.fotoDataUrl) return { ok: false, error: "Sacale una foto al cliente para darlo de alta." };
+    // Foto OPCIONAL desde 08-05 (decisión de Carlos): había clientes que no
+    // querían la foto y el alta quedaba trabada. Sigue siendo lo recomendado
+    // (anti cliente-fantasma): la pantalla pide confirmar el alta sin foto y
+    // el faltante queda visible en la ficha para completarlo después.
     const documento = limpiar(input.documento);
     const telefono = limpiar(input.telefono);
     const direccion = limpiar(input.direccion);
@@ -188,15 +189,16 @@ export async function relevarCliente(input: {
     });
     if (errAsig) throw errAsig;
 
-    // Sube la foto del alta. Si falla (bucket ausente, foto inválida), se hace
-    // ROLLBACK del cliente recién creado: no debe quedar un alta SIN foto (la
-    // regla es "alta con foto"). Como es un cliente nuevo sin pagos/créditos,
-    // borrarlo es seguro.
-    const foto = await subirFotoCliente(cliente.id, input.fotoDataUrl);
-    if (!foto.ok) {
-      await db.from("asignaciones").delete().eq("cliente_id", cliente.id);
-      await db.from("clientes").delete().eq("id", cliente.id);
-      return { ok: false, error: `${foto.error} No se guardó el cliente; probá de nuevo.` };
+    // Sube la foto del alta (si vino). Si el UPLOAD falla, se hace ROLLBACK del
+    // cliente recién creado: se prometió "alta con foto" y no debe quedar a
+    // medias en silencio. Sin foto (opcional, 08-05) no hay nada que subir.
+    if (input.fotoDataUrl) {
+      const foto = await subirFotoCliente(cliente.id, input.fotoDataUrl);
+      if (!foto.ok) {
+        await db.from("asignaciones").delete().eq("cliente_id", cliente.id);
+        await db.from("clientes").delete().eq("id", cliente.id);
+        return { ok: false, error: `${foto.error} No se guardó el cliente; probá de nuevo.` };
+      }
     }
 
     // Bitácora de campo (best-effort): alta de cliente en calle, con GPS.

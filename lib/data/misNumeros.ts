@@ -9,6 +9,12 @@ import { traerTodo } from "./paginado";
 import { inicioMesUYIso, fechaISOUY } from "@/lib/fecha";
 import { calcularComision } from "@/lib/comision";
 
+export interface LiquidacionPropia {
+  periodoKey: string;
+  monto: number;
+  liquidadoEn: string;
+}
+
 export interface MisNumeros {
   mesRecaudado: number;
   mesCobros: number;
@@ -17,8 +23,14 @@ export interface MisNumeros {
   ticketPromedio: number;
   comisionPct: number;
   comisionMes: number;
+  /** Recaudado y comisión de la QUINCENA en curso (la cadencia con la que se paga). */
+  quincenaRecaudado: number;
+  comisionQuincena: number;
+  quincenaDesde: string;
   rendiciones: number;
   cuadradas: number;
+  /** Comisiones YA PAGADAS al cobrador (su propio historial, más reciente primero). */
+  liquidaciones: LiquidacionPropia[];
 }
 
 /** Fecha UY "YYYY-MM-DD" de un instante ISO. */
@@ -47,8 +59,15 @@ export async function getMisNumeros(cobradorId: string, hoy: Date = new Date()):
       .range(d, h),
   );
 
+  // Quincena en curso (1–15 / 16–fin): la cadencia con la que se LIQUIDA la
+  // comisión. Arranca siempre dentro del mes → se deriva del mismo set de pagos.
+  const hoyStr = fechaISOUY(hoy);
+  const quincenaDesde =
+    Number(hoyStr.slice(8, 10)) <= 15 ? `${hoyStr.slice(0, 7)}-01` : `${hoyStr.slice(0, 7)}-16`;
+
   let mesRecaudado = 0;
   let semanaRecaudado = 0;
+  let quincenaRecaudado = 0;
   const dias = new Set<string>();
   for (const p of pagos) {
     const m = Number(p.monto);
@@ -56,6 +75,7 @@ export async function getMisNumeros(cobradorId: string, hoy: Date = new Date()):
     const dstr = fechaISOUY(new Date(p.registrado_en));
     dias.add(dstr);
     if (dstr >= desde7Str) semanaRecaudado += m;
+    if (dstr >= quincenaDesde) quincenaRecaudado += m;
   }
   const mesCobros = pagos.length;
   const ticketPromedio = mesCobros > 0 ? Math.round(mesRecaudado / mesCobros) : 0;
@@ -81,6 +101,26 @@ export async function getMisNumeros(cobradorId: string, hoy: Date = new Date()):
     /* sin tabla de rendiciones (0013) → 0 */
   }
 
+  // Historial de comisiones YA pagadas (transparencia: qué cobró y cuándo). La
+  // tabla es solo-gestor por RLS; acá se lee con admin ACOTADO al propio id.
+  let liquidaciones: LiquidacionPropia[] = [];
+  try {
+    const { data: liqs, error } = await admin
+      .from("comisiones_liquidadas")
+      .select("periodo_key, monto, liquidado_en")
+      .eq("cobrador_id", cobradorId)
+      .order("liquidado_en", { ascending: false })
+      .limit(12);
+    if (error) throw error;
+    liquidaciones = (liqs ?? []).map((l) => ({
+      periodoKey: l.periodo_key as string,
+      monto: Math.round(Number(l.monto) || 0),
+      liquidadoEn: l.liquidado_en as string,
+    }));
+  } catch {
+    /* sin 0049 → sin historial */
+  }
+
   return {
     mesRecaudado: Math.round(mesRecaudado),
     mesCobros,
@@ -89,7 +129,11 @@ export async function getMisNumeros(cobradorId: string, hoy: Date = new Date()):
     ticketPromedio,
     comisionPct,
     comisionMes,
+    quincenaRecaudado: Math.round(quincenaRecaudado),
+    comisionQuincena: comisionPct > 0 ? calcularComision(quincenaRecaudado, comisionPct) : 0,
+    quincenaDesde,
     rendiciones,
     cuadradas,
+    liquidaciones,
   };
 }

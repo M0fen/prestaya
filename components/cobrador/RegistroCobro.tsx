@@ -85,6 +85,9 @@ export function RegistroCobro({
   cuota,
   saldoActual,
   tieneGps,
+  cuotasCubiertas = null,
+  totalCuotas = null,
+  cuotasAtrasadas = null,
 }: {
   clienteId: string;
   /** Crédito al que se imputa (si el cliente tiene varios activos). null = principal. */
@@ -98,6 +101,10 @@ export function RegistroCobro({
   /** Saldo del crédito ANTES de este cobro (para mostrar el restante). */
   saldoActual: number;
   tieneGps: boolean;
+  /** Avance del cartón ANTES de este cobro (para el "lleva N de M" del recibo). */
+  cuotasCubiertas?: number | null;
+  totalCuotas?: number | null;
+  cuotasAtrasadas?: number | null;
 }) {
   const [toast, setToast] = useState<Toast>(null);
   const [motivos, setMotivos] = useState(false);
@@ -147,6 +154,13 @@ export function RegistroCobro({
   // Anti-doble-registro: un segundo toque instantáneo no encola otro cobro.
   const bloqueado = useRef(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // CUÁNTAS cuotas cobra en esta visita (± , decisión 08-05): el cliente atrasado
+  // o el que adelanta paga N cuotas en UN registro, sin tipear el monto.
+  const [nCuotas, setNCuotas] = useState(1);
+  // Confirmación explícita del cobro (decisión 08-05): primer toque arma el botón
+  // ("Sí, cobrar $X"), segundo toque registra. Se desarma solo a los 6 s.
+  const [confirmarCobro, setConfirmarCobro] = useState(false);
+  const confirmarTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Saldo del crédito ANTES de este cobro, redondeado. La "cuota efectiva" nunca
   // supera el saldo: en un crédito casi saldado NO se ofrece cobrar la cuota entera
@@ -154,6 +168,26 @@ export function RegistroCobro({
   const saldoRedondeado = Math.max(0, Math.round(saldoActual));
   const cuotaEfectiva = Math.min(cuota, saldoRedondeado);
   const saldado = saldoRedondeado <= 0;
+  // Tope del ±: nunca más cuotas de las que le quedan al crédito (anti sobre-pago),
+  // y con un techo sano de 30 (más que eso se tipea en "Otro monto").
+  const maxCuotas = cuota > 0 ? Math.max(1, Math.min(30, Math.floor(saldoRedondeado / cuota))) : 1;
+  // Monto del CTA según el ±. Con 1 cuota se manda null (el SERVIDOR resuelve
+  // cuota-o-saldo, chokepoint de siempre); con N se manda cuota×N topado al saldo.
+  const montoSeleccion =
+    nCuotas <= 1 ? cuotaEfectiva : Math.min(Math.round(cuota * nCuotas), saldoRedondeado);
+
+  const tocarCobrar = () => {
+    if (!confirmarCobro) {
+      setConfirmarCobro(true);
+      if (confirmarTimer.current) clearTimeout(confirmarTimer.current);
+      confirmarTimer.current = setTimeout(() => setConfirmarCobro(false), 6000);
+      return;
+    }
+    if (confirmarTimer.current) clearTimeout(confirmarTimer.current);
+    setConfirmarCobro(false);
+    cobrar(nCuotas <= 1 ? null : montoSeleccion);
+    setNCuotas(1);
+  };
 
   const flash = (t: Exclude<Toast, null>, ms = 2800) => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -240,6 +274,16 @@ export function RegistroCobro({
     // Comprobante profesional (recibo con trazabilidad), compartible por WhatsApp.
     const { fechaHora, folio } = partesUY();
     const saldoRestante = Math.max(0, Math.round(saldoActual) - montoCobrado);
+    // Avance en CUOTAS tras este pago: los pagos se imputan FIFO (a la cuota
+    // pendiente más vieja), así que cada cuota completa cubre un día más y
+    // descuenta una atrasada. Es el "lleva N de M" del recibo/WhatsApp.
+    const cuotasDeEstePago = cuota > 0 ? Math.floor(montoCobrado / cuota) : 0;
+    const cubiertasDespues =
+      cuotasCubiertas != null && totalCuotas
+        ? Math.min(totalCuotas, cuotasCubiertas + cuotasDeEstePago)
+        : null;
+    const atrasadasDespues =
+      cuotasAtrasadas != null ? Math.max(0, cuotasAtrasadas - cuotasDeEstePago) : null;
     setComprobante({
       folio,
       clienteNombre,
@@ -250,6 +294,9 @@ export function RegistroCobro({
       tipo: esAbono ? "abono" : "cuota",
       fechaHora,
       offline,
+      cuotasCubiertas: cubiertasDespues,
+      totalCuotas,
+      cuotasAtrasadas: atrasadasDespues,
       // La advertencia va DENTRO del comprobante (foreground): un toast quedaría
       // TAPADO por este modal y el cobrador daría el cobro por guardado.
       noGuardado: !persistido,
@@ -335,6 +382,7 @@ export function RegistroCobro({
     setCobroReciente(false); // deshecho: se puede volver a cobrar ya
     setHoyCobrado(false);
     setConfirmarAdelanto(false);
+    setConfirmarCobro(false);
     setUndo(null);
     setModalAbierto(false);
     setComprobante(null);
@@ -372,21 +420,68 @@ export function RegistroCobro({
           {confirmarAdelanto ? `Sí, adelantar otra cuota · ${UYU(cuotaEfectiva)}` : "✓ Cuota de hoy cobrada · adelantar próxima"}
         </button>
       ) : (
-        <button
-          type="button"
-          disabled={ocupado || saldado || cobroReciente}
-          onClick={() => cobrar(null)}
-          className="rounded-full bg-[#1FA971] px-5 py-3.5 text-[15px] font-extrabold text-white shadow-[0_8px_20px_rgba(31,169,113,0.35)] active:scale-[0.98] disabled:opacity-60"
-          style={{ transition: "transform .1s" }}
-        >
-          {saldado
-            ? "Crédito saldado ✓"
-            : cobroReciente
-              ? "Cobro registrado ✓"
-              : ocupado
-                ? "Registrando…"
-                : `Registrar pago · ${UYU(cuotaEfectiva)}`}
-        </button>
+        <div className="flex flex-col gap-2">
+          {/* ± de cuotas: atrasados o adelantos de N cuotas en UN registro, sin
+              tipear. El monto exacto distinto de la cuota va por "Otro monto". */}
+          {!saldado && maxCuotas > 1 && (
+            <div className="flex items-center justify-between rounded-[14px] border border-[#E4E8F4] bg-white px-2 py-1.5">
+              <button
+                type="button"
+                disabled={ocupado || cobroReciente || nCuotas <= 1}
+                onClick={() => setNCuotas((n) => Math.max(1, n - 1))}
+                aria-label="Una cuota menos"
+                className="flex h-11 w-11 items-center justify-center rounded-[11px] bg-[#EEF1F8] text-[20px] font-black text-tinta active:scale-95 disabled:opacity-30"
+              >
+                −
+              </button>
+              <div className="flex flex-col items-center leading-tight">
+                <span className="text-[14px] font-extrabold text-tinta tabular-nums">
+                  {nCuotas} cuota{nCuotas === 1 ? "" : "s"} · {UYU(montoSeleccion)}
+                </span>
+                <span className="text-[10.5px] font-medium text-[#8A93AD]">
+                  {nCuotas === 1
+                    ? "Tocá + si paga varias cuotas juntas"
+                    : "Se adelantan / cubren en orden, desde la más vieja"}
+                </span>
+              </div>
+              <button
+                type="button"
+                disabled={ocupado || cobroReciente || nCuotas >= maxCuotas}
+                onClick={() => setNCuotas((n) => Math.min(maxCuotas, n + 1))}
+                aria-label="Una cuota más"
+                className="flex h-11 w-11 items-center justify-center rounded-[11px] bg-[#EEF1F8] text-[20px] font-black text-tinta active:scale-95 disabled:opacity-30"
+              >
+                +
+              </button>
+            </div>
+          )}
+          <button
+            type="button"
+            disabled={ocupado || saldado || cobroReciente}
+            onClick={tocarCobrar}
+            className={`rounded-full px-5 py-3.5 text-[15px] font-extrabold text-white active:scale-[0.98] disabled:opacity-60 ${
+              confirmarCobro
+                ? "bg-[#13308C] shadow-[0_8px_20px_rgba(19,48,140,0.35)]"
+                : "bg-[#1FA971] shadow-[0_8px_20px_rgba(31,169,113,0.35)]"
+            }`}
+            style={{ transition: "transform .1s" }}
+          >
+            {saldado
+              ? "Crédito saldado ✓"
+              : cobroReciente
+                ? "Cobro registrado ✓"
+                : ocupado
+                  ? "Registrando…"
+                  : confirmarCobro
+                    ? `Sí, cobrar ${UYU(montoSeleccion)} ✓`
+                    : `Registrar pago · ${UYU(montoSeleccion)}${nCuotas > 1 ? ` (${nCuotas} cuotas)` : ""}`}
+          </button>
+          {confirmarCobro && !cobroReciente && !ocupado && (
+            <p className="text-center text-[11px] font-medium text-[#8A93AD]">
+              Tocá de nuevo para confirmar — o esperá y no se registra nada.
+            </p>
+          )}
+        </div>
       )}
 
       {/* Quiso deshacer y la ventana ya había pasado. Antes el mensaje terminaba

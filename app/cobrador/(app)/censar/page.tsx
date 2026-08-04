@@ -55,6 +55,9 @@ export default function CensarPage() {
   const [gps, setGps] = useState<FixGps | null>(null);
   const [ubicando, setUbicando] = useState(false);
   const [foto, setFoto] = useState<string | null>(null);
+  // Confirmación de alta SIN foto (opcional desde 08-05): el primer intento
+  // avisa; el segundo guarda igual.
+  const [sinFotoOk, setSinFotoOk] = useState(false);
 
   const capturarGps = async () => {
     setUbicando(true);
@@ -81,8 +84,11 @@ export default function CensarPage() {
   const enviar = (formData: FormData) =>
     start(async () => {
       setError(null);
-      if (!foto) {
-        setError("Sacale una foto al cliente para darlo de alta.");
+      // Foto OPCIONAL (08-05): sin foto, el primer "Guardar" pide confirmar —
+      // sigue siendo lo recomendado, pero un cliente que no quiere foto ya no
+      // traba el alta.
+      if (!foto && !sinFotoOk) {
+        setSinFotoOk(true);
         return;
       }
       try {
@@ -136,7 +142,7 @@ export default function CensarPage() {
       <h1 className="text-[18px] font-extrabold text-tinta">Censar cliente</h1>
 
       <form action={enviar} className="flex flex-col gap-3">
-        <CapturaFoto onDataUrl={setFoto} etiqueta="Foto del cliente" requerida />
+        <CapturaFoto onDataUrl={setFoto} etiqueta="Foto del cliente (recomendada)" />
         <Campo name="nombre" label="Nombre y apellido" required placeholder="Ej. Juan Pérez" />
         <Campo name="documento" label="Documento (cédula)" placeholder="1.234.567-8" inputMode="numeric" />
         <Campo name="telefono" label="Teléfono" placeholder="099 123 456" type="tel" inputMode="tel" />
@@ -196,12 +202,26 @@ export default function CensarPage() {
 
         {error && <span className="text-[12.5px] font-semibold text-[#C0392B]">{error}</span>}
 
+        {/* Confirmación de alta SIN foto: se puede, pero que sea a propósito. */}
+        {!foto && sinFotoOk && (
+          <span className="rounded-[10px] bg-[#FDF3E2] px-3 py-2.5 text-[12px] leading-[1.5] font-semibold text-[#9A6A0E]">
+            ⚠️ Vas a dar de alta a este cliente <b>sin foto</b>. Se puede, pero la foto ayuda a
+            identificarlo después. Tocá “Guardar” de nuevo para confirmar.
+          </span>
+        )}
+
         <button
           type="submit"
           disabled={pending}
           className="rounded-full bg-azul px-5 py-3 text-[14px] font-bold text-white disabled:opacity-60"
         >
-          {pending ? "Guardando…" : anclaUsable ? "Guardar cliente" : "Guardar sin ubicación"}
+          {pending
+            ? "Guardando…"
+            : !foto && sinFotoOk
+              ? "Guardar sin foto (confirmar)"
+              : anclaUsable
+                ? "Guardar cliente"
+                : "Guardar sin ubicación"}
         </button>
       </form>
     </div>

@@ -17,6 +17,7 @@ function mapPago(r: Record<string, unknown>): Pago {
     registrado_en: r.registrado_en as string,
     gps_lat: r.gps_lat == null ? null : Number(r.gps_lat),
     gps_lng: r.gps_lng == null ? null : Number(r.gps_lng),
+    origen: (r.origen as string | null) ?? null,
     anulado: r.anulado as boolean,
     anulado_por: (r.anulado_por as string | null) ?? null,
     anulado_en: (r.anulado_en as string | null) ?? null,

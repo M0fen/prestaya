@@ -48,7 +48,7 @@ export async function setComisionPct(cobradorId: string, pct: number): Promise<R
   }
 }
 
-const PERIODOS: Periodo[] = ["dia", "semana", "mes", "anio"];
+const PERIODOS: Periodo[] = ["dia", "semana", "quincena", "mes", "anio"];
 
 export async function liquidarComision(input: {
   cobradorId: string;
@@ -130,7 +130,7 @@ export async function liquidarComision(input: {
     if (r && rangosSeSolapan(r, nuevoRango))
       return {
         ok: false,
-        error: "Ese recaudo ya se comisionó en otra cadencia (día/semana/mes/año). Elegí una sola.",
+        error: "Ese recaudo ya se comisionó en otra cadencia (día/semana/quincena/mes/año). Elegí una sola.",
       };
   }
 
@@ -159,7 +159,7 @@ export async function liquidarComision(input: {
     if (code === "23P01")
       return {
         ok: false,
-        error: "Ese recaudo ya se comisionó en otra cadencia (día/semana/mes/año). Elegí una sola.",
+        error: "Ese recaudo ya se comisionó en otra cadencia (día/semana/quincena/mes/año). Elegí una sola.",
       };
     return { ok: false, error: "No se pudo liquidar. Probá de nuevo." };
   }

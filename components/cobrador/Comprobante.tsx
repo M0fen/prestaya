@@ -17,6 +17,12 @@ export type DatosComprobante = {
   tipo: "cuota" | "abono";
   fechaHora: string;
   offline: boolean;
+  /** Avance del crédito DESPUÉS de este pago: lleva N de M cuotas (y cuántas
+   *  siguen atrasadas). Va también en el mensaje de WhatsApp — el cliente sabe
+   *  de primera mano cómo viene, sin llamar a la oficina. */
+  cuotasCubiertas?: number | null;
+  totalCuotas?: number | null;
+  cuotasAtrasadas?: number | null;
   /** El cobro NO pudo persistirse en el dispositivo (cuota llena / navegación
    *  privada): vive solo en memoria. Se muestra en ROJO y en FOREGROUND para que
    *  el cobrador no lo dé por guardado — mantené señal / reintentá. */
@@ -32,12 +38,25 @@ function telWhatsApp(tel: string | null): string {
 }
 
 function textoComprobante(c: DatosComprobante): string {
+  // "Cuotas: lleva 12 de 24 · 2 atrasadas" — cómo viene el crédito, en el idioma
+  // del cliente (cuotas, no pesos). Solo si la ficha pasó los datos.
+  const lineaCuotas =
+    c.cuotasCubiertas != null && c.totalCuotas
+      ? [
+          `Cuotas: lleva ${c.cuotasCubiertas} de ${c.totalCuotas}${
+            (c.cuotasAtrasadas ?? 0) > 0
+              ? ` · ${c.cuotasAtrasadas} atrasada${c.cuotasAtrasadas === 1 ? "" : "s"}`
+              : " · al día ✓"
+          }`,
+        ]
+      : [];
   return [
     "🧾 *Comprobante de pago — Presta Ya*",
     "",
     `Cliente: ${c.clienteNombre}`,
     `Monto: ${UYU(c.monto)}${c.tipo === "abono" ? " (abono parcial)" : ""}`,
     `Saldo restante: ${UYU(c.saldoRestante)}`,
+    ...lineaCuotas,
     `Fecha: ${c.fechaHora}`,
     `Cobrador: ${c.cobradorNombre}`,
     `Comprobante: ${c.folio}`,
@@ -130,6 +149,14 @@ export function Comprobante({
         <dl className="flex flex-col gap-2.5 px-5 py-4 text-[13px]">
           <Fila k="Cliente" v={datos.clienteNombre} />
           <Fila k="Saldo restante" v={UYU(datos.saldoRestante)} />
+          {datos.cuotasCubiertas != null && !!datos.totalCuotas && (
+            <Fila
+              k="Cuotas"
+              v={`${datos.cuotasCubiertas} de ${datos.totalCuotas}${
+                (datos.cuotasAtrasadas ?? 0) > 0 ? ` · ${datos.cuotasAtrasadas} atrasada${datos.cuotasAtrasadas === 1 ? "" : "s"}` : " · al día ✓"
+              }`}
+            />
+          )}
           <Fila k="Fecha y hora" v={datos.fechaHora} />
           <Fila k="Cobrador" v={datos.cobradorNombre} />
           <Fila k="Comprobante" v={datos.folio} mono />

@@ -17,6 +17,7 @@ import { UYU } from "@/lib/format";
 import { RegistroCobro } from "@/components/cobrador/RegistroCobro";
 import { CartonCobrador } from "@/components/cobrador/CartonCobrador";
 import { CobrosRecientes, type PagoReciente } from "@/components/cobrador/CobrosRecientes";
+import { HistorialPagos, type PagoHistorial } from "@/components/cobrador/HistorialPagos";
 import { RegistrarCompromiso } from "@/components/cobrador/RegistrarCompromiso";
 import { PedirAyuda } from "@/components/cobrador/PedirAyuda";
 import { BeaconFicha } from "@/components/cobrador/BeaconFicha";
@@ -154,7 +155,9 @@ export default async function DetalleClientePage({
           clienteId={id}
           cliente={cliente}
           prestamo={prestamo}
-          cobradorNombre={usuario.nombre}
+          // El comprobante que se comparte por WhatsApp muestra el APODO si el
+          // cobrador se puso uno (0132): su nombre real no viaja a terceros.
+          cobradorNombre={(usuario.apodo ?? "").trim() || usuario.nombre}
           cobradorId={usuario.id}
         />
       )}
@@ -276,10 +279,28 @@ async function Detalle({
         cuota={prestamo.cuota_diaria}
         saldoActual={r.falta}
         tieneGps={tieneGps}
+        cuotasCubiertas={cubiertos}
+        totalCuotas={prestamo.total_dias}
+        cuotasAtrasadas={atrasados}
       />
 
       {/* Cobros recientes con "deshacer" dentro de 1 h (auto-corrección). */}
       <CobrosRecientes pagos={recientes} />
+
+      {/* Historial completo del crédito + "pedir corrección" de un cobro propio
+          de un día anterior (lo avala el supervisor/admin — doble registro). */}
+      <HistorialPagos
+        pagos={pagos.map(
+          (p): PagoHistorial => ({
+            id: p.id,
+            monto: Number(p.monto),
+            registradoEn: p.registrado_en,
+            diaCredito: p.dia_credito ?? null,
+            esMio: p.registrado_por === cobradorId,
+            origen: p.origen ?? null,
+          }),
+        )}
+      />
 
       {/* Compromiso de pago: el cliente promete pagar en una fecha (mini-CRM). */}
       <RegistrarCompromiso clienteId={clienteId} prestamoId={prestamo.id} cuota={prestamo.cuota_diaria} />

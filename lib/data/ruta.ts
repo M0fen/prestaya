@@ -19,6 +19,9 @@ export interface ItemRuta {
   cuota: number;
   estadoHoy: EstadoHoy;
   pagadoHoy: number;
+  /** Posición en el recorrido que el cobrador se armó (asignaciones.orden, 0132).
+   *  null = sin ordenar (va al final, por nombre). */
+  orden: number | null;
   /** Cliente cuyos créditos activos están TODOS de plazo vencido (cartera vencida):
    *  visible para recuperar, pero fuera del target del día (no infla "Falta $"). */
   plazoVencido: boolean;
@@ -189,11 +192,20 @@ export async function getRutaCobrador(
   // → statement timeout. Con `.in(ids)` el RLS solo se evalúa sobre esos ids.
   const { data: asigRaw, error: e0 } = await db
     .from("asignaciones")
-    .select("cliente_id")
+    .select("cliente_id, orden")
     .eq("activo", true);
   if (e0) throw e0;
   const cliIds = [...new Set((asigRaw ?? []).map((a) => a.cliente_id as string))];
   if (cliIds.length === 0) return { items: [], arqueo: ARQUEO_VACIO };
+  // Recorrido preestablecido (0132): posición elegida por el cobrador. Si el
+  // cliente tiene varias asignaciones activas, gana la menor (más arriba).
+  const ordenDe = new Map<string, number>();
+  for (const a of asigRaw ?? []) {
+    const o = a.orden == null ? null : Number(a.orden);
+    if (o == null || !Number.isFinite(o)) continue;
+    const prev = ordenDe.get(a.cliente_id as string);
+    if (prev === undefined || o < prev) ordenDe.set(a.cliente_id as string, o);
+  }
 
   // clientes + créditos activos: ambos dependen solo de cliIds → EN PARALELO.
   // (Un cliente puede tener VARIOS créditos [0037]: se acumulan TODOS — la cuota
@@ -288,7 +300,7 @@ export async function getRutaCobrador(
   const items: ItemRuta[] = clientes.map((c) => {
     const cr = creditosDe.get(c.id);
     if (!cr)
-      return { cliente: c, prestamoId: null, cuota: 0, estadoHoy: "sin_credito", pagadoHoy: 0, plazoVencido: false, recuperadoHoy: 0 };
+      return { cliente: c, prestamoId: null, cuota: 0, estadoHoy: "sin_credito", pagadoHoy: 0, orden: ordenDe.get(c.id) ?? null, plazoVencido: false, recuperadoHoy: 0 };
     // No-pago si alguno de sus créditos quedó marcado como visita sin cobro.
     const esNoPago = cr.creditos.some((x) => noPagoPrestamos.has(x.id));
     // Créditos con lo cobrado HOY en CADA uno (para separar recaudo total vs.
@@ -336,6 +348,7 @@ export async function getRutaCobrador(
       cuota: clase.cuotaEnTermino,
       estadoHoy: clase.estadoHoy,
       pagadoHoy: clase.pagadoHoyEnTermino, // lo cobrado hacia la cuota de HOY (chip "Abonó")
+      orden: ordenDe.get(c.id) ?? null,
       plazoVencido: clase.soloVencido,
       // Recuperación de deuda vieja hoy (solo aplica a cartera vencida pura).
       recuperadoHoy: clase.soloVencido ? clase.pagadoHoyTotal : 0,

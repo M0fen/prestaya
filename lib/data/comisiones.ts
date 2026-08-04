@@ -44,6 +44,7 @@ export function etiquetaPeriodoKey(key: string): string {
   if (tipo === "anio") return `Año ${y}`;
   if (tipo === "dia") return `${d} ${mesN(m).slice(0, 3)} ${y}`;
   if (tipo === "semana") return `Semana del ${d} ${mesN(m).slice(0, 3)}`;
+  if (tipo === "quincena") return `${d === 1 ? "1ª" : "2ª"} quincena ${mesN(m).slice(0, 3)} ${y}`;
   return key;
 }
 
@@ -106,7 +107,7 @@ export interface FilaComision {
 export function periodoKeyDe(periodo: Periodo, desde: string): string {
   if (periodo === "mes") return `mes:${desde.slice(0, 7)}`;
   if (periodo === "anio") return `anio:${desde.slice(0, 4)}`;
-  return `${periodo}:${desde}`; // dia / semana usan el inicio del período
+  return `${periodo}:${desde}`; // dia / semana / quincena usan el inicio del período
 }
 
 /**
@@ -128,6 +129,14 @@ export function rangoDePeriodoKey(key: string): { desde: string; hasta: string }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(valor)) return null;
     const fin = new Date(new Date(`${valor}T00:00:00Z`).getTime() + 6 * 86400000);
     return { desde: valor, hasta: fmt(fin) }; // semana = 7 días desde el inicio
+  }
+  if (tipo === "quincena") {
+    // 1ª = [01, 15] · 2ª = [16, fin de mes]. El inicio identifica cuál es.
+    if (!/^\d{4}-\d{2}-(01|16)$/.test(valor)) return null;
+    const [y, m, d] = valor.split("-").map(Number);
+    if (d === 1) return { desde: valor, hasta: `${valor.slice(0, 7)}-15` };
+    const ultimo = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    return { desde: valor, hasta: `${valor.slice(0, 7)}-${String(ultimo).padStart(2, "0")}` };
   }
   if (tipo === "mes") {
     if (!/^\d{4}-\d{2}$/.test(valor)) return null;

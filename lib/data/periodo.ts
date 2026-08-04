@@ -15,17 +15,18 @@ import { toIso, meses, diasSemana } from "@/lib/format";
 
 const TZ = "America/Montevideo";
 
-export type Periodo = "dia" | "semana" | "mes" | "anio";
+export type Periodo = "dia" | "semana" | "quincena" | "mes" | "anio";
 
 export const PERIODOS: { id: Periodo; label: string }[] = [
   { id: "dia", label: "Día" },
   { id: "semana", label: "Semana" },
+  { id: "quincena", label: "Quincena" },
   { id: "mes", label: "Mes" },
   { id: "anio", label: "Año" },
 ];
 
 export function normalizarPeriodo(v: string | null | undefined): Periodo {
-  return v === "semana" || v === "mes" || v === "anio" ? v : "dia";
+  return v === "semana" || v === "quincena" || v === "mes" || v === "anio" ? v : "dia";
 }
 
 export interface PuntoSerie {
@@ -88,6 +89,9 @@ function inicioPeriodo(base: Date, p: Periodo): Date {
   const y = base.getFullYear(), m = base.getMonth(), d = base.getDate();
   if (p === "dia") return new Date(y, m, d);
   if (p === "semana") return new Date(y, m, d - ((base.getDay() + 6) % 7)); // lunes
+  // Quincena: la cadencia con la que se LIQUIDAN las comisiones (decisión 08-05).
+  // 1ª = del 1 al 15 · 2ª = del 16 a fin de mes (calendario, no "cada 15 días").
+  if (p === "quincena") return new Date(y, m, d <= 15 ? 1 : 16);
   if (p === "mes") return new Date(y, m, 1);
   return new Date(y, 0, 1); // año
 }
@@ -96,6 +100,8 @@ function inicioPrevio(inicio: Date, p: Periodo): Date {
   const y = inicio.getFullYear(), m = inicio.getMonth(), d = inicio.getDate();
   if (p === "dia") return new Date(y, m, d - 1);
   if (p === "semana") return new Date(y, m, d - 7);
+  // 2ª quincena → la 1ª del mismo mes; 1ª quincena → la 2ª del mes anterior.
+  if (p === "quincena") return d >= 16 ? new Date(y, m, 1) : new Date(y, m - 1, 16);
   if (p === "mes") return new Date(y, m - 1, 1);
   return new Date(y - 1, 0, 1);
 }
@@ -252,9 +258,16 @@ function construirBuckets(
       push(`${y}-${pad(m)}`, meses[m - 1].slice(0, 3), m - 1 === base.getMonth());
     return { buckets, indice, unidad: "por mes" };
   }
-  // semana (7 días desde el lunes) o mes (todos los días del mes)
+  // semana (7 días desde el lunes) · quincena (1–15 / 16–fin) · mes (todos los días)
+  const ultimoDelMes = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
   const dias =
-    periodo === "semana" ? 7 : new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
+    periodo === "semana"
+      ? 7
+      : periodo === "quincena"
+        ? inicio.getDate() === 1
+          ? 15
+          : ultimoDelMes - 15
+        : ultimoDelMes;
   for (let i = 0; i < dias; i++) {
     const d = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate() + i);
     const clave = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -269,6 +282,8 @@ function construirBuckets(
 function etiquetaPeriodo(base: Date, periodo: Periodo): string {
   if (periodo === "dia") return `Hoy · ${base.getDate()} ${meses[base.getMonth()].slice(0, 3)}`;
   if (periodo === "semana") return "Esta semana";
+  if (periodo === "quincena")
+    return `${base.getDate() <= 15 ? "1ª" : "2ª"} quincena de ${meses[base.getMonth()]}`;
   if (periodo === "mes") return `${meses[base.getMonth()][0].toUpperCase()}${meses[base.getMonth()].slice(1)}`;
   return `Año ${base.getFullYear()}`;
 }

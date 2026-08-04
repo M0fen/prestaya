@@ -1,12 +1,14 @@
 "use client";
-// Lista de la ruta del cobrador con ORDEN por cercanía (opcional). Pide la
-// ubicación del cobrador y, si la concede, reordena las paradas pendientes como
-// un recorrido corto (vecino más cercano, lib/ruta.ts). Los ya cobrados / no-
-// pago bajan al final. Progressive enhancement: sin permiso o sin JS, queda el
-// orden original del servidor (por nombre).
-import { useEffect, useMemo, useState } from "react";
+// Lista de la ruta del cobrador con CUATRO órdenes: "Mi orden" (el recorrido que
+// el cobrador se armó y GUARDÓ — asignaciones.orden, 0132), cercanía (GPS,
+// vecino más cercano), prioridad de cobro y A-Z. Los ya cobrados / no-pago bajan
+// al final. Progressive enhancement: sin permiso o sin JS, queda el orden del
+// servidor (por nombre).
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ordenarPorCercania } from "@/lib/ruta";
+import { guardarOrdenRuta } from "@/lib/acciones/preferenciasCobrador";
 import type { EstadoHoy } from "@/lib/data/ruta";
 import { UYU } from "@/lib/format";
 import { OjitoCliente } from "./OjitoCliente";
@@ -33,6 +35,9 @@ export interface ItemRutaVista {
   /** Plata recuperada hoy sobre este cliente de cartera vencida (0 = no). Se muestra
    *  para que el cobrador no lo re-visite (su cobro no cuenta en la cuota del día). */
   recuperadoHoy?: number;
+  /** Posición guardada en el recorrido del cobrador (asignaciones.orden, 0132).
+   *  null = sin ordenar → va al final del "Mi orden", por nombre. */
+  orden?: number | null;
 }
 
 // Peso de prioridad: cobrar PRIMERO a los de mayor riesgo (menor peso = antes).
@@ -63,6 +68,12 @@ const norm = (s: string) =>
     return n < 0x300 || n > 0x36f;
   }).join("");
 
+// Orden "Mi recorrido": posición guardada primero (menor arriba); los sin
+// posición van al final, en el orden del servidor (por nombre).
+function porMiOrden<T extends { orden?: number | null }>(xs: T[]): T[] {
+  return [...xs].sort((a, b) => (a.orden ?? Infinity) - (b.orden ?? Infinity));
+}
+
 export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
   const [origen, setOrigen] = useState<Origen>(null);
   // Cuántos clientes tienen ubicación guardada. HOY el 93% NO la tiene: ordenar
@@ -74,9 +85,17 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
     [items],
   );
   const gpsPobre = items.length > 0 && nConUbicacion / items.length < 0.5;
-  const [modo, setModo] = useState<"cercania" | "prioridad" | "nombre">(
-    gpsPobre ? "prioridad" : "cercania",
+  // ¿El cobrador ya se armó su recorrido? Entonces ESE es el orden por defecto:
+  // la ruta abre como él la dejó, sin tocar nada (decisión 08-05).
+  const hayOrdenGuardado = items.some((i) => i.orden != null);
+  const [modo, setModo] = useState<"ruta" | "cercania" | "prioridad" | "nombre">(
+    hayOrdenGuardado ? "ruta" : gpsPobre ? "prioridad" : "cercania",
   );
+  // Editor del recorrido: lista completa de ids en el orden que se está armando.
+  const [editando, setEditando] = useState<string[] | null>(null);
+  const [guardando, startGuardar] = useTransition();
+  const [errorOrden, setErrorOrden] = useState<string | null>(null);
+  const router = useRouter();
   const [estadoGeo, setEstadoGeo] = useState<"idle" | "pidiendo" | "ok" | "no">("idle");
   const [verTodos, setVerTodos] = useState(false);
   const [q, setQ] = useState("");
@@ -123,14 +142,18 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
     const pendientes = items.filter((i) => !cerrado(i.estadoHoy));
     const cerrados = items.filter((i) => cerrado(i.estadoHoy));
     let base = pendientes;
-    if (modo === "cercania" && origen) base = ordenarPorCercania(pendientes, origen);
+    if (modo === "ruta") base = porMiOrden(pendientes);
+    else if (modo === "cercania" && origen) base = ordenarPorCercania(pendientes, origen);
     else if (modo === "prioridad")
       base = [...pendientes].sort((a, b) => pesoPrio(a.calificacion) - pesoPrio(b.calificacion));
     // "nombre" (o cercanía sin ubicación) → orden del servidor (por nombre).
-    return [...base, ...cerrados];
+    // Los cerrados también respetan "Mi orden" (se reconoce el recorrido aunque
+    // ya estén cobrados); en los demás modos quedan como vienen.
+    return [...base, ...(modo === "ruta" ? porMiOrden(cerrados) : cerrados)];
   }, [items, modo, origen]);
   // ¿Hay un orden de recorrido significativo (para numerar pasos + camino en Maps)?
-  const ordenActivo = (modo === "cercania" && !!origen) || modo === "prioridad";
+  const ordenActivo =
+    (modo === "ruta" && hayOrdenGuardado) || (modo === "cercania" && !!origen) || modo === "prioridad";
 
   // Filtro por estado (chips): recorta la ruta a la categoría elegida.
   const porEstado =
@@ -177,6 +200,131 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
         })()
       : null;
 
+  // ── Editor del recorrido (0132): acomodar la ruta con ↑ / ↓ / al principio ──
+  const itemDe = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
+  const abrirEditor = () => {
+    setErrorOrden(null);
+    // Se parte del recorrido guardado (o del orden por nombre si no hay).
+    setEditando(porMiOrden(items).map((i) => i.id));
+  };
+  const mover = (id: string, delta: number) => {
+    setEditando((lista) => {
+      if (!lista) return lista;
+      const i = lista.indexOf(id);
+      const j = i + delta;
+      if (i < 0 || j < 0 || j >= lista.length) return lista;
+      const n = [...lista];
+      [n[i], n[j]] = [n[j], n[i]];
+      return n;
+    });
+  };
+  const alPrincipio = (id: string) =>
+    setEditando((lista) => (lista ? [id, ...lista.filter((x) => x !== id)] : lista));
+  const guardarOrden = () => {
+    if (!editando) return;
+    setErrorOrden(null);
+    startGuardar(async () => {
+      try {
+        const r = await guardarOrdenRuta({ clienteIds: editando });
+        if (!r.ok) {
+          setErrorOrden(r.error);
+          return;
+        }
+        setEditando(null);
+        setModo("ruta");
+        router.refresh();
+      } catch {
+        setErrorOrden("No se pudo guardar (¿sin señal?). Probá de nuevo con conexión.");
+      }
+    });
+  };
+
+  if (editando) {
+    return (
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-2 px-0.5">
+          <div className="flex flex-col">
+            <span className="text-[14px] font-extrabold text-tinta">Acomodá tu recorrido</span>
+            <span className="text-[11.5px] font-medium text-gris">
+              El 1 es tu primera parada. Se guarda y la ruta abre así todos los días.
+            </span>
+          </div>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          {editando.map((id, idx) => {
+            const it = itemDe.get(id);
+            if (!it) return null;
+            return (
+              <div
+                key={id}
+                className="flex items-center gap-2 rounded-[14px] bg-white py-2 pr-2 pl-3 shadow-[0_1px_3px_rgba(26,34,71,0.05)]"
+              >
+                <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[#0F1B3D] text-[12px] font-black text-white tabular-nums">
+                  {idx + 1}
+                </span>
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate text-[13.5px] font-bold text-tinta">{it.nombre}</span>
+                  <span className="truncate text-[11px] font-medium text-[#8A93AD]">
+                    {it.direccion ?? "Sin dirección"}
+                  </span>
+                </div>
+                {idx > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => alPrincipio(id)}
+                    aria-label="Mover al principio"
+                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[10px] bg-[#EEF3FF] text-[14px] font-black text-azul active:scale-95"
+                  >
+                    ⏫
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => mover(id, -1)}
+                  disabled={idx === 0}
+                  aria-label="Subir"
+                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[10px] bg-[#EEF1F8] text-[15px] font-black text-tinta active:scale-95 disabled:opacity-30"
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  onClick={() => mover(id, 1)}
+                  disabled={idx === editando.length - 1}
+                  aria-label="Bajar"
+                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[10px] bg-[#EEF1F8] text-[15px] font-black text-tinta active:scale-95 disabled:opacity-30"
+                >
+                  ↓
+                </button>
+              </div>
+            );
+          })}
+        </div>
+        {errorOrden && (
+          <p className="px-0.5 text-[12px] font-semibold text-[#C0392B]">{errorOrden}</p>
+        )}
+        {/* Barra fija abajo: guardar/cancelar siempre a mano en listas largas. */}
+        <div className="sticky bottom-20 z-30 flex gap-2 rounded-[16px] bg-white p-2 shadow-[0_-4px_18px_rgba(15,27,61,0.12)]">
+          <button
+            type="button"
+            onClick={() => setEditando(null)}
+            className="min-h-11 rounded-full border border-[#DCE3F4] bg-white px-4 text-[13px] font-bold text-gris active:scale-[0.98]"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={guardarOrden}
+            disabled={guardando}
+            className="min-h-11 flex-1 rounded-full bg-[#1E47C8] px-4 text-[14px] font-extrabold text-white active:scale-[0.98] disabled:opacity-60"
+          >
+            {guardando ? "Guardando…" : "Guardar mi recorrido"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const CHIPS: { id: typeof filtro; label: string; n: number }[] = [
     { id: "todos", label: "Todos", n: cuenta.todos },
     { id: "pendiente", label: "Pendientes", n: cuenta.pendiente },
@@ -217,11 +365,12 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
         className="rounded-[12px] border border-[#DCE3F4] bg-white px-3.5 py-2.5 text-[16px] outline-none focus:border-azul"
       />
 
-      {/* Orden de la ruta (cercanía / prioridad de cobro / A-Z) + camino en Maps */}
+      {/* Orden de la ruta (mi recorrido / cercanía / prioridad / A-Z) + Maps + editor */}
       <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
-        <div className="flex gap-0.5 rounded-full bg-[#EEF1F8] p-0.5">
+        <div className="flex gap-0.5 overflow-x-auto rounded-full bg-[#EEF1F8] p-0.5">
           {(
             [
+              ["ruta", "📌 Mi orden"],
               ["cercania", estadoGeo === "pidiendo" ? "📍…" : "📍 Cercanía"],
               ["prioridad", "⚡ Prioridad"],
               ["nombre", "A-Z"],
@@ -234,9 +383,14 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
                 type="button"
                 onClick={() => {
                   if (id === "cercania" && !origen) pedirUbicacion();
+                  // "Mi orden" sin recorrido guardado → derecho al editor a armarlo.
+                  if (id === "ruta" && !hayOrdenGuardado) {
+                    abrirEditor();
+                    return;
+                  }
                   setModo(id);
                 }}
-                className={`rounded-full px-3 py-2 text-[12px] font-bold transition-colors ${
+                className={`flex-shrink-0 rounded-full px-2.5 py-2 text-[12px] font-bold whitespace-nowrap transition-colors ${
                   activo ? "bg-white text-azul shadow-[0_1px_2px_rgba(26,34,71,0.12)]" : "text-gris"
                 }`}
               >
@@ -245,17 +399,27 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
             );
           })}
         </div>
-        {mapsUrl && (
-          <a
-            href={mapsUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-full bg-[#1FA971] px-3 py-1.5 text-[11.5px] font-bold text-white active:scale-95"
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={abrirEditor}
+            className="rounded-full border border-[#DCE3F4] bg-white px-3 py-1.5 text-[11.5px] font-bold text-azul active:scale-95"
             style={{ transition: "transform .1s" }}
           >
-            🗺️ Ir en Maps
-          </a>
-        )}
+            ✏️ Ordenar
+          </button>
+          {mapsUrl && (
+            <a
+              href={mapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full bg-[#1FA971] px-3 py-1.5 text-[11.5px] font-bold text-white active:scale-95"
+              style={{ transition: "transform .1s" }}
+            >
+              🗺️ Ir en Maps
+            </a>
+          )}
+        </div>
       </div>
 
       {modo === "cercania" && estadoGeo === "no" && (
