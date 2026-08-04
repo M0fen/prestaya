@@ -251,7 +251,7 @@ export async function registrarPagoCobrador(input: {
     const usuario = await getUsuarioActual();
     // Sesión: un blip de auth (no la culpa del cobro) → retryable + SISTÉMICO (afecta a
     // toda la cola por igual) → la cola reintenta todo, sin envenenar ningún cobro.
-    if (!usuario || !usuario.activo) return { ok: false, error: "Sesión no válida.", retryable: true, sistemico: true };
+    if (!usuario || !usuario.activo) return { ok: false, error: "Se cerró tu sesión. Ingresá de nuevo con tu usuario — lo que ya cobraste está guardado y se sube solo.", retryable: true, sistemico: true };
     const bloqueo = await bloqueoSoloLectura(); // kill switch: congela escrituras de plata
     if (bloqueo) return bloqueo;
 
@@ -259,7 +259,16 @@ export async function registrarPagoCobrador(input: {
     const cliente = await getClientePorId(db, input.clienteId);
     if (!cliente) return { ok: false, error: "Cliente no encontrado." };
     const prestamo = await resolverPrestamo(db, cliente.id, input.prestamoId);
-    if (!prestamo) return { ok: false, error: "El cliente no tiene crédito activo." };
+    // Se ve sobre todo al vaciar la COLA OFFLINE: se cobró sin señal y mientras
+    // tanto el crédito se renovó, se anuló o se saldó. El cobrador ya tiene el
+    // efectivo del cliente encima, así que el mensaje tiene que decirle qué
+    // hacer con esa plata, no solo qué pasó.
+    if (!prestamo)
+      return {
+        ok: false,
+        error:
+          "Ese crédito ya no está activo (lo renovaron o se saldó). No entregues esa plata todavía: dejá una nota en la ficha del cliente y avisale a tu supervisor.",
+      };
 
     // IDEMPOTENCIA del reintento (exactly-once): si este op_id YA está en el libro
     // —el 1er intento commiteó pero se perdió el ACK de red (común en móvil rural)—
@@ -311,7 +320,14 @@ export async function registrarPagoCobrador(input: {
       reportarError("cobro.sobrepago.saldado", new Error("Cobro sobre crédito ya saldado"), {
         clienteId: input.clienteId, prestamoId: prestamo.id, opId: input.opId, solicitado,
       });
-      return { ok: false, error: "Este crédito ya está saldado." };
+      // El cobrador tiene el efectivo EN LA MANO y hasta acá se le decía una
+      // frase de tres palabras sin verbo. Con cuotas fraccionarias (351,04) el
+      // último día se salda "antes de tiempo" y este caso aparece de verdad.
+      return {
+        ok: false,
+        error:
+          "Este crédito ya está saldado: no corresponde cobrar. Si ya recibiste la plata, devolvésela al cliente o dejá una nota en su ficha avisando a la oficina antes de entregarla.",
+      };
     }
     const gps_lat = numeroValido(input.gpsLat);
     const gps_lng = numeroValido(input.gpsLng);
@@ -408,13 +424,14 @@ export async function registrarNoPagoCobrador(input: {
   if (!validar(noPagoSchema, input).ok) return { ok: false, error: "Datos inválidos." };
   try {
     const usuario = await getUsuarioActual();
-    if (!usuario || !usuario.activo) return { ok: false, error: "Sesión no válida.", retryable: true, sistemico: true };
+    if (!usuario || !usuario.activo) return { ok: false, error: "Se cerró tu sesión. Ingresá de nuevo con tu usuario — lo que ya cobraste está guardado y se sube solo.", retryable: true, sistemico: true };
     const bloqueo = await bloqueoSoloLectura();
     if (bloqueo) return bloqueo;
 
     const db = await createSupabaseServer();
     const prestamo = await resolverPrestamo(db, input.clienteId, input.prestamoId);
-    if (!prestamo) return { ok: false, error: "El cliente no tiene crédito activo." };
+    if (!prestamo)
+      return { ok: false, error: "Ese crédito ya no está activo (lo renovaron o se saldó). Avisale a tu supervisor." };
 
     const m = MOTIVOS_NOPAGO.find((x) => x.id === input.motivo) ?? MOTIVOS_NOPAGO[0];
     const gps_lat = numeroValido(input.gpsLat);

@@ -49,6 +49,7 @@ export function CerrarJornada({
   // viejo y el cierre marcaba un FALTANTE FANTASMA justo al terminar de sincronizar.
   const [editado, setEditado] = useState(false);
   const [notas, setNotas] = useState("");
+  const [reintentando, setReintentando] = useState(false);
   const [confirmar, setConfirmar] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendiente, startTransition] = useTransition();
@@ -101,6 +102,17 @@ export function CerrarJornada({
             {yaRendida.diferencia < 0 ? "Faltante" : "Sobrante"} de {UYU(Math.abs(yaRendida.diferencia))}
           </div>
         )}
+        {/* El cierre es irreversible por diseño (es el sello de la custodia),
+            pero antes acá no había NADA que tocar: si tecleó 15000 en vez de
+            1500, le quedaba un faltante de $13.500 a su nombre y ni un teléfono
+            al que avisar. No hace falta poder editarlo — hace falta que exista
+            una salida y que quede constancia de que él lo reportó. */}
+        <p className="mt-3 border-t border-[#EEF1F8] pt-2.5 text-[11.5px] leading-[1.45] font-medium text-gris">
+          ¿Cargaste algo mal? El cierre no se edita, pero avisá y la oficina lo corrige.{" "}
+          <a href="/cobrador/chat" className="font-bold text-azul underline">
+            Avisar a mi supervisor →
+          </a>
+        </p>
       </section>
     );
   }
@@ -256,10 +268,25 @@ export function CerrarJornada({
             ⏳ Tenés {cobrosPend.length} cobro{cobrosPend.length === 1 ? "" : "s"} sin subir
             {montoPend > 0 ? ` (${UYU(montoPend)})` : ""}
           </span>
-          <span className="text-[11.5px] font-medium text-[#9A6A0E]">
-            El recaudado todavía no los incluye. Esperá a tener señal para que suban; si cerrás ahora te
-            va a marcar un faltante que no es real.
+          <span className="text-[11.5px] leading-[1.45] font-medium text-[#9A6A0E]">
+            El recaudado todavía no los incluye. Suben solos cuando tengas señal — si estás en una
+            zona sin datos, movete unos metros y esperá; el botón de cerrar se habilita solo.
           </span>
+          {/* El botón quedaba apagado sin ninguna acción posible: el cobrador
+              terminaba la ruta, entregaba la plata en mano y la jornada nunca se
+              cerraba en el sistema. Ahora puede empujar la cola él mismo. */}
+          <button
+            type="button"
+            onClick={() => {
+              setReintentando(true);
+              window.dispatchEvent(new Event("online")); // despierta al sincronizador
+              setTimeout(() => setReintentando(false), 4000);
+            }}
+            disabled={reintentando}
+            className="mt-1 min-h-11 self-start rounded-full bg-[#9A6A0E] px-4 text-[12.5px] font-bold text-white disabled:opacity-60"
+          >
+            {reintentando ? "Intentando…" : "Intentar subirlos ahora"}
+          </button>
         </div>
       )}
 
@@ -313,6 +340,36 @@ export function CerrarJornada({
               ya cambió el día: entregale el efectivo al supervisor y no cierres esta.
             </p>
           )}
+          {/* GASTOS SIN RESPALDO: el servidor recorta los gastos declarados a los
+              que tienen solicitud aprobada. Antes eso pasaba en silencio DESPUÉS
+              de confirmar: en pantalla decía "Cuadra ✓" y al recargar aparecía un
+              faltante por el monto recortado, sin una palabra de por qué. El
+              cobrador iba a pensar que el sistema le comió la plata. */}
+          {gastosN > gastosPendientes + gastosHoy && (
+            <p className="rounded-[11px] border border-[#F0D9A8] bg-[#FEFBF3] px-3 py-2 text-[12px] leading-[1.45] font-bold text-[#9A6A0E]">
+              ⚠️ De los {UYU(gastosN)} de gastos, solo {UYU(gastosHoy + gastosPendientes)} están
+              cargados como gasto de ruta. La diferencia te va a figurar como faltante: cargá el
+              gasto primero y volvé.
+            </p>
+          )}
+          {/* Un descuadre sin explicación es una discusión con el supervisor
+              mañana. Escrita en el momento, se resuelve sola. */}
+          {diferencia !== 0 && (
+            <div className="flex flex-col gap-1.5 rounded-[11px] border border-[#F5C6C2] bg-[#FDF1F0] px-3 py-2.5">
+              <span className="text-[12px] font-bold text-[#C0392B]">
+                {diferencia < 0
+                  ? `Te falta ${UYU(Math.abs(diferencia))}. ¿Contaste de nuevo?`
+                  : `Te sobra ${UYU(diferencia)}. ¿Contaste de nuevo?`}
+              </span>
+              <input
+                value={notas}
+                onChange={(e) => setNotas(e.target.value)}
+                placeholder="Contá en una línea qué pasó (obligatorio)"
+                aria-label="Motivo de la diferencia"
+                className="min-h-11 rounded-[10px] border border-[#DCE3F4] bg-white px-3 text-[16px] text-tinta"
+              />
+            </div>
+          )}
           <p className="text-center text-[12.5px] font-semibold text-gris">
             Vas a rendir {UYU(entregadoN)}. El cierre no se puede deshacer.
           </p>
@@ -328,10 +385,17 @@ export function CerrarJornada({
             <button
               type="button"
               onClick={cerrar}
-              disabled={pendiente}
+              // Con descuadre, el motivo es OBLIGATORIO: es la única versión del
+              // cobrador sobre lo que pasó, y mañana vale más que cualquier
+              // reconstrucción.
+              disabled={pendiente || (diferencia !== 0 && notas.trim().length < 5)}
               className="flex-1 rounded-[13px] bg-[#1FA971] py-3 text-[14px] font-extrabold text-white disabled:opacity-60"
             >
-              {pendiente ? "Cerrando…" : "Confirmar cierre"}
+              {pendiente
+                ? "Cerrando…"
+                : diferencia !== 0 && notas.trim().length < 5
+                  ? "Escribí el motivo"
+                  : "Confirmar cierre"}
             </button>
           </div>
         </div>

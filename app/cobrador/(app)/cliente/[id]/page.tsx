@@ -18,6 +18,7 @@ import { RegistroCobro } from "@/components/cobrador/RegistroCobro";
 import { CartonCobrador } from "@/components/cobrador/CartonCobrador";
 import { CobrosRecientes, type PagoReciente } from "@/components/cobrador/CobrosRecientes";
 import { RegistrarCompromiso } from "@/components/cobrador/RegistrarCompromiso";
+import { PedirAyuda } from "@/components/cobrador/PedirAyuda";
 import { BeaconFicha } from "@/components/cobrador/BeaconFicha";
 import { NotasCliente } from "@/components/notas/NotasCliente";
 import { AvisoAlta } from "@/components/cobrador/AvisoAlta";
@@ -129,10 +130,24 @@ export default async function DetalleClientePage({
       )}
 
       {!prestamo ? (
-        <p className="rounded-[14px] bg-white px-4 py-6 text-center text-[13px] font-medium text-gris">
-          Este cliente no tiene un crédito activo. El alta de créditos la hace la
-          oficina.
-        </p>
+        /* Acá terminaba el camino: el cobrador acababa de censar (o de adoptar
+           una de las 9.317 fichas heredadas) al cliente que tiene ENFRENTE, y se
+           encontraba con un cartel informativo sin ningún botón. El alta es
+           solo-gestor, así que la única salida era llamar por teléfono fuera de
+           la app. Ahora puede pedirlo desde acá y queda constancia. */
+        <div className="flex flex-col items-center gap-3 rounded-[14px] bg-white px-4 py-6 text-center">
+          <p className="text-[13px] leading-[1.5] font-medium text-gris">
+            Todavía no tiene un crédito activo. El alta la hace la oficina —
+            <b className="text-tinta"> pedila desde acá</b> y te avisan cuando esté.
+          </p>
+          <PedirAyuda
+            clienteId={id}
+            etiqueta="Pedir crédito para este cliente"
+            textoSugerido={`Pido crédito para ${cliente.nombre}${
+              cliente.documento ? ` (cédula ${cliente.documento})` : ""
+            }. Está en mi ruta y quiere tomar uno.`}
+          />
+        </div>
       ) : (
         <Detalle
           db={db}

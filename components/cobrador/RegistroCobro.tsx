@@ -3,6 +3,7 @@
 // encola la operación; el SyncEngine (en el layout) la sincroniza cuando hay
 // señal. Nunca "no anduvo": registra siempre, con o sin conexión.
 import { useEffect, useRef, useState } from "react";
+import { PedirAyuda } from "./PedirAyuda";
 import { configurarUsuario, encolar, parchearGps, quitar, pendientes, type OpCobro, type OpTipo } from "@/lib/cobrador/colaOffline";
 import { MOTIVOS_NOPAGO, type MotivoNoPago } from "@/app/cobrador/(app)/motivos";
 import { UYU } from "@/lib/format";
@@ -121,6 +122,10 @@ export function RegistroCobro({
   // una confirmación extra para "adelantar" la próxima (no repetir el CTA verde).
   const [hoyCobrado, setHoyCobrado] = useState(false);
   const [confirmarAdelanto, setConfirmarAdelanto] = useState(false);
+  // Se quiso deshacer un cobro pasada la ventana: hay que darle una salida.
+  const [cobroTarde, setCobroTarde] = useState(false);
+  // Último monto cobrado, para redactarle el aviso sin que tenga que recordarlo.
+  const ultimoMonto = useRef<number | null>(null);
   // El estado de arriba vive en memoria del COMPONENTE: si el cobrador vuelve a
   // la lista y entra de nuevo al mismo cliente, se re-monta en cero y el botón
   // ofrece "Registrar pago" otra vez como si nada — un segundo toque encola un
@@ -202,6 +207,7 @@ export function RegistroCobro({
       { holdMs: HOLD_MS },
     );
     void pedirGps().then((g) => parchearGps(op.id, g.lat, g.lng, g.precision));
+    if (tipo === "pago") ultimoMonto.current = extra.monto ?? cuotaEfectiva;
     return {
       offline: typeof navigator !== "undefined" && !navigator.onLine,
       op,
@@ -315,7 +321,12 @@ export function RegistroCobro({
       setUndo(null);
       setModalAbierto(false);
       setComprobante(null);
-      flash({ texto: "El cobro ya se registró", tono: "info" });
+      // Acá terminaba TODO: "El cobro ya se registró" y el cobrador quedaba sin
+      // ninguna acción posible (los pagos no se editan, y la app del cobrador no
+      // tiene anulación ni forma de pedirla). Con un dedazo de 10× eso son miles
+      // de pesos mal cargados y nadie enterado. Ahora se ofrece la salida.
+      setCobroTarde(true);
+      flash({ texto: "El cobro ya se registró", tono: "info" }, 4000);
       return;
     }
     quitar(undo.opId);
@@ -376,6 +387,29 @@ export function RegistroCobro({
                 ? "Registrando…"
                 : `Registrar pago · ${UYU(cuotaEfectiva)}`}
         </button>
+      )}
+
+      {/* Quiso deshacer y la ventana ya había pasado. Antes el mensaje terminaba
+          ahí; ahora se le da la salida real: dejar el aviso escrito en la ficha
+          del cliente, que el supervisor y la oficina ven. */}
+      {cobroTarde && (
+        <div className="flex flex-col gap-2 rounded-[14px] border border-[#F5C6C2] bg-[#FDF1F0] p-3">
+          <span className="text-[12.5px] leading-[1.45] font-bold text-[#C0392B]">
+            Ese cobro ya quedó registrado y no se puede borrar desde acá.
+          </span>
+          <span className="text-[11.5px] leading-[1.45] font-medium text-gris">
+            Si el monto está mal, avisá ahora: la oficina lo corrige y queda constancia de que
+            fuiste vos quien lo reportó.
+          </span>
+          <PedirAyuda
+            clienteId={clienteId}
+            etiqueta="Está mal · avisar a la oficina"
+            tono="alerta"
+            textoSugerido={`Registré un cobro con el monto equivocado${
+              ultimoMonto.current ? ` (quedó ${UYU(ultimoMonto.current)})` : ""
+            }. El monto correcto es $____. Por favor corregirlo.`}
+          />
+        </div>
       )}
 
       <div className="flex gap-2.5">

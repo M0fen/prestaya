@@ -15,6 +15,10 @@ export interface ItemRutaVista {
   id: string;
   nombre: string;
   direccion: string | null;
+  /** Cédula: el dato que el cliente muestra y que no admite errores de tipeo.
+   *  Buscar solo por nombre obligaba a adivinar cómo quedó escrito en la
+   *  importación de Disapp ("GONSALEZ" vs "GONZÁLEZ"). */
+  documento?: string | null;
   cuota: number;
   estadoHoy: EstadoHoy;
   /** Abonado HOY (para mostrar el parcial en el chip "Abonó $X"). */
@@ -61,7 +65,18 @@ const norm = (s: string) =>
 
 export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
   const [origen, setOrigen] = useState<Origen>(null);
-  const [modo, setModo] = useState<"cercania" | "prioridad" | "nombre">("cercania");
+  // Cuántos clientes tienen ubicación guardada. HOY el 93% NO la tiene: ordenar
+  // "por cercanía" con eso numera 1,2,3 a los poquitos con GPS y manda al fondo
+  // a todos los demás — una ruta física falsa, presentada como si fuera real.
+  // Si la mayoría no tiene ubicación, el orden por defecto NO es cercanía.
+  const nConUbicacion = useMemo(
+    () => items.filter((i) => i.lat != null && i.lng != null).length,
+    [items],
+  );
+  const gpsPobre = items.length > 0 && nConUbicacion / items.length < 0.5;
+  const [modo, setModo] = useState<"cercania" | "prioridad" | "nombre">(
+    gpsPobre ? "prioridad" : "cercania",
+  );
   const [estadoGeo, setEstadoGeo] = useState<"idle" | "pidiendo" | "ok" | "no">("idle");
   const [verTodos, setVerTodos] = useState(false);
   const [q, setQ] = useState("");
@@ -132,7 +147,14 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
   // término, se busca sobre TODA la ruta.
   const buscando = q.trim().length > 0;
   const filtrados = buscando
-    ? ordenados.filter((i) => norm(i.nombre ?? "").includes(norm(q)))
+    ? ordenados.filter((i) => {
+        // Nombre, dirección o CÉDULA. La cédula se compara sin puntos ni guiones
+        // (la base convive con los dos formatos por el import de Disapp).
+        const texto = `${norm(i.nombre ?? "")} ${norm(i.direccion ?? "")}`;
+        if (texto.includes(norm(q))) return true;
+        const soloDigitos = q.replace(/\D/g, "");
+        return soloDigitos.length >= 3 && (i.documento ?? "").replace(/\D/g, "").includes(soloDigitos);
+      })
     : porEstado;
   // Plegado: solo con "Todos" y sin búsqueda se pliega a TOPE_RUTA; con una chip
   // activa o buscando, se ve la lista completa de esa categoría.
@@ -191,7 +213,7 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
         type="search"
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        placeholder="🔍 Buscar cliente por nombre…"
+        placeholder="🔍 Buscar por nombre, cédula o dirección…"
         className="rounded-[12px] border border-[#DCE3F4] bg-white px-3.5 py-2.5 text-[16px] outline-none focus:border-azul"
       />
 
@@ -239,6 +261,16 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
       {modo === "cercania" && estadoGeo === "no" && (
         <p className="px-0.5 text-[11px] font-medium text-[#AEB6CC]">
           Sin ubicación: se usa el orden por nombre. Probá <b>⚡ Prioridad</b> para cobrar primero a los de riesgo.
+        </p>
+      )}
+
+      {/* Honestidad sobre el orden por cercanía: si casi nadie tiene ubicación
+          guardada, el "camino" que dibuja son 7 clientes de 100 y el resto va al
+          fondo por nombre. Antes no se decía en ningún lado. */}
+      {modo === "cercania" && gpsPobre && (
+        <p className="px-0.5 text-[11px] leading-[1.45] font-medium text-[#B9770E]">
+          Solo {nConUbicacion} de {items.length} clientes tienen ubicación guardada — el resto va al
+          final por nombre. Se va llenando a medida que los censás.
         </p>
       )}
 

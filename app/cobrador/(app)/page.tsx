@@ -83,6 +83,7 @@ export default async function RutaPage() {
     id: i.cliente.id,
     nombre: i.cliente.nombre,
     direccion: i.cliente.direccion,
+    documento: i.cliente.documento,
     cuota: i.cuota,
     estadoHoy: i.estadoHoy,
     pagadoHoy: i.pagadoHoy,
