@@ -66,7 +66,10 @@ export default async function CierrePage() {
           <span className="text-[13px] font-medium text-gris capitalize">{fechaTitulo}</span>
         </div>
         {/* Avisos push en este dispositivo (cierre + alertas críticas). */}
-        <ActivarAvisos vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null} />
+        <ActivarAvisos
+          vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null}
+          avisarSiFaltaConfig // esta pantalla ya es solo-admin (requireAdmin)
+        />
       </div>
 
       {/* Resumen del día */}

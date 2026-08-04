@@ -25,6 +25,7 @@ import { getBitacoraGestorDia, type RegistroAuditoria } from "@/lib/data/auditor
 import { alcanceDelActor } from "@/lib/data/alcance";
 import { getAperturasDia } from "@/lib/data/aperturas";
 import { BaseCajaManager, type CobradorBase } from "@/components/admin/BaseCajaManager";
+import { ActivarAvisos } from "@/components/pwa/ActivarAvisos";
 import { RankingPorZona } from "@/components/admin/RankingPorZona";
 import { conTimeout } from "@/lib/timeout";
 import { navVisible } from "@/lib/admin/nav";
@@ -212,7 +213,11 @@ export default async function JornadaPage({
   }
 
   let basesCobradores: CobradorBase[] = [];
-  if (acto === "apertura" && esHoy) {
+  // La base se carga en CUALQUIER acto del día de hoy: el supervisor la fija a
+  // primera hora, pero también necesita corregirla mientras la jornada corre
+  // (se sella recién cuando el cobrador rinde, 0129). Antes solo existía en el
+  // acto "Apertura" y había que volver ahí a buscarla.
+  if (esHoy) {
     const cobIds = alcance.global ? null : alcance.cobradorIds;
     let cq = adminZ.from("usuarios").select("id, nombre, zona_id").eq("rol", "cobrador").eq("activo", true);
     if (cobIds) cq = cobIds.length > 0 ? cq.in("id", cobIds) : cq.eq("id", "00000000-0000-0000-0000-000000000000");
@@ -283,11 +288,20 @@ export default async function JornadaPage({
             {fechaLarga} · tu jornada en 3 momentos
           </span>
         </div>
-        {usuario.rol === "admin" && (
-          <Link href="/admin" className="rounded-full border border-borde bg-tarjeta px-3 py-1.5 text-[12.5px] font-bold text-gris">
-            Ver tablero completo →
-          </Link>
-        )}
+        <div className="flex flex-col items-end gap-1.5">
+          {/* Avisos push: acá, donde el supervisor entra cada mañana. Antes vivía
+              SOLO en la pantalla de Cierre y nadie lo encontraba (por eso había
+              0 suscripciones y el canal de alertas estaba mudo). */}
+          <ActivarAvisos
+            vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null}
+            avisarSiFaltaConfig={usuario.rol === "admin"}
+          />
+          {usuario.rol === "admin" && (
+            <Link href="/admin" className="rounded-full border border-borde bg-tarjeta px-3 py-1.5 text-[12.5px] font-bold text-gris">
+              Ver tablero completo →
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Bienvenida cálida (solo la 1ª vez, se puede cerrar). */}
@@ -407,7 +421,12 @@ export default async function JornadaPage({
           renovables={renovables}
         />
       )}
-      {acto === "apertura" && esHoy && <BaseCajaManager cobradores={basesCobradores} supervisoresPorZona={supervisoresPorZona} />}
+      {/* Base de caja: en Apertura (su momento natural) y también En vivo, para
+          corregirla sin volver atrás. En Cierre ya no: ahí la base de cada
+          cobrador que rindió quedó sellada con su rendición. */}
+      {(acto === "apertura" || acto === "vivo") && esHoy && (
+        <BaseCajaManager cobradores={basesCobradores} supervisoresPorZona={supervisoresPorZona} />
+      )}
       {acto === "vivo" && (
         <EnVivo
           cobradoRuta={cobradoRuta}

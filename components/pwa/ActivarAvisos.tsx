@@ -20,7 +20,33 @@ function base64aUint8(base64: string): Uint8Array<ArrayBuffer> {
 
 type Estado = "cargando" | "no_soportado" | "off" | "on" | "activando";
 
-export function ActivarAvisos({ vapidPublicKey }: { vapidPublicKey: string | null }) {
+/** ¿iPhone/iPad? En iOS los avisos web SOLO existen si la app está agregada a
+ *  la pantalla de inicio (Safari suelto no tiene PushManager). Sin distinguirlo,
+ *  el usuario no ve NADA y cree que la función no existe. */
+function esIOS(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  return /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+}
+
+/** ¿Está corriendo como app instalada (standalone) y no como pestaña? */
+function esInstalada(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia?.("(display-mode: standalone)").matches ||
+    (navigator as { standalone?: boolean }).standalone === true
+  );
+}
+
+export function ActivarAvisos({
+  vapidPublicKey,
+  /** true = el que mira es admin: si falta la clave VAPID hay que DECÍRSELO
+   *  (para el resto se oculta, no es su problema). */
+  avisarSiFaltaConfig = false,
+}: {
+  vapidPublicKey: string | null;
+  avisarSiFaltaConfig?: boolean;
+}) {
   const [estado, setEstado] = useState<Estado>("cargando");
   const [error, setError] = useState("");
 
@@ -90,10 +116,38 @@ export function ActivarAvisos({ vapidPublicKey }: { vapidPublicKey: string | nul
     }
   };
 
-  // Sin clave VAPID el feature queda OCULTO (no molesta con "falta configurar").
-  // Reaparece solo cuando se cargue NEXT_PUBLIC_VAPID_PUBLIC_KEY.
-  if (!vapidPublicKey) return null;
-  if (estado === "cargando" || estado === "no_soportado") return null;
+  if (estado === "cargando") return null;
+
+  // Falta la clave pública VAPID en el entorno. Antes esto se ocultaba en
+  // silencio: el dueño entraba, no veía ningún botón y concluía que la función
+  // no existía. Al admin se le dice qué falta; al resto no se le muestra nada.
+  if (!vapidPublicKey) {
+    if (!avisarSiFaltaConfig) return null;
+    return (
+      <span className="rounded-full bg-[#FDF3E2] px-3 py-1.5 text-[11px] font-bold text-[#8A6D1F]">
+        🔔 Avisos sin configurar: falta <code>NEXT_PUBLIC_VAPID_PUBLIC_KEY</code> en Vercel
+      </span>
+    );
+  }
+
+  // Navegador sin push. En iPhone es lo NORMAL hasta instalar la app, así que
+  // se explica el paso exacto en vez de desaparecer (era el caso real: se
+  // entraba desde Safari y no aparecía nada).
+  if (estado === "no_soportado") {
+    if (esIOS() && !esInstalada()) {
+      return (
+        <span className="max-w-[260px] text-right text-[11px] leading-[1.45] font-semibold text-gris">
+          🔔 Para recibir avisos en iPhone: tocá <b>Compartir</b> → <b>Agregar a inicio</b>, abrí
+          Presta Ya desde ese ícono y volvé acá.
+        </span>
+      );
+    }
+    return (
+      <span className="text-[11px] font-semibold text-gris">
+        🔔 Este navegador no soporta avisos. Probá con Chrome.
+      </span>
+    );
+  }
 
   return (
     <div className="flex flex-col items-end gap-1">
