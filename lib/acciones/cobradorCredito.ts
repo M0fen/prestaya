@@ -173,8 +173,12 @@ export async function nuevaVentaDesdeCalle(input: {
   const monto = Math.round(Number(input.monto));
   const totalDias = Math.round(Number(input.totalDias));
   if (!Number.isFinite(monto) || monto <= 0) return { ok: false, error: "Revisá el monto." };
-  if (!Number.isInteger(totalDias) || totalDias <= 0)
-    return { ok: false, error: "Revisá la cantidad de cuotas." };
+  // Tope SUPERIOR de cuotas (auditoría 08-05): sin él, un totalDias absurdo
+  // pulveriza la cuota (round(monto·factor/dias) → $1) y el total del crédito
+  // queda por DEBAJO del capital prestado — interés destruido y pérdida de
+  // principal. 366 cubre de sobra el crédito diario más largo del negocio.
+  if (!Number.isInteger(totalDias) || totalDias <= 0 || totalDias > 366)
+    return { ok: false, error: "Revisá la cantidad de cuotas (máximo 366)." };
   if (!FRECUENCIAS.includes(input.frecuencia)) return { ok: false, error: "Frecuencia inválida." };
   if (monto > RENOVACION_CAP_TOTAL)
     return { ok: false, error: `El crédito no puede superar ${UYU(RENOVACION_CAP_TOTAL)}.` };
@@ -238,6 +242,35 @@ export async function nuevaVentaDesdeCalle(input: {
   if (!res.ok) return res;
 
   if (!res.repetido) {
+    // ANTI-CARRERA (auditoría 08-05): el "sin crédito activo" de arriba es un
+    // check-then-insert sin candado en BD (no hay unique de un-activo-por-cliente
+    // porque la tienda legítimamente convive con el crédito de efectivo). Dos
+    // requests paralelas con montos DISTINTOS (op_id distinto) pasaban ambas el
+    // check → dos créditos activos, cada uno dentro del tramo pero sumados por
+    // encima. Verificación post-insert: si el cliente quedó con MÁS de un activo,
+    // se deshace ESTE crédito recién nacido (sin pagos ni movimientos de caja —
+    // mismo patrón de rollback que el censo) y se le pide reintentar.
+    const admin = createSupabaseAdmin();
+    const { count } = await admin
+      .from("prestamos")
+      .select("*", { count: "exact", head: true })
+      .eq("cliente_id", input.clienteId)
+      .eq("estado", "activo");
+    if ((count ?? 1) > 1) {
+      await admin.from("prestamos").delete().eq("id", res.prestamoId).eq("pagado_acum", 0);
+      await registrarAuditoria(db, {
+        actorId: u.id,
+        actorNombre: u.nombre,
+        accion: "Venta desde la calle deshecha (carrera de doble crédito)",
+        entidad: "cliente",
+        entidadId: input.clienteId,
+        detalle: `${UYU(monto)} × ${totalDias}: el cliente ya tenía otro crédito activo creándose a la vez.`,
+      });
+      return {
+        ok: false,
+        error: "Se estaba creando OTRO crédito para este cliente al mismo tiempo. Mirá su ficha antes de reintentar.",
+      };
+    }
     await registrarAuditoria(db, {
       actorId: u.id,
       actorNombre: u.nombre,

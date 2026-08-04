@@ -35,24 +35,59 @@ function fHora(iso: string): string {
 
 export const dynamic = "force-dynamic";
 
+// Día vecino de un "YYYY-MM-DD" (aritmética UTC, sin DST — Uruguay no tiene).
+const diaVecino = (ymd: string, delta: number) =>
+  new Date(new Date(`${ymd}T00:00:00Z`).getTime() + delta * 86400000).toISOString().slice(0, 10);
+
 export default async function ComisionesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ periodo?: string }>;
+  searchParams: Promise<{ periodo?: string; ref?: string }>;
 }) {
   // Gestores: el supervisor VE las comisiones de los cobradores; FIJAR la tasa y
   // LIQUIDAR (egreso de caja) queda para el admin (las acciones exigen esAdmin en
   // el server, y la tabla oculta esos botones si no es admin — ver puedeGestionar).
   const usuario = await requireGestor();
+  const sp = await searchParams;
   // La comisión se liquida por QUINCENA (decisión 08-05): sin querystring, la
   // pantalla abre en la quincena en curso. Las otras cadencias siguen a un toque.
-  const periodo = normalizarPeriodo((await searchParams).periodo ?? "quincena");
+  const periodo = normalizarPeriodo(sp.periodo ?? "quincena");
   const db = await createSupabaseServer();
-  const [r, historial] = await conTimeout(
-    Promise.all([getComisionesPeriodo(db, periodo), getHistorialLiquidaciones(db)]),
+
+  // ?ref=YYYY-MM-DD → mirar (y poder LIQUIDAR) el período que CONTIENE ese día.
+  // Sin esto, un período cerrado era inalcanzable: a la medianoche del cierre la
+  // clave rotaba y la quincena vencida no se podía pagar nunca. La flecha
+  // "‹ anterior" navega período a período hacia atrás.
+  const hoyStr = toIso(hoyUY());
+  const refRaw = /^\d{4}-\d{2}-\d{2}$/.test(sp.ref ?? "") ? sp.ref! : null;
+  const refStr = refRaw && refRaw < hoyStr ? refRaw : null;
+  let r = await conTimeout(
+    getComisionesPeriodo(db, periodo, refStr ? new Date(`${refStr}T23:59:59.999-03:00`) : new Date()),
     TOPE_MS,
     "admin.comisiones",
   );
+  // Normalizar el ancla al PERÍODO completo: si el ref cayó a mitad de un período
+  // cerrado se re-ancla a su último día (verlo entero = lo que liquidaría el
+  // server); si el período del ref es el ACTUAL, se mira en vivo (hasta ahora).
+  const rangoTeo = rangoDePeriodoKey(r.periodoKey);
+  if (refStr && rangoTeo) {
+    if (rangoTeo.hasta >= hoyStr) {
+      r = await conTimeout(getComisionesPeriodo(db, periodo), TOPE_MS, "admin.comisiones");
+    } else if (refStr !== rangoTeo.hasta) {
+      r = await conTimeout(
+        getComisionesPeriodo(db, periodo, new Date(`${rangoTeo.hasta}T23:59:59.999-03:00`)),
+        TOPE_MS,
+        "admin.comisiones",
+      );
+    }
+  }
+  const historial = await conTimeout(getHistorialLiquidaciones(db), TOPE_MS, "admin.comisiones.historial");
+  // Navegación: el rango REAL del período mostrado (recalculado tras normalizar).
+  const rangoNav = rangoDePeriodoKey(r.periodoKey);
+  const refAnterior = rangoNav ? diaVecino(rangoNav.desde, -1) : null;
+  const esPasado = !!rangoNav && rangoNav.hasta < hoyStr;
+  const refSiguiente = esPasado && rangoNav ? diaVecino(rangoNav.hasta, 1) : null;
+  const conRef = (base: string, ref: string | null) => (ref ? `${base}&ref=${ref}` : base);
   const puedeGestionar = esAdmin(usuario.rol);
   // "A liquidar" = solo lo PENDIENTE (los ya liquidados no se vuelven a pagar).
   const aLiquidar = r.filas.filter((f) => !f.liquidado).reduce((s, f) => s + f.comision, 0);
@@ -67,12 +102,32 @@ export default async function ComisionesPage({
   return (
     <div className="mx-auto flex max-w-[720px] flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-1">
           <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">Comisiones</h1>
-          <span className="text-[13px] font-medium text-gris">
-            {r.etiqueta} · del <b className="text-cuerpo">{fCorta(r.desde)}</b> al{" "}
-            <b className="text-cuerpo">{fCorta(r.hasta)}</b> · {r.totalCobros} cobro(s).
-          </span>
+          {/* Navegar período a período: los CERRADOS también se liquidan (fix 08-05). */}
+          <div className="flex items-center gap-2">
+            {refAnterior && (
+              <Link
+                href={conRef(`/admin/comisiones?periodo=${periodo}`, refAnterior)}
+                className="rounded-full border border-borde bg-tarjeta px-2.5 py-1 text-[12px] font-bold text-gris hover:text-tinta"
+              >
+                ‹ anterior
+              </Link>
+            )}
+            <span className="text-[13px] font-medium text-gris">
+              {esPasado && <b className="mr-1 rounded bg-suave px-1.5 py-0.5 text-[11px] font-bold text-tinta uppercase">cerrado</b>}
+              {r.etiqueta} · del <b className="text-cuerpo">{fCorta(r.desde)}</b> al{" "}
+              <b className="text-cuerpo">{fCorta(r.hasta)}</b> · {r.totalCobros} cobro(s).
+            </span>
+            {refSiguiente && (
+              <Link
+                href={conRef(`/admin/comisiones?periodo=${periodo}`, refSiguiente)}
+                className="rounded-full border border-borde bg-tarjeta px-2.5 py-1 text-[12px] font-bold text-gris hover:text-tinta"
+              >
+                siguiente ›
+              </Link>
+            )}
+          </div>
         </div>
         <div className="flex rounded-full bg-suave p-0.5">
           {PERIODOS.map((p) => {

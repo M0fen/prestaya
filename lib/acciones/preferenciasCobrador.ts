@@ -11,7 +11,6 @@
 //  de `asignaciones`/`usuarios` NO se abre al navegador.
 // ─────────────────────────────────────────────────────────────────────────
 import { revalidatePath } from "next/cache";
-import { createSupabaseServer } from "@/lib/supabase/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getUsuarioActual } from "@/lib/auth";
 
@@ -33,38 +32,19 @@ export async function guardarOrdenRuta(input: { clienteIds: string[] }): Promise
   if (ids.length === 0) return { ok: false, error: "No hay clientes para ordenar." };
   if (ids.length > 500) return { ok: false, error: "Demasiados clientes." };
 
-  // Asignaciones propias y activas (RLS: solo ve las suyas) → el mapa de qué
-  // fila corresponde a cada cliente. Un id que no aparezca acá NO es suyo.
-  const db = await createSupabaseServer();
-  const { data: asig, error } = await db
-    .from("asignaciones")
-    .select("id, cobrador_id, cliente_id, activo")
-    .eq("activo", true)
-    .in("cliente_id", ids);
-  if (error) return { ok: false, error: "No se pudo leer tu ruta. Probá de nuevo." };
-  const filaDe = new Map((asig ?? []).map((a) => [a.cliente_id as string, a]));
-
-  // Posición = índice en la lista enviada. Un solo upsert (con TODAS las columnas
-  // NOT NULL presentes, para que el INSERT implícito nunca choque; las filas ya
-  // existen → solo se actualiza `orden`).
-  const filas = ids
-    .map((cid, i) => {
-      const a = filaDe.get(cid);
-      if (!a) return null;
-      return {
-        id: a.id as string,
-        cobrador_id: a.cobrador_id as string,
-        cliente_id: cid,
-        activo: true,
-        orden: i + 1,
-      };
-    })
-    .filter((x): x is NonNullable<typeof x> => x !== null);
-  if (filas.length === 0) return { ok: false, error: "Esos clientes no están en tu ruta." };
-
+  // RPC atómica (0133): UPDATE de `orden` SOLO sobre asignaciones ACTIVAS del
+  // PROPIO cobrador (el id de sesión va como parámetro; el navegador no elige).
+  // Se reemplazó el upsert original: si la oficina desactivaba/borraba una
+  // asignación entre el fetch y el guardado, el upsert la RE-ACTIVABA/RE-CREABA
+  // (un cobrador "recuperando" en silencio un cliente que le sacaron). La RPC
+  // no crea ni reactiva nada: lo que ya no es suyo, simplemente no se toca.
   const admin = createSupabaseAdmin();
-  const { error: eUp } = await admin.from("asignaciones").upsert(filas, { onConflict: "id" });
-  if (eUp) return { ok: false, error: "No se pudo guardar el orden. Probá de nuevo." };
+  const { data: n, error: eRpc } = await admin.rpc("app_guardar_orden_ruta", {
+    p_cobrador: u.id,
+    p_clientes: ids,
+  });
+  if (eRpc) return { ok: false, error: "No se pudo guardar el orden. Probá de nuevo." };
+  if (Number(n ?? 0) === 0) return { ok: false, error: "Esos clientes no están en tu ruta." };
 
   revalidatePath("/cobrador");
   return { ok: true };

@@ -270,6 +270,13 @@ async function Detalle({
       {compromiso && <CompromisoCarton compromiso={compromiso} />}
 
       <RegistroCobro
+        // key POR CRÉDITO: al cambiar de crédito con ?credito= (misma ruta, soft
+        // navigation) el componente conservaba TODO su estado — botón "Sí, cobrar"
+        // armado, nCuotas del stepper y hoyCobrado del OTRO crédito. Un tap
+        // cobraba N cuotas del crédito equivocado con confirmación ajena. El key
+        // fuerza remount limpio (y la rehidratación re-deriva hoyCobrado del
+        // crédito correcto desde la cola offline).
+        key={prestamo.id}
         clienteId={clienteId}
         prestamoId={prestamo.id}
         clienteNombre={cliente?.nombre ?? ""}

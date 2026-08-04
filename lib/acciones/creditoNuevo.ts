@@ -64,8 +64,10 @@ export async function crearCreditoNuevo(input: {
   const monto = Math.round(Number(input.monto));
   const totalDias = Math.round(Number(input.totalDias));
   if (!Number.isFinite(monto) || monto <= 0) return { ok: false, error: "Revisá el monto." };
-  if (!Number.isInteger(totalDias) || totalDias <= 0)
-    return { ok: false, error: "La cantidad de cuotas debe ser un entero mayor a 0." };
+  // Tope superior 366 (auditoría 08-05): un totalDias absurdo pulveriza la cuota
+  // (round → $1) y el total del crédito queda por debajo del capital prestado.
+  if (!Number.isInteger(totalDias) || totalDias <= 0 || totalDias > 366)
+    return { ok: false, error: "La cantidad de cuotas debe ser un entero entre 1 y 366." };
   if (!FRECUENCIAS.includes(input.frecuencia)) return { ok: false, error: "Frecuencia inválida." };
   // CAP total DURO (money-critical), idéntico al de la renovación.
   if (monto > RENOVACION_CAP_TOTAL)

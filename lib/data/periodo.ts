@@ -123,7 +123,11 @@ export async function getResumenPeriodo(
   const ahoraMs = hoy.getTime();
   const transcurrido = Math.max(0, ahoraMs - inicioMs);
   const prevInicioMs = Date.parse(isoUY(prev));
-  const prevFinMs = prevInicioMs + transcurrido;
+  // La ventana previa se CAPA al inicio del período actual: con períodos de
+  // distinta longitud (2ª quincena de 16 días vs 1ª de 15, febrero vs enero) el
+  // "previo + transcurrido" desbordaba hacia el período ACTUAL y la comparación
+  // contaba recaudo de hoy como si fuera de ayer.
+  const prevFinMs = Math.min(prevInicioMs + transcurrido, inicioMs);
 
   // Buckets vacíos de la serie interna del período actual.
   const horaActualUY = partesUY(hoy.toISOString()).h;

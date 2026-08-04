@@ -10,6 +10,8 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { reportarError } from "@/lib/observabilidad";
 import { getUsuarioActual, esAdmin } from "@/lib/auth";
 import { setComisionPctDb, getComisionesPeriodo, rangoDePeriodoKey, rangoDeRangoPg, rangosSeSolapan, rangoPgDePeriodo } from "@/lib/data/comisiones";
+import { hoyUY } from "@/lib/fecha";
+import { toIso } from "@/lib/format";
 import { columnaFaltante } from "@/lib/data/errores";
 import type { Periodo } from "@/lib/data/periodo";
 import { registrarMovimientoCaja, existeMovimientoPorOpId } from "@/lib/data/caja";
@@ -74,7 +76,23 @@ export async function liquidarComision(input: {
   // y se recalcula la comisión autoritativa (recaudo del período × pct, dueño de ruta).
   const periodo = (input.periodoKey.split(":")[0] ?? "") as Periodo;
   if (!PERIODOS.includes(periodo)) return { ok: false, error: "Período inválido." };
-  const resumen = await getComisionesPeriodo(db, periodo);
+  // ANCLA TEMPORAL desde la CLAVE (no desde "ahora"): antes se recomputaba con
+  // new Date() → a la medianoche del día 16 la clave rotaba a la quincena nueva
+  // y la quincena RECIÉN CERRADA quedaba IMPOSIBLE de liquidar para siempre
+  // (sub-pago estructural, justo cuando el UI aconseja "esperar al cierre").
+  // Ahora: si el período de la clave YA CERRÓ, se recomputa parados en su último
+  // instante (día UY completo) → la clave coincide y se paga el período ENTERO.
+  // La clave sigue siendo canónica y validada contra el recomputo server-side.
+  const rangoClave = rangoDePeriodoKey(input.periodoKey);
+  if (!rangoClave) return { ok: false, error: "Período inválido." };
+  const hoyStr = toIso(hoyUY());
+  if (rangoClave.desde > hoyStr)
+    return { ok: false, error: "Ese período todavía no empezó." };
+  const ancla =
+    rangoClave.hasta < hoyStr
+      ? new Date(`${rangoClave.hasta}T23:59:59.999-03:00`) // fin del día UY del cierre
+      : new Date(); // período en curso → hasta ahora (conducta de siempre)
+  const resumen = await getComisionesPeriodo(db, periodo, ancla);
   if (resumen.periodoKey !== input.periodoKey)
     return { ok: false, error: "El período cambió. Recargá la página y volvé a intentar." };
   // No liquidar sobre una base DEGRADADA: `recaudoPorRuta` devuelve null ante CUALQUIER

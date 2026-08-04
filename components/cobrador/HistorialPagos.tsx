@@ -134,6 +134,7 @@ export function HistorialPagos({ pagos }: { pagos: PagoHistorial[] }) {
                       value={motivo}
                       onChange={(e) => setMotivo(e.target.value)}
                       rows={2}
+                      maxLength={300}
                       placeholder="Ej.: el monto correcto es $500, tipeé de más."
                       className="rounded-[10px] border border-[#DCE3F4] bg-white px-3 py-2 text-[16px] outline-none focus:border-azul"
                     />

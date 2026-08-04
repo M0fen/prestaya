@@ -300,7 +300,9 @@ export async function solicitarAnulacionAction(input: {
 }): Promise<Resultado> {
   const ctx = await actorYUsuario();
   if (!ctx) return { ok: false, error: "Sesión no válida." };
-  const motivo = (input.motivo ?? "").trim();
+  // Tope de 300: el insert va con service_role y sin cap un motivo de megabytes
+  // quedaba entero en la bandeja del gestor / motivo_anulacion / auditoría.
+  const motivo = (input.motivo ?? "").trim().slice(0, 300);
   if (motivo.length < 3) return { ok: false, error: "Escribí el motivo de la solicitud." };
 
   const db = await createSupabaseServer();

@@ -117,7 +117,11 @@ export function RegistroCobro({
   // descartar son fricción. El modal queda para ABONOS y para cobros NO guardados.
   const [modalAbierto, setModalAbierto] = useState(false);
   // Op recién encolada, para poder deshacerla desde el comprobante durante el hold.
-  const [undo, setUndo] = useState<{ opId: string; hasta: number } | null>(null);
+  // `hoyCobradoAntes` = cómo estaba el candado ANTES de ese cobro: deshacer un
+  // ADELANTO no debe soltar el candado que ganó el PRIMER cobro del día (si lo
+  // soltara, el CTA verde volvería idéntico y un re-tap cobraría la cuota de
+  // hoy DE NUEVO — el doble-cobro que este candado existe para impedir).
+  const [undo, setUndo] = useState<{ opId: string; hasta: number; hoyCobradoAntes: boolean } | null>(null);
   // Tras un cobro, el botón principal queda en "Cobro registrado ✓" durante el hold:
   // el cobrador ve el efecto y no re-toca por falta de feedback (un 2º toque encolaría
   // OTRA cuota con otro op_id → doble cobro). Se libera al vencer el hold o al deshacer.
@@ -176,13 +180,19 @@ export function RegistroCobro({
   const montoSeleccion =
     nCuotas <= 1 ? cuotaEfectiva : Math.min(Math.round(cuota * nCuotas), saldoRedondeado);
 
+  const armadoEn = useRef(0);
   const tocarCobrar = () => {
     if (!confirmarCobro) {
       setConfirmarCobro(true);
+      armadoEn.current = Date.now();
       if (confirmarTimer.current) clearTimeout(confirmarTimer.current);
       confirmarTimer.current = setTimeout(() => setConfirmarCobro(false), 6000);
       return;
     }
+    // Refractario: un DOBLE-TAP accidental (dos toques en <650 ms) atravesaba la
+    // confirmación como si fuera un solo gesto — justo el escenario del que la
+    // confirmación protege. El segundo toque tiene que ser un gesto SEPARADO.
+    if (Date.now() - armadoEn.current < 650) return;
     if (confirmarTimer.current) clearTimeout(confirmarTimer.current);
     setConfirmarCobro(false);
     cobrar(nCuotas <= 1 ? null : montoSeleccion);
@@ -261,6 +271,9 @@ export function RegistroCobro({
     const esAbono = m != null && m < cuota;
     const { offline, op, persistido } = registrar("pago", { monto: m, motivo: null });
     vibrar(18);
+    // Snapshot del candado ANTES de este cobro (para que "deshacer" lo RESTAURE,
+    // no lo borre: deshacer un adelanto no libera la cuota de hoy ya cobrada).
+    const hoyCobradoAntes = hoyCobrado;
     // Bloquea el botón principal por la ventana de hold (evita el doble-cobro por
     // re-tap cuando el celu tarda en refrescar). Se libera solo o al deshacer.
     if (cobroTimer.current) clearTimeout(cobroTimer.current);
@@ -277,13 +290,26 @@ export function RegistroCobro({
     // Avance en CUOTAS tras este pago: los pagos se imputan FIFO (a la cuota
     // pendiente más vieja), así que cada cuota completa cubre un día más y
     // descuenta una atrasada. Es el "lleva N de M" del recibo/WhatsApp.
-    const cuotasDeEstePago = cuota > 0 ? Math.floor(montoCobrado / cuota) : 0;
+    // Tolerancia sub-peso (+0,5, espejo del cartón): con cuota fraccionaria
+    // (351,04) el stepper manda round(351,04×3)=1053 y el floor "seco" contaba
+    // 2 cuotas — el recibo le mentía al cliente. Con la tolerancia cuenta 3.
+    const cuotasDeEstePago = cuota > 0 ? Math.floor((montoCobrado + 0.5) / cuota) : 0;
+    // Crédito SALDADO con este pago → el recibo dice la verdad completa (M de M,
+    // 0 atrasadas): el pago final capado al saldo puede ser < 1 cuota y sin esto
+    // el recibo mostraba "Saldo $0" junto a "1 atrasada" — combinación imposible.
+    const quedaSaldado = saldoRestante <= 0;
     const cubiertasDespues =
       cuotasCubiertas != null && totalCuotas
-        ? Math.min(totalCuotas, cuotasCubiertas + cuotasDeEstePago)
+        ? quedaSaldado
+          ? totalCuotas
+          : Math.min(totalCuotas, cuotasCubiertas + cuotasDeEstePago)
         : null;
     const atrasadasDespues =
-      cuotasAtrasadas != null ? Math.max(0, cuotasAtrasadas - cuotasDeEstePago) : null;
+      cuotasAtrasadas != null
+        ? quedaSaldado
+          ? 0
+          : Math.max(0, cuotasAtrasadas - cuotasDeEstePago)
+        : null;
     setComprobante({
       folio,
       clienteNombre,
@@ -302,7 +328,7 @@ export function RegistroCobro({
       noGuardado: !persistido,
     });
     const hasta = op.holdHasta ?? Date.now() + HOLD_MS;
-    setUndo({ opId: op.id, hasta });
+    setUndo({ opId: op.id, hasta, hoyCobradoAntes });
     // Abono o cobro NO guardado → abrir el comprobante (recibo del parcial / aviso
     // que hay que ver sí o sí). Cuota completa y guardada → SIN modal: toast liviano
     // con Deshacer + Recibo on-demand, durante la ventana de "Deshacer".
@@ -380,7 +406,10 @@ export function RegistroCobro({
     vibrar(30);
     if (cobroTimer.current) clearTimeout(cobroTimer.current);
     setCobroReciente(false); // deshecho: se puede volver a cobrar ya
-    setHoyCobrado(false);
+    // RESTAURAR (no borrar) el candado del día: si lo deshecho era un ADELANTO,
+    // la cuota de hoy sigue cobrada — soltar el candado acá reabría el CTA verde
+    // idéntico y un re-tap la cobraba de nuevo (doble-cobro).
+    setHoyCobrado(undo.hoyCobradoAntes);
     setConfirmarAdelanto(false);
     setConfirmarCobro(false);
     setUndo(null);

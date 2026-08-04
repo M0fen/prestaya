@@ -21,6 +21,7 @@ import { getControlCobranza, type RankingCobrador } from "@/lib/data/control";
 import { getRendicionesDia } from "@/lib/data/rendicion";
 import { getDesempenoRango, type DesempenoRango } from "@/lib/data/desempeno";
 import { contarSolicitudesGastoPendientes } from "@/lib/data/solicitudesGasto";
+import { getSolicitudesPendientes as getSolicitudesAnulacionPendientes } from "@/lib/data/anulaciones";
 import { getBitacoraGestorDia, type RegistroAuditoria } from "@/lib/data/auditoria";
 import { alcanceDelActor } from "@/lib/data/alcance";
 import { getAperturasDia } from "@/lib/data/aperturas";
@@ -256,8 +257,13 @@ export default async function JornadaPage({
   }).length;
   // Gastos de ruta esperando aprobación: el cobrador está parado esperando, así que
   // se surface en el hub del día. El supervisor también los VE (acotados a su zona);
-  // los aprueba el admin.
-  const gastosPend = await contarSolicitudesGastoPendientes(db, alcance.global ? null : alcance.cobradorIds);
+  // los aprueba el admin. Y las CORRECCIONES de cobro (solicitudes de anulación,
+  // incluidas las que ahora piden los cobradores, 08-05): acá el supervisor SÍ es
+  // el aprobador (doble registro) → tarjeta protagonista, no solo el badge del menú.
+  const [gastosPend, correccionesPend] = await Promise.all([
+    contarSolicitudesGastoPendientes(db, alcance.global ? null : alcance.cobradorIds),
+    getSolicitudesAnulacionPendientes(db, alcance).then((s) => s.length).catch(() => 0),
+  ]);
 
   // ── Estado del cierre (para el peak-end): ¿todas las zonas que puedo sellar ya
   //    están cerradas? + resumen del día para el Acto 3. ──
@@ -353,6 +359,34 @@ export default async function JornadaPage({
           </div>
           <span className="flex-shrink-0 text-[12px] font-bold text-ambar-osc">
             {usuario.rol === "admin" ? "Aprobar →" : "Ver →"}
+          </span>
+        </Link>
+      )}
+
+      {/* CORRECCIONES de cobro esperando AVAL (dinero): un cobrador o supervisor
+          pidió anular un pago mal cargado. Acá el supervisor SÍ es aprobador
+          (doble registro: la confirma alguien distinto de quien la pidió). */}
+      {correccionesPend > 0 && (
+        <Link
+          href="/admin/anulaciones"
+          className="flex items-center justify-between gap-2 rounded-[14px] border border-[#F3C0B8] bg-[#FDF1F0] px-4 py-3 hover:brightness-[0.98]"
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="text-[18px]">🚫</span>
+            <div className="flex flex-col">
+              <span className="text-[13px] font-extrabold text-tinta">
+                {correccionesPend === 1
+                  ? "1 corrección de cobro espera tu aval"
+                  : `${correccionesPend} correcciones de cobro esperan tu aval`}
+              </span>
+              <span className="text-[11.5px] font-medium text-gris">
+                Alguien reportó un pago mal cargado. Vos sos la segunda firma: revisá el
+                motivo y confirmá o rechazá. El pago nunca se borra, queda anulado con traza.
+              </span>
+            </div>
+          </div>
+          <span className="flex-shrink-0 rounded-full bg-[#D64545] px-3 py-1.5 text-[12px] font-bold text-white">
+            Avalar →
           </span>
         </Link>
       )}

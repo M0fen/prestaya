@@ -3,7 +3,7 @@
 // asignado a él). Captura el GPS de la casa: es el ANCLA de la geo-cerca de TODOS
 // los cobros futuros del cliente, así que se captura SOLA al abrir (antes era un
 // botón manual y el camino más común dejaba el ancla en null) con su precisión.
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { relevarCliente } from "@/app/cobrador/(app)/actions";
@@ -56,8 +56,16 @@ export default function CensarPage() {
   const [ubicando, setUbicando] = useState(false);
   const [foto, setFoto] = useState<string | null>(null);
   // Confirmación de alta SIN foto (opcional desde 08-05): el primer intento
-  // avisa; el segundo guarda igual.
+  // avisa; el segundo guarda igual. Se DESARMA sola a los 8 s (mismo criterio
+  // que la confirmación de cobro): armada para siempre, un tap distraído
+  // minutos después creaba el alta sin el aviso fresco.
   const [sinFotoOk, setSinFotoOk] = useState(false);
+  const sinFotoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const armarSinFoto = () => {
+    setSinFotoOk(true);
+    if (sinFotoTimer.current) clearTimeout(sinFotoTimer.current);
+    sinFotoTimer.current = setTimeout(() => setSinFotoOk(false), 8000);
+  };
 
   const capturarGps = async () => {
     setUbicando(true);
@@ -88,7 +96,7 @@ export default function CensarPage() {
       // sigue siendo lo recomendado, pero un cliente que no quiere foto ya no
       // traba el alta.
       if (!foto && !sinFotoOk) {
-        setSinFotoOk(true);
+        armarSinFoto();
         return;
       }
       try {
