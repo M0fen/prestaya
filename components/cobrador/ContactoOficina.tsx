@@ -5,6 +5,8 @@ import { enlaceSoporte, SOPORTE_TEL, SOPORTE_WHATSAPP } from "@/lib/soporte";
 
 export function ContactoOficina() {
   const soporte = enlaceSoporte("Hola, soy cobrador de Presta Ya y necesito ayuda con:");
+  // Sin canal configurado, la tarjeta no aparece (jamás un número inventado).
+  if (!soporte) return null;
 
   return (
     <a
@@ -36,5 +38,5 @@ export function ContactoOficina() {
   );
 }
 
-/** Solo para saber si mostrar la sección (siempre hay al menos el tel de oficina). */
+/** ¿Hay algún canal de soporte configurado? (si no, la sección no se muestra). */
 export const HAY_SOPORTE = Boolean(SOPORTE_WHATSAPP || SOPORTE_TEL);

@@ -216,7 +216,7 @@ export async function deshacerPagoAction(input: { pagoId: string }): Promise<Res
   // real pero NO son un cobro suyo de hace un rato: deshacerlos rompe el espejo
   // con Disapp. Solo se deshace trabajo hecho EN LA APP (origen null).
   if ((pago.origen as string | null) != null)
-    return { ok: false, error: "Ese es un registro de oficina (migración): no se deshace desde acá." };
+    return { ok: false, error: "Ese registro lo cargó la oficina: no se deshace desde acá." };
 
   // Autorización: SOLO quien lo registró, y SOLO dentro de la ventana de 1 h.
   if (pago.registrado_por !== u.id)

@@ -22,11 +22,15 @@ export interface EnlaceSoporte {
   esWhatsApp: boolean;
 }
 
-/** Mejor enlace de soporte disponible: WhatsApp si está configurado, si no `tel:`. */
-export function enlaceSoporte(texto?: string): EnlaceSoporte {
+/** Mejor enlace de soporte disponible: WhatsApp si está configurado, si no `tel:`
+ *  al teléfono real de la oficina. `null` si NO hay ningún canal configurado —
+ *  la UI esconde el botón (antes caía a un teléfono de ejemplo hardcodeado y el
+ *  botón de ayuda marcaba un número que no era de nadie). */
+export function enlaceSoporte(texto?: string): EnlaceSoporte | null {
   if (SOPORTE_WHATSAPP) {
     const msg = texto ? `?text=${encodeURIComponent(texto)}` : "";
     return { href: `https://wa.me/${SOPORTE_WHATSAPP}${msg}`, esWhatsApp: true };
   }
-  return { href: `tel:${SOPORTE_TEL.replace(/\s/g, "")}`, esWhatsApp: false };
+  if (SOPORTE_TEL) return { href: `tel:${SOPORTE_TEL.replace(/\s/g, "")}`, esWhatsApp: false };
+  return null;
 }

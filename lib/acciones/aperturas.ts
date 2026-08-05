@@ -73,3 +73,65 @@ export async function setApertura(input: {
     return { ok: false, error: "No se pudo fijar la base. Probá de nuevo." };
   }
 }
+
+/**
+ * Fija las bases de VARIOS cobradores de una (decisión 08-05): cargar 14 bases
+ * eran 14 taps con 14 recargas de la página pesada de la jornada. Misma lógica
+ * y guardas que setApertura (gestor, kill-switch, base sellada tras rendir),
+ * pero UNA sesión, UNA auditoría-resumen y UN revalidate.
+ */
+export async function setAperturasLote(input: {
+  items: { cobradorId: string; base: number }[];
+}): Promise<
+  | { ok: true; guardadas: number; rechazadas: { cobradorId: string; error: string }[] }
+  | { ok: false; error: string }
+> {
+  const u = await getUsuarioActual();
+  if (!u || !u.activo || !esGestor(u.rol)) return { ok: false, error: "No tenés permisos." };
+  const bloqueo = await bloqueoSoloLectura();
+  if (bloqueo) return bloqueo;
+  const items = (input.items ?? []).filter((x) => esUuid(x.cobradorId)).slice(0, 60);
+  if (items.length === 0) return { ok: false, error: "No hay bases para guardar." };
+
+  const db = await createSupabaseServer();
+  const hoy = fechaISOUY();
+  // Rendidos de HOY en una sola consulta (base sellada, misma regla que arriba).
+  const { data: rendidos } = await db
+    .from("rendiciones")
+    .select("cobrador_id")
+    .eq("fecha", hoy)
+    .in("cobrador_id", items.map((x) => x.cobradorId));
+  const sellados = new Set((rendidos ?? []).map((r) => r.cobrador_id as string));
+
+  let guardadas = 0;
+  let total = 0;
+  const rechazadas: { cobradorId: string; error: string }[] = [];
+  for (const it of items) {
+    if (sellados.has(it.cobradorId)) {
+      rechazadas.push({ cobradorId: it.cobradorId, error: "Ya cerró su jornada: base sellada." });
+      continue;
+    }
+    const base = Math.max(0, Math.min(1_000_000, Math.round(Number(it.base) || 0)));
+    try {
+      await setAperturaDb(db, { cobradorId: it.cobradorId, base, entregadaPor: u.id, nota: null });
+      guardadas += 1;
+      total += base;
+    } catch {
+      rechazadas.push({ cobradorId: it.cobradorId, error: "No se pudo guardar." });
+    }
+  }
+  if (guardadas > 0) {
+    await registrarAuditoria(db, {
+      actorId: u.id,
+      actorNombre: u.nombre,
+      accion: "Fijó las bases de caja del día",
+      entidad: "caja",
+      entidadId: u.id,
+      detalle: `${guardadas} cobrador${guardadas === 1 ? "" : "es"} · total ${UYU(total)}`,
+    });
+    revalidatePath("/admin/jornada");
+    revalidatePath("/admin");
+    revalidatePath("/cobrador");
+  }
+  return { ok: true, guardadas, rechazadas };
+}

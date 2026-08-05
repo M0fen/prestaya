@@ -233,7 +233,7 @@ export function GestionZonas({
           </div>
           <p className="text-[11px] leading-[1.6] font-medium text-tenue">
             Sin zonas marcadas, el supervisor ve toda la operación (compatibilidad). Al marcarle la
-            primera zona, pasa a ver solo esa. La restricción es real: la aplica la base (RLS), no solo la pantalla.
+            primera zona, pasa a ver solo esa. La restricción es real: la aplica la base de datos, no solo la pantalla.
           </p>
         </section>
       )}

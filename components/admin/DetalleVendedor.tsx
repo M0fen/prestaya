@@ -91,7 +91,7 @@ export function DetalleVendedor({
 
         {/* Detalle */}
         <dl className="mt-4 flex flex-col divide-y divide-linea">
-          <Fila k="ID (Ref Disapp)" v={m.refDisapp ?? "—"} />
+          <Fila k="ID (sistema anterior)" v={m.refDisapp ?? "—"} />
           <Fila k="Documento" v={m.documento ?? "—"} />
           <Fila k="Teléfono" v={m.telefono ?? "—"} />
           <Fila k="Rol" v={m.esDev ? "Desarrollador" : ETIQUETA_ROL[m.rol]} />

@@ -30,8 +30,8 @@ export function CierrePorZona({
       <section className="rounded-[16px] border border-borde bg-tarjeta p-4">
         <span className="text-[13px] font-bold text-tinta">Cierre por zona</span>
         <p className="mt-1.5 text-[12.5px] font-medium text-gris">
-          Para habilitar el cierre de jornada, corré la migración{" "}
-          <code className="rounded bg-suave px-1 font-mono text-[11.5px]">0013_rendiciones.sql</code>.
+          El cierre de jornada necesita una actualización del sistema que todavía no se
+          aplicó. Avisale a Carlos (ref: 0013) — el resto del panel funciona normal.
         </p>
       </section>
     );

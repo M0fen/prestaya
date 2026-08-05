@@ -97,6 +97,9 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
   const [editando, setEditando] = useState<string[] | null>(null);
   const [guardando, startGuardar] = useTransition();
   const [errorOrden, setErrorOrden] = useState<string | null>(null);
+  // Buscador DENTRO del editor (QA 08-05): con 97 clientes, llevar al del fondo
+  // a la primera parada eran decenas de taps. Buscás, ⏫ y listo.
+  const [qEdit, setQEdit] = useState("");
   const router = useRouter();
   const [estadoGeo, setEstadoGeo] = useState<"idle" | "pidiendo" | "ok" | "no">("idle");
   const [verTodos, setVerTodos] = useState(false);
@@ -247,6 +250,13 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
   };
 
   if (editando) {
+    const buscandoEdit = qEdit.trim().length > 0;
+    const visiblesEdit = buscandoEdit
+      ? editando.filter((id) => {
+          const it = itemDe.get(id);
+          return it && norm(`${it.nombre ?? ""} ${it.direccion ?? ""}`).includes(norm(qEdit));
+        })
+      : editando;
     return (
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2 px-0.5">
@@ -257,10 +267,24 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
             </span>
           </div>
         </div>
+        {/* Buscar y mandar al principio: la forma rápida de armar el recorrido. */}
+        <input
+          type="search"
+          value={qEdit}
+          onChange={(e) => setQEdit(e.target.value)}
+          placeholder="🔍 Buscá un cliente y mandalo al principio…"
+          className="rounded-[12px] border border-[#DCE3F4] bg-white px-3.5 py-2.5 text-[16px] outline-none focus:border-azul"
+        />
+        {buscandoEdit && visiblesEdit.length === 0 && (
+          <p className="px-0.5 py-2 text-center text-[12px] font-medium text-[#8A93AD]">
+            Nadie coincide con “{qEdit}”.
+          </p>
+        )}
         <div className="flex flex-col gap-1.5">
-          {editando.map((id, idx) => {
+          {visiblesEdit.map((id) => {
             const it = itemDe.get(id);
             if (!it) return null;
+            const idx = editando.indexOf(id);
             return (
               <div
                 key={id}
@@ -275,34 +299,43 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
                     {it.direccion ?? "Sin dirección"}
                   </span>
                 </div>
-                {idx > 1 && (
+                {idx > 0 && (
                   <button
                     type="button"
-                    onClick={() => alPrincipio(id)}
+                    onClick={() => {
+                      alPrincipio(id);
+                      setQEdit(""); // volver a la lista completa: se lo ve arriba de todo
+                    }}
                     aria-label="Mover al principio"
                     className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[10px] bg-[#EEF3FF] text-[14px] font-black text-azul active:scale-95"
                   >
                     ⏫
                   </button>
                 )}
-                <button
-                  type="button"
-                  onClick={() => mover(id, -1)}
-                  disabled={idx === 0}
-                  aria-label="Subir"
-                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[10px] bg-[#EEF1F8] text-[15px] font-black text-tinta active:scale-95 disabled:opacity-30"
-                >
-                  ↑
-                </button>
-                <button
-                  type="button"
-                  onClick={() => mover(id, 1)}
-                  disabled={idx === editando.length - 1}
-                  aria-label="Bajar"
-                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[10px] bg-[#EEF1F8] text-[15px] font-black text-tinta active:scale-95 disabled:opacity-30"
-                >
-                  ↓
-                </button>
+                {/* Con búsqueda activa, ↑/↓ mueven de a un lugar en la lista COMPLETA
+                    (invisible) — confunde. Solo ⏫ mientras se busca. */}
+                {!buscandoEdit && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => mover(id, -1)}
+                      disabled={idx === 0}
+                      aria-label="Subir"
+                      className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[10px] bg-[#EEF1F8] text-[15px] font-black text-tinta active:scale-95 disabled:opacity-30"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => mover(id, 1)}
+                      disabled={idx === editando.length - 1}
+                      aria-label="Bajar"
+                      className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[10px] bg-[#EEF1F8] text-[15px] font-black text-tinta active:scale-95 disabled:opacity-30"
+                    >
+                      ↓
+                    </button>
+                  </>
+                )}
               </div>
             );
           })}

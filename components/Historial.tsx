@@ -6,7 +6,15 @@ import type { HistorialItem } from "@/types/cartones";
 
 // Colapsado se ven 2 pagos completos + un pedazo del 3ero (recorte + degradado),
 // para ahorrar espacio; "Ver más" despliega el resto.
-export function Historial({ historial }: { historial: HistorialItem[] }) {
+export function Historial({
+  historial,
+  unidadOrd = "Día",
+}: {
+  historial: HistorialItem[];
+  /** "Día" / "Semana" / "Quincena" / "Mes" según la frecuencia del crédito
+   *  (QA 08-05: el badge decía "Día 3" en un crédito semanal). */
+  unidadOrd?: string;
+}) {
   const [abierto, setAbierto] = useState<number | null>(null);
   const [verTodos, setVerTodos] = useState(false);
 
@@ -62,7 +70,7 @@ export function Historial({ historial }: { historial: HistorialItem[] }) {
                 <div className="flex items-center gap-3">
                   <div className="flex h-[38px] w-[38px] flex-shrink-0 flex-col items-center justify-center rounded-[11px] border border-[#EAEEF8] bg-[#F2F5FC] leading-none">
                     <span className="text-[9px] font-bold tracking-[0.02em] text-[#8A93AD] uppercase">
-                      Día
+                      {unidadOrd}
                     </span>
                     <span className="text-[15px] font-extrabold text-tinta tabular-nums">
                       {pago.dia}

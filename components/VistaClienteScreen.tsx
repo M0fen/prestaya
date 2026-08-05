@@ -191,7 +191,7 @@ export function VistaClienteScreen({
         )}
 
         {/* Historial de pagos (con % de la cuota cubierto + descuento). */}
-        <Historial historial={v.historial} />
+        <Historial historial={v.historial} unidadOrd={v.unidad.ord} />
 
         {/* Reporte de discrepancia + recordatorio: solo con token (vista real). */}
         {token && <ReportarDiscrepancia token={token} prestamoId={prestamoId} />}

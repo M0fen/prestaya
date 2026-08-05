@@ -57,17 +57,25 @@ export interface Liquidacion {
   liquidadoEn: string;
 }
 
-/** Historial de comisiones ya liquidadas (más reciente primero). Vacío si falta 0049. */
+/** Historial de comisiones ya liquidadas (más reciente primero). Vacío si falta 0049.
+ *  `cobradorIds` acota al alcance del gestor (un supervisor NO ve los montos
+ *  liquidados de otras zonas — mismo recorte que ya tienen las anulaciones). */
 export async function getHistorialLiquidaciones(
   db: SupabaseClient,
   limite = 40,
+  cobradorIds?: string[] | null,
 ): Promise<Liquidacion[]> {
   try {
-    const { data, error } = await db
+    let q = db
       .from("comisiones_liquidadas")
       .select("id, cobrador_id, periodo_key, monto, liquidado_por_nombre, liquidado_en")
       .order("liquidado_en", { ascending: false })
       .limit(limite);
+    if (cobradorIds) {
+      if (cobradorIds.length === 0) return [];
+      q = q.in("cobrador_id", cobradorIds);
+    }
+    const { data, error } = await q;
     if (error) throw error;
     const rows = (data ?? []) as Record<string, unknown>[];
     const ids = [...new Set(rows.map((r) => r.cobrador_id as string).filter(Boolean))];

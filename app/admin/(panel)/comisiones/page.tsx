@@ -5,6 +5,7 @@ import { requireGestor, esAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getComisionesPeriodo, getHistorialLiquidaciones, etiquetaPeriodoKey, rangoDePeriodoKey } from "@/lib/data/comisiones";
 import { normalizarPeriodo, PERIODOS } from "@/lib/data/periodo";
+import { alcanceDelActor } from "@/lib/data/alcance";
 import { TablaComisiones } from "@/components/admin/TablaComisiones";
 import { conTimeout } from "@/lib/timeout";
 import { hoyUY } from "@/lib/fecha";
@@ -81,7 +82,14 @@ export default async function ComisionesPage({
       );
     }
   }
-  const historial = await conTimeout(getHistorialLiquidaciones(db), TOPE_MS, "admin.comisiones.historial");
+  // Historial acotado al ALCANCE del gestor: un supervisor no ve los montos
+  // liquidados de otras zonas (mismo recorte que anulaciones).
+  const alcance = await alcanceDelActor();
+  const historial = await conTimeout(
+    getHistorialLiquidaciones(db, 40, alcance.global ? null : alcance.cobradorIds),
+    TOPE_MS,
+    "admin.comisiones.historial",
+  );
   // Navegación: el rango REAL del período mostrado (recalculado tras normalizar).
   const rangoNav = rangoDePeriodoKey(r.periodoKey);
   const refAnterior = rangoNav ? diaVecino(rangoNav.desde, -1) : null;
@@ -149,9 +157,8 @@ export default async function ComisionesPage({
 
       {!r.disponible && (
         <p className="rounded-[12px] bg-ambar-suave px-3.5 py-2.5 text-[12.5px] font-medium text-ambar-osc">
-          Para fijar comisiones, corré la migración{" "}
-          <code className="rounded bg-tarjeta px-1 font-mono text-[11.5px]">0014_comisiones.sql</code>. Mientras
-          tanto la tasa queda en 0%.
+          Las comisiones necesitan una actualización del sistema que todavía no se aplicó.
+          Avisale a Carlos (ref: 0014) — mientras tanto la tasa queda en 0%.
         </p>
       )}
 

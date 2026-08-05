@@ -47,9 +47,8 @@ export default async function EstadisticasPage({
       <div className="mx-auto flex max-w-[900px] flex-col gap-4">
         <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">Estadísticas</h1>
         <p className="rounded-[14px] bg-[#FEF9EE] px-4 py-3 text-[13px] font-medium text-[#B7791F]">
-          Para habilitar el panel de estadísticas, corré la migración{" "}
-          <code className="rounded bg-tarjeta px-1 font-mono text-[11.5px]">0048_estadisticas_rpc.sql</code> en el
-          SQL Editor de Supabase. Mientras tanto el resto del panel funciona normal.
+          Las estadísticas necesitan una actualización del sistema que todavía no se aplicó.
+          Avisale a Carlos (ref: 0048) — el resto del panel funciona normal.
         </p>
       </div>
     );

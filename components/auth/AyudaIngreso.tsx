@@ -26,17 +26,23 @@ export function AyudaIngreso() {
       ) : (
         <div className="flex w-full flex-col items-center gap-2 rounded-[14px] border border-white/15 bg-white/5 px-4 py-3.5">
           <p className="text-[12.5px] font-medium text-white/75">
-            Escribile a la oficina y te ayudan con tu acceso.
+            {soporte
+              ? "Escribile a la oficina y te ayudan con tu acceso."
+              : "Avisale a tu supervisor o a la oficina y te ayudan con tu acceso."}
           </p>
-          <a
-            href={soporte.href}
-            target={soporte.esWhatsApp ? "_blank" : undefined}
-            rel={soporte.esWhatsApp ? "noopener noreferrer" : undefined}
-            className="inline-flex items-center gap-2 rounded-full bg-[#25D366] px-5 py-2.5 text-[13.5px] font-extrabold text-white active:scale-95"
-          >
-            <span aria-hidden="true">{soporte.esWhatsApp ? "💬" : "📞"}</span>
-            {soporte.esWhatsApp ? "Escribir por WhatsApp" : `Llamar a la oficina · ${SOPORTE_TEL}`}
-          </a>
+          {/* Sin canal configurado NO se muestra un botón que marque un número
+              inventado: el texto de arriba ya da la salida humana. */}
+          {soporte && (
+            <a
+              href={soporte.href}
+              target={soporte.esWhatsApp ? "_blank" : undefined}
+              rel={soporte.esWhatsApp ? "noopener noreferrer" : undefined}
+              className="inline-flex items-center gap-2 rounded-full bg-[#25D366] px-5 py-2.5 text-[13.5px] font-extrabold text-white active:scale-95"
+            >
+              <span aria-hidden="true">{soporte.esWhatsApp ? "💬" : "📞"}</span>
+              {soporte.esWhatsApp ? "Escribir por WhatsApp" : `Llamar a la oficina · ${SOPORTE_TEL}`}
+            </a>
+          )}
         </div>
       )}
     </div>

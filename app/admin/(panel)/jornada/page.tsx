@@ -29,6 +29,7 @@ import { BaseCajaManager, type CobradorBase } from "@/components/admin/BaseCajaM
 import { ActivarAvisos } from "@/components/pwa/ActivarAvisos";
 import { RankingPorZona } from "@/components/admin/RankingPorZona";
 import { conTimeout } from "@/lib/timeout";
+import { reportarError } from "@/lib/observabilidad";
 import { navVisible } from "@/lib/admin/nav";
 import { UYU, diasSemana, meses, horaDe } from "@/lib/format";
 import { fechaISOUY, sumarDiasYmd } from "@/lib/fecha";
@@ -199,11 +200,15 @@ export default async function JornadaPage({
   // panel); la escritura (setApertura) sí corre bajo la RLS del gestor.
   // Zona → nombre y zona → supervisor(es): tablas chicas, se leen SIEMPRE porque la
   // jerarquía la usan tanto la Base de caja (Apertura) como "Cobradores hoy" (En vivo).
-  const [zonasRes, supZonasRes, supsRes] = await Promise.all([
-    adminZ.from("zonas").select("id, nombre"),
-    adminZ.from("supervisor_zonas").select("supervisor_id, zona_id"),
-    adminZ.from("usuarios").select("id, nombre").eq("rol", "supervisor"),
-  ]);
+  const [zonasRes, supZonasRes, supsRes] = await conTimeout(
+    Promise.all([
+      adminZ.from("zonas").select("id, nombre"),
+      adminZ.from("supervisor_zonas").select("supervisor_id, zona_id"),
+      adminZ.from("usuarios").select("id, nombre").eq("rol", "supervisor"),
+    ]),
+    TOPE_MS,
+    "jornada.zonas",
+  );
   const zonaNombreMap: Record<string, string> = {};
   for (const z of zonasRes.data ?? []) zonaNombreMap[z.id as string] = z.nombre as string;
   const supN = new Map((supsRes.data ?? []).map((u) => [u.id as string, u.nombre as string]));
@@ -222,16 +227,26 @@ export default async function JornadaPage({
     const cobIds = alcance.global ? null : alcance.cobradorIds;
     let cq = adminZ.from("usuarios").select("id, nombre, zona_id").eq("rol", "cobrador").eq("activo", true);
     if (cobIds) cq = cobIds.length > 0 ? cq.in("id", cobIds) : cq.eq("id", "00000000-0000-0000-0000-000000000000");
-    const [cobsRes, bases] = await Promise.all([
-      cq.order("nombre", { ascending: true }),
-      getAperturasDia(db, hoy, cobIds),
-    ]);
+    // Base de AYER también: es el prellenado de "Usar las de ayer" (la base
+    // suele repetirse día a día — cargar 14 montos a mano cada mañana no).
+    const [cobsRes, bases, basesAyer] = await conTimeout(
+      Promise.all([
+        cq.order("nombre", { ascending: true }),
+        getAperturasDia(db, hoy, cobIds),
+        getAperturasDia(db, new Date(hoy.getTime() - 86_400_000), cobIds).catch(
+          () => new Map<string, number>(),
+        ),
+      ]),
+      TOPE_MS,
+      "jornada.bases",
+    );
     basesCobradores = (cobsRes.data ?? []).map((u) => ({
       id: u.id as string,
       nombre: u.nombre as string,
       zonaId: (u.zona_id as string | null) ?? null,
       zonaNombre: u.zona_id ? (zonaNombreMap[u.zona_id as string] ?? null) : null,
       base: bases.get(u.id as string) ?? 0,
+      baseAyer: basesAyer.get(u.id as string) ?? 0,
     }));
   }
 
@@ -260,10 +275,22 @@ export default async function JornadaPage({
   // los aprueba el admin. Y las CORRECCIONES de cobro (solicitudes de anulación,
   // incluidas las que ahora piden los cobradores, 08-05): acá el supervisor SÍ es
   // el aprobador (doble registro) → tarjeta protagonista, no solo el badge del menú.
-  const [gastosPend, correccionesPend] = await Promise.all([
-    contarSolicitudesGastoPendientes(db, alcance.global ? null : alcance.cobradorIds),
-    getSolicitudesAnulacionPendientes(db, alcance).then((s) => s.length).catch(() => 0),
-  ]);
+  const [gastosPend, correccionesPend] = await conTimeout(
+    Promise.all([
+      contarSolicitudesGastoPendientes(db, alcance.global ? null : alcance.cobradorIds),
+      getSolicitudesAnulacionPendientes(db, alcance)
+        .then((s) => s.length)
+        .catch((e) => {
+          // Si esta query falla, la tarjeta "esperan tu aval" desaparece en
+          // silencio y una corrección de plata queda colgada sin que nadie lo
+          // sepa. Se degrada igual (la jornada carga), pero con rastro.
+          reportarError("jornada.correccionesPendientes", e);
+          return 0;
+        }),
+    ]),
+    TOPE_MS,
+    "jornada.pendientes",
+  );
 
   // ── Estado del cierre (para el peak-end): ¿todas las zonas que puedo sellar ya
   //    están cerradas? + resumen del día para el Acto 3. ──

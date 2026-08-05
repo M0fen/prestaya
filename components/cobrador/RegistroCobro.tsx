@@ -440,7 +440,7 @@ export function RegistroCobro({
     <div className="flex flex-col gap-2.5">
       {!tieneGps && (
         <p className="text-[11.5px] font-medium text-[#8A93AD]">
-          Sin ubicación guardada del cliente: no se podrá validar la geo-cerca.
+          Este cliente no tiene ubicación guardada — al censarlo cerca de su casa queda registrada.
         </p>
       )}
 

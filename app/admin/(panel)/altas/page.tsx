@@ -33,8 +33,9 @@ export default async function AltasAdminPage() {
 
       {migracionPendiente ? (
         <p className="rounded-[14px] border border-[#F0E3C8] bg-[#FDF8EC] px-4 py-3 text-[13px] font-medium text-[#7A5B10]">
-          Falta correr la migración <b>0084</b> en el SQL Editor. Los cobradores ya pueden entregar
-          el QR igual; el avance se empieza a medir apenas corras la migración.
+          Esta medición necesita una actualización del sistema que todavía no se aplicó
+          (avisale a Carlos, ref: 0084). Los cobradores ya pueden entregar el QR igual; el
+          avance se empieza a medir apenas esté.
         </p>
       ) : totales.total === 0 ? (
         <p className="rounded-[14px] border border-borde bg-tarjeta px-4 py-6 text-center text-[13px] font-medium text-gris">
