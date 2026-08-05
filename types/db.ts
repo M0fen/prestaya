@@ -26,6 +26,9 @@ export interface Usuario {
   /** Sobrenombre elegido por el trabajador (0132). Se muestra a TERCEROS (p. ej.
    *  el comprobante que se comparte por WhatsApp) en lugar del nombre real. */
   apodo?: string | null;
+  /** Cuándo reemplazó la clave provisoria por una propia (0134). NULL = la
+   *  tarjeta de arranque del día 1 sigue insistiendo. */
+  clave_cambiada_en?: string | null;
   creado_en: string;
   actualizado_en: string;
 }

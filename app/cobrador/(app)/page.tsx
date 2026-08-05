@@ -19,6 +19,7 @@ import { PrecargarFichas } from "@/components/cobrador/PrecargarFichas";
 import { GastosRuta } from "@/components/cobrador/GastosRuta";
 import { CerrarJornada } from "@/components/cobrador/CerrarJornada";
 import { BienvenidaCard } from "@/components/BienvenidaCard";
+import { OnboardingDia1 } from "@/components/OnboardingDia1";
 import { MenuColocar } from "@/components/cobrador/MenuColocar";
 
 export const dynamic = "force-dynamic";
@@ -139,6 +140,10 @@ export default async function RutaPage() {
           {zonaNombre ? `${zonaNombre} · ` : ""}{fechaLarga}
         </span>
       </div>
+
+      {/* ARRANQUE DÍA 1 (08-05): contraseña propia + instalar la app. SÍ O SÍ
+          visible hasta completar los dos pasos (iPhone y Android). */}
+      <OnboardingDia1 claveCambiada={usuario?.clave_cambiada_en != null} />
 
       {/* Bienvenida cálida (solo la 1ª vez, se puede cerrar). */}
       <BienvenidaCard

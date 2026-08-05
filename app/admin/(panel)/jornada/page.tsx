@@ -26,6 +26,7 @@ import { getBitacoraGestorDia, type RegistroAuditoria } from "@/lib/data/auditor
 import { alcanceDelActor } from "@/lib/data/alcance";
 import { getAperturasDia } from "@/lib/data/aperturas";
 import { BaseCajaManager, type CobradorBase } from "@/components/admin/BaseCajaManager";
+import { OnboardingDia1 } from "@/components/OnboardingDia1";
 import { ActivarAvisos } from "@/components/pwa/ActivarAvisos";
 import { RankingPorZona } from "@/components/admin/RankingPorZona";
 import { conTimeout } from "@/lib/timeout";
@@ -336,6 +337,10 @@ export default async function JornadaPage({
           )}
         </div>
       </div>
+
+      {/* ARRANQUE DÍA 1 (08-05): contraseña propia + instalar la app — también
+          para el supervisor/admin, mismo criterio que el cobrador. */}
+      <OnboardingDia1 claveCambiada={usuario.clave_cambiada_en != null} />
 
       {/* Bienvenida cálida (solo la 1ª vez, se puede cerrar). */}
       <BienvenidaCard
