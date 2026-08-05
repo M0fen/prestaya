@@ -1,0 +1,44 @@
+{
+  "cuando": "2026-08-05T14:32:38.193Z",
+  "motivo": "Lista piloto de Carlos 08-05",
+  "antes": [
+    {
+      "id": "6bc9f287-992c-46f1-a4e6-3c9c20a57a0a",
+      "nombre": "Daniela Millán",
+      "rol": "cobrador",
+      "zona_id": null,
+      "activo": true
+    },
+    {
+      "id": "facbe11d-0004-42e6-acb3-5d73ad0b5e14",
+      "nombre": "Alejandro Cardona",
+      "rol": "cobrador",
+      "zona_id": null,
+      "activo": true
+    },
+    {
+      "id": "5dcda381-7964-4197-9be6-189f9f2ed8dc",
+      "nombre": "John Albert Hernández",
+      "rol": "cobrador",
+      "zona_id": null,
+      "activo": true
+    }
+  ],
+  "despues": [
+    {
+      "id": "6bc9f287-992c-46f1-a4e6-3c9c20a57a0a",
+      "nombre": "Daniela Millán",
+      "zona_id": "764c2556-4e2d-410a-b39a-63c6dbf984c3"
+    },
+    {
+      "id": "facbe11d-0004-42e6-acb3-5d73ad0b5e14",
+      "nombre": "Alejandro Cardona",
+      "zona_id": "764c2556-4e2d-410a-b39a-63c6dbf984c3"
+    },
+    {
+      "id": "5dcda381-7964-4197-9be6-189f9f2ed8dc",
+      "nombre": "John Albert Hernández",
+      "zona_id": "764c2556-4e2d-410a-b39a-63c6dbf984c3"
+    }
+  ]
+}

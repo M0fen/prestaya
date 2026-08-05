@@ -1,0 +1,20 @@
+{
+  "cuando": "2026-08-05T14:34:16.772Z",
+  "motivo": "Carlos confirmó: 'María Inocencia' de su lista = María Curbelo",
+  "antes": [
+    {
+      "id": "19f8edaa-b257-44c6-9906-0e96ca9788c5",
+      "nombre": "María Curbelo",
+      "rol": "cobrador",
+      "zona_id": null,
+      "activo": true
+    }
+  ],
+  "despues": [
+    {
+      "id": "19f8edaa-b257-44c6-9906-0e96ca9788c5",
+      "nombre": "María Curbelo",
+      "zona_id": "764c2556-4e2d-410a-b39a-63c6dbf984c3"
+    }
+  ]
+}
