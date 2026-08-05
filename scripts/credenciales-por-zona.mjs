@@ -12,7 +12,7 @@ import { createClient } from "@supabase/supabase-js";
 import { writeFileSync } from "fs";
 const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 const PASS = "PrestaYa2026!";
-const APP = process.env.NEXT_PUBLIC_APP_URL?.trim() || "https://prestaya-blush.vercel.app";
+const APP = process.env.NEXT_PUBLIC_APP_URL?.trim() || "https://prestaya.uy";
 
 const { data: us } = await db.from("usuarios").select("id, nombre, rol, zona_id, auth_user_id, activo");
 const { data: zonas } = await db.from("zonas").select("id, nombre");
@@ -55,8 +55,8 @@ const vivos = (us ?? []).filter((u) => u.activo);
 
 let out = `PRESTA YA — Usuarios del piloto\n`;
 out += `App: ${APP}/ingresar\n`;
-out += `Login = email + contraseña.  Contraseña: ${PASS}  (salvo el admin Carlos)\n`;
-out += `Cada quien la cambia desde su perfil. Sin 2FA activo.\n`;
+out += `Login = email + contraseña.  Contraseña de arranque: ${PASS}\n`;
+out += `Al entrar, la app pide poner clave propia; quien ya la cambió entra con la suya.\n`;
 out += "=".repeat(88) + "\n";
 
 out += `\n### ADMINISTRADORES (${vivos.filter((u) => u.rol === "admin").length}) — ven todas las zonas\n`;

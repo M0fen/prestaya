@@ -1,0 +1,51 @@
+{
+  "cuando": "2026-08-05 15:11:53.643289+00",
+  "motivo": "Carlos 08-05: 'acomoda el resto de los usuarios para estar listos'",
+  "acciones": [
+    {
+      "tipo": "traspaso_ruta",
+      "vendedor": "6024",
+      "de": "Daniela, Punta Del Este",
+      "a": "Fabio Jaramillo",
+      "antes": {
+        "cartera_viejo": 59,
+        "prestamos_activos_viejo": 51,
+        "cartera_nuevo": 0
+      },
+      "despues": {
+        "cartera_nuevo": 59,
+        "prestamos_activos_nuevo": 51
+      }
+    },
+    {
+      "tipo": "zona",
+      "usuario": "Marcela Londoño, Montevideo",
+      "zona": "Zona Sur"
+    },
+    {
+      "tipo": "zona",
+      "usuario": "Edwin Campo, Tacuarembo",
+      "zona": "Zona Norte"
+    },
+    {
+      "tipo": "zona",
+      "usuario": "Brayan Toro, Durazno 2",
+      "zona": "Zona Sur"
+    },
+    {
+      "tipo": "zona",
+      "usuario": "Cartera Zona Centro, Boso",
+      "zona": "Zona Centro"
+    },
+    {
+      "tipo": "zona",
+      "usuario": "Cartera Zona Sur, Cesar",
+      "zona": "Zona Sur"
+    },
+    {
+      "tipo": "zona",
+      "usuario": "Cartera Edwin, Uruguay",
+      "zona": "Zona Norte"
+    }
+  ]
+}

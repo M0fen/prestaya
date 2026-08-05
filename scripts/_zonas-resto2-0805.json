@@ -1,0 +1,20 @@
+{
+  "cuando": "2026-08-05 15:15:01.309493+00",
+  "acciones": [
+    {
+      "tipo": "zona",
+      "usuario": "Andres Paisa, Colonia",
+      "zona": "Zona Sur"
+    },
+    {
+      "tipo": "zona",
+      "usuario": "Edwin Brasil",
+      "zona": "Zona Norte"
+    },
+    {
+      "tipo": "zona",
+      "usuario": "Fabio Jaramillo",
+      "zona": "Zona Sur"
+    }
+  ]
+}

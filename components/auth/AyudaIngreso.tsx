@@ -10,7 +10,7 @@ import { enlaceSoporte, SOPORTE_TEL } from "@/lib/soporte";
 export function AyudaIngreso() {
   const [abierto, setAbierto] = useState(false);
   const soporte = enlaceSoporte(
-    "Hola, soy del equipo de Presta Ya y no puedo entrar a la app. ¿Me ayudan?",
+    "Hola, soy del equipo de Presta Ya. Olvidé mi contraseña, ¿me la restablecen?",
   );
 
   return (
@@ -21,14 +21,14 @@ export function AyudaIngreso() {
           onClick={() => setAbierto(true)}
           className="inline-block min-h-11 px-3 py-2 text-[12.5px] font-semibold text-white/70 underline decoration-white/30 decoration-dotted underline-offset-4 active:text-white"
         >
-          ¿No podés entrar?
+          ¿Olvidaste tu contraseña?
         </button>
       ) : (
         <div className="flex w-full flex-col items-center gap-2 rounded-[14px] border border-white/15 bg-white/5 px-4 py-3.5">
           <p className="text-[12.5px] font-medium text-white/75">
             {soporte
-              ? "Escribile a la oficina y te ayudan con tu acceso."
-              : "Avisale a tu supervisor o a la oficina y te ayudan con tu acceso."}
+              ? "Tu supervisor o la oficina te generan una contraseña nueva en un minuto. Escribiles:"
+              : "Avisale a tu supervisor o a la oficina: te generan una contraseña nueva en un minuto y seguís trabajando."}
           </p>
           {/* Sin canal configurado NO se muestra un botón que marque un número
               inventado: el texto de arriba ya da la salida humana. */}
