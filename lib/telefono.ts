@@ -10,10 +10,13 @@ export function soloDigitos(tel: string | null | undefined): string {
   return (tel ?? "").replace(/\D/g, "");
 }
 
-/** Número listo para wa.me (con 598, sin el 0 local). "" si no hay teléfono. */
+/** Número listo para wa.me (con 598, sin el 0 local). "" si no hay teléfono.
+ *  Si viene escrito con "+" (ej. +57 312…, el soporte puede ser de otro país),
+ *  se respeta ese código de país tal cual y no se antepone el 598. */
 export function telWhatsApp(tel: string | null | undefined): string {
   const d = soloDigitos(tel);
   if (!d) return "";
+  if ((tel ?? "").trim().startsWith("+")) return d;
   if (d.startsWith("598")) return d;
   return "598" + d.replace(/^0+/, "");
 }
