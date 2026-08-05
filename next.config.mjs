@@ -77,6 +77,11 @@ const securityHeaders = [
 const nextConfig = {
   // Las fotos van comprimidas (~800px) por Server Action; damos aire al payload.
   experimental: { serverActions: { bodySizeLimit: "2mb" } },
+  // El lint del BUILD de Next 15.5 usa su propio set de reglas (react-hooks/purity
+  // y otras experimentales de React 19) distinto del ESLint del repo, y frenaba el
+  // deploy por reglas que nuestro CI no aplica. La calidad la garantiza el CI
+  // (typecheck + eslint + tests + build en cada push); el build no re-lintea.
+  eslint: { ignoreDuringBuilds: true },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },
