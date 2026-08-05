@@ -29,9 +29,22 @@ chk("filtros de período", ">7 días<");
 chk("filtro por tipo", "Cajas y gastos");
 chk("timeline con cobros", "cobró a");
 chk("agrupado por día", "Hoy · ");
-// Filtro "30 días" para ver historia + gestión
+// Filtro "30 días" para ver historia + gestión (el título va en minúscula en la fila)
 await page.goto("https://prestaya.uy/admin/auditoria?rango=30d&tipo=gestion", { waitUntil: "domcontentloaded" });
 await page.waitForSelector("text=Cobros de hoy", { timeout: 30000 }).catch(() => {});
 const h2 = await page.content();
-console.log(`filtro gestión 30d: ${h2.includes("Cambió su contraseña") || h2.includes("Sin movimientos") ? "✓ responde" : "✗"}`);
+console.log(`filtro gestión 30d: ${h2.includes("cambió su contraseña") || h2.includes("Sin movimientos") ? "✓ responde" : "✗"}`);
+
+// 3) Auditoría de USO rediseñada
+await page.goto("https://prestaya.uy/admin/uso", { waitUntil: "domcontentloaded" });
+await page.waitForSelector("text=Usando la app", { timeout: 45000 }).catch(() => {});
+const h3 = await page.content();
+const chk3 = (etq, s) => console.log(`uso · ${etq}: ${h3.includes(s) ? "✓" : "✗ FALTA"}`);
+chk3("grupo 'Usando la app'", "Usando la app");
+chk3("KPI clave propia", "Clave propia");
+chk3("KPI cobrando hoy", "Cobrando hoy");
+chk3("filtro por zona", "Todas las zonas");
+chk3("búsqueda", "Buscar por nombre");
+chk3("chip clave de arranque", "de arranque");
+chk3("grupo sin actividad", "Sin actividad en la ventana");
 await browser.close();
