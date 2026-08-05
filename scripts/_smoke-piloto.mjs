@@ -39,17 +39,30 @@ try {
   check("chip '📌 Mi orden' (nuevo)", home.includes("Mi orden"));
   check("botón '✏️ Ordenar' (nuevo)", home.includes("Ordenar"));
 
-  // 4) Ficha de un cliente: historial nuevo + registro
+  // 4) Ficha de un cliente: historial nuevo + registro. Se prueban hasta 4
+  //    clientes (el primero puede ser "Sin crédito": hay 108 en la zona).
   await page.waitForSelector('a[href*="/cobrador/cliente/"]', { timeout: 30000 });
-  const linkCliente = await page.locator('a[href*="/cobrador/cliente/"]').first();
-  await linkCliente.click();
-  await page.waitForURL(/\/cobrador\/cliente\//);
-  await page.waitForSelector("text=Historial de pagos", { timeout: 45000 }).catch(() => {});
-  await page.waitForSelector("text=Registrar pago", { timeout: 30000 }).catch(() => {});
-  const ficha = await page.content();
-  check("ficha: botón de cobro presente", ficha.includes("Registrar pago") || ficha.includes("Crédito saldado"));
-  check("ficha: '📜 Historial de pagos' (nuevo)", ficha.includes("Historial de pagos"));
-  check("ficha: cartón renderizado", ficha.includes("Cuota diaria") || ficha.includes("Saldo"));
+  const hrefs = await page
+    .locator('a[href*="/cobrador/cliente/"]')
+    .evaluateAll((as) => as.map((a) => a.getAttribute("href")).filter(Boolean).slice(0, 4));
+  let fichaOk = false;
+  let histOk = false;
+  let cartonOk = false;
+  for (const href of hrefs) {
+    await page.goto(`${BASE}${href}`, { waitUntil: "domcontentloaded" });
+    await page.waitForSelector("text=Cuota diaria", { timeout: 30000 }).catch(() => {});
+    const ficha = await page.content();
+    const conCredito =
+      ficha.includes("Registrar pago") || ficha.includes("Crédito saldado") || ficha.includes("adelantar próxima");
+    if (!conCredito) continue;
+    fichaOk = true;
+    histOk = ficha.includes("Historial de pagos");
+    cartonOk = ficha.includes("Cuota diaria") || ficha.includes("Saldo");
+    break;
+  }
+  check("ficha: botón de cobro presente (cliente con crédito)", fichaOk);
+  check("ficha: '📜 Historial de pagos' (nuevo)", histOk);
+  check("ficha: cartón renderizado", cartonOk);
 
   // 5) Mis números: quincena + apodo (nuevos)
   await page.goto(`${BASE}/cobrador/mis-numeros`, { waitUntil: "domcontentloaded" });
