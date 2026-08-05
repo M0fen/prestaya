@@ -59,7 +59,11 @@ const csp = [
 
 const securityHeaders = [
   { key: "Content-Security-Policy", value: csp },
-  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
+  // `preload` (post-dominio 08-04): con dominio propio definitivo, el navegador
+  // puede fijar HTTPS-siempre incluso ANTES de la primera visita (lista de
+  // precarga de los browsers) → mata el ataque de downgrade en la primera
+  // conexión (el único hueco que HSTS solo no cubre).
+  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
@@ -74,7 +78,18 @@ const nextConfig = {
   // Las fotos van comprimidas (~800px) por Server Action; damos aire al payload.
   experimental: { serverActions: { bodySizeLimit: "2mb" } },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      // El cartón del cliente va por TOKEN en la URL (se comparte por WhatsApp):
+      // que JAMÁS termine en un índice de búsqueda. robots.txt es solo una señal;
+      // este header sí obliga al buscador a no indexar ni archivar la página.
+      {
+        source: "/c/:path*",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" }],
+      },
+      { source: "/admin/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
+      { source: "/cobrador/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
+    ];
   },
 };
 

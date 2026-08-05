@@ -1,7 +1,7 @@
 # Runbook del Piloto — Presta Ya
 
 > **Zona Centro** · supervisor **Mauricio Rengifo** + **14 cobradores**.
-> Línea base fijada el **2026-07-15**. Producción: `prestaya-blush.vercel.app`.
+> Línea base fijada el **2026-07-15**. Producción: `prestaya.uy`.
 
 Este documento es la hoja de ruta para **arrancar el piloto con red de seguridad**:
 qué verificar antes del día 1, cómo repartir accesos, la guía del cobrador, la
@@ -107,7 +107,7 @@ Contra `creditos_2026-07-15_03-03.xlsx`:
 - **Login:** email + contraseña. Contraseña común inicial: `PrestaYa2026!`
   (listado email↔nombre: `Desktop/credenciales-prestaya.txt`, o regenerá con
   `node --env-file=.env.local scripts/preparar-emails.mjs`).
-- **Instalar la app (PWA):** abrir `prestaya-blush.vercel.app` en el celular →
+- **Instalar la app (PWA):** abrir `prestaya.uy` en el celular →
   menú del navegador → **"Agregar a pantalla de inicio"**. Queda como un ícono más.
 - **Probar el primer login en un celular Android real y barato** (no en la compu):
   entrar → ver "Caja del día" → registrar un cobro de prueba → activar modo avión y
@@ -125,7 +125,7 @@ Contra `creditos_2026-07-15_03-03.xlsx`:
 > **📲 Tu app de cobro — Presta Ya**
 >
 > **1. Instalá el ícono**
-> Abrí `prestaya-blush.vercel.app` en el celular. En el menú del navegador tocá
+> Abrí `prestaya.uy` en el celular. En el menú del navegador tocá
 > **"Agregar a pantalla de inicio"**. Ya tenés la app como un ícono.
 >
 > **2. Entrá**
@@ -287,7 +287,7 @@ Cuando la ponés se activan las dos mitades, **sin tocar código**:
 6. **Verificar que tomó** (prueba objetiva, sin provocar errores): pedí los headers de prod
    y mirá que el host de Sentry ahora aparezca en la CSP:
    ```
-   curl -sI https://prestaya-blush.vercel.app/ingresar | grep -i content-security-policy
+   curl -sI https://prestaya.uy/ingresar | grep -i content-security-policy
    ```
    En `connect-src` tiene que estar `https://oXXXX.ingest.<region>.sentry.io` además de
    `'self'` y Supabase. Si está, el build tomó la variable y las dos mitades quedaron activas.

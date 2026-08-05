@@ -81,7 +81,7 @@ export async function GET(req: Request): Promise<Response> {
   // camino que sí llega solo. Best-effort: si Resend falla o no está configurado,
   // no rompe el cron (el crítico igual quedó en Sentry + el panel + el push).
   if (r.criticos > 0 && emailConfigurado()) {
-    let origen = "https://prestaya-blush.vercel.app";
+    let origen = "https://prestaya.uy"; // dominio propio (08-04); solo fallback
     try {
       origen = process.env.NEXT_PUBLIC_APP_URL || new URL(req.url).origin;
     } catch {
