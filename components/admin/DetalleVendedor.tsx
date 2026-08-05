@@ -2,6 +2,7 @@
 // Modal de detalle de un vendedor (réplica de la ficha "Detalle" de Disapp).
 // Overlay simple con estado local (sin librería de modal). Solo lectura; el
 // botón "Editar" queda como acción pronto (no inventa backend nuevo).
+import Link from "next/link";
 import type { MiembroEquipo } from "@/types/equipo";
 import type { Rol } from "@/types/db";
 import { RestablecerAcceso } from "./RestablecerAcceso";
@@ -89,8 +90,19 @@ export function DetalleVendedor({
           />
         </div>
 
+        {/* Perfil operativo: el status REAL de la persona (su recorrido de hoy,
+            cómo viene la plata, su paso por el campo). Lo que este modal no puede
+            mostrar sin volverse una pantalla entera. */}
+        <Link
+          href={`/admin/cobrador/${m.id}`}
+          className="mt-4 flex items-center justify-between gap-2 rounded-[14px] bg-azul-suave px-4 py-3 text-[13.5px] font-extrabold text-azul active:scale-[0.99]"
+        >
+          <span>📋 Ver perfil completo · cómo va hoy</span>
+          <span aria-hidden="true">→</span>
+        </Link>
+
         {/* Detalle */}
-        <dl className="mt-4 flex flex-col divide-y divide-linea">
+        <dl className="mt-3 flex flex-col divide-y divide-linea">
           <Fila k="ID (sistema anterior)" v={m.refDisapp ?? "—"} />
           <Fila k="Documento" v={m.documento ?? "—"} />
           <Fila k="Teléfono" v={m.telefono ?? "—"} />
