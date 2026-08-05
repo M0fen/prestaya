@@ -625,7 +625,12 @@ for t in topups:
         "registrado_en": E.iso_ts(CORTE),
         "origen": "reconciliacion_0804",
         "importado_en": dt.datetime.now().isoformat(),
-        "disapp_pago_id": f"recon-{SELLO}-{t['cid']}",
+        # El id lleva el DELTA: con solo recon-{día}-{cid}, la SEGUNDA corrida
+        # del mismo día (créditos frescos a la noche tras el import de la
+        # madrugada) chocaba con el ajuste de la primera y el upsert-ignore la
+        # tiraba en silencio → 63 créditos quedaban "cortos" para siempre.
+        # Mismo delta re-intentado sigue colisionando (idempotente, correcto).
+        "disapp_pago_id": f"recon-{SELLO}-{t['cid']}-{int(round(t['delta'] * 100))}",
         "disapp_credit_ref": t["ref"],
     })
 E.upsert(db, "pagos", filas_top, "disapp_pago_id", ignore=True, rep=False)
@@ -670,7 +675,9 @@ for p in act2:
 n_multi = sum(1 for v in multi_cli.values() if v > 1)
 multi_export = defaultdict(int)
 for c in ref2hoy.values():
-    multi_export[c["cid"]] += 1
+    # Por ID CLIENTE de Disapp (no "cid", que es el id del CRÉDITO y daba
+    # siempre 1 por fila → "Disapp: 0" mentiroso en la primera corrida).
+    multi_export[c["id_cliente"] or c["cid"]] += 1
 n_multi_export = sum(1 for v in multi_export.values() if v > 1)
 sobre2 = sum(
     1 for p in act2
