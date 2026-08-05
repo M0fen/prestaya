@@ -1,0 +1,19 @@
+{
+ "corrida": "2026-08-05T11:59:26.597089-03:00",
+ "corte": "2026-08-04",
+ "commit": true,
+ "finalizados_plan": 0,
+ "resucitados_plan": 0,
+ "top_ups_plan": 0,
+ "mantener_borrados": 9,
+ "activos_final": 2817,
+ "cartera": 92447994,
+ "clientes_multi_activo": 453,
+ "multi_activo_disapp": 453,
+ "activos_sobre_cobrados": 0,
+ "vs_pagos_disapp": {
+  "exactos": 2798,
+  "cortos": 0,
+  "pasados": 10
+ }
+}

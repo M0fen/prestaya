@@ -1,0 +1,106 @@
+{
+  "cuando": "2026-08-05 14:55:48.239995+00",
+  "motivo": "Carlos 08-05: 'ponele los clientes que les corresponden' — Disapp renombró estas rutas a los cobradores nuevos",
+  "traspasos": [
+    {
+      "vendedor": "6761",
+      "de": {
+        "id": "a23e5d43-6125-4b1d-ae2e-28e2ccb059cf",
+        "nombre": "Manuela Vera, Salto"
+      },
+      "a": {
+        "id": "5dcda381-7964-4197-9be6-189f9f2ed8dc",
+        "nombre": "John Albert Hernández"
+      },
+      "antes": {
+        "cartera_viejo": 108,
+        "prestamos_viejo": 434,
+        "prestamos_activos_viejo": 109,
+        "cartera_nuevo": 0,
+        "prestamos_nuevo": 0
+      },
+      "despues": {
+        "cartera_viejo": 0,
+        "prestamos_viejo": 0,
+        "cartera_nuevo": 108,
+        "prestamos_activos_nuevo": 109,
+        "comision_nuevo": "3.00"
+      }
+    },
+    {
+      "vendedor": "6261",
+      "de": {
+        "id": "9fb2efaa-cd4d-44d3-9cd4-f970b6c87d69",
+        "nombre": "María, Dolores"
+      },
+      "a": {
+        "id": "19f8edaa-b257-44c6-9906-0e96ca9788c5",
+        "nombre": "María Curbelo"
+      },
+      "antes": {
+        "cartera_viejo": 87,
+        "prestamos_viejo": 498,
+        "prestamos_activos_viejo": 117,
+        "cartera_nuevo": 0,
+        "prestamos_nuevo": 0
+      },
+      "despues": {
+        "cartera_viejo": 0,
+        "prestamos_viejo": 0,
+        "cartera_nuevo": 87,
+        "prestamos_activos_nuevo": 117,
+        "comision_nuevo": "3.00"
+      }
+    },
+    {
+      "vendedor": "10367",
+      "de": {
+        "id": "423e0eac-30e2-4e3a-9a72-d36ee082031f",
+        "nombre": "Alejo, Paysandu"
+      },
+      "a": {
+        "id": "facbe11d-0004-42e6-acb3-5d73ad0b5e14",
+        "nombre": "Alejandro Cardona"
+      },
+      "antes": {
+        "cartera_viejo": 83,
+        "prestamos_viejo": 517,
+        "prestamos_activos_viejo": 97,
+        "cartera_nuevo": 0,
+        "prestamos_nuevo": 0
+      },
+      "despues": {
+        "cartera_viejo": 0,
+        "prestamos_viejo": 0,
+        "cartera_nuevo": 83,
+        "prestamos_activos_nuevo": 97,
+        "comision_nuevo": "3.00"
+      }
+    },
+    {
+      "vendedor": "9194",
+      "de": {
+        "id": "0aed0d68-5602-4a53-8e97-8a3b8188fe7a",
+        "nombre": "Harrison Morales, Mercedes"
+      },
+      "a": {
+        "id": "6bc9f287-992c-46f1-a4e6-3c9c20a57a0a",
+        "nombre": "Daniela Millán"
+      },
+      "antes": {
+        "cartera_viejo": 51,
+        "prestamos_viejo": 310,
+        "prestamos_activos_viejo": 65,
+        "cartera_nuevo": 0,
+        "prestamos_nuevo": 0
+      },
+      "despues": {
+        "cartera_viejo": 0,
+        "prestamos_viejo": 0,
+        "cartera_nuevo": 51,
+        "prestamos_activos_nuevo": 65,
+        "comision_nuevo": "3.00"
+      }
+    }
+  ]
+}

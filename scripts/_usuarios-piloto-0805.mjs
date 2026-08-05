@@ -126,10 +126,12 @@ out += `Al entrar, la app misma les pide: 1) poner clave propia  2) instalar la 
 out += "=".repeat(100) + "\n";
 const conCartera = filas.filter((f) => f.cartera > 0);
 const sinCartera = filas.filter((f) => f.cartera === 0);
-out += `\n### COBRADORES CON RUTA (${conCartera.length}) — ${conCartera.reduce((s, f) => s + f.cartera, 0)} clientes\n`;
+out += `\n### COBRADORES (${conCartera.length}) — ${conCartera.reduce((s, f) => s + f.cartera, 0)} clientes\n`;
 for (const f of conCartera) out += linea(f);
-out += `\n### NUEVOS SIN RUTA TODAVÍA (${sinCartera.length}) — ya en Zona Centro; falta asignarles cartera y % de comisión\n`;
-for (const f of sinCartera) out += linea(f);
+if (sinCartera.length) {
+  out += `\n### ⚠ SIN RUTA (${sinCartera.length})\n`;
+  for (const f of sinCartera) out += linea(f);
+}
 out += `\n### OFICINA — no estaban en tu lista pero también entran\n`;
 for (const f of filasOficina) out += linea(f);
 if (faltantes.length) {
