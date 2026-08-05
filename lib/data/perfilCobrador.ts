@@ -303,7 +303,12 @@ async function rutaDeCobrador(
   });
 
   // Orden del recorrido: el que se armó el cobrador primero; el resto, alfabético.
+  // Los clientes SIN crédito activo van al final: están en su cartera pero no son
+  // trabajo de hoy, y arriba solo ensucian la lectura del recorrido.
   paradas.sort((a, b) => {
+    const sa = a.estadoHoy === "sin_credito" ? 1 : 0;
+    const sb = b.estadoHoy === "sin_credito" ? 1 : 0;
+    if (sa !== sb) return sa - sb;
     const oa = a.orden ?? Number.MAX_SAFE_INTEGER;
     const ob = b.orden ?? Number.MAX_SAFE_INTEGER;
     return oa !== ob ? oa - ob : a.nombre.localeCompare(b.nombre);

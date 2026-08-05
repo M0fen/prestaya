@@ -66,6 +66,9 @@ export default async function PerfilCobradorPage(props: { params: Promise<{ id: 
   const pct = arqueo.esperado > 0 ? Math.min(100, Math.round((arqueo.recaudadoRuta / arqueo.esperado) * 100)) : 0;
   const falta = Math.max(0, arqueo.esperado - arqueo.recaudadoRuta);
   const visitados = arqueo.cobrados + arqueo.abonos + arqueo.noPagos;
+  // Cobrado hoy en su ruta que NO va contra la cuota del día: recuperación de
+  // cartera vencida y lo que un cliente pagó de más sobre su cuota.
+  const recuperado = Math.max(0, arqueo.recaudado - arqueo.recaudadoRuta);
   const sinTocar = p.paradas.filter((x) => x.sinCuotaHoy).length;
   const fueraDeZona = p.paradas.filter((x) => x.enZona === false).length;
   const rend = jornada.yaRendida;
@@ -159,6 +162,14 @@ export default async function PerfilCobradorPage(props: { params: Promise<{ id: 
                 {visitados} de {arqueo.clientes} clientes visitados
                 {falta > 0 ? ` · faltan ${UYU(falta)}` : " · meta del día cubierta 🎉"}
               </span>
+              {/* La barra mide SOLO cuotas de hoy. Lo cobrado sobre deuda vieja es
+                  plata igual, pero no avanza la meta: sin decirlo, el "7%" al lado
+                  de un tile de $32.800 se lee como un error del sistema. */}
+              {recuperado > 0 && (
+                <span className="text-[12px] font-semibold text-[#157A50]">
+                  + {UYU(recuperado)} recuperados de deuda vieja (no cuentan para la meta de hoy)
+                </span>
+              )}
             </div>
 
             {/* Contadores del recorrido */}
