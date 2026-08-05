@@ -1,0 +1,276 @@
+[
+ {
+  "tipo": "anular",
+  "pid": "e58a7ec8-a150-4886-909a-e4a99f6afc7f",
+  "cid": "3527644",
+  "sobra": 400.0,
+  "filas": [
+   {
+    "pago_id": "65817498-4021-4d7c-828b-ff1caadcedbf",
+    "monto": 400.0
+   }
+  ]
+ },
+ {
+  "tipo": "anular",
+  "pid": "1014c37f-b88a-4706-98bc-359e69b267a4",
+  "cid": "3544294",
+  "sobra": 200.0,
+  "filas": [
+   {
+    "pago_id": "3292e29c-8887-45d6-9f9c-69f376a1c684",
+    "monto": 200.0
+   }
+  ]
+ },
+ {
+  "tipo": "resize",
+  "pid": "1e804975-ea32-4f70-8354-2ca048a5e5d4",
+  "cid": "3535720",
+  "sobra": 130.0,
+  "filas": [
+   {
+    "pago_id": "75d3a824-9112-4b0d-8e99-78c21091f514",
+    "monto": 640.0,
+    "registrado_en": "2026-07-22 15:00:00+00:00",
+    "dia_credito": 1,
+    "registrado_por": "9b6b5fed-bca0-4bdb-8cc6-5433cbe14a23",
+    "origen": "reconciliacion_zc",
+    "nuevo_monto": 510
+   }
+  ]
+ },
+ {
+  "tipo": "resize",
+  "pid": "17723ec6-89e4-4b7e-b2bf-69871cf208d7",
+  "cid": "3569999",
+  "sobra": 150.0,
+  "filas": [
+   {
+    "pago_id": "d62e93d1-2f20-46bf-9dfb-71e64d507039",
+    "monto": 300.0,
+    "registrado_en": "2026-07-20 15:00:00+00:00",
+    "dia_credito": 1,
+    "registrado_por": "d42b23e8-d66e-45c0-a9ba-f2bd7b5516ec",
+    "origen": "reconciliacion_zc",
+    "nuevo_monto": 150
+   }
+  ]
+ },
+ {
+  "tipo": "resize",
+  "pid": "a30c0596-4e71-4b6c-a0db-55a72c383537",
+  "cid": "3550256",
+  "sobra": 500.0,
+  "filas": [
+   {
+    "pago_id": "69f5012c-8c62-4b8a-bf53-817eadfa09b5",
+    "monto": 3850.0,
+    "registrado_en": "2026-07-11 15:00:00+00:00",
+    "dia_credito": 1,
+    "registrado_por": "9b6b5fed-bca0-4bdb-8cc6-5433cbe14a23",
+    "origen": "reconciliacion_zc",
+    "nuevo_monto": 3350
+   }
+  ]
+ },
+ {
+  "tipo": "resize",
+  "pid": "cb848460-32a5-4668-a7d5-cc4ba56b71e9",
+  "cid": "3555516",
+  "sobra": 180.0,
+  "filas": [
+   {
+    "pago_id": "2f469d7e-29cb-4fb7-8754-27132b497c94",
+    "monto": 1080.0,
+    "registrado_en": "2026-07-14 15:00:00+00:00",
+    "dia_credito": 1,
+    "registrado_por": "9b5bd9b7-eb26-4159-a25d-02c44026d4fb",
+    "origen": "reconciliacion_zc",
+    "nuevo_monto": 900
+   }
+  ]
+ },
+ {
+  "tipo": "resize",
+  "pid": "49aec91f-5efa-4484-89f6-609d0b348717",
+  "cid": "3558794",
+  "sobra": 2550.0,
+  "filas": [
+   {
+    "pago_id": "7d6bba17-129d-4c72-8293-462d9a244065",
+    "monto": 5100.0,
+    "registrado_en": "2026-07-15 15:00:00+00:00",
+    "dia_credito": 1,
+    "registrado_por": "9b92edd9-80f4-4e10-a62c-a9f7e8eb0530",
+    "origen": "reconciliacion_zc",
+    "nuevo_monto": 2550
+   }
+  ]
+ },
+ {
+  "tipo": "resize",
+  "pid": "748cf1ec-711a-493f-9c0e-2c7451ef967e",
+  "cid": "3567968",
+  "sobra": 25.0,
+  "filas": [
+   {
+    "pago_id": "add29c9a-1504-4206-b8dc-3e44e2845d7e",
+    "monto": 750.0,
+    "registrado_en": "2026-07-18 15:00:00+00:00",
+    "dia_credito": 1,
+    "registrado_por": "609d1f06-0b00-4111-8abc-b4d1e45facf3",
+    "origen": "reconciliacion_zc",
+    "nuevo_monto": 725
+   }
+  ]
+ },
+ {
+  "tipo": "resize",
+  "pid": "3dc9efe7-4199-4c96-a137-485d5d43112d",
+  "cid": "3569873",
+  "sobra": 400.0,
+  "filas": [
+   {
+    "pago_id": "dd645726-bc5d-41dc-b698-e991561b2720",
+    "monto": 800.0,
+    "registrado_en": "2026-07-20 15:00:00+00:00",
+    "dia_credito": 1,
+    "registrado_por": "798b45d1-e9e4-4c61-8d91-e2a3a4e5cc3f",
+    "origen": "reconciliacion_zc",
+    "nuevo_monto": 400
+   }
+  ]
+ },
+ {
+  "tipo": "anular",
+  "pid": "94923ca3-d9bf-4c95-95c3-77f23444b25a",
+  "cid": "3533472",
+  "sobra": 1000.0,
+  "filas": [
+   {
+    "pago_id": "723f033f-25d7-452c-9039-0ee73c4237ea",
+    "monto": 1000.0
+   }
+  ]
+ },
+ {
+  "tipo": "resize",
+  "pid": "5df144e5-f413-4295-b391-f7683719ee55",
+  "cid": "3551395",
+  "sobra": 50.0,
+  "filas": [
+   {
+    "pago_id": "3019a295-14ca-4d2f-81dc-b3465cf2c171",
+    "monto": 2300.0,
+    "registrado_en": "2026-07-11 15:00:00+00:00",
+    "dia_credito": 1,
+    "registrado_por": "9b6b5fed-bca0-4bdb-8cc6-5433cbe14a23",
+    "origen": "reconciliacion_zc",
+    "nuevo_monto": 2250
+   }
+  ]
+ },
+ {
+  "tipo": "resize",
+  "pid": "e1d65bdb-dcdb-484d-bfc2-fe343ce00874",
+  "cid": "3567516",
+  "sobra": 680.0,
+  "filas": [
+   {
+    "pago_id": "bc76196e-73c4-44a9-9d47-4e7fc3cecedc",
+    "monto": 2400.0,
+    "registrado_en": "2026-07-18 15:00:00+00:00",
+    "dia_credito": 1,
+    "registrado_por": "fba7e7f9-d4f3-4cc8-91ac-886e06912b7b",
+    "origen": "reconciliacion_zc",
+    "nuevo_monto": 1720
+   }
+  ]
+ },
+ {
+  "tipo": "resize",
+  "pid": "ab49700c-95b8-4c60-bcb7-16ae36b1e74e",
+  "cid": "3559065",
+  "sobra": 20.0,
+  "filas": [
+   {
+    "pago_id": "21b4bc79-095f-46ef-9799-e895e50e0f85",
+    "monto": 1460.0,
+    "registrado_en": "2026-07-15 15:00:00+00:00",
+    "dia_credito": 1,
+    "registrado_por": "9b92edd9-80f4-4e10-a62c-a9f7e8eb0530",
+    "origen": "reconciliacion_zc",
+    "nuevo_monto": 1440
+   }
+  ]
+ },
+ {
+  "tipo": "resize",
+  "pid": "16dc95b7-b055-4840-b2c9-895401c43a4c",
+  "cid": "3559036",
+  "sobra": 400.0,
+  "filas": [
+   {
+    "pago_id": "b0ab4d47-aa2b-4e46-b25c-bc21d1cd7d54",
+    "monto": 3200.0,
+    "registrado_en": "2026-07-15 15:00:00+00:00",
+    "dia_credito": 1,
+    "registrado_por": "609d1f06-0b00-4111-8abc-b4d1e45facf3",
+    "origen": "reconciliacion_zc",
+    "nuevo_monto": 2800
+   }
+  ]
+ },
+ {
+  "tipo": "resize",
+  "pid": "993807b1-09a4-451b-9532-46ec031ec80d",
+  "cid": "3562889",
+  "sobra": 1000.0,
+  "filas": [
+   {
+    "pago_id": "0f552b35-3342-443e-84be-5fc847fe4276",
+    "monto": 4000.0,
+    "registrado_en": "2026-07-16 15:00:00+00:00",
+    "dia_credito": 1,
+    "registrado_por": "fba7e7f9-d4f3-4cc8-91ac-886e06912b7b",
+    "origen": "reconciliacion_zc",
+    "nuevo_monto": 3000
+   }
+  ]
+ },
+ {
+  "tipo": "resize",
+  "pid": "ecd86ba7-c2bc-42a0-bf21-3a063829c0b5",
+  "cid": "3505765",
+  "sobra": 480.0,
+  "filas": [
+   {
+    "pago_id": "65843275-2c0a-46de-986e-5c704f740e2f",
+    "monto": 960.0,
+    "registrado_en": "2026-07-22 15:00:00+00:00",
+    "dia_credito": 1,
+    "registrado_por": "9b5bd9b7-eb26-4159-a25d-02c44026d4fb",
+    "origen": "reconciliacion_zc",
+    "nuevo_monto": 480
+   }
+  ]
+ },
+ {
+  "tipo": "resize",
+  "pid": "8ac4dcd3-b7c1-45be-a943-48078ec323b6",
+  "cid": "3550365",
+  "sobra": 1000.0,
+  "filas": [
+   {
+    "pago_id": "f28c2e58-0e64-4a2f-b461-926ea67b6eb7",
+    "monto": 8000.0,
+    "registrado_en": "2026-07-11 15:00:00+00:00",
+    "dia_credito": 1,
+    "registrado_por": "2119e15f-f822-45f4-a7da-9b346a886c39",
+    "origen": "reconciliacion_zc",
+    "nuevo_monto": 7000
+   }
+  ]
+ }
+]

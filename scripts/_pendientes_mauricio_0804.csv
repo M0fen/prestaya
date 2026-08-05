@@ -1,0 +1,11 @@
+﻿credito;cliente;cobrador;estado;diferencia_$;categoria;que_hacer
+PRD0003543703;ADELIA DIAZ;Luz Angela Idrobo;activo;6400;APP-NATIVO;La app registro cobros que Disapp no tiene (captura unica). NUESTRO numero es el bueno. Solo confirmar con el cobrador.
+PRD0003600714;CONRRAO TAMARASCO;Karent Londoño;activo;1700;APP-NATIVO;Idem: cobro hecho en la app, Disapp no lo vio.
+PRD0003451971;ALDA INES DE SOUZA;Jorge Ospina;activo;200;APP-NATIVO;Idem: cobro hecho en la app, Disapp no lo vio.
+PRD0003040342;EMILY MARIA ARTUNDUAGA;María Artunduaga;activo;2748;DISAPP-ANULO;Disapp bajo su total: parece que ANULARON pagos alla. Preguntar en Disapp que pagos anularon de este credito y por que.
+PRD0003335708;DIAMELA MAGALLANES;María, Dolores;activo;495;DISAPP-ANULO;Idem: pedir en Disapp el detalle de pagos anulados de este credito.
+PRD0003007997;VERONICA PICA;Harrison Morales, Mercedes;activo;200;DISAPP-ANULO;Idem.
+PRD0002676540;VERóNICA PASCUAL KIOSOCO JUSTICIA;Marcela Londoño, Montevideo;activo;100;DISAPP-ANULO;Idem.
+PRD0003372418;RUBEN ACUÑA;María, Dolores;activo;15;DISAPP-ANULO;"Menor; idem."
+PRD0003538291;AGUSTINA SANCHEZ SANTOS;Alejo, Paysandu;activo;1;REDONDEO;Un peso: ignorar.
+PRD0003395601;GERARDO VARELA SHAWARMANS;Marcela Londoño, Montevideo;activo;24000;STUB-JULIO;"Credito reconstruido en julio desde recaudos sueltos; hoy los pagos suman 120.000 y Disapp dice 96.000. Pedir en Disapp el HISTORIAL completo de creditos de este cliente (puede haber DOS creditos y aca quedo todo junto en uno)."
