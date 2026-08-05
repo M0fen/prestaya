@@ -12,7 +12,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { NAV_ITEMS } from "@/lib/admin/nav";
 import { tablaFaltante } from "./errores";
-import { fechaISOUY } from "@/lib/fecha";
+import { fechaISOUY, inicioDiaUYIso } from "@/lib/fecha";
 
 // Secciones legibles: las del panel (de nav.ts) + las del cobrador.
 const SECCIONES: { pre: string; label: string }[] = [
@@ -61,11 +61,17 @@ export interface UsoPersona {
   id: string;
   nombre: string;
   rol: string;
+  zona: string | null; // nombre de la zona (null = sin zona)
   ultimoAccesoIso: string | null; // login
   ultimaVistaIso: string | null; // última navegación
   vistas: number;
   diasActivos: number; // días distintos con navegación (en la ventana)
   acciones: number; // auditoría de gestor + bitácora del cobrador
+  /** Sello del onboarding día 1: cuándo reemplazó la clave provisoria (null = todavía no). */
+  claveCambiadaIso: string | null;
+  /** Trabajo REAL de hoy: cobros vivos registrados por la persona. */
+  cobrosHoy: number;
+  cobradoHoy: number;
   secciones: { seccion: string; n: number }[]; // qué abrió, desc
   faltan: string[]; // secciones clave de su rol que NO tocó
 }
@@ -85,16 +91,61 @@ export async function getAuditoriaComportamiento(desdeIso: string): Promise<UsoP
   const admin = createSupabaseAdmin();
   const desdeYmd = fechaISOUY(new Date(desdeIso));
 
-  // Staff interno activo.
+  // Staff interno activo (con su zona y el sello del onboarding).
   const { data: staff, error: eStaff } = await admin
     .from("usuarios")
-    .select("id, nombre, rol, auth_user_id")
+    .select("id, nombre, rol, auth_user_id, zona_id, clave_cambiada_en")
     .eq("activo", true)
     .in("rol", ["admin", "supervisor", "cobrador"])
     .order("rol", { ascending: true })
     .order("nombre", { ascending: true });
   if (eStaff) throw eStaff;
-  const personas = (staff ?? []) as { id: string; nombre: string; rol: string; auth_user_id: string | null }[];
+  const personas = (staff ?? []) as {
+    id: string;
+    nombre: string;
+    rol: string;
+    auth_user_id: string | null;
+    zona_id: string | null;
+    clave_cambiada_en: string | null;
+  }[];
+
+  // Nombre de zona (los supervisores la tienen por supervisor_zonas, no por columna).
+  const zonaDe = new Map<string, string>();
+  try {
+    const { data } = await admin.from("zonas").select("id, nombre");
+    for (const z of data ?? []) zonaDe.set(z.id as string, z.nombre as string);
+  } catch {
+    /* sin zonas: columna queda null */
+  }
+  const zonaSupervisor = new Map<string, string>();
+  try {
+    const { data } = await admin.from("supervisor_zonas").select("supervisor_id, zona_id");
+    for (const s of data ?? [])
+      zonaSupervisor.set(s.supervisor_id as string, zonaDe.get(s.zona_id as string) ?? "");
+  } catch {
+    /* sin tabla: supervisores sin zona visible */
+  }
+
+  // Trabajo REAL de hoy: cobros vivos por persona (origen null = nativos de la app).
+  const cobrosHoy = new Map<string, { n: number; monto: number }>();
+  try {
+    const { data } = await admin
+      .from("pagos")
+      .select("registrado_por, monto")
+      .is("origen", null)
+      .eq("anulado", false)
+      .gte("registrado_en", inicioDiaUYIso())
+      .limit(10000);
+    for (const p of (data ?? []) as { registrado_por: string | null; monto: number }[]) {
+      if (!p.registrado_por) continue;
+      const acc = cobrosHoy.get(p.registrado_por) ?? { n: 0, monto: 0 };
+      acc.n += 1;
+      acc.monto += Number(p.monto);
+      cobrosHoy.set(p.registrado_por, acc);
+    }
+  } catch {
+    /* sin pagos legibles: los contadores quedan en 0 */
+  }
 
   // Navegación (eventos_uso) de la ventana. Degrada si 0064 no corrió.
   let eventos: { usuario_id: string | null; seccion: string | null; creado_en: string }[] = [];
@@ -162,15 +213,20 @@ export async function getAuditoriaComportamiento(desdeIso: string): Promise<UsoP
       : [];
     const usadas = new Set(secciones.map((s) => s.seccion));
     const clave = SECCIONES_CLAVE[p.rol] ?? [];
+    const hoy = cobrosHoy.get(p.id);
     return {
       id: p.id,
       nombre: p.nombre,
       rol: p.rol,
+      zona: (p.zona_id ? zonaDe.get(p.zona_id) : zonaSupervisor.get(p.id)) || null,
       ultimoAccesoIso: p.auth_user_id ? login.get(p.auth_user_id) ?? null : null,
       ultimaVistaIso: a?.ultima ?? null,
       vistas: a?.vistas ?? 0,
       diasActivos: a?.dias.size ?? 0,
       acciones: acciones.get(p.id) ?? 0,
+      claveCambiadaIso: p.clave_cambiada_en,
+      cobrosHoy: hoy?.n ?? 0,
+      cobradoHoy: hoy?.monto ?? 0,
       secciones,
       faltan: clave.filter((s) => !usadas.has(s)),
     };
