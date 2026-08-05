@@ -88,6 +88,7 @@ export function RegistroCobro({
   cuotasCubiertas = null,
   totalCuotas = null,
   cuotasAtrasadas = null,
+  pagadoHoyServidor = 0,
 }: {
   clienteId: string;
   /** Crédito al que se imputa (si el cliente tiene varios activos). null = principal. */
@@ -105,6 +106,11 @@ export function RegistroCobro({
   cuotasCubiertas?: number | null;
   totalCuotas?: number | null;
   cuotasAtrasadas?: number | null;
+  /** Cobrado HOY en la APP sobre este crédito, según el SERVIDOR (QA 08-05):
+   *  el candado hoyCobrado se rehidrataba solo de la cola offline — con señal,
+   *  la op sincroniza a los ~9s y al re-entrar a la ficha el CTA verde volvía
+   *  idéntico (variante online del doble-cobro del día 1). */
+  pagadoHoyServidor?: number;
 }) {
   const [toast, setToast] = useState<Toast>(null);
   const [motivos, setMotivos] = useState(false);
@@ -131,7 +137,9 @@ export function RegistroCobro({
   // (imposible offline) → el botón volvía idéntico a "Registrar pago" y un re-tap
   // cobraba OTRA cuota. Marcamos localmente que la cuota de hoy ya se cobró y pedimos
   // una confirmación extra para "adelantar" la próxima (no repetir el CTA verde).
-  const [hoyCobrado, setHoyCobrado] = useState(false);
+  // Arranca en "ya cobrado" si el SERVIDOR dice que la cuota de hoy está
+  // cubierta con trabajo de la app (además de la rehidratación offline de abajo).
+  const [hoyCobrado, setHoyCobrado] = useState(() => cuota > 0 && pagadoHoyServidor >= cuota - 0.5);
   const [confirmarAdelanto, setConfirmarAdelanto] = useState(false);
   // Se quiso deshacer un cobro pasada la ventana: hay que darle una salida.
   const [cobroTarde, setCobroTarde] = useState(false);
@@ -173,8 +181,11 @@ export function RegistroCobro({
   const cuotaEfectiva = Math.min(cuota, saldoRedondeado);
   const saldado = saldoRedondeado <= 0;
   // Tope del ±: nunca más cuotas de las que le quedan al crédito (anti sobre-pago),
-  // y con un techo sano de 30 (más que eso se tipea en "Otro monto").
-  const maxCuotas = cuota > 0 ? Math.max(1, Math.min(30, Math.floor(saldoRedondeado / cuota))) : 1;
+  // y con un techo sano de 30 (más que eso se tipea en "Otro monto"). El +0,5 es
+  // la tolerancia sub-peso: con cuota fraccionaria (351,04) y deuda de 5 cuotas
+  // exactas, el floor "seco" solo dejaba llegar a 4.
+  const maxCuotas =
+    cuota > 0 ? Math.max(1, Math.min(30, Math.floor((saldoRedondeado + 0.5) / cuota))) : 1;
   // Monto del CTA según el ±. Con 1 cuota se manda null (el SERVIDOR resuelve
   // cuota-o-saldo, chokepoint de siempre); con N se manda cuota×N topado al saldo.
   const montoSeleccion =

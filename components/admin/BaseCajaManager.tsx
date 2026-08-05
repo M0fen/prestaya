@@ -62,6 +62,7 @@ export function BaseCajaManager({
 }) {
   const total = cobradores.reduce((s, c) => s + c.base, 0);
   const grupos = agrupar(cobradores, supervisoresPorZona);
+  const sinCargar = cobradores.filter((c) => c.base <= 0).length;
   return (
     <section className="flex flex-col gap-3 rounded-[16px] border border-borde bg-tarjeta p-4">
       <div className="flex items-start justify-between gap-2">
@@ -70,6 +71,15 @@ export function BaseCajaManager({
           <span className="text-[11px] font-medium text-tenue">
             Con cuánto efectivo arranca cada cobrador. La devuelve junto con lo cobrado al cerrar.
           </span>
+          {/* Nudge de APERTURA: con 0 bases cargadas la jornada corría en silencio
+              con base $0 para todos y el cierre "cuadraba" mal. Que se vea. */}
+          {sinCargar > 0 && (
+            <span className="mt-1 w-fit rounded-full bg-ambar-suave px-2.5 py-1 text-[11px] font-bold text-ambar-osc">
+              ⚠️ {sinCargar === cobradores.length
+                ? "Ninguna base cargada todavía — fijalas antes de que salga el equipo."
+                : `${sinCargar} cobrador${sinCargar === 1 ? "" : "es"} sin base cargada.`}
+            </span>
+          )}
         </div>
         <div className="flex flex-col items-end">
           <span className="text-[10px] font-bold uppercase tracking-wide text-gris">En la calle</span>
@@ -112,15 +122,21 @@ function FilaBase({ c }: { c: CobradorBase }) {
   const [val, setVal] = useState(c.base > 0 ? String(c.base) : "");
   const [msg, setMsg] = useState<string | null>(null);
   const [pend, start] = useTransition();
+  // ok/error POR SEPARADO: el error se mostraba en VERDE junto al botón (mismo
+  // patrón "dedazo con mensaje verde" ya cazado en el cobrador el 08-04) — un
+  // rechazo del server (base sellada, kill-switch) parecía un guardado exitoso
+  // y la rendición de la noche nacía descuadrada.
+  const [esError, setEsError] = useState(false);
   const guardar = () =>
     start(async () => {
       setMsg(null);
       const r = await setApertura({ cobradorId: c.id, base: Math.max(0, Math.round(Number(val) || 0)) });
+      setEsError(!r.ok);
       setMsg(r.ok ? "✓ Guardado" : r.error);
       if (r.ok) router.refresh();
     });
   return (
-    <li className="flex items-center gap-2 py-2.5">
+    <li className="flex flex-wrap items-center gap-2 py-2.5">
       <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-tinta">{c.nombre}</span>
       <input
         inputMode="numeric"
@@ -137,7 +153,13 @@ function FilaBase({ c }: { c: CobradorBase }) {
       >
         {pend ? "…" : "Fijar"}
       </button>
-      {msg && <span className="flex-shrink-0 text-[11px] font-bold text-verde">{msg}</span>}
+      {msg && (
+        <span
+          className={`basis-full text-[11px] leading-[1.4] font-bold ${esError ? "text-[#C0392B]" : "text-verde"}`}
+        >
+          {esError ? "✗ " : ""}{msg}
+        </span>
+      )}
     </li>
   );
 }

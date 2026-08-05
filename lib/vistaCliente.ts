@@ -125,7 +125,7 @@ export function construirVistaCliente(params: {
   // la cuota (un pago de 2 cuotas mostraba $2.000 en un día de $1.000) — hallazgo #4.
   // Ahora cada día pagado tiene su comprobante con el monto que le corresponde, y la
   // suma por día coincide con el `montoPagado` del cartón (misma imputación FIFO).
-  type ReciboDia = { hora: string; monto: number };
+  type ReciboDia = { hora: string | null; monto: number };
   const recibosPorDia: Record<number, ReciboDia[]> = {};
   {
     const orden = pagos
@@ -134,7 +134,12 @@ export function construirVistaCliente(params: {
     let dia = 1;
     let lleno = 0;
     for (const p of orden) {
-      const hora = horaDe(p.registrado_en);
+      // Un asiento de MIGRACIÓN/ajuste (origen != null) no tiene una "hora de
+      // pago" real: el empalme lo insertó de madrugada y el FIFO lo unta sobre
+      // varios días — 14 días seguidos "pagados a la 01:30" huelen a inventado
+      // y disparan reclamos (QA 08-05). Sin hora → la UI dice "Registrado por
+      // la oficina", que es la verdad.
+      const hora = (p.origen ?? null) === null ? horaDe(p.registrado_en) : null;
       let resto = p.monto;
       // Cuota 0 (dato roto) o sin días restantes: todo cae en el día actual.
       if (cuota <= 0 || dia > prestamo.total_dias) {
@@ -268,7 +273,8 @@ export function construirVistaCliente(params: {
     montoPrestado: UYU(prestamo.monto_prestado),
     totalAPagar: UYU(r.totalAPagar),
     totalPagado: UYU(r.totalPagado),
-    falta: UYU(r.falta),
+    // Residuo sub-peso (<$1) = saldado a efectos del cliente: no mostrar "Falta $1".
+    falta: UYU(r.falta < 1 ? 0 : r.falta),
     // Progreso mostrado con tope 100% (un sobrepago no debe mostrar "103%" ni
     // desbordar la barra). El cálculo interno queda intacto.
     progresoTexto: Math.min(100, r.progresoPct) + "%",
@@ -301,11 +307,16 @@ export function construirVistaCliente(params: {
     // montoParaAlDia = cuota_de_hoy > 0, pero eso NO es atraso: mostrarle "ponerte al
     // día" contradice el mensaje "Vas al día 🙂" y rompe la regla de tono (hoy jamás
     // como reproche). La Próxima cuota ya cubre ese caso.
-    necesitaPonerseAlDia: r.montoVencido > 0,
+    // >= 1: el residuo sub-peso de las cuotas fraccionarias de Disapp no es
+    // deuda mostrable (UYU lo pintaría "$0" o "$1" — tarjeta absurda).
+    necesitaPonerseAlDia: r.montoVencido >= 1,
     montoAdelantado: adelantado > 0 ? UYU(adelantado) : null,
     fechaFinLarga,
     alDia,
-    creditoCompletado: r.falta === 0,
+    // < 1 (no === 0): un crédito fraccionario pagado COMPLETO deja un residuo
+    // incobrable de centavos (351,04×24 pagado con 24×$351 → falta 0,96) — el
+    // mismo umbral que usan renovación y ruta. Sin esto, jamás veía su 🎉.
+    creditoCompletado: r.falta < 1,
     mejorRacha: r.mejorRacha,
     mensajeAliento,
     dias,

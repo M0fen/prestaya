@@ -139,7 +139,15 @@ export default async function VistaPorToken({
                   sel ? "bg-[#1E47C8] text-white" : "bg-white text-[#1E47C8]"
                 }`}
               >
-                {p.origen === "tienda" ? `🛒 ${p.producto_nombre ?? "Tienda"}` : `Crédito ${i + 1}`}
+                {/* "Crédito 1 / Crédito 2" no distinguía nada (QA 08-05): el monto
+                    sí — un adulto mayor reconoce "el de $20.000" al instante. */}
+                {p.origen === "tienda"
+                  ? `🛒 ${p.producto_nombre ?? "Tienda"}`
+                  : `Crédito de $${Math.round(Number(p.monto_prestado)).toLocaleString("es-UY")}${
+                      activos.filter((x) => x.origen !== "tienda" && Math.round(Number(x.monto_prestado)) === Math.round(Number(p.monto_prestado))).length > 1
+                        ? ` (${i + 1})`
+                        : ""
+                    }`}
               </Link>
             );
           })}
@@ -165,7 +173,16 @@ export default async function VistaPorToken({
   const participando = quiniela
     ? (await getParticipacionCliente(db, quiniela.id, cliente.id)) != null
     : false;
-  const alDiaQuiniela = !calcularEstadosCarton(prestamo, pagos, hoyUY()).dias.some(
+  // Elegibilidad sobre el crédito PRINCIPAL (activos[0]) SIEMPRE — la Server
+  // Action valida contra ese; si acá se evaluaba el crédito SELECCIONADO, un
+  // multi-crédito veía "participás" mirando el crédito al día y el server le
+  // respondía "ponete al día" (o al revés) según qué chip tuviera tocado.
+  const prestamoPrincipal = activos[0] ?? prestamo;
+  const pagosPrincipal =
+    prestamoPrincipal.id === prestamo.id
+      ? pagos
+      : await conTimeout(getPagosDePrestamo(db, prestamoPrincipal.id), TOPE_MS, "cliente.pagosPrincipal");
+  const alDiaQuiniela = !calcularEstadosCarton(prestamoPrincipal, pagosPrincipal, hoyUY()).dias.some(
     (d) => d.estado === "atrasado",
   );
   // Vista del cliente (cartón). NO se muestra el cobrador al deudor: el comprobante

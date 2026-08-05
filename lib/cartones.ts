@@ -163,6 +163,9 @@ export function calcularEstadosCarton(
   // correcta: un cliente que debe N cuotas las debe "al final" — los huecos
   // (atraso) quedan en los últimos días vencidos, no salteados en el medio.
   const totalPagado = pagos.reduce((s, p) => s + p.monto, 0);
+  // Parte fraccionaria de la cuota (0 para cuotas enteras): alimenta la
+  // tolerancia acumulativa del FIFO — ver el comentario grande de abajo.
+  const fraccionCuota = Math.abs(cuota - Math.round(cuota));
 
   const dias: DiaEstado[] = [];
   let diaActual = 0;
@@ -196,10 +199,15 @@ export function calcularEstadosCarton(
     if (esFuturo) estado = "futuro";
     // `cuota > 0`: un crédito mal cargado con cuota 0 daría `0 >= 0` y pintaría TODOS
     // los días como "pagado" (parecería saldado/al día). Con la guarda cae a pendiente.
-    // Tolerancia sub-peso: la cuota puede ser FRACCIONARIA (ej. 8425/24 = 351,04) pero
-    // los pagos se registran ENTEROS (351) → sin esto la casilla nunca llega a "pagado"
-    // y el crédito no cierra JAMÁS. El margen (<1 peso) no deja pasar un abono parcial real.
-    else if (cuota > 0 && pagado >= cuota - 0.5) estado = "pagado";
+    // Tolerancia sub-peso ACUMULATIVA (QA 08-05): la cuota puede ser FRACCIONARIA
+    // (ej. 8425/24 = 351,04) pero los pagos entran ENTEROS (351, lo que el server
+    // cobra). El FIFO concentra el residuo (0,04×k) en el día frontera: con la
+    // tolerancia FIJA de 0,5, a la cuota 13 un cliente que pagó PERFECTO todos
+    // los días pasaba a "Abono parcial · Tenés pagos pendientes" (40 cartones ya
+    // estaban así en la base). El margen crece solo con la parte fraccionaria
+    // REAL de la cuota (f×días): para las cuotas enteras (95%) sigue siendo 0,5
+    // — un abono parcial de verdad jamás pasa.
+    else if (cuota > 0 && pagado >= cuota - 0.5 - fraccionCuota * (i + 1)) estado = "pagado";
     else if (pagado > 0) estado = "pendiente";
     else if (esHoy) estado = "pendiente";
     else estado = "atrasado";
@@ -228,7 +236,11 @@ export function calcularEstadosCarton(
   let montoVencido = 0;
   for (const d of dias) {
     if (d.estado !== "futuro") {
-      const faltaDia = Math.max(0, cuota - d.montoPagado);
+      // Un día marcado PAGADO no debe nada: sin esto, los días cubiertos por la
+      // tolerancia fraccionaria seguían aportando centavos a "para ponerse al
+      // día" y el cliente perfecto veía la tarjeta "💛 $0" (o "$1") — deuda
+      // fantasma incobrable. El residuo sub-peso no es deuda.
+      const faltaDia = d.estado === "pagado" ? 0 : Math.max(0, cuota - d.montoPagado);
       montoParaAlDia += faltaDia;
       if (!d.esHoy) montoVencido += faltaDia;
     }

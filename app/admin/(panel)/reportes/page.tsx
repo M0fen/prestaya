@@ -92,6 +92,8 @@ export default async function ReportesPage() {
           desc="Recaudado, tasa y comisión a liquidar por período."
         >
           <Descargar href="/api/reportes/comisiones?periodo=semana">Semana</Descargar>
+          {/* La cadencia OFICIAL de liquidación (08-05) — primero y a un toque. */}
+          <Descargar href="/api/reportes/comisiones?periodo=quincena">Quincena</Descargar>
           <Descargar href="/api/reportes/comisiones?periodo=mes">Mes</Descargar>
           <Descargar href="/api/reportes/comisiones?periodo=anio">Año</Descargar>
         </Tarjeta>

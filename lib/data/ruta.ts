@@ -22,6 +22,9 @@ export interface ItemRuta {
   /** Posición en el recorrido que el cobrador se armó (asignaciones.orden, 0132).
    *  null = sin ordenar (va al final, por nombre). */
   orden: number | null;
+  /** Semanal/quincenal AL DÍA sin cuota que venza hoy: se muestra "Hoy no toca"
+   *  (no "Cobrado") y queda fuera de las cuentas del día. */
+  sinCuotaHoy: boolean;
   /** Cliente cuyos créditos activos están TODOS de plazo vencido (cartera vencida):
    *  visible para recuperar, pero fuera del target del día (no infla "Falta $"). */
   plazoVencido: boolean;
@@ -138,6 +141,12 @@ export interface ClaseClienteRuta {
   estadoHoy: EstadoHoy;
   /** Cuenta para el denominador/target del día (los vencidos puros NO). */
   cuentaEnRuta: boolean;
+  /** "Al día POR CRONOGRAMA sin cobro hoy" (semanal/quincenal sin cuota que
+   *  venza): el estado interno es "pagado" (nada que cobrarle), pero mostrarlo
+   *  como "Cobrado" a las 7 AM mentía — la ruta arrancaba "Cobrados 14/68" sin
+   *  un peso cobrado (QA 08-05). La UI lo muestra "Hoy no toca" y las cuentas
+   *  del día lo excluyen. */
+  alDiaCronograma: boolean;
 }
 
 /**
@@ -178,6 +187,9 @@ export function clasificarClienteRuta(
     soloVencido,
     estadoHoy: alDiaHoy ? "pagado" : estadoHoyDe(pagadoHoyEnTermino, cuotaEnTermino, esNoPago),
     cuentaEnRuta: !soloVencido,
+    // Solo cuenta como "al día por cronograma" si NO hubo cobro hoy (si cobró,
+    // es un "Cobrado" de verdad y las cuentas del día lo incluyen).
+    alDiaCronograma: alDiaHoy && pagadoHoyEnTermino <= 0,
   };
 }
 
@@ -300,7 +312,7 @@ export async function getRutaCobrador(
   const items: ItemRuta[] = clientes.map((c) => {
     const cr = creditosDe.get(c.id);
     if (!cr)
-      return { cliente: c, prestamoId: null, cuota: 0, estadoHoy: "sin_credito", pagadoHoy: 0, orden: ordenDe.get(c.id) ?? null, plazoVencido: false, recuperadoHoy: 0 };
+      return { cliente: c, prestamoId: null, cuota: 0, estadoHoy: "sin_credito", pagadoHoy: 0, orden: ordenDe.get(c.id) ?? null, sinCuotaHoy: false, plazoVencido: false, recuperadoHoy: 0 };
     // No-pago si alguno de sus créditos quedó marcado como visita sin cobro.
     const esNoPago = cr.creditos.some((x) => noPagoPrestamos.has(x.id));
     // Créditos con lo cobrado HOY en CADA uno (para separar recaudo total vs.
@@ -330,7 +342,10 @@ export async function getRutaCobrador(
     recaudado += clase.pagadoHoyTotal; // incluye recuperaciones de vencidos: la plata es plata
     // Solo los créditos EN TÉRMINO aportan al target del día y al denominador de
     // "ruta completa"; los vencidos puros quedan visibles pero fuera de esas cuentas.
-    if (clase.cuentaEnRuta) {
+    // Los "al día por cronograma" (semanal sin cuota hoy) NO cuentan en el día:
+    // ni como cobrados (mentira: no se les cobró nada) ni en el denominador
+    // (no hay nada que hacerles hoy). Visibles en la lista como "Hoy no toca".
+    if (clase.cuentaEnRuta && !clase.alDiaCronograma) {
       esperado += clase.cuotaEnTermino;
       // Cap POR CLIENTE: lo que un cliente pagó de MÁS sobre su cuota de hoy (se
       // puso al día pagando 2 cuotas) NO puede tapar el faltante de OTRO cliente.
@@ -349,6 +364,7 @@ export async function getRutaCobrador(
       estadoHoy: clase.estadoHoy,
       pagadoHoy: clase.pagadoHoyEnTermino, // lo cobrado hacia la cuota de HOY (chip "Abonó")
       orden: ordenDe.get(c.id) ?? null,
+      sinCuotaHoy: clase.alDiaCronograma,
       plazoVencido: clase.soloVencido,
       // Recuperación de deuda vieja hoy (solo aplica a cartera vencida pura).
       recuperadoHoy: clase.soloVencido ? clase.pagadoHoyTotal : 0,

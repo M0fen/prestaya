@@ -11,7 +11,7 @@ import { getNotasCliente } from "@/lib/data/notas";
 import { getGestionesCliente, type Gestion } from "@/lib/data/gestionesCobranza";
 import { calcularEstadosCarton } from "@/lib/cartones";
 import { formatearSuerte } from "@/lib/quiniela";
-import { hoyUY } from "@/lib/fecha";
+import { hoyUY, fechaISOUY } from "@/lib/fecha";
 import type { Prestamo } from "@/types/db";
 import { UYU } from "@/lib/format";
 import { RegistroCobro } from "@/components/cobrador/RegistroCobro";
@@ -122,7 +122,12 @@ export default async function DetalleClientePage({
                       : "border border-[#DCE3F4] bg-white text-[#6B7494]"
                   }`}
                 >
-                  {p.origen === "tienda" ? `🛒 ${p.producto_nombre ?? "Tienda"}` : `Crédito ${i + 1}`} · {UYU(p.cuota_diaria)}/día
+                  {/* Monto + fecha de inicio: dos créditos de efectivo con igual
+                      cuota eran indistinguibles ("Crédito 1 · $300/día"). Y "/día"
+                      era falso para los 202 no-diarios. */}
+                  {p.origen === "tienda" ? `🛒 ${p.producto_nombre ?? "Tienda"}` : `Crédito de ${UYU(p.monto_prestado)}`}
+                  {" · "}cuota {UYU(p.cuota_diaria)}
+                  {p.fecha_inicio ? ` · desde ${String(p.fecha_inicio).slice(8, 10)}/${String(p.fecha_inicio).slice(5, 7)}` : ""}
                 </Link>
               );
             })}
@@ -200,6 +205,11 @@ async function Detalle({
   const DOS_HORAS = 2 * 60 * 60 * 1000;
   const ahora = Date.now();
   const recientes: PagoReciente[] = pagos
+    // SOLO trabajo de la app (origen null): los ajustes del empalme llevan el
+    // registrado_por del cobrador real — si el import corre durante la jornada,
+    // aparecían acá con "Deshacer" activo de UN tap (QA 08-05) y deshacer un
+    // ajuste de reconciliación rompe el espejo con Disapp.
+    .filter((p) => (p.origen ?? null) === null)
     .filter((p) => p.registrado_en && ahora - new Date(p.registrado_en).getTime() < DOS_HORAS)
     .sort((a, b) => new Date(b.registrado_en).getTime() - new Date(a.registrado_en).getTime())
     .slice(0, 6)
@@ -211,6 +221,12 @@ async function Detalle({
     }));
   const cubiertos = r.dias.filter((d) => d.estado === "pagado").length;
   const atrasados = r.dias.filter((d) => d.estado === "atrasado").length;
+  // Cobrado HOY en la APP sobre este crédito (día UY): inicializa el candado
+  // anti-doble-cobro del botón desde el SERVIDOR, no solo desde la cola offline.
+  const hoyStr = fechaISOUY(new Date());
+  const pagadoHoyServidor = pagos
+    .filter((p) => (p.origen ?? null) === null && p.registrado_en && fechaISOUY(new Date(p.registrado_en)) === hoyStr)
+    .reduce((s, p) => s + Number(p.monto), 0);
   const tieneGps = Boolean(cliente?.gps_lat != null && cliente?.gps_lng != null);
   const tonoAtraso = atrasados > 0 ? { bg: "#FBE4E2", fg: "#C0392B" } : { bg: "#FDF3E2", fg: "#9A6A0E" };
 
@@ -289,6 +305,7 @@ async function Detalle({
         cuotasCubiertas={cubiertos}
         totalCuotas={prestamo.total_dias}
         cuotasAtrasadas={atrasados}
+        pagadoHoyServidor={pagadoHoyServidor}
       />
 
       {/* Cobros recientes con "deshacer" dentro de 1 h (auto-corrección). */}

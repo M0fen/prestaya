@@ -111,7 +111,7 @@ export function Historial({ historial }: { historial: HistorialItem[] }) {
                         className="flex items-center justify-between text-[13px]"
                       >
                         <span className="font-medium text-gris">
-                          Pago a las {r.hora} h
+                          {r.hora ? `Pago a las ${r.hora} h` : "Registrado por la oficina"}
                           {r.quien ? ` · ${r.quien}` : ""}
                         </span>
                         <span className="font-bold text-tinta tabular-nums">

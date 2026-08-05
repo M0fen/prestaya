@@ -7,7 +7,7 @@ export function RecordatorioLink({ token }: { token: string }) {
       className="flex items-center justify-center gap-2 rounded-[13px] border border-[#DCE6FB] bg-[#EEF3FF] px-4 py-3 text-[13px] font-bold text-azul"
     >
       <span aria-hidden="true">📅</span>
-      Agregar recordatorio diario a mi calendario
+      Agregar recordatorio de mi cuota al calendario
     </a>
   );
 }

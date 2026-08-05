@@ -94,6 +94,7 @@ export default async function RutaPage() {
     plazoVencido: i.plazoVencido,
     recuperadoHoy: i.recuperadoHoy,
     orden: i.orden,
+    sinCuotaHoy: i.sinCuotaHoy,
   }));
 
   // Avance de la ruta: clientes "resueltos" hoy (cobrados + no-pago) sobre el
@@ -230,6 +231,10 @@ export default async function RutaPage() {
             <p className="mt-2 text-[11px] leading-[1.45] font-medium text-[#8A93AD]">
               Es lo que deberías tener encima ahora — y lo que el cierre te va a pedir entregar
               {jornada.base > 0 ? " (la base se devuelve)" : ""}.
+              {/* Base $0 a la mañana: puede ser real o que el supervisor no la cargó
+                  todavía — que el cobrador lo sepa ANTES de salir, no en el cierre. */}
+              {jornada.base <= 0 &&
+                " Si te dieron plata de arranque y acá dice $0, pedile a tu supervisor que cargue la base."}
               {gastosPendientes > 0 &&
                 ` Tenés ${UYU(gastosPendientes)} en gastos pedidos sin aprobar: no se descuentan todavía.`}
             </p>

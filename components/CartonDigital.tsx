@@ -178,7 +178,7 @@ export function CartonDigital({ dias, diaActual, totalDias, unidad = UNIDAD_DEFE
                     className="flex items-center justify-between gap-2 text-[12.5px] font-medium text-[#3A445F]"
                   >
                     <span className="truncate">
-                      🕒 {p.hora}
+                      {p.hora ? `🕒 ${p.hora}` : "🏢 Oficina"}
                       {p.quien ? ` · cobró ${p.quien}` : ""}
                     </span>
                     <span className="flex-shrink-0 font-bold">{p.monto}</span>

@@ -52,7 +52,23 @@ export async function GET(
     new Date().toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
   const cuota = UYU(prestamo.cuota_diaria);
 
-  // Evento diario (FREQ=DAILY) con una alarma a la hora del evento.
+  // RRULE según la FRECUENCIA del crédito (QA 08-05): a un cliente semanal le
+  // sonaba una alarma TODOS los días hábiles por una cuota que vence una vez
+  // por semana. Diario = Lun–Sáb (domingo no se cobra); semanal = cada 7 días;
+  // quincenal = cada 14; mensual = mensual. Ancla: el DTSTART (primera cuota).
+  const frec = (prestamo.frecuencia as string) ?? "diario";
+  const rrule =
+    frec === "semanal"
+      ? `RRULE:FREQ=WEEKLY;UNTIL=${until}`
+      : frec === "quincenal"
+        ? `RRULE:FREQ=WEEKLY;INTERVAL=2;UNTIL=${until}`
+        : frec === "mensual"
+          ? `RRULE:FREQ=MONTHLY;UNTIL=${until}`
+          : `RRULE:FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR,SA;UNTIL=${until}`;
+  const etiquetaFrec =
+    frec === "semanal" ? "semanal" : frec === "quincenal" ? "quincenal" : frec === "mensual" ? "mensual" : "diaria";
+
+  // Evento con una alarma a la hora del evento.
   const ics = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -63,11 +79,9 @@ export async function GET(
     `UID:${prestamo.id}@presta-ya`,
     `DTSTAMP:${stamp}`,
     `DTSTART:${dtStart}`,
-    // Cobro de LUNES a SÁBADO (el domingo no se cobra): el recordatorio no debe
-    // avisar los domingos.
-    `RRULE:FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR,SA;UNTIL=${until}`,
+    rrule,
     `SUMMARY:Pagar cuota de Presta Ya (${cuota})`,
-    "DESCRIPTION:Recordatorio de tu cuota diaria. ¡Seguí al día!",
+    `DESCRIPTION:Recordatorio de tu cuota ${etiquetaFrec}. ¡Seguí al día!`,
     "BEGIN:VALARM",
     "TRIGGER:-PT0M",
     "ACTION:DISPLAY",

@@ -98,20 +98,28 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
   const colocar = () =>
     start(async () => {
       setMsg(null);
-      const r =
-        modo === "renovar"
-          ? await renovarDesdeCalle({ clienteId: c.clienteId, prestamoId: c.prestamoId! })
-          : await nuevaVentaDesdeCalle({
-              clienteId: c.clienteId,
-              monto: montoN,
-              totalDias: cuotasN,
-              frecuencia: c.frecuencia as FrecuenciaPrestamo,
-            });
-      if (r.ok) {
-        setOkTxt(r.cuota ? `Listo ✓ · cuota ${UYU(r.cuota)}` : "Listo ✓");
-        router.refresh();
-      } else {
-        setMsg(r.error);
+      try {
+        const r =
+          modo === "renovar"
+            ? await renovarDesdeCalle({ clienteId: c.clienteId, prestamoId: c.prestamoId! })
+            : await nuevaVentaDesdeCalle({
+                clienteId: c.clienteId,
+                monto: montoN,
+                totalDias: cuotasN,
+                frecuencia: c.frecuencia as FrecuenciaPrestamo,
+              });
+        if (r.ok) {
+          setOkTxt(r.cuota ? `Listo ✓ · cuota ${UYU(r.cuota)}` : "Listo ✓");
+          router.refresh();
+        } else {
+          setMsg(r.error);
+          setConfirmar(false);
+        }
+      } catch {
+        // Red caída a mitad de la colocación: aviso inline (antes reventaba al
+        // error boundary y el cobrador no sabía si el crédito se creó). El
+        // reintento es seguro: la idempotencia por op_id no duplica el capital.
+        setMsg("Sin señal: no sabemos si entró. Con conexión, tocá de nuevo — no se duplica.");
         setConfirmar(false);
       }
     });

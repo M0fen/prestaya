@@ -34,6 +34,49 @@ describe("totalCredito / saldoCredito — equivalentes al cartón (deuda #9)", (
   });
 });
 
+// ── Cuota FRACCIONARIA de Disapp + pagos ENTEROS (QA 08-05) ────────────────
+// El FIFO concentra el residuo (0,04×k) en el día frontera: con la tolerancia
+// FIJA de 0,5, a la cuota 13 un cliente que pagó PERFECTO ($351 cada día de una
+// cuota de 351,04) pasaba a "Abono parcial · Tenés pagos pendientes" (40
+// cartones ya estaban así en la base). La tolerancia acumulativa (f×día) lo
+// arregla SIN aflojar las cuotas enteras (f=0 → tolerancia 0,5 como siempre).
+describe("cuota fraccionaria + pagos enteros — el cliente perfecto nunca queda 'pendiente'", () => {
+  const cred = { cuota_diaria: 351.04, total_dias: 24, fecha_inicio: "2026-06-03" };
+  const pagosEnteros = (k: number) =>
+    Array.from({ length: k }, (_, i) => ({ dia_credito: i + 1, monto: 351 }));
+
+  it("13 pagos enteros: los 13 días PAGADOS (antes el 13º caía a 'pendiente')", () => {
+    // Día 15 del crédito (Lun–Sáb desde mié 03-jun) — con 13 cuotas pagas al día 13.
+    const r = calcularEstadosCarton(cred, pagosEnteros(13), parseFecha("2026-06-17"));
+    expect(r.dias.slice(0, 13).every((d) => d.estado === "pagado")).toBe(true);
+  });
+
+  it("24 pagos enteros (crédito completo): sin vencido, sin 'ponerse al día' fantasma", () => {
+    const r = calcularEstadosCarton(cred, pagosEnteros(24), parseFecha("2026-07-10"));
+    expect(r.dias.every((d) => d.estado === "pagado")).toBe(true);
+    expect(r.montoVencido).toBe(0);
+    expect(r.montoParaAlDia).toBe(0);
+    // El residuo incobrable queda en falta (0,96) — los umbrales <1 lo absorben.
+    expect(r.falta).toBeLessThan(1);
+  });
+
+  it("un abono parcial REAL sigue sin pasar (no se aflojó de más)", () => {
+    // 12 cuotas justas + $300 de la 13ª (faltan $51): el día 13 NO es pagado.
+    const pagos = [...pagosEnteros(12), { dia_credito: 13, monto: 300 }];
+    const r = calcularEstadosCarton(cred, pagos, parseFecha("2026-06-17"));
+    expect(r.dias[12].estado).toBe("pendiente");
+  });
+
+  it("cuota ENTERA: la tolerancia sigue siendo 0,5 (un peso menos = pendiente)", () => {
+    const r = calcularEstadosCarton(
+      { cuota_diaria: 300, total_dias: 30, fecha_inicio: "2026-06-03" },
+      [{ dia_credito: 1, monto: 299 }],
+      parseFecha("2026-06-04"),
+    );
+    expect(r.dias[0].estado).toBe("pendiente");
+  });
+});
+
 /** Préstamo base de prueba: 30 días, cuota 20.000, inicia 2026-06-03. */
 const prestamoBase: Pick<Prestamo, "cuota_diaria" | "total_dias" | "fecha_inicio"> =
   {

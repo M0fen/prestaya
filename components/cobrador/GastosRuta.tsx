@@ -45,12 +45,19 @@ export function GastosRuta({
     if (!f) return;
     setError(null);
     setSubiendo(true);
-    const fd = new FormData();
-    fd.append("file", f);
-    const res = await subirComprobanteGasto(fd);
-    setSubiendo(false);
-    if (res.ok) setComprobante(res.url);
-    else setError(res.error);
+    try {
+      const fd = new FormData();
+      fd.append("file", f);
+      const res = await subirComprobanteGasto(fd);
+      if (res.ok) setComprobante(res.url);
+      else setError(res.error);
+    } catch {
+      // Sin señal a mitad de la subida: antes "Subiendo…" quedaba trabado para
+      // siempre (el finally no existía) y la única salida era recargar.
+      setError("No se pudo subir la foto (¿sin señal?). Probá de nuevo con conexión.");
+    } finally {
+      setSubiendo(false);
+    }
   };
 
   const solicitar = () => {
@@ -58,14 +65,19 @@ export function GastosRuta({
     setError(null);
     setOk(false);
     startTransition(async () => {
-      const res = await solicitarGastoRuta({ monto: montoN, categoria, descripcion: nota, comprobanteUrl: comprobante });
-      if (res.ok) {
-        setMonto("");
-        setNota("");
-        setComprobante(null);
-        setOk(true);
-        router.refresh();
-      } else setError(res.error);
+      try {
+        const res = await solicitarGastoRuta({ monto: montoN, categoria, descripcion: nota, comprobanteUrl: comprobante });
+        if (res.ok) {
+          setMonto("");
+          setNota("");
+          setComprobante(null);
+          setOk(true);
+          router.refresh();
+        } else setError(res.error);
+      } catch {
+        // Red caída: aviso inline, sin reventar al error boundary (perdía lo tipeado).
+        setError("Sin señal: no se envió. Probá de nuevo con conexión — lo tipeado sigue acá.");
+      }
     });
   };
 

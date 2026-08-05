@@ -75,7 +75,11 @@ export function SolicitudesAnulacion({
                 type="button"
                 disabled={pending}
                 onClick={() => {
-                  const m = prompt("Motivo del rechazo (opcional):") ?? "";
+                  const m = prompt("Motivo del rechazo (opcional):");
+                  // Cancelar en el prompt = ARREPENTIMIENTO, no "rechazar sin
+                  // motivo": antes el null se volvía "" y la corrección de un
+                  // cobrador moría sin intención.
+                  if (m === null) return;
                   ejecutar(rechazarAnulacionAction({ solicitudId: s.id, motivo: m }));
                 }}
                 className="rounded-[10px] border border-[#DCE3F1] px-3.5 py-1.5 text-[12px] font-bold text-gris hover:bg-suave disabled:opacity-40"

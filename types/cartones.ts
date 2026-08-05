@@ -120,8 +120,11 @@ export interface DiaCarton {
 
 /** Un pago individual dentro del comprobante de un día. */
 export interface ReciboPago {
-  /** Hora del pago "HH:mm". */
-  hora: string;
+  /** Hora del pago "HH:mm" — o null si es un asiento de MIGRACIÓN/ajuste
+   *  (origen != null): el empalme lo insertó de madrugada y mostrar esa hora
+   *  como "hora de pago" olía a inventado. La UI muestra "Registrado por la
+   *  oficina" en su lugar. */
+  hora: string | null;
   /** Monto formateado en pesos. */
   monto: string;
   /** Quién registró el cobro (nombre del cobrador), o null si no consta. */

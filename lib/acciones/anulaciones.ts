@@ -207,11 +207,16 @@ export async function deshacerPagoAction(input: { pagoId: string }): Promise<Res
   const admin = createSupabaseAdmin();
   const { data: pago } = await admin
     .from("pagos")
-    .select("id, registrado_por, registrado_en, anulado")
+    .select("id, registrado_por, registrado_en, anulado, origen")
     .eq("id", input.pagoId)
     .maybeSingle();
   if (!pago) return { ok: false, error: "No se encontró el pago." };
   if (pago.anulado) return { ok: false, error: "Ese pago ya estaba anulado." };
+  // Los asientos de import/reconciliación llevan el registrado_por del cobrador
+  // real pero NO son un cobro suyo de hace un rato: deshacerlos rompe el espejo
+  // con Disapp. Solo se deshace trabajo hecho EN LA APP (origen null).
+  if ((pago.origen as string | null) != null)
+    return { ok: false, error: "Ese es un registro de oficina (migración): no se deshace desde acá." };
 
   // Autorización: SOLO quien lo registró, y SOLO dentro de la ventana de 1 h.
   if (pago.registrado_por !== u.id)

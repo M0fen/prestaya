@@ -73,15 +73,15 @@ const COBRADOR: GuiaTutorial[] = [
           "Tocá el cliente en tu ruta. Vas a ver su cartón: cada casilla es un día. Verde = pagado, ámbar = pendiente/abono, rojo = atrasado, gris = todavía no vence.",
       },
       {
-        titulo: "Cargá el monto y tocá 'Registrar pago'",
+        titulo: "Tocá 'Registrar pago' y confirmá con 'Sí, cobrar'",
         cuerpo:
-          "Poné lo que te entrega y confirmá. El teléfono guarda la hora del servidor y tu ubicación (GPS): así queda la prueba de que cobraste ahí y en ese momento.",
-        tip: "Un abono parcial (menos que la cuota) NO pinta el día de verde: queda ámbar (pendiente). Recién con la cuota completa el día queda pagado.",
+          "El botón ya trae la cuota del día. Primer toque arma la confirmación, segundo toque cobra — así un dedazo no registra nada. Si paga VARIAS cuotas juntas, usá el − y el + de arriba del botón; si es un monto distinto, 'Otro monto'. El teléfono guarda la hora del servidor y tu ubicación (GPS): la prueba de que cobraste ahí.",
+        tip: "Un abono parcial (menos que la cuota) NO pinta el día de verde: queda ámbar (pendiente). Y si te equivocaste, tenés 'Deshacer' unos segundos — pasado eso, 'Pedir corrección' en el historial de la ficha (la aprueba tu supervisor).",
       },
       {
         titulo: "Mostrale el comprobante",
         cuerpo:
-          "Cada pago genera un comprobante con la hora y el sello 'Registrado'. El cliente lo ve desde su propio link. Es tu respaldo y el de él.",
+          "Cada pago genera un comprobante con la hora, el avance en cuotas (lleva N de M) y el sello 'Registrado'. El cliente lo ve desde su propio link. Es tu respaldo y el de él.",
       },
     ],
   },

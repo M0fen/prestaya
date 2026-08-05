@@ -135,12 +135,19 @@ export function CerrarJornada({
   const cerrar = () => {
     setError(null);
     startTransition(async () => {
-      const res = await cerrarJornada({ gastos: gastosN, entregado: entregadoN, notas });
-      if (res.ok) {
-        setConfirmar(false);
-        router.refresh();
-      } else {
-        setError(res.error);
+      try {
+        const res = await cerrarJornada({ gastos: gastosN, entregado: entregadoN, notas });
+        if (res.ok) {
+          setConfirmar(false);
+          router.refresh();
+        } else {
+          setError(res.error);
+          setConfirmar(false);
+        }
+      } catch {
+        // Red caída al cerrar: aviso inline (antes error boundary). Reintentar es
+        // seguro: la rendición es unique por (cobrador, fecha) — no se duplica.
+        setError("Sin señal: el cierre no llegó. Probá de nuevo con conexión.");
         setConfirmar(false);
       }
     });

@@ -38,6 +38,8 @@ export interface ItemRutaVista {
   /** Posición guardada en el recorrido del cobrador (asignaciones.orden, 0132).
    *  null = sin ordenar → va al final del "Mi orden", por nombre. */
   orden?: number | null;
+  /** Semanal/quincenal al día SIN cuota hoy → chip "Hoy no toca" (no "Cobrado"). */
+  sinCuotaHoy?: boolean;
 }
 
 // Peso de prioridad: cobrar PRIMERO a los de mayor riesgo (menor peso = antes).
@@ -108,8 +110,9 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
       todos: items.length,
       // La cartera vencida no cuenta en las cuentas del DÍA (coincide con el arqueo,
       // que la excluye por completo): ni pendiente, ni cobrado, ni no-pago.
+      // Los "Hoy no toca" (semanal sin cuota hoy) tampoco: no son cobros.
       pendiente: items.filter((i) => i.estadoHoy === "pendiente" && !i.plazoVencido).length,
-      cobrado: items.filter((i) => (i.estadoHoy === "pagado" || i.estadoHoy === "abono") && !i.plazoVencido).length,
+      cobrado: items.filter((i) => (i.estadoHoy === "pagado" || i.estadoHoy === "abono") && !i.plazoVencido && !i.sinCuotaHoy).length,
       no_pago: items.filter((i) => i.estadoHoy === "no_pago" && !i.plazoVencido).length,
     }),
     [items],
@@ -131,16 +134,20 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
     );
   };
 
-  // Intento silencioso al montar (si el permiso ya estaba concedido, resuelve
-  // sin prompt; si no, el usuario puede tocar el botón).
+  // Intento al montar SOLO si el modo inicial es cercanía (QA 08-05): con GPS
+  // pobre o recorrido guardado, el primer contacto del día 1 con la app era el
+  // diálogo de permiso de ubicación tapando la ruta — sin que nada lo usara.
+  // Al tocar "📍 Cercanía" se pide igual (ver onClick del toggle).
   useEffect(() => {
-    pedirUbicacion();
+    if (modo === "cercania") pedirUbicacion();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const ordenados = useMemo(() => {
-    const pendientes = items.filter((i) => !cerrado(i.estadoHoy));
-    const cerrados = items.filter((i) => cerrado(i.estadoHoy));
+    // "Hoy no toca" (semanal sin cuota hoy) baja al fondo con los visitados:
+    // no es una parada del día, pero sigue visible por si el cliente aparece.
+    const pendientes = items.filter((i) => !cerrado(i.estadoHoy) && !i.sinCuotaHoy);
+    const cerrados = items.filter((i) => cerrado(i.estadoHoy) || i.sinCuotaHoy);
     let base = pendientes;
     if (modo === "ruta") base = porMiOrden(pendientes);
     else if (modo === "cercania" && origen) base = ordenarPorCercania(pendientes, origen);
@@ -160,7 +167,7 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
     filtro === "todos"
       ? ordenados
       : filtro === "cobrado"
-        ? ordenados.filter((i) => (i.estadoHoy === "pagado" || i.estadoHoy === "abono") && !i.plazoVencido)
+        ? ordenados.filter((i) => (i.estadoHoy === "pagado" || i.estadoHoy === "abono") && !i.plazoVencido && !i.sinCuotaHoy)
         : ordenados.filter((i) => i.estadoHoy === filtro && !i.plazoVencido);
 
   // BUSCAR IGNORA LA CHIP: antes se buscaba dentro del filtro activo, así que
@@ -471,7 +478,11 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
       )}
 
       {visibles.map((it, idx) => {
-        const chip = CHIP[it.estadoHoy];
+        // "Hoy no toca": el semanal/quincenal al día sin cuota hoy NO está
+        // "Cobrado" (mentía a las 7 AM) — chip propio, neutro.
+        const chip = it.sinCuotaHoy
+          ? { label: "Hoy no toca", bg: "#EDF4FB", fg: "#4A6FA5", barra: "#B9CFE8" }
+          : CHIP[it.estadoHoy];
         // Fallback de inicial: un cliente sin nombre no debe romper toda la
         // lista de la ruta (charAt sobre null/undefined tira). "—" si no hay.
         const inicial = (it.nombre ?? "").trim().charAt(0).toUpperCase() || "—";
@@ -547,7 +558,7 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
                   className="rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums"
                   style={{ background: chip.bg, color: chip.fg }}
                 >
-                  {it.estadoHoy === "abono" ? `Abonó ${UYU(it.pagadoHoy)}` : chip.label}
+                  {!it.sinCuotaHoy && it.estadoHoy === "abono" ? `Abonó ${UYU(it.pagadoHoy)}` : chip.label}
                 </span>
                 {restaHoy > 0 && (
                   <span className="text-[10px] font-semibold text-[#B9770E] tabular-nums">
