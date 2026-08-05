@@ -24,6 +24,8 @@ interface Candidato {
   /** Hasta cuánto puede llegar sin permiso (tope del tramo de SU monto anterior).
    *  Lo calcula el servidor con la misma función que después valida el alta. */
   techo: number;
+  /** Deuda viva en sus OTROS créditos activos (0 si no tiene). Se avisa, no bloquea. */
+  deudaHermano?: number;
 }
 
 const norm = (s: string) =>
@@ -153,6 +155,15 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
           </button>
         )}
       </div>
+
+      {/* El cliente terminó ESTE crédito pero le queda deuda en otro. Antes esto
+          lo sacaba de la lista sin decir nada y el cobrador creía que la app
+          estaba rota; ahora se avisa y la decisión de renovar igual es humana. */}
+      {modo === "renovar" && (c.deudaHermano ?? 0) >= 1 && (
+        <p className="rounded-[11px] bg-[#FDF3E2] px-3 py-2 text-[11.5px] font-bold text-[#8A6D1E]">
+          ⚠️ Tiene otro crédito abierto al que le falta {UYU(c.deudaHermano ?? 0)}.
+        </p>
+      )}
 
       {abierto && (
         <>

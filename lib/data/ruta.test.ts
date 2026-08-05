@@ -188,3 +188,36 @@ describe("clasificarClienteRuta — 'al día' (no-diario) NO es cartera vencida"
     expect(clase.cuotaEnTermino).toBe(500);
   });
 });
+
+describe("cliente COMPARTIDO entre dos cobradores — cada uno cobra lo SUYO", () => {
+  // Caso real de campo (08-05): SONIA TELIS tiene 8 créditos activos, 6 de Juan
+  // José Castro ($5.350 de cuota) y 2 de Alejandro Cardona ($1.200), y está en
+  // las dos rutas. Antes la consulta traía TODOS los créditos del cliente, así
+  // que los dos veían $6.550 y los dos salían a cobrar el total: doble cobro al
+  // cliente y arqueo inflado en los dos. La cuota de cada uno es la de SUS
+  // créditos; `clasificarClienteRuta` ya opera sobre la lista que se le pasa,
+  // así que la regla se cumple filtrando el crédito por dueño ANTES de llamarla.
+  it("cada cobrador ve solo la cuota de sus propios créditos, no la del compañero", () => {
+    const deJuanJose = [1200, 1200, 550, 600, 1200, 600].map((cuota) => ({
+      cuota,
+      pagadoHoy: 0,
+      plazoVencido: false,
+    }));
+    const deAlejandro = [600, 600].map((cuota) => ({ cuota, pagadoHoy: 0, plazoVencido: false }));
+
+    expect(clasificarClienteRuta(deJuanJose, false).cuotaEnTermino).toBe(5350);
+    expect(clasificarClienteRuta(deAlejandro, false).cuotaEnTermino).toBe(1200);
+    // Y NUNCA el total del cliente: si alguno viera 6550, está cobrando lo ajeno.
+    expect(clasificarClienteRuta([...deJuanJose, ...deAlejandro], false).cuotaEnTermino).toBe(6550);
+  });
+
+  it("el cobro del compañero no marca 'pagado' al cliente en MI ruta", () => {
+    // Alejandro no le cobró nada; que Juan José haya cobrado sus $5.350 no puede
+    // dejar la parada de Alejandro en "Cobrado" (se saltearía su propia cuota).
+    const soloLosMios = [
+      { cuota: 600, pagadoHoy: 0, plazoVencido: false },
+      { cuota: 600, pagadoHoy: 0, plazoVencido: false },
+    ];
+    expect(clasificarClienteRuta(soloLosMios, false).estadoHoy).toBe("pendiente");
+  });
+});

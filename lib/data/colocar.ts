@@ -32,6 +32,10 @@ export interface CandidatoColocar {
   frecuencia: string;
   /** Cuánto le falta pagar (renovar: < 1 por definición). */
   falta?: number;
+  /** Deuda VIVA del cliente en sus OTROS créditos activos (0 si no tiene). Se
+   *  avisa en pantalla al renovar: el cliente terminó este crédito pero sigue
+   *  debiendo en otro, y el que presta tiene que saberlo antes de decidir. */
+  deudaHermano?: number;
   /** Hasta cuánto puede colocar el cobrador SIN pedir permiso. Se calcula con
    *  `topeAumentoPct` — la MISMA función que después valida el alta — así la
    *  pantalla nunca ofrece un monto que el servidor va a rechazar. */
@@ -68,23 +72,26 @@ export async function getCandidatosRenovar(db: SupabaseClient): Promise<Candidat
   const cliDe = new Map((cls ?? []).map((c) => [c.id as string, c as unknown as Cliente]));
 
   const hoy = hoyUY();
-  // Saldo por crédito → y por CLIENTE: un cliente entra a "Renovar" solo si
-  // TODOS sus créditos activos están saldados (mismo gate que el servidor,
-  // auditoría 08-05). Si uno está saldado pero otro debe, renovarle el primero
-  // sería darle capital nuevo con deuda viva al lado.
+  // Saldo POR CRÉDITO: entra a "Renovar" cada crédito que quedó en cero. El
+  // multi-crédito es legítimo (regla del negocio), así que un cliente que terminó
+  // uno y sigue pagando otro SÍ puede renovar el terminado — el gate del 08-04
+  // que exigía TODOS los créditos en cero lo hacía desaparecer de esta lista sin
+  // ningún mensaje (reporte de campo 08-05, caso 8). La deuda del crédito hermano
+  // viaja en `deudaHermano` para que la pantalla la AVISE en vez de esconder al
+  // cliente: la decisión de prestarle igual es del negocio, no del filtro.
   const faltaDe = new Map<string, number>();
-  const clienteConDeuda = new Set<string>();
+  const deudaPorCliente = new Map<string, number>();
   for (const p of activos) {
     const pagos = await getPagosDePrestamo(db, p.id);
     const carton = calcularEstadosCarton(p, pagos, hoy);
     faltaDe.set(p.id, carton.falta);
-    if (carton.falta >= 1) clienteConDeuda.add(p.cliente_id);
+    if (carton.falta >= 1)
+      deudaPorCliente.set(p.cliente_id, (deudaPorCliente.get(p.cliente_id) ?? 0) + carton.falta);
   }
   const out: CandidatoColocar[] = [];
   for (const p of activos) {
     const cli = cliDe.get(p.cliente_id);
     if (!cli || !cli.activo) continue;
-    if (clienteConDeuda.has(p.cliente_id)) continue;
     const carton = { falta: faltaDe.get(p.id) ?? 0 };
     // Mismo umbral que el gate del servidor: un residuo de centavos no traba.
     if (carton.falta >= 1) continue;
@@ -99,6 +106,7 @@ export async function getCandidatosRenovar(db: SupabaseClient): Promise<Candidat
       frecuencia: (p.frecuencia as string) ?? "diario",
       falta: Math.max(0, Math.round(carton.falta)),
       techo: techoDe(Math.round(Number(p.monto_prestado) || 0)),
+      deudaHermano: Math.round(deudaPorCliente.get(p.cliente_id) ?? 0),
     });
   }
   return out.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));

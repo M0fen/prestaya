@@ -105,22 +105,19 @@ export async function renovarDesdeCalle(input: {
   const ant = activos.find((x) => x.id === input.prestamoId);
   if (!ant) return { ok: false, error: "Ese crédito ya no está activo." };
 
-  // ¿Terminó de pagar TODO? No solo el crédito elegido: si el cliente tiene OTRO
-  // crédito activo con saldo, renovarle este (saldado) le entrega capital nuevo
-  // con deuda viva al lado — renovación indebida (auditoría 08-05). Un multi-
-  // crédito legítimo se renueva cuando TODOS están al cero.
-  for (const cred of activos) {
-    const pagosDe = await getPagosDePrestamo(db, cred.id);
-    const carton = calcularEstadosCarton(cred, pagosDe, hoyUY());
-    if (carton.falta >= 1) {
-      return {
-        ok: false,
-        error:
-          cred.id === ant.id
-            ? `Todavía le falta pagar ${UYU(carton.falta)}. Se renueva cuando termine.`
-            : `Tiene OTRO crédito activo al que le falta ${UYU(carton.falta)}. Se renueva cuando termine todo.`,
-      };
-    }
+  // ¿Terminó de pagar EL CRÉDITO QUE SE RENUEVA? Se exige saldado SOLO el elegido,
+  // igual que el camino de la oficina (lib/data/renovaciones.ts). Exigir que TODOS
+  // los créditos del cliente estén en cero (como se hizo el 08-04) contradice la
+  // regla del negocio de que el multi-crédito es legítimo: un cliente que termina
+  // uno y sigue pagando otro NO podía renovar el terminado — y encima desaparecía
+  // mudo de la lista "Renovar" (reporte de campo 08-05, caso 8).
+  const pagosDelElegido = await getPagosDePrestamo(db, ant.id);
+  const cartonElegido = calcularEstadosCarton(ant, pagosDelElegido, hoyUY());
+  if (cartonElegido.falta >= 1) {
+    return {
+      ok: false,
+      error: `Todavía le falta pagar ${UYU(cartonElegido.falta)}. Se renueva cuando termine.`,
+    };
   }
 
   const monto = Math.round(Number(ant.monto_prestado) || 0);
@@ -140,14 +137,29 @@ export async function renovarDesdeCalle(input: {
     };
   }
 
-  const res = await crearRenovacion(db, {
-    clienteId: input.clienteId,
-    prestamoAnteriorId: ant.id,
-    monto,
-    totalDias,
-    frecuencia: (ant.frecuencia as FrecuenciaPrestamo) ?? "diario",
-    creadoPor: u.id,
-  });
+  // ⚠️ La ESCRITURA va con service_role, igual que la colocación de la calle
+  // (línea ~238). Con la sesión del cobrador, la RPC `renovar_credito_seguro`
+  // (SECURITY INVOKER) ejecuta su UPDATE bajo la policy `prestamos_update`, que
+  // solo habilita gestores (`app_gestor_ve_cliente` = admin o supervisor de la
+  // zona). Para un cobrador el UPDATE afectaba 0 filas y la RPC lo interpretaba
+  // como carrera perdida → P0410 → "El crédito anterior ya fue renovado por otra
+  // persona" EN ROJO, en cada renovación de campo (día 1 del piloto: 0 renovaciones
+  // completadas). La AUTORIZACIÓN no se relaja: la da `puerta()` (rol cobrador +
+  // cliente en su ruta por RLS) y los gates de arriba (saldado, CAP, términos).
+  const admin = createSupabaseAdmin();
+  const res = await crearRenovacion(
+    admin,
+    {
+      clienteId: input.clienteId,
+      prestamoAnteriorId: ant.id,
+      monto,
+      totalDias,
+      frecuencia: (ant.frecuencia as FrecuenciaPrestamo) ?? "diario",
+      creadoPor: u.id,
+    },
+    new Date(),
+    admin,
+  );
   if (!res.ok) return res;
 
   await registrarAuditoria(db, {

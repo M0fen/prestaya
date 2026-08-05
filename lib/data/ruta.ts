@@ -193,10 +193,19 @@ export function clasificarClienteRuta(
   };
 }
 
-/** Ruta del cobrador logueado + arqueo del día (todo scopeado por RLS). */
+/** Ruta del cobrador logueado + arqueo del día (todo scopeado por RLS).
+ *
+ *  `cobradorId`: dueño de los créditos que se van a cobrar. Un cliente puede
+ *  tener créditos de DOS cobradores distintos (regla del negocio) y estar en las
+ *  dos rutas; sin este filtro cada uno veía la cuota de TODOS los créditos del
+ *  cliente —los suyos y los del compañero— y salían los dos a cobrar el total
+ *  (SONIA TELIS: $6.550 mostrados a ambos cuando a uno le tocaban $1.200).
+ *  Si no se pasa, se conserva la conducta previa (sumar todos): los tests y
+ *  cualquier llamador viejo siguen funcionando igual. */
 export async function getRutaCobrador(
   db: SupabaseClient,
   hoy: Date = new Date(),
+  cobradorId?: string | null,
 ): Promise<Ruta> {
   // Clientes del cobrador SCOPEADOS por sus asignaciones (RLS = suyas, indexado
   // por cobrador_id → devuelve ~decenas). Antes se hacía `select * from clientes`
@@ -224,11 +233,17 @@ export async function getRutaCobrador(
   // del día y lo cobrado hoy suman los de todos, si no el arqueo subestima.)
   const [cliRes, presRes] = await Promise.all([
     db.from("clientes").select("*").in("id", cliIds).eq("activo", true).order("nombre", { ascending: true }),
-    db
-      .from("prestamos")
-      .select("id, cliente_id, cuota_diaria, total_dias, fecha_inicio, frecuencia, pagado_acum")
-      .eq("estado", "activo")
-      .in("cliente_id", cliIds),
+    (() => {
+      let q = db
+        .from("prestamos")
+        .select("id, cliente_id, cuota_diaria, total_dias, fecha_inicio, frecuencia, pagado_acum")
+        .eq("estado", "activo")
+        .in("cliente_id", cliIds);
+      // Solo los créditos de ESTE cobrador: los del compañero no son su cuota
+      // ni su plata (ver comentario de la firma).
+      if (cobradorId) q = q.eq("cobrador_id", cobradorId);
+      return q;
+    })(),
   ]);
   if (cliRes.error) throw cliRes.error;
   if (presRes.error) throw presRes.error;

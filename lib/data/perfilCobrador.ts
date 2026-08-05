@@ -138,10 +138,14 @@ async function rutaDeCobrador(
       .in("id", cliIds)
       .eq("activo", true)
       .order("nombre", { ascending: true }),
+    // Solo los créditos de ESTE cobrador: si el cliente está compartido con otro
+    // (legítimo), la cuota del compañero no es su target ni su plata. Mismo
+    // criterio que la app del cobrador (ruta.ts) para que los números coincidan.
     admin
       .from("prestamos")
       .select("id, cliente_id, cuota_diaria, total_dias, fecha_inicio, frecuencia, pagado_acum")
       .eq("estado", "activo")
+      .eq("cobrador_id", cobradorId)
       .in("cliente_id", cliIds),
   ]);
   if (cliRes.error) throw cliRes.error;

@@ -34,8 +34,12 @@ export default async function RutaPage() {
   // Tanda 1 (independientes): ruta + usuario + banner. Tanda 2 (necesita usuario):
   // jornada + gastos + zona. Antes eran ~6 round-trips en SERIE en la primera
   // pantalla que abre el cobrador en la calle (señal pobre) → ahora 2 latencias.
-  const [{ items, arqueo }, usuario, banner] = await conTimeout(
-    Promise.all([getRutaCobrador(db), getUsuarioActual(), getBannerCobradorActivo(db)]),
+  // El usuario va PRIMERO porque su id acota la ruta a los créditos que son SUYOS
+  // (un cliente compartido con otro cobrador no le suma la cuota del compañero).
+  // `getUsuarioActual` está cacheado por request, así que no agrega round-trip.
+  const usuario = await getUsuarioActual();
+  const [{ items, arqueo }, banner] = await conTimeout(
+    Promise.all([getRutaCobrador(db, new Date(), usuario?.id ?? null), getBannerCobradorActivo(db)]),
     TOPE_MS,
     "cobrador.ruta",
   );
