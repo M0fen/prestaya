@@ -95,6 +95,10 @@ export async function getCandidatosRenovar(db: SupabaseClient): Promise<Candidat
     const carton = { falta: faltaDe.get(p.id) ?? 0 };
     // Mismo umbral que el gate del servidor: un residuo de centavos no traba.
     if (carton.falta >= 1) continue;
+    // Y el mismo CAP que el servidor: un crédito heredado por encima del tope
+    // (GERARDO VARELA, $120.000) el servidor lo rechaza igual — ofrecerlo en la
+    // lista rompe la promesa de que acá nunca aparece algo que va a rebotar.
+    if (Math.round(Number(p.monto_prestado) || 0) > RENOVACION_CAP_TOTAL) continue;
     out.push({
       clienteId: p.cliente_id,
       nombre: cli.nombre,

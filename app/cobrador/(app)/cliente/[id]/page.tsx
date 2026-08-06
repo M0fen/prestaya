@@ -48,9 +48,17 @@ export default async function DetalleClientePage({
   ]);
   if (!cliente) notFound();
 
-  // Un cliente puede tener VARIOS créditos activos (0037). El cobrador elige a
-  // cuál imputa; por defecto, el principal (el más nuevo).
-  const prestamo = activos.find((p) => p.id === credito) ?? activos[0] ?? null;
+  // Un cliente puede tener VARIOS créditos activos (0037), y algunos pueden ser
+  // de OTRO cobrador (el cliente está en dos rutas: 59 casos hoy). El cobrador
+  // elige a cuál imputa; por defecto, el más nuevo DE LOS SUYOS — nunca el del
+  // compañero: ese default era el que hacía que abriera la ficha y cobrara sobre
+  // el crédito ajeno sin tocar nada (la cuota se le descontaba al otro).
+  const mios =
+    usuario.rol === "cobrador"
+      ? activos.filter((p) => !p.cobrador_id || p.cobrador_id === usuario.id)
+      : activos;
+  const ajenos = activos.filter((p) => !mios.includes(p));
+  const prestamo = mios.find((p) => p.id === credito) ?? mios[0] ?? null;
   // Inicial del avatar con fallback: un cliente importado sin nombre no debe
   // tumbar la ficha (charAt sobre null/undefined tira). "—" si no hay letra.
   const inicial = (cliente.nombre ?? "").trim().charAt(0).toUpperCase() || "—";
@@ -102,14 +110,24 @@ export default async function DetalleClientePage({
       {/* ¿Ya tiene su link del cartón? Entrega del QR / WhatsApp (alta en la app). */}
       <AvisoAlta clienteId={id} estado={estadoAlta(cliente)} />
 
-      {/* Selector de crédito: solo si el cliente tiene MÁS DE UNO activo. */}
-      {activos.length > 1 && prestamo && (
+      {/* Los créditos que este cliente tiene con OTRO cobrador: se muestran para
+          que sepa que la persona ya paga por otro lado (y no le exija de más),
+          pero NO se pueden elegir ni cobrar — no son su plata ni su comisión. */}
+      {ajenos.length > 0 && (
+        <p className="rounded-[12px] border border-[#E6DFF5] bg-[#F5F2FB] px-3.5 py-2.5 text-[11.5px] font-semibold text-[#5B4A8A]">
+          Este cliente tiene {ajenos.length} crédito{ajenos.length === 1 ? "" : "s"} con otro cobrador
+          {" "}({ajenos.map((p) => UYU(p.cuota_diaria)).join(" + ")} de cuota). Esa parte no la cobrás vos.
+        </p>
+      )}
+
+      {/* Selector de crédito: solo si el cliente tiene MÁS DE UNO activo SUYO. */}
+      {mios.length > 1 && prestamo && (
         <div className="flex flex-col gap-1.5">
           <span className="text-[11.5px] font-bold text-gris">
-            {activos.length} créditos activos — elegí a cuál imputás:
+            {mios.length} créditos activos — elegí a cuál imputás:
           </span>
           <div className="flex flex-wrap gap-1.5">
-            {activos.map((p, i) => {
+            {mios.map((p, i) => {
               const activo = p.id === prestamo.id;
               return (
                 <Link

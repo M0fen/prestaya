@@ -106,7 +106,11 @@ export default async function RenovacionesPage({
           const accion = ACCION[score.recomendacion.accion];
           return (
             <section
-              key={cliente.id}
+              // Por CRÉDITO, no por cliente: un multi-crédito aparece una vez por
+              // cada crédito que califica y con `key={cliente.id}` React veía dos
+              // hermanos con la misma llave (7 clientes hoy) y podía reciclar el
+              // nodo equivocado — el gestor renovaba mirando la tarjeta de al lado.
+              key={prestamoAnterior.id}
               className="rounded-[16px] border border-borde bg-tarjeta p-4"
             >
               <div className="mb-2 flex items-center gap-3">

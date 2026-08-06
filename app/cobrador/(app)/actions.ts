@@ -260,7 +260,12 @@ export async function registrarPagoCobrador(input: {
     const db = await createSupabaseServer();
     const cliente = await getClientePorId(db, input.clienteId);
     if (!cliente) return { ok: false, error: "Cliente no encontrado." };
-    const prestamo = await resolverPrestamo(db, cliente.id, input.prestamoId);
+    const prestamo = await resolverPrestamo(
+      db,
+      cliente.id,
+      input.prestamoId,
+      usuario.rol === "cobrador" ? usuario.id : null,
+    );
     // Se ve sobre todo al vaciar la COLA OFFLINE: se cobró sin señal y mientras
     // tanto el crédito se renovó, se anuló o se saldó. El cobrador ya tiene el
     // efectivo del cliente encima, así que el mensaje tiene que decirle qué
@@ -431,7 +436,12 @@ export async function registrarNoPagoCobrador(input: {
     if (bloqueo) return bloqueo;
 
     const db = await createSupabaseServer();
-    const prestamo = await resolverPrestamo(db, input.clienteId, input.prestamoId);
+    const prestamo = await resolverPrestamo(
+      db,
+      input.clienteId,
+      input.prestamoId,
+      usuario.rol === "cobrador" ? usuario.id : null,
+    );
     if (!prestamo)
       return { ok: false, error: "Ese crédito ya no está activo (lo renovaron o se saldó). Avisale a tu supervisor." };
 
@@ -520,12 +530,22 @@ async function resolverPrestamo(
   db: Awaited<ReturnType<typeof createSupabaseServer>>,
   clienteId: string,
   prestamoId?: string | null,
+  /** Cobrador que registra. Si viene, solo se imputa a créditos SUYOS. */
+  cobradorId?: string | null,
 ): Promise<Prestamo | null> {
-  if (prestamoId) {
-    const activos = await getPrestamosActivosPorCliente(db, clienteId);
-    return activos.find((p) => p.id === prestamoId) ?? null;
-  }
-  return getPrestamoActivoPorCliente(db, clienteId);
+  // ⚠️ Un cliente puede tener créditos de DOS cobradores y estar en las dos rutas
+  // (59 clientes hoy). Validar solo "que el crédito sea de este cliente" dejaba
+  // que un cobrador imputara su cobro al crédito del compañero: la plata entra
+  // igual (custodia por `registrado_por`) pero la cuota se le descuenta al otro y
+  // la comisión se la lleva el otro. Ya pasó hoy: $1.600 de Karent Londoño
+  // asentados sobre un crédito de Víctor Moralez.
+  const mio = (p: Prestamo) => !cobradorId || !p.cobrador_id || p.cobrador_id === cobradorId;
+  const activos = await getPrestamosActivosPorCliente(db, clienteId);
+  const propios = activos.filter(mio);
+  if (prestamoId) return propios.find((p) => p.id === prestamoId) ?? null;
+  // Sin elección explícita: el principal DE LOS SUYOS (nunca el del compañero).
+  if (propios.length > 0) return propios[0];
+  return cobradorId ? null : getPrestamoActivoPorCliente(db, clienteId);
 }
 
 function limpiar(v: string | null | undefined): string | null {

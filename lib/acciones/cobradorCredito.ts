@@ -104,6 +104,16 @@ export async function renovarDesdeCalle(input: {
   const activos = await getPrestamosActivosPorCliente(db, input.clienteId);
   const ant = activos.find((x) => x.id === input.prestamoId);
   if (!ant) return { ok: false, error: "Ese crédito ya no está activo." };
+  // ⚠️ PROPIEDAD DEL CRÉDITO. La escritura va con service_role (ver abajo), así
+  // que la RLS ya no filtra nada: hay que exigir acá que el crédito sea SUYO. Con
+  // 59 clientes compartidos entre dos rutas, sin esto un cobrador podría renovar
+  // —y quedarse con la comisión de— el crédito de un compañero, porque la RPC
+  // valida cliente/CAP/saldado pero NO el dueño.
+  if (ant.cobrador_id && ant.cobrador_id !== u.id)
+    return {
+      ok: false,
+      error: "Ese crédito es de otro cobrador. Que lo renueve él o la oficina.",
+    };
 
   // ¿Terminó de pagar EL CRÉDITO QUE SE RENUEVA? Se exige saldado SOLO el elegido,
   // igual que el camino de la oficina (lib/data/renovaciones.ts). Exigir que TODOS
