@@ -49,10 +49,10 @@ export function FormRenovacion({
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
   const [confirmar, setConfirmar] = useState(false);
-  // Regla del negocio (Carlos, 06-08): renovar = el crédito que la persona TERMINÓ,
-  // subido un 20%. Antes esto arrancaba con el monto que INVENTABA el scoring, un
-  // número sin relación con el crédito anterior (reporte de campo 08-05, caso 4).
-  // Queda editable a propósito: "siempre 20% a no ser que el admin lo cambie".
+  // Regla del negocio (Carlos, 06-08): renovar es REPETIR el crédito que la
+  // persona terminó, tal cual estaba. Antes esto arrancaba con el monto que
+  // INVENTABA el scoring, un número sin relación con el crédito anterior (reporte
+  // de campo 08-05, caso 4). Queda editable: subirlo es decisión de quien presta.
   // Para un crédito ya por encima del tope, el "+20% topeado al CAP" daría 100.000
   // — una REBAJA encubierta. En ese caso se arranca del monto que corresponde
   // pedir (sin recorte), que para esos montos es el mismo del crédito anterior.
@@ -199,11 +199,11 @@ export function FormRenovacion({
             }}
             className="rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[16px] font-semibold outline-none focus:border-azul"
           />
-          {/* De dónde sale el número: el crédito anterior +20%. Si el admin lo
+          {/* De dónde sale el número: el crédito se REPITE igual. Si el admin lo
               cambia, se le ofrece volver — así el desvío es siempre deliberado. */}
           {montoNum === sugerido ? (
             <span className="text-[11px] font-medium text-tenue-2">
-              {UYU(anterior.monto)} + {RENOVACION_AUMENTO_PCT}% = {UYU(sugerido)}
+              Mismo monto que el crédito que terminó
             </span>
           ) : (
             <button
@@ -214,7 +214,7 @@ export function FormRenovacion({
               }}
               className="text-left text-[11px] font-bold text-azul"
             >
-              Volver al +{RENOVACION_AUMENTO_PCT}% ({UYU(sugerido)})
+              Volver al mismo monto ({UYU(sugerido)})
             </button>
           )}
         </label>

@@ -161,16 +161,13 @@ export default async function RenovacionesPage({
                   <span className="text-[12.5px] font-medium text-tinta">
                     {score.recomendacion.resumen}
                   </span>
-                  {/* El monto NO lo inventa el scoring: renovar es repetir el
-                      crédito que la persona terminó, subido el 20% del negocio.
-                      El scoring aporta la recomendación (renovar / revisar / no),
-                      que es lo que sabe hacer; la plata la fija la regla. */}
+                  {/* El monto NO lo inventa el scoring: renovar es REPETIR el
+                      crédito que la persona terminó. El scoring aporta la
+                      recomendación (renovar / revisar / no), que es lo que sabe
+                      hacer; la plata la fija la regla. */}
                   <span className="mt-0.5 text-[13px] font-extrabold text-tinta">
                     Renovación: {UYU(montoRenovacionSugerido(prestamoAnterior.monto))}
-                    <span className="font-semibold text-gris">
-                      {" "}
-                      ({UYU(prestamoAnterior.monto)} +{RENOVACION_AUMENTO_PCT}%)
-                    </span>
+                    <span className="font-semibold text-gris"> (el mismo crédito)</span>
                   </span>
                 </div>
                 <span

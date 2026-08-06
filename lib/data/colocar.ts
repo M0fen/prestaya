@@ -17,6 +17,7 @@ import {
   calcularCuotaRenovacion,
   montoRenovacionAutoAprobable,
   montoRenovacionPedido,
+  montoRenovacionSugerido,
   requiereAprobacionAdmin,
   topeAumentoPct,
   RENOVACION_CAP_TOTAL,
@@ -37,10 +38,8 @@ export interface CandidatoColocar {
   cuota: number;
   totalDias: number;
   frecuencia: string;
-  /** Solo en "renovar": capital del crédito NUEVO = anterior +20% (regla del
-   *  negocio), ya recortado al tope del tramo y al CAP. Lo calcula el servidor
-   *  con la misma función que después da el alta, así la tarjeta nunca promete
-   *  un número distinto del que se va a colocar. */
+  /** Solo en "renovar": capital que se PROPONE = el MISMO del crédito anterior
+   *  (el crédito se repite tal cual). Es editable en la calle hasta `techo`. */
   montoNuevo?: number;
   /** Solo en "renovar": cuota del crédito NUEVO, arrastrando la tasa del anterior. */
   cuotaNueva?: number;
@@ -139,9 +138,11 @@ export async function getCandidatosRenovar(
     const requiereAprobacion = requiereAprobacionAdmin(montoAnterior);
     // Los números del crédito NUEVO, con las MISMAS funciones que usa el alta: la
     // tarjeta de la calle muestra lo que se va a colocar, no lo que ya se pagó.
+    // Lo que se PROPONE es repetir el crédito igual. `montoRenovacionAutoAprobable`
+    // es el TECHO hasta donde puede subirlo solo, y viaja aparte (`techo`).
     const montoNuevo = requiereAprobacion
       ? montoRenovacionPedido(montoAnterior)
-      : montoRenovacionAutoAprobable(montoAnterior);
+      : montoRenovacionSugerido(montoAnterior);
     const cuotaNueva = calcularCuotaRenovacion(
       { monto: montoAnterior, cuota: cuotaAnterior, totalDias },
       montoNuevo,
@@ -157,7 +158,7 @@ export async function getCandidatosRenovar(
       totalDias,
       frecuencia: (p.frecuencia as string) ?? "diario",
       falta: Math.max(0, Math.round(carton.falta)),
-      techo: techoDe(montoAnterior),
+      techo: montoRenovacionAutoAprobable(montoAnterior),
       montoNuevo,
       cuotaNueva,
       requiereAprobacion,

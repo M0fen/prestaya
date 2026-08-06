@@ -58,7 +58,11 @@ describe("topeAumentoPct — 20% para TODOS (regla de Carlos)", () => {
     for (const m of [500, 10_000, 30_000, 30_001, 60_000, 90_000, 100_000, 1_750_000])
       expect(topeAumentoPct(m)).toBe(RENOVACION_AUMENTO_PCT);
   });
-  it("el caso de Gabriela: $60.000 renueva en $72.000, no en $69.000", () => {
+  it("el caso de Gabriela: $60.000 se renueva en $60.000", () => {
+    // El bug era doble: un escalonado viejo ofrecía $69.000 y después yo puse
+    // +20% de capital ($72.000). El crédito se REPITE: $60.000.
+    expect(montoRenovacionSugerido(60_000)).toBe(60_000);
+    // El +20% sobrevive como TECHO de lo que puede subirse sin pedir permiso.
     expect(montoRenovacionAutoAprobable(60_000)).toBe(72_000);
   });
 });
@@ -114,28 +118,33 @@ describe("evaluarRenovacion (tramo escalonado + cap $100.000)", () => {
 //  oficina proponía un monto inventado por el scoring y la calle repetía el mismo
 //  monto sin aumento (reporte de campo 08-05, caso 4).
 // ─────────────────────────────────────────────────────────────────────────
-describe("montoRenovacionSugerido (lo que se PROPONE en la oficina)", () => {
-  it("la regla es +20% sobre el crédito anterior", () => {
-    expect(RENOVACION_AUMENTO_PCT).toBe(20);
-    expect(montoRenovacionSugerido(10000)).toBe(12000);
-    expect(montoRenovacionSugerido(25000)).toBe(30000);
-    expect(montoRenovacionSugerido(5000)).toBe(6000);
+describe("montoRenovacionSugerido — el crédito se REPITE igual", () => {
+  it("propone EXACTAMENTE el monto del crédito que terminó", () => {
+    // Regla de Carlos: "el crédito debe repetirse exactamente a como estaba el
+    // recién terminado. Si terminó 60k, se renueva en 60k."
+    expect(montoRenovacionSugerido(60_000)).toBe(60_000); // el caso de Gabriela
+    expect(montoRenovacionSugerido(10_000)).toBe(10_000);
+    expect(montoRenovacionSugerido(25_000)).toBe(25_000);
   });
 
-  it("devuelve pesos ENTEROS aunque el anterior no sea redondo", () => {
-    // 8.425 × 1,20 = 10.110 exacto. Y un monto que da decimales se redondea:
-    // 8.333 × 1,20 = 9.999,6 → 10.000. Nunca sale un centavo a la calle.
-    expect(montoRenovacionSugerido(8425)).toBe(10110);
-    expect(montoRenovacionSugerido(8333)).toBe(10000);
+  it("el 20% del negocio es el INTERÉS, no un aumento del capital", () => {
+    // Un crédito al 20%: prestó 10.000, devuelve 12.000. Al renovar se repite el
+    // capital (10.000) y la cuota arrastra esa misma tasa → vuelve a devolver 12.000.
+    const nuevo = montoRenovacionSugerido(ANT.monto);
+    expect(nuevo).toBe(10_000);
+    const cuota = calcularCuotaRenovacion(ANT, nuevo, ANT.totalDias);
+    expect(cuota).toBe(400);
+    expect(cuota * ANT.totalDias).toBe(12_000);
+  });
+
+  it("devuelve pesos ENTEROS", () => {
+    expect(montoRenovacionSugerido(8425)).toBe(8425);
     expect(Number.isInteger(montoRenovacionSugerido(7777))).toBe(true);
   });
 
-  it("el CAP de $100.000 recorta el +20% (duro para todos, incluso el admin)", () => {
-    // 90.000 + 20% = 108.000 → se recorta al cap.
-    expect(montoRenovacionSugerido(90000)).toBe(RENOVACION_CAP_TOTAL);
-    expect(montoRenovacionSugerido(100000)).toBe(RENOVACION_CAP_TOTAL);
-    // 83.333 + 20% = 99.999,6 → 100.000: justo en el cap, no lo pasa.
-    expect(montoRenovacionSugerido(83333)).toBe(RENOVACION_CAP_TOTAL);
+  it("el CAP de $100.000 recorta lo heredado por encima del tope", () => {
+    expect(montoRenovacionSugerido(120_000)).toBe(RENOVACION_CAP_TOTAL);
+    expect(montoRenovacionSugerido(100_000)).toBe(RENOVACION_CAP_TOTAL);
   });
 
   it("nunca propone más que el cap, para ningún monto anterior", () => {
@@ -143,7 +152,7 @@ describe("montoRenovacionSugerido (lo que se PROPONE en la oficina)", () => {
       expect(montoRenovacionSugerido(m)).toBeLessThanOrEqual(RENOVACION_CAP_TOTAL);
   });
 
-  it("montos inválidos → 0 (el llamador decide qué hacer, no inventa plata)", () => {
+  it("montos inválidos → 0 (el llamador decide, no inventa plata)", () => {
     expect(montoRenovacionSugerido(0)).toBe(0);
     expect(montoRenovacionSugerido(-5000)).toBe(0);
     expect(montoRenovacionSugerido(Number.NaN)).toBe(0);
@@ -151,11 +160,11 @@ describe("montoRenovacionSugerido (lo que se PROPONE en la oficina)", () => {
 });
 
 describe("montoRenovacionAutoAprobable (lo que el COBRADOR coloca sin permiso)", () => {
-  it("hasta $30.000 el tramo permite 20%: da exactamente el +20% del negocio", () => {
-    // Es la enorme mayoría de la cartera: acá la regla se aplica tal cual.
+  it("es el TECHO (+20%), no lo que se propone (que es el mismo monto)", () => {
     expect(montoRenovacionAutoAprobable(10000)).toBe(12000);
     expect(montoRenovacionAutoAprobable(30000)).toBe(36000);
-    expect(montoRenovacionAutoAprobable(30000)).toBe(montoRenovacionSugerido(30000));
+    // Lo PROPUESTO es repetir el crédito; el techo es hasta dónde puede subirlo.
+    expect(montoRenovacionSugerido(30000)).toBe(30000);
   });
 
   it("el +20% vale para cualquier monto; solo el CAP recorta", () => {
@@ -200,26 +209,25 @@ describe("lo que no se puede aprobar solo va al admin (no es callejón sin salid
   it("lo pedido NUNCA le baja el capital al cliente", () => {
     // La trampa: `montoRenovacionSugerido` recorta al CAP, así que para un crédito
     // de $1.750.000 propondría $100.000 — una rebaja del 94% disfrazada de
-    // renovación. `montoRenovacionPedido` no recorta.
+    // renovación. `montoRenovacionPedido` no recorta: pide el MISMO monto.
     expect(montoRenovacionSugerido(1_750_000)).toBe(RENOVACION_CAP_TOTAL); // el recorte
-    expect(montoRenovacionPedido(1_750_000)).toBe(2_100_000); // sin recorte
+    expect(montoRenovacionPedido(1_750_000)).toBe(1_750_000); // el mismo crédito
     for (const m of [110_000, 250_000, 843_200, 1_750_000])
       expect(montoRenovacionPedido(m)).toBeGreaterThanOrEqual(m);
   });
 
-  it("un crédito grande también se pide con el +20%", () => {
-    expect(montoRenovacionPedido(1_750_000)).toBe(2_100_000);
-    expect(montoRenovacionPedido(95_000)).toBe(114_000);
+  it("un crédito grande se pide por el MISMO monto", () => {
+    expect(montoRenovacionPedido(1_750_000)).toBe(1_750_000);
+    expect(montoRenovacionPedido(95_000)).toBe(95_000);
   });
 
-  it("con el 20% plano, desde $83.334 el +20% ya cruza el cap y necesita OK", () => {
-    // 83.333 × 1,20 = 99.999,6 → 100.000, justo en el cap: se aprueba solo.
-    expect(requiereAprobacionAdmin(83_333)).toBe(false);
-    // 83.334 × 1,20 = 100.000,8 → 100.001: se pasa por un peso.
-    expect(requiereAprobacionAdmin(83_334)).toBe(true);
-    expect(requiereAprobacionAdmin(1_750_000)).toBe(true);
-    for (let m = 500; m <= 83_000; m += 500)
+  it("solo pide aprobación lo que YA venía por encima del tope", () => {
+    // Repetir el crédito nunca empuja a nadie sobre el cap: si entraba, sigue
+    // entrando. Solo los heredados de Disapp que ya lo pasaban necesitan el OK.
+    for (let m = 500; m <= RENOVACION_CAP_TOTAL; m += 500)
       expect(requiereAprobacionAdmin(m), `anterior ${m}`).toBe(false);
+    expect(requiereAprobacionAdmin(RENOVACION_CAP_TOTAL + 1)).toBe(true);
+    expect(requiereAprobacionAdmin(1_750_000)).toBe(true);
   });
 
   it("monto inválido no pide nada", () => {
@@ -241,10 +249,10 @@ describe("techoRenovacion — ni el admin aprobando puede pasarlo", () => {
       expect(techoRenovacion(m)).toBe(RENOVACION_CAP_TOTAL);
   });
 
-  it("crédito heredado sobre el tope: el techo es su monto +20%, nunca menos", () => {
-    expect(techoRenovacion(120_000)).toBe(144_000);
-    expect(techoRenovacion(1_750_000)).toBe(2_100_000);
-    // Y nunca por debajo del propio monto: renovar no recorta el capital.
+  it("crédito heredado sobre el tope: el techo es su propio monto, nunca menos", () => {
+    expect(techoRenovacion(120_000)).toBe(120_000);
+    expect(techoRenovacion(1_750_000)).toBe(1_750_000);
+    // Nunca por debajo del propio monto: renovar no recorta el capital.
     for (const m of [110_000, 250_000, 1_750_000])
       expect(techoRenovacion(m)).toBeGreaterThanOrEqual(m);
   });
@@ -274,15 +282,12 @@ describe("techoRenovacion — ni el admin aprobando puede pasarlo", () => {
 });
 
 describe("el +20% junto con la cuota (lo que el cliente termina pagando)", () => {
-  it("subir el capital 20% sube la cuota 20%, manteniendo la tasa", () => {
-    // Anterior: 10.000 → cuota 400 × 30 (tasa 1,2). Renovado a 12.000:
-    // 12.000 × 1,2 / 30 = 480 = 400 + 20%.
-    const nuevoMonto = montoRenovacionSugerido(ANT.monto);
-    expect(nuevoMonto).toBe(12000);
-    const cuota = calcularCuotaRenovacion(ANT, nuevoMonto, ANT.totalDias);
+  it("si el que presta SUBE el capital, la cuota sube igual manteniendo la tasa", () => {
+    // Repetir es el default, pero subirlo es una decisión válida. Anterior:
+    // 10.000 → cuota 400 × 30 (tasa 1,2). Puesto en 12.000: 12.000 × 1,2 / 30 = 480.
+    const cuota = calcularCuotaRenovacion(ANT, 12_000, ANT.totalDias);
     expect(cuota).toBe(480);
-    // El total a devolver también sube 20% y sigue siendo entero.
-    expect(cuota * ANT.totalDias).toBe(14400);
+    expect(cuota * ANT.totalDias).toBe(14_400);
   });
 
   // La cartera real tiene tasas MUY distintas y conviven: 0%, 3%, 3,5%, 20%…
@@ -305,8 +310,8 @@ describe("el +20% junto con la cuota (lo que el cliente termina pagando)", () =>
         const cuotaAnt = Math.round((montoAnt * (1 + interesPct / 100)) / dias);
         const anterior = { monto: montoAnt, cuota: cuotaAnt, totalDias: dias };
 
-        const montoNuevo = montoRenovacionSugerido(montoAnt); // 12.000 (+20% capital)
-        expect(montoNuevo).toBe(12000);
+        const montoNuevo = montoRenovacionSugerido(montoAnt); // el mismo crédito
+        expect(montoNuevo).toBe(montoAnt);
 
         const cuotaNueva = calcularCuotaRenovacion(anterior, montoNuevo, dias);
         // Interés efectivo del crédito nuevo, en puntos porcentuales.
@@ -317,23 +322,23 @@ describe("el +20% junto con la cuota (lo que el cliente termina pagando)", () =>
       });
     }
 
-    it("el 0% NO se convierte en 20% por la regla del aumento", () => {
-      // Prestó 10.000 y devuelve 10.000 (cuota 500 × 20). Renovar a 12.000 tiene
-      // que devolver 12.000, no 14.400: el +20% es del capital, no del interés.
+    it("el 0% sigue en 0% al repetir el crédito", () => {
+      // Prestó 10.000 y devuelve 10.000 (cuota 500 × 20). Al renovarse igual,
+      // vuelve a devolver 10.000: la tasa es suya y no se le inventa un interés.
       const sinInteres = { monto: 10000, cuota: 500, totalDias: 20 };
       const nuevo = montoRenovacionSugerido(sinInteres.monto);
       const cuota = calcularCuotaRenovacion(sinInteres, nuevo, 20);
-      expect(cuota).toBe(600);
-      expect(cuota * 20).toBe(12000);
+      expect(cuota).toBe(500);
+      expect(cuota * 20).toBe(10000);
     });
   });
 
   it("con cuota heredada FRACCIONARIA la cuota nueva sale entera", () => {
     // Caso real de Disapp: 8.425 en 24 cuotas de 351,04 (tasa 1,0000…).
     const heredado = { monto: 8425, cuota: 8425 / 24, totalDias: 24 };
-    const nuevo = montoRenovacionSugerido(heredado.monto); // 10.110
+    const nuevo = montoRenovacionSugerido(heredado.monto); // el mismo: 8.425
     const cuota = calcularCuotaRenovacion(heredado, nuevo, 24);
     expect(Number.isInteger(cuota)).toBe(true);
-    expect(cuota).toBe(421); // 10.110 / 24 = 421,25 → 421
+    expect(cuota).toBe(351); // 8.425 / 24 = 351,04 → 351
   });
 });

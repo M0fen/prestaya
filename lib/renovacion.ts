@@ -54,36 +54,39 @@ export function calcularCuotaRenovacion(
 //  Renovar por el mismo monto o por menos siempre es auto-aprobable.
 export const RENOVACION_CAP_TOTAL = 100_000;
 
-// ── El +20% del negocio (regla de Carlos, 06-08) ───────────────────────────
-//  "Siempre es 20% para renovación a no ser que admin cambie esto."
-//  Renovar NO es inventar un monto nuevo: es REPETIR el crédito que la persona
-//  terminó de pagar, subido un 20%. Antes la oficina proponía el monto que
-//  calculaba el SCORING (un número sin relación con el crédito anterior) y la
-//  calle repetía el mismo monto sin aumento — reporte de campo 08-05, caso 4.
-//  El único que puede escribir otro número es el ADMIN, en el form de la oficina.
+// ── Cómo se renueva (regla de Carlos, 06-08) ───────────────────────────────
+//  **El crédito se REPITE EXACTAMENTE como estaba el recién terminado.** Si
+//  terminó en $60.000, se renueva en $60.000 — mismo capital, mismos términos, y
+//  la cuota arrastra su misma tasa (el "20%" del negocio es el INTERÉS que el
+//  crédito ya trae, no un aumento del capital: 88,4% de la cartera está al 20%).
+//
+//  ⚠️ Yo mismo lo entendí mal el 06-08 y puse el capital +20%: a GABRIELA
+//  OTONELLI, que terminó $60.000, la app le ofrecía $72.000. Repetir el crédito
+//  es la conducta correcta; subirlo es una decisión de quien presta, caso por caso.
+//
+//  Ese aumento SÍ existe, pero como TECHO de lo que se puede subir sin pedir
+//  permiso: hasta +20% lo coloca el cobrador solo, y por encima lo aprueba el admin.
 export const RENOVACION_AUMENTO_PCT = 20;
 
 /**
- * Monto que se PROPONE al renovar: el anterior +20%, nunca por encima del CAP.
- * Es la regla del negocio en estado puro — la usan igual el form de la oficina
- * y la lista de la calle, así ambos muestran el mismo número. Puro.
+ * Monto que se PROPONE al renovar: **el mismo del crédito anterior**. Es la regla
+ * en estado puro — la usan igual el form de la oficina y la lista de la calle, así
+ * las dos muestran el mismo número. Editable en los dos lados. Puro.
  */
 export function montoRenovacionSugerido(montoAnterior: number): number {
   const base = Math.round(Number(montoAnterior) || 0);
   if (!(base > 0)) return 0;
-  return Math.min(
-    RENOVACION_CAP_TOTAL,
-    Math.round(base * (1 + RENOVACION_AUMENTO_PCT / 100)),
-  );
+  return Math.min(RENOVACION_CAP_TOTAL, base);
 }
 
 /**
- * Monto de renovación que un COBRADOR puede colocar solo, sin pedir permiso:
- * el +20% del negocio, pero recortado al tope del tramo (créditos grandes
- * admiten menos aumento) y al CAP. Para los créditos de hasta $30.000 —la
- * enorme mayoría de la cartera— el tramo ya permite 20%, así que da exactamente
- * el +20%. Sin este recorte, la calle ofrecería un monto que el propio servidor
- * rechaza después, que es justo la promesa que la lista no puede romper. Puro.
+ * TECHO que un COBRADOR puede colocar solo, sin pedir permiso: hasta +20% sobre
+ * el crédito anterior, y nunca por encima del CAP.
+ *
+ * OJO: NO es lo que se propone (eso es `montoRenovacionSugerido` = el mismo
+ * monto). Es hasta dónde puede llegar si decide subirlo. Sin este techo, la calle
+ * ofrecería un monto que el propio servidor rechaza después — justo la promesa
+ * que la lista no puede romper. Puro.
  */
 export function montoRenovacionAutoAprobable(montoAnterior: number): number {
   const base = Math.round(Number(montoAnterior) || 0);
@@ -103,10 +106,7 @@ export function montoRenovacionAutoAprobable(montoAnterior: number): number {
  * conservador. Quien lo autoriza es el admin. Puro.
  */
 export function montoRenovacionPedido(montoAnterior: number): number {
-  const base = Math.round(Number(montoAnterior) || 0);
-  if (!(base > 0)) return 0;
-  const pct = Math.min(RENOVACION_AUMENTO_PCT, topeAumentoPct(base));
-  return Math.round(base * (1 + pct / 100));
+  return Math.max(0, Math.round(Number(montoAnterior) || 0));
 }
 
 /**
