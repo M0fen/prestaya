@@ -54,6 +54,44 @@ export function calcularCuotaRenovacion(
 //  Renovar por el mismo monto o por menos siempre es auto-aprobable.
 export const RENOVACION_CAP_TOTAL = 100_000;
 
+// ── El +20% del negocio (regla de Carlos, 06-08) ───────────────────────────
+//  "Siempre es 20% para renovación a no ser que admin cambie esto."
+//  Renovar NO es inventar un monto nuevo: es REPETIR el crédito que la persona
+//  terminó de pagar, subido un 20%. Antes la oficina proponía el monto que
+//  calculaba el SCORING (un número sin relación con el crédito anterior) y la
+//  calle repetía el mismo monto sin aumento — reporte de campo 08-05, caso 4.
+//  El único que puede escribir otro número es el ADMIN, en el form de la oficina.
+export const RENOVACION_AUMENTO_PCT = 20;
+
+/**
+ * Monto que se PROPONE al renovar: el anterior +20%, nunca por encima del CAP.
+ * Es la regla del negocio en estado puro — la usan igual el form de la oficina
+ * y la lista de la calle, así ambos muestran el mismo número. Puro.
+ */
+export function montoRenovacionSugerido(montoAnterior: number): number {
+  const base = Math.round(Number(montoAnterior) || 0);
+  if (!(base > 0)) return 0;
+  return Math.min(
+    RENOVACION_CAP_TOTAL,
+    Math.round(base * (1 + RENOVACION_AUMENTO_PCT / 100)),
+  );
+}
+
+/**
+ * Monto de renovación que un COBRADOR puede colocar solo, sin pedir permiso:
+ * el +20% del negocio, pero recortado al tope del tramo (créditos grandes
+ * admiten menos aumento) y al CAP. Para los créditos de hasta $30.000 —la
+ * enorme mayoría de la cartera— el tramo ya permite 20%, así que da exactamente
+ * el +20%. Sin este recorte, la calle ofrecería un monto que el propio servidor
+ * rechaza después, que es justo la promesa que la lista no puede romper. Puro.
+ */
+export function montoRenovacionAutoAprobable(montoAnterior: number): number {
+  const base = Math.round(Number(montoAnterior) || 0);
+  if (!(base > 0)) return 0;
+  const pct = Math.min(RENOVACION_AUMENTO_PCT, topeAumentoPct(base));
+  return Math.min(RENOVACION_CAP_TOTAL, Math.round(base * (1 + pct / 100)));
+}
+
 /** Tope de aumento (%) aplicable según el monto del crédito ANTERIOR. Puro. */
 export function topeAumentoPct(montoAnterior: number): number {
   if (montoAnterior <= 30_000) return 20;

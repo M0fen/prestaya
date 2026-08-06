@@ -13,7 +13,12 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { calcularEstadosCarton } from "@/lib/cartones";
-import { topeAumentoPct, RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
+import {
+  calcularCuotaRenovacion,
+  montoRenovacionAutoAprobable,
+  topeAumentoPct,
+  RENOVACION_CAP_TOTAL,
+} from "@/lib/renovacion";
 import { hoyUY } from "@/lib/fecha";
 import { getPagosDePrestamo } from "./pagos";
 import { traerTodo } from "./paginado";
@@ -25,11 +30,18 @@ export interface CandidatoColocar {
   documento: string | null;
   /** Solo en "renovar": el crédito saldado que se va a repetir. */
   prestamoId?: string;
-  /** Términos que se repiten (renovar) o del último crédito (venta). */
+  /** Términos del crédito que TERMINÓ (renovar) o del último crédito (venta). */
   monto: number;
   cuota: number;
   totalDias: number;
   frecuencia: string;
+  /** Solo en "renovar": capital del crédito NUEVO = anterior +20% (regla del
+   *  negocio), ya recortado al tope del tramo y al CAP. Lo calcula el servidor
+   *  con la misma función que después da el alta, así la tarjeta nunca promete
+   *  un número distinto del que se va a colocar. */
+  montoNuevo?: number;
+  /** Solo en "renovar": cuota del crédito NUEVO, arrastrando la tasa del anterior. */
+  cuotaNueva?: number;
   /** Cuánto le falta pagar (renovar: < 1 por definición). */
   falta?: number;
   /** Deuda VIVA del cliente en sus OTROS créditos activos (0 si no tiene). Se
@@ -98,18 +110,32 @@ export async function getCandidatosRenovar(db: SupabaseClient): Promise<Candidat
     // Y el mismo CAP que el servidor: un crédito heredado por encima del tope
     // (GERARDO VARELA, $120.000) el servidor lo rechaza igual — ofrecerlo en la
     // lista rompe la promesa de que acá nunca aparece algo que va a rebotar.
-    if (Math.round(Number(p.monto_prestado) || 0) > RENOVACION_CAP_TOTAL) continue;
+    const montoAnterior = Math.round(Number(p.monto_prestado) || 0);
+    if (montoAnterior > RENOVACION_CAP_TOTAL) continue;
+    const cuotaAnterior = Number(p.cuota_diaria) || 0;
+    const totalDias = Number(p.total_dias) || 0;
+    // Los números del crédito NUEVO, calculados con las MISMAS funciones que usa
+    // el alta (`montoRenovacionAutoAprobable` + `calcularCuotaRenovacion`): la
+    // tarjeta de la calle muestra lo que se va a colocar, no lo que ya se pagó.
+    const montoNuevo = montoRenovacionAutoAprobable(montoAnterior);
+    const cuotaNueva = calcularCuotaRenovacion(
+      { monto: montoAnterior, cuota: cuotaAnterior, totalDias },
+      montoNuevo,
+      totalDias,
+    );
     out.push({
       clienteId: p.cliente_id,
       nombre: cli.nombre,
       documento: cli.documento ?? null,
       prestamoId: p.id,
-      monto: Math.round(Number(p.monto_prestado) || 0),
-      cuota: Math.round(Number(p.cuota_diaria) || 0),
-      totalDias: Number(p.total_dias) || 0,
+      monto: montoAnterior,
+      cuota: Math.round(cuotaAnterior),
+      totalDias,
       frecuencia: (p.frecuencia as string) ?? "diario",
       falta: Math.max(0, Math.round(carton.falta)),
-      techo: techoDe(Math.round(Number(p.monto_prestado) || 0)),
+      techo: techoDe(montoAnterior),
+      montoNuevo,
+      cuotaNueva,
       deudaHermano: Math.round(deudaPorCliente.get(p.cliente_id) ?? 0),
     });
   }

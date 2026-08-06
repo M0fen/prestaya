@@ -24,6 +24,10 @@ interface Candidato {
   /** Hasta cuánto puede llegar sin permiso (tope del tramo de SU monto anterior).
    *  Lo calcula el servidor con la misma función que después valida el alta. */
   techo: number;
+  /** Renovar: capital del crédito NUEVO (anterior +20%). Lo calcula el servidor. */
+  montoNuevo?: number;
+  /** Renovar: cuota del crédito NUEVO. */
+  cuotaNueva?: number;
   /** Deuda viva en sus OTROS créditos activos (0 si no tiene). Se avisa, no bloquea. */
   deudaHermano?: number;
 }
@@ -96,6 +100,11 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
   const cuotasN = Math.round(Number(cuotas) || 0);
   const techo = c.techo;
   const excede = montoN > techo;
+  // Renovar: los términos del crédito NUEVO los decide el SERVIDOR (+20% del
+  // negocio, recortado al tramo). Acá solo se MUESTRAN — el navegador no manda
+  // ninguna cifra al renovar, así que no hay forma de inflar el capital desde acá.
+  const nuevoMonto = c.montoNuevo ?? c.monto;
+  const nuevaCuota = c.cuotaNueva ?? c.cuota;
 
   const colocar = () =>
     start(async () => {
@@ -168,11 +177,21 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
       {abierto && (
         <>
           {modo === "renovar" ? (
-            // Términos IDÉNTICOS: no hay nada que tipear, solo confirmar.
-            <div className="grid grid-cols-3 gap-2 rounded-[13px] bg-[#F7F9FD] p-3">
-              <Dato k="Monto" v={UYU(c.monto)} />
-              <Dato k="Cuota" v={UYU(c.cuota)} />
-              <Dato k="Cuotas" v={String(c.totalDias)} />
+            // Renovar es de un toque: nada que tipear, solo confirmar. Se muestran
+            // los números del crédito NUEVO (anterior +20%), que es lo que se va a
+            // colocar — mostrar los del crédito viejo hacía que el cobrador le
+            // dijera al cliente un monto y se diera de alta otro.
+            <div className="flex flex-col gap-2 rounded-[13px] bg-[#F7F9FD] p-3">
+              <div className="grid grid-cols-3 gap-2">
+                <Dato k="Monto nuevo" v={UYU(nuevoMonto)} />
+                <Dato k="Cuota" v={UYU(nuevaCuota)} />
+                <Dato k="Cuotas" v={String(c.totalDias)} />
+              </div>
+              <span className="text-[11.5px] leading-[1.4] font-semibold text-gris">
+                {nuevoMonto > c.monto
+                  ? `Venía de ${UYU(c.monto)} · sube ${UYU(nuevoMonto - c.monto)} (+${Math.round(((nuevoMonto - c.monto) / c.monto) * 100)}%).`
+                  : `Se renueva por los mismos ${UYU(c.monto)}: un crédito de este monto ya no admite aumento.`}
+              </span>
             </div>
           ) : (
             <div className="flex flex-col gap-2">
@@ -232,7 +251,7 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
                 ? "Creando…"
                 : confirmar
                   ? modo === "renovar"
-                    ? `Sí, renovar ${UYU(c.monto)}`
+                    ? `Sí, renovar ${UYU(nuevoMonto)}`
                     : `Sí, dar ${UYU(montoN)}`
                   : "Confirmar"}
             </button>

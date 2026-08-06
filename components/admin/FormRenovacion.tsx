@@ -7,7 +7,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { UYU } from "@/lib/format";
-import { calcularCuotaRenovacion, evaluarRenovacion } from "@/lib/renovacion";
+import {
+  calcularCuotaRenovacion,
+  evaluarRenovacion,
+  montoRenovacionSugerido,
+  RENOVACION_AUMENTO_PCT,
+  RENOVACION_CAP_TOTAL,
+} from "@/lib/renovacion";
+import { interesDeBase } from "@/lib/creditoNuevo";
 import { renovarCredito } from "@/app/admin/(panel)/renovaciones/actions";
 import type { PrestamoAnterior } from "@/lib/data/renovaciones";
 import type { FrecuenciaPrestamo } from "@/types/db";
@@ -26,14 +33,12 @@ export function FormRenovacion({
   clienteId,
   clienteNombre,
   anterior,
-  montoSugerido,
   esAdmin = true,
   moroso = false,
 }: {
   clienteId: string;
   clienteNombre: string;
   anterior: PrestamoAnterior;
-  montoSugerido: number | null;
   /** Admin: da de alta directo. Supervisor (false): crea una solicitud a aprobar. */
   esAdmin?: boolean;
   /** Cliente marcado como moroso → aviso antes de renovar. */
@@ -42,7 +47,22 @@ export function FormRenovacion({
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
   const [confirmar, setConfirmar] = useState(false);
-  const [monto, setMonto] = useState(String(montoSugerido ?? anterior.monto));
+  // Regla del negocio (Carlos, 06-08): renovar = el crédito que la persona TERMINÓ,
+  // subido un 20%. Antes esto arrancaba con el monto que INVENTABA el scoring, un
+  // número sin relación con el crédito anterior (reporte de campo 08-05, caso 4).
+  // Queda editable a propósito: "siempre 20% a no ser que el admin lo cambie".
+  const sugerido = montoRenovacionSugerido(anterior.monto);
+  const [monto, setMonto] = useState(String(sugerido));
+  // Tasa REAL del crédito anterior (la cartera va de 0% a 20%: se muestra, no se
+  // asume). Es la que va a arrastrar el crédito nuevo.
+  const interesAnterior = interesDeBase({
+    monto: anterior.monto,
+    cuota: anterior.cuota,
+    totalDias: anterior.totalDias,
+  });
+  // Crédito heredado por encima del tope del sistema: NO se puede renovar acá sin
+  // recortarle el capital al cliente (el servidor rechaza cualquier monto > CAP).
+  const superaTope = anterior.monto > RENOVACION_CAP_TOTAL;
   const [dias, setDias] = useState(String(anterior.totalDias));
   const [frecuencia, setFrecuencia] = useState<FrecuenciaPrestamo>(anterior.frecuencia);
   const [ocupado, setOcupado] = useState(false);
@@ -70,7 +90,9 @@ export function FormRenovacion({
   const evalu = valido ? evaluarRenovacion(anterior.monto, montoNum) : null;
   // Solo el CAP de $100.000 bloquea a todos. El sobre-tope del tramo YA NO bloquea
   // al supervisor: genera una SOLICITUD para el admin (Tanda 6).
-  const bloqueado = evalu ? evalu.superaCap : false;
+  // Bloquea el CAP del crédito nuevo y, además, el caso del crédito ANTERIOR ya
+  // por encima del tope: ahí cualquier monto válido sería una rebaja encubierta.
+  const bloqueado = superaTope || (evalu ? evalu.superaCap : false);
   const esSolicitud = evalu ? evalu.excedePct && !esAdmin : false;
 
   const enviar = async () => {
@@ -130,6 +152,28 @@ export function FormRenovacion({
         </p>
       )}
 
+      {/* El crédito nuevo ARRASTRA la tasa del anterior, y la cartera tiene tasas
+          MUY distintas (0%, 3%, 3,5%, 20%…) — es así de verdad, no es un error de
+          carga. Por eso la tasa se muestra siempre, en vez de asumir el 20%: quien
+          da el alta tiene que ver con qué interés va a nacer el crédito. Subir el
+          capital un 20% NO cambia la tasa: el que pagaba 3% sigue en 3%. */}
+      <p className="rounded-[10px] bg-tarjeta px-3 py-2 text-[12px] font-medium text-gris">
+        Interés del crédito anterior:{" "}
+        <b className="text-tinta">{interesAnterior != null ? `${interesAnterior}%` : "—"}</b>{" "}
+        ({UYU(anterior.monto)} prestados, {UYU(anterior.cuota * anterior.totalDias)} a devolver).
+        El crédito nuevo mantiene esa misma tasa.
+      </p>
+
+      {/* Crédito heredado por encima del tope: renovarlo acá lo REDUCIRÍA al tope
+          en silencio (de $1.750.000 a $100.000). Se bloquea y se dice por qué. */}
+      {superaTope && (
+        <p className="rounded-[10px] bg-[#FBE4E2] px-3 py-2 text-[12px] font-bold text-[#C0392B]">
+          ⛔ Este crédito es de {UYU(anterior.monto)} y el tope del sistema es{" "}
+          {UYU(RENOVACION_CAP_TOTAL)}. No se renueva desde acá: renovarlo bajaría el capital
+          del cliente. Avisá para subir el tope o cargalo aparte.
+        </p>
+      )}
+
       <div className="grid grid-cols-2 gap-2.5">
         <label className="flex flex-col gap-1">
           <span className="text-[11px] font-semibold text-gris">Capital (UYU)</span>
@@ -144,6 +188,24 @@ export function FormRenovacion({
             }}
             className="rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[16px] font-semibold outline-none focus:border-azul"
           />
+          {/* De dónde sale el número: el crédito anterior +20%. Si el admin lo
+              cambia, se le ofrece volver — así el desvío es siempre deliberado. */}
+          {montoNum === sugerido ? (
+            <span className="text-[11px] font-medium text-tenue-2">
+              {UYU(anterior.monto)} + {RENOVACION_AUMENTO_PCT}% = {UYU(sugerido)}
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setMonto(String(sugerido));
+                setConfirmar(false);
+              }}
+              className="text-left text-[11px] font-bold text-azul"
+            >
+              Volver al +{RENOVACION_AUMENTO_PCT}% ({UYU(sugerido)})
+            </button>
+          )}
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-[11px] font-semibold text-gris">Cantidad de cuotas</span>

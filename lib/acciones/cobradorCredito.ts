@@ -10,8 +10,8 @@
 //  tocar la base y recién entonces usan una vía de confianza.
 //
 //  Lo que el cobrador PUEDE:
-//   · RENOVAR — repetir el crédito que su cliente terminó de pagar, con los
-//     MISMOS términos. Aumento 0% ⇒ siempre dentro del tope del tramo.
+//   · RENOVAR — repetir el crédito que su cliente terminó de pagar, subido el
+//     +20% del negocio (recortado al tope del tramo, así nunca excede permiso).
 //   · NUEVA VENTA — colocarle otro crédito a un cliente suyo que ya no tiene
 //     crédito activo, dentro del tramo que le corresponde por historial.
 //
@@ -41,7 +41,12 @@ import {
   interesDeBase,
   INTERES_DEFECTO_PCT,
 } from "@/lib/creditoNuevo";
-import { evaluarRenovacion, RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
+import {
+  evaluarRenovacion,
+  montoRenovacionAutoAprobable,
+  RENOVACION_AUMENTO_PCT,
+  RENOVACION_CAP_TOTAL,
+} from "@/lib/renovacion";
 import { calcularEstadosCarton } from "@/lib/cartones";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { esUuid, opIdDeterminista } from "@/lib/idempotencia";
@@ -89,8 +94,10 @@ async function puerta(clienteId: string): Promise<Puerta> {
 }
 
 /**
- * RENOVAR — repetir el crédito con los MISMOS términos, de un toque.
+ * RENOVAR — repetir el crédito subido el +20% del negocio, de un toque.
  * Solo si el crédito activo del cliente está SALDADO (terminó de pagarlo).
+ * El monto lo decide el SERVIDOR (`montoRenovacionAutoAprobable`): el navegador
+ * no manda ninguna cifra, así que no hay forma de inflar el capital desde la app.
  */
 export async function renovarDesdeCalle(input: {
   clienteId: string;
@@ -130,21 +137,31 @@ export async function renovarDesdeCalle(input: {
     };
   }
 
-  const monto = Math.round(Number(ant.monto_prestado) || 0);
+  const montoAnterior = Math.round(Number(ant.monto_prestado) || 0);
   const totalDias = Number(ant.total_dias) || 0;
-  if (!(monto > 0) || !(totalDias > 0)) {
+  if (!(montoAnterior > 0) || !(totalDias > 0)) {
     return {
       ok: false,
       error: "Los términos del crédito anterior no son válidos. Avisá a la oficina.",
     };
   }
-  // CAP duro. Mismo monto que antes, así que solo salta si el crédito viejo ya
-  // lo superaba (herencia del import de Disapp).
-  if (monto > RENOVACION_CAP_TOTAL) {
+  // CAP duro sobre el crédito ANTERIOR: si ya venía por encima del tope (herencia
+  // del import de Disapp, ej. $120.000), no se renueva desde la calle. Se chequea
+  // el anterior y no el nuevo a propósito: el nuevo sale ya recortado al CAP, así
+  // que mirar el nuevo dejaría pasar en silencio una BAJA de $120.000 a $100.000.
+  if (montoAnterior > RENOVACION_CAP_TOTAL) {
     return {
       ok: false,
       error: `Ese crédito supera ${UYU(RENOVACION_CAP_TOTAL)}: lo tiene que renovar la oficina.`,
     };
+  }
+  // El +20% del negocio (regla de Carlos, 06-08): renovar es repetir el crédito
+  // subido un 20%, no repetirlo igual. Lo calcula el SERVIDOR con la función pura
+  // —nunca llega del navegador— y va recortado al tope del tramo, así lo que el
+  // cobrador confirma es exactamente lo que se le va a poder dar de alta.
+  const monto = montoRenovacionAutoAprobable(montoAnterior);
+  if (!(monto > 0)) {
+    return { ok: false, error: "No se pudo calcular el monto de la renovación." };
   }
 
   // ⚠️ La ESCRITURA va con service_role, igual que la colocación de la calle
@@ -178,7 +195,10 @@ export async function renovarDesdeCalle(input: {
     accion: "Renovó un crédito desde la calle",
     entidad: "cliente",
     entidadId: input.clienteId,
-    detalle: `Mismos términos: ${UYU(monto)} × ${totalDias}`,
+    detalle:
+      monto > montoAnterior
+        ? `${UYU(montoAnterior)} → ${UYU(monto)} × ${totalDias} (+${RENOVACION_AUMENTO_PCT}% del negocio)`
+        : `${UYU(monto)} × ${totalDias} (sin aumento: el tramo no lo admite)`,
   });
   revalidatePath("/cobrador");
   revalidatePath(`/cobrador/cliente/${input.clienteId}`);

@@ -8,6 +8,7 @@ import { listarCandidatosRenovacion } from "@/lib/data/renovaciones";
 import { getSolicitudesPendientes } from "@/lib/data/solicitudesRenovacion";
 import type { BandaScore, AccionRenovacion } from "@/types/scoring";
 import { UYU } from "@/lib/format";
+import { montoRenovacionSugerido, RENOVACION_AUMENTO_PCT } from "@/lib/renovacion";
 import { FormRenovacion } from "@/components/admin/FormRenovacion";
 import { SolicitudesRenovacion } from "@/components/admin/SolicitudesRenovacion";
 
@@ -160,11 +161,17 @@ export default async function RenovacionesPage({
                   <span className="text-[12.5px] font-medium text-tinta">
                     {score.recomendacion.resumen}
                   </span>
-                  {score.recomendacion.montoSugerido != null && (
-                    <span className="mt-0.5 text-[13px] font-extrabold text-tinta">
-                      Monto sugerido: {UYU(score.recomendacion.montoSugerido)}
+                  {/* El monto NO lo inventa el scoring: renovar es repetir el
+                      crédito que la persona terminó, subido el 20% del negocio.
+                      El scoring aporta la recomendación (renovar / revisar / no),
+                      que es lo que sabe hacer; la plata la fija la regla. */}
+                  <span className="mt-0.5 text-[13px] font-extrabold text-tinta">
+                    Renovación: {UYU(montoRenovacionSugerido(prestamoAnterior.monto))}
+                    <span className="font-semibold text-gris">
+                      {" "}
+                      ({UYU(prestamoAnterior.monto)} +{RENOVACION_AUMENTO_PCT}%)
                     </span>
-                  )}
+                  </span>
                 </div>
                 <span
                   className="flex-shrink-0 rounded-full px-3.5 py-2 text-[12.5px] font-bold"
@@ -180,7 +187,6 @@ export default async function RenovacionesPage({
                   clienteId={cliente.id}
                   clienteNombre={cliente.nombre}
                   anterior={prestamoAnterior}
-                  montoSugerido={score.recomendacion.montoSugerido}
                   esAdmin={esAdminV}
                   moroso={moroso}
                 />
