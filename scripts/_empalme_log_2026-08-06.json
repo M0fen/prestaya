@@ -1,19 +1,19 @@
 {
- "corrida": "2026-08-06T04:50:11.873602-03:00",
+ "corrida": "2026-08-06T05:35:38.465840-03:00",
  "corte": "2026-08-05",
  "commit": true,
- "finalizados_plan": 0,
+ "finalizados_plan": 4,
  "resucitados_plan": 0,
  "top_ups_plan": 0,
  "mantener_borrados": 9,
- "activos_final": 2860,
- "cartera": 92023318,
- "clientes_multi_activo": 475,
+ "activos_final": 2856,
+ "cartera": 91903273,
+ "clientes_multi_activo": 471,
  "multi_activo_disapp": 452,
- "activos_sobre_cobrados": 9,
+ "activos_sobre_cobrados": 10,
  "vs_pagos_disapp": {
-  "exactos": 2776,
-  "cortos": 22,
+  "exactos": 2798,
+  "cortos": 0,
   "pasados": 17
  }
 }
