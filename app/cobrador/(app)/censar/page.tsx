@@ -149,7 +149,19 @@ export default function CensarPage() {
       </Link>
       <h1 className="text-[18px] font-extrabold text-tinta">Censar cliente</h1>
 
-      <form action={enviar} className="flex flex-col gap-3">
+      {/* ⚠️ onSubmit, NO `action={enviar}`. React 19 hace form.reset() AUTOMÁTICO
+          al terminar la función de `action`, y el handler devuelve temprano (línea
+          ~100) cuando falta confirmar el alta SIN FOTO: el primer "Guardar" no
+          guardaba y encima BORRABA todo lo tipeado, y el segundo chocaba con el
+          `required` del nombre ya vacío → el cobrador nunca podía dar de alta a
+          nadie (día 1 del piloto: 0 clientes creados, 0 eventos de censo). */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          enviar(new FormData(e.currentTarget));
+        }}
+        className="flex flex-col gap-3"
+      >
         <CapturaFoto onDataUrl={setFoto} etiqueta="Foto del cliente (recomendada)" />
         <Campo name="nombre" label="Nombre y apellido" required placeholder="Ej. Juan Pérez" />
         <Campo name="documento" label="Documento (cédula)" placeholder="1.234.567-8" inputMode="numeric" />

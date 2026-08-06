@@ -324,6 +324,7 @@ for ref, c in ref2hoy.items():
 # ══ 6. Finalizar stales con saldo (excepto clientes borrados en Disapp) ═════
 finalizar = []
 mantener_borrados = []
+no_finalizar_con_saldo = []  # ausentes del export PERO con deuda viva → nunca se cierran
 for p in activos_db:
     ref = p.get("disapp_credit_ref")
     if not ref or ref in ref2hoy:
@@ -337,6 +338,21 @@ for p in activos_db:
     fin = sim_final.get(ref, round(float(p["pagado_acum"] or 0), 2))
     if p["cliente_id"] in borrados_en_disapp:
         mantener_borrados.append(p)  # Disapp lo borró; acá se sigue cobrando
+        continue
+    # ⚠️ CANDADO DURO (08-05): un crédito con SALDO VIVO no se cierra JAMÁS por
+    # ausencia en un export. Cerrar deuda es una decisión de negocio (condonar,
+    # castigar), nunca el efecto colateral de un archivo que no lo trae.
+    # Por qué existe: la guardia de "zona viva" de arriba se apoya en
+    # `cobradores_vivos`, que se deriva de pagos nativos desde PILOTO_DESDE. El
+    # 08-04 esa fecha era MAÑANA → el set estaba vacío → la guardia fue INERTE y
+    # una corrida cerró 370 créditos con $1.382.159 de deuda viva; 84 clientes del
+    # piloto desaparecieron de la ruta de su cobrador al día siguiente. Este
+    # candado no depende de ninguna fecha ni de quién cobró: si se debe plata, no
+    # se toca y se reporta para que lo mire un humano.
+    colgado = max(0, round(total - fin))
+    if colgado >= 1:
+        no_finalizar_con_saldo.append({"id": p["id"], "ref": ref, "colgado": colgado,
+                                       "cobrador_id": p["cobrador_id"], "cliente_id": p["cliente_id"]})
         continue
     # SALDADO y ausente del export → FINALIZAR TAMBIÉN (auditoría 08-05). El
     # `continue` que había acá ("el cartón derivado ya lo refleja") dejó 678
@@ -470,6 +486,10 @@ print(f"       de ellos en créditos de SUPERVISOR: {len(sup_top)}  ${round(sum(
 if topups_saltados:
     print(f"       sin top-up por imports ANULADOS en la app (a revisión humana): {len(topups_saltados)} → {topups_saltados[:6]}")
 print(f"  6) Finalizar (cerrados en Disapp con saldo acá): {len(finalizar)}  (saldo colgado ${round(sum(f['colgado'] for f in finalizar)):,})")
+if no_finalizar_con_saldo:
+    _colg = round(sum(x["colgado"] for x in no_finalizar_con_saldo))
+    print(f"       🛡️ NO se cierran por tener DEUDA VIVA (candado 08-05): {len(no_finalizar_con_saldo)}  ${_colg:,}")
+    print(f"          → revisar con Mauricio si Disapp los dio de baja o si hay que seguir cobrándolos")
 print(f"       clientes borrados en Disapp que se MANTIENEN activos: {len(mantener_borrados)}")
 
 # end-state esperado contra el export de hoy

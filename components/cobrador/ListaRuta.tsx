@@ -149,8 +149,13 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
   const ordenados = useMemo(() => {
     // "Hoy no toca" (semanal sin cuota hoy) baja al fondo con los visitados:
     // no es una parada del día, pero sigue visible por si el cliente aparece.
-    const pendientes = items.filter((i) => !cerrado(i.estadoHoy) && !i.sinCuotaHoy);
-    const cerrados = items.filter((i) => cerrado(i.estadoHoy) || i.sinCuotaHoy);
+    // SIN CRÉDITO también: la ficha está en su cartera pero HOY no hay nada que
+    // cobrarle, así que no es una parada pendiente. Mezclarlos con los que sí
+    // deben hacía que el cobrador contara mal su día y caminara de más (reporte
+    // de campo 08-05, caso 9: "los no activos aparecen junto con los activos").
+    const fueraDelDia = (i: ItemRutaVista) => !!i.sinCuotaHoy || i.estadoHoy === "sin_credito";
+    const pendientes = items.filter((i) => !cerrado(i.estadoHoy) && !fueraDelDia(i));
+    const cerrados = items.filter((i) => cerrado(i.estadoHoy) || fueraDelDia(i));
     let base = pendientes;
     if (modo === "ruta") base = porMiOrden(pendientes);
     else if (modo === "cercania" && origen) base = ordenarPorCercania(pendientes, origen);

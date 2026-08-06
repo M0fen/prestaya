@@ -1,0 +1,687 @@
+{
+  "ola": "2026-08-04 05:41:06.446903+00",
+  "alcance": "centro",
+  "commit": false,
+  "creditos": [
+    {
+      "id": "758a492f-814c-4a22-a4f7-b8fee06ad2c2",
+      "ref": "PRD0003483653",
+      "cliente": "SANTIAGO BENTOS",
+      "cobrador": "John Albert Hernández",
+      "debe": 44600,
+      "ultimo_pago": "2026-06-17"
+    },
+    {
+      "id": "1812627b-dfd4-4efd-846d-c41467cd18ad",
+      "ref": "PRD0003089704",
+      "cliente": "SILVINA CURBELO",
+      "cobrador": "John Albert Hernández",
+      "debe": 28800,
+      "ultimo_pago": "2025-12-20"
+    },
+    {
+      "id": "0cfe34a3-9241-4f22-9bb2-62095584d7b4",
+      "ref": "PRD0003285430",
+      "cliente": "AGUSTINA CURBELO CECCHINI",
+      "cobrador": "John Albert Hernández",
+      "debe": 21632,
+      "ultimo_pago": "2026-03-30"
+    },
+    {
+      "id": "ca0ba6ba-1991-4359-9283-2b20c229c0a2",
+      "ref": "PRD0003530329",
+      "cliente": "VICTOR OMAR",
+      "cobrador": "Fátima Cabillón",
+      "debe": 21600,
+      "ultimo_pago": "2026-07-27"
+    },
+    {
+      "id": "66844162-f8b0-4b08-a2a8-f39d9d4a2b91",
+      "ref": "PRD0003308643",
+      "cliente": "RICHARD MASSARINO",
+      "cobrador": "John Albert Hernández",
+      "debe": 16320,
+      "ultimo_pago": "2026-04-13"
+    },
+    {
+      "id": "1158a4d7-8594-4566-942d-66d9ea0b81b7",
+      "ref": "PRD0003515507",
+      "cliente": "MARIA GONNET CERFLORGLIO",
+      "cobrador": "Alejandro Cardona",
+      "debe": 12000,
+      "ultimo_pago": "2026-07-16"
+    },
+    {
+      "id": "6b7fc039-a4a9-4060-8662-53c461a93887",
+      "ref": "PRD0003466746",
+      "cliente": "VERONICA VESPA",
+      "cobrador": "Daniela Millán",
+      "debe": 10400,
+      "ultimo_pago": "2026-07-06"
+    },
+    {
+      "id": "affb4dac-36d6-46fc-b90f-3a4b69378d5c",
+      "ref": "PRD0003287426",
+      "cliente": "GONZALO CABALLERO",
+      "cobrador": "John Albert Hernández",
+      "debe": 10320,
+      "ultimo_pago": "2026-05-18"
+    },
+    {
+      "id": "5b4aa5e6-2937-4228-a895-b0128606ebc1",
+      "ref": "PRD0003134439",
+      "cliente": "JENNY GODOY",
+      "cobrador": "John Albert Hernández",
+      "debe": 9820,
+      "ultimo_pago": "2026-06-08"
+    },
+    {
+      "id": "6be65de6-3d45-4e20-a725-f311555c72e1",
+      "ref": "PRD0003242613",
+      "cliente": "AGUSTÍN LAPURIZ",
+      "cobrador": "John Albert Hernández",
+      "debe": 9500,
+      "ultimo_pago": "2026-04-27"
+    },
+    {
+      "id": "ab9a954f-840d-4f0e-b780-93ba64de36ed",
+      "ref": "PRD0003125865",
+      "cliente": "GARVIS DALMAO",
+      "cobrador": "John Albert Hernández",
+      "debe": 9500,
+      "ultimo_pago": "2026-03-07"
+    },
+    {
+      "id": "873657c3-cbe3-4728-a41b-b0cf8184b2f3",
+      "ref": "PRD0003496050",
+      "cliente": "MELANY DAMIANA RODRUIGUEZ SALVA TIERRA",
+      "cobrador": "Yuli Toro",
+      "debe": 8600,
+      "ultimo_pago": "2026-06-30"
+    },
+    {
+      "id": "57b76a96-74ab-4e3e-9acc-aa8ca12dcdd9",
+      "ref": "PRD0003465576",
+      "cliente": "JUAN ESPINOSA",
+      "cobrador": "Daniela Millán",
+      "debe": 6700,
+      "ultimo_pago": "2026-07-11"
+    },
+    {
+      "id": "6904539d-6e68-40bc-8aa9-c03ebb64650f",
+      "ref": "PRD0003527833",
+      "cliente": "ROSA KARINA DIAZ",
+      "cobrador": "John Albert Hernández",
+      "debe": 6000,
+      "ultimo_pago": "2026-07-13"
+    },
+    {
+      "id": "c50db39e-8281-4a7d-a24b-9111fffc1015",
+      "ref": "PRD0003427382",
+      "cliente": "ALEJANDRO DAVID ARGUIMBAO",
+      "cobrador": "Yuli Toro",
+      "debe": 6000,
+      "ultimo_pago": "2026-05-27"
+    },
+    {
+      "id": "0aa3922c-768a-446a-8516-0f6c3ae978c7",
+      "ref": "PRD0003538369",
+      "cliente": "MARIA DEL HUERTO CASTELLI",
+      "cobrador": "Alejandro Cardona",
+      "debe": 6000,
+      "ultimo_pago": "nunca"
+    },
+    {
+      "id": "679c7142-c948-454f-a5b7-8e050dbbfc2f",
+      "ref": "PRD0003452955",
+      "cliente": "MARIA JOSE CAZES",
+      "cobrador": "John Albert Hernández",
+      "debe": 5300,
+      "ultimo_pago": "2026-06-04"
+    },
+    {
+      "id": "36282839-55c8-406b-b539-60c39b9f3892",
+      "ref": "PRD0003505672",
+      "cliente": "ANA SUAREZ",
+      "cobrador": "Alejandro Cardona",
+      "debe": 5000,
+      "ultimo_pago": "2026-07-13"
+    },
+    {
+      "id": "b9d1eec9-320f-4c40-888e-c7367bd95382",
+      "ref": "PRD0003503542",
+      "cliente": "GRETEL LARROSA",
+      "cobrador": "María Curbelo",
+      "debe": 4500,
+      "ultimo_pago": "2026-07-13"
+    },
+    {
+      "id": "9038b5d8-7303-406c-800d-c6f2d7c24215",
+      "ref": "PRD0003511102",
+      "cliente": "CARLA MARISELA MARTINEZ MOLINA",
+      "cobrador": "Alejandro Cardona",
+      "debe": 4500,
+      "ultimo_pago": "2026-07-13"
+    },
+    {
+      "id": "2f7ca456-c3e8-4a75-bc51-4f952c522886",
+      "ref": "PRD0003500674",
+      "cliente": "ADRIANA HUGO",
+      "cobrador": "Daniela Millán",
+      "debe": 4480,
+      "ultimo_pago": "2026-07-09"
+    },
+    {
+      "id": "954d443a-f8a7-4ecd-a464-faad7d0e5031",
+      "ref": "PRD0003459971",
+      "cliente": "HORACIO SANCHES",
+      "cobrador": "María Curbelo",
+      "debe": 4400,
+      "ultimo_pago": "2026-07-07"
+    },
+    {
+      "id": "fd6b43ef-1713-477b-add7-b811cae92a36",
+      "ref": "PRD0003501056",
+      "cliente": "ANA OTTONELLI",
+      "cobrador": "María Curbelo",
+      "debe": 4080,
+      "ultimo_pago": "2026-07-13"
+    },
+    {
+      "id": "40ee4402-1b7c-41a4-a06f-63d52da8375f",
+      "ref": "PRD0003309394",
+      "cliente": "NOEMI PAOLA BRAGA SOSA",
+      "cobrador": "Angelika Gómez",
+      "debe": 3900,
+      "ultimo_pago": "2026-06-16"
+    },
+    {
+      "id": "fe6b68e2-1beb-4d0b-9c15-b371a77dfadf",
+      "ref": "PRD0003308579",
+      "cliente": "DANIELA CORREA GONZALEZ",
+      "cobrador": "John Albert Hernández",
+      "debe": 3780,
+      "ultimo_pago": "2026-06-05"
+    },
+    {
+      "id": "a64aae96-5047-4c1c-863f-cfb6c1cb31ee",
+      "ref": "PRD0003246916",
+      "cliente": "GUADALUPE MORALES",
+      "cobrador": "Yuli Toro",
+      "debe": 3655,
+      "ultimo_pago": "2026-04-10"
+    },
+    {
+      "id": "e661a7e2-daad-47f9-8a6d-65452c032c81",
+      "ref": "PRD0003517309",
+      "cliente": "RICARDO ROBERTO MONTOUTO",
+      "cobrador": "Daniela Millán",
+      "debe": 3600,
+      "ultimo_pago": "2026-07-24"
+    },
+    {
+      "id": "ca9a8b4e-fc29-4e98-9206-7fda6c8ae251",
+      "ref": "PRD0003528946",
+      "cliente": "ALAN GASTON BARRETO",
+      "cobrador": "Alejandro Cardona",
+      "debe": 3600,
+      "ultimo_pago": "nunca"
+    },
+    {
+      "id": "64d3b319-239a-46fd-abf2-0d9e4cda282e",
+      "ref": "PRD0003452884",
+      "cliente": "ELIZABETH GARCIA ARLOTTO",
+      "cobrador": "John Albert Hernández",
+      "debe": 3600,
+      "ultimo_pago": "nunca"
+    },
+    {
+      "id": "c7497f30-26dc-4a50-82e2-862d7a7761c8",
+      "ref": "PRD0003535616",
+      "cliente": "CARLA BRITOS",
+      "cobrador": "Alejandro Cardona",
+      "debe": 3600,
+      "ultimo_pago": "2026-08-03"
+    },
+    {
+      "id": "9c724379-1b55-4292-b11d-0e75d6c820d5",
+      "ref": "PRD0003477701",
+      "cliente": "JOSELIN SANCHEZ",
+      "cobrador": "John Albert Hernández",
+      "debe": 3280,
+      "ultimo_pago": "2026-07-16"
+    },
+    {
+      "id": "e169b394-46e0-46f4-87bf-a0eb6afc31c2",
+      "ref": "PRD0003513878",
+      "cliente": "VIVIANA SASSO",
+      "cobrador": "María Curbelo",
+      "debe": 3250,
+      "ultimo_pago": "2026-07-13"
+    },
+    {
+      "id": "013b13c1-8c2f-4b78-8723-acdd744c793a",
+      "ref": "PRD0003515652",
+      "cliente": "DANIEL GARCIA",
+      "cobrador": "María Curbelo",
+      "debe": 3000,
+      "ultimo_pago": "2026-07-27"
+    },
+    {
+      "id": "eee64191-60b2-4a7c-b71e-5fc72d54eb5f",
+      "ref": "PRD0003457288",
+      "cliente": "CRISTIAN JAMEN",
+      "cobrador": "Daniela Millán",
+      "debe": 2800,
+      "ultimo_pago": "2026-07-07"
+    },
+    {
+      "id": "131b8d29-2974-4f10-b774-9637f43bf192",
+      "ref": "PRD0003532983",
+      "cliente": "WILLIAN FONTANA",
+      "cobrador": "María Curbelo",
+      "debe": 2500,
+      "ultimo_pago": "2026-07-25"
+    },
+    {
+      "id": "14b5bfec-6493-4030-90a2-27d95523e580",
+      "ref": "PRD0003531400",
+      "cliente": "WUASINTO CASTRO",
+      "cobrador": "María Curbelo",
+      "debe": 2400,
+      "ultimo_pago": "2026-07-29"
+    },
+    {
+      "id": "d421d7dd-27af-43aa-ab5a-fd23092d835e",
+      "ref": "PRD0003537216",
+      "cliente": "CATHERIN GIMéNEZ",
+      "cobrador": "John Albert Hernández",
+      "debe": 2400,
+      "ultimo_pago": "2026-08-03"
+    },
+    {
+      "id": "6c5e5749-c42d-40c3-935d-d09a3a6177fd",
+      "ref": "PRD0003519746",
+      "cliente": "GERMAN MESA",
+      "cobrador": "Daniela Millán",
+      "debe": 2400,
+      "ultimo_pago": "2026-07-23"
+    },
+    {
+      "id": "d965a294-f600-4ec4-8e79-094b90538181",
+      "ref": "PRD0003514712",
+      "cliente": "GABRIEL GULARTE (DEPOSITO)",
+      "cobrador": "John Albert Hernández",
+      "debe": 2400,
+      "ultimo_pago": "2026-07-18"
+    },
+    {
+      "id": "de071062-f00c-4055-a781-2b29c2be6d5a",
+      "ref": "PRD0003511525",
+      "cliente": "KATERIN FERREIRA",
+      "cobrador": "John Albert Hernández",
+      "debe": 2250,
+      "ultimo_pago": "2026-07-13"
+    },
+    {
+      "id": "9ecc3531-8396-4c29-b737-fc25c048de74",
+      "ref": "PRD0003527885",
+      "cliente": "CAMILA KAREN LAPUNOV GONZÁLEZ",
+      "cobrador": "Alejandro Cardona",
+      "debe": 2050,
+      "ultimo_pago": "2026-07-16"
+    },
+    {
+      "id": "ca93d988-8d27-4d4e-bf3a-28941ef3dd62",
+      "ref": "PRD0003537128",
+      "cliente": "WALTER EMMANUEL SORIA",
+      "cobrador": "Alejandro Cardona",
+      "debe": 1950,
+      "ultimo_pago": "2026-08-03"
+    },
+    {
+      "id": "1c208b59-2741-4959-8dfb-dba098545898",
+      "ref": "PRD0003542193",
+      "cliente": "LUCAS PAIVA (DEPOSITO)",
+      "cobrador": "John Albert Hernández",
+      "debe": 1800,
+      "ultimo_pago": "2026-07-27"
+    },
+    {
+      "id": "121c0753-b753-408c-be4e-a74e8d6b3fa2",
+      "ref": "PRD0003522767",
+      "cliente": "WILSON SALDAÑA (DEPOSITO)",
+      "cobrador": "John Albert Hernández",
+      "debe": 1800,
+      "ultimo_pago": "2026-08-03"
+    },
+    {
+      "id": "9db809e0-d0b6-4f6d-bd11-e71db8066e6d",
+      "ref": "PRD0003531852",
+      "cliente": "CAROLINA MACHUCA",
+      "cobrador": "Daniela Millán",
+      "debe": 1600,
+      "ultimo_pago": "2026-07-23"
+    },
+    {
+      "id": "4430400a-888d-4884-a28d-6c4aa1f995c7",
+      "ref": "PRD0003494491",
+      "cliente": "ANA PORTILLO",
+      "cobrador": "María Curbelo",
+      "debe": 1600,
+      "ultimo_pago": "2026-07-13"
+    },
+    {
+      "id": "ca835829-662b-4abe-8040-e214752ab024",
+      "ref": "PRD0003436765",
+      "cliente": "CARLA BRITOS",
+      "cobrador": "Alejandro Cardona",
+      "debe": 1600,
+      "ultimo_pago": "2026-07-06"
+    },
+    {
+      "id": "cb1bac3d-d985-4fed-ae1d-8f24aa234787",
+      "ref": "PRD0003505827",
+      "cliente": "MARIO LÓPEZ",
+      "cobrador": "Daniela Millán",
+      "debe": 1600,
+      "ultimo_pago": "2026-07-21"
+    },
+    {
+      "id": "e9214ad5-a1e1-4fb6-8987-c4981d1ff160",
+      "ref": "PRD0003486183",
+      "cliente": "LORENA FERREIRA (DEPOSITO)",
+      "cobrador": "John Albert Hernández",
+      "debe": 1500,
+      "ultimo_pago": "2026-07-08"
+    },
+    {
+      "id": "d4b6bd75-5119-4a5a-a69a-60d7b6b6b8e3",
+      "ref": "PRD0003486574",
+      "cliente": "RAUL OSWALDO ZIMERMANN",
+      "cobrador": "María Curbelo",
+      "debe": 1500,
+      "ultimo_pago": "2026-07-13"
+    },
+    {
+      "id": "6cca9d1e-3bbf-4d05-9ca5-7e588d8e7b44",
+      "ref": "PRD0003483510",
+      "cliente": "WILLIAN FONTANA",
+      "cobrador": "María Curbelo",
+      "debe": 1250,
+      "ultimo_pago": "2026-07-13"
+    },
+    {
+      "id": "92acb068-a482-409f-a7ed-c401abf5dde9",
+      "ref": "PRD0003518110",
+      "cliente": "GUSTAVO MANZANAREZ",
+      "cobrador": "Daniela Millán",
+      "debe": 1200,
+      "ultimo_pago": "2026-08-01"
+    },
+    {
+      "id": "98d4f514-c048-4aaa-b2b9-55f6cddd6be0",
+      "ref": "PRD0003527733",
+      "cliente": "SUSANA BEATRIZ SANTANA",
+      "cobrador": "Alejandro Cardona",
+      "debe": 1200,
+      "ultimo_pago": "2026-07-21"
+    },
+    {
+      "id": "f2ea2caa-1da0-4b3f-8a82-e58032b277c9",
+      "ref": "PRD0003545235",
+      "cliente": "GERÓNIMO RENE ALVEZ NUÑEZ",
+      "cobrador": "Alejandro Cardona",
+      "debe": 1200,
+      "ultimo_pago": "2026-07-27"
+    },
+    {
+      "id": "b8fb405b-a1a7-4313-a55b-8771281dc095",
+      "ref": "PRD0003216367",
+      "cliente": "BEATRIZ MASSA",
+      "cobrador": "Karent Londoño",
+      "debe": 1020,
+      "ultimo_pago": "2026-07-09"
+    },
+    {
+      "id": "79379e30-edd8-42a5-8322-63b7255f8d24",
+      "ref": "PRD0003477201",
+      "cliente": "VIVIANA ALZA",
+      "cobrador": "María Curbelo",
+      "debe": 1000,
+      "ultimo_pago": "2026-07-06"
+    },
+    {
+      "id": "68819bb6-9a85-4c1f-9589-768504884289",
+      "ref": "PRD0003494624",
+      "cliente": "ANA TECHERA",
+      "cobrador": "Alejandro Cardona",
+      "debe": 1000,
+      "ultimo_pago": "2026-07-13"
+    },
+    {
+      "id": "77206a45-8b35-4d9f-a979-482a86003b9f",
+      "ref": "PRD0003495625",
+      "cliente": "LEONARDO GASTON VOLPE TOLOSA",
+      "cobrador": "Alejandro Cardona",
+      "debe": 1000,
+      "ultimo_pago": "2026-07-16"
+    },
+    {
+      "id": "a8e62d97-db79-4dcb-a211-47e1cf51636f",
+      "ref": "PRD0003465726",
+      "cliente": "MARCELO CHIAPPA",
+      "cobrador": "John Albert Hernández",
+      "debe": 1000,
+      "ultimo_pago": "2026-07-06"
+    },
+    {
+      "id": "38f192f2-b731-4cc9-ab82-e2178dbc6725",
+      "ref": "PRD0003521507",
+      "cliente": "ELBIO LEONARDO SÁNCHEZ",
+      "cobrador": "Alejandro Cardona",
+      "debe": 800,
+      "ultimo_pago": "2026-07-22"
+    },
+    {
+      "id": "82220a5f-f609-48cc-992a-d1b778a631a9",
+      "ref": "PRD0003535659",
+      "cliente": "ANA  CHARRUTI",
+      "cobrador": "María Curbelo",
+      "debe": 800,
+      "ultimo_pago": "2026-07-27"
+    },
+    {
+      "id": "4929e4d6-124b-48c4-a327-f5c1937698cd",
+      "ref": "PRD0003532140",
+      "cliente": "LUIS ROLANDO",
+      "cobrador": "Daniela Millán",
+      "debe": 800,
+      "ultimo_pago": "2026-07-31"
+    },
+    {
+      "id": "9a53f0b4-8ac9-4a36-8877-2fed34fbee5b",
+      "ref": "PRD0003530710",
+      "cliente": "ANA STEVES MARTíNEZ",
+      "cobrador": "John Albert Hernández",
+      "debe": 750,
+      "ultimo_pago": "2026-07-21"
+    },
+    {
+      "id": "7c55756a-6e3f-4070-a57b-f8060aefb70d",
+      "ref": "PRD0003544434",
+      "cliente": "BERNARDINO RIVEIRO",
+      "cobrador": "John Albert Hernández",
+      "debe": 750,
+      "ultimo_pago": "2026-07-23"
+    },
+    {
+      "id": "8c71061e-2ad5-4e0b-8e3b-debe730535d8",
+      "ref": "PRD0003545739",
+      "cliente": "KAMILA ELIZABETH CAYRUS LEYES",
+      "cobrador": "Alejandro Cardona",
+      "debe": 750,
+      "ultimo_pago": "2026-07-25"
+    },
+    {
+      "id": "3546e87a-3b2e-497e-86b3-0b4a986d038a",
+      "ref": "PRD0003525069",
+      "cliente": "CLAUDIA DE FREITAS",
+      "cobrador": "John Albert Hernández",
+      "debe": 720,
+      "ultimo_pago": "2026-07-29"
+    },
+    {
+      "id": "151ea983-43ba-4052-a360-bcee2df9e353",
+      "ref": "PRD0003486545",
+      "cliente": "NELSON ÁLVAREZ",
+      "cobrador": "Alejandro Cardona",
+      "debe": 600,
+      "ultimo_pago": "2026-07-22"
+    },
+    {
+      "id": "d9030bdb-b296-4011-9d8a-0cf86137b9be",
+      "ref": "PRD0003494453",
+      "cliente": "JAVIER AVILA",
+      "cobrador": "María Curbelo",
+      "debe": 600,
+      "ultimo_pago": "2026-07-23"
+    },
+    {
+      "id": "adf18280-fb8f-4d9f-94f2-ba5e738f4d67",
+      "ref": "PRD0003408292",
+      "cliente": "DEYMAN SOFAN",
+      "cobrador": "Alejandro Cardona",
+      "debe": 500,
+      "ultimo_pago": "2026-07-03"
+    },
+    {
+      "id": "e4dfff8b-63a2-4d05-8cf3-a17913d5c516",
+      "ref": "PRD0003530744",
+      "cliente": "LEONARDO BALBI",
+      "cobrador": "John Albert Hernández",
+      "debe": 500,
+      "ultimo_pago": "2026-07-21"
+    },
+    {
+      "id": "f639a35d-acc0-4637-839c-db66e850ed0c",
+      "ref": "PRD0003533421",
+      "cliente": "HECTOR MARQUEZ",
+      "cobrador": "John Albert Hernández",
+      "debe": 500,
+      "ultimo_pago": "2026-07-29"
+    },
+    {
+      "id": "f9fa386f-60ac-44dd-b3d2-6b8627e014c8",
+      "ref": "PRD0003541804",
+      "cliente": "VALERIA JACQUELINE RAMOS PEREZ",
+      "cobrador": "John Albert Hernández",
+      "debe": 450,
+      "ultimo_pago": "2026-07-30"
+    },
+    {
+      "id": "3fe543fd-d166-4302-a920-f6e45222810d",
+      "ref": "PRD0003538694",
+      "cliente": "MARISOL JORGE ABREU",
+      "cobrador": "John Albert Hernández",
+      "debe": 400,
+      "ultimo_pago": "2026-07-24"
+    },
+    {
+      "id": "69ab5cec-8846-4d7a-a644-2032fb391100",
+      "ref": "PRD0003527982",
+      "cliente": "MARIA LAURA SOSA",
+      "cobrador": "Daniela Millán",
+      "debe": 400,
+      "ultimo_pago": "2026-07-24"
+    },
+    {
+      "id": "4964604f-1765-4121-8a21-77e7bf23a980",
+      "ref": "PRD0003541795",
+      "cliente": "MIRIAM CABRERA",
+      "cobrador": "Daniela Millán",
+      "debe": 400,
+      "ultimo_pago": "2026-07-31"
+    },
+    {
+      "id": "0287c5c7-fdcc-404d-9d34-8fa93b92167a",
+      "ref": "PRD0003435188",
+      "cliente": "RAUL ANTONIO SARMIENTO",
+      "cobrador": "Alejandro Cardona",
+      "debe": 400,
+      "ultimo_pago": "2026-07-27"
+    },
+    {
+      "id": "8003d79f-61cd-40ec-ac27-d503fff5f835",
+      "ref": "PRD0003470859",
+      "cliente": "KAREN DIAZ LAURO",
+      "cobrador": "María Curbelo",
+      "debe": 400,
+      "ultimo_pago": "2026-07-13"
+    },
+    {
+      "id": "ee615b05-eccc-4518-b7e2-dd108fcdf0b5",
+      "ref": "PRD0003533538",
+      "cliente": "GUADALUPE MUJICA",
+      "cobrador": "Alejandro Cardona",
+      "debe": 350,
+      "ultimo_pago": "2026-07-29"
+    },
+    {
+      "id": "c2685866-a03e-4be4-8eb7-92dad8af738b",
+      "ref": "PRD0003512250",
+      "cliente": "ROSA MARIANELA YONA",
+      "cobrador": "María Curbelo",
+      "debe": 300,
+      "ultimo_pago": "2026-08-03"
+    },
+    {
+      "id": "c398edad-d610-42a8-b9df-b84430f34a44",
+      "ref": "PRD0003443936",
+      "cliente": "NATALIA CLAVIJO",
+      "cobrador": "Daniela Millán",
+      "debe": 270,
+      "ultimo_pago": "2026-07-07"
+    },
+    {
+      "id": "9be84f4a-ef07-4d89-949e-6ed07b4a0cfe",
+      "ref": "PRD0003531239",
+      "cliente": "MARIA GIMENES",
+      "cobrador": "Daniela Millán",
+      "debe": 250,
+      "ultimo_pago": "2026-07-21"
+    },
+    {
+      "id": "bbf6b989-1aa7-43e2-adf0-204af71aedfe",
+      "ref": "PRD0003526434",
+      "cliente": "FERNANDO ACUÑA",
+      "cobrador": "María Curbelo",
+      "debe": 250,
+      "ultimo_pago": "2026-08-01"
+    },
+    {
+      "id": "852a4bd1-7437-4eba-85bb-cc29f9ed6f6a",
+      "ref": "PRD0003498430",
+      "cliente": "DAHIAN SILVA",
+      "cobrador": "Daniela Millán",
+      "debe": 200,
+      "ultimo_pago": "2026-07-17"
+    },
+    {
+      "id": "646e1fdc-2cc2-4f07-8fb3-2bad241e89a9",
+      "ref": "PRD0003468343",
+      "cliente": "CARMEN CHARRUTI",
+      "cobrador": "María Curbelo",
+      "debe": 120,
+      "ultimo_pago": "2026-07-29"
+    },
+    {
+      "id": "2d75b8d1-a00d-4759-9388-abeaf15f462c",
+      "ref": "PRD0003178040",
+      "cliente": "PABLO FERNANDEZ",
+      "cobrador": "María Artunduaga",
+      "debe": 20,
+      "ultimo_pago": "2026-08-01"
+    }
+  ]
+}
