@@ -44,9 +44,12 @@ import {
 import {
   evaluarRenovacion,
   montoRenovacionAutoAprobable,
+  montoRenovacionPedido,
+  requiereAprobacionAdmin,
   RENOVACION_AUMENTO_PCT,
   RENOVACION_CAP_TOTAL,
 } from "@/lib/renovacion";
+import { crearSolicitudDb } from "@/lib/data/solicitudesRenovacion";
 import { calcularEstadosCarton } from "@/lib/cartones";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { esUuid, opIdDeterminista } from "@/lib/idempotencia";
@@ -56,6 +59,8 @@ import type { FrecuenciaPrestamo } from "@/types/db";
 
 export type ResultadoColocar =
   | { ok: true; prestamoId?: string; cuota?: number; repetido?: boolean }
+  /** Se mandó a la oficina para que el admin la apruebe (no se creó nada todavía). */
+  | { ok: true; solicitado: true; mensaje: string }
   | { ok: false; error: string };
 
 const FRECUENCIAS: FrecuenciaPrestamo[] = ["diario", "semanal", "quincenal", "mensual"];
@@ -91,6 +96,55 @@ async function puerta(clienteId: string): Promise<Puerta> {
     return { ok: false, error: "Ese cliente está dado de baja. Avisá a la oficina." };
 
   return { ok: true, u, db };
+}
+
+/**
+ * Manda la renovación a la OFICINA para que el admin la apruebe, en vez de
+ * devolverle al cobrador un error sin salida. Se escribe con service_role porque
+ * `solicitudes_renovacion` es de gestores por RLS; la autorización ya la dieron
+ * `puerta()` (rol cobrador + cliente de su ruta) y los gates de propiedad/saldado.
+ */
+async function pedirAprobacion(
+  db: Awaited<ReturnType<typeof createSupabaseServer>>,
+  u: { id: string; nombre: string },
+  s: {
+    clienteId: string;
+    prestamoAnteriorId: string;
+    monto: number;
+    totalDias: number;
+    frecuencia: FrecuenciaPrestamo;
+  },
+): Promise<ResultadoColocar> {
+  try {
+    await crearSolicitudDb(createSupabaseAdmin(), {
+      clienteId: s.clienteId,
+      prestamoAnteriorId: s.prestamoAnteriorId,
+      monto: s.monto,
+      totalDias: s.totalDias,
+      frecuencia: s.frecuencia,
+      solicitadoPor: u.id,
+      solicitadoPorNombre: u.nombre,
+    });
+  } catch (e) {
+    // Una solicitud pendiente por crédito (unique): el segundo toque no duplica.
+    if ((e as { code?: string } | null)?.code === "23505")
+      return { ok: true, solicitado: true, mensaje: "Ya está pedido a la oficina. Esperá el OK." };
+    return { ok: false, error: "No se pudo pedir la aprobación. Probá de nuevo." };
+  }
+  await registrarAuditoria(db, {
+    actorId: u.id,
+    actorNombre: u.nombre,
+    accion: "Pidió aprobación para renovar (supera el tope)",
+    entidad: "cliente",
+    entidadId: s.clienteId,
+    detalle: `${UYU(s.monto)} × ${s.totalDias} (${s.frecuencia}) — espera al admin`,
+  });
+  revalidatePath("/cobrador/colocar");
+  return {
+    ok: true,
+    solicitado: true,
+    mensaje: "Pedido a la oficina ✓ Te avisan cuando lo aprueben.",
+  };
 }
 
 /**
@@ -145,16 +199,22 @@ export async function renovarDesdeCalle(input: {
       error: "Los términos del crédito anterior no son válidos. Avisá a la oficina.",
     };
   }
-  // CAP duro sobre el crédito ANTERIOR: si ya venía por encima del tope (herencia
-  // del import de Disapp, ej. $120.000), no se renueva desde la calle. Se chequea
-  // el anterior y no el nuevo a propósito: el nuevo sale ya recortado al CAP, así
-  // que mirar el nuevo dejaría pasar en silencio una BAJA de $120.000 a $100.000.
-  if (montoAnterior > RENOVACION_CAP_TOTAL) {
-    return {
-      ok: false,
-      error: `Ese crédito supera ${UYU(RENOVACION_CAP_TOTAL)}: lo tiene que renovar la oficina.`,
-    };
+  // El crédito se pasa del tope del sistema (herencia de Disapp: 135 activos, hasta
+  // $1.750.000). NO es un callejón sin salida: se le manda la solicitud al admin
+  // para que la apruebe (decisión de Carlos, 06-08). Antes esto devolvía un error
+  // y el cliente quedaba sin forma de renovar — encima el crédito ni siquiera
+  // aparecía en la lista. El monto pedido NO se recorta al CAP: recortarlo sería
+  // rebajarle el capital al cliente en silencio.
+  if (requiereAprobacionAdmin(montoAnterior)) {
+    return pedirAprobacion(db, u, {
+      clienteId: input.clienteId,
+      prestamoAnteriorId: ant.id,
+      monto: montoRenovacionPedido(montoAnterior),
+      totalDias,
+      frecuencia: (ant.frecuencia as FrecuenciaPrestamo) ?? "diario",
+    });
   }
+
   // El +20% del negocio (regla de Carlos, 06-08): renovar es repetir el crédito
   // subido un 20%, no repetirlo igual. Lo calcula el SERVIDOR con la función pura
   // —nunca llega del navegador— y va recortado al tope del tramo, así lo que el

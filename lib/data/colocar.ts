@@ -16,6 +16,8 @@ import { calcularEstadosCarton } from "@/lib/cartones";
 import {
   calcularCuotaRenovacion,
   montoRenovacionAutoAprobable,
+  montoRenovacionPedido,
+  requiereAprobacionAdmin,
   topeAumentoPct,
   RENOVACION_CAP_TOTAL,
 } from "@/lib/renovacion";
@@ -42,6 +44,9 @@ export interface CandidatoColocar {
   montoNuevo?: number;
   /** Solo en "renovar": cuota del crédito NUEVO, arrastrando la tasa del anterior. */
   cuotaNueva?: number;
+  /** El cobrador NO puede darlo de alta solo (se pasa del tope del sistema): el
+   *  toque manda una solicitud al admin en vez de fallar. */
+  requiereAprobacion?: boolean;
   /** Cuánto le falta pagar (renovar: < 1 por definición). */
   falta?: number;
   /** Deuda VIVA del cliente en sus OTROS créditos activos (0 si no tiene). Se
@@ -111,13 +116,19 @@ export async function getCandidatosRenovar(db: SupabaseClient): Promise<Candidat
     // (GERARDO VARELA, $120.000) el servidor lo rechaza igual — ofrecerlo en la
     // lista rompe la promesa de que acá nunca aparece algo que va a rebotar.
     const montoAnterior = Math.round(Number(p.monto_prestado) || 0);
-    if (montoAnterior > RENOVACION_CAP_TOTAL) continue;
     const cuotaAnterior = Number(p.cuota_diaria) || 0;
     const totalDias = Number(p.total_dias) || 0;
-    // Los números del crédito NUEVO, calculados con las MISMAS funciones que usa
-    // el alta (`montoRenovacionAutoAprobable` + `calcularCuotaRenovacion`): la
+    // ¿El cobrador puede darlo de alta solo, o hay que pedirle a la oficina?
+    // Antes los créditos por encima del tope se SALTEABAN mudos de la lista: el
+    // cliente terminaba de pagar y desaparecía, sin explicación ni forma de
+    // pedirlo. Ahora aparecen marcados y el toque manda la solicitud al admin
+    // (decisión de Carlos, 06-08).
+    const requiereAprobacion = requiereAprobacionAdmin(montoAnterior);
+    // Los números del crédito NUEVO, con las MISMAS funciones que usa el alta: la
     // tarjeta de la calle muestra lo que se va a colocar, no lo que ya se pagó.
-    const montoNuevo = montoRenovacionAutoAprobable(montoAnterior);
+    const montoNuevo = requiereAprobacion
+      ? montoRenovacionPedido(montoAnterior)
+      : montoRenovacionAutoAprobable(montoAnterior);
     const cuotaNueva = calcularCuotaRenovacion(
       { monto: montoAnterior, cuota: cuotaAnterior, totalDias },
       montoNuevo,
@@ -136,6 +147,7 @@ export async function getCandidatosRenovar(db: SupabaseClient): Promise<Candidat
       techo: techoDe(montoAnterior),
       montoNuevo,
       cuotaNueva,
+      requiereAprobacion,
       deudaHermano: Math.round(deudaPorCliente.get(p.cliente_id) ?? 0),
     });
   }

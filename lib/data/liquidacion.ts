@@ -14,6 +14,7 @@ import { toIso } from "@/lib/format";
 import { traerTodo } from "./paginado";
 import { tablaFaltante } from "./errores";
 import { alcanceDelActor, type Alcance } from "./alcance";
+import { getAperturasDia } from "./aperturas";
 
 export interface FilaLiquidacion {
   cobradorId: string;
@@ -90,8 +91,11 @@ export async function getLiquidacionDiaria(
       if (soloCob) q = q.in("cobrador_id", soloCob);
       return q.order("id", { ascending: true }).range(d, h);
     }),
-    traerTodo<{ tipo: string; monto: number; cobrador_id: string | null }>((d, h) => {
-      let q = db.from("movimientos_caja").select("tipo, monto, cobrador_id").gte("registrado_en", desde);
+    traerTodo<{ tipo: string; monto: number; cobrador_id: string | null; categoria: string | null }>((d, h) => {
+      let q = db
+        .from("movimientos_caja")
+        .select("tipo, monto, cobrador_id, categoria")
+        .gte("registrado_en", desde);
       if (soloCob) q = q.in("cobrador_id", soloCob);
       return q.order("id", { ascending: true }).range(d, h);
     }),
@@ -144,7 +148,26 @@ export async function getLiquidacionDiaria(
     if (!m.cobrador_id) continue;
     const a = init(m.cobrador_id);
     if (m.tipo === "ingreso") a.base = (a.base ?? 0) + Number(m.monto); // aporte de capital
-    else if (m.tipo === "egreso" || m.tipo === "retiro") a.retiros += Number(m.monto);
+    // La COMISIÓN liquidada sale de la caja CENTRAL, no del bolsillo del cobrador:
+    // contarla como retiro suyo le hunde la "caja final" los días de pago (2 por
+    // mes) y con una comisión grande la deja NEGATIVA en el home del admin — un
+    // retiro que nunca hizo. Mismo criterio que lib/data/gastos.ts.
+    else if ((m.tipo === "egreso" || m.tipo === "retiro") && m.categoria !== "Comisión")
+      a.retiros += Number(m.monto);
+  }
+
+  // BASE del día: la verdad está en `aperturas_caja` (la misma fuente que usa el
+  // cierre de zona), no en un movimiento de tipo 'ingreso'. Sin esto la columna
+  // "Base" del home del admin mostraba "—" para todos SIEMPRE y la "caja final"
+  // quedaba subestimada justo en la base entregada.
+  try {
+    const aperturas = await getAperturasDia(db, hoy, soloCob ?? undefined);
+    for (const [cobradorId, base] of aperturas) {
+      if (!(base > 0)) continue;
+      init(cobradorId).base = base;
+    }
+  } catch {
+    /* sin tabla de aperturas (0104) → se queda con lo que dieran los movimientos */
   }
 
   const filas: FilaLiquidacion[] = cobradores

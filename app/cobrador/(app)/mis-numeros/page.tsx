@@ -38,7 +38,9 @@ export default async function MisNumerosPage() {
         </span>
         <div className="mt-0.5 flex items-end justify-between">
           <span className="text-[30px] leading-none font-black tabular-nums">{UYU(n.comisionQuincena)}</span>
-          <span className="text-[12px] font-medium text-white/70">de {UYU(n.quincenaRecaudado)} recaudados</span>
+          <span className="text-[12px] font-medium text-white/70">
+            de {UYU(n.quincenaRecaudado)} cobrados en tu ruta
+          </span>
         </div>
         <p className="mt-2 text-[11px] leading-[1.45] font-medium text-white/60">
           {Number(n.quincenaDesde.slice(8, 10)) === 1 ? "Del 1 al 15" : "Del 16 a fin de mes"} — la
@@ -48,7 +50,7 @@ export default async function MisNumerosPage() {
 
       {/* Grid de estadísticas del mes. */}
       <div className="grid grid-cols-2 gap-2.5">
-        <Kpi label="Recaudado (mes)" valor={UYU(n.mesRecaudado)} tono="#157A50" />
+        <Kpi label="Cobrado por vos (mes)" valor={UYU(n.mesRecaudado)} tono="#157A50" sub="lo que pasó por tus manos" />
         <Kpi label="Últimos 7 días" valor={UYU(n.semanaRecaudado)} tono="#1E47C8" />
         <Kpi label="Cobros del mes" valor={String(n.mesCobros)} />
         <Kpi label="Ticket promedio" valor={UYU(n.ticketPromedio)} />
@@ -87,7 +89,9 @@ export default async function MisNumerosPage() {
       <ApodoEditor apodoActual={(usuario.apodo ?? "").trim() || null} />
 
       <p className="px-0.5 text-[11px] leading-[1.5] font-medium text-tenue">
-        Tu comisión sale del recaudo real que registrás (libro de pagos inmutable). Cuantas más jornadas cuadres y
+        Tu comisión se calcula sobre lo cobrado en <b>tu ruta</b> — es la misma cuenta con la que la oficina te
+        liquida, así lo que ves acá es lo que vas a cobrar. Si un día cobrás en la ruta de un compañero, esa plata
+        entra igual a tu caja (y la tenés que rendir), pero la comisión es de él. Cuantas más jornadas cuadres y
         menos faltantes tengas, más confianza y mejor tu cuenta.
       </p>
     </div>

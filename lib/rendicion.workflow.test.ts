@@ -412,7 +412,12 @@ describe("consolidarPorZona — la zona tiene que cuadrar peso a peso", () => {
   // `rendidas` ni en `pendientes` (ambos se derivan de la tabla `pagos`). El
   // consolidado no lo ve, `porRendir` da 0 y la zona se sella —única e inmutable—
   // con $5.000 de la empresa en la calle sin registro de custodia.
-  it("⚠️ FALLA: la base del cobrador que no cobró nada tiene que contar como plata en la calle", () => {
+  // ⏸️ PENDIENTE DE DECISIÓN (06-08). Tres revisores independientes: 2 lo dejaron
+  // en DUDOSO y 1 en bug real. Impacto HOY = $0 porque `aperturas_caja` está
+  // VACÍA (nunca se cargó una base a nadie), que es justo el caso 5 que Carlos
+  // tiene que definir. Cuando se carguen bases de verdad, esto pasa a ser plata de
+  // la empresa que sale y no se reclama en el único momento en que se puede.
+  it.fails("la base del cobrador que no cobró nada tiene que contar como plata en la calle", () => {
     const c = consolidarPorZona(
       [rend({ cobradorId: "ana", base: 4000, recaudado: 20000, entregado: 24000 })],
       [], // Pedro no aparece: cero pagos, aunque se llevó $5.000 de base
@@ -711,7 +716,10 @@ describe("confirmarCierreZona — el supervisor firma por el efectivo que recibi
   // Pedro se llevó $5.000 de base y no cobró a nadie: no es "pendiente" (los
   // pendientes salen de `pagos`), así que el guard de pendientes no lo ve y la
   // zona se sella —única e inmutable— sin reclamarle esa plata.
-  it("⚠️ FALLA: no debería sellarse la zona con una base entregada que nadie devolvió", async () => {
+  // ⏸️ PENDIENTE DE DECISIÓN (06-08), mismo origen que el anterior. Dos de tres
+  // revisores lo dieron por NO_ES_BUG. El sello de zona es único e inmutable, así
+  // que si se decide contar la base sin devolver, hay que hacerlo ANTES de sellar.
+  it.fails("no debería sellarse la zona con una base entregada que nadie devolvió", async () => {
     const c = consolidado([
       {
         cobradorId: "ana",
@@ -999,9 +1007,11 @@ describe("Mis números — la promesa tiene que ser lo que la oficina liquida", 
 
   it("la comisión de la quincena en curso solo cuenta del 16 en adelante", async () => {
     montar({
+      // La comisión se calcula sobre créditos de SU ruta → hace falta el crédito.
+      prestamos: [{ id: "pr-b", cobrador_id: COB_B }],
       pagos: [
-        { id: 1, monto: 10000, registrado_por: COB_B, anulado: false, origen: null, registrado_en: "2026-08-10T14:00:00Z" },
-        { id: 2, monto: 20000, registrado_por: COB_B, anulado: false, origen: null, registrado_en: "2026-08-18T14:00:00Z" },
+        { id: 1, prestamo_id: "pr-b", monto: 10000, registrado_por: COB_B, anulado: false, origen: null, registrado_en: "2026-08-10T14:00:00Z" },
+        { id: 2, prestamo_id: "pr-b", monto: 20000, registrado_por: COB_B, anulado: false, origen: null, registrado_en: "2026-08-18T14:00:00Z" },
       ],
       usuarios: [{ id: COB_B, comision_pct: 3 }],
       rendiciones: [],
@@ -1017,10 +1027,11 @@ describe("Mis números — la promesa tiene que ser lo que la oficina liquida", 
 
   it("los pagos importados del empalme no entran en la comisión que se le promete", async () => {
     montar({
+      prestamos: [{ id: "pr-b", cobrador_id: COB_B }],
       pagos: [
-        { id: 1, monto: 20000, registrado_por: COB_B, anulado: false, origen: null, registrado_en: "2026-08-18T14:00:00Z" },
-        { id: 2, monto: 644806, registrado_por: COB_B, anulado: false, origen: "disapp_import", registrado_en: "2026-08-18T09:00:00Z" },
-        { id: 3, monto: 5000, registrado_por: COB_B, anulado: true, origen: null, registrado_en: "2026-08-18T10:00:00Z" },
+        { id: 1, prestamo_id: "pr-b", monto: 20000, registrado_por: COB_B, anulado: false, origen: null, registrado_en: "2026-08-18T14:00:00Z" },
+        { id: 2, prestamo_id: "pr-b", monto: 644806, registrado_por: COB_B, anulado: false, origen: "disapp_import", registrado_en: "2026-08-18T09:00:00Z" },
+        { id: 3, prestamo_id: "pr-b", monto: 5000, registrado_por: COB_B, anulado: true, origen: null, registrado_en: "2026-08-18T10:00:00Z" },
       ],
       usuarios: [{ id: COB_B, comision_pct: 3 }],
       rendiciones: [],
@@ -1047,18 +1058,19 @@ describe("Mis números — la promesa tiene que ser lo que la oficina liquida", 
     expect(r.cuadradas).toBe(1);
   });
 
-  // ⚠️ FALLA: bug real, ver informe (hallazgo 3, severidad alta).
-  // Caso Sonia Telis (día 1): B le registró $6.550 en un crédito de la ruta de A.
-  // La oficina liquida por `prestamos.cobrador_id` (RPC 0069) → esa plata es de A;
-  // "Mis números" suma por `registrado_por` → se la promete a B.
-  it("⚠️ FALLA: cobrar en la ruta de un compañero no es comisión propia", async () => {
+  // ✅ ARREGLADO (06-08). Caso Sonia Telis (día 1): B le registró $6.550 en un
+  // crédito de la ruta de A. La oficina liquida por `prestamos.cobrador_id` (RPC
+  // 0069) → esa plata es de A; "Mis números" sumaba por `registrado_por` y se la
+  // prometía a B. Le prometía una comisión que el día de pago no iba a llegar.
+  it("cobrar en la ruta de un compañero NO es comisión propia (pero sí es custodia)", async () => {
     montar({
+      prestamos: [{ id: "pr-a", cobrador_id: COB_A }],
       pagos: [
         {
           id: 1,
+          prestamo_id: "pr-a",
           monto: 6550,
           registrado_por: COB_B, // custodia: la plata la tuvo B
-          prestamo_cobrador_id: COB_A, // ruta: la comisión es de A
           anulado: false,
           origen: null,
           registrado_en: "2026-08-05T14:00:00Z",
@@ -1069,8 +1081,11 @@ describe("Mis números — la promesa tiene que ser lo que la oficina liquida", 
       comisiones_liquidadas: [],
     });
     const r = await getMisNumeros(COB_B, new Date("2026-08-05T15:00:00Z"));
-    expect(r.quincenaRecaudado).toBe(0); // hoy: 6550
-    expect(r.comisionQuincena).toBe(0); // hoy: 197
+    // La comisión es de A: a B no se le promete nada por esa plata.
+    expect(r.quincenaRecaudado).toBe(0);
+    expect(r.comisionQuincena).toBe(0);
+    // Pero la plata SÍ pasó por sus manos y la tiene que rendir: eso no se borra.
+    expect(r.mesRecaudado).toBe(6550);
   });
 
   // ⚠️ FALLA: bug real, ver informe (hallazgo 6, severidad baja).

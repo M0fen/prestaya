@@ -6,7 +6,9 @@ import {
   tasaImplicita,
   evaluarRenovacion,
   montoRenovacionAutoAprobable,
+  montoRenovacionPedido,
   montoRenovacionSugerido,
+  requiereAprobacionAdmin,
   topeAumentoPct,
   RENOVACION_AUMENTO_PCT,
   RENOVACION_CAP_TOTAL,
@@ -191,6 +193,48 @@ describe("montoRenovacionAutoAprobable (lo que el COBRADOR coloca sin permiso)",
   it("montos inválidos → 0", () => {
     expect(montoRenovacionAutoAprobable(0)).toBe(0);
     expect(montoRenovacionAutoAprobable(-1)).toBe(0);
+  });
+});
+
+describe("lo que no se puede aprobar solo va al admin (no es callejón sin salida)", () => {
+  it("un crédito heredado por encima del tope requiere aprobación", () => {
+    // 135 activos así, hasta $1.750.000. Antes desaparecían mudos de la lista de
+    // "Renovar" y el error decía "lo tiene que renovar la oficina" — pero la
+    // oficina tampoco podía. Ahora se pide y el admin autoriza.
+    expect(requiereAprobacionAdmin(1_750_000)).toBe(true);
+    expect(requiereAprobacionAdmin(120_000)).toBe(true);
+  });
+
+  it("lo pedido NUNCA le baja el capital al cliente", () => {
+    // La trampa: `montoRenovacionSugerido` recorta al CAP, así que para un crédito
+    // de $1.750.000 propondría $100.000 — una rebaja del 94% disfrazada de
+    // renovación. `montoRenovacionPedido` no recorta.
+    expect(montoRenovacionSugerido(1_750_000)).toBe(RENOVACION_CAP_TOTAL); // el recorte
+    expect(montoRenovacionPedido(1_750_000)).toBe(1_750_000); // sin recorte
+    for (const m of [110_000, 250_000, 843_200, 1_750_000])
+      expect(montoRenovacionPedido(m)).toBeGreaterThanOrEqual(m);
+  });
+
+  it("un crédito grande se pide SIN aumento (su tramo no lo admite)", () => {
+    // >$90.000 tiene tope 0%: se renueva por lo mismo. Lo conservador.
+    expect(montoRenovacionPedido(1_750_000)).toBe(1_750_000);
+    expect(montoRenovacionPedido(95_000)).toBe(95_000);
+  });
+
+  it("solo pide aprobación lo que YA venía por encima del tope", () => {
+    // Propiedad que sale de los tramos: el aumento permitido baja a medida que el
+    // crédito crece (20/15/10/0%), así que el monto pedido nunca CRUZA el cap por
+    // sí solo — el techo de cada tramo es 36.000 / 69.000 / 99.000 / el mismo
+    // monto. O sea: renovar nunca empuja a un crédito sano por encima del tope.
+    for (let m = 500; m <= RENOVACION_CAP_TOTAL; m += 500)
+      expect(requiereAprobacionAdmin(m), `anterior ${m}`).toBe(false);
+    expect(requiereAprobacionAdmin(RENOVACION_CAP_TOTAL + 1)).toBe(true);
+    expect(requiereAprobacionAdmin(1_750_000)).toBe(true);
+  });
+
+  it("monto inválido no pide nada", () => {
+    expect(montoRenovacionPedido(0)).toBe(0);
+    expect(requiereAprobacionAdmin(0)).toBe(false);
   });
 });
 

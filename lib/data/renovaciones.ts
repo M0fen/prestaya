@@ -238,6 +238,12 @@ export interface AltaRenovacion {
   frecuencia: import("@/types/db").FrecuenciaPrestamo;
   /** usuarios.id del gestor que da el alta (auditoría). */
   creadoPor: string | null;
+  /** Deja pasar un monto POR ENCIMA del CAP de $100.000. Solo lo activa el camino
+   *  de APROBACIÓN DEL ADMIN (`aprobarSolicitud`), nunca un alta directa ni la
+   *  calle: para los créditos heredados que ya venían por encima del tope, la
+   *  única alternativa era rebajarles el capital al cliente. La autorización es
+   *  explícita, de una persona, y queda en auditoría. */
+  permitirSobreCap?: boolean;
 }
 
 export type ResultadoAlta =
@@ -271,9 +277,12 @@ export async function crearRenovacion(
 
   // 1. Validaciones (antes de tocar nada).
   if (!(monto > 0)) return { ok: false, error: "El monto debe ser mayor a 0." };
-  // CAP total DURO (money-critical): ningún crédito supera $100.000, sin importar
-  // el rol ni la ruta (alta directa, admin sobre-tope, o solicitud aprobada).
-  if (monto > RENOVACION_CAP_TOTAL)
+  // CAP total (money-critical): ningún crédito supera $100.000 por las vías
+  // normales — alta directa, calle, o admin excediendo el tope del tramo. La
+  // ÚNICA excepción es una solicitud que el admin aprueba a mano
+  // (`permitirSobreCap`), que existe para los créditos heredados de Disapp que ya
+  // venían por encima: sin eso, "renovar" les rebajaba el capital al cliente.
+  if (!input.permitirSobreCap && monto > RENOVACION_CAP_TOTAL)
     return { ok: false, error: `El crédito no puede superar $${RENOVACION_CAP_TOTAL.toLocaleString("es-UY")} (tope máximo).` };
   if (!(Number.isInteger(totalDias) && totalDias > 0))
     return { ok: false, error: "La cantidad de cuotas debe ser un entero mayor a 0." };

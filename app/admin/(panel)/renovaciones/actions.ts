@@ -68,15 +68,15 @@ export async function renovarCredito(input: {
   const evalu = evaluarRenovacion(ant.monto_prestado, monto);
   const admin = esAdmin(usuario.rol);
 
-  // CAP total DURO para TODOS (incluido el admin): ningún crédito supera $100.000.
-  if (evalu.superaCap) {
-    return { ok: false, error: evalu.motivo ?? `El crédito no puede superar ${UYU(RENOVACION_CAP_TOTAL)}.` };
-  }
-  // El tope del tramo (20/15/10%) es DURO para cobrador/supervisor; el admin puede
-  // excederlo (alta directa). Si un no-admin lo excede, YA NO da error: crea una
-  // SOLICITUD que el admin aprueba/rechaza (Tanda 6, decisión de Carlos: supervisor
-  // pide → admin aprueba). La infraestructura (0029) ya existe; antes era rama muerta.
-  if (evalu.excedePct && !admin) {
+  // Lo que NO se puede aprobar solo va al ADMIN, nunca a un callejón sin salida
+  // (decisión de Carlos, 06-08: "cuando no se puedan renovar así directamente, se
+  // envía a admin para que apruebe"). Son dos casos: pasarse del tope del tramo
+  // (20/15/10%) y pasarse del CAP de $100.000 — este último aparece con los
+  // créditos heredados de Disapp que ya venían por encima, donde la alternativa
+  // era rebajarle el capital al cliente. El admin ES el aprobador: da de alta
+  // directo. Cualquier otro rol genera una SOLICITUD que él resuelve (0029).
+  const necesitaAprobacion = evalu.superaCap || evalu.excedePct;
+  if (necesitaAprobacion && !admin) {
     try {
       await crearSolicitudDb(db, {
         clienteId: input.clienteId,
@@ -90,7 +90,9 @@ export async function renovarCredito(input: {
       await registrarAuditoria(db, {
         actorId: usuario.id,
         actorNombre: usuario.nombre,
-        accion: "Solicitó renovación (sobre el tope)",
+        accion: evalu.superaCap
+          ? "Solicitó renovación (sobre el tope de $100.000)"
+          : "Solicitó renovación (sobre el tope del tramo)",
         entidad: "cliente",
         entidadId: input.clienteId,
         detalle: `${UYU(monto)} × ${totalDias} (${input.frecuencia}) — espera aprobación del admin`,
@@ -104,7 +106,7 @@ export async function renovarCredito(input: {
     }
   }
 
-  // Auto-aprobable, o admin excediendo el tope del tramo (alta directa).
+  // Auto-aprobable, o ADMIN autorizando (tramo o CAP) — él es el aprobador.
   const res = await crearRenovacion(db, {
     clienteId: input.clienteId,
     prestamoAnteriorId: input.prestamoAnteriorId,
@@ -112,6 +114,7 @@ export async function renovarCredito(input: {
     totalDias,
     frecuencia: input.frecuencia,
     creadoPor: usuario.id,
+    permitirSobreCap: admin && evalu.superaCap,
   });
   if (!res.ok) return res;
   // Si este crédito tenía una SOLICITUD pendiente y se renovó por alta directa, se
@@ -125,7 +128,9 @@ export async function renovarCredito(input: {
     actorNombre: usuario.nombre,
     accion: evalu.autoAprobable
       ? "Renovó crédito (auto, dentro del tope)"
-      : "Renovó crédito (admin, sobre el tope del tramo)",
+      : evalu.superaCap
+        ? "Renovó crédito (admin, POR ENCIMA del tope de $100.000)"
+        : "Renovó crédito (admin, sobre el tope del tramo)",
     entidad: "cliente",
     entidadId: input.clienteId,
     detalle: `Nuevo crédito ${UYU(monto)} × ${totalDias} (${input.frecuencia})`,
@@ -161,6 +166,10 @@ export async function aprobarSolicitud(id: string): Promise<ResultadoAlta> {
       totalDias: s.totalDias,
       frecuencia: s.frecuencia,
       creadoPor: u.id,
+      // Es EL punto de aprobación: el admin está mirando el monto y lo autoriza.
+      // Sin esto, un crédito heredado por encima del tope no tenía forma de
+      // renovarse sin rebajarle el capital al cliente (decisión de Carlos, 06-08).
+      permitirSobreCap: true,
     });
     if (!res.ok) return res;
     // El crédito YA se creó (fuente de verdad). Marcar la solicitud es best-effort:

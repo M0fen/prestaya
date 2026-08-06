@@ -260,6 +260,32 @@ export async function getComisionesPeriodo(
     cobs = (data ?? []).map((u) => ({ id: u.id as string, nombre: u.nombre as string, comision_pct: 0 }));
   }
 
+  // ── El que se fue a mitad de período TAMBIÉN devengó ──────────────────────
+  // La lista de arriba filtra `activo = true`. Si alguien renuncia (o lo dan de
+  // baja) el día 12, el 16 —día de pago— sus cobros de la 1ª quincena no aparecen
+  // en NINGUNA pantalla y el botón responde "la comisión es cero": termina
+  // pagándose por fuera del sistema, sin recibo ni el candado anti-doble-pago.
+  // Se agregan los que TIENEN recaudo en el período y no están en la lista.
+  const faltantes = [...recaudadoDe.entries()]
+    .filter(([id, r]) => r.recaudado > 0 && !cobs.some((c) => c.id === id))
+    .map(([id]) => id);
+  if (faltantes.length > 0) {
+    try {
+      const { data } = await db
+        .from("usuarios")
+        .select("id, nombre, comision_pct")
+        .in("id", faltantes); // SIN filtro de activo: es justo el caso
+      for (const u of data ?? [])
+        cobs.push({
+          id: u.id as string,
+          nombre: `${u.nombre as string} (dado de baja)`,
+          comision_pct: Number(u.comision_pct ?? 0),
+        });
+    } catch {
+      /* si no se pueden leer, se sigue sin ellos (conducta previa) */
+    }
+  }
+
   // Liquidaciones ya hechas de ESTE período (candado idempotente 0049).
   const periodoKey = periodoKeyDe(periodo, resumen.desde);
   const liqMap = new Map<string, { monto: number; fecha: string }>();

@@ -92,6 +92,33 @@ export function montoRenovacionAutoAprobable(montoAnterior: number): number {
   return Math.min(RENOVACION_CAP_TOTAL, Math.round(base * (1 + pct / 100)));
 }
 
+/**
+ * Monto que se PIDE cuando la renovación no se puede aprobar sola y va a la
+ * oficina: el aumento que le corresponde al tramo, SIN recortar al CAP.
+ *
+ * Existe por los créditos heredados que ya vienen por encima del tope (135
+ * activos, hasta $1.750.000): recortarlos al CAP convertiría la renovación en
+ * una REBAJA silenciosa del capital del cliente. Como el tramo de esos montos no
+ * admite aumento, en la práctica se piden por el MISMO monto — que es lo
+ * conservador. Quien lo autoriza es el admin. Puro.
+ */
+export function montoRenovacionPedido(montoAnterior: number): number {
+  const base = Math.round(Number(montoAnterior) || 0);
+  if (!(base > 0)) return 0;
+  const pct = Math.min(RENOVACION_AUMENTO_PCT, topeAumentoPct(base));
+  return Math.round(base * (1 + pct / 100));
+}
+
+/**
+ * ¿Esta renovación necesita que la apruebe el admin? True cuando el monto que
+ * corresponde pedir se pasa del CAP — o sea, cuando nadie puede darla de alta
+ * solo. Decisión de Carlos (06-08): eso NO es un callejón sin salida, se manda a
+ * la oficina. Puro.
+ */
+export function requiereAprobacionAdmin(montoAnterior: number): boolean {
+  return montoRenovacionPedido(montoAnterior) > RENOVACION_CAP_TOTAL;
+}
+
 /** Tope de aumento (%) aplicable según el monto del crédito ANTERIOR. Puro. */
 export function topeAumentoPct(montoAnterior: number): number {
   if (montoAnterior <= 30_000) return 20;

@@ -10,7 +10,9 @@ import { UYU } from "@/lib/format";
 import {
   calcularCuotaRenovacion,
   evaluarRenovacion,
+  montoRenovacionPedido,
   montoRenovacionSugerido,
+  requiereAprobacionAdmin,
   RENOVACION_AUMENTO_PCT,
   RENOVACION_CAP_TOTAL,
 } from "@/lib/renovacion";
@@ -51,7 +53,12 @@ export function FormRenovacion({
   // subido un 20%. Antes esto arrancaba con el monto que INVENTABA el scoring, un
   // número sin relación con el crédito anterior (reporte de campo 08-05, caso 4).
   // Queda editable a propósito: "siempre 20% a no ser que el admin lo cambie".
-  const sugerido = montoRenovacionSugerido(anterior.monto);
+  // Para un crédito ya por encima del tope, el "+20% topeado al CAP" daría 100.000
+  // — una REBAJA encubierta. En ese caso se arranca del monto que corresponde
+  // pedir (sin recorte), que para esos montos es el mismo del crédito anterior.
+  const sugerido = requiereAprobacionAdmin(anterior.monto)
+    ? montoRenovacionPedido(anterior.monto)
+    : montoRenovacionSugerido(anterior.monto);
   const [monto, setMonto] = useState(String(sugerido));
   // Tasa REAL del crédito anterior (la cartera va de 0% a 20%: se muestra, no se
   // asume). Es la que va a arrastrar el crédito nuevo.
@@ -90,10 +97,10 @@ export function FormRenovacion({
   const evalu = valido ? evaluarRenovacion(anterior.monto, montoNum) : null;
   // Solo el CAP de $100.000 bloquea a todos. El sobre-tope del tramo YA NO bloquea
   // al supervisor: genera una SOLICITUD para el admin (Tanda 6).
-  // Bloquea el CAP del crédito nuevo y, además, el caso del crédito ANTERIOR ya
-  // por encima del tope: ahí cualquier monto válido sería una rebaja encubierta.
-  const bloqueado = superaTope || (evalu ? evalu.superaCap : false);
-  const esSolicitud = evalu ? evalu.excedePct && !esAdmin : false;
+  // Ya nada BLOQUEA: lo que no se puede aprobar solo va al admin (decisión de
+  // Carlos, 06-08). El admin autoriza directo; el supervisor manda la solicitud.
+  const bloqueado = false;
+  const esSolicitud = evalu ? (evalu.excedePct || evalu.superaCap) && !esAdmin : false;
 
   const enviar = async () => {
     setOcupado(true);
@@ -164,13 +171,17 @@ export function FormRenovacion({
         El crédito nuevo mantiene esa misma tasa.
       </p>
 
-      {/* Crédito heredado por encima del tope: renovarlo acá lo REDUCIRÍA al tope
-          en silencio (de $1.750.000 a $100.000). Se bloquea y se dice por qué. */}
+      {/* Crédito heredado por encima del tope. Renovarlo por el monto sugerido lo
+          REDUCIRÍA al tope en silencio (de $1.750.000 a $100.000), así que el
+          monto arranca en el del crédito anterior. No se bloquea: lo autoriza el
+          admin, y el supervisor lo pide (decisión de Carlos, 06-08). */}
       {superaTope && (
-        <p className="rounded-[10px] bg-[#FBE4E2] px-3 py-2 text-[12px] font-bold text-[#C0392B]">
-          ⛔ Este crédito es de {UYU(anterior.monto)} y el tope del sistema es{" "}
-          {UYU(RENOVACION_CAP_TOTAL)}. No se renueva desde acá: renovarlo bajaría el capital
-          del cliente. Avisá para subir el tope o cargalo aparte.
+        <p className="rounded-[10px] bg-[#FDF3E2] px-3 py-2 text-[12px] font-bold text-[#8A6D1E]">
+          Este crédito es de {UYU(anterior.monto)}, por encima del tope de{" "}
+          {UYU(RENOVACION_CAP_TOTAL)}.{" "}
+          {esAdmin
+            ? "Como admin lo autorizás vos. Ojo con bajarle el monto: sería recortarle el capital al cliente."
+            : "Lo tiene que aprobar el administrador: al confirmar se le manda el pedido."}
         </p>
       )}
 
@@ -286,11 +297,9 @@ export function FormRenovacion({
         >
           {evalu.autoAprobable
             ? `✓ Dentro del tope (${evalu.topePct}% para créditos de este monto): se aprueba al instante.`
-            : evalu.superaCap
-              ? `${evalu.motivo} No se puede dar de alta.`
-              : esAdmin
-                ? `${evalu.motivo} Como admin, lo autorizás directo.`
-                : `${evalu.motivo} Se envía al administrador para que lo apruebe.`}
+            : esAdmin
+              ? `${evalu.motivo} Como admin, lo autorizás directo.`
+              : `${evalu.motivo} Se envía al administrador para que lo apruebe.`}
         </p>
       )}
 

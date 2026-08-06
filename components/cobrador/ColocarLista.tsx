@@ -28,6 +28,8 @@ interface Candidato {
   montoNuevo?: number;
   /** Renovar: cuota del crédito NUEVO. */
   cuotaNueva?: number;
+  /** Supera el tope del sistema: el toque manda el pedido al admin, no lo crea. */
+  requiereAprobacion?: boolean;
   /** Deuda viva en sus OTROS créditos activos (0 si no tiene). Se avisa, no bloquea. */
   deudaHermano?: number;
 }
@@ -120,7 +122,16 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
                 frecuencia: c.frecuencia as FrecuenciaPrestamo,
               });
         if (r.ok) {
-          setOkTxt(r.cuota ? `Listo ✓ · cuota ${UYU(r.cuota)}` : "Listo ✓");
+          // Puede haber quedado PEDIDO a la oficina (supera el tope) en vez de
+          // creado: el mensaje lo dice, para que el cobrador no le prometa al
+          // cliente un crédito que todavía tiene que aprobar el admin.
+          setOkTxt(
+            "solicitado" in r
+              ? r.mensaje
+              : r.cuota
+                ? `Listo ✓ · cuota ${UYU(r.cuota)}`
+                : "Listo ✓",
+          );
           router.refresh();
         } else {
           setMsg(r.error);
@@ -192,6 +203,12 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
                   ? `Venía de ${UYU(c.monto)} · sube ${UYU(nuevoMonto - c.monto)} (+${Math.round(((nuevoMonto - c.monto) / c.monto) * 100)}%).`
                   : `Se renueva por los mismos ${UYU(c.monto)}: un crédito de este monto ya no admite aumento.`}
               </span>
+              {c.requiereAprobacion && (
+                <span className="rounded-[10px] bg-[#FDF3E2] px-2.5 py-1.5 text-[11.5px] leading-[1.4] font-bold text-[#8A6D1E]">
+                  Este monto lo tiene que aprobar la oficina. Al confirmar se manda el pedido —
+                  todavía no le entregues la plata.
+                </span>
+              )}
             </div>
           ) : (
             <div className="flex flex-col gap-2">
@@ -251,7 +268,9 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
                 ? "Creando…"
                 : confirmar
                   ? modo === "renovar"
-                    ? `Sí, renovar ${UYU(nuevoMonto)}`
+                    ? c.requiereAprobacion
+                      ? `Sí, pedir ${UYU(nuevoMonto)} a la oficina`
+                      : `Sí, renovar ${UYU(nuevoMonto)}`
                     : `Sí, dar ${UYU(montoN)}`
                   : "Confirmar"}
             </button>
