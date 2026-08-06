@@ -28,6 +28,9 @@ export interface PeekCliente {
   diasCubiertos: number;
   totalDias: number;
   pagadoHoy: number;
+  /** Cuántos créditos SUYOS tiene el cliente: los números de arriba son la SUMA
+   *  de todos. Con más de uno, el modal lo dice para que el número no sorprenda. */
+  creditos: number;
   tieneCredito: boolean;
   ultimosPagos: { fecha: string; monto: number }[];
   notasCount: number;
@@ -59,8 +62,6 @@ export async function peekClienteCobrador(clienteId: string): Promise<ResultadoP
       usuario.rol === "cobrador"
         ? activos.filter((p) => !p.cobrador_id || p.cobrador_id === usuario.id)
         : activos;
-    const prestamo = mios[0] ?? null;
-
     let cuota = 0;
     let saldo = 0;
     let progresoPct = 0;
@@ -69,26 +70,36 @@ export async function peekClienteCobrador(clienteId: string): Promise<ResultadoP
     let pagadoHoy = 0;
     let ultimosPagos: { fecha: string; monto: number }[] = [];
 
-    if (prestamo) {
-      const pagos = await getPagosDePrestamo(db, prestamo.id);
-      const r = calcularEstadosCarton(prestamo, pagos, hoyUY());
-      cuota = prestamo.cuota_diaria;
-      saldo = r.falta;
-      progresoPct = r.progresoPct;
-      diasCubiertos = r.dias.filter((d) => d.estado === "pagado").length;
-      totalDias = prestamo.total_dias;
-
-      const desde = inicioDiaUYIso();
-      pagadoHoy = pagos
-        .filter((p) => !p.anulado && p.registrado_en >= desde)
-        .reduce((s, p) => s + Number(p.monto), 0);
-
-      ultimosPagos = [...pagos]
-        .filter((p) => !p.anulado)
-        .sort((a, b) => (a.registrado_en < b.registrado_en ? 1 : -1))
-        .slice(0, 3)
-        .map((p) => ({ fecha: p.registrado_en, monto: Number(p.monto) }));
+    // ⚠️ TODOS sus créditos, no solo el primero. El ojito existe para decidir
+    // cuánto pedirle al cliente SIN abrir la ficha, y con `mios[0]` mostraba la
+    // cuota de UN crédito —el más nuevo— en los clientes con varios del mismo
+    // cobrador: 104 casos en Zona Centro donde decía un número más chico que la
+    // tarjeta de al lado. Peor: "Hoy: sin pago" se calculaba sobre ese crédito
+    // suelto, así que si ya había cobrado en otro lo invitaba a cobrar de nuevo.
+    const desde = inicioDiaUYIso();
+    let pagadoTotal = 0;
+    let totalAPagar = 0;
+    for (const p of mios) {
+      const pagos = await getPagosDePrestamo(db, p.id);
+      const r = calcularEstadosCarton(p, pagos, hoyUY());
+      cuota += p.cuota_diaria;
+      saldo += r.falta;
+      diasCubiertos += r.dias.filter((d) => d.estado === "pagado").length;
+      totalDias += p.total_dias;
+      pagadoTotal += r.totalPagado;
+      totalAPagar += r.totalAPagar;
+      pagadoHoy += pagos
+        .filter((x) => !x.anulado && x.registrado_en >= desde)
+        .reduce((s, x) => s + Number(x.monto), 0);
+      ultimosPagos.push(
+        ...pagos
+          .filter((x) => !x.anulado)
+          .map((x) => ({ fecha: x.registrado_en, monto: Number(x.monto) })),
+      );
     }
+    // Avance sobre el conjunto, no sobre un crédito suelto.
+    progresoPct = totalAPagar > 0 ? Math.round((pagadoTotal / totalAPagar) * 100) : 0;
+    ultimosPagos = ultimosPagos.sort((a, b) => (a.fecha < b.fecha ? 1 : -1)).slice(0, 3);
 
     const notas = await getNotasCliente(db, clienteId);
 
@@ -105,7 +116,8 @@ export async function peekClienteCobrador(clienteId: string): Promise<ResultadoP
         diasCubiertos,
         totalDias,
         pagadoHoy,
-        tieneCredito: Boolean(prestamo),
+        creditos: mios.length,
+        tieneCredito: mios.length > 0,
         ultimosPagos,
         notasCount: notas.length,
         ultimaNota: notas[0]?.cuerpo ?? null,

@@ -136,9 +136,16 @@ export function OjitoCliente({ clienteId, nombre }: { clienteId: string; nombre:
 
                 {ficha.tieneCredito ? (
                   <>
-                    {/* Esenciales (siempre visibles, compactos) */}
+                    {/* Esenciales (siempre visibles, compactos). Con más de un
+                        crédito los números son la SUMA de todos: se avisa, para
+                        que la cifra no sorprenda contra la ficha. */}
+                    {ficha.creditos > 1 && (
+                      <span className="rounded-[10px] bg-[#EEF3FF] px-2.5 py-1.5 text-[11.5px] font-bold text-[#1E47C8]">
+                        Tiene {ficha.creditos} créditos con vos — los números son el total de los {ficha.creditos}.
+                      </span>
+                    )}
                     <div className="grid grid-cols-3 gap-2">
-                      <Dato label="Cuota" valor={UYU(ficha.cuota)} />
+                      <Dato label={ficha.creditos > 1 ? "Cuota total" : "Cuota"} valor={UYU(ficha.cuota)} />
                       <Dato label="Saldo" valor={UYU(ficha.saldo)} tono="#B9770E" />
                       <Dato label="Avance" valor={`${ficha.progresoPct}%`} tono="#157A50" />
                     </div>
