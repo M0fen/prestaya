@@ -92,20 +92,34 @@ export function estadoHoyDe(
 
 /**
  * Cuota-OBJETIVO de HOY de un crédito (lo que el cobrador debería cobrarle hoy):
- *  · DIARIO → la cuota fija (target del día, como siempre; el 80% de la cartera).
- *  · NO-DIARIO (semanal/quincenal/mensual) → lo que falta para estar AL DÍA según
- *    el cronograma, topeado a una cuota. Es 0 en los días SIN cuota vencida, así el
- *    crédito no figura "Pendiente" ni suma al "esperado" todos los días (hallazgo #5).
+ * lo que falta para estar AL DÍA según el cronograma, topeado a UNA cuota. Es 0
+ * en los días sin cuota vencida, así el crédito no figura "Pendiente" ni suma al
+ * "esperado" (hallazgo #5).
+ *
+ * ⚠️ Antes DIARIO tenía un atajo —`return c.cuota` sin mirar el calendario— porque
+ * es el 80% de la cartera y "todos los días vence una cuota". No es cierto, y se
+ * pagaba caro en tres casos REALES:
+ *   · DOMINGO: no es día de cobro y ninguna cuota vence (lib/cartones.ts corre al
+ *     lunes las que caen domingo). Con el atajo, el domingo la ruta le pedía la
+ *     cuota entera a TODOS los clientes diarios al día: el "esperado" abría con la
+ *     cartera completa, nadie podía llegar a "Ruta completa" y el arqueo del día
+ *     nacía con un faltante que no existe.
+ *   · TRAMO FINAL: a un crédito al que le quedan $200 le pedía la cuota entera de
+ *     $750 — le cobraba de más al cliente e inflaba la meta del cobrador.
+ *   · CRÉDITO QUE AÚN NO ARRANCÓ (fecha_inicio futura): pedía cuota desde antes
+ *     del primer día.
+ * La rama NO-DIARIO ya calculaba bien las tres cosas, así que ahora es UNA sola
+ * fórmula para todas las frecuencias. Un cliente ATRASADO sigue viendo una cuota
+ * (el `min` de abajo lo topea), que es la conducta de siempre.
  * Pura y testeable.
  */
 export function cuotaObjetivoHoy(
   c: { cuota: number; totalDias: number; fechaInicio: string; frecuencia: FrecuenciaPrestamo; pagadoAcum: number },
   hoy: Date,
 ): number {
-  if ((c.frecuencia ?? "diario") === "diario") return c.cuota;
   const totalCred = c.cuota * c.totalDias;
   const debidas = cuotasDebidasHasta(
-    { cuota_diaria: c.cuota, total_dias: c.totalDias, fecha_inicio: c.fechaInicio, frecuencia: c.frecuencia },
+    { cuota_diaria: c.cuota, total_dias: c.totalDias, fecha_inicio: c.fechaInicio, frecuencia: c.frecuencia ?? "diario" },
     hoy,
   );
   // ⚠️ `pagadoAcum` debe ser lo pagado ANTES de hoy (el llamador resta el cobro de

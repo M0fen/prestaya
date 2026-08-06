@@ -38,7 +38,9 @@ export interface ItemRutaVista {
   /** Posición guardada en el recorrido del cobrador (asignaciones.orden, 0132).
    *  null = sin ordenar → va al final del "Mi orden", por nombre. */
   orden?: number | null;
-  /** Semanal/quincenal al día SIN cuota hoy → chip "Hoy no toca" (no "Cobrado"). */
+  /** Al día y SIN cuota que venza hoy → chip "Hoy no toca" (no "Cobrado"). Aplica
+   *  a cualquier frecuencia: el semanal entre cuotas, y también el DIARIO los
+   *  domingos o cuando pagó por adelantado (06-08). */
   sinCuotaHoy?: boolean;
 }
 

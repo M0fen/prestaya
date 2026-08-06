@@ -107,11 +107,47 @@ const semanal = (pagadoAcum: number) => ({
 });
 
 describe("cuotaObjetivoHoy — la ruta respeta la frecuencia (#5)", () => {
-  it("DIARIO: siempre la cuota fija (el 80% de la cartera NO cambia)", () => {
+  it("DIARIO atrasado: el target del día es UNA cuota (no toda la deuda)", () => {
     const d = { cuota: 500, totalDias: 24, fechaInicio: INICIO, frecuencia: "diario" as const, pagadoAcum: 0 };
+    // Al 15-06 tiene 13 cuotas vencidas y no pagó ninguna: igual se le pide UNA.
     expect(cuotaObjetivoHoy(d, parseFecha("2026-06-15"))).toBe(500);
-    // aun pagado de más (dato raro) el target diario sigue siendo la cuota
-    expect(cuotaObjetivoHoy({ ...d, pagadoAcum: 999999 }, parseFecha("2026-06-15"))).toBe(500);
+  });
+
+  it("DIARIO que pagó de MÁS: no se le pide otra cuota", () => {
+    // Antes la rama diaria ignoraba `pagadoAcum` y devolvía la cuota igual. Con un
+    // crédito de 24×500 = 12.000 ya cubierto, seguir pidiendo 500 es cobrarle de
+    // más a alguien que no debe nada: el cartón lo da por pagado y la ruta no.
+    const d = { cuota: 500, totalDias: 24, fechaInicio: INICIO, frecuencia: "diario" as const, pagadoAcum: 999999 };
+    expect(cuotaObjetivoHoy(d, parseFecha("2026-06-15"))).toBe(0);
+  });
+
+  it("DIARIO al día: si ya cubrió la cuota de hoy, hoy no se le pide nada", () => {
+    // 01-06 (lunes) arranca; al 15-06 vencieron 13 cuotas (los domingos no cuentan).
+    // Pagó exactamente esas 13 → está al día, incluida la de hoy.
+    const d = { cuota: 500, totalDias: 24, fechaInicio: INICIO, frecuencia: "diario" as const, pagadoAcum: 13 * 500 };
+    expect(cuotaObjetivoHoy(d, parseFecha("2026-06-15"))).toBe(0);
+    // Con una cuota menos pagada, sí le toca la de hoy.
+    expect(cuotaObjetivoHoy({ ...d, pagadoAcum: 12 * 500 }, parseFecha("2026-06-15"))).toBe(500);
+  });
+
+  it("DIARIO el DOMINGO: al día → 0 (ninguna cuota vence en domingo)", () => {
+    // 14-06-2026 es domingo. El cobro es Lun–Sáb: si viene al día, hoy no toca.
+    const alDia = { cuota: 500, totalDias: 24, fechaInicio: INICIO, frecuencia: "diario" as const, pagadoAcum: 12 * 500 };
+    expect(parseFecha("2026-06-14").getDay()).toBe(0); // es domingo, de verdad
+    expect(cuotaObjetivoHoy(alDia, parseFecha("2026-06-14"))).toBe(0);
+  });
+
+  it("DIARIO en el TRAMO FINAL: pide el saldo que queda, no la cuota entera", () => {
+    // Le quedan $200 de un crédito de cuota $750. Pedirle $750 hacía que el
+    // servidor clampeara el asiento a $200 y el cobrador se quedara con $550
+    // físicos sin registrar (sobrante en la rendición, plata a devolver).
+    const d = { cuota: 750, totalDias: 24, fechaInicio: "2026-05-04", frecuencia: "diario" as const, pagadoAcum: 17800 };
+    expect(cuotaObjetivoHoy(d, parseFecha("2026-06-15"))).toBe(200);
+  });
+
+  it("DIARIO que todavía no arrancó (fecha de inicio futura) → 0", () => {
+    const d = { cuota: 500, totalDias: 24, fechaInicio: "2026-07-01", frecuencia: "diario" as const, pagadoAcum: 0 };
+    expect(cuotaObjetivoHoy(d, parseFecha("2026-06-15"))).toBe(0);
   });
 
   it("SEMANAL al día, en un día SIN cuota → 0 (no figura pendiente a diario)", () => {

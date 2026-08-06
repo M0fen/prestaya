@@ -50,6 +50,14 @@ def arg(flag, default=None):
 COMMIT = "--commit" in sys.argv
 FORZAR = "--forzar" in sys.argv
 SALTEAR = "--saltear-choques" in sys.argv  # saltea SOLO las filas que chocan (la app manda) y sigue
+# ⚠️ Levanta el CANDADO del paso 6: cierra TAMBIÉN los créditos ausentes del
+# export que todavía deben plata. Existe para la RECARGA TOTAL: cuando el export
+# es completo y confiable, la ausencia SÍ significa baja, y sin esto el espejo no
+# converge nunca (arrastraríamos créditos que Disapp ya cerró y nuestros totales
+# quedarían siempre por encima). Nunca se activa solo: el default es no cerrar.
+# La lista completa queda SIEMPRE en CSV, aunque no se use el flag, para que un
+# humano la revise ANTES de decidir.
+CERRAR_CON_SALDO = "--cerrar-con-saldo" in sys.argv
 SRC = arg("--src", r"C:\Users\Carlos\migracion")
 ENVF = arg("--env-file", ".env.local")
 FRONTERA = dt.date(2026, 7, 21)   # el último import de recaudos llegó hasta el 07-20
@@ -353,6 +361,11 @@ for p in activos_db:
     if colgado >= 1:
         no_finalizar_con_saldo.append({"id": p["id"], "ref": ref, "colgado": colgado,
                                        "cobrador_id": p["cobrador_id"], "cliente_id": p["cliente_id"]})
+        # Con --cerrar-con-saldo (recarga total, export completo) SÍ se cierran:
+        # la decisión es humana y explícita, y la lista quedó en el CSV de arriba.
+        if not CERRAR_CON_SALDO:
+            continue
+        finalizar.append({"id": p["id"], "ref": ref, "colgado": colgado})
         continue
     # SALDADO y ausente del export → FINALIZAR TAMBIÉN (auditoría 08-05). El
     # `continue` que había acá ("el cartón derivado ya lo refleja") dejó 678
@@ -488,8 +501,24 @@ if topups_saltados:
 print(f"  6) Finalizar (cerrados en Disapp con saldo acá): {len(finalizar)}  (saldo colgado ${round(sum(f['colgado'] for f in finalizar)):,})")
 if no_finalizar_con_saldo:
     _colg = round(sum(x["colgado"] for x in no_finalizar_con_saldo))
-    print(f"       🛡️ NO se cierran por tener DEUDA VIVA (candado 08-05): {len(no_finalizar_con_saldo)}  ${_colg:,}")
-    print(f"          → revisar con Mauricio si Disapp los dio de baja o si hay que seguir cobrándolos")
+    # La lista SIEMPRE se vuelca a CSV, se use o no el flag: es plata que alguien
+    # debe y que un archivo no trae. Que exista el papel antes que la decisión.
+    _csv = os.path.join(HERE, f"_ausentes_con_deuda_{SELLO}.csv")
+    try:
+        with open(_csv, "w", encoding="utf-8-sig", newline="") as fh:
+            fh.write("prestamo_id,ref,colgado,cobrador_id,cliente_id\n")
+            for x in sorted(no_finalizar_con_saldo, key=lambda y: -y["colgado"]):
+                fh.write(f'{x["id"]},{x["ref"]},{x["colgado"]},{x["cobrador_id"]},{x["cliente_id"]}\n')
+    except OSError as e:
+        print(f"       (no pude escribir el CSV: {e})")
+    if CERRAR_CON_SALDO:
+        print(f"       ⚠️ --cerrar-con-saldo: SE CIERRAN {len(no_finalizar_con_saldo)} créditos que aún deben ${_colg:,}")
+        print(f"          esa deuda se da por terminada. Lista completa → {_csv}")
+    else:
+        print(f"       🛡️ NO se cierran por tener DEUDA VIVA (candado 08-05): {len(no_finalizar_con_saldo)}  ${_colg:,}")
+        print(f"          → revisar con Mauricio si Disapp los dio de baja o si hay que seguir cobrándolos")
+        print(f"          lista completa → {_csv}")
+        print(f"          si el export es COMPLETO y confiable (recarga total), re-correr con --cerrar-con-saldo")
 print(f"       clientes borrados en Disapp que se MANTIENEN activos: {len(mantener_borrados)}")
 
 # end-state esperado contra el export de hoy
