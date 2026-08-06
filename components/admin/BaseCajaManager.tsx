@@ -23,6 +23,12 @@ export interface CobradorBase {
   base: number;
   /** Base que arrancó AYER (prellenado de "Usar las de ayer"). */
   baseAyer?: number;
+  /** De dónde salió la base de hoy: la cargó el supervisor, o vino sola de la
+   *  cuadra de ayer (regla: la caja final amanece como base). */
+  origen?: "cargada" | "arrastre" | "sin_base";
+  /** Solo con `arrastre`: el día del que viene y cómo se llegó al número. */
+  desdeFecha?: string;
+  detalleAyer?: { base: number; recaudado: number; gastos: number; entregado: number };
 }
 
 const SIN_ZONA = "__sin_zona__";
@@ -167,10 +173,26 @@ export function BaseCajaManager({
                         <li key={c.id} className="flex items-center gap-2 py-2.5">
                           <div className="flex min-w-0 flex-1 flex-col">
                             <span className="truncate text-[13px] font-semibold text-tinta">{c.nombre}</span>
-                            {(c.baseAyer ?? 0) > 0 && (
+                            {/* De dónde salió el número que está viendo. Sin esto el
+                                supervisor no puede distinguir "esta plata se la di yo"
+                                de "esto es lo que le quedó ayer" — que es justo lo que
+                                tiene que saber ANTES de recibirle el efectivo. */}
+                            {c.origen === "arrastre" && c.detalleAyer ? (
+                              <span className="text-[10px] leading-[1.35] font-medium text-[#8A6D1E] tabular-nums">
+                                🔁 le quedó de {c.desdeFecha ?? "ayer"}: cobró {UYU(c.detalleAyer.recaudado)}
+                                {c.detalleAyer.gastos > 0 && ` − gastos ${UYU(c.detalleAyer.gastos)}`}
+                                {" − entregó "}{UYU(c.detalleAyer.entregado)}
+                              </span>
+                            ) : c.origen === "cargada" ? (
+                              <span className="text-[10px] font-medium text-[#157A50] tabular-nums">
+                                ✓ base cargada por vos
+                              </span>
+                            ) : (c.baseAyer ?? 0) > 0 ? (
                               <span className="text-[10px] font-medium text-tenue tabular-nums">
                                 ayer {UYU(c.baseAyer!)}
                               </span>
+                            ) : (
+                              <span className="text-[10px] font-medium text-tenue">arranca sin base</span>
                             )}
                           </div>
                           {cambiado && (

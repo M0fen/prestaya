@@ -1,7 +1,7 @@
 // Tests del núcleo de RENDICIÓN: esperado = recaudado − gastos (>=0), y
 // diferencia/estado según lo entregado (cuadra / faltante / sobrante).
 import { describe, expect, it } from "vitest";
-import { calcularRendicion } from "./rendicion";
+import { calcularRendicion, cajaFinal } from "./rendicion";
 
 describe("calcularRendicion", () => {
   it("entrega exacto lo recaudado (sin gastos) → cuadra", () => {
@@ -71,5 +71,51 @@ describe("calcularRendicion", () => {
     const r = calcularRendicion(1000, 9000, 0, 2000);
     expect(r.esperado).toBe(0); // max(0, 2000+1000−9000)
     expect(r.estado).toBe("cuadra");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+//  LA CUADRA FINAL AMANECE COMO BASE (regla de Carlos, 06-08).
+//  Lo que le queda al cobrador en la mano al cerrar es con lo que arranca al día
+//  siguiente, sin que nadie tenga que acordarse de cargarlo a mano.
+// ─────────────────────────────────────────────────────────────────────────
+describe("cajaFinal — lo que queda en la mano, y es la base de mañana", () => {
+  it("entrega todo → queda 0 y mañana arranca de cero", () => {
+    // base 5.000 + cobró 20.000 − gastos 1.000 = 24.000 a entregar.
+    expect(cajaFinal(5000, 20000, 1000, 24000)).toBe(0);
+  });
+
+  it("se guarda un float para salir a prestar → ESO es su base de mañana", () => {
+    // De los 24.000 que debía entregar, entrega 18.000: le quedan 6.000.
+    expect(cajaFinal(5000, 20000, 1000, 18000)).toBe(6000);
+  });
+
+  it("el caso real de esta mañana: sin base, cobró y entregó de menos", () => {
+    // Karent: base 0, cobró 41.710, sin gastos, entrega 30.000 → le quedan 11.710.
+    expect(cajaFinal(0, 41710, 0, 30000)).toBe(11710);
+  });
+
+  it("los gastos de ruta salen de su bolsillo y bajan la base de mañana", () => {
+    expect(cajaFinal(10000, 5000, 3000, 0)).toBe(12000);
+  });
+
+  it("entregar de MÁS no deja base negativa: es un sobrante, no una deuda", () => {
+    // Arrancar el día debiendo plata no es una cosa que exista: el sobrante lo
+    // reporta `calcularRendicion.diferencia`, no la base.
+    expect(cajaFinal(0, 10000, 0, 15000)).toBe(0);
+    expect(calcularRendicion(10000, 0, 15000, 0).estado).toBe("sobrante");
+  });
+
+  it("no usa float: todo entero, aunque entren decimales", () => {
+    const r = cajaFinal(1000.4, 2000.6, 500.5, 1000.5);
+    expect(Number.isInteger(r)).toBe(true);
+    // Cada término se redondea POR SEPARADO antes de restar: 1000 + 2001 − 501 − 1001.
+    expect(r).toBe(1499);
+  });
+
+  it("encaja con la rendición: lo esperado menos lo entregado es lo que queda", () => {
+    const base = 5000, recaudado = 20000, gastos = 1000, entregado = 18000;
+    const { esperado } = calcularRendicion(recaudado, gastos, entregado, base);
+    expect(cajaFinal(base, recaudado, gastos, entregado)).toBe(esperado - entregado);
   });
 });

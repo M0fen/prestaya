@@ -24,7 +24,7 @@ import { contarSolicitudesGastoPendientes } from "@/lib/data/solicitudesGasto";
 import { getSolicitudesPendientes as getSolicitudesAnulacionPendientes } from "@/lib/data/anulaciones";
 import { getBitacoraGestorDia, type RegistroAuditoria } from "@/lib/data/auditoria";
 import { alcanceDelActor } from "@/lib/data/alcance";
-import { getAperturasDia } from "@/lib/data/aperturas";
+import { getAperturasDia, getBasesDelDia } from "@/lib/data/aperturas";
 import { BaseCajaManager, type CobradorBase } from "@/components/admin/BaseCajaManager";
 import { OnboardingDia1 } from "@/components/OnboardingDia1";
 import { ActivarAvisos } from "@/components/pwa/ActivarAvisos";
@@ -233,7 +233,9 @@ export default async function JornadaPage({
     const [cobsRes, bases, basesAyer] = await conTimeout(
       Promise.all([
         cq.order("nombre", { ascending: true }),
-        getAperturasDia(db, hoy, cobIds),
+        // Con ARRASTRE y con el ORIGEN: la cuadra de ayer amanece como base de hoy
+        // (regla de Carlos, 06-08) y el supervisor ve de dónde salió cada número.
+        getBasesDelDia(db, hoy, cobIds),
         getAperturasDia(db, new Date(hoy.getTime() - 86_400_000), cobIds).catch(
           () => new Map<string, number>(),
         ),
@@ -241,14 +243,20 @@ export default async function JornadaPage({
       TOPE_MS,
       "jornada.bases",
     );
-    basesCobradores = (cobsRes.data ?? []).map((u) => ({
-      id: u.id as string,
-      nombre: u.nombre as string,
-      zonaId: (u.zona_id as string | null) ?? null,
-      zonaNombre: u.zona_id ? (zonaNombreMap[u.zona_id as string] ?? null) : null,
-      base: bases.get(u.id as string) ?? 0,
-      baseAyer: basesAyer.get(u.id as string) ?? 0,
-    }));
+    basesCobradores = (cobsRes.data ?? []).map((u) => {
+      const b = bases.get(u.id as string);
+      return {
+        id: u.id as string,
+        nombre: u.nombre as string,
+        zonaId: (u.zona_id as string | null) ?? null,
+        zonaNombre: u.zona_id ? (zonaNombreMap[u.zona_id as string] ?? null) : null,
+        base: b?.base ?? 0,
+        baseAyer: basesAyer.get(u.id as string) ?? 0,
+        origen: b?.origen ?? "sin_base",
+        desdeFecha: b?.desdeFecha,
+        detalleAyer: b?.detalle,
+      };
+    });
   }
 
   // ── Señales del cierre, derivadas del consolidado (sin re-consultar rendiciones) ──
