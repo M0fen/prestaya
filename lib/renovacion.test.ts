@@ -9,6 +9,7 @@ import {
   montoRenovacionPedido,
   montoRenovacionSugerido,
   requiereAprobacionAdmin,
+  techoRenovacion,
   topeAumentoPct,
   RENOVACION_AUMENTO_PCT,
   RENOVACION_CAP_TOTAL,
@@ -235,6 +236,50 @@ describe("lo que no se puede aprobar solo va al admin (no es callejón sin salid
   it("monto inválido no pide nada", () => {
     expect(montoRenovacionPedido(0)).toBe(0);
     expect(requiereAprobacionAdmin(0)).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+//  EL TECHO ABSOLUTO — el candado que impide que un cero de más sea un crédito.
+//  Cuando el sobre-CAP dejó de ser un rechazo duro y pasó a generar una solicitud,
+//  cayeron los DOS candados a la vez: la app dejaba de mirar el monto y la
+//  aprobación apagaba el de la base. Un supervisor que escribía 2000000 —o al que
+//  se le iba un cero— quedaba sin NADIE mirando el número.
+// ─────────────────────────────────────────────────────────────────────────
+describe("techoRenovacion — ni el admin aprobando puede pasarlo", () => {
+  it("crédito normal: el techo sigue siendo el CAP de $100.000", () => {
+    for (const m of [500, 10_000, 30_000, 60_000, 90_000, 100_000])
+      expect(techoRenovacion(m)).toBe(RENOVACION_CAP_TOTAL);
+  });
+
+  it("crédito heredado sobre el tope: el techo es SU PROPIO monto", () => {
+    // Renovar no SUBE un crédito que ya está por encima del tope: su tramo da 0%
+    // de aumento igual. Y tampoco lo baja (eso sería recortarle el capital).
+    expect(techoRenovacion(120_000)).toBe(120_000);
+    expect(techoRenovacion(1_750_000)).toBe(1_750_000);
+  });
+
+  it("un cero de más NO pasa: $20.000 no puede renovar en $2.000.000", () => {
+    // El caso concreto que quedó abierto: el supervisor pide, el admin aprueba
+    // de un toque viendo solo la cifra pedida, y nace un crédito de $2.000.000
+    // con cuota de $80.000 por día.
+    expect(2_000_000 > techoRenovacion(20_000)).toBe(true);
+    expect(200_000 > techoRenovacion(20_000)).toBe(true); // el dedazo típico
+    expect(24_000 > techoRenovacion(20_000)).toBe(false); // el +20% normal, pasa
+  });
+
+  it("la solicitud SOBRE-TRAMO sigue funcionando (es su razón de ser)", () => {
+    // Un crédito de $50.000: el tramo permite +15% ($57.500), pero el supervisor
+    // puede pedir hasta el CAP y que el admin lo apruebe. Eso no cambia.
+    expect(evaluarRenovacion(50_000, 80_000).excedePct).toBe(true);
+    expect(80_000 <= techoRenovacion(50_000)).toBe(true);
+  });
+
+  it("INVARIANTE: el techo nunca baja del monto anterior ni del CAP", () => {
+    for (let m = 500; m <= 2_000_000; m += 2_500) {
+      expect(techoRenovacion(m)).toBeGreaterThanOrEqual(RENOVACION_CAP_TOTAL);
+      if (m > RENOVACION_CAP_TOTAL) expect(techoRenovacion(m)).toBeGreaterThanOrEqual(m);
+    }
   });
 });
 

@@ -119,6 +119,24 @@ export function requiereAprobacionAdmin(montoAnterior: number): boolean {
   return montoRenovacionPedido(montoAnterior) > RENOVACION_CAP_TOTAL;
 }
 
+/**
+ * TECHO ABSOLUTO de una renovación: ni el admin aprobando puede pasarlo.
+ *
+ * Es el candado que impide que un cero de más se convierta en un crédito. Al
+ * abrir el camino de "lo que no se aprueba solo va al admin", el sobre-CAP dejó
+ * de ser un rechazo duro y pasó a generar una solicitud cuyo monto lo escribe una
+ * persona a mano; si además la aprobación apaga el tope de la base, no queda
+ * NADIE mirando el número. La regla que lo cierra: **el CAP solo se puede pasar
+ * si el crédito ANTERIOR ya lo pasaba, y nunca por encima de él** — renovar no
+ * sube un crédito que ya está sobre el tope (su tramo da 0% de aumento igual).
+ *
+ * Para un crédito normal el techo sigue siendo $100.000, así que la solicitud
+ * sobre-tramo —que es su razón de ser— funciona igual que siempre. Puro.
+ */
+export function techoRenovacion(montoAnterior: number): number {
+  return Math.max(RENOVACION_CAP_TOTAL, montoRenovacionPedido(montoAnterior));
+}
+
 /** Tope de aumento (%) aplicable según el monto del crédito ANTERIOR. Puro. */
 export function topeAumentoPct(montoAnterior: number): number {
   if (montoAnterior <= 30_000) return 20;

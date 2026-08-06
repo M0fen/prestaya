@@ -16,7 +16,7 @@ import {
   cerrarSolicitudPendienteDeAnterior,
 } from "@/lib/data/solicitudesRenovacion";
 import { getPrestamoPorId } from "@/lib/data/prestamos";
-import { evaluarRenovacion, RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
+import { evaluarRenovacion, techoRenovacion, RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
 import { reportarError } from "@/lib/observabilidad";
@@ -68,6 +68,27 @@ export async function renovarCredito(input: {
   const evalu = evaluarRenovacion(ant.monto_prestado, monto);
   const admin = esAdmin(usuario.rol);
 
+  // ⚠️ TECHO ABSOLUTO — el que impide que un cero de más se vuelva un crédito.
+  // Al mandar el sobre-CAP por el camino de solicitud (antes era un rechazo duro
+  // que moría acá) cayeron los DOS candados a la vez: la app dejaba de mirar el
+  // monto y `aprobarSolicitud` apagaba el de la base. Un supervisor que escribía
+  // 2000000 —o que se le iba un cero: 200000 en vez de 20000— generaba una
+  // solicitud sin techo, y el admin la aprobaba de un toque viendo solo la cifra
+  // pedida. La regla que faltaba: el CAP solo se puede pasar si el crédito
+  // ANTERIOR ya lo pasaba, y nunca por encima de él. Para un crédito normal el
+  // techo sigue siendo $100.000 (la solicitud sobre-tramo, que es su razón de ser,
+  // no cambia); para un heredado de $1.750.000, su propio monto.
+  const techoAbsoluto = techoRenovacion(ant.monto_prestado);
+  if (monto > techoAbsoluto) {
+    return {
+      ok: false,
+      error:
+        ant.monto_prestado > RENOVACION_CAP_TOTAL
+          ? `Este crédito se puede renovar hasta ${UYU(techoAbsoluto)} (lo que ya tenía). Renovar no sube un crédito que está por encima del tope.`
+          : `El crédito no puede superar ${UYU(RENOVACION_CAP_TOTAL)}. Revisá el monto.`,
+    };
+  }
+
   // Lo que NO se puede aprobar solo va al ADMIN, nunca a un callejón sin salida
   // (decisión de Carlos, 06-08: "cuando no se puedan renovar así directamente, se
   // envía a admin para que apruebe"). Son dos casos: pasarse del tope del tramo
@@ -114,7 +135,9 @@ export async function renovarCredito(input: {
     totalDias,
     frecuencia: input.frecuencia,
     creadoPor: usuario.id,
-    permitirSobreCap: admin && evalu.superaCap,
+    // Solo cuando de verdad hace falta, no "porque es admin": con el techo
+    // absoluto de arriba ya validado, esto no puede pasar del monto anterior.
+    permitirSobreCap: admin && monto > RENOVACION_CAP_TOTAL,
   });
   if (!res.ok) return res;
   // Si este crédito tenía una SOLICITUD pendiente y se renovó por alta directa, se
@@ -159,6 +182,22 @@ export async function aprobarSolicitud(id: string): Promise<ResultadoAlta> {
     const db = await createSupabaseServer();
     const s = await getSolicitudPorId(db, id);
     if (!s || s.estado !== "pendiente") return { ok: false, error: "La solicitud ya no está pendiente." };
+
+    // ⚠️ El monto de la solicitud es texto libre que escribió otra persona, y
+    // acá se apagaba el CAP sin volver a mirarlo. Se revalida contra el crédito
+    // ANTERIOR —la misma vara que al pedirla— para que aprobar no pueda crear un
+    // crédito que nadie podría haber dado de alta directo. Si el pedido no
+    // corresponde, se rechaza en vez de fabricar plata.
+    const ant = await getPrestamoPorId(db, s.prestamoAnteriorId);
+    if (!ant || ant.estado !== "activo")
+      return { ok: false, error: "El crédito anterior ya no está activo." };
+    const techoAbsoluto = techoRenovacion(ant.monto_prestado);
+    if (s.monto > techoAbsoluto)
+      return {
+        ok: false,
+        error: `El monto pedido (${UYU(s.monto)}) no corresponde a este crédito: el máximo es ${UYU(techoAbsoluto)}. Rechazá la solicitud y que la vuelvan a pedir bien.`,
+      };
+
     const res = await crearRenovacion(db, {
       clienteId: s.clienteId,
       prestamoAnteriorId: s.prestamoAnteriorId,
@@ -166,10 +205,10 @@ export async function aprobarSolicitud(id: string): Promise<ResultadoAlta> {
       totalDias: s.totalDias,
       frecuencia: s.frecuencia,
       creadoPor: u.id,
-      // Es EL punto de aprobación: el admin está mirando el monto y lo autoriza.
-      // Sin esto, un crédito heredado por encima del tope no tenía forma de
-      // renovarse sin rebajarle el capital al cliente (decisión de Carlos, 06-08).
-      permitirSobreCap: true,
+      // Solo si el monto REALMENTE se pasa del tope — y ya se validó arriba que
+      // no puede pasar del crédito anterior. Antes iba `true` incondicional, que
+      // apagaba el candado de la base para cualquier solicitud.
+      permitirSobreCap: s.monto > RENOVACION_CAP_TOTAL,
     });
     if (!res.ok) return res;
     // El crédito YA se creó (fuente de verdad). Marcar la solicitud es best-effort:
