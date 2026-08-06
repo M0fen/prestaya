@@ -334,6 +334,13 @@ export async function crearRenovacion(
     p_frecuencia: frecuencia,
     p_fecha_inicio: fechaInicio,
     p_creado_por: creadoPor,
+    // El parámetro SOLO viaja cuando el admin autorizó por encima del tope (0133).
+    // Se manda condicionalmente a propósito: si la 0133 todavía no corrió, la
+    // renovación NORMAL sigue llamando a la firma vieja y conserva su atomicidad;
+    // solo el caso excepcional cae al camino de 2 requests. Mandarlo siempre haría
+    // que TODAS las renovaciones no encontraran la función (PGRST202) y perdieran
+    // la transacción única.
+    ...(input.permitirSobreCap ? { p_permitir_sobre_cap: true } : {}),
   });
   if (!rpc.error && rpc.data) {
     return { ok: true, prestamoId: (rpc.data as { id: string }).id, cuota };
