@@ -69,7 +69,13 @@ try {
   const mn = await page.content();
   check("mis-números: 'Comisión de esta quincena' (nuevo)", mn.includes("quincena"));
   check("mis-números: 'Tu sobrenombre' (nuevo)", mn.includes("sobrenombre"));
-  check("mis-números: 'Comisiones cobradas' o sección lista", mn.includes("Comisiones cobradas") || mn.includes("Recaudado"));
+  // "Cobrado por vos" es la CUSTODIA (lo que registró él); la comisión se calcula
+  // aparte, sobre su ruta (06-08). Antes acá decía "Recaudado", que mezclaba las
+  // dos cosas y era justo la confusión que le costaba la comisión al cobrador.
+  check(
+    "mis-números: custodia separada de comisión",
+    mn.includes("Cobrado por vos") || mn.includes("cobrados en tu ruta"),
+  );
 } catch (e) {
   fail.push(`EXCEPCIÓN: ${e.message?.slice(0, 200)}`);
 } finally {
