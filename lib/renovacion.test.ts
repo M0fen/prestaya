@@ -50,22 +50,16 @@ describe("calcularCuotaRenovacion", () => {
   });
 });
 
-describe("topeAumentoPct (escalonado por tramo del monto anterior)", () => {
-  it("≤ 30.000 → 20%", () => {
-    expect(topeAumentoPct(30000)).toBe(20);
-    expect(topeAumentoPct(10000)).toBe(20);
+describe("topeAumentoPct — 20% para TODOS (regla de Carlos)", () => {
+  // Antes era un escalonado 20/15/10/0% por monto, que contradecía la regla del
+  // negocio. Se vio en la calle: GABRIELA OTONELLI terminó un crédito de $60.000
+  // y la app ofrecía $69.000 (+15%, su tramo) en vez de los $72.000 del +20%.
+  it("el mismo 20% sin importar el monto anterior", () => {
+    for (const m of [500, 10_000, 30_000, 30_001, 60_000, 90_000, 100_000, 1_750_000])
+      expect(topeAumentoPct(m)).toBe(RENOVACION_AUMENTO_PCT);
   });
-  it("30.001–60.000 → 15%", () => {
-    expect(topeAumentoPct(30001)).toBe(15);
-    expect(topeAumentoPct(60000)).toBe(15);
-  });
-  it("60.001–90.000 → 10%", () => {
-    expect(topeAumentoPct(60001)).toBe(10);
-    expect(topeAumentoPct(90000)).toBe(10);
-  });
-  it("> 90.000 → 0% (ya en el máximo)", () => {
-    expect(topeAumentoPct(90001)).toBe(0);
-    expect(topeAumentoPct(100000)).toBe(0);
+  it("el caso de Gabriela: $60.000 renueva en $72.000, no en $69.000", () => {
+    expect(montoRenovacionAutoAprobable(60_000)).toBe(72_000);
   });
 });
 
@@ -85,23 +79,22 @@ describe("evaluarRenovacion (tramo escalonado + cap $100.000)", () => {
     expect(no.motivo).toContain("20%");
   });
 
-  it("tramo 31–60k: máximo +15%", () => {
-    expect(evaluarRenovacion(50000, 57500).autoAprobable).toBe(true); // +15%
-    const no = evaluarRenovacion(50000, 58000); // +16%
+  it("$50.000: hasta +20% se aprueba solo; más va al admin", () => {
+    expect(evaluarRenovacion(50000, 60000).autoAprobable).toBe(true); // +20%
+    const no = evaluarRenovacion(50000, 61000); // +22%
     expect(no.autoAprobable).toBe(false);
-    expect(no.motivo).toContain("15%");
+    expect(no.motivo).toContain("20%");
   });
 
-  it("tramo 61–90k: máximo +10%", () => {
-    expect(evaluarRenovacion(80000, 88000).autoAprobable).toBe(true); // +10%
-    expect(evaluarRenovacion(80000, 89000).autoAprobable).toBe(false); // +11,25%
+  it("$80.000: +20% = 96.000, se aprueba solo (sigue bajo el cap)", () => {
+    expect(evaluarRenovacion(80000, 96000).autoAprobable).toBe(true);
+    expect(evaluarRenovacion(80000, 97000).autoAprobable).toBe(false);
   });
 
-  it("tramo >90k: sin aumento (0%); mismo monto sí, más no", () => {
-    expect(evaluarRenovacion(95000, 95000).autoAprobable).toBe(true);
-    const no = evaluarRenovacion(95000, 96000);
-    expect(no.autoAprobable).toBe(false);
-    expect(no.topePct).toBe(0);
+  it("cerca del cap manda el CAP, no el porcentaje", () => {
+    // 95.000 + 20% = 114.000, pero el cap corta en 100.000.
+    expect(evaluarRenovacion(95000, 100000).autoAprobable).toBe(true);
+    expect(evaluarRenovacion(95000, 100001).superaCap).toBe(true);
   });
 
   it("CAP $100.000: superar el total marca superaCap (duro para todos)", () => {
@@ -165,14 +158,12 @@ describe("montoRenovacionAutoAprobable (lo que el COBRADOR coloca sin permiso)",
     expect(montoRenovacionAutoAprobable(30000)).toBe(montoRenovacionSugerido(30000));
   });
 
-  it("sobre $30.000 se recorta al tope del tramo (no al 20%)", () => {
-    // 50.000: el negocio querría 60.000 pero el tramo tapa en +15% = 57.500.
-    expect(montoRenovacionSugerido(50000)).toBe(60000);
-    expect(montoRenovacionAutoAprobable(50000)).toBe(57500);
-    // 80.000: tramo +10% = 88.000.
-    expect(montoRenovacionAutoAprobable(80000)).toBe(88000);
-    // >90.000: el tramo no admite aumento → se renueva por lo mismo.
-    expect(montoRenovacionAutoAprobable(95000)).toBe(95000);
+  it("el +20% vale para cualquier monto; solo el CAP recorta", () => {
+    expect(montoRenovacionAutoAprobable(50000)).toBe(60000);
+    expect(montoRenovacionAutoAprobable(60000)).toBe(72000); // el caso de Gabriela
+    expect(montoRenovacionAutoAprobable(80000)).toBe(96000);
+    // 95.000 + 20% = 114.000 → lo corta el cap de 100.000.
+    expect(montoRenovacionAutoAprobable(95000)).toBe(RENOVACION_CAP_TOTAL);
   });
 
   it("INVARIANTE: lo que ofrece la calle el servidor SIEMPRE lo acepta", () => {
@@ -211,26 +202,24 @@ describe("lo que no se puede aprobar solo va al admin (no es callejón sin salid
     // de $1.750.000 propondría $100.000 — una rebaja del 94% disfrazada de
     // renovación. `montoRenovacionPedido` no recorta.
     expect(montoRenovacionSugerido(1_750_000)).toBe(RENOVACION_CAP_TOTAL); // el recorte
-    expect(montoRenovacionPedido(1_750_000)).toBe(1_750_000); // sin recorte
+    expect(montoRenovacionPedido(1_750_000)).toBe(2_100_000); // sin recorte
     for (const m of [110_000, 250_000, 843_200, 1_750_000])
       expect(montoRenovacionPedido(m)).toBeGreaterThanOrEqual(m);
   });
 
-  it("un crédito grande se pide SIN aumento (su tramo no lo admite)", () => {
-    // >$90.000 tiene tope 0%: se renueva por lo mismo. Lo conservador.
-    expect(montoRenovacionPedido(1_750_000)).toBe(1_750_000);
-    expect(montoRenovacionPedido(95_000)).toBe(95_000);
+  it("un crédito grande también se pide con el +20%", () => {
+    expect(montoRenovacionPedido(1_750_000)).toBe(2_100_000);
+    expect(montoRenovacionPedido(95_000)).toBe(114_000);
   });
 
-  it("solo pide aprobación lo que YA venía por encima del tope", () => {
-    // Propiedad que sale de los tramos: el aumento permitido baja a medida que el
-    // crédito crece (20/15/10/0%), así que el monto pedido nunca CRUZA el cap por
-    // sí solo — el techo de cada tramo es 36.000 / 69.000 / 99.000 / el mismo
-    // monto. O sea: renovar nunca empuja a un crédito sano por encima del tope.
-    for (let m = 500; m <= RENOVACION_CAP_TOTAL; m += 500)
-      expect(requiereAprobacionAdmin(m), `anterior ${m}`).toBe(false);
-    expect(requiereAprobacionAdmin(RENOVACION_CAP_TOTAL + 1)).toBe(true);
+  it("con el 20% plano, desde $83.334 el +20% ya cruza el cap y necesita OK", () => {
+    // 83.333 × 1,20 = 99.999,6 → 100.000, justo en el cap: se aprueba solo.
+    expect(requiereAprobacionAdmin(83_333)).toBe(false);
+    // 83.334 × 1,20 = 100.000,8 → 100.001: se pasa por un peso.
+    expect(requiereAprobacionAdmin(83_334)).toBe(true);
     expect(requiereAprobacionAdmin(1_750_000)).toBe(true);
+    for (let m = 500; m <= 83_000; m += 500)
+      expect(requiereAprobacionAdmin(m), `anterior ${m}`).toBe(false);
   });
 
   it("monto inválido no pide nada", () => {
@@ -247,16 +236,17 @@ describe("lo que no se puede aprobar solo va al admin (no es callejón sin salid
 //  se le iba un cero— quedaba sin NADIE mirando el número.
 // ─────────────────────────────────────────────────────────────────────────
 describe("techoRenovacion — ni el admin aprobando puede pasarlo", () => {
-  it("crédito normal: el techo sigue siendo el CAP de $100.000", () => {
-    for (const m of [500, 10_000, 30_000, 60_000, 90_000, 100_000])
+  it("crédito chico: el techo es el CAP de $100.000", () => {
+    for (const m of [500, 10_000, 30_000, 60_000, 83_333])
       expect(techoRenovacion(m)).toBe(RENOVACION_CAP_TOTAL);
   });
 
-  it("crédito heredado sobre el tope: el techo es SU PROPIO monto", () => {
-    // Renovar no SUBE un crédito que ya está por encima del tope: su tramo da 0%
-    // de aumento igual. Y tampoco lo baja (eso sería recortarle el capital).
-    expect(techoRenovacion(120_000)).toBe(120_000);
-    expect(techoRenovacion(1_750_000)).toBe(1_750_000);
+  it("crédito heredado sobre el tope: el techo es su monto +20%, nunca menos", () => {
+    expect(techoRenovacion(120_000)).toBe(144_000);
+    expect(techoRenovacion(1_750_000)).toBe(2_100_000);
+    // Y nunca por debajo del propio monto: renovar no recorta el capital.
+    for (const m of [110_000, 250_000, 1_750_000])
+      expect(techoRenovacion(m)).toBeGreaterThanOrEqual(m);
   });
 
   it("un cero de más NO pasa: $20.000 no puede renovar en $2.000.000", () => {

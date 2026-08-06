@@ -4,8 +4,13 @@
 import { chromium } from "playwright-core";
 
 const BASE = "https://prestaya.uy";
-const EMAIL = "yuli.toro@prestaya.uy";
-const PASS = "PrestaYa2026!";
+// ⚠️ Un cobrador del PILOTO no sirve de sonda: cuando pone su propia contraseña
+// —que es exactamente lo que queremos— el smoke empieza a dar "credenciales
+// incorrectas" y parece que se cayó producción. Pasó el 06-08 con Yuli Toro.
+// Se usa un cobrador con cartera activa que NO está en el piloto y conserva la
+// clave de arranque. Si un día también la cambia, el smoke lo dice explícito.
+const EMAIL = process.env.SMOKE_EMAIL || "andres.duque@prestaya.uy";
+const PASS = process.env.SMOKE_PASS || "PrestaYa2026!";
 
 const ok = [];
 const fail = [];
@@ -24,6 +29,19 @@ try {
   await page.fill('input[type="email"], input[name="email"]', EMAIL);
   await page.fill('input[type="password"], input[name="password"]', PASS);
   await page.click('button[type="submit"]');
+  // Antes de esperar la navegación: si la sonda cambió su clave, decirlo con todas
+  // las letras. Sin esto el smoke moría por timeout y parecía producción caída.
+  await page
+    .waitForSelector("text=/Correo o contraseña incorrectos/i", { timeout: 6000 })
+    .then(() => {
+      throw new Error(
+        `El usuario del smoke (${EMAIL}) ya no entra con la clave de arranque — cambió la suya. ` +
+          `Producción puede estar perfecta. Elegí otro cobrador o pasá SMOKE_EMAIL/SMOKE_PASS.`,
+      );
+    })
+    .catch((e) => {
+      if (String(e.message).startsWith("El usuario del smoke")) throw e; // es el nuestro
+    });
   await page.waitForURL(/\/cobrador/, { timeout: 45000 });
   check("login en prestaya.uy → /cobrador", true);
 

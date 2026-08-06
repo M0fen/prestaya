@@ -1,6 +1,6 @@
 "use client";
 // ─────────────────────────────────────────────────────────────────────────
-//  RENOVAR (1 toque, términos idénticos) y NUEVA VENTA (monto a elección).
+//  RENOVAR (+20% editable) y NUEVA VENTA (monto a elección).
 //
 //  En la calle, frente al cliente: buscador arriba, tarjeta con los números
 //  grandes, y una confirmación de dos toques antes de colocar el capital
@@ -93,6 +93,8 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
   const [abierto, setAbierto] = useState(false);
   const [confirmar, setConfirmar] = useState(false);
   const [monto, setMonto] = useState(String(c.monto));
+  /** Monto de la RENOVACIÓN, editable (arranca en el +20% que calculó el server). */
+  const [montoRenov, setMontoRenov] = useState(String(c.montoNuevo ?? c.monto));
   const [cuotas, setCuotas] = useState(String(c.totalDias));
   const [msg, setMsg] = useState<string | null>(null);
   const [okTxt, setOkTxt] = useState<string | null>(null);
@@ -104,11 +106,20 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
   const cuotasN = Math.round(Number(cuotas) || 0);
   const techo = c.techo;
   const excede = montoN > techo;
-  // Renovar: los términos del crédito NUEVO los decide el SERVIDOR (+20% del
-  // negocio, recortado al tramo). Acá solo se MUESTRAN — el navegador no manda
-  // ninguna cifra al renovar, así que no hay forma de inflar el capital desde acá.
-  const nuevoMonto = c.montoNuevo ?? c.monto;
-  const nuevaCuota = c.cuotaNueva ?? c.cuota;
+  // Renovar: el monto viene con el +20% del servidor y es EDITABLE (el cobrador
+  // está frente al cliente). El servidor revalida SIEMPRE: si lo que se pide pasa
+  // su techo, no crea nada — genera la solicitud para el admin.
+  const sugeridoRenov = c.montoNuevo ?? c.monto;
+  const nuevoMonto = Math.round(Number(montoRenov) || 0) || sugeridoRenov;
+  const renovEditado = nuevoMonto !== sugeridoRenov;
+  // Si pide más de lo que puede dar solo, el toque manda el pedido a la oficina.
+  const pideAprobacion = modo === "renovar" && (nuevoMonto > sugeridoRenov || !!c.requiereAprobacion);
+  // La cuota se re-estima con la MISMA proporción del sugerido (el servidor la
+  // recalcula igual arrastrando la tasa: acá solo se muestra para orientar).
+  const nuevaCuota =
+    sugeridoRenov > 0
+      ? Math.round(((c.cuotaNueva ?? c.cuota) * nuevoMonto) / sugeridoRenov)
+      : (c.cuotaNueva ?? c.cuota);
 
   const colocar = () =>
     start(async () => {
@@ -116,7 +127,7 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
       try {
         const r =
           modo === "renovar"
-            ? await renovarDesdeCalle({ clienteId: c.clienteId, prestamoId: c.prestamoId! })
+            ? await renovarDesdeCalle({ clienteId: c.clienteId, prestamoId: c.prestamoId!, monto: nuevoMonto })
             : await nuevaVentaDesdeCalle({
                 clienteId: c.clienteId,
                 monto: montoN,
@@ -202,16 +213,44 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
       {abierto && (
         <>
           {modo === "renovar" ? (
-            // Renovar es de un toque: nada que tipear, solo confirmar. Se muestran
-            // los números del crédito NUEVO (anterior +20%), que es lo que se va a
-            // colocar — mostrar los del crédito viejo hacía que el cobrador le
-            // dijera al cliente un monto y se diera de alta otro.
+            // Renovar viene con el +20% ya puesto, pero EDITABLE: el cobrador está
+            // frente al cliente y a veces el número tiene que ser otro. Si pide más
+            // que su techo, no rebota — se le pide a la oficina.
             <div className="flex flex-col gap-2 rounded-[13px] bg-[#F7F9FD] p-3">
               <div className="grid grid-cols-3 gap-2">
-                <Dato k="Monto nuevo" v={UYU(nuevoMonto)} />
+                <label className="flex flex-col">
+                  <span className="text-[10.5px] font-bold text-gris">Monto nuevo</span>
+                  <input
+                    inputMode="numeric"
+                    value={montoRenov}
+                    onChange={(e) => {
+                      setMontoRenov(e.target.value.replace(/\D/g, ""));
+                      setConfirmar(false);
+                    }}
+                    className="w-full min-h-11 rounded-[9px] border border-borde bg-white px-2 text-[16px] font-extrabold tabular-nums text-tinta"
+                  />
+                </label>
                 <Dato k="Cuota" v={UYU(nuevaCuota)} />
                 <Dato k="Cuotas" v={String(c.totalDias)} />
               </div>
+              {renovEditado && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMontoRenov(String(c.montoNuevo ?? c.monto));
+                    setConfirmar(false);
+                  }}
+                  className="self-start text-[11.5px] font-bold text-azul"
+                >
+                  Volver al sugerido ({UYU(c.montoNuevo ?? c.monto)})
+                </button>
+              )}
+              {pideAprobacion && (
+                <span className="rounded-[10px] bg-[#FDF3E2] px-2.5 py-1.5 text-[11.5px] leading-[1.4] font-bold text-[#8A6D1E]">
+                  Ese monto pasa lo que podés dar solo ({UYU(c.montoNuevo ?? c.monto)}). Al confirmar
+                  se le pide a la oficina — todavía no le entregues la plata.
+                </span>
+              )}
               <span className="text-[11.5px] leading-[1.4] font-semibold text-gris">
                 {nuevoMonto > c.monto
                   ? `Venía de ${UYU(c.monto)} · sube ${UYU(nuevoMonto - c.monto)} (+${Math.round(((nuevoMonto - c.monto) / c.monto) * 100)}%).`
@@ -282,7 +321,7 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
                 ? "Creando…"
                 : confirmar
                   ? modo === "renovar"
-                    ? c.requiereAprobacion
+                    ? pideAprobacion
                       ? `Sí, pedir ${UYU(nuevoMonto)} a la oficina`
                       : `Sí, renovar ${UYU(nuevoMonto)}`
                     : `Sí, dar ${UYU(montoN)}`

@@ -11,13 +11,14 @@
 //
 //  Lo que el cobrador PUEDE:
 //   · RENOVAR — repetir el crédito que su cliente terminó de pagar, subido el
-//     +20% del negocio (recortado al tope del tramo, así nunca excede permiso).
+//     +20% del negocio. El monto viene puesto pero es EDITABLE: si pide más de
+//     lo que puede dar solo, se le pide al admin en vez de rebotar.
 //   · NUEVA VENTA — colocarle otro crédito a un cliente suyo que ya no tiene
 //     crédito activo, dentro del tramo que le corresponde por historial.
 //
 //  Lo que NO puede (y por qué):
 //   · Superar el CAP de $100.000 — duro para todos, incluido el admin.
-//   · Exceder el tope del tramo (20/15/10%) — eso lo pide al supervisor.
+//   · Exceder el +20% del negocio — eso NO lo rechaza: lo pide al admin.
 //   · Dar el PRIMER crédito de alguien sin historial — no hay contra qué
 //     medir el riesgo; lo da la oficina.
 //   · Tocar un cliente que no está en SU ruta — lo garantiza el RLS.
@@ -46,6 +47,7 @@ import {
   montoRenovacionAutoAprobable,
   montoRenovacionPedido,
   requiereAprobacionAdmin,
+  techoRenovacion,
   RENOVACION_AUMENTO_PCT,
   RENOVACION_CAP_TOTAL,
 } from "@/lib/renovacion";
@@ -150,12 +152,17 @@ async function pedirAprobacion(
 /**
  * RENOVAR — repetir el crédito subido el +20% del negocio, de un toque.
  * Solo si el crédito activo del cliente está SALDADO (terminó de pagarlo).
- * El monto lo decide el SERVIDOR (`montoRenovacionAutoAprobable`): el navegador
- * no manda ninguna cifra, así que no hay forma de inflar el capital desde la app.
+ * El monto por defecto lo calcula el SERVIDOR (`montoRenovacionAutoAprobable`).
+ * Si la calle manda uno EDITADO, se acepta hasta el techo del cobrador; por
+ * encima no se crea nada: se genera la solicitud para el admin.
  */
 export async function renovarDesdeCalle(input: {
   clienteId: string;
   prestamoId: string;
+  /** Monto a colocar. Si no viene, el servidor usa el +20% del negocio. Si viene y
+   *  se pasa del techo del cobrador, la renovación se le PIDE al admin en vez de
+   *  rebotar (pedido de Carlos, 06-08: poder cambiarlo a mano en la calle). */
+  monto?: number;
   nonce?: string;
 }): Promise<ResultadoColocar> {
   const p = await puerta(input.clienteId);
@@ -242,14 +249,25 @@ export async function renovarDesdeCalle(input: {
     });
   }
 
-  // El +20% del negocio (regla de Carlos, 06-08): renovar es repetir el crédito
-  // subido un 20%, no repetirlo igual. Lo calcula el SERVIDOR con la función pura
-  // —nunca llega del navegador— y va recortado al tope del tramo, así lo que el
-  // cobrador confirma es exactamente lo que se le va a poder dar de alta.
-  const monto = montoRenovacionAutoAprobable(montoAnterior);
-  if (!(monto > 0)) {
-    return { ok: false, error: "No se pudo calcular el monto de la renovación." };
+  // El +20% del negocio (regla de Carlos, 06-08). El monto puede venir EDITADO
+  // desde la calle: el cobrador ve al cliente y a veces el número tiene que ser
+  // otro. Si lo que pide entra en su techo, va derecho; si se pasa, NO rebota —
+  // se le pide al admin, que es el mismo camino de todo lo que no se aprueba solo.
+  const sugerido = montoRenovacionAutoAprobable(montoAnterior);
+  const pedido = input.monto == null ? sugerido : Math.round(Number(input.monto));
+  if (!Number.isFinite(pedido) || pedido <= 0) {
+    return { ok: false, error: "Revisá el monto de la renovación." };
   }
+  if (pedido > sugerido) {
+    return pedirAprobacion(db, u, {
+      clienteId: input.clienteId,
+      prestamoAnteriorId: ant.id,
+      monto: Math.min(pedido, techoRenovacion(montoAnterior)),
+      totalDias,
+      frecuencia: (ant.frecuencia as FrecuenciaPrestamo) ?? "diario",
+    });
+  }
+  const monto = pedido;
 
   // ⚠️ La ESCRITURA va con service_role, igual que la colocación de la calle
   // (línea ~238). Con la sesión del cobrador, la RPC `renovar_credito_seguro`

@@ -137,12 +137,20 @@ export function techoRenovacion(montoAnterior: number): number {
   return Math.max(RENOVACION_CAP_TOTAL, montoRenovacionPedido(montoAnterior));
 }
 
-/** Tope de aumento (%) aplicable según el monto del crédito ANTERIOR. Puro. */
-export function topeAumentoPct(montoAnterior: number): number {
-  if (montoAnterior <= 30_000) return 20;
-  if (montoAnterior <= 60_000) return 15;
-  if (montoAnterior <= 90_000) return 10;
-  return 0; // 90.001–100.000: ya en el máximo, sin aumento
+/**
+ * Tope de aumento (%) al renovar: **20% para todos**.
+ *
+ * ⚠️ Antes esto era un escalonado por monto (20/15/10/0%) que CONTRADECÍA la regla
+ * del negocio. Se vio en la calle el 06-08 con GABRIELA OTONELLI: terminó un
+ * crédito de $60.000 y la app le ofrecía renovar por **$69.000** (+15%, su tramo)
+ * en vez de los **$72.000** del +20%. Dos topes conviviendo y ninguno explicado.
+ *
+ * Manda la regla de Carlos: "siempre es 20% para renovación". El techo real sigue
+ * existiendo y es el CAP de $100.000, que acota la exposición por crédito; lo que
+ * se pasa de ahí va a la aprobación del admin, no a un rechazo. Puro.
+ */
+export function topeAumentoPct(_montoAnterior: number): number {
+  return RENOVACION_AUMENTO_PCT;
 }
 
 export interface EvaluacionRenovacion {
