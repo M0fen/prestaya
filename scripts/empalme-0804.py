@@ -171,11 +171,31 @@ print(f"  base: {len(clientes_db)} clientes · {len(pres)} créditos ({len(activ
 # resucita estado, NO se les siembra top-up, NO se los finaliza por ausencia
 # en el export, y sus candidatos con fecha ≥ piloto se descartan (re-capturas).
 PILOTO_DESDE = dt.date(2026, 8, 5)
-_nativos_piloto = E.get_rows(db, "pagos", "id,registrado_por,prestamo_id,origen",
+_nativos_piloto = E.get_rows(db, "pagos", "id,registrado_por,prestamo_id,origen,registrado_en",
                              {"anulado": "eq.false", "registrado_en": f"gte.{PILOTO_DESDE}T00:00:00-03:00"})
 _nativos_piloto = [n for n in _nativos_piloto if n.get("origen") is None]
 cobradores_vivos = {n["registrado_por"] for n in _nativos_piloto if n.get("registrado_por")}
 prestamos_nativos = {n["prestamo_id"] for n in _nativos_piloto}
+
+
+def _dia_uy(iso):
+    """Día calendario uruguayo (UTC−3) de un timestamptz ISO."""
+    if not iso:
+        return None
+    s = str(iso).replace("Z", "+00:00")
+    try:
+        t = dt.datetime.fromisoformat(s)
+    except ValueError:
+        return None
+    if t.tzinfo is None:
+        t = t.replace(tzinfo=dt.timezone.utc)
+    return (t.astimezone(dt.timezone(dt.timedelta(hours=-3)))).date()
+
+
+# (crédito, día UY) que la app YA cobró de verdad. Es la llave fina para decidir
+# si una fila del export es una re-captura o un cobro que solo vive en Disapp.
+nativo_dia = {(n["prestamo_id"], _dia_uy(n.get("registrado_en"))) for n in _nativos_piloto}
+nativo_dia.discard((None, None))
 print(f"  app-autoritativo: {len(cobradores_vivos)} cobradores con pagos nativos desde {PILOTO_DESDE} ({len(_nativos_piloto)} pagos)")
 
 # Créditos con imports ANULADOS en la app: el admin corrigió un asiento de
@@ -259,9 +279,16 @@ for p in d["pagos"].values():
         clamp_hoy += 1
         continue
     pdb = by_ref_db.get(p["ref"])
-    # Cartera app-autoritativa: filas del export sobre créditos que la app ya
-    # maneja y fechadas desde el piloto = re-capturas en Disapp → NO entran.
-    if pdb and p["fecha"] >= PILOTO_DESDE and (pdb["cobrador_id"] in cobradores_vivos or pdb["id"] in prestamos_nativos):
+    # ⚠️ RE-CAPTURA = el MISMO crédito cobrado el MISMO día en los dos lados.
+    # La regla vieja descartaba por COBRADOR: si el cobrador había usado la app
+    # aunque fuera una vez, se tiraba TODO lo que Disapp trajera de su cartera.
+    # Medido contra el export del 08-06 (scripts/_verificar-recapturas-0806.py):
+    # de 300 filas descartadas, solo 84 tenían de verdad un pago nativo ese día —
+    # las otras 216 ($60.562, 9 cobradores) existían SOLO en Disapp. Tirarlas
+    # significa que al día siguiente la app le vuelve a pedir esa cuota a 216
+    # clientes que YA pagaron: el doble cobro del día 1, otra vez. Ahora se exige
+    # la coincidencia fina (crédito, día); si la app no tiene ese cobro, ENTRA.
+    if pdb and p["fecha"] >= PILOTO_DESDE and (pdb["id"], p["fecha"]) in nativo_dia:
         recapturas += 1
         continue
     if pdb and (p["fecha"] >= FRONTERA or p["ref"] in refs_cero):
