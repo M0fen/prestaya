@@ -1,0 +1,632 @@
+[
+ {
+  "pago_id": "ce0a4d85-229d-444b-8414-c90a98117fea",
+  "cliente": "VICTOR MIGUEL FRAGA CURBELO",
+  "ref": "PRD0003508619",
+  "dia": "2026-08-04",
+  "monto": 7920.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 79.200, tenemos $ 87.120",
+  "acerca": 7920.0
+ },
+ {
+  "pago_id": "11615089-34c8-41de-89ab-82987a5e2204",
+  "cliente": "GRACIELA MELGAREJO",
+  "ref": "PRD0003564581",
+  "dia": "2026-08-04",
+  "monto": 3600.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 36.000, tenemos $ 39.600",
+  "acerca": 3600.0
+ },
+ {
+  "pago_id": "a3b49cb6-6ae6-4b8a-acae-09583e99319f",
+  "cliente": "DARIO SEBASTIáN CAMPOS SEJA",
+  "ref": "PRD0003530272",
+  "dia": "2026-08-04",
+  "monto": 3500.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 12.000, tenemos $ 15.500",
+  "acerca": 3500.0
+ },
+ {
+  "pago_id": "7a12b19d-dc9c-4398-a908-cc1c2d720616",
+  "cliente": "CRISTIAN AGUSTíN ORTELLI",
+  "ref": "PRD0003589182",
+  "dia": "2026-08-04",
+  "monto": 3000.0,
+  "motivo": "Disapp dice $ 3.500, tenemos $ 6.000",
+  "acerca": 2000.0
+ },
+ {
+  "pago_id": "b0e1046c-d9d6-40a5-a6a8-d09890e81410",
+  "cliente": "DARWIN WASHINGTON",
+  "ref": "PRD0003550503",
+  "dia": "2026-08-04",
+  "monto": 3000.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 18.000, tenemos $ 21.000",
+  "acerca": 3000.0
+ },
+ {
+  "pago_id": "6ca0689c-4825-4e8a-8056-c2a83430a1a8",
+  "cliente": "ALBERTO ISABELINO MARTINEZ",
+  "ref": "PRD0003527538",
+  "dia": "2026-08-04",
+  "monto": 2500.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 60.000, tenemos $ 62.500",
+  "acerca": 2500.0
+ },
+ {
+  "pago_id": "40aa1f73-f4eb-4998-bee9-192fa154887c",
+  "cliente": "JAVIER DELOS SANTOS",
+  "ref": "PRD0003544464",
+  "dia": "2026-08-04",
+  "monto": 2400.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 36.000, tenemos $ 38.400",
+  "acerca": 2400.0
+ },
+ {
+  "pago_id": "656670ae-cc9a-407e-88dc-617f8445169b",
+  "cliente": "MAURICIO SAMUDIO",
+  "ref": "PRD0003508365",
+  "dia": "2026-07-22",
+  "monto": 2000.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 48.000, tenemos $ 50.000",
+  "acerca": 2000.0
+ },
+ {
+  "pago_id": "d00aa2dc-9165-464c-99d4-49f5ce63b50b",
+  "cliente": "VICTORIA NOEMI SERRON FURTADO",
+  "ref": "PRD0003547366",
+  "dia": "2026-08-04",
+  "monto": 1800.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 18.000, tenemos $ 19.800",
+  "acerca": 1800.0
+ },
+ {
+  "pago_id": "e3168cd4-a148-4c70-bd36-6a466f646845",
+  "cliente": "BLANCA ROSA MELGAREJO MENDEZ",
+  "ref": "PRD0003547406",
+  "dia": "2026-08-04",
+  "monto": 1800.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 54.000, tenemos $ 55.800",
+  "acerca": 1800.0
+ },
+ {
+  "pago_id": "4a0d96fb-c96c-4b4a-88a9-70aa04110c17",
+  "cliente": "MARY BATISTA",
+  "ref": "PRD0003463560",
+  "dia": "2026-08-04",
+  "monto": 1600.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 24.000, tenemos $ 25.600",
+  "acerca": 1600.0
+ },
+ {
+  "pago_id": "0c222d8c-a854-4345-9483-969e1744d684",
+  "cliente": "ANA MARIA BENEDETTI",
+  "ref": "PRD0003564732",
+  "dia": "2026-08-04",
+  "monto": 1500.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 6.000, tenemos $ 7.500",
+  "acerca": 1500.0
+ },
+ {
+  "pago_id": "3ba028a1-10f2-4590-9047-96613eadcc08",
+  "cliente": "MAICOL SEQUEIRA",
+  "ref": "PRD0003503080",
+  "dia": "2026-07-22",
+  "monto": 1200.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 36.000, tenemos $ 37.200",
+  "acerca": 1200.0
+ },
+ {
+  "pago_id": "53e0edb5-bd07-4b66-bfea-651c46f23d96",
+  "cliente": "GONZALO MEDINA",
+  "ref": "PRD0003494569",
+  "dia": "2026-07-22",
+  "monto": 1200.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 36.000, tenemos $ 37.200",
+  "acerca": 1200.0
+ },
+ {
+  "pago_id": "56fd02d2-cdc8-4eb1-adc8-a55925adfc45",
+  "cliente": "ZULLY ESTHER FAGUNDEZ PEREIRA",
+  "ref": "PRD0003558627",
+  "dia": "2026-08-04",
+  "monto": 1200.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 9.600, tenemos $ 10.800",
+  "acerca": 1200.0
+ },
+ {
+  "pago_id": "8221bc0b-9004-436c-af98-0dfd04ad7b0b",
+  "cliente": "HERCTOR GOMEZ",
+  "ref": "PRD0003508497",
+  "dia": "2026-07-22",
+  "monto": 1200.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 36.000, tenemos $ 37.200",
+  "acerca": 1200.0
+ },
+ {
+  "pago_id": "a3844d79-7ad4-4862-8f30-3f796ac452b8",
+  "cliente": "ALEJANDRA JORGELINA MELO LOPEZ",
+  "ref": "PRD0003538290",
+  "dia": "2026-08-04",
+  "monto": 1200.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 36.000, tenemos $ 37.200",
+  "acerca": 1200.0
+ },
+ {
+  "pago_id": "f62a21f1-8116-467b-a326-1e5faf511776",
+  "cliente": "JUAN MARCELO VILLAGAN",
+  "ref": "PRD0003517134",
+  "dia": "2026-07-22",
+  "monto": 1200.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 36.000, tenemos $ 37.200",
+  "acerca": 1200.0
+ },
+ {
+  "pago_id": "3ad0ee55-16d3-4b44-a666-c51100dc790d",
+  "cliente": "MARIA LUJAN CASCO SILVA",
+  "ref": "PRD0003541475",
+  "dia": "2026-07-22",
+  "monto": 1000.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 24.000, tenemos $ 25.000",
+  "acerca": 1000.0
+ },
+ {
+  "pago_id": "cfd0e07c-f21e-4e3a-bbb1-c23f611c283a",
+  "cliente": "SHEILA ANAHI VADCONCELLO RUIZ",
+  "ref": "PRD0003542675",
+  "dia": "2026-07-22",
+  "monto": 1000.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 30.000, tenemos $ 31.000",
+  "acerca": 1000.0
+ },
+ {
+  "pago_id": "132de18f-41ac-405a-b882-2b0f32bf30c6",
+  "cliente": "EMA DANIELA LOPEZ LALLERA",
+  "ref": "PRD0003564520",
+  "dia": "2026-08-04",
+  "monto": 900.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 7.200, tenemos $ 8.100",
+  "acerca": 900.0
+ },
+ {
+  "pago_id": "ea4f5a7e-6b61-4320-94f5-d9d1b761cf5f",
+  "cliente": "CECILIA OTALORA",
+  "ref": "PRD0003541304",
+  "dia": "2026-08-04",
+  "monto": 800.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 24.000, tenemos $ 24.800",
+  "acerca": 800.0
+ },
+ {
+  "pago_id": "ff3a2eaf-35d0-4d7c-9c12-3f79e6c37e77",
+  "cliente": "ANDRES ARBOLITO QUIROGA",
+  "ref": "PRD0003511736",
+  "dia": "2026-07-22",
+  "monto": 800.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 24.000, tenemos $ 24.800",
+  "acerca": 800.0
+ },
+ {
+  "pago_id": "36be5d13-3467-4f9d-a9f2-8620936df91e",
+  "cliente": "RICARDO NAHUEL CHIALVO LóPEZ",
+  "ref": "PRD0003524865",
+  "dia": "2026-07-22",
+  "monto": 750.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 18.000, tenemos $ 18.750",
+  "acerca": 750.0
+ },
+ {
+  "pago_id": "7afc012b-7946-4946-a010-f098928874e2",
+  "cliente": "MARIO RAFAEL PERAZA IRIARTE",
+  "ref": "PRD0003569987",
+  "dia": "2026-08-04",
+  "monto": 650.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 4.800, tenemos $ 5.450",
+  "acerca": 650.0
+ },
+ {
+  "pago_id": "090bcc37-cc0a-4a52-a859-f9b39facf64d",
+  "cliente": "CAMILA ECHEVERY",
+  "ref": "PRD0003558829",
+  "dia": "2026-08-04",
+  "monto": 600.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 18.000, tenemos $ 18.600",
+  "acerca": 600.0
+ },
+ {
+  "pago_id": "22f051d0-8baf-40a8-9e52-891aaae42792",
+  "cliente": "NATALIA DIAZ",
+  "ref": "PRD0003521620",
+  "dia": "2026-08-04",
+  "monto": 600.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 18.000, tenemos $ 18.600",
+  "acerca": 600.0
+ },
+ {
+  "pago_id": "2e1a6aa8-003c-471e-a43b-9f8a7d6da551",
+  "cliente": "NATALIA DIAZ",
+  "ref": "PRD0003521620",
+  "dia": "2026-08-04",
+  "monto": 600.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 18.000, tenemos $ 18.600",
+  "acerca": 600.0
+ },
+ {
+  "pago_id": "718620ee-a8cb-40d6-9ebe-165beba3f2df",
+  "cliente": "MARIA LUISA",
+  "ref": "PRD0003574212",
+  "dia": "2026-08-04",
+  "monto": 600.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 7.200, tenemos $ 7.800",
+  "acerca": 600.0
+ },
+ {
+  "pago_id": "88981599-fec1-4a08-84ef-6af67fce6a4b",
+  "cliente": "PABLO SOSA",
+  "ref": "PRD0003558530",
+  "dia": "2026-08-04",
+  "monto": 600.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 14.400, tenemos $ 15.000",
+  "acerca": 600.0
+ },
+ {
+  "pago_id": "89f52657-bca2-400d-8748-bee7ad665a4c",
+  "cliente": "JEFERSON CORREA",
+  "ref": "PRD0003536232",
+  "dia": "2026-07-22",
+  "monto": 600.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 18.000, tenemos $ 18.600",
+  "acerca": 600.0
+ },
+ {
+  "pago_id": "a669d386-2314-45f2-a1d4-d77a9c1cacc8",
+  "cliente": "ANDREA JHOANA GONZALEZ HERNANDEZ",
+  "ref": "PRD0003544258",
+  "dia": "2026-07-22",
+  "monto": 600.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 18.000, tenemos $ 18.600",
+  "acerca": 600.0
+ },
+ {
+  "pago_id": "b9975282-875b-4d81-9e3d-3c3071c80444",
+  "cliente": "MARCELA TIXIANA PERALTA GUTIERREZ",
+  "ref": "PRD0003530347",
+  "dia": "2026-07-22",
+  "monto": 600.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 18.000, tenemos $ 18.600",
+  "acerca": 600.0
+ },
+ {
+  "pago_id": "d1b9a61c-78dc-43b9-9795-4f565997d96b",
+  "cliente": "NORA FURTADO FERNDEZ",
+  "ref": "PRD0003564736",
+  "dia": "2026-08-04",
+  "monto": 600.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 6.000, tenemos $ 6.600",
+  "acerca": 600.0
+ },
+ {
+  "pago_id": "d9529fc1-a813-4b0e-bfe6-e5d0c85a7865",
+  "cliente": "CAROLINA MALVASIO",
+  "ref": "PRD0003509250",
+  "dia": "2026-07-22",
+  "monto": 600.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 7.200, tenemos $ 7.800",
+  "acerca": 600.0
+ },
+ {
+  "pago_id": "035b0f11-f629-4a96-9d5a-8a70b461692a",
+  "cliente": "AGUSTINA FIORELA NUñEZ MUNIZ",
+  "ref": "PRD0003547297",
+  "dia": "2026-08-04",
+  "monto": 500.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 6.000, tenemos $ 6.500",
+  "acerca": 500.0
+ },
+ {
+  "pago_id": "0ce34cc7-3e7a-4f34-8fc3-aa53e4a62742",
+  "cliente": "CAROLINA BENITEZ",
+  "ref": "PRD0003508468",
+  "dia": "2026-07-22",
+  "monto": 500.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 12.000, tenemos $ 12.500",
+  "acerca": 500.0
+ },
+ {
+  "pago_id": "199fbc48-2f6e-46c5-bd5a-34d64ef564f3",
+  "cliente": "VALERIA OLIVERA",
+  "ref": "PRD0003533058",
+  "dia": "2026-07-22",
+  "monto": 500.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 12.000, tenemos $ 12.500",
+  "acerca": 500.0
+ },
+ {
+  "pago_id": "21957657-7473-423c-812a-1cde7b30e502",
+  "cliente": "PATRICIA LOPEZ",
+  "ref": "PRD0003533065",
+  "dia": "2026-07-22",
+  "monto": 500.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 6.000, tenemos $ 6.500",
+  "acerca": 500.0
+ },
+ {
+  "pago_id": "39daa465-fbab-4ceb-b029-6466c2bccde3",
+  "cliente": "MARIA ELBESIA SCHEIDER",
+  "ref": "PRD0003538400",
+  "dia": "2026-07-22",
+  "monto": 500.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 12.000, tenemos $ 12.500",
+  "acerca": 500.0
+ },
+ {
+  "pago_id": "50bde9fa-8445-4a76-a3a4-a8a300dfac6f",
+  "cliente": "ANA ISABEL  GARCíA",
+  "ref": "PRD0003535580",
+  "dia": "2026-07-22",
+  "monto": 500.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 12.000, tenemos $ 12.500",
+  "acerca": 500.0
+ },
+ {
+  "pago_id": "7fc731c8-b2c6-4b97-a4b2-bc91351d98ab",
+  "cliente": "ROSINA GISEL ACOSTA PUJOLAR",
+  "ref": "PRD0003511625",
+  "dia": "2026-07-22",
+  "monto": 500.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 12.000, tenemos $ 12.500",
+  "acerca": 500.0
+ },
+ {
+  "pago_id": "95865b8b-a985-47f2-ba30-edbaa8267775",
+  "cliente": "MARIA LUISA",
+  "ref": "PRD0003580162",
+  "dia": "2026-08-04",
+  "monto": 500.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 7.200, tenemos $ 7.700",
+  "acerca": 500.0
+ },
+ {
+  "pago_id": "dc6c4baf-78f2-4857-8f3b-4496e9e8678b",
+  "cliente": "AGUSTINA NICOLE FERRARI IZAGUIRRE",
+  "ref": "PRD0003573744",
+  "dia": "2026-08-04",
+  "monto": 500.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 12.000, tenemos $ 12.500",
+  "acerca": 500.0
+ },
+ {
+  "pago_id": "f573b149-63c8-4cc0-a71d-8ee3a0d9d006",
+  "cliente": "MAICOL RIVERO",
+  "ref": "PRD0003585671",
+  "dia": "2026-08-04",
+  "monto": 500.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 6.000, tenemos $ 6.500",
+  "acerca": 500.0
+ },
+ {
+  "pago_id": "e10a8638-101f-4ecb-82de-46c8971305c1",
+  "cliente": "SHEILA MACARENA DUTRAN",
+  "ref": "PRD0003572586",
+  "dia": "2026-07-21",
+  "monto": 480.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 14.400, tenemos $ 17.180",
+  "acerca": 480.0
+ },
+ {
+  "pago_id": "12e80598-2a0c-4c2b-a47b-6e669f07aa8e",
+  "cliente": "ANGELA RODRIGUEZ",
+  "ref": "PRD0003532692",
+  "dia": "2026-08-04",
+  "monto": 400.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 9.600, tenemos $ 10.000",
+  "acerca": 400.0
+ },
+ {
+  "pago_id": "1874f40e-445c-4c5c-af51-d17363e08799",
+  "cliente": "ANGELA RODRIGUEZ",
+  "ref": "PRD0003532692",
+  "dia": "2026-08-04",
+  "monto": 400.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 9.600, tenemos $ 10.000",
+  "acerca": 400.0
+ },
+ {
+  "pago_id": "1b3e6343-0df2-43ac-a544-55a7338679cd",
+  "cliente": "LUCAS FERNÁNDEZ",
+  "ref": "PRD0003513926",
+  "dia": "2026-07-22",
+  "monto": 400.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 12.000, tenemos $ 12.400",
+  "acerca": 400.0
+ },
+ {
+  "pago_id": "3e69ad31-6e86-4db7-9f22-33bf81eae2a2",
+  "cliente": "DIEGO PUCHETTA",
+  "ref": "PRD0003481665",
+  "dia": "2026-07-22",
+  "monto": 400.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 12.000, tenemos $ 12.400",
+  "acerca": 400.0
+ },
+ {
+  "pago_id": "483bdde7-f4d4-4ee1-ae5b-2124d126ff16",
+  "cliente": "MARíA QUIROGA",
+  "ref": "PRD0003517044",
+  "dia": "2026-07-22",
+  "monto": 400.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 12.000, tenemos $ 12.400",
+  "acerca": 400.0
+ },
+ {
+  "pago_id": "67dbaf22-d89e-4157-8552-214365f3d87b",
+  "cliente": "MARY GOMES",
+  "ref": "PRD0003502947",
+  "dia": "2026-07-22",
+  "monto": 400.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 12.000, tenemos $ 12.400",
+  "acerca": 400.0
+ },
+ {
+  "pago_id": "49fe1564-9e59-4a91-8b4b-f516027e924a",
+  "cliente": "CARLOS JOSE BARRETO ÁLVAREZ",
+  "ref": "PRD0003539129",
+  "dia": "2026-07-22",
+  "monto": 300.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 7.200, tenemos $ 7.500",
+  "acerca": 300.0
+ },
+ {
+  "pago_id": "7faa8f23-e9ba-48e4-91b8-efd74d7bd177",
+  "cliente": "ALBERTO CáCERES",
+  "ref": "PRD0003544206",
+  "dia": "2026-07-22",
+  "monto": 300.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 7.200, tenemos $ 7.500",
+  "acerca": 300.0
+ },
+ {
+  "pago_id": "c26b77d9-8ec4-4796-b768-a9b4f6754a9a",
+  "cliente": "LUIS FRANCO",
+  "ref": "PRD0003541443",
+  "dia": "2026-07-22",
+  "monto": 300.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 12.000, tenemos $ 12.300",
+  "acerca": 300.0
+ },
+ {
+  "pago_id": "dea6d61a-e13a-4bb8-85dc-899c3c921500",
+  "cliente": "PABLO LEITES",
+  "ref": "PRD0003516955",
+  "dia": "2026-07-22",
+  "monto": 300.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 7.200, tenemos $ 7.500",
+  "acerca": 300.0
+ },
+ {
+  "pago_id": "eb1b89f7-f286-4f63-9a6d-801aba3628ca",
+  "cliente": "SERGIO ANDRES LEGUISAMO",
+  "ref": "PRD0003535625",
+  "dia": "2026-07-22",
+  "monto": 300.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 7.200, tenemos $ 7.500",
+  "acerca": 300.0
+ },
+ {
+  "pago_id": "0b8bc655-de79-4d07-b003-6bab0fefe4a9",
+  "cliente": "NELLY PEREYRA",
+  "ref": "PRD0003519141",
+  "dia": "2026-07-22",
+  "monto": 250.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 6.000, tenemos $ 6.250",
+  "acerca": 250.0
+ },
+ {
+  "pago_id": "3289fc2f-7653-42ec-b653-b6fd1561669c",
+  "cliente": "WALTER DANIEL DE LOS SANTOS",
+  "ref": "PRD0003541425",
+  "dia": "2026-07-22",
+  "monto": 250.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 6.000, tenemos $ 6.250",
+  "acerca": 250.0
+ },
+ {
+  "pago_id": "421ab0b2-946a-4459-a3e4-e30fe41804f8",
+  "cliente": "YANELA MARCELA GALLARDO CASAS",
+  "ref": "PRD0003535787",
+  "dia": "2026-07-22",
+  "monto": 250.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 6.000, tenemos $ 6.250",
+  "acerca": 250.0
+ },
+ {
+  "pago_id": "a35fa543-40e3-43f6-88d9-b6a44e66dbb3",
+  "cliente": "JOSE MONTERO",
+  "ref": "PRD0003530424",
+  "dia": "2026-07-22",
+  "monto": 250.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 6.000, tenemos $ 6.250",
+  "acerca": 250.0
+ },
+ {
+  "pago_id": "ee8677cb-24ac-4255-9f53-44953af313b3",
+  "cliente": "MARIA GIMENES",
+  "ref": "PRD0003572875",
+  "dia": "2026-08-04",
+  "monto": 250.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 6.000, tenemos $ 6.250",
+  "acerca": 250.0
+ },
+ {
+  "pago_id": "a4b491e0-4618-42d0-8e89-63616b994ec1",
+  "cliente": "STEFANY JAQUELINE",
+  "ref": "PRD0003598218",
+  "dia": "2026-08-04",
+  "monto": 200.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 4.800, tenemos $ 5.000",
+  "acerca": 200.0
+ },
+ {
+  "pago_id": "07b63505-6114-42f4-8984-af1580db6adf",
+  "cliente": "DIVER ELIZABETH PUJOLAR ECHEDO",
+  "ref": "PRD0003527535",
+  "dia": "2026-07-22",
+  "monto": 180.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 3.600, tenemos $ 3.780",
+  "acerca": 180.0
+ },
+ {
+  "pago_id": "1590cf7a-ec89-4376-b5b8-041cb22440fc",
+  "cliente": "ESTEFANIA CORINA SARTORI RAYMUNDO",
+  "ref": "PRD0003558536",
+  "dia": "2026-08-04",
+  "monto": 180.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 3.600, tenemos $ 3.780",
+  "acerca": 180.0
+ },
+ {
+  "pago_id": "3f5aeee6-fdad-47ad-9de0-135573167c4a",
+  "cliente": "MARCIA MARIA DA SILVA",
+  "ref": "PRD0003553169",
+  "dia": "2026-08-04",
+  "monto": 160.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 3.840, tenemos $ 4.000",
+  "acerca": 160.0
+ },
+ {
+  "pago_id": "d234737b-b196-4a13-a3e9-e2dd091d245b",
+  "cliente": "JESSICA RODRÍGUEZ",
+  "ref": "PRD0003544179",
+  "dia": "2026-07-22",
+  "monto": 150.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 3.600, tenemos $ 3.750",
+  "acerca": 150.0
+ },
+ {
+  "pago_id": "d4504364-3170-434c-a8a2-da050555d305",
+  "cliente": "CRISTIANO HENKE KUMMER",
+  "ref": "PRD0003560230",
+  "dia": "2026-08-04",
+  "monto": 100.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 3.000, tenemos $ 3.100",
+  "acerca": 100.0
+ },
+ {
+  "pago_id": "960b61ef-f321-43f4-b906-09a063b0c78b",
+  "cliente": "ANDERSON LUCENA XAVIER",
+  "ref": "PRD0003587365",
+  "dia": "2026-08-04",
+  "monto": 75.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 1.800, tenemos $ 1.875",
+  "acerca": 75.0
+ },
+ {
+  "pago_id": "cffec82c-10ea-4b4d-a70e-76290bbba638",
+  "cliente": "CLAUDIO SCHMIDT",
+  "ref": "PRD0003560267",
+  "dia": "2026-08-04",
+  "monto": 72.0,
+  "motivo": "cerrado en Disapp y sobre-cobrado: total $ 720, tenemos $ 792",
+  "acerca": 72.0
+ }
+]
