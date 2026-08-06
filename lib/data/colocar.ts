@@ -65,8 +65,17 @@ function techoDe(montoAnterior: number): number {
   return Math.min(RENOVACION_CAP_TOTAL, Math.round(montoAnterior * (1 + pct / 100)));
 }
 
-/** Clientes de MI ruta que ya terminaron de pagar: listos para repetir. */
-export async function getCandidatosRenovar(db: SupabaseClient): Promise<CandidatoColocar[]> {
+/** Clientes de MI ruta que ya terminaron de pagar: listos para renovar.
+ *
+ *  `cobradorId`: dueño de los créditos que se pueden renovar. Hace falta porque la
+ *  RLS de `prestamos` filtra por CLIENTE, no por crédito: en un cliente compartido
+ *  entre dos rutas (53 reales) esta lista le ofrecía al cobrador el crédito
+ *  SALDADO del compañero, y el servidor se lo rechazaba recién al confirmar —
+ *  letra roja delante del cliente, el mismo mal trago del día 1. */
+export async function getCandidatosRenovar(
+  db: SupabaseClient,
+  cobradorId?: string | null,
+): Promise<CandidatoColocar[]> {
   const { data: asig } = await db.from("asignaciones").select("cliente_id").eq("activo", true);
   const ids = [...new Set((asig ?? []).map((a) => a.cliente_id as string))];
   if (ids.length === 0) return [];
@@ -109,6 +118,10 @@ export async function getCandidatosRenovar(db: SupabaseClient): Promise<Candidat
   for (const p of activos) {
     const cli = cliDe.get(p.cliente_id);
     if (!cli || !cli.activo) continue;
+    // El crédito del compañero NO se ofrece: renovarlo lo rechaza el servidor
+    // (la comisión sería suya). La deuda de ese crédito igual viaja en
+    // `deudaHermano`, así que el cobrador se entera de que existe.
+    if (cobradorId && p.cobrador_id && p.cobrador_id !== cobradorId) continue;
     const carton = { falta: faltaDe.get(p.id) ?? 0 };
     // Mismo umbral que el gate del servidor: un residuo de centavos no traba.
     if (carton.falta >= 1) continue;

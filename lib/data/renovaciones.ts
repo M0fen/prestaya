@@ -343,10 +343,16 @@ export async function crearRenovacion(
     // El gate del RPC vio el anterior ya finalizado → otra persona lo renovó primero.
     if (code === "P0410")
       return { ok: false, error: "El crédito anterior ya fue renovado por otra persona." };
-    // RPC presente pero falló por otra causa. Como todo el RPC es atómico, no hay estado
-    // a medias que compensar; PERO pudo haber COMMITEADO y perderse la respuesta
-    // (timeout/504) → verificar si el nuevo crédito YA existe antes de reportar fallo.
-    if (code !== "42883" && code !== "PGRST202") {
+    // ⚠️ P0411 = la RPC VIVA tiene su propio CAP duro (`if p_monto > 100000`), que no
+    // conoce la aprobación del admin. Sin esto, `permitirSobreCap` era letra muerta:
+    // el cobrador mandaba el pedido, el admin tocaba "Aprobar" y le salía un rojo
+    // genérico, para siempre (3 clientes saldados hoy, $385.000 — dos del piloto).
+    // Cuando el admin YA autorizó, se cae al camino de 2 requests de abajo, que no
+    // tiene ese tope y aplica los mismos gates (anterior activo, saldado, del cliente).
+    // No se afloja nada para el resto: sin `permitirSobreCap`, P0411 sigue siendo un
+    // rechazo. La vía definitiva es agregarle el parámetro a la RPC (DDL de Carlos).
+    const capAutorizado = input.permitirSobreCap === true && code === "P0411";
+    if (!capAutorizado && code !== "42883" && code !== "PGRST202") {
       const ya = await buscarRenovacion(db, { clienteId, monto, cuota, totalDias, fechaInicio });
       if (ya) return { ok: true, prestamoId: ya, cuota };
       return { ok: false, error: "No se pudo crear el crédito de renovación." };

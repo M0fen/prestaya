@@ -37,7 +37,11 @@ export interface PeekCliente {
 export type ResultadoPeek = { ok: true; ficha: PeekCliente } | { ok: false; error: string };
 
 export async function peekClienteCobrador(clienteId: string): Promise<ResultadoPeek> {
-  await requireUsuario(); // exige sesión interna; RLS hace el resto del control
+  // ⚠️ El usuario NO se descartaba y hacía falta: la RLS de `prestamos` filtra por
+  // CLIENTE, no por crédito, así que en un cliente compartido entre dos rutas (57
+  // pares reales) el ojito le mostraba al cobrador el crédito del COMPAÑERO —
+  // cuota, saldo y avance ajenos. Ese es exactamente el error del día 1.
+  const usuario = await requireUsuario();
   if (!ES_UUID.test(clienteId)) return { ok: false, error: "Cliente inválido." };
 
   // Todo el cuerpo en try/catch: un error transitorio de DB no debe dejar el
@@ -48,7 +52,14 @@ export async function peekClienteCobrador(clienteId: string): Promise<ResultadoP
     if (!cliente) return { ok: false, error: "No encontrado o fuera de tu ruta." };
 
     const activos = await getPrestamosActivosPorCliente(db, clienteId);
-    const prestamo = activos[0] ?? null;
+    // Solo los créditos SUYOS: el del compañero no es su cuota ni su plata. Un
+    // crédito sin dueño se muestra igual (no hay a quién atribuírselo). Mismo
+    // criterio que la ruta y que `resolverPrestamo` al imputar el cobro.
+    const mios =
+      usuario.rol === "cobrador"
+        ? activos.filter((p) => !p.cobrador_id || p.cobrador_id === usuario.id)
+        : activos;
+    const prestamo = mios[0] ?? null;
 
     let cuota = 0;
     let saldo = 0;

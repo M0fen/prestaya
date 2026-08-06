@@ -7,6 +7,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import Link from "next/link";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { getUsuarioActual } from "@/lib/auth";
 import { getCandidatosRenovar, getCandidatosVenta } from "@/lib/data/colocar";
 import { ColocarLista } from "@/components/cobrador/ColocarLista";
 import { conTimeout } from "@/lib/timeout";
@@ -23,8 +24,14 @@ export default async function ColocarPage({
   const modo: "renovar" | "venta" = raw === "venta" ? "venta" : "renovar";
 
   const db = await createSupabaseServer();
+  // El id acota "Renovar" a los créditos PROPIOS: en un cliente compartido, el
+  // saldado del compañero no se puede renovar (el servidor lo rechaza) y ofrecerlo
+  // dejaba al cobrador con la letra roja delante del cliente.
+  const usuario = await getUsuarioActual();
   const candidatos = await conTimeout(
-    modo === "renovar" ? getCandidatosRenovar(db) : getCandidatosVenta(db),
+    modo === "renovar"
+      ? getCandidatosRenovar(db, usuario?.rol === "cobrador" ? usuario.id : null)
+      : getCandidatosVenta(db),
     TOPE_MS,
     `cobrador.colocar.${modo}`,
   );

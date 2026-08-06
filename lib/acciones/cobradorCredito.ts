@@ -164,7 +164,30 @@ export async function renovarDesdeCalle(input: {
 
   const activos = await getPrestamosActivosPorCliente(db, input.clienteId);
   const ant = activos.find((x) => x.id === input.prestamoId);
-  if (!ant) return { ok: false, error: "Ese crédito ya no está activo." };
+  if (!ant) {
+    // ¿O ya se renovó y se perdió la respuesta? En la calle se corta la señal a
+    // mitad de la operación todo el tiempo, y la propia app le enseña al cobrador
+    // a reintentar ("no se duplica"). Si el reintento contestaba "ya no está
+    // activo", el cobrador daba la renovación por fallida y NO entregaba la plata
+    // — pero el crédito existía y le empezaba a cobrar cuotas a alguien que no
+    // recibió nada. El linaje `renovado_de` (0116) dice la verdad.
+    const { data: hijo } = await db
+      .from("prestamos")
+      .select("id, cuota_diaria")
+      .eq("renovado_de", input.prestamoId)
+      .eq("estado", "activo")
+      .order("creado_en", { ascending: false })
+      .limit(1);
+    if (hijo && hijo.length > 0) {
+      return {
+        ok: true,
+        prestamoId: hijo[0].id as string,
+        cuota: Math.round(Number(hijo[0].cuota_diaria) || 0),
+        repetido: true,
+      };
+    }
+    return { ok: false, error: "Ese crédito ya no está activo." };
+  }
   // ⚠️ PROPIEDAD DEL CRÉDITO. La escritura va con service_role (ver abajo), así
   // que la RLS ya no filtra nada: hay que exigir acá que el crédito sea SUYO. Con
   // 59 clientes compartidos entre dos rutas, sin esto un cobrador podría renovar

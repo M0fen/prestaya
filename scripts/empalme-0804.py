@@ -742,6 +742,31 @@ act2 = [p for p in pres2 if p["estado"] == "activo"]
 cart = sum(max(0, round(float(p["cuota_diaria"] or 0)) * int(p["total_dias"] or 0) - round(float(p["pagado_acum"] or 0))) for p in act2)
 print(f"  activos: {len(act2)} · cartera (cuota×días−pagado): ${cart:,}")
 
+# ⚠️ AJUSTE SINTÉTICO PISADO POR EL COBRO REAL (hallazgo 08-06, $65.467 en 70
+# créditos). El top-up del paso 5 se siembra para cuadrar contra el 'Pagos' de
+# Disapp; si al día siguiente llega el recaudo REAL de ese mismo día, entra SIN
+# cap por ser posterior al corte y la misma plata queda contada DOS VECES. No se
+# anula acá —eso lo decide un humano, con evidencia crédito por crédito— pero
+# NUNCA MÁS puede pasar en silencio.
+_dups = E.get_rows(
+    db, "pagos", "id,prestamo_id,monto,registrado_en,origen",
+    {"anulado": "eq.false", "registrado_en": f"gte.{(HOY - dt.timedelta(days=30)).isoformat()}T00:00:00-03:00"},
+)
+_sint, _real = defaultdict(list), set()
+for _p in _dups:
+    _o = _p.get("origen") or ""
+    _k = (_p["prestamo_id"], str(_p.get("registrado_en"))[:10], round(float(_p["monto"] or 0), 2))
+    if _o.startswith("reconciliacion"):
+        _sint[_k].append(_p["id"])
+    elif _o == "disapp_import":
+        _real.add(_k)
+_pisados = {k: v for k, v in _sint.items() if k in _real}
+if _pisados:
+    _plata = round(sum(k[2] * len(v) for k, v in _pisados.items()))
+    print(f"  ⚠️ AJUSTES SINTÉTICOS PISADOS POR EL COBRO REAL: {len(_pisados)} créditos · ${_plata:,}")
+    print("     (misma plata contada dos veces) → revisar y anular con:")
+    print("     python scripts/_anular-topups-duplicados-0806.py   [--commit]")
+
 # SALUD DE FORMA (auditoría 08-05): multi-activo y sobre-cobro son las dos
 # deformaciones que el empalme puede fabricar sin tocar un peso — se miden
 # SIEMPRE y se comparan contra el export (la verdad de Disapp).
