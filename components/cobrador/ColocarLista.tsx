@@ -96,6 +96,8 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
   const [cuotas, setCuotas] = useState(String(c.totalDias));
   const [msg, setMsg] = useState<string | null>(null);
   const [okTxt, setOkTxt] = useState<string | null>(null);
+  /** El resultado fue "ya estaba hecho", no "recién lo creé": se pinta distinto. */
+  const [eraRepetido, setEraRepetido] = useState(false);
   const [pendiente, start] = useTransition();
 
   const montoN = Math.round(Number(monto) || 0);
@@ -125,13 +127,20 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
           // Puede haber quedado PEDIDO a la oficina (supera el tope) en vez de
           // creado: el mensaje lo dice, para que el cobrador no le prometa al
           // cliente un crédito que todavía tiene que aprobar el admin.
+          // ⚠️ "Ya estaba hecho" NO es lo mismo que "lo acabo de crear". El
+          // reintento tras un corte de señal devuelve `repetido`, y si se muestra
+          // el mismo verde el cobrador cree que recién colocó el capital y le
+          // entrega la plata al cliente DE NUEVO. Se dice distinto, explícito.
           setOkTxt(
             "solicitado" in r
               ? r.mensaje
-              : r.cuota
-                ? `Listo ✓ · cuota ${UYU(r.cuota)}`
-                : "Listo ✓",
+              : r.repetido
+                ? `Ya estaba renovado ✓ — no se creó otro. Si ya le entregaste la plata, no se la des de nuevo.`
+                : r.cuota
+                  ? `Listo ✓ · cuota ${UYU(r.cuota)}`
+                  : "Listo ✓",
           );
+          setEraRepetido("solicitado" in r ? false : Boolean(r.repetido));
           router.refresh();
         } else {
           setMsg(r.error);
@@ -147,10 +156,15 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
     });
 
   if (okTxt) {
+    // Verde = se colocó recién. Ámbar = ya estaba hecho (reintento tras un corte
+    // de señal): mismo "ok" para el servidor, cosa MUY distinta para el bolsillo.
+    const tono = eraRepetido
+      ? { borde: "#F0DCA8", fondo: "#FDF8EC", texto: "#8A6D1E" }
+      : { borde: "#BEEBD5", fondo: "#F0FBF5", texto: "#157A50" };
     return (
-      <div className="rounded-[16px] border border-[#BEEBD5] bg-[#F0FBF5] p-4">
-        <span className="text-[14px] font-extrabold text-[#157A50]">{c.nombre}</span>
-        <p className="mt-0.5 text-[12.5px] font-bold text-[#157A50]">{okTxt}</p>
+      <div className="rounded-[16px] border p-4" style={{ borderColor: tono.borde, background: tono.fondo }}>
+        <span className="text-[14px] font-extrabold" style={{ color: tono.texto }}>{c.nombre}</span>
+        <p className="mt-0.5 text-[12.5px] leading-[1.45] font-bold" style={{ color: tono.texto }}>{okTxt}</p>
       </div>
     );
   }

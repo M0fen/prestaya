@@ -173,16 +173,20 @@ export async function renovarDesdeCalle(input: {
     // recibió nada. El linaje `renovado_de` (0116) dice la verdad.
     const { data: hijo } = await db
       .from("prestamos")
-      .select("id, cuota_diaria")
+      .select("id, cuota_diaria, cobrador_id")
       .eq("renovado_de", input.prestamoId)
       .eq("estado", "activo")
       .order("creado_en", { ascending: false })
       .limit(1);
-    if (hijo && hijo.length > 0) {
+    const h = hijo?.[0];
+    // ⚠️ El MISMO candado de propiedad que abajo, también acá. Si el que renovó
+    // fue el compañero (o la oficina), esto le confirmaría al cobrador una
+    // renovación que no hizo — y con 53 clientes compartidos eso pasa.
+    if (h && (!h.cobrador_id || h.cobrador_id === u.id)) {
       return {
         ok: true,
-        prestamoId: hijo[0].id as string,
-        cuota: Math.round(Number(hijo[0].cuota_diaria) || 0),
+        prestamoId: h.id as string,
+        cuota: Math.round(Number(h.cuota_diaria) || 0),
         repetido: true,
       };
     }

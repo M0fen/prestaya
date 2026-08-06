@@ -12,6 +12,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { NAV_ITEMS } from "@/lib/admin/nav";
 import { tablaFaltante } from "./errores";
+import { traerTodo } from "./paginado";
 import { fechaISOUY, inicioDiaUYIso } from "@/lib/fecha";
 
 // Secciones legibles: las del panel (de nav.ts) + las del cobrador.
@@ -171,16 +172,24 @@ export async function getAuditoriaComportamiento(desdeIso: string): Promise<UsoP
   }
 
   // Navegación (eventos_uso) de la ventana. Degrada si 0064 no corrió.
+  // ⚠️ PAGINADO OBLIGATORIO: `.limit(30000)` NO manda — PostgREST corta en 1000
+  // filas (ver paginado.ts) y devuelve 206 sin avisar. Medido contra producción:
+  // la ventana "desde el arranque" tiene 1.074 eventos y la pantalla recibía
+  // 1.000, así que TODA la mañana del día 1 del piloto era invisible; en 30 días
+  // se perdían 1.670 de 2.670 y había gente con 142 vistas que figuraba en
+  // "nunca abrió la app". Se ordena por `id` (único y estable) como exige el
+  // helper: `creado_en` tiene empates y rompe el `.range()`.
   let eventos: { usuario_id: string | null; seccion: string | null; creado_en: string }[] = [];
   try {
-    const { data, error } = await admin
-      .from("eventos_uso")
-      .select("usuario_id, seccion, creado_en")
-      .gte("creado_en", desdeIso)
-      .order("creado_en", { ascending: false })
-      .limit(30000);
-    if (error) throw error;
-    eventos = data ?? [];
+    eventos = await traerTodo<{ usuario_id: string | null; seccion: string | null; creado_en: string }>(
+      (d, h) =>
+        admin
+          .from("eventos_uso")
+          .select("usuario_id, seccion, creado_en")
+          .gte("creado_en", desdeIso)
+          .order("id", { ascending: true })
+          .range(d, h),
+    );
   } catch (e) {
     if (!tablaFaltante(e)) throw e;
   }
@@ -215,15 +224,19 @@ export async function getAuditoriaComportamiento(desdeIso: string): Promise<UsoP
   // ESTRENO: primera navegación de SIEMPRE (fuera de la ventana). Responde "¿ya
   // se estrenó en la app?" aunque la ventana elegida no lo alcance — sin esto, un
   // cobrador que entró una vez hace un mes figuraba igual que uno que nunca entró.
+  // ⚠️ Mismo tope de 1000: sin paginar, este barrido ASC se quedaba con los
+  // eventos MÁS VIEJOS y el piloto entero caía afuera → 8 personas que SÍ habían
+  // entrado salían pintadas de rojo como "NUNCA abrió la app". Se pagina por `id`
+  // y el mínimo por persona se calcula acá (el orden de `id` no es cronológico).
   const estreno = new Map<string, string>();
   try {
-    const { data } = await admin
-      .from("eventos_uso")
-      .select("usuario_id, creado_en")
-      .order("creado_en", { ascending: true })
-      .limit(30000);
-    for (const e of (data ?? []) as { usuario_id: string | null; creado_en: string }[]) {
-      if (e.usuario_id && !estreno.has(e.usuario_id)) estreno.set(e.usuario_id, e.creado_en);
+    const filas = await traerTodo<{ usuario_id: string | null; creado_en: string }>((d, h) =>
+      admin.from("eventos_uso").select("usuario_id, creado_en").order("id", { ascending: true }).range(d, h),
+    );
+    for (const e of filas) {
+      if (!e.usuario_id) continue;
+      const previo = estreno.get(e.usuario_id);
+      if (!previo || e.creado_en < previo) estreno.set(e.usuario_id, e.creado_en);
     }
   } catch (e) {
     if (!tablaFaltante(e)) throw e;
