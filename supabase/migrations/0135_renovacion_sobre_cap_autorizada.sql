@@ -1,5 +1,5 @@
 -- ─────────────────────────────────────────────────────────────────────────
---  0133 · La renovación por encima del tope la puede AUTORIZAR el admin.
+--  0135 · La renovación por encima del tope la puede AUTORIZAR el admin.
 --  Ejecutar en el SQL Editor de Supabase. Re-ejecutable. Un solo cambio.
 --
 --  POR QUÉ (auditoría de la madrugada del 06-08, confirmada contra la base):
