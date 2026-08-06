@@ -117,10 +117,23 @@ commit;
 --    select proacl::text from pg_proc where proname = 'renovar_credito_seguro';
 --    → esperado: anon=X, authenticated=X, service_role=X
 --
--- 3) El tope SIGUE duro sin autorización (tiene que dar error P0411):
---    select renovar_credito_seguro(
---      '00000000-0000-0000-0000-000000000000'::uuid, '00000000-0000-0000-0000-000000000000'::uuid,
---      200000, 1000, 40, 'diario', current_date, null);
---    → esperado: falla. Si dice "prestamo anterior ... inexistente" (P0002) está
---      MAL: significa que el chequeo del tope no se ejecutó. Si dice "no puede
---      superar 100000", perfecto.
+-- 3) El tope SIGUE duro sin autorización, y CEDE con ella.
+--    ⚠️ NO sirve probar con un uuid inventado: la función busca el crédito ANTES
+--    de mirar el tope, así que siempre contestaría "prestamo anterior inexistente"
+--    (P0002) y no probaría nada. Hay que usar un crédito REAL y deshacer:
+--
+--    begin;
+--      -- un crédito activo, saldado y por encima del tope:
+--      select id, cliente_id, monto_prestado, cuota_diaria, total_dias
+--        from prestamos
+--       where estado='activo' and monto_prestado > 100000
+--         and pagado_acum >= cuota_diaria*total_dias - 1
+--       limit 1;
+--      -- con esos valores, SIN autorización → tiene que fallar P0411:
+--      select renovar_credito_seguro(<id>,<cliente_id>,<monto>,<cuota>,<dias>,'diario',current_date,null);
+--      -- CON autorización → tiene que devolver el crédito nuevo:
+--      select renovar_credito_seguro(<id>,<cliente_id>,<monto>,<cuota>,<dias>,'diario',current_date,null,true);
+--    rollback;   -- ← IMPRESCINDIBLE: deshace la prueba
+--
+--    (Ya se corrió así sobre GERARDO VARELA, $120.000: sin autorización rechazó
+--     con P0411 y con autorización creó el crédito. Todo revertido.)
