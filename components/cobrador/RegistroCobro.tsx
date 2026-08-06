@@ -191,6 +191,18 @@ export function RegistroCobro({
   const montoSeleccion =
     nCuotas <= 1 ? cuotaEfectiva : Math.min(Math.round(cuota * nCuotas), saldoRedondeado);
 
+  // ⚠️ ¿Este toque CANCELA el crédito entero? Llevar el ± hasta el tope deja el
+  // saldo en cero, y la confirmación decía exactamente lo mismo que para una cuota
+  // normal. El día 1 pasó 6 veces ($303.260): tres salieron del ± al máximo y tres
+  // del campo libre; ninguno estaba en Disapp. El cobrador NO puede deshacerlo
+  // (solo un gestor anula), así que la única defensa es que lea antes de confirmar.
+  // Se exige más de 2 cuotas para no molestar en el pago final normal de un crédito.
+  const cancelaCredito =
+    saldoRedondeado > 0 &&
+    montoSeleccion >= saldoRedondeado - 0.5 &&
+    cuotaEfectiva > 0 &&
+    montoSeleccion > cuotaEfectiva * 2;
+
   const armadoEn = useRef(0);
   const tocarCobrar = () => {
     if (!confirmarCobro) {
@@ -495,13 +507,26 @@ export function RegistroCobro({
               </button>
             </div>
           )}
+          {/* Aviso ANTES de confirmar: este toque no cobra una cuota, cancela el
+              crédito. Se pregunta por la plata en la mano, que es lo único que
+              importa y lo que distingue un pago total de un dedazo. */}
+          {cancelaCredito && !cobroReciente && (
+            <p className="rounded-[12px] bg-[#FDF3E2] px-3.5 py-2.5 text-[12.5px] leading-[1.45] font-bold text-[#8A6D1E]">
+              ⚠️ Esto <b>cancela el crédito entero</b>, no cobra una cuota.
+              <br />
+              ¿El cliente te entregó los {UYU(montoSeleccion)} en la mano? Si te
+              pasaste con el <b>+</b>, bajalo antes de confirmar.
+            </p>
+          )}
           <button
             type="button"
             disabled={ocupado || saldado || cobroReciente}
             onClick={tocarCobrar}
             className={`rounded-full px-5 py-3.5 text-[15px] font-extrabold text-white active:scale-[0.98] disabled:opacity-60 ${
               confirmarCobro
-                ? "bg-[#13308C] shadow-[0_8px_20px_rgba(19,48,140,0.35)]"
+                ? cancelaCredito
+                  ? "bg-[#C0392B] shadow-[0_8px_20px_rgba(192,57,43,0.35)]"
+                  : "bg-[#13308C] shadow-[0_8px_20px_rgba(19,48,140,0.35)]"
                 : "bg-[#1FA971] shadow-[0_8px_20px_rgba(31,169,113,0.35)]"
             }`}
             style={{ transition: "transform .1s" }}
@@ -513,7 +538,9 @@ export function RegistroCobro({
                 : ocupado
                   ? "Registrando…"
                   : confirmarCobro
-                    ? `Sí, cobrar ${UYU(montoSeleccion)} ✓`
+                    ? cancelaCredito
+                      ? `Sí, CANCELAR el crédito · ${UYU(montoSeleccion)}`
+                      : `Sí, cobrar ${UYU(montoSeleccion)} ✓`
                     : `Registrar pago · ${UYU(montoSeleccion)}${nCuotas > 1 ? ` (${nCuotas} cuotas)` : ""}`}
           </button>
           {confirmarCobro && !cobroReciente && !ocupado && (
@@ -637,12 +664,22 @@ export function RegistroCobro({
               Eso cubre la cuota completa — se registra como pago del día ✓.
             </span>
           )}
-          {abonoValido && cuota > 0 && montoAbonoNum >= cuota * 2 && (
-            <span className="text-[11.5px] leading-[1.45] font-bold text-[#B9770E] tabular-nums">
-              ⚠️ Son {Math.floor(montoAbonoNum / cuota)} cuotas de {UYU(cuota)}. Revisá el monto
-              antes de confirmar.
-            </span>
-          )}
+          {abonoValido && cuota > 0 && montoAbonoNum >= cuota * 2 &&
+            montoAbonoNum < saldoRedondeado - 0.5 && (
+              <span className="text-[11.5px] leading-[1.45] font-bold text-[#B9770E] tabular-nums">
+                ⚠️ Son {Math.floor(montoAbonoNum / cuota)} cuotas de {UYU(cuota)}. Revisá el monto
+                antes de confirmar.
+              </span>
+            )}
+          {/* El monto tipeado alcanza para CANCELAR el crédito. Es el mismo aviso
+              que el del ±: el día 1 tres de los seis casos entraron por acá. */}
+          {abonoValido && cuota > 0 && montoAbonoNum >= saldoRedondeado - 0.5 &&
+            montoAbonoNum > cuotaEfectiva * 2 && (
+              <span className="rounded-[10px] bg-[#FDF3E2] px-3 py-2 text-[11.5px] leading-[1.45] font-bold text-[#8A6D1E] tabular-nums">
+                ⚠️ Con eso <b>cancelás el crédito entero</b> ({UYU(saldoRedondeado)}), no cobrás
+                una cuota. ¿El cliente te entregó esa plata en la mano?
+              </span>
+            )}
         </div>
       )}
 
