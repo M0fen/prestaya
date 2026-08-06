@@ -57,6 +57,21 @@ export async function registrarUsoDb(
   });
 }
 
+/**
+ * ARRANQUE REAL DEL PILOTO. Todo lo anterior fue preparación y pruebas: perfiles
+ * que se crearon, pantallas que se recorrieron para revisarlas, cobros de ensayo.
+ * Medir la adopción contra eso no dice nada — por eso la pantalla ofrece esta
+ * fecha como referencia limpia. Para correrla, se cambia acá y listo.
+ */
+export const PILOTO_ARRANQUE_UY = "2026-08-05";
+
+/**
+ * Minutos de silencio que separan una SESIÓN de la siguiente. Sirve para contar
+ * "cuántas veces abrió la app" en vez de "cuántas pantallas miró": una persona que
+ * entra 3 veces en el día es una señal distinta de una que hizo 200 clics de una.
+ */
+const CORTE_SESION_MIN = 30;
+
 export interface UsoPersona {
   id: string;
   nombre: string;
@@ -64,8 +79,16 @@ export interface UsoPersona {
   zona: string | null; // nombre de la zona (null = sin zona)
   ultimoAccesoIso: string | null; // login
   ultimaVistaIso: string | null; // última navegación
+  /** Primera navegación DE SIEMPRE (no de la ventana): cuándo se estrenó en la app. */
+  estrenoIso: string | null;
   vistas: number;
   diasActivos: number; // días distintos con navegación (en la ventana)
+  /** Veces que ABRIÓ la app en la ventana (cortes de 30 min de silencio). */
+  sesiones: number;
+  /** Navegación de HOY (día UY), para responder "¿quién está conectado hoy?". */
+  vistasHoy: number;
+  /** Actividad por día UY en la ventana, del más viejo al más nuevo (mini-barras). */
+  porDia: { dia: string; n: number }[];
   acciones: number; // auditoría de gestor + bitácora del cobrador
   /** Sello del onboarding día 1: cuándo reemplazó la clave provisoria (null = todavía no). */
   claveCambiadaIso: string | null;
@@ -189,22 +212,62 @@ export async function getAuditoriaComportamiento(desdeIso: string): Promise<UsoP
     if (!tablaFaltante(e)) throw e;
   }
 
+  // ESTRENO: primera navegación de SIEMPRE (fuera de la ventana). Responde "¿ya
+  // se estrenó en la app?" aunque la ventana elegida no lo alcance — sin esto, un
+  // cobrador que entró una vez hace un mes figuraba igual que uno que nunca entró.
+  const estreno = new Map<string, string>();
+  try {
+    const { data } = await admin
+      .from("eventos_uso")
+      .select("usuario_id, creado_en")
+      .order("creado_en", { ascending: true })
+      .limit(30000);
+    for (const e of (data ?? []) as { usuario_id: string | null; creado_en: string }[]) {
+      if (e.usuario_id && !estreno.has(e.usuario_id)) estreno.set(e.usuario_id, e.creado_en);
+    }
+  } catch (e) {
+    if (!tablaFaltante(e)) throw e;
+  }
+
   // Agregar por persona.
-  const porUser = new Map<string, { vistas: number; dias: Set<string>; ultima: string | null; secc: Map<string, number> }>();
+  const hoyYmd = fechaISOUY(new Date());
+  type Acc = {
+    vistas: number;
+    dias: Map<string, number>;
+    ultima: string | null;
+    secc: Map<string, number>;
+    hoy: number;
+    marcas: number[]; // instantes (ms) para contar sesiones
+  };
+  const porUser = new Map<string, Acc>();
   for (const ev of eventos) {
     const id = ev.usuario_id;
     if (!id) continue;
     let acc = porUser.get(id);
     if (!acc) {
-      acc = { vistas: 0, dias: new Set(), ultima: null, secc: new Map() };
+      acc = { vistas: 0, dias: new Map(), ultima: null, secc: new Map(), hoy: 0, marcas: [] };
       porUser.set(id, acc);
     }
     acc.vistas += 1;
-    acc.dias.add(fechaISOUY(new Date(ev.creado_en)));
+    const dia = fechaISOUY(new Date(ev.creado_en));
+    acc.dias.set(dia, (acc.dias.get(dia) ?? 0) + 1);
+    if (dia === hoyYmd) acc.hoy += 1;
+    acc.marcas.push(new Date(ev.creado_en).getTime());
     if (!acc.ultima || ev.creado_en > acc.ultima) acc.ultima = ev.creado_en;
     const s = ev.seccion ?? "—";
     acc.secc.set(s, (acc.secc.get(s) ?? 0) + 1);
   }
+
+  /** Veces que abrió la app: cada hueco de silencio > CORTE_SESION_MIN es una sesión nueva. */
+  const contarSesiones = (marcas: number[]): number => {
+    if (marcas.length === 0) return 0;
+    const orden = [...marcas].sort((a, b) => a - b);
+    let n = 1;
+    for (let i = 1; i < orden.length; i++) {
+      if (orden[i] - orden[i - 1] > CORTE_SESION_MIN * 60000) n += 1;
+    }
+    return n;
+  };
 
   return personas.map((p) => {
     const a = porUser.get(p.id);
@@ -221,8 +284,14 @@ export async function getAuditoriaComportamiento(desdeIso: string): Promise<UsoP
       zona: (p.zona_id ? zonaDe.get(p.zona_id) : zonaSupervisor.get(p.id)) || null,
       ultimoAccesoIso: p.auth_user_id ? login.get(p.auth_user_id) ?? null : null,
       ultimaVistaIso: a?.ultima ?? null,
+      estrenoIso: estreno.get(p.id) ?? null,
       vistas: a?.vistas ?? 0,
       diasActivos: a?.dias.size ?? 0,
+      sesiones: contarSesiones(a?.marcas ?? []),
+      vistasHoy: a?.hoy ?? 0,
+      porDia: [...(a?.dias.entries() ?? [])]
+        .map(([dia, n]) => ({ dia, n }))
+        .sort((x, y) => (x.dia < y.dia ? -1 : 1)),
       acciones: acciones.get(p.id) ?? 0,
       claveCambiadaIso: p.clave_cambiada_en,
       cobrosHoy: hoy?.n ?? 0,

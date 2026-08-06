@@ -9,9 +9,11 @@ import {
   getAuditoriaComportamiento,
   getActividadReciente,
   getEventosDePersona,
+  PILOTO_ARRANQUE_UY,
   type UsoPersona,
 } from "@/lib/data/uso";
 import { UYU } from "@/lib/format";
+import { inicioDiaUYIso, diaUYInicioIso } from "@/lib/fecha";
 
 export const dynamic = "force-dynamic";
 
@@ -57,14 +59,32 @@ export default async function UsoPage({
 }) {
   await requireDev();
   const sp = await searchParams;
-  const dias = sp.dias === "7" ? 7 : sp.dias === "90" ? 90 : 30;
-  const desdeIso = new Date(Date.now() - dias * 86400000).toISOString();
+  // Ventanas: HOY (¿quién está trabajando ahora?), 7 y 15 días (la quincena, que es
+  // la cadencia con la que se paga), 30, y ARRANQUE — la referencia limpia desde
+  // que el piloto es real. Antes solo había 7/30/90: ninguna respondía "hoy".
+  const VENTANAS = [
+    ["hoy", "Hoy"],
+    ["7", "7 días"],
+    ["15", "15 días"],
+    ["30", "30 días"],
+    ["arranque", "Desde el arranque"],
+  ] as const;
+  type Ventana = (typeof VENTANAS)[number][0];
+  const ventana: Ventana =
+    (VENTANAS.find(([id]) => id === sp.dias)?.[0] as Ventana | undefined) ?? "hoy";
+  const desdeIso =
+    ventana === "hoy"
+      ? inicioDiaUYIso()
+      : ventana === "arranque"
+        ? diaUYInicioIso(PILOTO_ARRANQUE_UY)
+        : new Date(Date.now() - Number(ventana) * 86400000).toISOString();
+  const ventanaLabel = VENTANAS.find(([id]) => id === ventana)![1];
   const rolF = sp.rol === "cobrador" || sp.rol === "supervisor" || sp.rol === "admin" ? sp.rol : undefined;
   const zonaF = (sp.z ?? "").trim() || undefined; // nombre de zona, o "—" = sin zona
   const q = (sp.q ?? "").trim();
   const qs = (extra: Record<string, string | undefined>) => {
     const p = new URLSearchParams();
-    p.set("dias", String(dias));
+    p.set("dias", ventana);
     if (rolF) p.set("rol", rolF);
     if (zonaF) p.set("z", zonaF);
     if (q) p.set("q", q);
@@ -103,7 +123,7 @@ export default async function UsoPage({
         )}
         <section className="rounded-[16px] border border-borde bg-tarjeta p-4 shadow-[0_1px_3px_rgba(19,48,140,0.06)]">
           <h2 className="mb-3 text-[12px] font-bold tracking-[0.03em] text-gris uppercase">
-            Historial de navegación ({eventos.length}) · últimos {dias} días
+            Historial de navegación ({eventos.length}) · {ventanaLabel.toLowerCase()}
           </h2>
           {eventos.length === 0 ? (
             <p className="text-[13px] font-medium text-gris">Sin navegaciones registradas en la ventana.</p>
@@ -134,12 +154,22 @@ export default async function UsoPage({
   const activos = filtradas
     .filter((p) => p.vistas > 0)
     .sort((a, b) => ((ultimaSenal(b) ?? "") < (ultimaSenal(a) ?? "") ? -1 : 1));
-  const entraronSinNavegar = filtradas.filter((p) => p.vistas === 0 && p.ultimoAccesoIso);
-  const nuncaEntraron = filtradas.filter((p) => p.vistas === 0 && !p.ultimoAccesoIso);
+  // ⚠️ "Entró" se mide por NAVEGACIÓN, no por `last_sign_in_at`. El login es un
+  // dato contaminado: cualquier script que valide credenciales lo pisa para todos
+  // (pasó el 08-05 y dejó "Sin entrar: 0" con 40 personas que nunca abrieron nada).
+  // La navegación solo la genera una persona usando la app.
+  const seEstrenaron = filtradas.filter((p) => p.vistas === 0 && p.estrenoIso);
+  const nuncaEntraron = filtradas.filter((p) => p.vistas === 0 && !p.estrenoIso);
 
   const reciente = await getActividadReciente(120, rolF);
   const conClave = filtradas.filter((p) => p.claveCambiadaIso).length;
   const cobrando = filtradas.filter((p) => p.cobrosHoy > 0).length;
+  const conectadosHoy = filtradas.filter((p) => p.vistasHoy > 0).length;
+  const cobradoHoyTotal = filtradas.reduce((s, p) => s + p.cobradoHoy, 0);
+  // Pico de actividad de un día, para escalar las mini-barras de todas las filas
+  // con la MISMA vara (si cada fila se escalara sola, un cobrador con 5 vistas se
+  // vería igual de activo que uno con 200).
+  const pico = Math.max(1, ...activos.flatMap((p) => p.porDia.map((d) => d.n)));
 
   return (
     <div className="mx-auto flex max-w-[1080px] flex-col gap-5">
@@ -152,8 +182,8 @@ export default async function UsoPage({
             </span>
           </div>
           <div className="flex rounded-full bg-suave p-0.5">
-            {([["7", "7 días"], ["30", "30 días"], ["90", "90 días"]] as const).map(([id, label]) => (
-              <Link key={id} href={qs({ dias: id })} className={`rounded-full px-3.5 py-1.5 text-[12.5px] font-bold transition-colors ${String(dias) === id ? "bg-tarjeta text-azul shadow-[0_1px_2px_rgba(26,34,71,0.1)]" : "text-gris hover:text-tinta"}`}>{label}</Link>
+            {VENTANAS.map(([id, label]) => (
+              <Link key={id} href={qs({ dias: id })} className={`rounded-full px-3.5 py-1.5 text-[12.5px] font-bold transition-colors ${ventana === id ? "bg-tarjeta text-azul shadow-[0_1px_2px_rgba(26,34,71,0.1)]" : "text-gris hover:text-tinta"}`}>{label}</Link>
             ))}
           </div>
         </div>
@@ -169,7 +199,7 @@ export default async function UsoPage({
           ))}
           <Link href={qs({ z: "—" })} className={`rounded-full border px-3 py-1 text-[12px] font-bold ${zonaF === "—" ? "border-azul bg-azul-suave text-azul" : "border-borde bg-tarjeta text-gris"}`}>Sin zona</Link>
           <form action="/admin/uso" method="get" className="ml-auto flex items-center gap-1.5">
-            <input type="hidden" name="dias" value={String(dias)} />
+            <input type="hidden" name="dias" value={ventana} />
             {rolF && <input type="hidden" name="rol" value={rolF} />}
             {zonaF && <input type="hidden" name="z" value={zonaF} />}
             <input
@@ -184,17 +214,44 @@ export default async function UsoPage({
       </header>
 
       <div className="grid grid-cols-2 gap-2.5 md:grid-cols-5">
-        <Kpi label="Con credenciales" valor={String(filtradas.length)} />
-        <Kpi label="Usando la app" valor={String(activos.length)} tono="#157A50" />
-        <Kpi label="🔑 Clave propia" valor={`${conClave}/${filtradas.length}`} tono={conClave === filtradas.length ? "#157A50" : "#9A6A0E"} />
-        <Kpi label="💵 Cobrando hoy" valor={String(cobrando)} tono="#1E47C8" />
-        <Kpi label="Sin entrar" valor={String(nuncaEntraron.length)} tono={nuncaEntraron.length > 0 ? "#C0392B" : "#157A50"} />
+        <Kpi
+          label="🟢 Conectados hoy"
+          valor={`${conectadosHoy}/${filtradas.length}`}
+          sub={conectadosHoy === 0 ? "nadie abrió la app todavía" : "abrieron la app hoy"}
+          tono={conectadosHoy > 0 ? "#157A50" : "#9A6A0E"}
+        />
+        <Kpi
+          label="💵 Cobrando hoy"
+          valor={String(cobrando)}
+          sub={cobradoHoyTotal > 0 ? UYU(cobradoHoyTotal) : "sin cobros aún"}
+          tono={cobrando > 0 ? "#1E47C8" : undefined}
+        />
+        <Kpi
+          label={`Usando la app · ${ventanaLabel.toLowerCase()}`}
+          valor={String(activos.length)}
+          sub={`de ${filtradas.length} con credenciales`}
+          tono="#157A50"
+        />
+        <Kpi
+          label="Nunca abrió la app"
+          valor={String(nuncaEntraron.length)}
+          sub={nuncaEntraron.length > 0 ? "no navegaron NUNCA" : "todos se estrenaron"}
+          tono={nuncaEntraron.length > 0 ? "#C0392B" : "#157A50"}
+        />
+        <Kpi
+          label="🔑 Clave propia"
+          valor={`${conClave}/${filtradas.length}`}
+          sub={conClave < filtradas.length ? `${filtradas.length - conClave} con la de arranque` : "todos la cambiaron"}
+          tono={conClave === filtradas.length ? "#157A50" : "#9A6A0E"}
+        />
       </div>
 
-      {/* Nota: la telemetría es hacia adelante desde 0064. */}
-      <p className="rounded-[12px] border border-borde bg-azul-suave px-4 py-2.5 text-[12px] font-medium text-cuerpo">
-        📡 Cada perfil aparece con datos <b>a medida que entra y navega</b>. «🔑 de arranque» = todavía no puso su
-        contraseña propia (la tarjeta del día 1 se lo pide al entrar).
+      <p className="rounded-[12px] border border-borde bg-azul-suave px-4 py-2.5 text-[12px] leading-[1.5] font-medium text-cuerpo">
+        📡 <b>«Entró» se mide por lo que NAVEGA, no por el login.</b> El último acceso lo pisa cualquier script que
+        valide credenciales —pasó el 05-08 y dejó «Sin entrar: 0» con gente que nunca abrió nada—; la navegación,
+        en cambio, solo la genera una persona usando la app.{" "}
+        <b>«Desde el arranque»</b> mide a partir del {PILOTO_ARRANQUE_UY} (día 1 real del piloto): lo anterior fue
+        preparación y pruebas. «🔑 de arranque» = todavía no puso su contraseña propia.
       </p>
 
       {/* ── Usando la app ── */}
@@ -227,17 +284,25 @@ export default async function UsoPage({
                         {hace(ultimaSenal(p))}
                       </span>
                     </div>
+                    {/* Una sola línea legible: cuántas VECES abrió la app (no cuántos
+                        clics dio), en cuántos días, y en qué anduvo. Las mini-barras
+                        muestran de un vistazo si viene sostenido o si se cayó. */}
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] font-medium text-gris tabular-nums">
-                      <span>{p.vistas} vistas</span>
-                      <span>{p.diasActivos} días activos</span>
-                      <span>{p.acciones} acciones</span>
-                      {p.secciones.slice(0, 4).map((s) => (
-                        <span key={s.seccion} className="rounded-full bg-suave px-2 py-0.5 text-[10.5px] font-semibold text-cuerpo">
-                          {s.seccion} ×{s.n}
-                        </span>
-                      ))}
+                      <Barras porDia={p.porDia} pico={pico} />
+                      <span>
+                        <b className="text-tinta">{p.sesiones}</b> {p.sesiones === 1 ? "vez" : "veces"} · {p.diasActivos}{" "}
+                        {p.diasActivos === 1 ? "día" : "días"}
+                      </span>
+                      {p.acciones > 0 && <span>{p.acciones} acciones</span>}
+                      <span className="text-tenue-2">·</span>
+                      <span className="min-w-0 truncate">
+                        {p.secciones.slice(0, 3).map((s) => s.seccion.replace(" (cobrador)", "")).join(" · ")}
+                        {p.secciones.length > 3 && ` +${p.secciones.length - 3}`}
+                      </span>
                       {p.faltan.length > 0 && (
-                        <span className="text-[11px] font-semibold text-[#9A6A0E]">no abrió: {p.faltan.join(" · ")}</span>
+                        <span className="ml-auto flex-shrink-0 rounded-full bg-[#FDF3E2] px-2 py-0.5 text-[10.5px] font-bold text-[#9A6A0E]">
+                          sin usar: {p.faltan.length}
+                        </span>
                       )}
                     </div>
                   </Link>
@@ -249,15 +314,20 @@ export default async function UsoPage({
       </section>
 
       {/* ── Sin actividad en la ventana ── */}
-      {(entraronSinNavegar.length > 0 || nuncaEntraron.length > 0) && (
+      {(seEstrenaron.length > 0 || nuncaEntraron.length > 0) && (
         <section className="flex flex-col gap-1.5">
           <h2 className="px-1 text-[12px] font-bold tracking-[0.03em] text-gris uppercase">
-            Sin actividad en la ventana ({entraronSinNavegar.length + nuncaEntraron.length})
+            Sin actividad · {ventanaLabel.toLowerCase()} ({seEstrenaron.length + nuncaEntraron.length})
+            {nuncaEntraron.length > 0 && (
+              <span className="ml-2 text-[#C0392B] normal-case">
+                — {nuncaEntraron.length} nunca abrieron la app
+              </span>
+            )}
           </h2>
           <ul className="flex flex-col divide-y divide-linea overflow-hidden rounded-[16px] border border-borde bg-tarjeta">
-            {[...entraronSinNavegar, ...nuncaEntraron].map((p) => {
+            {[...seEstrenaron, ...nuncaEntraron].map((p) => {
               const t = ROL_TONO[p.rol] ?? ROL_TONO.cobrador;
-              const entro = !!p.ultimoAccesoIso;
+              const entro = !!p.estrenoIso;
               return (
                 <li key={p.id} className="flex flex-wrap items-center gap-2 px-3.5 py-2.5">
                   <span className="flex-shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-bold" style={{ background: t.bg, color: t.fg }}>{t.label}</span>
@@ -267,7 +337,7 @@ export default async function UsoPage({
                   <span
                     className={`ml-auto flex-shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-bold ${entro ? "bg-[#FDF3E2] text-[#9A6A0E]" : "bg-[#FBE4E2] text-[#C0392B]"}`}
                   >
-                    {entro ? `entró ${hace(p.ultimoAccesoIso)} · no navegó` : "nunca entró"}
+                    {entro ? `se estrenó ${hace(p.estrenoIso)} · nada en esta ventana` : "NUNCA abrió la app"}
                   </span>
                 </li>
               );
@@ -302,11 +372,30 @@ export default async function UsoPage({
   );
 }
 
-function Kpi({ label, valor, tono }: { label: string; valor: string; tono?: string }) {
+function Kpi({ label, valor, sub, tono }: { label: string; valor: string; sub?: string; tono?: string }) {
   return (
     <div className="flex min-w-0 flex-col gap-0.5 rounded-[14px] bg-tarjeta p-3.5 shadow-[0_1px_3px_rgba(19,48,140,0.06)]">
       <span className="text-[11px] font-semibold text-tenue">{label}</span>
       <span className="text-[18px] font-extrabold tabular-nums" style={{ color: tono ?? "var(--color-tinta)" }}>{valor}</span>
+      {sub && <span className="truncate text-[10.5px] font-medium text-tenue-2">{sub}</span>}
     </div>
+  );
+}
+
+/** Mini-barras de actividad por día. Todas las filas comparten la misma escala
+ *  (`pico`), si no una persona con 5 vistas se ve tan activa como una con 200. */
+function Barras({ porDia, pico }: { porDia: { dia: string; n: number }[]; pico: number }) {
+  if (porDia.length <= 1) return null;
+  const ultimos = porDia.slice(-14);
+  return (
+    <span className="flex h-5 flex-shrink-0 items-end gap-[2px]" title={ultimos.map((d) => `${d.dia}: ${d.n}`).join("\n")}>
+      {ultimos.map((d) => (
+        <span
+          key={d.dia}
+          className="w-[4px] rounded-[1px] bg-[#1FA971]"
+          style={{ height: `${Math.max(12, Math.round((d.n / pico) * 100))}%`, opacity: 0.35 + 0.65 * (d.n / pico) }}
+        />
+      ))}
+    </span>
   );
 }
