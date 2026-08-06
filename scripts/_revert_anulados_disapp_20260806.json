@@ -1,0 +1,65 @@
+[
+ {
+  "pago_id": "9160cce9-f487-448e-aa04-62e86a0c910f",
+  "ref": "PRD0003395601",
+  "cliente": "GERARDO VARELA SHAWARMANS",
+  "monto": 24000.0,
+  "disapp_pago_id": "48470735",
+  "fecha": "2026-06-05",
+  "dif": 24000.0
+ },
+ {
+  "pago_id": "f57da738-276f-49d6-8b55-250302a4703b",
+  "ref": "PRD0003040342",
+  "cliente": "EMILY MARIA ARTUNDUAGA",
+  "monto": 2748.0,
+  "disapp_pago_id": "ajuste-3040342-14",
+  "fecha": "2025-11-27",
+  "dif": 2748.0
+ },
+ {
+  "pago_id": "bd70abdb-8d7e-488b-9901-0dbd8dfd0c14",
+  "ref": "PRD0003451971",
+  "cliente": "ALDA INES DE SOUZA",
+  "monto": 200.0,
+  "disapp_pago_id": "48767971",
+  "fecha": "2026-06-15",
+  "dif": 200.0
+ },
+ {
+  "pago_id": "c4503d1a-c2f3-4a59-ae4a-dce1d0ea0db0",
+  "ref": "PRD0003335708",
+  "cliente": "DIAMELA MAGALLANES",
+  "monto": 495.0,
+  "disapp_pago_id": "48629337",
+  "fecha": "2026-06-10",
+  "dif": 495.23
+ },
+ {
+  "pago_id": "2bc78b4a-e314-4585-acbb-3720364713b8",
+  "ref": "PRD0003007997",
+  "cliente": "VERONICA PICA",
+  "monto": 200.0,
+  "disapp_pago_id": "49746593",
+  "fecha": "2026-07-15",
+  "dif": 200.0
+ },
+ {
+  "pago_id": "7ec238af-9a02-485f-9351-01e7b483b4e5",
+  "ref": "PRD0003547085",
+  "cliente": "KARINA TORRES",
+  "monto": 800.0,
+  "disapp_pago_id": "50411269",
+  "fecha": "2026-08-05",
+  "dif": 800.0
+ },
+ {
+  "pago_id": "be3464cb-2d51-40af-a431-3872a548d924",
+  "ref": "PRD0002676540",
+  "cliente": "VERóNICA PASCUAL KIOSOCO JUSTICIA",
+  "monto": 100.0,
+  "disapp_pago_id": "48956051",
+  "fecha": "2026-06-20",
+  "dif": 100.0
+ }
+]

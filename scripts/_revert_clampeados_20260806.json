@@ -1,0 +1,62 @@
+[
+ {
+  "pago_id": "3a72a206-16ce-412e-85a4-d856f2630be3",
+  "cliente": "MARCO DUFOUR",
+  "ref": "PRD0003368621",
+  "monto": 144000.0,
+  "cuota": 3600.0,
+  "saldoDisapp": 144000.0,
+  "cuando": "2026-08-05 23:39:24.137000",
+  "cobrador": "Karent Londoño"
+ },
+ {
+  "pago_id": "9de9bacf-1721-473a-bfde-5f7e6e577955",
+  "cliente": "MATIAS SEBASTIáN RODRíGUEZ",
+  "ref": "PRD0003403765",
+  "monto": 116560.0,
+  "cuota": 4350.0,
+  "saldoDisapp": 116560.0,
+  "cuando": "2026-08-05 21:04:56.673000",
+  "cobrador": "Edward Muñoz"
+ },
+ {
+  "pago_id": "7f409687-3550-4b8b-bcca-b387ced4aa17",
+  "cliente": "SHEILA ANAHI VADCONCELLO RUIZ",
+  "ref": "PRD0003272904",
+  "monto": 30000.0,
+  "cuota": 1000.0,
+  "saldoDisapp": 30000.0,
+  "cuando": "2026-08-05 20:19:40.576000",
+  "cobrador": "Karent Londoño"
+ },
+ {
+  "pago_id": "3891b4b1-de78-498c-afc0-e5b786f77a26",
+  "cliente": "SUSANA INéS RODRíGUEZ SARAVI",
+  "ref": "PRD0003332981",
+  "monto": 8400.0,
+  "cuota": 2100.0,
+  "saldoDisapp": 8400.0,
+  "cuando": "2026-08-05 23:44:07.625000",
+  "cobrador": "Karent Londoño"
+ },
+ {
+  "pago_id": "d83fe1c0-933b-472c-804f-227fdfe5b65d",
+  "cliente": "ANA TECHERA",
+  "ref": "PRD0003555604",
+  "monto": 3000.0,
+  "cuota": 500.0,
+  "saldoDisapp": 3000.0,
+  "cuando": "2026-08-05 16:58:59.299000",
+  "cobrador": "Alejandro Cardona"
+ },
+ {
+  "pago_id": "ad58daec-b11c-445d-beb4-ad249bc98070",
+  "cliente": "ELSA DANIELA FERNÁNDEZ TORRES",
+  "ref": "PRD0003355856",
+  "monto": 1300.0,
+  "cuota": 500.0,
+  "saldoDisapp": 1300.0,
+  "cuando": "2026-08-05 16:28:46.913000",
+  "cobrador": "Edward Muñoz"
+ }
+]
