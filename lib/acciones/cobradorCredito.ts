@@ -46,6 +46,7 @@ import {
   evaluarRenovacion,
   montoRenovacionAutoAprobable,
   montoRenovacionPedido,
+  montoRenovacionSugerido,
   requiereAprobacionAdmin,
   techoRenovacion,
   RENOVACION_AUMENTO_PCT,
@@ -240,10 +241,27 @@ export async function renovarDesdeCalle(input: {
   // aparecía en la lista. El monto pedido NO se recorta al CAP: recortarlo sería
   // rebajarle el capital al cliente en silencio.
   if (requiereAprobacionAdmin(montoAnterior)) {
+    // ⚠️ Se respeta el monto EDITADO por el cobrador. Antes esta rama mandaba
+    // siempre el monto del crédito anterior: el botón decía "pedir $50.000" y a la
+    // oficina le llegaba una solicitud por $120.000 que el admin aprobaba a ciegas.
+    const pedido =
+      input.monto == null ? montoRenovacionPedido(montoAnterior) : Math.round(Number(input.monto));
+    if (!Number.isFinite(pedido) || pedido <= 0) {
+      return { ok: false, error: "Revisá el monto de la renovación." };
+    }
+    const techo = techoRenovacion(montoAnterior);
+    if (pedido > techo) {
+      // No se recorta en silencio: el cobrador tiene que ver que su número no entra
+      // (un cero de más escrito sin querer se convertía en un crédito 5× más grande).
+      return {
+        ok: false,
+        error: `El máximo para este cliente es ${UYU(techo)}. Si necesita más, tiene que pedirlo la oficina.`,
+      };
+    }
     return pedirAprobacion(db, u, {
       clienteId: input.clienteId,
       prestamoAnteriorId: ant.id,
-      monto: montoRenovacionPedido(montoAnterior),
+      monto: pedido,
       totalDias,
       frecuencia: (ant.frecuencia as FrecuenciaPrestamo) ?? "diario",
     });
@@ -253,16 +271,27 @@ export async function renovarDesdeCalle(input: {
   // desde la calle: el cobrador ve al cliente y a veces el número tiene que ser
   // otro. Si lo que pide entra en su techo, va derecho; si se pasa, NO rebota —
   // se le pide al admin, que es el mismo camino de todo lo que no se aprueba solo.
-  const sugerido = montoRenovacionAutoAprobable(montoAnterior);
-  const pedido = input.monto == null ? sugerido : Math.round(Number(input.monto));
+  // El TECHO que el cobrador puede aprobar solo es +20%. El monto por DEFECTO es
+  // el MISMO del crédito que terminó (regla de Carlos, 06-08: "si terminó 60k, se
+  // renueva en 60k") — el 20% nunca fue un aumento de capital.
+  const techoSolo = montoRenovacionAutoAprobable(montoAnterior);
+  const pedido =
+    input.monto == null ? montoRenovacionSugerido(montoAnterior) : Math.round(Number(input.monto));
   if (!Number.isFinite(pedido) || pedido <= 0) {
     return { ok: false, error: "Revisá el monto de la renovación." };
   }
-  if (pedido > sugerido) {
+  if (pedido > techoSolo) {
+    const techo = techoRenovacion(montoAnterior);
+    if (pedido > techo) {
+      return {
+        ok: false,
+        error: `El máximo para este cliente es ${UYU(techo)}. Si necesita más, tiene que pedirlo la oficina.`,
+      };
+    }
     return pedirAprobacion(db, u, {
       clienteId: input.clienteId,
       prestamoAnteriorId: ant.id,
-      monto: Math.min(pedido, techoRenovacion(montoAnterior)),
+      monto: pedido,
       totalDias,
       frecuencia: (ant.frecuencia as FrecuenciaPrestamo) ?? "diario",
     });

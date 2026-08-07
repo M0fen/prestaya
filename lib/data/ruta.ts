@@ -16,7 +16,12 @@ export type EstadoHoy = "pagado" | "abono" | "no_pago" | "pendiente" | "sin_cred
 export interface ItemRuta {
   cliente: Cliente;
   prestamoId: string | null;
+  /** Lo COBRABLE hoy: cuota que vence + atraso arrastrado (tope una cuota). */
   cuota: number;
+  /** De `cuota`, cuánto es ATRASO de días anteriores (no cuota de hoy). >0 con
+   *  `cuota === atraso` = no le vence nada hoy pero debe: el cobrador pasa igual,
+   *  y no cuenta en la meta del día. */
+  atraso: number;
   estadoHoy: EstadoHoy;
   pagadoHoy: number;
   /** Posición en el recorrido que el cobrador se armó (asignaciones.orden, 0132).
@@ -113,39 +118,109 @@ export function estadoHoyDe(
  * (el `min` de abajo lo topea), que es la conducta de siempre.
  * Pura y testeable.
  */
-export function cuotaObjetivoHoy(
+export interface ObjetivoDelDia {
+  /** Cuota PROGRAMADA que vence HOY (0 si hoy no le toca a este crédito). Es lo
+   *  único que entra a la META del día. */
+  cuotaHoy: number;
+  /** Deuda ARRASTRADA de cuotas anteriores impagas (topeada a una cuota). Se le
+   *  puede cobrar hoy, pero NO es meta de hoy. */
+  mora: number;
+}
+
+/**
+ * Parte el objetivo del día en LO QUE VENCE HOY y LO QUE VIENE ATRASADO.
+ *
+ * ⚠️ Regla de plata que costó el reporte de campo del día 2 ("los créditos
+ * semanales siguen saliendo para pagar todos los días"): a un crédito SEMANAL le
+ * vence UNA cuota por semana. Si no la paga el lunes, la deuda sigue viva de
+ * martes a sábado — pero eso es MORA, no "la cuota de hoy". Sumarla a la meta
+ * diaria hacía que:
+ *   · al cliente se le pidiera la cuota entera los 6 días hábiles, como si
+ *     debiera 6 cuotas en la semana en vez de una;
+ *   · el cobrador persiguiera una meta imposible y nunca llegara a "Ruta completa".
+ * Medido sobre la cartera viva el 07-08-2026: la app pedía $6.516.878 cuando lo
+ * que vencía ese día eran $1.216.586 — el 81% era mora arrastrada, y solo en
+ * semanales eran 544 créditos / $3.960.742.
+ *
+ * DOMINGO: ninguna cuota vence (fechaDeCuota corre al lunes las que caerían en
+ * domingo) → `cuotaHoy` da 0 para TODOS. Antes el domingo la ruta abría pidiendo
+ * $6.676.111 de una cartera en la que no vencía un solo peso.
+ *
+ * El cliente atrasado NO se esconde: la mora viaja aparte para poder mostrarla y
+ * cobrarla. Lo único que cambia es que deja de contarse como cuota del día.
+ * Pura y testeable.
+ */
+export function objetivoDelDia(
   c: { cuota: number; totalDias: number; fechaInicio: string; frecuencia: FrecuenciaPrestamo; pagadoAcum: number },
   hoy: Date,
-): number {
+): ObjetivoDelDia {
   const totalCred = c.cuota * c.totalDias;
-  const debidas = cuotasDebidasHasta(
-    { cuota_diaria: c.cuota, total_dias: c.totalDias, fecha_inicio: c.fechaInicio, frecuencia: c.frecuencia ?? "diario" },
-    hoy,
-  );
+  const calc = {
+    cuota_diaria: c.cuota,
+    total_dias: c.totalDias,
+    fecha_inicio: c.fechaInicio,
+    frecuencia: c.frecuencia ?? "diario",
+  };
+  const debidasHoy = cuotasDebidasHasta(calc, hoy);
+  // Cuotas que ya vencían AYER: la diferencia con hoy es lo que vence HOY.
+  const ayer = new Date(hoy);
+  ayer.setDate(ayer.getDate() - 1);
+  const debidasAyer = cuotasDebidasHasta(calc, ayer);
+
   // ⚠️ `pagadoAcum` debe ser lo pagado ANTES de hoy (el llamador resta el cobro de
   // hoy): el trigger 0063 lo actualiza en el insert, y si acá se restara el pago de
   // hoy, `estadoHoyDe`/`recaudadoRuta` lo descontarían DOS veces (cobro a medias se
   // vería "Cobrado" y el cobrador no iría por el resto).
-  const montoDebido = Math.max(0, Math.min(debidas * c.cuota, totalCred) - c.pagadoAcum);
+  // Lo pagado se imputa a las cuotas MÁS VIEJAS primero, así que la deuda hasta
+  // ayer es la MORA y lo que sobra hasta hoy es la cuota del día.
+  const deudaHastaHoy = Math.max(0, Math.min(debidasHoy * c.cuota, totalCred) - c.pagadoAcum);
+  const deudaHastaAyer = Math.max(0, Math.min(debidasAyer * c.cuota, totalCred) - c.pagadoAcum);
+
   // Tolerancia sub-peso (espejo del cartón): cuota fraccionaria + pagos enteros
   // dejan un residuo de centavos → sin esto el crédito no llega nunca a 0 (al día).
-  if (montoDebido < 0.5) return 0;
-  return Math.min(c.cuota, montoDebido);
+  const cuotaHoy = deudaHastaHoy - deudaHastaAyer;
+  return {
+    cuotaHoy: cuotaHoy < 0.5 ? 0 : Math.min(c.cuota, cuotaHoy),
+    // La mora se topea a UNA cuota, igual que siempre: nunca se le pide al cliente
+    // varias cuotas juntas de golpe.
+    mora: deudaHastaAyer < 0.5 ? 0 : Math.min(c.cuota, deudaHastaAyer),
+  };
+}
+
+/**
+ * Lo que se le PIDE hoy al crédito: la cuota que vence hoy + lo que viene
+ * atrasado, topeado a una cuota (el cliente nunca ve que se le pidan dos juntas).
+ * Es el número del botón de cobro; la META del día usa solo `cuotaHoy`.
+ */
+export function cuotaObjetivoHoy(
+  c: { cuota: number; totalDias: number; fechaInicio: string; frecuencia: FrecuenciaPrestamo; pagadoAcum: number },
+  hoy: Date,
+): number {
+  const { cuotaHoy, mora } = objetivoDelDia(c, hoy);
+  const total = cuotaHoy + mora;
+  return total < 0.5 ? 0 : Math.min(c.cuota, total);
 }
 
 /** Un crédito activo del cliente: su cuota-OBJETIVO de hoy, lo cobrado HOY en él y
  *  si su PLAZO ya venció. `alDia`: crédito REAL (cuota_diaria>0) en término sin cuota
  *  vencida hoy (no-diario al día) → distingue "nada que cobrar" de "dato roto". */
 export interface CreditoRuta {
+  /** Lo que se le PIDE hoy (cuota que vence + mora arrastrada, tope una cuota). */
   cuota: number;
   pagadoHoy: number;
   plazoVencido: boolean;
   alDia?: boolean;
+  /** Solo la cuota PROGRAMADA de hoy. Es lo que entra a la META del día: la mora
+   *  de un semanal no puede contarse como cuota los 6 días de la semana. */
+  cuotaProgramada?: number;
 }
 
 export interface ClaseClienteRuta {
-  /** Suma de cuota de los créditos EN TÉRMINO (el target de cobro de HOY). */
+  /** Suma de la cuota que VENCE HOY en los créditos EN TÉRMINO (la meta del día). */
   cuotaEnTermino: number;
+  /** Atraso arrastrado que se le puede cobrar hoy PERO no es meta de hoy (la cuota
+   *  de un semanal no vence 6 veces por semana). Visible, cobrable, fuera de la meta. */
+  moraEnTermino: number;
   /** Cobrado HOY en créditos EN TÉRMINO (para el ESTADO del cliente y el chip "Abonó"). */
   pagadoHoyEnTermino: number;
   /** Cobrado HOY en TODOS los créditos (para el recaudo — la plata es plata). */
@@ -181,7 +256,15 @@ export function clasificarClienteRuta(
   esNoPago: boolean,
 ): ClaseClienteRuta {
   const enTermino = creditos.filter((c) => !c.plazoVencido);
-  const cuotaEnTermino = enTermino.reduce((s, c) => s + c.cuota, 0);
+  // ⚠️ La META del día es lo que VENCE hoy, no lo que se le puede pedir. La mora
+  // arrastrada de un semanal se cobra si el cliente puede, pero contarla como
+  // cuota los 6 días hábiles le inventaba al cobrador una meta 5× la real.
+  const cuotaEnTermino = enTermino.reduce((s, c) => s + (c.cuotaProgramada ?? c.cuota), 0);
+  /** Atraso a recuperar hoy: lo que se le puede pedir por encima de la cuota del día. */
+  const moraEnTermino = enTermino.reduce(
+    (s, c) => s + Math.max(0, c.cuota - (c.cuotaProgramada ?? c.cuota)),
+    0,
+  );
   const pagadoHoyEnTermino = enTermino.reduce((s, c) => s + c.pagadoHoy, 0);
   const pagadoHoyTotal = creditos.reduce((s, c) => s + c.pagadoHoy, 0);
   // "Cartera vencida pura" = NO tiene ningún crédito EN TÉRMINO (todos con plazo
@@ -196,6 +279,7 @@ export function clasificarClienteRuta(
   const alDiaHoy = enTermino.length > 0 && enTermino.every((c) => c.alDia === true);
   return {
     cuotaEnTermino,
+    moraEnTermino,
     pagadoHoyEnTermino,
     pagadoHoyTotal,
     soloVencido,
@@ -203,7 +287,9 @@ export function clasificarClienteRuta(
     cuentaEnRuta: !soloVencido,
     // Solo cuenta como "al día por cronograma" si NO hubo cobro hoy (si cobró,
     // es un "Cobrado" de verdad y las cuentas del día lo incluyen).
-    alDiaCronograma: alDiaHoy && pagadoHoyEnTermino <= 0,
+    // ⚠️ Con MORA viva NO es "hoy no toca": el cobrador tiene que pasar igual. Se
+    // muestra como atraso a recuperar, fuera de la meta pero dentro de la ruta.
+    alDiaCronograma: alDiaHoy && pagadoHoyEnTermino <= 0 && moraEnTermino <= 0.5,
   };
 }
 
@@ -352,7 +438,7 @@ export async function getRutaCobrador(
       // suyo: se saca de la ruta. Si no tiene con nadie, queda como candidato a
       // venta nueva (al final, con "sin crédito"), que es información útil.
       if (conCreditoAjeno.has(c.id)) return [];
-      return [{ cliente: c, prestamoId: null, cuota: 0, estadoHoy: "sin_credito" as const, pagadoHoy: 0, orden: ordenDe.get(c.id) ?? null, sinCuotaHoy: false, plazoVencido: false, recuperadoHoy: 0 }];
+      return [{ cliente: c, prestamoId: null, cuota: 0, atraso: 0, estadoHoy: "sin_credito" as const, pagadoHoy: 0, orden: ordenDe.get(c.id) ?? null, sinCuotaHoy: false, plazoVencido: false, recuperadoHoy: 0 }];
     }
     // No-pago si alguno de sus créditos quedó marcado como visita sin cobro.
     const esNoPago = cr.creditos.some((x) => noPagoPrestamos.has(x.id));
@@ -365,18 +451,28 @@ export async function getRutaCobrador(
       // (pagado_acum − pagadoHoy: el trigger 0063 ya incluyó el cobro de hoy). Así la
       // cuota-objetivo es ESTABLE intradía y el pago de hoy se descuenta UNA sola vez
       // (vía pagadoHoy/estadoHoyDe). Diario ignora pagadoAcum → 80% sin cambios (#5).
-      const cuotaHoy = cuotaObjetivoHoy(
+      const { cuotaHoy: programada, mora } = objetivoDelDia(
         { cuota: x.cuotaDiaria, totalDias: x.totalDias, fechaInicio: x.fechaInicio, frecuencia: x.frecuencia, pagadoAcum: x.pagadoAcum - pagadoHoy },
         hoyMid,
       );
+      // Lo que se le PIDE = cuota de hoy + atraso, topeado a una cuota. Lo que
+      // cuenta como META = solo la cuota de hoy.
+      const aPedir = Math.min(x.cuotaDiaria, programada + mora);
       return {
-        cuota: cuotaHoy,
+        cuota: aPedir < 0.5 ? 0 : aPedir,
+        cuotaProgramada: programada,
         pagadoHoy,
         plazoVencido: x.plazoVencido,
         // Al día por cronograma (crédito REAL: cuota_diaria>0 y total_dias>0): distingue
         // "nada que cobrar" de un crédito roto (cuota 0 / días 0), que sigue visible como
         // pendiente. (La BD ya garantiza >0, pero el guard cierra la asimetría defensiva.)
-        alDia: cuotaHoy <= 0.5 && x.cuotaDiaria > 0 && x.totalDias > 0 && !x.plazoVencido,
+        // Con MORA viva NO está al día: debe seguir apareciendo como pendiente.
+        alDia:
+          programada <= 0.5 &&
+          mora <= 0.5 &&
+          x.cuotaDiaria > 0 &&
+          x.totalDias > 0 &&
+          !x.plazoVencido,
       };
     });
     const clase = clasificarClienteRuta(creditos, esNoPago);
@@ -401,7 +497,11 @@ export async function getRutaCobrador(
     return [{
       cliente: c,
       prestamoId: cr.principalId,
-      cuota: clase.cuotaEnTermino,
+      // Lo que la TARJETA le pide: la cuota de hoy + el atraso arrastrado. La meta
+      // del día (`esperado`) usa solo la cuota; acá va todo lo cobrable, porque
+      // mostrarle $0 a un semanal que debe sería esconder la deuda.
+      cuota: clase.cuotaEnTermino + clase.moraEnTermino,
+      atraso: clase.moraEnTermino,
       estadoHoy: clase.estadoHoy,
       pagadoHoy: clase.pagadoHoyEnTermino, // lo cobrado hacia la cuota de HOY (chip "Abonó")
       orden: ordenDe.get(c.id) ?? null,

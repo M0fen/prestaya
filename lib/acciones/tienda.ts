@@ -31,6 +31,7 @@ import { crearPedidoCurbeDb } from "@/lib/data/pedidosCurbe";
 import { calcularPlanVenta } from "@/lib/venta";
 import { RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
 import { hoyUY } from "@/lib/fecha";
+import { proximoDiaCobro } from "@/lib/cartones";
 import { toIso } from "@/lib/format";
 import type { Calificacion } from "@/types/db";
 
@@ -608,7 +609,9 @@ export async function convertirLeadEnVenta(input: {
   }
 
   const opId = opIdDeterminista("venta", input.solicitudId);
-  const fechaInicio = toIso(hoyUY());
+  // Se entrega hoy, se empieza a pagar el próximo día de cobro (igual que el
+  // crédito de efectivo): la cuota 1 no puede vencer el día de la entrega.
+  const fechaInicio = toIso(proximoDiaCobro(hoyUY()));
 
   const res = await crearVentaSegura(db, {
     solicitudId: input.solicitudId,

@@ -28,7 +28,7 @@ export interface CobradorBase {
   origen?: "cargada" | "arrastre" | "sin_base";
   /** Solo con `arrastre`: el día del que viene y cómo se llegó al número. */
   desdeFecha?: string;
-  detalleAyer?: { base: number; recaudado: number; gastos: number; entregado: number };
+  detalleAyer?: { base: number; recaudado: number; gastos: number; entregado: number; colocado: number };
 }
 
 const SIN_ZONA = "__sin_zona__";
@@ -179,8 +179,13 @@ export function BaseCajaManager({
                                 tiene que saber ANTES de recibirle el efectivo. */}
                             {c.origen === "arrastre" && c.detalleAyer ? (
                               <span className="text-[10px] leading-[1.35] font-medium text-[#8A6D1E] tabular-nums">
-                                🔁 le quedó de {c.desdeFecha ?? "ayer"}: cobró {UYU(c.detalleAyer.recaudado)}
+                                {/* La cuenta COMPLETA, empezando por la base de ese
+                                    día: sin ella los números no cerraban y el
+                                    supervisor no podía seguir de dónde salió. */}
+                                🔁 le quedó de {c.desdeFecha ?? "ayer"}: base {UYU(c.detalleAyer.base)}
+                                {" + cobró "}{UYU(c.detalleAyer.recaudado)}
                                 {c.detalleAyer.gastos > 0 && ` − gastos ${UYU(c.detalleAyer.gastos)}`}
+                                {c.detalleAyer.colocado > 0 && ` − colocó ${UYU(c.detalleAyer.colocado)}`}
                                 {" − entregó "}{UYU(c.detalleAyer.entregado)}
                               </span>
                             ) : c.origen === "cargada" ? (

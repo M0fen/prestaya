@@ -114,6 +114,9 @@ export function CierrePorZona({
                         {c.estado === "pendiente"
                           ? `recaudó ${UYU(c.recaudado)} · sin rendir`
                           : `entregó ${UYU(c.entregado)} · esperado ${UYU(c.esperado)}`}
+                        {/* El capital que puso en la calle NO vuelve: sin decirlo,
+                            el supervisor lee un "esperado" bajo y sospecha. */}
+                        {c.colocado > 0 && ` · colocó ${UYU(c.colocado)} en la calle`}
                       </span>
                     </div>
                     <span

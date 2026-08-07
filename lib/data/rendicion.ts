@@ -10,6 +10,7 @@ import { toIso } from "@/lib/format";
 import type { EstadoRendicion } from "@/lib/rendicion";
 import { getSolicitudesGastoCobrador } from "./solicitudesGasto";
 import { getAperturaDia } from "./aperturas";
+import { colocadoPorCobrador, colocadoEnDias, claveColocado } from "./colocado";
 import { tablaFaltante, columnaFaltante } from "./errores";
 import { traerTodo } from "./paginado";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
@@ -32,6 +33,9 @@ export interface RendicionDia {
   /** Recaudo EN VIVO del cobrador hoy (no el congelado al cerrar). Si es MAYOR que
    *  `recaudado`, cobró DESPUÉS de rendir → esa plata no entró a esta rendición. */
   recaudadoVivo?: number;
+  /** Capital que colocó en la calle ese día. DERIVADO de `prestamos` (la tabla
+   *  `rendiciones` no lo guarda): no vuelve al supervisor, así que baja el esperado. */
+  colocado?: number;
 }
 
 export interface EstadoJornada {
@@ -75,6 +79,10 @@ function mapRendicion(r: Record<string, unknown>): RendicionDia {
     creadoEn: r.creado_en as string,
     // Defensivo: si 0105 aún no corrió, la columna viene undefined → 0.
     base: r.base == null ? 0 : Number(r.base),
+    // 0136. Si la migración no corrió viene undefined; el llamador lo completa
+    // DERIVÁNDOLO de `prestamos` (lib/data/colocado.ts), así que el número en
+    // pantalla es correcto igual — solo se pierde el congelado.
+    colocado: r.colocado == null ? undefined : Number(r.colocado),
   };
 }
 
@@ -109,38 +117,6 @@ async function recaudadoHoyDe(
   return { recaudado, cobros: data.length };
 }
 
-/**
- * CAPITAL COLOCADO hoy por el cobrador: la plata que sacó de su bolsillo para
- * renovar o vender en la calle. Se cuenta por `creado_por` —quien hizo el alta— y
- * no por dueño de la ruta: si el crédito lo dio de alta la oficina, el efectivo no
- * salió del bolsillo de él y exigírselo sería inventarle un faltante.
- * Derivado de `prestamos`, igual que el recaudo sale de `pagos`: no hace falta
- * guardarlo en ningún lado y se puede recalcular para cualquier día.
- */
-export async function colocadoPorCobrador(
-  db: SupabaseClient,
-  cobradorId: string,
-  desdeIso: string,
-  hastaIso?: string,
-): Promise<{ colocado: number; creditos: number }> {
-  try {
-    let q = db
-      .from("prestamos")
-      .select("monto_prestado")
-      .eq("creado_por", cobradorId)
-      .gte("creado_en", desdeIso);
-    if (hastaIso) q = q.lt("creado_en", hastaIso);
-    const { data, error } = await q;
-    if (error) throw error;
-    const filas = data ?? [];
-    return {
-      colocado: filas.reduce((s, p) => s + Math.round(Number(p.monto_prestado) || 0), 0),
-      creditos: filas.length,
-    };
-  } catch {
-    return { colocado: 0, creditos: 0 }; // nunca frenar el cierre por esto
-  }
-}
 
 /** Estado de la jornada del cobrador logueado (para la pantalla de cierre). */
 export async function getEstadoJornada(
@@ -161,7 +137,6 @@ export async function getEstadoJornada(
   const base = await getAperturaDia(db, cobradorId, hoy);
   // Capital que colocó HOY en la calle (renovaciones + ventas): ya no lo tiene.
   const { colocado, creditos: creditosColocados } = await colocadoPorCobrador(
-    db,
     cobradorId,
     inicioDiaUYIso(hoy),
   );
@@ -241,7 +216,13 @@ export async function getDeudaRendicionAyer(
       .order("id", { ascending: true })
       .range(d, h),
   );
-  const monto = pagos.reduce((s, r) => s + Math.round(Number(r.monto)), 0);
+  const cobrado = Math.round(pagos.reduce((s, r) => s + Number(r.monto), 0));
+  // ⚠️ El capital que colocó AYER en la calle NO lo tiene: el banner le pedía
+  // entregar el recaudo BRUTO ("registraste $49.320, entregale ese efectivo") a
+  // alguien que en el bolsillo tenía $9.320 porque prestó $40.000.
+  const colocadoAyer =
+    (await colocadoEnDias([{ cobradorId, ymd: ayer }])).get(claveColocado(cobradorId, ayer)) ?? 0;
+  const monto = Math.max(0, cobrado - colocadoAyer);
   return monto > 0 ? { fecha: ayer, monto, cobros: pagos.length } : null;
 }
 
@@ -260,6 +241,11 @@ export interface NuevaRendicion {
   diferencia: number;
   /** Base de arranque congelada en la rendición (0105). */
   base: number;
+  /** Capital que entregó en la calle ese día, congelado al cerrar (0136). Es lo
+   *  que hace que la fila cuadre consigo misma: base + recaudado − gastos −
+   *  colocado − entregado = −diferencia. */
+  colocado: number;
+  creditosColocados: number;
   notas: string | null;
   registradoPor: string;
 }
@@ -290,10 +276,24 @@ export async function crearRendicionDb(r: NuevaRendicion): Promise<void> {
     entregado: r.entregado,
     diferencia: r.diferencia,
     base: r.base,
+    // 0136: se CONGELA el capital colocado con el que se calculó la diferencia.
+    // Sin esto la fila se contradice a sí misma (base + recaudado − gastos −
+    // entregado ≠ diferencia) y el acta firmada se movía sola si el cobrador
+    // renovaba a alguien después de rendir.
+    colocado: r.colocado,
+    creditos_colocados: r.creditosColocados,
     notas: r.notas,
     registrado_por: r.registradoPor,
   };
   let { error } = await admin.from("rendiciones").insert(fila);
+  // 0136 sin correr → insertar sin las columnas del colocado. La app lo DERIVA
+  // igual (lib/data/colocado.ts), así que el número en pantalla es el correcto;
+  // solo se pierde el congelado.
+  if (error && columnaFaltante(error)) {
+    delete fila.colocado;
+    delete fila.creditos_colocados;
+    ({ error } = await admin.from("rendiciones").insert(fila));
+  }
   // 0105 sin correr → insertar sin `base` (conducta previa; la diferencia igual
   // ya se calculó con base=0, así que no cambia el resultado).
   if (error && columnaFaltante(error)) {
@@ -305,8 +305,15 @@ export async function crearRendicionDb(r: NuevaRendicion): Promise<void> {
 
 export interface ResumenRendiciones {
   rendidas: RendicionDia[];
-  /** Cobradores que recaudaron hoy pero AÚN no rindieron. */
-  pendientes: { cobradorId: string; nombre: string; recaudado: number; cobros: number }[];
+  /** Cobradores que recaudaron hoy pero AÚN no rindieron. `recaudado` es BRUTO;
+   *  lo que TIENEN EN MANO es `recaudado − colocado`. */
+  pendientes: {
+    cobradorId: string;
+    nombre: string;
+    recaudado: number;
+    cobros: number;
+    colocado: number;
+  }[];
   totalEntregado: number;
   totalFaltante: number;
   totalSobrante: number;
@@ -383,22 +390,58 @@ export async function getRendicionesDia(
     }
   }
 
+  // CAPITAL COLOCADO del día por cobrador. `rendiciones` no lo guarda: se DERIVA
+  // de `prestamos`. Sin esto, el supervisor veía "entregó $58.053 · esperado
+  // $98.053" en la misma fila y el total de la zona le pedía $40.000 que el
+  // cobrador ya le había dado a los clientes.
+  const ymd = toIso(hoyUY(hoy));
+  const colocadoPorCob = await colocadoEnDias(
+    rows.map((r) => ({ cobradorId: r.cobrador_id as string, ymd })),
+  );
+
   const rendidas = rows
     .map((r) => {
       const base = mapRendicion(r);
       // Recaudo VIVO (no el congelado): si cobró más DESPUÉS de rendir, se ve.
       const vivo = recaudadoPorCob.get(base.cobradorId)?.recaudado ?? base.recaudado;
-      return { ...base, cobradorNombre: nombre.get(base.cobradorId) ?? "Cobrador", recaudadoVivo: vivo };
+      return {
+        ...base,
+        cobradorNombre: nombre.get(base.cobradorId) ?? "Cobrador",
+        recaudadoVivo: vivo,
+        // El CONGELADO de la fila manda (es el que explica la `diferencia` firmada);
+        // si 0136 no corrió, se cae al derivado.
+        colocado: base.colocado ?? colocadoPorCob.get(claveColocado(base.cobradorId, ymd)) ?? 0,
+      };
     })
     .sort((a, b) => a.diferencia - b.diferencia); // faltantes primero
   const rendidos = new Set(rendidas.map((r) => r.cobradorId));
+
+  // Los que AÚN NO rindieron: lo que tienen en mano es recaudo − capital colocado.
+  // El banner del cobrador y el "en la calle" del admin pedían el recaudo BRUTO.
+  const colocadoPendientes = await colocadoEnDias(
+    [...recaudadoPorCob.keys()]
+      .filter((id) => !rendidos.has(id) && esCobrador.has(id))
+      .map((id) => ({ cobradorId: id, ymd })),
+  );
 
   // Solo COBRADORES quedan como "sin rendir": un gestor (admin/supervisor) que
   // cobra en la oficina ya deja esa plata en la caja central, no la rinde en ruta
   // → contarlo lo mostraba como faltante-fantasma e inflaba "por rendir".
   const pendientes = [...recaudadoPorCob.entries()]
     .filter(([id]) => !rendidos.has(id) && esCobrador.has(id))
-    .map(([id, v]) => ({ cobradorId: id, nombre: nombre.get(id) ?? "Cobrador", recaudado: v.recaudado, cobros: v.cobros }))
+    .map(([id, v]) => {
+      const colocado = colocadoPendientes.get(claveColocado(id, ymd)) ?? 0;
+      // `recaudado` queda BRUTO (es lo que cobró, un hecho); el capital colocado
+      // viaja aparte para que cada pantalla reste y pueda MOSTRAR la resta. Lo que
+      // el supervisor va a recibir es `recaudado − colocado`.
+      return {
+        cobradorId: id,
+        nombre: nombre.get(id) ?? "Cobrador",
+        recaudado: v.recaudado,
+        cobros: v.cobros,
+        colocado,
+      };
+    })
     .sort((a, b) => b.recaudado - a.recaudado);
 
   return {

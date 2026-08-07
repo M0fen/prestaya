@@ -191,16 +191,20 @@ export async function getResumenPeriodo(
     }))
     .sort((a, b) => b.recaudado - a.recaudado);
 
-  // Colocación y créditos del período (por fecha_inicio / finalizado_en).
   const desdeFecha = toIso(inicio);
   const hastaFecha = toIso(base);
+  // Colocación y créditos del período.
+  // ⚠️ Por `creado_en` (CUÁNDO se entregó la plata), NO por `fecha_inicio`: desde
+  // que el crédito arranca el próximo día de cobro, `fecha_inicio` es mañana. Con
+  // el filtro viejo, "Colocado hoy" mostraba lo de AYER; lo colocado el sábado
+  // daba $0 (su inicio es lunes) y lo del día 15 se iba a la quincena siguiente.
   const [coloc, finRes] = await Promise.all([
     traerTodo<{ monto_prestado: number }>((d, h) =>
       db
         .from("prestamos")
         .select("monto_prestado")
-        .gte("fecha_inicio", desdeFecha)
-        .lte("fecha_inicio", hastaFecha)
+        .gte("creado_en", isoUY(inicio))
+        .lte("creado_en", new Date(ahoraMs).toISOString())
         .order("id", { ascending: true }) // estable: evita overlap entre páginas
         .range(d, h),
     ),

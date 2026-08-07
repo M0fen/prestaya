@@ -100,6 +100,7 @@ export default async function RutaPage() {
     recuperadoHoy: i.recuperadoHoy,
     orden: i.orden,
     sinCuotaHoy: i.sinCuotaHoy,
+    atraso: i.atraso,
   }));
 
   // Avance de la ruta: clientes "resueltos" hoy (cobrados + no-pago) sobre el
@@ -227,19 +228,32 @@ export default async function RutaPage() {
               </span>
             ) : (
               <span className="text-[16px] font-black text-tinta tabular-nums">
-                {UYU(Math.max(0, jornada.base + jornada.recaudado - jornada.gastosHoy))}
+                {/* ⚠️ Mismo cálculo que el cierre, COLOCADO incluido: sin restarlo,
+                    esta tarjeta decía $98.053 y el cierre —tres secciones más
+                    abajo, en la misma pantalla— pedía $58.053. */}
+                {UYU(
+                  Math.max(
+                    0,
+                    jornada.base + jornada.recaudado - jornada.gastosHoy - jornada.colocado,
+                  ),
+                )}
               </span>
             )}
           </div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className={jornada.colocado > 0 ? "grid grid-cols-4 gap-1.5" : "grid grid-cols-3 gap-2"}>
             <CajaDato label="Base recibida" valor={UYU(jornada.base)} />
             <CajaDato label="Cobrado" valor={UYU(jornada.recaudado)} tono="#157A50" />
+            {jornada.colocado > 0 && (
+              <CajaDato label="Colocaste" valor={`−${UYU(jornada.colocado)}`} tono="#6D4AC7" />
+            )}
             <CajaDato label="Gastos" valor={jornada.gastosHoy > 0 ? `−${UYU(jornada.gastosHoy)}` : UYU(0)} tono={jornada.gastosHoy > 0 ? "#B9770E" : undefined} />
           </div>
           {!jornada.yaRendida && (
             <p className="mt-2 text-[11px] leading-[1.45] font-medium text-[#8A93AD]">
               Es lo que deberías tener encima ahora — y lo que el cierre te va a pedir entregar
               {jornada.base > 0 ? " (la base se devuelve)" : ""}.
+              {jornada.colocado > 0 &&
+                ` Los ${UYU(jornada.colocado)} que pusiste en la calle (${jornada.creditosColocados} ${jornada.creditosColocados === 1 ? "crédito" : "créditos"}) ya están descontados: no te los van a pedir.`}
               {/* Base $0 a la mañana: puede ser real o que el supervisor no la cargó
                   todavía — que el cobrador lo sepa ANTES de salir, no en el cierre. */}
               {jornada.base <= 0 &&

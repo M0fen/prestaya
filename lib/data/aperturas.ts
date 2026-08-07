@@ -9,6 +9,8 @@ import { hoyUY } from "@/lib/fecha";
 import { toIso } from "@/lib/format";
 import { cajaFinal } from "@/lib/rendicion";
 import { tablaFaltante } from "./errores";
+import { traerTodo } from "./paginado";
+import { colocadoEnDias, claveColocado } from "./colocado";
 
 /** De dónde salió la base del día: cargada a mano o arrastrada de la cuadra de ayer. */
 export interface BaseDelDia {
@@ -18,7 +20,14 @@ export interface BaseDelDia {
   desdeFecha?: string;
   /** Solo en `arrastre`: cómo se llegó a ese número, para que el supervisor pueda
    *  seguir la cuenta sin abrir otra pantalla ("cobró X, entregó Y, le quedó Z"). */
-  detalle?: { base: number; recaudado: number; gastos: number; entregado: number };
+  detalle?: {
+    base: number;
+    recaudado: number;
+    gastos: number;
+    entregado: number;
+    /** Capital que colocó en la calle ese día: no lo tiene, y por eso no arrastra. */
+    colocado: number;
+  };
 }
 
 /**
@@ -76,14 +85,31 @@ export async function getBaseDelDia(
     if (error) throw error;
     const r = data?.[0];
     if (!r) return { base: 0, origen: "sin_base" };
+    // ⚠️ El COLOCADO de ese día se DERIVA: `rendiciones` no lo guarda. Sin restarlo,
+    // el capital que el cobrador puso en la calle volvía como base del día siguiente
+    // —plata que no tiene— y encima se auto-perpetuaba: al día siguiente entregaba
+    // todo, la cuadra volvía a dar el mismo número y el fantasma reaparecía para
+    // siempre, hasta que un supervisor cargara una base a mano.
+    const fecha = String(r.fecha);
+    const colocado =
+      (await colocadoEnDias([{ cobradorId, ymd: fecha }])).get(claveColocado(cobradorId, fecha)) ??
+      0;
+    const detalle = {
+      base: Math.round(Number(r.base ?? 0)),
+      recaudado: Math.round(Number(r.recaudado ?? 0)),
+      gastos: Math.round(Number(r.gastos ?? 0)),
+      entregado: Math.round(Number(r.entregado ?? 0)),
+      colocado,
+    };
     const queda = cajaFinal(
-      Number(r.base ?? 0),
-      Number(r.recaudado ?? 0),
-      Number(r.gastos ?? 0),
-      Number(r.entregado ?? 0),
+      detalle.base,
+      detalle.recaudado,
+      detalle.gastos,
+      detalle.entregado,
+      colocado,
     );
     if (queda <= 0) return { base: 0, origen: "sin_base" };
-    return { base: queda, origen: "arrastre", desdeFecha: String(r.fecha) };
+    return { base: queda, origen: "arrastre", desdeFecha: fecha, detalle };
   } catch (e) {
     if (tablaFaltante(e)) return { base: 0, origen: "sin_base" };
     throw e;
@@ -131,35 +157,58 @@ export async function getBasesDelDia(
   try {
     const desde = new Date(hoyUY(hoy));
     desde.setDate(desde.getDate() - diasAtras);
-    let q = db
-      .from("rendiciones")
-      .select("cobrador_id, fecha, base, recaudado, gastos, entregado")
-      .gte("fecha", toIso(desde))
-      .lt("fecha", ymd)
-      .order("fecha", { ascending: true });
-    if (cobradorIds) q = q.in("cobrador_id", cobradorIds);
-    const { data, error } = await q;
-    if (error) throw error;
+    // `fecha` NO es única (una fila por cobrador y día) → se desempata por `id`
+    // para que la paginación no repita ni saltee filas.
+    const data = await traerTodo<{
+      cobrador_id: string;
+      fecha: string;
+      base: number;
+      recaudado: number;
+      gastos: number;
+      entregado: number;
+    }>((d, h) => {
+      let q = db
+        .from("rendiciones")
+        .select("cobrador_id, fecha, base, recaudado, gastos, entregado")
+        .gte("fecha", toIso(desde))
+        .lt("fecha", ymd)
+        .order("fecha", { ascending: true })
+        .order("id", { ascending: true });
+      if (cobradorIds) q = q.in("cobrador_id", cobradorIds);
+      return q.range(d, h);
+    });
     // Orden ascendente → la última asignación por cobrador es la más reciente.
-    const ultima = new Map<string, { fecha: string; queda: number; detalle: BaseDelDia["detalle"] }>();
-    for (const r of data ?? []) {
-      const id = r.cobrador_id as string;
+    const ultima = new Map<string, { fecha: string; detalle: NonNullable<BaseDelDia["detalle"]> }>();
+    for (const r of data) {
+      const id = r.cobrador_id;
       if (m.has(id)) continue; // ya tiene base cargada: manda esa
-      const detalle = {
-        base: Math.round(Number(r.base ?? 0)),
-        recaudado: Math.round(Number(r.recaudado ?? 0)),
-        gastos: Math.round(Number(r.gastos ?? 0)),
-        entregado: Math.round(Number(r.entregado ?? 0)),
-      };
       ultima.set(id, {
         fecha: String(r.fecha),
-        queda: cajaFinal(detalle.base, detalle.recaudado, detalle.gastos, detalle.entregado),
-        detalle,
+        detalle: {
+          base: Math.round(Number(r.base ?? 0)),
+          recaudado: Math.round(Number(r.recaudado ?? 0)),
+          gastos: Math.round(Number(r.gastos ?? 0)),
+          entregado: Math.round(Number(r.entregado ?? 0)),
+          colocado: 0, // se completa abajo (una sola consulta para todos)
+        },
       });
     }
+    // El COLOCADO de cada día se DERIVA (`rendiciones` no lo guarda): el capital
+    // que el cobrador puso en la calle NO le queda en la mano y no puede arrastrar.
+    const colocados = await colocadoEnDias(
+      [...ultima].map(([id, u]) => ({ cobradorId: id, ymd: u.fecha })),
+    );
     for (const [id, u] of ultima) {
-      if (u.queda > 0)
-        m.set(id, { base: u.queda, origen: "arrastre", desdeFecha: u.fecha, detalle: u.detalle });
+      u.detalle.colocado = colocados.get(claveColocado(id, u.fecha)) ?? 0;
+      const queda = cajaFinal(
+        u.detalle.base,
+        u.detalle.recaudado,
+        u.detalle.gastos,
+        u.detalle.entregado,
+        u.detalle.colocado,
+      );
+      if (queda > 0)
+        m.set(id, { base: queda, origen: "arrastre", desdeFecha: u.fecha, detalle: u.detalle });
     }
   } catch (e) {
     if (!tablaFaltante(e)) throw e;

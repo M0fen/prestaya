@@ -210,7 +210,13 @@ export async function getVigilanciaCobradores(
     const dif = Number(r.diferencia);
     // Lo entregado MENOS la base devuelta = lo que rindiÃ³ de su cobranza. AsÃ­
     // "RecaudÃ³" y "RindiÃ³" son comparables (que es para lo que se muestran).
-    a.rendido += Number(r.entregado) - Number((r as { base?: unknown }).base ?? 0);
+    // + el capital COLOCADO: esa plata también salió de la cobranza (a la calle,
+    // no al bolsillo). Sin sumarlo, un cobrador que renueva mucho aparecía con un
+    // hueco creciente entre "Recaudó" y "Rindió" en la pantalla de fuga.
+    a.rendido +=
+      Number(r.entregado) -
+      Number((r as { base?: unknown }).base ?? 0) +
+      Number((r as { colocado?: unknown }).colocado ?? 0);
     a.diferenciaAcumulada += dif;
     a.diasRendidos.add(r.fecha);
     if (dif < 0) { a.faltantes += 1; a.montoFaltante += -dif; }

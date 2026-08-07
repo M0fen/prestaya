@@ -42,6 +42,9 @@ export interface ItemRutaVista {
    *  a cualquier frecuencia: el semanal entre cuotas, y también el DIARIO los
    *  domingos o cuando pagó por adelantado (06-08). */
   sinCuotaHoy?: boolean;
+  /** De `cuota`, cuánto es ATRASO de días anteriores. Si `atraso === cuota`, hoy
+   *  no le vence nada pero debe: se muestra "Atrasado", no como cuota del día. */
+  atraso?: number;
 }
 
 // Peso de prioridad: cobrar PRIMERO a los de mayor riesgo (menor peso = antes).
@@ -520,9 +523,16 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
       {visibles.map((it, idx) => {
         // "Hoy no toca": el semanal/quincenal al día sin cuota hoy NO está
         // "Cobrado" (mentía a las 7 AM) — chip propio, neutro.
+        // ATRASO PURO: no le vence cuota hoy pero debe de días anteriores (el
+        // semanal que no pagó el lunes). Hay que pasar igual, pero no es "la cuota
+        // de hoy" — si se etiquetara así, al semanal se le pediría cuota los 6 días.
+        const soloAtraso =
+          !it.plazoVencido && (it.atraso ?? 0) > 0 && it.cuota > 0 && it.atraso === it.cuota;
         const chip = it.sinCuotaHoy
           ? { label: "Hoy no toca", bg: "#EDF4FB", fg: "#4A6FA5", barra: "#B9CFE8" }
-          : CHIP[it.estadoHoy];
+          : soloAtraso && it.estadoHoy === "pendiente"
+            ? { label: "Atrasado", bg: "#FDF1DC", fg: "#B9770E", barra: "#E8A317" }
+            : CHIP[it.estadoHoy];
         // Fallback de inicial: un cliente sin nombre no debe romper toda la
         // lista de la ruta (charAt sobre null/undefined tira). "—" si no hay.
         const inicial = (it.nombre ?? "").trim().charAt(0).toUpperCase() || "—";
@@ -582,6 +592,10 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
                       ⏳ Cartera vencida · a recuperar
                     </span>
                   )
+                ) : soloAtraso && it.estadoHoy === "pendiente" ? (
+                  <span className="flex items-center gap-1 text-[11px] font-bold text-[#B9770E]">
+                    ⏰ Debe de días anteriores · hoy no le vence cuota
+                  </span>
                 ) : (
                   <span className="truncate text-[12px] font-medium text-[#8A93AD]">
                     {it.direccion ?? "Sin dirección"}

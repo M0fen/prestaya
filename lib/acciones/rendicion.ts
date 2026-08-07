@@ -86,6 +86,10 @@ export async function cerrarJornada(input: {
       entregado,
       diferencia,
       base: estado.base,
+      // Se CONGELA el colocado con el que se calculó la diferencia (0136): si no,
+      // una renovación posterior al cierre movía el "a entregar" de un acta firmada.
+      colocado: estado.colocado,
+      creditosColocados: estado.creditosColocados,
       notas,
       registradoPor: usuario.id,
     });

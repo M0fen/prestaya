@@ -380,7 +380,20 @@ export async function getPerfilCobrador(
     ),
     suave(
       getEstadoJornada(db, cobradorId, hoy),
-      { recaudado: 0, cobrosCantidad: 0, gastosHoy: 0, gastosRespaldadosHoy: 0, yaRendida: null, base: 0, disponible: false } as EstadoJornada,
+      // Literal COMPLETO y sin `as`: el cast tapaba los campos nuevos de
+      // EstadoJornada y, en cuanto "Debería tener" empezó a restar `colocado`,
+      // una degradación por timeout habría pintado $NaN en el panel.
+      {
+        recaudado: 0,
+        cobrosCantidad: 0,
+        gastosHoy: 0,
+        gastosRespaldadosHoy: 0,
+        yaRendida: null,
+        base: 0,
+        colocado: 0,
+        creditosColocados: 0,
+        disponible: false,
+      } satisfies EstadoJornada,
       "perfil:jornada",
     ),
     suave(getGastosCobradorHoy(db, cobradorId, hoy), { total: 0, items: [] }, "perfil:gastos"),

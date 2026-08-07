@@ -29,6 +29,9 @@ export interface RendidaLite {
   estado: EstadoRendicion;
   /** Base de arranque congelada en la rendición (0105). Default 0. */
   base?: number;
+  /** Capital que el cobrador ENTREGÓ en la calle ese día (renovaciones/ventas):
+   *  sale de su bolsillo, así que el supervisor NO lo recibe de vuelta. Default 0. */
+  colocado?: number;
   /** Recaudo EN VIVO (no el congelado al cerrar). Si supera `recaudado`, cobró
    *  DESPUÉS de rendir → esa plata quedó fuera de esta rendición. */
   recaudadoVivo?: number;
@@ -38,8 +41,11 @@ export interface RendidaLite {
 export interface PendienteLite {
   cobradorId: string;
   nombre: string;
+  /** Recaudo BRUTO del día (lo que cobró). Lo que TIENE es `recaudado − colocado`. */
   recaudado: number;
   cobros: number;
+  /** Capital que entregó en la calle ese día: ya no lo tiene. Default 0. */
+  colocado?: number;
 }
 
 /** Fila de cobrador dentro del cierre de una zona. */
@@ -51,7 +57,9 @@ export interface CobradorCierre {
   gastos: number;
   /** Base de arranque del cobrador (0105). 0 si no tiene / aún no rindió. */
   base: number;
-  /** base + recaudado − gastos (nunca negativo). */
+  /** Capital que entregó en la calle ese día: NO vuelve al supervisor. */
+  colocado: number;
+  /** base + recaudado − gastos − colocado (nunca negativo). */
   esperado: number;
   /** Efectivo entregado (0 si aún no rindió). */
   entregado: number;
@@ -156,7 +164,15 @@ export function consolidarPorZona(
   for (const r of rendidas) {
     const z = asegurarZona(cobradorZona.get(r.cobradorId) ?? null);
     const base = Math.round(r.base ?? 0);
-    const esperado = Math.max(0, base + Math.round(r.recaudado) - Math.round(r.gastos));
+    // ⚠️ COLOCADO: el capital que puso en la calle no vuelve al supervisor. Sin
+    // restarlo, la fila decía "entregó $58.053 · esperado $98.053" con chip
+    // "Cuadra ✓" —los dos números de la MISMA fila contradiciéndose— y el total
+    // de la zona pedía $40.000 que no existen, en un sello que es inmutable.
+    const colocado = Math.round(r.colocado ?? 0);
+    const esperado = Math.max(
+      0,
+      base + Math.round(r.recaudado) - Math.round(r.gastos) - colocado,
+    );
     // Cobró después de rendir: el recaudo vivo supera el congelado al cerrar.
     const cobroPostCierre = Math.max(0, Math.round(r.recaudadoVivo ?? r.recaudado) - Math.round(r.recaudado));
     z.cobradores.push({
@@ -166,6 +182,7 @@ export function consolidarPorZona(
       recaudado: r.recaudado,
       gastos: r.gastos,
       base,
+      colocado,
       esperado,
       entregado: r.entregado,
       diferencia: r.diferencia,
@@ -193,6 +210,11 @@ export function consolidarPorZona(
 
   for (const p of pendientes) {
     const z = asegurarZona(cobradorZona.get(p.cobradorId) ?? null);
+    // Todavía no rindió: lo que TIENE EN MANO es lo cobrado menos el capital que
+    // puso en la calle. "Por rendir" con el recaudo bruto le hacía esperar al
+    // supervisor plata que ya está prestada.
+    const colocado = Math.round(p.colocado ?? 0);
+    const enMano = Math.max(0, Math.round(p.recaudado) - colocado);
     z.cobradores.push({
       cobradorId: p.cobradorId,
       nombre: p.nombre,
@@ -200,12 +222,13 @@ export function consolidarPorZona(
       recaudado: p.recaudado,
       gastos: 0,
       base: 0,
-      esperado: Math.max(0, Math.round(p.recaudado)),
+      colocado,
+      esperado: enMano,
       entregado: 0,
       diferencia: 0,
     });
     z.totalRecaudado += Math.round(p.recaudado);
-    z.porRendir += Math.round(p.recaudado);
+    z.porRendir += enMano;
     z.pendientes += 1;
   }
 

@@ -17,7 +17,13 @@
 // ─────────────────────────────────────────────────────────────────────────
 import { describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { clasificarClienteRuta, cuotaObjetivoHoy, estadoHoyDe, getRutaCobrador } from "./ruta";
+import {
+  clasificarClienteRuta,
+  cuotaObjetivoHoy,
+  objetivoDelDia,
+  estadoHoyDe,
+  getRutaCobrador,
+} from "./ruta";
 import { calcularEstadosCarton, saldoCredito } from "@/lib/cartones";
 import { parseFecha } from "@/lib/format";
 import type { FrecuenciaPrestamo } from "@/types/db";
@@ -598,8 +604,41 @@ describe("ruta: cobro de LUNES a SÁBADO", () => {
       HOY,
       "cob-A",
     );
+    // Sigue VISIBLE y cobrable: no se esconde a un cliente que debe.
     expect(ruta.items[0].sinCuotaHoy).toBe(false);
-    expect(ruta.arqueo.esperado).toBe(1000); // una cuota, no 3.000
+    expect(ruta.items[0].estadoHoy).toBe("pendiente");
+    expect(ruta.items[0].cuota).toBe(1000); // se le puede pedir una cuota, no 3.000
+    // ...pero la MORA no es META de hoy: a un semanal le vence UNA cuota por
+    // semana. Contarla los 6 días hábiles le inventaba al cobrador una meta 5×
+    // la real (reporte de campo del día 2: "los semanales salen todos los días").
+    expect(ruta.arqueo.esperado).toBe(0);
+  });
+
+  it("SEMANAL el día que SÍ le vence la cuota: eso sí es meta del día", async () => {
+    const ruta = await getRutaCobrador(
+      fakeDb({
+        asignaciones: [asignacion("cli-sem2")],
+        clientes: [cliente("cli-sem2", "SEMANAL EN SU DÍA")],
+        prestamos: [
+          // HOY es jueves 06-08. Inicio jueves 02-07 → las cuotas caen los jueves:
+          // 02/07, 09, 16, 23, 30 y 06/08 ← hoy la sexta.
+          prestamo({
+            id: "psem2",
+            cliente: "cli-sem2",
+            cuota: 1000,
+            dias: 10,
+            inicio: "2026-07-02",
+            frecuencia: "semanal",
+            acum: 5000, // pagó las 5 anteriores, hoy le vence la 6ª
+          }),
+        ],
+        pagos: [],
+        visitas: [],
+      }),
+      HOY,
+      "cob-A",
+    );
+    expect(ruta.arqueo.esperado).toBe(1000); // la cuota de hoy SÍ es meta
     expect(ruta.items[0].estadoHoy).toBe("pendiente");
   });
 
@@ -650,6 +689,87 @@ describe("ruta: cobro de LUNES a SÁBADO", () => {
 // ═══════════════════════════════════════════════════════════════════════════
 //  6. CUÁNTO PEDIRLE — el objetivo del día vs. la deuda REAL
 // ═══════════════════════════════════════════════════════════════════════════
+describe("objetivoDelDia: separar la CUOTA DE HOY de la MORA arrastrada", () => {
+  // El reporte de campo del día 2: "los créditos semanales también sigue saliendo
+  // para pagar todos los días". A un semanal le vence UNA cuota por semana; si no
+  // la paga, la deuda sigue viva, pero eso es MORA — no la cuota de hoy.
+  const semanal = {
+    cuota: 6000,
+    totalDias: 4,
+    fechaInicio: "2026-08-03", // lunes
+    frecuencia: "semanal" as const,
+    pagadoAcum: 0,
+  };
+
+  it("el LUNES le vence la cuota: es meta del día", () => {
+    expect(objetivoDelDia(semanal, parseFecha("2026-08-03"))).toEqual({
+      cuotaHoy: 6000,
+      mora: 0,
+    });
+  });
+
+  it("de MARTES a SÁBADO la deuda sigue viva pero ya NO es cuota de hoy", () => {
+    for (const dia of ["2026-08-04", "2026-08-05", "2026-08-06", "2026-08-07", "2026-08-08"]) {
+      expect(objetivoDelDia(semanal, parseFecha(dia))).toEqual({ cuotaHoy: 0, mora: 6000 });
+      // Se le puede seguir pidiendo (el cliente debe), pero UNA cuota, no seis.
+      expect(cuotaObjetivoHoy(semanal, parseFecha(dia))).toBe(6000);
+    }
+  });
+
+  it("el DOMINGO no vence NADA: ni siquiera para el que está atrasado", () => {
+    // Ninguna cuota cae en domingo (fechaDeCuota la corre al lunes). Antes la ruta
+    // abría el domingo pidiendo la cartera entera: $6.676.111 medidos sobre la
+    // base viva el 09-08-2026, con $0 venciendo ese día.
+    expect(objetivoDelDia(semanal, parseFecha("2026-08-09")).cuotaHoy).toBe(0);
+    const diarioAtrasado = {
+      cuota: 350,
+      totalDias: 24,
+      fechaInicio: "2026-08-03",
+      frecuencia: "diario" as const,
+      pagadoAcum: 350, // debe varias
+    };
+    expect(objetivoDelDia(diarioAtrasado, parseFecha("2026-08-09")).cuotaHoy).toBe(0);
+  });
+
+  it("el DIARIO al día tiene cuota de hoy y CERO mora", () => {
+    // Arrancó lunes 03; al jueves 06 vencieron 4 cuotas; pagó 3 → debe la de hoy.
+    expect(
+      objetivoDelDia(
+        { cuota: 750, totalDias: 24, fechaInicio: INICIO_VIGENTE, frecuencia: "diario", pagadoAcum: 2250 },
+        parseFecha("2026-08-06"),
+      ),
+    ).toEqual({ cuotaHoy: 750, mora: 0 });
+  });
+
+  it("el DIARIO atrasado: la de hoy es meta, lo viejo es mora (y junto nunca pasa de una cuota)", () => {
+    const d = {
+      cuota: 750,
+      totalDias: 24,
+      fechaInicio: INICIO_VIGENTE,
+      frecuencia: "diario" as const,
+      pagadoAcum: 0, // debe las 4
+    };
+    const { cuotaHoy, mora } = objetivoDelDia(d, parseFecha("2026-08-06"));
+    expect(cuotaHoy).toBe(750);
+    expect(mora).toBe(750); // topeada a UNA cuota, no 2.250
+    expect(cuotaObjetivoHoy(d, parseFecha("2026-08-06"))).toBe(750); // se le pide UNA
+  });
+
+  it("el tramo FINAL no se pasa de la deuda real ni partiendo en dos", () => {
+    // cuota 750 × 24 = 18.000, pagado 17.800: la deuda REAL es $200.
+    const s = {
+      cuota: 750,
+      totalDias: 24,
+      fechaInicio: "2026-01-05",
+      frecuencia: "semanal" as const,
+      pagadoAcum: 17800,
+    };
+    const { cuotaHoy, mora } = objetivoDelDia(s, parseFecha("2026-08-06"));
+    expect(cuotaHoy + mora).toBe(200);
+    expect(cuotaObjetivoHoy(s, parseFecha("2026-08-06"))).toBe(200);
+  });
+});
+
 describe("cuotaObjetivoHoy: el monto que la tarjeta le pide al cliente", () => {
   it("DIARIO al día → 0; con una cuota sin pagar → la cuota fija", () => {
     // Arrancó el lunes 03-08; al jueves 06-08 vencieron 4 cuotas. Con 4 pagadas

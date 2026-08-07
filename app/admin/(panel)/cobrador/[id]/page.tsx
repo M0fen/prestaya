@@ -61,8 +61,13 @@ export default async function PerfilCobradorPage(props: { params: Promise<{ id: 
 
   const { persona: q, arqueo, jornada } = p;
   const esCobrador = q.rol === "cobrador";
-  // "En mano": lo que debería tener el cobrador ahora mismo (base + cobrado − gastos).
-  const enMano = jornada.base + jornada.recaudado - p.gastos.total;
+  // "En mano": lo que debería tener el cobrador ahora mismo.
+  // ⚠️ MENOS el capital que colocó en la calle hoy: esa plata ya se la dio a los
+  // clientes. Sin restarlo, el supervisor le reclamaba efectivo que no existe.
+  const enMano = Math.max(
+    0,
+    jornada.base + jornada.recaudado - p.gastos.total - jornada.colocado,
+  );
   const pct = arqueo.esperado > 0 ? Math.min(100, Math.round((arqueo.recaudadoRuta / arqueo.esperado) * 100)) : 0;
   const falta = Math.max(0, arqueo.esperado - arqueo.recaudadoRuta);
   const visitados = arqueo.cobrados + arqueo.abonos + arqueo.noPagos;

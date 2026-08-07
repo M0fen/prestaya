@@ -33,6 +33,7 @@ import { registrarAuditoria } from "@/lib/data/auditoria";
 import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
 import { esUuid, opIdDeterminista } from "@/lib/idempotencia";
 import { hoyUY } from "@/lib/fecha";
+import { proximoDiaCobro } from "@/lib/cartones";
 import { toIso, UYU } from "@/lib/format";
 import type { FrecuenciaPrestamo } from "@/types/db";
 
@@ -129,7 +130,11 @@ export async function crearCreditoNuevo(input: {
   const cuota = calcularCuotaCreditoNuevo(baseTasa, monto, totalDias, interesPct ?? INTERES_DEFECTO_PCT);
   if (!(cuota > 0)) return { ok: false, error: "La cuota calculada es inválida (revisar monto/cuotas)." };
 
-  const fechaInicio = toIso(hoyUY(new Date()));
+  // La plata se entrega HOY y se empieza a pagar el PRÓXIMO día de cobro: con
+  // fecha_inicio = hoy, la cuota 1 vencía el mismo día en que el cliente recibía
+  // el dinero y a la medianoche el cartón la pintaba atrasada (reporte de campo
+  // del día 2). Si mañana es domingo, arranca el lunes.
+  const fechaInicio = toIso(proximoDiaCobro(hoyUY(new Date())));
   // Idempotencia: el nonce del navegador sobrevive al reintento del MISMO submit;
   // sin él, una clave determinista por (cliente, términos, día, gestor) igual evita
   // que un doble clic coloque el capital dos veces.

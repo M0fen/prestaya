@@ -52,12 +52,14 @@ export async function getCierrePorZona(
     estado: r.estado,
     base: r.base,
     recaudadoVivo: r.recaudadoVivo,
+    colocado: r.colocado,
   }));
   const pendientes: PendienteLite[] = rend.pendientes.map((p) => ({
     cobradorId: p.cobradorId,
     nombre: p.nombre,
     recaudado: p.recaudado,
     cobros: p.cobros,
+    colocado: p.colocado,
   }));
 
   // Zona de cada cobrador que aparece hoy (few ids → `.in` directo).
