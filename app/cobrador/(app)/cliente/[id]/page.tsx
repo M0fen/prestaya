@@ -269,7 +269,7 @@ async function Detalle({
           entraba en la lista simplemente no aparecía (reporte de campo 07-08).
             · Renovar     → repite el crédito TAL CUAL. Un toque, cero decisiones.
             · Nueva venta → el mismo momento, eligiendo monto y cuotas. */}
-      {r.falta < 1 && (
+      {r.falta < 1 ? (
         <div className="flex flex-col gap-2 rounded-[16px] border border-[#BEEBD5] bg-[#F0FBF5] p-4">
           <span className="text-[14px] font-extrabold text-[#157A50]">
             🎉 Terminó de pagar este crédito
@@ -292,6 +292,24 @@ async function Detalle({
             </Link>
           </div>
         </div>
+      ) : (
+        /* ⚠️ TODAVÍA ESTÁ PAGANDO — y aun así puede llevarse OTRO crédito (regla de
+           Carlos, 07-08: dos créditos a la vez, sin necesidad de estar al día). El
+           sistema lo bloqueaba ("Este cliente ya tiene un crédito. Renovalo cuando
+           lo termine de pagar") y por eso el operador no podía hacer la venta.
+           Se muestra la deuda viva al lado: la decisión es del cobrador, informada. */
+        <Link
+          href={`/cobrador/colocar?modo=venta&cliente=${clienteId}`}
+          className="flex items-center justify-between gap-3 rounded-[14px] border border-[#DCE6FB] bg-white px-4 py-3 active:scale-[0.99]"
+        >
+          <div className="flex min-w-0 flex-col">
+            <span className="text-[13.5px] font-extrabold text-tinta">💵 Darle otro crédito</span>
+            <span className="text-[11.5px] leading-[1.4] font-medium text-gris">
+              Puede tener dos a la vez. Le falta {UYU(r.falta)} de este.
+            </span>
+          </div>
+          <span aria-hidden className="text-[15px] font-bold text-azul">→</span>
+        </Link>
       )}
 
       {/* Distintivo de VENTA de tienda: que el cobrador NO confunda el dinero

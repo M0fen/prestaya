@@ -114,12 +114,31 @@ async function consolidarRuta(
   cobradorId: string,
 ): Promise<void> {
   try {
-    await db
+    // ⚠️ NO se le saca el cliente al compañero que tiene un crédito VIVO con él.
+    // Desde el 07-08 un cliente puede tener dos créditos a la vez, y a veces son
+    // de cobradores distintos (SONIA TELIS tenía 6 de uno y 2 de otro). Sin este
+    // freno, colocarle un crédito nuevo desactivaba la asignación del compañero:
+    // su crédito seguía vivo pero desaparecía de su ruta y nadie iba a cobrarlo.
+    // La consolidación sigue valiendo para el caso que la motivó: el cliente que
+    // terminó con su cobrador viejo y se lo lleva otro.
+    const { data: ajenos } = await db
+      .from("prestamos")
+      .select("cobrador_id")
+      .eq("cliente_id", clienteId)
+      .eq("estado", "activo")
+      .neq("cobrador_id", cobradorId);
+    const conCreditoVivo = new Set(
+      (ajenos ?? []).map((p) => p.cobrador_id as string).filter(Boolean),
+    );
+
+    let q = db
       .from("asignaciones")
       .update({ activo: false })
       .eq("cliente_id", clienteId)
       .eq("activo", true)
       .neq("cobrador_id", cobradorId);
+    if (conCreditoVivo.size > 0) q = q.not("cobrador_id", "in", `(${[...conCreditoVivo].join(",")})`);
+    await q;
   } catch {
     /* el crédito ya quedó creado y con ruta; una ruta vieja de más no pierde plata */
   }

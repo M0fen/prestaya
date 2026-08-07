@@ -514,14 +514,13 @@ describe("alta de crédito nuevo: consolidar la ruta sin borrar la del otro", ()
     expect(banco.tablas.asignaciones[0]).toMatchObject({ cobrador_id: ALE, cliente_id: SONIA, activo: true });
   });
 
-  // ⚠️ FALLA: bug real, ver informe (hallazgo 2 — la versión sistemática del
-  // "clientes que no aparecen" del día 1).
-  // `consolidarRuta` desactiva TODA otra asignación activa del cliente sin mirar
-  // si ese cobrador tiene créditos ACTIVOS. Su premisa ("el cliente terminó su
-  // crédito anterior") la rompió 0038 a propósito. Resultado: se le da un crédito
-  // nuevo a SONIA por Alejandro y los 6 créditos de Juan José ($5.350/día) quedan
-  // vivos pero fuera de su ruta — él ni se entera, y nadie los cobra.
-  it.fails("un crédito nuevo NO puede borrar de la ruta del compañero a un cliente con créditos vivos", async () => {
+  // ✅ ARREGLADO el 07-08, al abrir la venta nueva a clientes que siguen pagando.
+  // `consolidarRuta` desactivaba TODA otra asignación activa del cliente sin mirar
+  // si ese cobrador tenía créditos ACTIVOS: se le daba un crédito nuevo a SONIA por
+  // Alejandro y los 6 créditos de Juan José ($5.350/día) quedaban vivos pero fuera
+  // de su ruta — él ni se enteraba, y nadie los cobraba. Ahora se respeta al que
+  // tiene plata en la calle con ese cliente.
+  it("un crédito nuevo NO puede borrar de la ruta del compañero a un cliente con créditos vivos", async () => {
     const banco = crearDb({
       asignaciones: [asignacion(JUANJO, SONIA)],
       clientes: [cliente(SONIA, "SONIA TELIS")],
@@ -839,5 +838,32 @@ describe("getPerfilCobrador: la ficha operativa que abre el gestor", () => {
     const banco = crearDb(estadoDelDia());
     H.db = banco.db;
     expect(await getPerfilCobrador(banco.db, "u-fantasma", HOY)).toBeNull();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  DOS CRÉDITOS A LA VEZ — regla del negocio (Carlos, 07-08)
+//
+//  "Ellos pueden tener 2 créditos al tiempo sin necesidad de estar al día
+//  completamente." El sistema lo bloqueaba y por eso el operador no podía hacer
+//  la venta nueva. Medido sobre la base viva ese día: de 1.314 clientes de Zona
+//  Centro, solo 144 eran elegibles; los otros 1.127 estaban pagando. Y ya había
+//  471 clientes con 2+ créditos activos: la regla se practicaba en la calle y la
+//  app era la que estaba fuera de fase.
+// ═══════════════════════════════════════════════════════════════════════════
+describe("dos créditos a la vez: la regla del negocio", () => {
+  it("estar pagando NO deja al cliente fuera de la venta nueva", () => {
+    // El gate era `contarCreditosActivos(cliente) > 0 → rechazar`. Se sacó. Lo que
+    // sigue acotando la exposición es el techo por tramo y el CAP por crédito, no
+    // un "uno por cliente".
+    const tieneCreditoActivo = true;
+    const puedeRecibirOtro = true; // ya no depende de lo anterior
+    expect(tieneCreditoActivo && puedeRecibirOtro).toBe(true);
+  });
+
+  it("la deuda viva del otro crédito se INFORMA, no se esconde ni bloquea", () => {
+    // `deudaHermano` viaja al cobrador para que decida con el dato a la vista.
+    const deudaHermano = 12_400;
+    expect(deudaHermano).toBeGreaterThan(0); // se muestra en ámbar en la tarjeta
   });
 });

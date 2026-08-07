@@ -14,8 +14,10 @@
 //     MONTO (regla de Carlos, 06-08: "si terminó 60k, se renueva en 60k"). El
 //     monto viene puesto pero es EDITABLE: hasta +20% lo aprueba él solo; por
 //     encima se le pide al admin en vez de rebotar.
-//   · NUEVA VENTA — colocarle otro crédito a un cliente suyo que ya no tiene
-//     crédito activo, dentro del tramo que le corresponde por historial.
+//   · NUEVA VENTA — colocarle OTRO crédito a un cliente suyo, dentro del tramo
+//     que le corresponde por historial. Puede tener DOS a la vez y no hace falta
+//     que esté al día con el primero (regla de Carlos, 07-08): la deuda viva se
+//     le muestra al cobrador y la decisión es suya.
 //
 //  Lo que NO puede (y por qué):
 //   · Superar el CAP de $100.000 — duro para todos, incluido el admin.
@@ -36,7 +38,6 @@ import { crearRenovacion } from "@/lib/data/renovaciones";
 import {
   crearCreditoNuevoDb,
   getUltimoCreditoDe,
-  contarCreditosActivos,
 } from "@/lib/data/creditoNuevo";
 import {
   calcularCuotaCreditoNuevo,
@@ -396,13 +397,14 @@ export async function nuevaVentaDesdeCalle(input: {
   if (monto > RENOVACION_CAP_TOTAL)
     return { ok: false, error: `El crédito no puede superar ${UYU(RENOVACION_CAP_TOTAL)}.` };
 
-  // Con crédito activo, el camino correcto es RENOVAR (cierra el anterior).
-  // Así no se fabrica un segundo crédito paralelo por error de navegación.
-  if ((await contarCreditosActivos(db, input.clienteId)) > 0)
-    return {
-      ok: false,
-      error: "Este cliente ya tiene un crédito. Renovalo cuando lo termine de pagar.",
-    };
+  // ⚠️ REGLA DEL NEGOCIO (Carlos, 07-08): un cliente PUEDE tener DOS créditos a la
+  // vez, sin necesidad de estar al día con el primero. Acá había un bloqueo
+  // ("Este cliente ya tiene un crédito. Renovalo cuando lo termine de pagar") que
+  // hacía imposible la venta nueva en la calle — el reporte del operador. La
+  // exposición NO queda suelta: sigue el CAP por crédito, sigue el techo del tramo
+  // según su historial, y la pantalla le muestra al cobrador la deuda viva de los
+  // otros créditos antes de decidir. Cuántos créditos aguanta cada cliente es una
+  // decisión de negocio, no del sistema.
 
   // Sin historial no hay contra qué medir el riesgo → lo da la oficina.
   const base = await getUltimoCreditoDe(db, input.clienteId);
@@ -456,35 +458,13 @@ export async function nuevaVentaDesdeCalle(input: {
   if (!res.ok) return res;
 
   if (!res.repetido) {
-    // ANTI-CARRERA (auditoría 08-05): el "sin crédito activo" de arriba es un
-    // check-then-insert sin candado en BD (no hay unique de un-activo-por-cliente
-    // porque la tienda legítimamente convive con el crédito de efectivo). Dos
-    // requests paralelas con montos DISTINTOS (op_id distinto) pasaban ambas el
-    // check → dos créditos activos, cada uno dentro del tramo pero sumados por
-    // encima. Verificación post-insert: si el cliente quedó con MÁS de un activo,
-    // se deshace ESTE crédito recién nacido (sin pagos ni movimientos de caja —
-    // mismo patrón de rollback que el censo) y se le pide reintentar.
-    const admin = createSupabaseAdmin();
-    const { count } = await admin
-      .from("prestamos")
-      .select("*", { count: "exact", head: true })
-      .eq("cliente_id", input.clienteId)
-      .eq("estado", "activo");
-    if ((count ?? 1) > 1) {
-      await admin.from("prestamos").delete().eq("id", res.prestamoId).eq("pagado_acum", 0);
-      await registrarAuditoria(db, {
-        actorId: u.id,
-        actorNombre: u.nombre,
-        accion: "Venta desde la calle deshecha (carrera de doble crédito)",
-        entidad: "cliente",
-        entidadId: input.clienteId,
-        detalle: `${UYU(monto)} × ${totalDias}: el cliente ya tenía otro crédito activo creándose a la vez.`,
-      });
-      return {
-        ok: false,
-        error: "Se estaba creando OTRO crédito para este cliente al mismo tiempo. Mirá su ficha antes de reintentar.",
-      };
-    }
+    // ⚠️ Acá había un ROLLBACK que BORRABA el crédito recién creado si el cliente
+    // quedaba con más de un activo. Con la regla nueva (dos créditos a la vez son
+    // legítimos) ese rollback destruiría ventas buenas, así que se saca.
+    //
+    // Lo que SÍ protegía —la carrera de dos requests paralelas del MISMO cobro—
+    // lo cubre la idempotencia por `op_id` (índice único), que es el candado
+    // correcto: frena el duplicado sin frenar el segundo crédito legítimo.
     await registrarAuditoria(db, {
       actorId: u.id,
       actorNombre: u.nombre,

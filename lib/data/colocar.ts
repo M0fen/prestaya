@@ -183,7 +183,12 @@ export async function getCandidatosVenta(db: SupabaseClient): Promise<CandidatoC
       .order("id", { ascending: true })
       .range(d, h),
   );
-  const conActivo = new Set(todos.filter((p) => p.estado === "activo").map((p) => p.cliente_id));
+  // ⚠️ REGLA DEL NEGOCIO (Carlos, 07-08): un cliente PUEDE tener DOS créditos a la
+  // vez, sin estar al día con el primero. Acá se los EXCLUÍA (`!conActivo`) y por
+  // eso el operador no encontraba a nadie para la venta nueva: el que ya estaba
+  // pagando —o sea, casi toda la ruta— no aparecía en ninguna de las dos listas.
+  // La deuda viva del otro crédito NO se esconde: viaja en `deudaHermano` y la
+  // tarjeta la muestra antes de que el cobrador decida.
 
   // Último crédito por cliente (de ahí salen los términos sugeridos y la tasa).
   const ultimo = new Map<string, Prestamo>();
@@ -191,9 +196,19 @@ export async function getCandidatosVenta(db: SupabaseClient): Promise<CandidatoC
     const prev = ultimo.get(p.cliente_id);
     if (!prev || String(p.fecha_inicio) > String(prev.fecha_inicio)) ultimo.set(p.cliente_id, p);
   }
-
-  const elegibles = [...ultimo.entries()].filter(([cid]) => !conActivo.has(cid));
+  const elegibles = [...ultimo.entries()];
   if (elegibles.length === 0) return [];
+
+  // Deuda VIVA de los créditos que siguen abiertos, por cliente: es lo que el
+  // cobrador tiene que ver antes de darle un segundo crédito a alguien.
+  const hoyCal = hoyUY();
+  const deudaViva = new Map<string, number>();
+  for (const p of todos) {
+    if (p.estado !== "activo") continue;
+    const pagos = await getPagosDePrestamo(db, p.id);
+    const { falta } = calcularEstadosCarton(p, pagos, hoyCal);
+    if (falta >= 1) deudaViva.set(p.cliente_id, (deudaViva.get(p.cliente_id) ?? 0) + falta);
+  }
 
   const { data: cls } = await db
     .from("clientes")
@@ -220,6 +235,7 @@ export async function getCandidatosVenta(db: SupabaseClient): Promise<CandidatoC
           totalDias,
           frecuencia: (p.frecuencia as string) ?? "diario",
           techo: techoDe(monto),
+          deudaHermano: Math.round(deudaViva.get(cid) ?? 0),
         },
       ];
     })
@@ -256,7 +272,13 @@ export interface NoElegible {
 export async function getNoElegibles(
   db: SupabaseClient,
   cobradorId: string | null,
+  modo: "renovar" | "venta" = "renovar",
 ): Promise<NoElegible[]> {
+  // En NUEVA VENTA ya casi no hay bloqueados: desde el 07-08 un cliente puede
+  // tener DOS créditos a la vez sin estar al día. El único que no aparece es el
+  // que nunca tuvo crédito (su primero lo da la oficina), y ese caso lo resuelve
+  // la ficha del cliente con `PedirAyuda`, no esta lista.
+  if (modo === "venta") return [];
   const { data: asig } = await db.from("asignaciones").select("cliente_id").eq("activo", true);
   const ids = [...new Set((asig ?? []).map((a) => a.cliente_id as string))];
   if (ids.length === 0) return [];
@@ -318,7 +340,7 @@ export async function getNoElegibles(
           documento: cli.documento ?? null,
           motivo: `Todavía está pagando: le falta ${UYU(Math.round(v.falta))}.`,
           queHacer:
-            "Se renueva cuando termine. Si necesita plata ahora, un segundo crédito lo da la oficina.",
+            "Se RENUEVA cuando termine. Si necesita plata ahora, dale una NUEVA VENTA: puede tener dos créditos a la vez.",
         },
       ];
     })

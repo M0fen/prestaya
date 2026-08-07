@@ -356,7 +356,11 @@ function Tarjeta({
         <div className="flex min-w-0 flex-col">
           <span className="truncate text-[15px] font-extrabold text-tinta">{c.nombre}</span>
           <span className="text-[11.5px] font-semibold text-gris tabular-nums">
-            {modo === "renovar" ? "Terminó de pagar ✓" : "Sin crédito activo"}
+            {modo === "renovar"
+              ? "Terminó de pagar ✓"
+              : (c.deudaHermano ?? 0) >= 1
+                ? "Está pagando · se le puede dar otro"
+                : "Sin crédito activo"}
             {c.documento ? ` · ${c.documento}` : ""}
           </span>
         </div>
@@ -374,9 +378,14 @@ function Tarjeta({
       {/* El cliente terminó ESTE crédito pero le queda deuda en otro. Antes esto
           lo sacaba de la lista sin decir nada y el cobrador creía que la app
           estaba rota; ahora se avisa y la decisión de renovar igual es humana. */}
-      {modo === "renovar" && (c.deudaHermano ?? 0) >= 1 && (
-        <p className="rounded-[11px] bg-[#FDF3E2] px-3 py-2 text-[11.5px] font-bold text-[#8A6D1E]">
-          ⚠️ Tiene otro crédito abierto al que le falta {UYU(c.deudaHermano ?? 0)}.
+      {/* Deuda VIVA en sus otros créditos. En RENOVAR avisa que terminó este pero
+          debe en otro; en VENTA es todavía más importante, porque se le está
+          poniendo plata nueva encima de una deuda abierta. La decisión es humana:
+          se informa, no se bloquea (un cliente puede tener dos créditos a la vez). */}
+      {(c.deudaHermano ?? 0) >= 1 && (
+        <p className="rounded-[11px] bg-[#FDF3E2] px-3 py-2 text-[11.5px] leading-[1.4] font-bold text-[#8A6D1E]">
+          ⚠️ {modo === "renovar" ? "Tiene otro crédito abierto" : "Ya tiene un crédito abierto"} al
+          que le falta {UYU(c.deudaHermano ?? 0)}.
         </p>
       )}
 

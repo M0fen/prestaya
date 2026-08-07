@@ -42,7 +42,7 @@ export default async function ColocarPage({
     Promise.all([
       getCandidatosRenovar(db, cobradorId),
       modo === "venta" ? getCandidatosVenta(db) : Promise.resolve([]),
-      getNoElegibles(db, cobradorId),
+      getNoElegibles(db, cobradorId, modo),
     ]),
     TOPE_MS,
     `cobrador.colocar.${modo}`,
