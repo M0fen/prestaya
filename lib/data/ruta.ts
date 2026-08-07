@@ -247,17 +247,16 @@ export async function getRutaCobrador(
   // del día y lo cobrado hoy suman los de todos, si no el arqueo subestima.)
   const [cliRes, presRes] = await Promise.all([
     db.from("clientes").select("*").in("id", cliIds).eq("activo", true).order("nombre", { ascending: true }),
-    (() => {
-      let q = db
-        .from("prestamos")
-        .select("id, cliente_id, cuota_diaria, total_dias, fecha_inicio, frecuencia, pagado_acum")
-        .eq("estado", "activo")
-        .in("cliente_id", cliIds);
-      // Solo los créditos de ESTE cobrador: los del compañero no son su cuota
-      // ni su plata (ver comentario de la firma).
-      if (cobradorId) q = q.eq("cobrador_id", cobradorId);
-      return q;
-    })(),
+    // Se traen TODOS los créditos activos de sus clientes (sin filtrar por dueño)
+    // y el reparto se hace abajo. Hace falta el crédito AJENO para poder distinguir
+    // dos cosas que se veían iguales: el cliente que no tiene crédito con NADIE
+    // (candidato a venta, va al final de la ruta) y el que SÍ lo tiene pero con
+    // otro cobrador — ése no es suyo y no tiene por qué ocuparle una parada.
+    db
+      .from("prestamos")
+      .select("id, cliente_id, cobrador_id, cuota_diaria, total_dias, fecha_inicio, frecuencia, pagado_acum")
+      .eq("estado", "activo")
+      .in("cliente_id", cliIds),
   ]);
   if (cliRes.error) throw cliRes.error;
   if (presRes.error) throw presRes.error;
@@ -275,9 +274,17 @@ export async function getRutaCobrador(
     frecuencia: FrecuenciaPrestamo; pagadoAcum: number; plazoVencido: boolean;
   };
   const creditosDe = new Map<string, { creditos: CredInterno[]; principalId: string }>();
+  // Clientes cuyo crédito activo es de OTRO cobrador: no son parada de esta ruta.
+  const conCreditoAjeno = new Set<string>();
   for (const p of presRaw ?? []) {
     const cid = p.cliente_id as string;
     const pid = p.id as string;
+    // Un crédito sin dueño se muestra igual (no hay a quién atribuírselo).
+    const duenoAjeno = !!cobradorId && !!p.cobrador_id && p.cobrador_id !== cobradorId;
+    if (duenoAjeno) {
+      conCreditoAjeno.add(cid);
+      continue; // ni su cuota ni su plata
+    }
     const cuota = Number(p.cuota_diaria);
     const totalDias = Number(p.total_dias);
     const pagadoAcum = Number(p.pagado_acum ?? 0);
@@ -338,10 +345,15 @@ export async function getRutaCobrador(
   let noPagos = 0;
   let conRuta = 0; // clientes con crédito EN TÉRMINO (denominador del día; sin zombies)
 
-  const items: ItemRuta[] = clientes.map((c) => {
+  const items: ItemRuta[] = clientes.flatMap((c): ItemRuta[] => {
     const cr = creditosDe.get(c.id);
-    if (!cr)
-      return { cliente: c, prestamoId: null, cuota: 0, estadoHoy: "sin_credito", pagadoHoy: 0, orden: ordenDe.get(c.id) ?? null, sinCuotaHoy: false, plazoVencido: false, recuperadoHoy: 0 };
+    if (!cr) {
+      // Sin crédito PROPIO. Si el que tiene es de un compañero, el cliente no es
+      // suyo: se saca de la ruta. Si no tiene con nadie, queda como candidato a
+      // venta nueva (al final, con "sin crédito"), que es información útil.
+      if (conCreditoAjeno.has(c.id)) return [];
+      return [{ cliente: c, prestamoId: null, cuota: 0, estadoHoy: "sin_credito" as const, pagadoHoy: 0, orden: ordenDe.get(c.id) ?? null, sinCuotaHoy: false, plazoVencido: false, recuperadoHoy: 0 }];
+    }
     // No-pago si alguno de sus créditos quedó marcado como visita sin cobro.
     const esNoPago = cr.creditos.some((x) => noPagoPrestamos.has(x.id));
     // Créditos con lo cobrado HOY en CADA uno (para separar recaudo total vs.
@@ -386,7 +398,7 @@ export async function getRutaCobrador(
       else if (clase.estadoHoy === "abono") abonos++;
       else if (clase.estadoHoy === "no_pago") noPagos++;
     }
-    return {
+    return [{
       cliente: c,
       prestamoId: cr.principalId,
       cuota: clase.cuotaEnTermino,
@@ -397,7 +409,7 @@ export async function getRutaCobrador(
       plazoVencido: clase.soloVencido,
       // Recuperación de deuda vieja hoy (solo aplica a cartera vencida pura).
       recuperadoHoy: clase.soloVencido ? clase.pagadoHoyTotal : 0,
-    };
+    }];
   });
 
   const conCredito = conRuta;

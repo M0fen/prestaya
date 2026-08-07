@@ -561,7 +561,7 @@ describe("getRutaCobrador: qué cartera le llega a cada uno", () => {
   // a un gestor el RLS le devuelve las asignaciones de TODOS sus cobradores → su
   // ruta se llena de clientes ajenos (y con ~1.500 asignaciones de Zona Centro,
   // además revienta por los dos límites de abajo).
-  it.fails("la ruta debe acotar las asignaciones al cobrador, no confiar solo en el RLS", async () => {
+  it("la ruta acota las asignaciones al cobrador, no confía solo en el RLS", async () => {
     const banco = crearDb({
       asignaciones: [asignacion(JUANJO, SONIA), asignacion(ALE, "cli-mabel")],
       clientes: [cliente(SONIA, "SONIA TELIS"), cliente("cli-mabel", "MABEL")],
@@ -573,7 +573,8 @@ describe("getRutaCobrador: qué cartera le llega a cada uno", () => {
       visitas: [],
     });
     const ruta = await getRutaCobrador(banco.db, HOY, JUANJO);
-    expect(ruta.items.map((i) => i.cliente.nombre)).toEqual(["SONIA TELIS"]); // hoy entra MABEL
+    // MABEL es de ALE: su crédito no es de JUANJO, así que no le ocupa una parada.
+    expect(ruta.items.map((i) => i.cliente.nombre)).toEqual(["SONIA TELIS"]);
   });
 
   // ⚠️ FALLA: riesgo LATENTE (hallazgo 6), no un bug de hoy: la cartera por

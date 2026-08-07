@@ -217,7 +217,7 @@ describe("ruta: un cliente compartido por dos cobradores (fallo #2 de campo)", (
     expect(juanjo.arqueo.recaudado).toBe(5350);
   });
 
-  it("si el cliente SOLO tiene créditos del compañero, en mi ruta figura 'sin crédito' y no infla nada", async () => {
+  it("si el cliente SOLO tiene créditos del compañero, NO es parada de mi ruta", async () => {
     const ruta = await getRutaCobrador(
       fakeDb({
         asignaciones: [asignacion("cli-sonia")],
@@ -229,12 +229,32 @@ describe("ruta: un cliente compartido por dos cobradores (fallo #2 de campo)", (
       HOY,
       "cob-ale",
     );
-    expect(ruta.items).toHaveLength(1); // sigue VISIBLE (no desaparece: fallo #3)
-    expect(ruta.items[0].estadoHoy).toBe("sin_credito");
-    expect(ruta.items[0].prestamoId).toBeNull();
+    // Reporte del día 2: "se cruzan los clientes, algunos aparecen de forma
+    // errónea cuando 2 personas tienen el mismo cliente". Antes figuraba como
+    // "sin crédito" y le ocupaba una parada a alguien que no tiene nada que
+    // cobrarle. El cliente NO desaparece del sistema: sigue en la ruta de su
+    // dueño (fallo #3 se cuida por el lado de él, no duplicando la parada acá).
+    expect(ruta.items).toHaveLength(0);
     expect(ruta.arqueo.esperado).toBe(0);
-    expect(ruta.arqueo.clientes).toBe(0); // no cuenta en "Cobrados N/M"
+    expect(ruta.arqueo.clientes).toBe(0);
     expect(ruta.arqueo.pendientes).toBe(0);
+  });
+
+  it("el cliente SIN crédito con NADIE sí queda: es candidato a venta nueva", async () => {
+    const ruta = await getRutaCobrador(
+      fakeDb({
+        asignaciones: [asignacion("cli-libre")],
+        clientes: [cliente("cli-libre", "TERMINO DE PAGAR")],
+        prestamos: [],
+        pagos: [],
+        visitas: [],
+      }),
+      HOY,
+      "cob-ale",
+    );
+    expect(ruta.items).toHaveLength(1);
+    expect(ruta.items[0].estadoHoy).toBe("sin_credito");
+    expect(ruta.arqueo.clientes).toBe(0); // visible, pero fuera de las cuentas del día
   });
 
   it("sin cobradorId (llamador viejo) se conserva la conducta previa: suma TODO", async () => {
