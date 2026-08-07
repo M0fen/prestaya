@@ -66,8 +66,15 @@ export async function cerrarJornada(input: {
     notas = notas ? `${aviso} · ${notas}`.slice(0, 300) : aviso.slice(0, 300);
   }
 
-  // La base de arranque (0105) entra al esperado: debe entregar base + cobros − gastos.
-  const { esperado, diferencia, estado: est } = calcularRendicion(estado.recaudado, gastos, entregado, estado.base);
+  // esperado = base + cobros − gastos − COLOCADO. El capital que puso en la calle
+  // hoy (renovaciones/ventas) ya no lo tiene: pedírselo le inventa un faltante.
+  const { esperado, diferencia, estado: est } = calcularRendicion(
+    estado.recaudado,
+    gastos,
+    entregado,
+    estado.base,
+    estado.colocado,
+  );
 
   try {
     await crearRendicionDb({

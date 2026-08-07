@@ -23,6 +23,8 @@ export function CerrarJornada({
   gastosHoy = 0,
   gastosPendientes = 0,
   base = 0,
+  colocado = 0,
+  creditosColocados = 0,
   yaRendida,
   disponible,
 }: {
@@ -33,8 +35,12 @@ export function CerrarJornada({
    *  le saldría un faltante. Se AVISA (no se resta solo del prefijado). */
   gastosPendientes?: number;
   /** Base de arranque que recibió del supervisor (0105): la devuelve junto con lo
-   *  cobrado → esperado = base + recaudado − gastos. 0 si no tiene. */
+   *  cobrado → esperado = base + recaudado − gastos − colocado. 0 si no tiene. */
   base?: number;
+  /** Capital que ENTREGÓ hoy al renovar/vender: ya no lo tiene, así que baja lo
+   *  que se le pide rendir. Sin esto la app le marcaba un faltante inventado. */
+  colocado?: number;
+  creditosColocados?: number;
   yaRendida: RendicionDia | null;
   disponible: boolean;
 }) {
@@ -42,7 +48,7 @@ export function CerrarJornada({
   // Prellena los gastos con lo que el cobrador ya cargó hoy (puede ajustarlo).
   const [gastos, setGastos] = useState(gastosHoy > 0 ? String(gastosHoy) : "");
   // Prellena el efectivo a entregar = base + recaudado − gastos (devuelve la base).
-  const [entregado, setEntregado] = useState(String(Math.max(0, base + recaudado - gastosHoy)));
+  const [entregado, setEntregado] = useState(String(Math.max(0, base + recaudado - gastosHoy - colocado)));
   // ¿El cobrador tocó los campos a mano? Si NO, el prefijado se re-sincroniza cuando
   // sube el `recaudado` del servidor (al drenar la cola, `router.refresh` sube el
   // prop SIN desmontar este componente). Sin esto, `entregado` quedaba en el valor
@@ -67,8 +73,8 @@ export function CerrarJornada({
   useEffect(() => {
     if (editado) return;
     setGastos(gastosHoy > 0 ? String(gastosHoy) : "");
-    setEntregado(String(Math.max(0, base + recaudado - gastosHoy)));
-  }, [recaudado, gastosHoy, editado, base]);
+    setEntregado(String(Math.max(0, base + recaudado - gastosHoy - colocado)));
+  }, [recaudado, gastosHoy, editado, base, colocado]);
 
   if (!disponible) return null; // se habilita al correr 0013
 
@@ -94,7 +100,11 @@ export function CerrarJornada({
           {yaRendida.base > 0 && <Fila k="Base recibida" v={UYU(yaRendida.base)} />}
           <Fila k="Recaudado" v={UYU(yaRendida.recaudado)} />
           <Fila k="Gastos de ruta" v={UYU(yaRendida.gastos)} />
-          <Fila k="A entregar" v={UYU(Math.max(0, yaRendida.base + yaRendida.recaudado - yaRendida.gastos))} />
+          {colocado > 0 && <Fila k="Capital entregado en la calle" v={`− ${UYU(colocado)}`} />}
+          <Fila
+            k="A entregar"
+            v={UYU(Math.max(0, yaRendida.base + yaRendida.recaudado - yaRendida.gastos - colocado))}
+          />
           <Fila k="Entregado" v={UYU(yaRendida.entregado)} />
         </div>
         {yaRendida.diferencia !== 0 && (
@@ -119,7 +129,7 @@ export function CerrarJornada({
 
   const gastosN = Math.max(0, Math.round(Number(gastos) || 0));
   const entregadoN = Math.max(0, Math.round(Number(entregado) || 0));
-  const { esperado, diferencia, estado } = calcularRendicion(recaudado, gastosN, entregadoN, base);
+  const { esperado, diferencia, estado } = calcularRendicion(recaudado, gastosN, entregadoN, base, colocado);
   const t = TONO[estado];
 
   // Cobros en la cola offline que no subieron. SINCRONIZANDO (se reintentan solos)
@@ -185,6 +195,20 @@ export function CerrarJornada({
           <span className="ml-1 text-[11px] font-semibold text-gris">· {cobrosCantidad} cobro{cobrosCantidad === 1 ? "" : "s"}</span>
         </span>
       </div>
+
+      {/* Capital que YA entregó en la calle: esa plata no la tiene, así que no se
+          le pide. Faltaba y le inventaba un faltante del tamaño de lo que colocó. */}
+      {colocado > 0 && (
+        <div className="mt-2 flex items-end justify-between rounded-[12px] bg-[#F3EEFC] px-3 py-2.5">
+          <span className="text-[12px] font-semibold text-[#6B3FBF]">
+            Capital que entregaste hoy
+            <span className="ml-1 text-[11px] font-medium">
+              · {creditosColocados} crédito{creditosColocados === 1 ? "" : "s"}
+            </span>
+          </span>
+          <span className="text-[16px] font-black tabular-nums text-[#6B3FBF]">− {UYU(colocado)}</span>
+        </div>
+      )}
 
       <div className="mt-2.5 grid grid-cols-2 gap-2.5">
         <Campo label="Gastos de ruta">

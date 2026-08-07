@@ -14,7 +14,7 @@ import { getPagosDePrestamo } from "./pagos";
 import { getActivosConPagos, pagosDeActivo } from "./activos";
 import { getPrestamoPorId } from "./prestamos";
 import { getHistorialCrediticio } from "./scoring";
-import { calcularEstadosCarton } from "@/lib/cartones";
+import { calcularEstadosCarton, proximoDiaCobro } from "@/lib/cartones";
 import { calcularScore } from "@/lib/scoring";
 import { calcularCuotaRenovacion, RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
 import { hoyUY } from "@/lib/fecha";
@@ -317,7 +317,10 @@ export async function crearRenovacion(
   if (!(cuota > 0))
     return { ok: false, error: "La cuota calculada es inválida (revisar monto/días)." };
 
-  const fechaInicio = toIso(hoyUY(hoy));
+  // El crédito nuevo arranca el PRÓXIMO día de cobro: la plata se entrega hoy y
+  // se empieza a pagar mañana. Con la fecha de hoy, la cuota 1 vencía el mismo día
+  // en que el cliente recibía el dinero (reporte de campo del día 2).
+  const fechaInicio = toIso(proximoDiaCobro(hoyUY(hoy)));
 
   // 2+3. Camino ATÓMICO (RPC 0087): finaliza el anterior + inserta el nuevo en UNA
   //      transacción → o commitean los dos o ninguno. Cierra la ventana donde el

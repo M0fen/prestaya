@@ -79,6 +79,21 @@ export function fechaDeCuota(
 }
 
 /**
+ * Próximo día de COBRO después de `desde` (Lun–Sáb, saltando domingo).
+ *
+ * Es la fecha con la que nace un crédito colocado hoy: **la plata se entrega hoy y
+ * se empieza a pagar mañana**. Con `fecha_inicio = hoy`, la cuota 1 vencía el
+ * mismo día en que el cliente recibía el dinero y la ruta se la pedía en el acto
+ * (reporte de campo del día 2). Si mañana es domingo, arranca el lunes.
+ */
+export function proximoDiaCobro(desde: Date): Date {
+  const f = aMedianoche(desde);
+  f.setDate(f.getDate() + 1);
+  if (f.getDay() === 0) f.setDate(f.getDate() + 1); // domingo no se cobra
+  return f;
+}
+
+/**
  * ¿El PLAZO del crédito ya venció? True si HOY es posterior a la fecha de la
  * ÚLTIMA cuota programada. Un crédito así con saldo impago es CARTERA VENCIDA
  * (deuda de gestión/castigo), NO "mora del día": si se lo contara como mora

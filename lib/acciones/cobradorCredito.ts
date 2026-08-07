@@ -52,7 +52,7 @@ import {
   RENOVACION_CAP_TOTAL,
 } from "@/lib/renovacion";
 import { crearSolicitudDb } from "@/lib/data/solicitudesRenovacion";
-import { calcularEstadosCarton } from "@/lib/cartones";
+import { calcularEstadosCarton, proximoDiaCobro } from "@/lib/cartones";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { esUuid, opIdDeterminista } from "@/lib/idempotencia";
 import { hoyUY } from "@/lib/fecha";
@@ -373,7 +373,8 @@ export async function nuevaVentaDesdeCalle(input: {
   if (!(cuota > 0))
     return { ok: false, error: "La cuota calculada no es válida. Revisá monto y cuotas." };
 
-  const fechaInicio = toIso(hoyUY(new Date()));
+  // Arranca el PRÓXIMO día de cobro: se entrega hoy, se paga desde mañana.
+  const fechaInicio = toIso(proximoDiaCobro(hoyUY(new Date())));
   const opId = esUuid(input.nonce)
     ? input.nonce
     : opIdDeterminista("venta-calle", input.clienteId, monto, cuota, totalDias, fechaInicio, u.id);

@@ -49,6 +49,10 @@ export interface EstadoJornada {
   gastosRespaldadosHoy: number;
   /** La rendición de hoy si ya cerró; null si todavía no. */
   yaRendida: RendicionDia | null;
+  /** Capital que ENTREGÓ hoy al renovar/vender en la calle: sale de su bolsillo y
+   *  por eso baja lo que tiene que rendir. */
+  colocado: number;
+  creditosColocados: number;
   /** Base de arranque que el supervisor le dio al cobrador HOY (0105). Debe
    *  entregarla junto con lo cobrado. 0 si no tiene / falta migración. */
   base: number;
@@ -105,6 +109,39 @@ async function recaudadoHoyDe(
   return { recaudado, cobros: data.length };
 }
 
+/**
+ * CAPITAL COLOCADO hoy por el cobrador: la plata que sacó de su bolsillo para
+ * renovar o vender en la calle. Se cuenta por `creado_por` —quien hizo el alta— y
+ * no por dueño de la ruta: si el crédito lo dio de alta la oficina, el efectivo no
+ * salió del bolsillo de él y exigírselo sería inventarle un faltante.
+ * Derivado de `prestamos`, igual que el recaudo sale de `pagos`: no hace falta
+ * guardarlo en ningún lado y se puede recalcular para cualquier día.
+ */
+export async function colocadoPorCobrador(
+  db: SupabaseClient,
+  cobradorId: string,
+  desdeIso: string,
+  hastaIso?: string,
+): Promise<{ colocado: number; creditos: number }> {
+  try {
+    let q = db
+      .from("prestamos")
+      .select("monto_prestado")
+      .eq("creado_por", cobradorId)
+      .gte("creado_en", desdeIso);
+    if (hastaIso) q = q.lt("creado_en", hastaIso);
+    const { data, error } = await q;
+    if (error) throw error;
+    const filas = data ?? [];
+    return {
+      colocado: filas.reduce((s, p) => s + Math.round(Number(p.monto_prestado) || 0), 0),
+      creditos: filas.length,
+    };
+  } catch {
+    return { colocado: 0, creditos: 0 }; // nunca frenar el cierre por esto
+  }
+}
+
 /** Estado de la jornada del cobrador logueado (para la pantalla de cierre). */
 export async function getEstadoJornada(
   db: SupabaseClient,
@@ -122,6 +159,12 @@ export async function getEstadoJornada(
     .reduce((acc, s) => acc + s.monto, 0);
   // Base de arranque del cobrador HOY (0105). La debe entregar junto con lo cobrado.
   const base = await getAperturaDia(db, cobradorId, hoy);
+  // Capital que colocó HOY en la calle (renovaciones + ventas): ya no lo tiene.
+  const { colocado, creditos: creditosColocados } = await colocadoPorCobrador(
+    db,
+    cobradorId,
+    inicioDiaUYIso(hoy),
+  );
 
   let yaRendida: RendicionDia | null = null;
   let disponible = true;
@@ -146,6 +189,8 @@ export async function getEstadoJornada(
     gastosRespaldadosHoy: gastosHoy + gastosPendientesHoy,
     yaRendida,
     base,
+    colocado,
+    creditosColocados,
     disponible,
   };
 }

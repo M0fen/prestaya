@@ -331,6 +331,8 @@ export default async function RutaPage() {
           gastosHoy={jornada.gastosHoy}
           gastosPendientes={gastosPendientes}
           base={jornada.base}
+          colocado={jornada.colocado}
+          creditosColocados={jornada.creditosColocados}
           yaRendida={jornada.yaRendida}
           disponible={jornada.disponible}
         />

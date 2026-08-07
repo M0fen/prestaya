@@ -1,8 +1,15 @@
 // ─────────────────────────────────────────────────────────────────────────
 //  Núcleo PURO de la RENDICIÓN de jornada. Client-safe y testeable.
 //  Regla de dinero (redondeo a peso entero, sin float):
-//     esperado   = max(0, base + recaudado − gastos)  → lo que debería entregar
+//     esperado   = max(0, base + recaudado − gastos − colocado)
 //     diferencia = entregado − esperado                → <0 faltante · >0 sobrante
+//
+//  ⚠️ `colocado` = capital que el cobrador ENTREGÓ hoy al renovar o vender en la
+//  calle. Esa plata sale de su bolsillo y NO puede exigírsele de vuelta. Faltaba,
+//  y el día 2 dejó a JUAN JOSÉ CASTRO sin poder cerrar: base $48.733 + cobrado
+//  $38.920 = $87.653, pero había colocado $30.000 en renovaciones, así que en la
+//  mano tenía $57.653 — la app le pedía $87.653 y le marcaba un faltante de
+//  $30.000 que no existía.
 //  `base` = efectivo de arranque que el supervisor le dio al cobrador (0105); el
 //  cobrador la devuelve junto con lo cobrado. base=0 (default) → conducta previa.
 //  El "faltante" es la señal anti-fuga (efectivo que no cuadra).
@@ -23,8 +30,12 @@ export function calcularRendicion(
   gastos: number,
   entregado: number,
   base = 0,
+  colocado = 0,
 ): ResultadoRendicion {
-  const esperado = Math.max(0, Math.round(base) + Math.round(recaudado) - Math.round(gastos));
+  const esperado = Math.max(
+    0,
+    Math.round(base) + Math.round(recaudado) - Math.round(gastos) - Math.round(colocado),
+  );
   const diferencia = Math.round(entregado) - esperado;
   const estado: EstadoRendicion =
     diferencia === 0 ? "cuadra" : diferencia < 0 ? "faltante" : "sobrante";
@@ -52,10 +63,15 @@ export function cajaFinal(
   recaudado: number,
   gastos: number,
   entregado: number,
+  colocado = 0,
 ): number {
   return Math.max(
     0,
-    Math.round(base) + Math.round(recaudado) - Math.round(gastos) - Math.round(entregado),
+    Math.round(base) +
+      Math.round(recaudado) -
+      Math.round(gastos) -
+      Math.round(colocado) -
+      Math.round(entregado),
   );
 }
 
