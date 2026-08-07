@@ -17,12 +17,36 @@
 
 export type EstadoRendicion = "cuadra" | "faltante" | "sobrante";
 
+/**
+ * ¿La oficina le debe plata AL COBRADOR? Pasa cuando el capital que puso en la
+ * calle supera lo que tenía (base + cobrado − gastos): salió de su propio bolsillo.
+ *
+ * ⚠️ Sin esto, el `max(0, …)` del esperado se comía la diferencia y el cierre le
+ * decía "Cuadra ✓" entregando $0. Caso real del 07-08: VÍCTOR MORALEZ cobró
+ * $26.980 y colocó $56.000 en 3 renovaciones → puso $29.020 de más y el acta,
+ * que es inmutable, no lo iba a registrar en ningún lado.
+ */
+export function aFavorDelCobrador(
+  recaudado: number,
+  gastos: number,
+  base = 0,
+  colocado = 0,
+): number {
+  const neto =
+    Math.round(base) + Math.round(recaudado) - Math.round(gastos) - Math.round(colocado);
+  return neto < 0 ? -neto : 0;
+}
+
 export interface ResultadoRendicion {
-  /** Efectivo que debería entregar (base + recaudado − gastos, nunca negativo). */
+  /** Efectivo que debería entregar (base + recaudado − gastos − colocado, nunca
+   *  negativo). Si da negativo es porque puso capital de su bolsillo → `aFavor`. */
   esperado: number;
   /** entregado − esperado. Negativo = falta plata. */
   diferencia: number;
   estado: EstadoRendicion;
+  /** Plata que la OFICINA le debe a ÉL: colocó más capital del que tenía encima.
+   *  0 en el caso normal. No es un sobrante ni un faltante: es al revés. */
+  aFavor: number;
 }
 
 export function calcularRendicion(
@@ -39,7 +63,7 @@ export function calcularRendicion(
   const diferencia = Math.round(entregado) - esperado;
   const estado: EstadoRendicion =
     diferencia === 0 ? "cuadra" : diferencia < 0 ? "faltante" : "sobrante";
-  return { esperado, diferencia, estado };
+  return { esperado, diferencia, estado, aFavor: aFavorDelCobrador(recaudado, gastos, base, colocado) };
 }
 
 /**

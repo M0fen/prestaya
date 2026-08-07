@@ -21,6 +21,10 @@ export interface OpCobro {
   prestamoId?: string | null;
   monto: number | null; // pago: monto o null (=cuota). no_pago: null
   motivo: string | null; // no_pago: id del motivo
+  /** pago: el cobrador CONFIRMÓ que quiere adelantar cuotas (por encima de lo que
+   *  toca hoy). Viaja al servidor, que sin esto rechaza el 2º cobro del día sobre
+   *  el mismo crédito. Opcional: las ops viejas de la cola siguen valiendo. */
+  adelanto?: boolean;
   gpsLat: number | null;
   gpsLng: number | null;
   /** Precisión del fix GPS en metros (accuracy). Anti-fuga: distingue un fix de

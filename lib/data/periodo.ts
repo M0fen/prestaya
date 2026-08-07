@@ -199,10 +199,10 @@ export async function getResumenPeriodo(
   // el filtro viejo, "Colocado hoy" mostraba lo de AYER; lo colocado el sábado
   // daba $0 (su inicio es lunes) y lo del día 15 se iba a la quincena siguiente.
   const [coloc, finRes] = await Promise.all([
-    traerTodo<{ monto_prestado: number }>((d, h) =>
+    traerTodo<{ monto_prestado: number; creado_por: string | null }>((d, h) =>
       db
         .from("prestamos")
-        .select("monto_prestado")
+        .select("monto_prestado, creado_por")
         .gte("creado_en", isoUY(inicio))
         .lte("creado_en", new Date(ahoraMs).toISOString())
         .order("id", { ascending: true }) // estable: evita overlap entre páginas
@@ -216,8 +216,14 @@ export async function getResumenPeriodo(
       .lte("finalizado_en", new Date(ahoraMs).toISOString()),
   ]);
   if (finRes.error) throw finRes.error;
-  const colocado = coloc.reduce((s, r) => s + Number(r.monto_prestado), 0);
-  const creditosNuevos = coloc.length;
+  // ⚠️ Solo lo COLOCADO POR ALGUIEN. El empalme importa la cartera de las zonas que
+  // siguen en Disapp SIN setear `creado_por`, y `creado_en` cae por default en el
+  // momento del import: sin este filtro, el día en que se corre el empalme
+  // "Colocado hoy" se llenaba con cartera importada que nadie prestó hoy. Con el
+  // filtro viejo (`fecha_inicio`) esto quedaba tapado de rebote.
+  const colocadoDelPeriodo = coloc.filter((r) => r.creado_por != null);
+  const colocado = colocadoDelPeriodo.reduce((s, r) => s + Number(r.monto_prestado), 0);
+  const creditosNuevos = colocadoDelPeriodo.length;
   const creditosFinalizados = finRes.count ?? 0;
 
   const variacionPct =

@@ -40,7 +40,14 @@ export interface ItemRuta {
 }
 
 export interface Arqueo {
+  /** META del día: suma de las cuotas que VENCEN hoy. */
   esperado: number;
+  /** ATRASO a recuperar hoy (cuotas de días anteriores impagas). Va aparte de la
+   *  meta —la cuota de un semanal no vence 6 veces por semana— pero es plata real
+   *  para cobrar: sin mostrarlo, la ruta decía "Completo ✓" con la calle llena. */
+  atrasoEsperado: number;
+  /** De ese atraso, lo que YA se recuperó hoy. */
+  atrasoRecuperado: number;
   /** Todo lo cobrado hoy en la ruta (incluye recuperaciones de créditos vencidos). */
   recaudado: number;
   /** Cobrado hoy SOLO sobre cuotas EN TÉRMINO — para el % de avance y "Falta $X"
@@ -62,6 +69,8 @@ export interface Ruta {
 
 const ARQUEO_VACIO: Arqueo = {
   esperado: 0,
+  atrasoEsperado: 0,
+  atrasoRecuperado: 0,
   recaudado: 0,
   recaudadoRuta: 0,
   cobrados: 0,
@@ -277,13 +286,21 @@ export function clasificarClienteRuta(
   // flag `alDia` (crédito real, cuota_diaria>0) para NO enmascarar un crédito roto
   // (cuota_diaria 0), que debe seguir visible como pendiente (igual que el cartón).
   const alDiaHoy = enTermino.length > 0 && enTermino.every((c) => c.alDia === true);
+  // ⚠️ El ESTADO se mide contra lo COBRABLE (cuota de hoy + atraso), NO contra la
+  // meta. Medirlo contra la meta sola tenía dos efectos feos:
+  //   · el cliente MIXTO (un diario que vence hoy $750 + un semanal en mora $6.000)
+  //     pagaba $750 y quedaba "Cobrado" en verde, con la tarjeta diciendo $6.750;
+  //   · el que SOLO tenía mora (cuota de hoy 0) quedaba en "Abonó" para siempre por
+  //     más que pagara todo, porque `estadoHoyDe` exige `cuota > 0` para dar "pagado".
+  // La META sigue siendo solo `cuotaEnTermino`: eso no cambia.
+  const cobrable = cuotaEnTermino + moraEnTermino;
   return {
     cuotaEnTermino,
     moraEnTermino,
     pagadoHoyEnTermino,
     pagadoHoyTotal,
     soloVencido,
-    estadoHoy: alDiaHoy ? "pagado" : estadoHoyDe(pagadoHoyEnTermino, cuotaEnTermino, esNoPago),
+    estadoHoy: alDiaHoy ? "pagado" : estadoHoyDe(pagadoHoyEnTermino, cobrable, esNoPago),
     cuentaEnRuta: !soloVencido,
     // Solo cuenta como "al día por cronograma" si NO hubo cobro hoy (si cobró,
     // es un "Cobrado" de verdad y las cuentas del día lo incluyen).
@@ -426,6 +443,8 @@ export async function getRutaCobrador(
   let esperado = 0;
   let recaudado = 0;
   let recaudadoRuta = 0; // cobrado hoy sobre cuotas EN TÉRMINO (para % y "Falta")
+  let atrasoEsperado = 0; // deuda de días anteriores a recuperar (fuera de la meta)
+  let atrasoRecuperado = 0;
   let cobrados = 0;
   let abonos = 0;
   let noPagos = 0;
@@ -489,6 +508,15 @@ export async function getRutaCobrador(
       // Sin el tope, "Falta $" y "Completo ✓" netean y la ruta se ve cerrada con
       // clientes sin cobrar. El recaudo TOTAL (línea de arriba) sí suma todo.
       recaudadoRuta += Math.min(clase.pagadoHoyEnTermino, clase.cuotaEnTermino);
+      // El ATRASO lleva su propia cuenta: lo cobrado se imputa PRIMERO a la cuota
+      // de hoy y lo que sobra recupera atraso. Sin esta cuenta, recuperar $30.000
+      // de mora no movía ni un número y el cobrador que NO cobraba cerraba la ruta
+      // antes que el que sí cobraba.
+      atrasoEsperado += clase.moraEnTermino;
+      atrasoRecuperado += Math.min(
+        Math.max(0, clase.pagadoHoyEnTermino - clase.cuotaEnTermino),
+        clase.moraEnTermino,
+      );
       conRuta += 1;
       if (clase.estadoHoy === "pagado") cobrados++;
       else if (clase.estadoHoy === "abono") abonos++;
@@ -517,6 +545,8 @@ export async function getRutaCobrador(
     items,
     arqueo: {
       esperado,
+      atrasoEsperado,
+      atrasoRecuperado,
       recaudado,
       recaudadoRuta,
       cobrados,

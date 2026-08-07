@@ -24,12 +24,14 @@ import {
 } from "@/lib/data/prestamos";
 import { getPagosDePrestamo, registrarPago, esSobrePago } from "@/lib/data/pagos";
 import { subirFotoCliente } from "@/lib/data/fotos";
-import type { Prestamo } from "@/types/db";
+import type { Prestamo, FrecuenciaPrestamo } from "@/types/db";
 import { crearVisita } from "@/lib/data/visitas";
 import { registrarBitacora } from "@/lib/data/bitacora";
 import { calcularEstadosCarton } from "@/lib/cartones";
 import { evaluarZona, MAX_PRECISION_ANCLA_M } from "@/lib/geo";
-import { hoyUY, sellarRegistroEn } from "@/lib/fecha";
+import { hoyUY, sellarRegistroEn, inicioDiaUYIso } from "@/lib/fecha";
+import { cuotaObjetivoHoy } from "@/lib/data/ruta";
+import { UYU } from "@/lib/format";
 import { validar, cobroSchema, noPagoSchema } from "@/lib/validacion/esquemas";
 import { reportarError } from "@/lib/observabilidad";
 import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
@@ -246,6 +248,10 @@ export async function registrarPagoCobrador(input: {
   gpsPrecision?: number | null;
   registradoEn?: string | null;
   opId?: string | null;
+  /** El cobrador CONFIRMÓ que quiere cobrar de más de lo que le toca hoy (adelantar
+   *  cuotas). Sin esto el servidor rechaza el segundo cobro del día sobre el mismo
+   *  crédito — ver el candado anti doble-cobro más abajo. */
+  adelanto?: boolean | null;
 }): Promise<ResultadoCobro> {
   // Validación en el borde: rechaza input malformado antes de tocar la base.
   if (!validar(cobroSchema, input).ok) return { ok: false, error: "Datos del cobro inválidos." };
@@ -319,6 +325,52 @@ export async function registrarPagoCobrador(input: {
     // fuera fraccionaria (cuota×días − Σpagos). El monto que se registra y se muestra
     // en el recibo es SIEMPRE entero (además del chokepoint en registrarPago).
     const monto = Math.round(Math.min(solicitado, r.falta));
+
+    // ─────────────────────────────────────────────────────────────────────
+    //  CANDADO ANTI DOBLE-COBRO — DEL LADO DEL SERVIDOR.
+    //
+    //  Hasta acá la única protección vivía en el navegador (`useState` en
+    //  RegistroCobro). Un `useState` se evapora en cada remonte, y el componente
+    //  remonta al cambiar de crédito (`key={prestamo.id}`); además el panel "Otro
+    //  monto" y el botón de adelanto quedaban fuera de esa guarda. El servidor
+    //  aceptaba el segundo cobro sin preguntar nada: la idempotencia por `op_id`
+    //  solo reconoce el REINTENTO de la misma operación, y el clamp de arriba capa
+    //  contra el SALDO del crédito, no contra la cuota del día.
+    //
+    //  Casos reales del piloto (misma visita a la ficha, sin navegar):
+    //    · CARLOS SANTIAGO DA SILVA  $600 + $600 en 40 segundos
+    //    · GUSTAVO DANIEL DORNELLS   $750 + $750 en 22 segundos
+    //    · ARACELI RANGER            $600 + $600 sobre una cuota de $800
+    //
+    //  Regla: si lo cobrado HOY en la app sobre ESTE crédito ya cubre el objetivo
+    //  del día, no se registra más — salvo que el cobrador lo pida EXPLÍCITAMENTE
+    //  (`adelanto: true`), que es una intención que el servidor ve y audita, no un
+    //  booleano de React. El adelanto legítimo (el cliente paga dos cuotas juntas)
+    //  se hace en UN cobro, así que el camino normal no se toca.
+    // ─────────────────────────────────────────────────────────────────────
+    if (!input.adelanto) {
+      const objetivoHoy = cuotaObjetivoHoy(
+        {
+          cuota: Number(prestamo.cuota_diaria),
+          totalDias: Number(prestamo.total_dias),
+          fechaInicio: prestamo.fecha_inicio,
+          frecuencia: (prestamo.frecuencia as FrecuenciaPrestamo) ?? "diario",
+          pagadoAcum: Number((prestamo as { pagado_acum?: number }).pagado_acum ?? 0),
+        },
+        hoyUY(),
+      );
+      const desdeHoy = inicioDiaUYIso();
+      const yaHoy = pagos
+        .filter((p) => !p.anulado && p.origen == null && String(p.registrado_en) >= desdeHoy)
+        .reduce((s, p) => s + Number(p.monto), 0);
+      if (objetivoHoy > 0 && yaHoy >= objetivoHoy - 0.5) {
+        return {
+          ok: false,
+          error: `A este cliente ya le cobraste ${UYU(Math.round(yaHoy))} hoy en este crédito. Si de verdad quiere adelantar la próxima cuota, usá el botón de adelantar.`,
+        };
+      }
+    }
+
     if (monto <= 0) {
       // op_id NUEVO (no es reintento, ya se descartó arriba) sobre un crédito YA saldado
       // por otros pagos → intento de cobrar de más = posible DOBLE-COBRANZA FÍSICA (el

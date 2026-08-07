@@ -112,8 +112,13 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
   const sugeridoRenov = c.montoNuevo ?? c.monto;
   const nuevoMonto = Math.round(Number(montoRenov) || 0) || sugeridoRenov;
   const renovEditado = nuevoMonto !== sugeridoRenov;
-  // Si pide más de lo que puede dar solo, el toque manda el pedido a la oficina.
-  const pideAprobacion = modo === "renovar" && (nuevoMonto > sugeridoRenov || !!c.requiereAprobacion);
+  // ⚠️ Se compara contra el TECHO (+20%), NO contra el sugerido. Comparando contra
+  // el sugerido, un monto ENTRE el sugerido y el techo pintaba el aviso ámbar y el
+  // botón "pedir a la oficina" —"todavía no le entregues la plata"— mientras el
+  // servidor lo aprobaba solo y CREABA el crédito en el acto: el cliente empezaba a
+  // pagar mañana un préstamo que nunca recibió, y al cobrador se le descontaba de
+  // la caja un capital que seguía en su bolsillo.
+  const pideAprobacion = modo === "renovar" && (nuevoMonto > techo || !!c.requiereAprobacion);
   // La cuota se re-estima con la MISMA proporción del sugerido (el servidor la
   // recalcula igual arrastrando la tasa: acá solo se muestra para orientar).
   const nuevaCuota =
@@ -247,7 +252,7 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
               )}
               {pideAprobacion && (
                 <span className="rounded-[10px] bg-[#FDF3E2] px-2.5 py-1.5 text-[11.5px] leading-[1.4] font-bold text-[#8A6D1E]">
-                  Ese monto pasa lo que podés dar solo ({UYU(c.montoNuevo ?? c.monto)}). Al confirmar
+                  Ese monto pasa lo que podés dar solo ({UYU(techo)}). Al confirmar
                   se le pide a la oficina — todavía no le entregues la plata.
                 </span>
               )}

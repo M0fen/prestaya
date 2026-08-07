@@ -89,6 +89,7 @@ export function useSync(usuarioId: string | null, onSynced?: () => void) {
                   clienteId: op.clienteId,
                   prestamoId: op.prestamoId ?? null,
                   monto: op.monto,
+                  adelanto: op.adelanto ?? false,
                   gpsLat: op.gpsLat,
                   gpsLng: op.gpsLng,
                   gpsPrecision: op.gpsPrecision ?? null,

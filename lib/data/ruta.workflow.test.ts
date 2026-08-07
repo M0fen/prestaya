@@ -1055,3 +1055,53 @@ describe("ruta: cuota fraccionaria heredada + pagos enteros", () => {
     expect(estadoHoyDe(1199, 1200, false)).toBe("abono"); // cuota entera: $1 menos NO cierra
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  7. EL ATRASO SE COBRA Y SE VE — la mora sale de la meta, no de la ruta
+// ═══════════════════════════════════════════════════════════════════════════
+describe("atraso: fuera de la META, pero dentro del ESTADO y de las cuentas", () => {
+  const solo = (mora: number, cuotaHoy: number, pagado: number) =>
+    clasificarClienteRuta(
+      [{ cuota: cuotaHoy + mora, cuotaProgramada: cuotaHoy, pagadoHoy: pagado, plazoVencido: false, alDia: false }],
+      false,
+    );
+
+  it("el que SOLO debe atraso y paga TODO queda COBRADO, no 'Abonó' para siempre", () => {
+    // Semanal de $3.000 que no pagó el día de vencimiento. Hoy no le vence nada,
+    // pero debe. Paga los $3.000 exactos. Medir el estado contra la META (que es 0)
+    // lo dejaba en "abono" eternamente → "Ruta completa 🎉" era inalcanzable.
+    const c = solo(3000, 0, 3000);
+    expect(c.estadoHoy).toBe("pagado");
+    expect(c.cuotaEnTermino).toBe(0); // no infla la meta del día
+    expect(c.moraEnTermino).toBe(3000);
+  });
+
+  it("el cliente MIXTO no se cierra en verde con la mora sin cobrar", () => {
+    // Un diario que vence hoy ($750) + un semanal en mora ($6.000). La tarjeta
+    // le pide $6.750. Si paga solo $750, NO está cobrado.
+    const c = clasificarClienteRuta(
+      [
+        { cuota: 750, cuotaProgramada: 750, pagadoHoy: 750, plazoVencido: false, alDia: false },
+        { cuota: 6000, cuotaProgramada: 0, pagadoHoy: 0, plazoVencido: false, alDia: false },
+      ],
+      false,
+    );
+    expect(c.cuotaEnTermino).toBe(750); // meta del día: solo lo que vence
+    expect(c.moraEnTermino).toBe(6000);
+    expect(c.estadoHoy).toBe("abono"); // pagó algo, falta la mora
+  });
+
+  it("con mora viva NUNCA se muestra 'Hoy no toca'", () => {
+    const c = solo(6000, 0, 0);
+    expect(c.alDiaCronograma).toBe(false);
+    expect(c.estadoHoy).toBe("pendiente");
+  });
+
+  it("sin mora y sin cuota hoy sí es 'Hoy no toca'", () => {
+    const c = clasificarClienteRuta(
+      [{ cuota: 0, cuotaProgramada: 0, pagadoHoy: 0, plazoVencido: false, alDia: true }],
+      false,
+    );
+    expect(c.alDiaCronograma).toBe(true);
+  });
+});

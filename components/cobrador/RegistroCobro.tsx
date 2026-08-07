@@ -255,7 +255,7 @@ export function RegistroCobro({
   // el GPS frente al cliente; ahora el registro es instantáneo.
   const registrar = (
     tipo: OpTipo,
-    extra: { monto: number | null; motivo: string | null },
+    extra: { monto: number | null; motivo: string | null; adelanto?: boolean },
   ): { offline: boolean; op: OpCobro; persistido: boolean } => {
     // Asegura que la cola esté particionada bajo ESTE cobrador antes de encolar
     // (el SyncEngine también lo hace; esto blinda contra un tap muy temprano).
@@ -282,7 +282,11 @@ export function RegistroCobro({
     };
   };
 
-  const cobrar = (monto: number | null) => {
+  // `adelanto` viaja al SERVIDOR: es la intención explícita de cobrar por encima de
+  // lo que toca hoy. El servidor rechaza el 2º cobro del día sobre el mismo crédito
+  // salvo que venga esta bandera — así el candado deja de depender de un `useState`
+  // que se evapora al remontar el componente (cambio de crédito, `key={prestamo.id}`).
+  const cobrar = (monto: number | null, adelanto = false) => {
     if (!tomarTurno()) return;
     // Dinero SIEMPRE entero. Un abono tipeado se redondea acá; la "cuota completa"
     // manda null y el SERVIDOR resuelve el monto (cuota o saldo) y lo redondea
@@ -292,7 +296,7 @@ export function RegistroCobro({
     // servidor recalcula y capa contra el saldo real; esto es lo que ve el recibo.
     const montoCobrado = m ?? cuotaEfectiva;
     const esAbono = m != null && m < cuota;
-    const { offline, op, persistido } = registrar("pago", { monto: m, motivo: null });
+    const { offline, op, persistido } = registrar("pago", { monto: m, motivo: null, adelanto });
     vibrar(18);
     // Snapshot del candado ANTES de este cobro (para que "deshacer" lo RESTAURE,
     // no lo borre: deshacer un adelanto no libera la cuota de hoy ya cobrada).
@@ -461,7 +465,7 @@ export function RegistroCobro({
         // Requiere una confirmación extra para "adelantar" otra cuota (anti doble-cobro).
         <button
           type="button"
-          onClick={() => (confirmarAdelanto ? cobrar(null) : setConfirmarAdelanto(true))}
+          onClick={() => (confirmarAdelanto ? cobrar(null, true) : setConfirmarAdelanto(true))}
           className={`rounded-full px-5 py-3.5 text-[14px] font-extrabold active:scale-[0.98] ${
             confirmarAdelanto
               ? "bg-[#1FA971] text-white shadow-[0_8px_20px_rgba(31,169,113,0.35)]"

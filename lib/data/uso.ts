@@ -215,8 +215,18 @@ export async function getAuditoriaComportamiento(desdeIso: string): Promise<UsoP
     if (!tablaFaltante(e)) throw e;
   }
   try {
-    const { data } = await admin.from("bitacora").select("actor_id").gte("fecha_uy", desdeYmd).limit(30000);
-    for (const b of data ?? []) sumar((b as { actor_id: string | null }).actor_id);
+    // `.limit(30000)` NO evita la truncación: PostgREST corta en 1000 en silencio.
+    // Con 1.854 filas en 30 días, el 46% de las acciones del personal quedaba
+    // invisible y quien caía afuera figuraba como que no había hecho nada.
+    const data = await traerTodo<{ actor_id: string | null }>((d, h) =>
+      admin
+        .from("bitacora")
+        .select("actor_id")
+        .gte("fecha_uy", desdeYmd)
+        .order("id", { ascending: true })
+        .range(d, h),
+    );
+    for (const b of data) sumar(b.actor_id);
   } catch (e) {
     if (!tablaFaltante(e)) throw e;
   }

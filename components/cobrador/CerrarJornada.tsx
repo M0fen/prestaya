@@ -81,6 +81,10 @@ export function CerrarJornada({
   // Ya cerró: resumen de solo lectura.
   if (yaRendida) {
     const t = TONO[yaRendida.estado];
+    // El colocado CONGELADO al cerrar (0136). Si la migración no corrió, se cae al
+    // vivo. Sin esto, renovar a alguien DESPUÉS de rendir movía los números de un
+    // acta ya firmada.
+    const colocadoSellado = yaRendida.colocado ?? colocado;
     return (
       <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-4">
         <div className="mb-2 flex items-center justify-between">
@@ -100,10 +104,20 @@ export function CerrarJornada({
           {yaRendida.base > 0 && <Fila k="Base recibida" v={UYU(yaRendida.base)} />}
           <Fila k="Recaudado" v={UYU(yaRendida.recaudado)} />
           <Fila k="Gastos de ruta" v={UYU(yaRendida.gastos)} />
-          {colocado > 0 && <Fila k="Capital entregado en la calle" v={`− ${UYU(colocado)}`} />}
+          {/* El CONGELADO de la rendición (0136), no el vivo: si el cobrador
+              renovaba a alguien DESPUÉS de cerrar, el acta ya firmada cambiaba
+              sola y los tres números de esta misma tarjeta se contradecían. */}
+          {colocadoSellado > 0 && (
+            <Fila k="Capital entregado en la calle" v={`− ${UYU(colocadoSellado)}`} />
+          )}
           <Fila
             k="A entregar"
-            v={UYU(Math.max(0, yaRendida.base + yaRendida.recaudado - yaRendida.gastos - colocado))}
+            v={UYU(
+              Math.max(
+                0,
+                yaRendida.base + yaRendida.recaudado - yaRendida.gastos - colocadoSellado,
+              ),
+            )}
           />
           <Fila k="Entregado" v={UYU(yaRendida.entregado)} />
         </div>
@@ -259,7 +273,7 @@ export function CerrarJornada({
               // quede un sobrante fantasma con un entregado sobre-declarado. Si ya
               // escribió su efectivo real, NO lo pisamos (respeta su conteo físico;
               // el campo sigue editable y la diferencia se ve en vivo).
-              if (!editado) setEntregado(String(Math.max(0, base + recaudado - nuevoGastos)));
+              if (!editado) setEntregado(String(Math.max(0, base + recaudado - nuevoGastos - colocado)));
               setEditado(true);
               setGastos(String(nuevoGastos));
             }}

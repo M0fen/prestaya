@@ -19,7 +19,7 @@ import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { inicioDiaUYIso, hoyUY, fechaISOUY } from "@/lib/fecha";
 import { plazoVencido, totalCredito } from "@/lib/cartones";
 import { evaluarZona } from "@/lib/geo";
-import { cuotaObjetivoHoy, clasificarClienteRuta, type CreditoRuta, type EstadoHoy, type Arqueo } from "./ruta";
+import { objetivoDelDia, clasificarClienteRuta, type CreditoRuta, type EstadoHoy, type Arqueo } from "./ruta";
 import { getEstadoJornada, getDeudaRendicionAyer, type EstadoJornada } from "./rendicion";
 import { getGastosCobradorHoy, type GastoRuta } from "./gastos";
 import { getResumenBitacoraDia, type ResumenCobradorDia } from "./bitacora";
@@ -107,7 +107,7 @@ async function rutaDeCobrador(
   const admin = createSupabaseAdmin();
   const vacio = {
     paradas: [],
-    arqueo: { esperado: 0, recaudado: 0, recaudadoRuta: 0, cobrados: 0, abonos: 0, pendientes: 0, noPagos: 0, clientes: 0 },
+    arqueo: { esperado: 0, atrasoEsperado: 0, atrasoRecuperado: 0, recaudado: 0, recaudadoRuta: 0, cobrados: 0, abonos: 0, pendientes: 0, noPagos: 0, clientes: 0 },
     vencidos: 0,
     primero: null,
     ultimo: null,
@@ -233,6 +233,8 @@ async function rutaDeCobrador(
   }
 
   let esperado = 0;
+  let atrasoEsperado = 0;
+  let atrasoRecuperado = 0;
   let recaudado = 0;
   let recaudadoRuta = 0;
   let cobrados = 0;
@@ -257,15 +259,22 @@ async function rutaDeCobrador(
     const esNoPago = creds.some((x) => noPagoPrestamos.has(x.id));
     const creditos: CreditoRuta[] = creds.map((x) => {
       const pagadoHoy = pagadoPorPrestamo.get(x.id) ?? 0;
-      const cuotaHoy = cuotaObjetivoHoy(
+      // ⚠️ MISMA fórmula que la ruta del teléfono (`objetivoDelDia`): la META es
+      // solo lo que VENCE hoy y el atraso va aparte. Cuando esto usaba
+      // `cuotaObjetivoHoy` sin pasar `cuotaProgramada`, el panel del supervisor
+      // mostraba $3.169.300 de meta contra los $1.216.586 del cobrador (2,6×) y el
+      // ranking castigaba a cobradores que sí habían cumplido.
+      const { cuotaHoy: programada, mora } = objetivoDelDia(
         { cuota: x.cuotaDiaria, totalDias: x.totalDias, fechaInicio: x.fechaInicio, frecuencia: x.frecuencia, pagadoAcum: x.pagadoAcum - pagadoHoy },
         hoyMid,
       );
+      const aPedir = Math.min(x.cuotaDiaria, programada + mora);
       return {
-        cuota: cuotaHoy,
+        cuota: aPedir < 0.5 ? 0 : aPedir,
+        cuotaProgramada: programada,
         pagadoHoy,
         plazoVencido: x.plazoVencido,
-        alDia: cuotaHoy <= 0.5 && x.cuotaDiaria > 0 && x.totalDias > 0 && !x.plazoVencido,
+        alDia: programada <= 0.5 && mora <= 0.5 && x.cuotaDiaria > 0 && x.totalDias > 0 && !x.plazoVencido,
       };
     });
     const clase = clasificarClienteRuta(creditos, esNoPago);
@@ -273,6 +282,11 @@ async function rutaDeCobrador(
     if (clase.cuentaEnRuta && !clase.alDiaCronograma) {
       esperado += clase.cuotaEnTermino;
       recaudadoRuta += Math.min(clase.pagadoHoyEnTermino, clase.cuotaEnTermino);
+      atrasoEsperado += clase.moraEnTermino;
+      atrasoRecuperado += Math.min(
+        Math.max(0, clase.pagadoHoyEnTermino - clase.cuotaEnTermino),
+        clase.moraEnTermino,
+      );
       conRuta += 1;
       if (clase.estadoHoy === "pagado") cobrados++;
       else if (clase.estadoHoy === "abono") abonos++;
@@ -322,6 +336,8 @@ async function rutaDeCobrador(
     paradas,
     arqueo: {
       esperado,
+      atrasoEsperado,
+      atrasoRecuperado,
       recaudado,
       recaudadoRuta,
       cobrados,
@@ -375,7 +391,7 @@ export async function getPerfilCobrador(
       : Promise.resolve({ email: null as string | null, ultimo: null as string | null }),
     suave(
       rutaDeCobrador(cobradorId, hoy),
-      { paradas: [], arqueo: { esperado: 0, recaudado: 0, recaudadoRuta: 0, cobrados: 0, abonos: 0, pendientes: 0, noPagos: 0, clientes: 0 }, vencidos: 0, primero: null, ultimo: null },
+      { paradas: [], arqueo: { esperado: 0, atrasoEsperado: 0, atrasoRecuperado: 0, recaudado: 0, recaudadoRuta: 0, cobrados: 0, abonos: 0, pendientes: 0, noPagos: 0, clientes: 0 }, vencidos: 0, primero: null, ultimo: null },
       "perfil:ruta",
     ),
     suave(

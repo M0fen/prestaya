@@ -103,7 +103,13 @@ export default async function DashboardPage({
   // donde se actúa. Todo reusa data ya cargada y acotada a la zona del gestor.
   const faltantes = rend.rendidas.filter((r) => r.diferencia < 0);
   const sinRendir = rend.pendientes; // recaudaron pero no cerraron: float en calle
-  const floatCalle = sinRendir.reduce((s, p) => s + p.recaudado, 0);
+  // Float REAL = lo cobrado MENOS el capital que ya pusieron en la calle. Con el
+  // recaudo bruto, esta pantalla y /admin/jornada daban dos cifras distintas del
+  // mismo minuto (el 07-08: $232.304 acá contra $100.324 allá).
+  const floatCalle = sinRendir.reduce(
+    (s, p) => s + Math.max(0, Math.round(p.recaudado) - Math.round(p.colocado ?? 0)),
+    0,
+  );
   const senalesRiesgo =
     faltantes.length + sinRendir.length + mora.criticos + cobradores.alertas.length;
 

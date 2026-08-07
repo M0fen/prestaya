@@ -15,6 +15,9 @@ export interface SolicitudRenovacion {
   totalDias: number;
   frecuencia: FrecuenciaPrestamo;
   solicitadoPorNombre: string | null;
+  /** QUIÉN la pidió. Es el cobrador que va a poner el efectivo en la calle: el
+   *  crédito tiene que nacer a SU nombre, no al del gestor que aprieta "Aprobar". */
+  solicitadoPor: string | null;
   solicitadoEn: string;
 }
 
@@ -66,6 +69,7 @@ export async function getSolicitudesPendientes(db: SupabaseClient): Promise<Soli
       totalDias: Number(r.total_dias),
       frecuencia: (r.frecuencia as FrecuenciaPrestamo) ?? "diario",
       solicitadoPorNombre: (r.solicitado_por_nombre as string | null) ?? null,
+      solicitadoPor: (r.solicitado_por as string | null) ?? null,
       solicitadoEn: r.solicitado_en as string,
     }));
   } catch (e) {
@@ -82,6 +86,9 @@ export interface SolicitudCruda {
   totalDias: number;
   frecuencia: FrecuenciaPrestamo;
   estado: string;
+  /** El cobrador que la pidió: el crédito nace a SU nombre porque es quien pone
+   *  el efectivo en la calle, no el gestor que aprieta "Aprobar". */
+  solicitadoPor: string | null;
 }
 
 export async function getSolicitudPorId(
@@ -99,6 +106,7 @@ export async function getSolicitudPorId(
     totalDias: Number(data.total_dias),
     frecuencia: (data.frecuencia as FrecuenciaPrestamo) ?? "diario",
     estado: data.estado as string,
+    solicitadoPor: (data.solicitado_por as string | null) ?? null,
   };
 }
 

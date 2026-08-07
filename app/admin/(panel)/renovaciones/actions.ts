@@ -204,7 +204,13 @@ export async function aprobarSolicitud(id: string): Promise<ResultadoAlta> {
       monto: s.monto,
       totalDias: s.totalDias,
       frecuencia: s.frecuencia,
-      creadoPor: u.id,
+      // ⚠️ El crédito nace a nombre del COBRADOR QUE LO PIDIÓ, no del gestor que
+      // aprueba: el efectivo lo saca él del bolsillo, parado al lado del cliente.
+      // El capital colocado se cuenta por `creado_por`, así que ponerle el id del
+      // admin le dejaba el `colocado` en $0 y el cierre le volvía a pedir esa
+      // plata — exactamente el faltante fantasma que la 0136 vino a matar, mudado
+      // al camino de aprobación. Quién aprobó queda en la auditoría, que es donde va.
+      creadoPor: s.solicitadoPor ?? u.id,
       // Solo si el monto REALMENTE se pasa del tope — y ya se validó arriba que
       // no puede pasar del crédito anterior. Antes iba `true` incondicional, que
       // apagaba el candado de la base para cualquier solicitud.

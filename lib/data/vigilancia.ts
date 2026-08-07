@@ -142,7 +142,11 @@ export async function getVigilanciaCobradores(
         // diaria, ~$150.000 de superÃ¡vit inexistente en 30 dÃ­as).
         let rq = db
           .from("rendiciones")
-          .select("cobrador_id, fecha, entregado, diferencia, base")
+          // `colocado` (0136) es imprescindible: sin pedirlo, el `+ r.colocado` de
+          // abajo sumaba 0 SIEMPRE y la pantalla anti-fuga mostraba un hueco entre
+          // "Recaudó" y "Rindió" del tamaño del capital que el cobrador puso en la
+          // calle — leyéndose como robo.
+          .select("cobrador_id, fecha, entregado, diferencia, base, colocado")
           .gte("fecha", desdeYmd);
         if (cobIds) rq = rq.in("cobrador_id", cobIds);
         return rq.order("id", { ascending: true }).range(d, h);

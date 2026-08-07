@@ -119,3 +119,28 @@ describe("cajaFinal — lo que queda en la mano, y es la base de mañana", () =>
     expect(cajaFinal(base, recaudado, gastos, entregado)).toBe(esperado - entregado);
   });
 });
+
+describe("aFavorDelCobrador — cuando la oficina le queda debiendo a ÉL", () => {
+  it("colocó más capital del que tenía encima: no es 'cuadra ✓', es plata a favor", () => {
+    // Caso real del 07-08: VÍCTOR MORALEZ cobró $26.980 y colocó $56.000 en 3
+    // renovaciones. Puso $29.020 de su bolsillo. El max(0,…) del esperado se los
+    // tragaba y el cierre le decía "Cuadra ✓" entregando $0, sin registrar nada.
+    const r = calcularRendicion(26_980, 0, 0, 0, 56_000);
+    expect(r.esperado).toBe(0);
+    expect(r.aFavor).toBe(29_020);
+  });
+
+  it("el caso normal no tiene nada a favor", () => {
+    // JUAN JOSÉ: base 48.733 + cobró 49.320 − colocó 40.000 = entrega 58.053.
+    const r = calcularRendicion(49_320, 0, 58_053, 48_733, 40_000);
+    expect(r.esperado).toBe(58_053);
+    expect(r.estado).toBe("cuadra");
+    expect(r.aFavor).toBe(0);
+  });
+
+  it("justo en el límite (colocó exactamente lo que tenía) tampoco hay saldo a favor", () => {
+    const r = calcularRendicion(10_000, 0, 0, 5_000, 15_000);
+    expect(r.esperado).toBe(0);
+    expect(r.aFavor).toBe(0);
+  });
+});

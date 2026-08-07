@@ -13,8 +13,10 @@ import { inicioDiaUYIso, hoyUY } from "@/lib/fecha";
 import { toIso } from "@/lib/format";
 import { traerTodo } from "./paginado";
 import { tablaFaltante } from "./errores";
+import { reportarError } from "@/lib/observabilidad";
 import { alcanceDelActor, type Alcance } from "./alcance";
 import { getAperturasDia } from "./aperturas";
+import { colocadoEnDias, claveColocado } from "./colocado";
 
 export interface FilaLiquidacion {
   cobradorId: string;
@@ -26,7 +28,9 @@ export interface FilaLiquidacion {
   retiros: number;
   /** Créditos nuevos colocados hoy por el cobrador. */
   ventas: number;
-  /** base(0 si null) + recaudo − retiros. */
+  /** Capital que entregó en la calle hoy: sale de su bolsillo, no lo tiene. */
+  colocado: number;
+  /** base(0 si null) + recaudo − retiros − colocado, nunca negativo. */
   cajaFinal: number;
   estado: "cerrada" | "abierta";
 }
@@ -170,16 +174,35 @@ export async function getLiquidacionDiaria(
     /* sin tabla de aperturas (0104) → se queda con lo que dieran los movimientos */
   }
 
+  // ⚠️ El CAPITAL COLOCADO no lo tiene el cobrador: se lo dio a los clientes. Sin
+  // restarlo, la columna "Caja final" del home del admin era una CUARTA fórmula
+  // (base + recaudo − retiros) que contradecía al teléfono del cobrador y al cierre
+  // por zona de la misma página — María Artunduaga aparecía con $104.144 cuando
+  // tenía $27.144.
+  // Es una pantalla de LECTURA, no el acta de cierre: si no se puede leer, se
+  // muestra sin el descuento (queda el número de antes) pero se reporta — nunca
+  // en silencio, porque el número que queda es el inflado.
+  let colocadoPorCob = new Map<string, number>();
+  try {
+    colocadoPorCob = await colocadoEnDias(
+      cobradores.map((c) => ({ cobradorId: c.id, ymd: fechaHoy })),
+    );
+  } catch (e) {
+    reportarError("liquidacion:colocado", e);
+  }
+
   const filas: FilaLiquidacion[] = cobradores
     .map((c) => {
       const a = acc.get(c.id)!;
-      const cajaFinal = (a.base ?? 0) + a.recaudo - a.retiros;
+      const colocado = colocadoPorCob.get(claveColocado(c.id, fechaHoy)) ?? 0;
+      const cajaFinal = Math.max(0, (a.base ?? 0) + a.recaudo - a.retiros - colocado);
       return {
         cobradorId: c.id,
         nombre: c.nombre,
         base: a.base,
         visitas: a.visitas,
         recaudo: a.recaudo,
+        colocado,
         retiros: a.retiros,
         ventas: a.ventas,
         cajaFinal,

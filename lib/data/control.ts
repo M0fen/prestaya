@@ -12,7 +12,7 @@ import { traerTodo } from "./paginado";
 import { getActivosConPagos } from "./activos";
 import { alcanceDelActor, type Alcance } from "./alcance";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
-import { cuotaObjetivoHoy } from "./ruta";
+import { objetivoDelDia } from "./ruta";
 import { plazoVencido, totalCredito } from "@/lib/cartones";
 
 /** Efectivo por cobrador que dispara alerta de rendición (hasta tener módulo de caja). */
@@ -148,9 +148,9 @@ export async function getControlCobranza(
   ]);
 
   // Acumuladores por cobrador.
-  const acc = new Map<string, { recaudado: number; esperado: number; cobrados: Set<string>; noPagos: number; anomalias: number; asignados: number }>();
+  const acc = new Map<string, { recaudado: number; esperado: number; atraso: number; cobrados: Set<string>; noPagos: number; anomalias: number; asignados: number }>();
   const init = (id: string) => {
-    if (!acc.has(id)) acc.set(id, { recaudado: 0, esperado: 0, cobrados: new Set(), noPagos: 0, anomalias: 0, asignados: 0 });
+    if (!acc.has(id)) acc.set(id, { recaudado: 0, esperado: 0, atraso: 0, cobrados: new Set(), noPagos: 0, anomalias: 0, asignados: 0 });
     return acc.get(id)!;
   };
   for (const c of cobradores) init(c.id);
@@ -198,7 +198,12 @@ export async function getControlCobranza(
     const totalCred = totalCredito(Number(p.cuota_diaria), Number(p.total_dias));
     if (totalCred > 0 && Number(p.pagado) >= totalCred - 0.5) continue;
     const pagadoHoy = pagadoHoyPorCredito.get(p.id) ?? 0;
-    init(p.cobrador_id).esperado += cuotaObjetivoHoy(
+    // ⚠️ La META es solo la cuota que VENCE hoy — la MISMA que ve el cobrador en su
+    // teléfono (`objetivoDelDia`). Con `cuotaObjetivoHoy` (que incluye la mora
+    // arrastrada) el panel mostraba $3.169.300 contra los $1.216.586 del cobrador:
+    // el ranking del supervisor castigaba a gente que sí había cumplido su meta.
+    // El atraso se lleva aparte para que igual se vea que hay plata para recuperar.
+    const obj = objetivoDelDia(
       {
         cuota: Number(p.cuota_diaria),
         totalDias: Number(p.total_dias),
@@ -208,6 +213,9 @@ export async function getControlCobranza(
       },
       hoyMid,
     );
+    const acc = init(p.cobrador_id);
+    acc.esperado += obj.cuotaHoy;
+    acc.atraso += obj.mora;
   }
 
   const alertas: AlertaControl[] = [];
