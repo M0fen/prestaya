@@ -192,6 +192,10 @@ export async function renovarDesdeCalle(input: {
    *  se pasa del techo del cobrador, la renovación se le PIDE al admin en vez de
    *  rebotar (pedido de Carlos, 06-08: poder cambiarlo a mano en la calle). */
   monto?: number;
+  /** Cantidad de cuotas del crédito NUEVO. Si no viene, se hereda del anterior.
+   *  Cambiarla NO cambia lo que el cliente paga en total (monto × su tasa): reparte
+   *  ese total en más o menos cuotas, o sea que sube o baja la cuota diaria. */
+  cuotas?: number;
   nonce?: string;
 }): Promise<ResultadoColocar> {
   const p = await puerta(input.clienteId);
@@ -238,8 +242,8 @@ export async function renovarDesdeCalle(input: {
   }
 
   const montoAnterior = Math.round(Number(ant.monto_prestado) || 0);
-  const totalDias = Number(ant.total_dias) || 0;
-  if (!(montoAnterior > 0) || !(totalDias > 0)) {
+  const diasAnterior = Number(ant.total_dias) || 0;
+  if (!(montoAnterior > 0) || !(diasAnterior > 0)) {
     return {
       ok: false,
       error: "Los términos del crédito anterior no son válidos. Avisá a la oficina.",
@@ -263,6 +267,17 @@ export async function renovarDesdeCalle(input: {
   //  por el pedido: un crédito heredado de $120.000 que se quería renovar en
   //  $50.000 —por debajo del tope y del propio techo del cobrador— igual se iba
   //  a la cola del admin y el cliente esperaba sin razón.
+  // CUOTAS del crédito nuevo. Por defecto se heredan del anterior (renovar es
+  // repetir), pero el cobrador puede cambiarlas: el cliente a veces necesita la
+  // cuota más baja aunque tarde más. Cambiarlas NO cambia lo que paga en TOTAL
+  // (monto × su tasa) — reparte ese total en más o menos cuotas.
+  // Mismo tope que la venta de calle: sin él, un `totalDias` absurdo (1 o 5.000)
+  // produce una cuota disparatada y el cartón queda ilegible.
+  const totalDias = input.cuotas == null ? diasAnterior : Math.round(Number(input.cuotas));
+  if (!Number.isInteger(totalDias) || totalDias <= 0 || totalDias > 366) {
+    return { ok: false, error: "Revisá la cantidad de cuotas (máximo 366)." };
+  }
+
   const techoSolo = montoRenovacionAutoAprobable(montoAnterior);
   const maximo = techoRenovacion(montoAnterior);
   const pedido =

@@ -396,3 +396,37 @@ describe("renovar por un monto DISTINTO: qué se aprueba solo, qué va a la ofic
     expect(calcularCuotaRenovacion(alCero, 10_000, 20)).toBe(500);
   });
 });
+
+describe("cambiar el NÚMERO DE CUOTAS al renovar (pedido de Carlos, 07-08)", () => {
+  // Crédito anterior: $60.000 prestados, cuota $2.400 × 30 días = $72.000 → tasa 1,20.
+  const ANT = { monto: 60_000, cuota: 2_400, totalDias: 30 };
+
+  it("con las MISMAS cuotas, la renovación repite la cuota exacta", () => {
+    expect(calcularCuotaRenovacion(ANT, 60_000, 30)).toBe(2_400);
+  });
+
+  it("MÁS cuotas = cuota más baja, y el cliente paga LO MISMO en total", () => {
+    // 60.000 × 1,20 = 72.000 a pagar, repartido en 40 en vez de 30.
+    const cuota = calcularCuotaRenovacion(ANT, 60_000, 40);
+    expect(cuota).toBe(1_800);
+    expect(cuota * 40).toBe(72_000); // el total NO cambia
+  });
+
+  it("MENOS cuotas = cuota más alta, mismo total", () => {
+    const cuota = calcularCuotaRenovacion(ANT, 60_000, 24);
+    expect(cuota).toBe(3_000);
+    expect(cuota * 24).toBe(72_000);
+  });
+
+  it("cambiar las cuotas NO cambia la tasa del cliente", () => {
+    // Un cliente al 3%: 100.000 × 1,03 = 103.000. En 20 cuotas o en 40, sigue 3%.
+    const alTresPct = { monto: 100_000, cuota: 5_150, totalDias: 20 };
+    expect(calcularCuotaRenovacion(alTresPct, 100_000, 20) * 20).toBe(103_000);
+    expect(calcularCuotaRenovacion(alTresPct, 100_000, 40) * 40).toBe(103_000);
+  });
+
+  it("términos inválidos no producen una cuota fantasma", () => {
+    expect(calcularCuotaRenovacion(ANT, 60_000, 0)).toBe(0);
+    expect(calcularCuotaRenovacion(ANT, 0, 30)).toBe(0);
+  });
+});

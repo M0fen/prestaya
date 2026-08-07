@@ -118,6 +118,8 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
    *  pagar (lo manda el server): renovar es repetir el crédito, no subirlo. */
   const [montoRenov, setMontoRenov] = useState(String(c.montoNuevo ?? c.monto));
   const [cuotas, setCuotas] = useState(String(c.totalDias));
+  /** Cuotas de la RENOVACIÓN, editables. Arrancan en las del crédito anterior. */
+  const [cuotasRenov, setCuotasRenov] = useState(String(c.totalDias));
   const [msg, setMsg] = useState<string | null>(null);
   const [okTxt, setOkTxt] = useState<string | null>(null);
   /** El resultado fue "ya estaba hecho", no "recién lo creé": se pinta distinto. */
@@ -141,12 +143,15 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
   // pagar mañana un préstamo que nunca recibió, y al cobrador se le descontaba de
   // la caja un capital que seguía en su bolsillo.
   const pideAprobacion = modo === "renovar" && (nuevoMonto > techo || !!c.requiereAprobacion);
-  // La cuota se re-estima con la MISMA proporción del sugerido (el servidor la
-  // recalcula igual arrastrando la tasa: acá solo se muestra para orientar).
-  const nuevaCuota =
+  const cuotasRenovN = Math.round(Number(cuotasRenov) || 0) || c.totalDias;
+  const cuotasEditadas = cuotasRenovN !== c.totalDias;
+  // Total que va a pagar el cliente = monto × SU tasa (la del crédito anterior).
+  // Cambiar las cuotas NO cambia ese total: lo reparte en más o menos pagos.
+  const totalAPagarRenov =
     sugeridoRenov > 0
-      ? Math.round(((c.cuotaNueva ?? c.cuota) * nuevoMonto) / sugeridoRenov)
-      : (c.cuotaNueva ?? c.cuota);
+      ? Math.round(((c.cuotaNueva ?? c.cuota) * c.totalDias * nuevoMonto) / sugeridoRenov)
+      : (c.cuotaNueva ?? c.cuota) * c.totalDias;
+  const nuevaCuota = cuotasRenovN > 0 ? Math.round(totalAPagarRenov / cuotasRenovN) : 0;
 
   // Atajos de monto: tipear en la calle es de donde salen los ceros de más. El
   // MISMO monto es lo normal (regla del negocio); los otros dos son los pedidos
@@ -190,7 +195,7 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
       try {
         const r =
           modo === "renovar"
-            ? await renovarDesdeCalle({ clienteId: c.clienteId, prestamoId: c.prestamoId!, monto: nuevoMonto })
+            ? await renovarDesdeCalle({ clienteId: c.clienteId, prestamoId: c.prestamoId!, monto: nuevoMonto, cuotas: cuotasRenovN })
             : await nuevaVentaDesdeCalle({
                 clienteId: c.clienteId,
                 monto: montoN,
@@ -288,23 +293,40 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
 
               {/* 2) EL MONTO, grande y obviamente editable. El campo con el signo $
                   adentro y el teclado numérico: es LO ÚNICO que se decide acá. */}
-              <label className="flex flex-col gap-1">
-                <span className="text-[12px] font-extrabold text-tinta">
-                  ¿Por cuánto se lo renovás?
-                </span>
-                <div className="flex items-center gap-1.5 rounded-[11px] border-2 border-[#C7D2EC] bg-white px-3">
-                  <span className="text-[18px] font-black text-[#8A93AD]">$</span>
+              <div className="flex gap-2">
+                <label className="flex flex-1 flex-col gap-1">
+                  <span className="text-[12px] font-extrabold text-tinta">
+                    ¿Por cuánto se lo renovás?
+                  </span>
+                  <div className="flex items-center gap-1.5 rounded-[11px] border-2 border-[#C7D2EC] bg-white px-3">
+                    <span className="text-[18px] font-black text-[#8A93AD]">$</span>
+                    <input
+                      inputMode="numeric"
+                      value={montoRenov}
+                      onChange={(e) => {
+                        setMontoRenov(e.target.value.replace(/\D/g, ""));
+                        setConfirmar(false);
+                      }}
+                      className="w-full min-h-[52px] bg-transparent text-[22px] font-black tabular-nums text-tinta outline-none"
+                    />
+                  </div>
+                </label>
+                {/* CUOTAS editables (pedido de Carlos, 07-08): el cliente a veces
+                    necesita la cuota más baja aunque tarde más. Cambiarlas NO cambia
+                    lo que paga en total — reparte ese total en más o menos cuotas. */}
+                <label className="flex w-[92px] flex-col gap-1">
+                  <span className="text-[12px] font-extrabold text-tinta">Cuotas</span>
                   <input
                     inputMode="numeric"
-                    value={montoRenov}
+                    value={cuotasRenov}
                     onChange={(e) => {
-                      setMontoRenov(e.target.value.replace(/\D/g, ""));
+                      setCuotasRenov(e.target.value.replace(/\D/g, ""));
                       setConfirmar(false);
                     }}
-                    className="w-full min-h-[52px] bg-transparent text-[22px] font-black tabular-nums text-tinta outline-none"
+                    className="min-h-[52px] rounded-[11px] border-2 border-[#C7D2EC] bg-white px-3 text-[22px] font-black tabular-nums text-tinta outline-none"
                   />
-                </div>
-              </label>
+                </label>
+              </div>
 
               {/* 3) ATAJOS. Tipear en la calle es de donde salen los ceros de más.
                   El mismo monto es lo normal; los otros dos son los pedidos reales. */}
@@ -332,12 +354,22 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
                   alta, y hasta ahora tenía que calcularlo de memoria. */}
               <div className="grid grid-cols-3 gap-2 rounded-[11px] bg-white p-2.5">
                 <Dato k="Cuota" v={UYU(nuevaCuota)} />
-                <Dato k="Cuotas" v={`${c.totalDias} ${etiquetaFrec(c.frecuencia)}`} />
-                <Dato k="Paga en total" v={UYU(nuevaCuota * c.totalDias)} />
+                <Dato k="Cuotas" v={`${cuotasRenovN} ${etiquetaFrec(c.frecuencia)}`} />
+                <Dato k="Paga en total" v={UYU(nuevaCuota * cuotasRenovN)} />
               </div>
               <span className="text-[11.5px] leading-[1.4] font-semibold text-gris">
                 Empieza a pagar {primerCobro}. Hoy recibe la plata, mañana arranca.
               </span>
+
+              {/* Cambiar las cuotas confunde si no se dice qué hace: NO cambia lo
+                  que el cliente paga en total, solo cómo se reparte. */}
+              {cuotasEditadas && (
+                <span className="rounded-[10px] bg-[#EEF3FF] px-2.5 py-2 text-[11.5px] leading-[1.45] font-bold text-[#1E47C8]">
+                  Antes eran {c.totalDias} {etiquetaFrec(c.frecuencia)}. Paga lo mismo en total
+                  ({UYU(totalAPagarRenov)}): con {cuotasRenovN} le queda una cuota de{" "}
+                  {UYU(nuevaCuota)}.
+                </span>
+              )}
 
               {/* 5) EL LÍMITE, SIEMPRE a la vista — no recién cuando ya se pasó. */}
               {!pideAprobacion && techo > sugeridoRenov && (
@@ -353,16 +385,17 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
                   <strong>Todavía NO le entregues la plata.</strong>
                 </span>
               )}
-              {renovEditado && (
+              {(renovEditado || cuotasEditadas) && (
                 <button
                   type="button"
                   onClick={() => {
                     setMontoRenov(String(sugeridoRenov));
+                    setCuotasRenov(String(c.totalDias));
                     setConfirmar(false);
                   }}
                   className="self-start text-[11.5px] font-bold text-azul"
                 >
-                  ← Volver al mismo monto ({UYU(sugeridoRenov)})
+                  ← Volver a como estaba ({UYU(sugeridoRenov)} en {c.totalDias})
                 </button>
               )}
             </div>
