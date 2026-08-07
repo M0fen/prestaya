@@ -24,13 +24,16 @@ import {
 } from "@/lib/data/prestamos";
 import { getPagosDePrestamo, registrarPago, esSobrePago } from "@/lib/data/pagos";
 import { subirFotoCliente } from "@/lib/data/fotos";
-import type { Prestamo, FrecuenciaPrestamo } from "@/types/db";
+import type { Prestamo } from "@/types/db";
+
+/** Ventana del candado anti doble-toque. Los duplicados reales del piloto fueron
+ *  de 40 y 50 segundos; la segunda vuelta legítima más cercana, 2,3 horas. */
+const VENTANA_DUPLICADO_MS = 10 * 60 * 1000;
 import { crearVisita } from "@/lib/data/visitas";
 import { registrarBitacora } from "@/lib/data/bitacora";
 import { calcularEstadosCarton } from "@/lib/cartones";
 import { evaluarZona, MAX_PRECISION_ANCLA_M } from "@/lib/geo";
-import { hoyUY, sellarRegistroEn, inicioDiaUYIso } from "@/lib/fecha";
-import { cuotaObjetivoHoy } from "@/lib/data/ruta";
+import { hoyUY, sellarRegistroEn } from "@/lib/fecha";
 import { UYU } from "@/lib/format";
 import { validar, cobroSchema, noPagoSchema } from "@/lib/validacion/esquemas";
 import { reportarError } from "@/lib/observabilidad";
@@ -235,7 +238,11 @@ export type ResultadoCobro =
   // TODAS las ops por igual (kill switch, sesión) → la cola corta el batch y reintenta
   // todo, SIN acumular intentos. Un retryable SIN `sistemico` (catch-all: red/DB/timeout)
   // es AMBIGUO/per-op: la cola sigue con el resto y, si otras avanzan, lo escala a atascada.
-  | { ok: false; error: string; retryable?: boolean; sistemico?: boolean };
+  // `duplicado`: se frenó por el candado anti doble-toque (mismo crédito, mismo
+  // monto, hace unos minutos). NO es un fallo del sistema ni plata perdida: el
+  // primer cobro está guardado. La cola lo descarta sin marcarlo "atascado" —
+  // pedirle al cobrador que "registre de nuevo" un duplicado sería el bug.
+  | { ok: false; error: string; retryable?: boolean; sistemico?: boolean; duplicado?: boolean };
 
 export async function registrarPagoCobrador(input: {
   clienteId: string;
@@ -248,9 +255,9 @@ export async function registrarPagoCobrador(input: {
   gpsPrecision?: number | null;
   registradoEn?: string | null;
   opId?: string | null;
-  /** El cobrador CONFIRMÓ que quiere cobrar de más de lo que le toca hoy (adelantar
-   *  cuotas). Sin esto el servidor rechaza el segundo cobro del día sobre el mismo
-   *  crédito — ver el candado anti doble-cobro más abajo. */
+  /** El cobrador CONFIRMÓ que quiere registrarlo igual, sabiendo que hace un rato
+   *  ya cargó el mismo monto en este crédito (el cliente pagó dos veces de verdad).
+   *  Sin esto el servidor frena el duplicado — ver el candado más abajo. */
   adelanto?: boolean | null;
 }): Promise<ResultadoCobro> {
   // Validación en el borde: rechaza input malformado antes de tocar la base.
@@ -342,31 +349,31 @@ export async function registrarPagoCobrador(input: {
     //    · GUSTAVO DANIEL DORNELLS   $750 + $750 en 22 segundos
     //    · ARACELI RANGER            $600 + $600 sobre una cuota de $800
     //
-    //  Regla: si lo cobrado HOY en la app sobre ESTE crédito ya cubre el objetivo
-    //  del día, no se registra más — salvo que el cobrador lo pida EXPLÍCITAMENTE
-    //  (`adelanto: true`), que es una intención que el servidor ve y audita, no un
-    //  booleano de React. El adelanto legítimo (el cliente paga dos cuotas juntas)
-    //  se hace en UN cobro, así que el camino normal no se toca.
+    //  ⚠️ LA REGLA ES ESTRECHA A PROPÓSITO: mismo crédito, MISMO MONTO, dentro de
+    //  unos minutos. Medido sobre los 4 días del piloto, los 21 pares de cobros al
+    //  mismo crédito en el mismo día se parten en dos grupos limpios:
+    //     · 2 pares a 40 y 50 SEGUNDOS  → el doble toque que hay que frenar;
+    //     · 16 pares a 2,3–4,9 HORAS    → la SEGUNDA VUELTA de la ruta, legítima;
+    //     · 3 pares de montos distintos → pagos parciales / saldar el crédito.
+    //  Una regla más ancha ("ya cubrió la cuota de hoy") habría rechazado las 16
+    //  vueltas legítimas de un solo día — el 10% de los cobros. El hueco entre 50
+    //  segundos y 2,3 horas es enorme, así que la ventana no necesita ser fina.
     // ─────────────────────────────────────────────────────────────────────
     if (!input.adelanto) {
-      const objetivoHoy = cuotaObjetivoHoy(
-        {
-          cuota: Number(prestamo.cuota_diaria),
-          totalDias: Number(prestamo.total_dias),
-          fechaInicio: prestamo.fecha_inicio,
-          frecuencia: (prestamo.frecuencia as FrecuenciaPrestamo) ?? "diario",
-          pagadoAcum: Number((prestamo as { pagado_acum?: number }).pagado_acum ?? 0),
-        },
-        hoyUY(),
+      const limite = Date.now() - VENTANA_DUPLICADO_MS;
+      const gemelo = pagos.find(
+        (p) =>
+          !p.anulado &&
+          p.origen == null &&
+          Math.abs(Number(p.monto) - monto) < 0.5 &&
+          p.registrado_en != null &&
+          new Date(p.registrado_en).getTime() >= limite,
       );
-      const desdeHoy = inicioDiaUYIso();
-      const yaHoy = pagos
-        .filter((p) => !p.anulado && p.origen == null && String(p.registrado_en) >= desdeHoy)
-        .reduce((s, p) => s + Number(p.monto), 0);
-      if (objetivoHoy > 0 && yaHoy >= objetivoHoy - 0.5) {
+      if (gemelo) {
         return {
           ok: false,
-          error: `A este cliente ya le cobraste ${UYU(Math.round(yaHoy))} hoy en este crédito. Si de verdad quiere adelantar la próxima cuota, usá el botón de adelantar.`,
+          error: `Hace un momento ya registraste ${UYU(monto)} en este crédito. Si el cliente PAGÓ DOS VECES, tocá de nuevo para confirmarlo; si fue sin querer, cerrá esta pantalla — el primer cobro ya está guardado.`,
+          duplicado: true,
         };
       }
     }

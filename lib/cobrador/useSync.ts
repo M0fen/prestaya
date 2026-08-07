@@ -125,6 +125,14 @@ export function useSync(usuarioId: string | null, onSynced?: () => void) {
             // (anti head-of-line: una op envenenada ya no traba a las de atrás). Se anota
             // para decidir al final si se escala (evidencia de per-op) o no (red caída).
             ambiguas.push(op);
+          } else if ((res as { duplicado?: boolean }).duplicado) {
+            // DUPLICADO frenado por el candado anti doble-toque: el primer cobro YA
+            // está en el libro, así que esta op no es plata perdida — es la misma
+            // plata dos veces. Se confirma (sale de la cola) en vez de marcarla
+            // atascada: dejarla ahí haría que el cierre le pidiera al cobrador
+            // "registralo de nuevo" un cobro que justamente no hay que registrar.
+            confirmar(op.id);
+            algunoOk = true;
           } else {
             // Error PERMANENTE (crédito finalizado/saldado/reasignado, datos inválidos):
             // reintentar daría el MISMO error → se marca ATASCADA de INMEDIATO (no bloquea

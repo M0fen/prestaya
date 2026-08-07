@@ -268,6 +268,11 @@ export function RegistroCobro({
         clienteNombre,
         monto: extra.monto,
         motivo: extra.motivo,
+        // ⚠️ SIN esta línea la bandera se perdía acá: `cobrar()` la recibía, pero
+        // el objeto que se encola no la llevaba (es opcional en OpCobro, así que
+        // TS no chistaba) y el servidor recibía SIEMPRE adelanto=false. El candado
+        // rechazaba el cobro confirmado y no había forma de registrarlo nunca.
+        adelanto: extra.adelanto ?? false,
         gpsLat: null,
         gpsLng: null,
       },
