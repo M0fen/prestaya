@@ -342,3 +342,57 @@ describe("el +20% junto con la cuota (lo que el cliente termina pagando)", () =>
     expect(cuota).toBe(351); // 8.425 / 24 = 351,04 → 351
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  LOS TRES TRAMOS DEL MONTO — la regla que el piloto encontró confusa
+// ═══════════════════════════════════════════════════════════════════════════
+describe("renovar por un monto DISTINTO: qué se aprueba solo, qué va a la oficina", () => {
+  // Gabriela Otonelli: terminó un crédito de $60.000.
+  const ANT = 60_000;
+
+  it("por defecto se repite EXACTO, sin aumento", () => {
+    // Regla de Carlos (06-08): "si terminó 60k, se renueva en 60k". El +20% nunca
+    // fue un aumento de capital — es solo hasta dónde puede llegar el cobrador solo.
+    expect(montoRenovacionSugerido(ANT)).toBe(60_000);
+  });
+
+  it("hasta +20% lo aprueba el cobrador solo", () => {
+    expect(montoRenovacionAutoAprobable(ANT)).toBe(72_000);
+    // Cualquier monto hasta ahí se crea en el acto, sin pasar por la oficina.
+    for (const m of [50_000, 60_000, 65_000, 72_000]) {
+      expect(m <= montoRenovacionAutoAprobable(ANT)).toBe(true);
+    }
+  });
+
+  it("entre el techo y el máximo va a la oficina — NO rebota", () => {
+    const techoSolo = montoRenovacionAutoAprobable(ANT); // 72.000
+    const maximo = techoRenovacion(ANT); // 100.000 (el CAP)
+    expect(maximo).toBe(RENOVACION_CAP_TOTAL);
+    expect(80_000).toBeGreaterThan(techoSolo);
+    expect(80_000).toBeLessThanOrEqual(maximo);
+  });
+
+  it("un cero de más pasa el MÁXIMO y se rechaza (ni la oficina puede)", () => {
+    // $600.000 en vez de $60.000: el dedazo que convierte un crédito en 10.
+    expect(600_000).toBeGreaterThan(techoRenovacion(ANT));
+  });
+
+  it("BAJAR el monto siempre se puede, incluso en un crédito heredado sobre el tope", () => {
+    // Crédito heredado de Disapp de $120.000 (por encima del CAP de $100.000).
+    // Renovarlo en $50.000 está por debajo del CAP Y del techo del cobrador: tiene
+    // que crearse en el acto. Antes la rama se elegía por el monto ANTERIOR y el
+    // cliente esperaba en la cola del admin sin razón.
+    const heredado = 120_000;
+    expect(techoRenovacion(heredado)).toBe(120_000); // el máximo es su propio monto
+    expect(50_000).toBeLessThanOrEqual(montoRenovacionAutoAprobable(heredado));
+  });
+
+  it("la TASA del cliente no se toca: el mismo monto da la misma cuota", () => {
+    // Cartera real: conviven 0%, 3%, 3,5% y 20%. Forzar 20% le cobraba de más a
+    // media cartera.
+    const alTresPct = { monto: 100_000, cuota: 5_150, totalDias: 20 }; // 103.000/20
+    expect(calcularCuotaRenovacion(alTresPct, 100_000, 20)).toBe(5_150);
+    const alCero = { monto: 10_000, cuota: 500, totalDias: 20 }; // sin interés
+    expect(calcularCuotaRenovacion(alCero, 10_000, 20)).toBe(500);
+  });
+});

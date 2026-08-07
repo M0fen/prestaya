@@ -17,13 +17,13 @@ const OPCIONES = [
     href: "/cobrador/colocar?modo=renovar",
     emoji: "🔁",
     titulo: "Renovar",
-    detalle: "Terminó de pagar y arranca de nuevo, igual que antes",
+    detalle: "Terminó de pagar y arranca de nuevo · podés cambiarle el monto",
   },
   {
     href: "/cobrador/colocar?modo=venta",
     emoji: "💵",
     titulo: "Nueva venta",
-    detalle: "Otro crédito para un cliente tuyo, con el monto que elijas",
+    detalle: "Otro crédito para un cliente tuyo que ya no tiene ninguno",
   },
   {
     href: "/cobrador/censar",

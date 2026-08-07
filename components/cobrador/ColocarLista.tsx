@@ -1,16 +1,28 @@
 "use client";
 // ─────────────────────────────────────────────────────────────────────────
-//  RENOVAR (+20% editable) y NUEVA VENTA (monto a elección).
+//  RENOVAR y NUEVA VENTA desde la calle.
 //
-//  En la calle, frente al cliente: buscador arriba, tarjeta con los números
-//  grandes, y una confirmación de dos toques antes de colocar el capital
-//  (misma protección que el cobro: nada de plata sale de un solo tap).
+//  RENOVAR arranca en el MISMO monto que el cliente terminó de pagar (regla de
+//  Carlos, 06-08: "si terminó 60k, se renueva en 60k") y es EDITABLE: el cobrador
+//  está frente al cliente. Hasta +20% lo aprueba él solo; por encima se le pide a
+//  la oficina, sin rebotar. El +20% NUNCA fue un aumento automático de capital.
+//
+//  La pantalla tiene que responder, sin que nadie la explique, las cuatro cosas
+//  que el cobrador le dice al cliente en voz alta: cuánto le doy, cuánto paga por
+//  día, cuánto paga en total y cuándo empieza. Antes solo pedía un monto pelado.
+//  Confirmación de dos toques antes de colocar capital, y el PRIMER toque ya dice
+//  el número (misma protección que el cobro: nada de plata sale de un solo tap).
 // ─────────────────────────────────────────────────────────────────────────
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { UYU } from "@/lib/format";
 import { renovarDesdeCalle, nuevaVentaDesdeCalle } from "@/lib/acciones/cobradorCredito";
 import type { FrecuenciaPrestamo } from "@/types/db";
+import {
+  calcularCuotaCreditoNuevo,
+  interesDeBase,
+  INTERES_DEFECTO_PCT,
+} from "@/lib/creditoNuevo";
 
 interface Candidato {
   clienteId: string;
@@ -24,7 +36,8 @@ interface Candidato {
   /** Hasta cuánto puede llegar sin permiso (tope del tramo de SU monto anterior).
    *  Lo calcula el servidor con la misma función que después valida el alta. */
   techo: number;
-  /** Renovar: capital del crédito NUEVO (anterior +20%). Lo calcula el servidor. */
+  /** Renovar: monto SUGERIDO del crédito nuevo = el mismo que terminó de pagar.
+   *  Lo calcula el servidor con la misma función que después valida el alta. */
   montoNuevo?: number;
   /** Renovar: cuota del crédito NUEVO. */
   cuotaNueva?: number;
@@ -36,6 +49,14 @@ interface Candidato {
 
 const norm = (s: string) =>
   s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+
+/** "24 cuotas diarias" se lee mejor que "24 cuotas · diario". */
+function etiquetaFrec(f: string): string {
+  if (f === "semanal") return "semanas";
+  if (f === "quincenal") return "quincenas";
+  if (f === "mensual") return "meses";
+  return "días";
+}
 
 export function ColocarLista({
   modo,
@@ -93,7 +114,8 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
   const [abierto, setAbierto] = useState(false);
   const [confirmar, setConfirmar] = useState(false);
   const [monto, setMonto] = useState(String(c.monto));
-  /** Monto de la RENOVACIÓN, editable (arranca en el +20% que calculó el server). */
+  /** Monto de la RENOVACIÓN, editable. Arranca en el MISMO monto que terminó de
+   *  pagar (lo manda el server): renovar es repetir el crédito, no subirlo. */
   const [montoRenov, setMontoRenov] = useState(String(c.montoNuevo ?? c.monto));
   const [cuotas, setCuotas] = useState(String(c.totalDias));
   const [msg, setMsg] = useState<string | null>(null);
@@ -106,9 +128,9 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
   const cuotasN = Math.round(Number(cuotas) || 0);
   const techo = c.techo;
   const excede = montoN > techo;
-  // Renovar: el monto viene con el +20% del servidor y es EDITABLE (el cobrador
-  // está frente al cliente). El servidor revalida SIEMPRE: si lo que se pide pasa
-  // su techo, no crea nada — genera la solicitud para el admin.
+  // Renovar: arranca en el MISMO monto que terminó y es EDITABLE (el cobrador está
+  // frente al cliente). El servidor revalida SIEMPRE: hasta el techo lo crea, por
+  // encima genera la solicitud para el admin, y pasado el máximo lo rechaza.
   const sugeridoRenov = c.montoNuevo ?? c.monto;
   const nuevoMonto = Math.round(Number(montoRenov) || 0) || sugeridoRenov;
   const renovEditado = nuevoMonto !== sugeridoRenov;
@@ -125,6 +147,42 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
     sugeridoRenov > 0
       ? Math.round(((c.cuotaNueva ?? c.cuota) * nuevoMonto) / sugeridoRenov)
       : (c.cuotaNueva ?? c.cuota);
+
+  // Atajos de monto: tipear en la calle es de donde salen los ceros de más. El
+  // MISMO monto es lo normal (regla del negocio); los otros dos son los pedidos
+  // que aparecen de verdad. Se ocultan los que se pasan del techo del cobrador,
+  // así ningún atajo lo manda sin querer a la cola de la oficina.
+  const atajosRenov = useMemo(() => {
+    const base = sugeridoRenov;
+    const opciones = [
+      { etiqueta: `El mismo · ${UYU(base)}`, monto: base },
+      { etiqueta: `+10% · ${UYU(Math.round(base * 1.1))}`, monto: Math.round(base * 1.1) },
+      { etiqueta: `+20% · ${UYU(Math.round(base * 1.2))}`, monto: Math.round(base * 1.2) },
+    ];
+    return opciones.filter((o, i) => i === 0 || (o.monto <= techo && o.monto !== base));
+  }, [sugeridoRenov, techo]);
+
+  // Cuota estimada de una VENTA nueva. Se calcula con la MISMA función pura que
+  // usa el servidor, arrastrando la tasa del último crédito del cliente: el que
+  // vuelve no estrena condiciones. Es una estimación para mostrar (el servidor
+  // recalcula y manda); sin ella el cobrador no podía decirle al cliente cuánto
+  // iba a pagar por día hasta después de crear el crédito.
+  const cuotaVenta = useMemo(() => {
+    if (!(montoN > 0) || !(cuotasN > 0)) return 0;
+    const base = { monto: c.monto, cuota: c.cuota, totalDias: c.totalDias };
+    return calcularCuotaCreditoNuevo(base, montoN, cuotasN, interesDeBase(base) ?? INTERES_DEFECTO_PCT);
+  }, [montoN, cuotasN, c.monto, c.cuota, c.totalDias]);
+
+  // Cuándo empieza a pagar: los créditos nacen el PRÓXIMO día de cobro (no hoy),
+  // y el cobrador se lo tiene que poder decir al cliente sin hacer la cuenta.
+  const primerCobro = useMemo(() => {
+    const f = new Date();
+    f.setHours(0, 0, 0, 0);
+    f.setDate(f.getDate() + 1);
+    if (f.getDay() === 0) f.setDate(f.getDate() + 1); // domingo no se cobra
+    const dias = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+    return `el ${dias[f.getDay()]} ${f.getDate()}`;
+  }, []);
 
   const colocar = () =>
     start(async () => {
@@ -221,10 +279,21 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
             // Renovar viene con el +20% ya puesto, pero EDITABLE: el cobrador está
             // frente al cliente y a veces el número tiene que ser otro. Si pide más
             // que su techo, no rebota — se le pide a la oficina.
-            <div className="flex flex-col gap-2 rounded-[13px] bg-[#F7F9FD] p-3">
-              <div className="grid grid-cols-3 gap-2">
-                <label className="flex flex-col">
-                  <span className="text-[10.5px] font-bold text-gris">Monto nuevo</span>
+            <div className="flex flex-col gap-2.5 rounded-[13px] bg-[#F7F9FD] p-3">
+              {/* 1) DE CUÁNTO VENÍA. Sin esto el cobrador no tiene contra qué
+                  comparar el número que va a escribir. */}
+              <span className="text-[11.5px] font-bold text-gris">
+                Terminó de pagar {UYU(c.monto)}
+              </span>
+
+              {/* 2) EL MONTO, grande y obviamente editable. El campo con el signo $
+                  adentro y el teclado numérico: es LO ÚNICO que se decide acá. */}
+              <label className="flex flex-col gap-1">
+                <span className="text-[12px] font-extrabold text-tinta">
+                  ¿Por cuánto se lo renovás?
+                </span>
+                <div className="flex items-center gap-1.5 rounded-[11px] border-2 border-[#C7D2EC] bg-white px-3">
+                  <span className="text-[18px] font-black text-[#8A93AD]">$</span>
                   <input
                     inputMode="numeric"
                     value={montoRenov}
@@ -232,72 +301,123 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
                       setMontoRenov(e.target.value.replace(/\D/g, ""));
                       setConfirmar(false);
                     }}
-                    className="w-full min-h-11 rounded-[9px] border border-borde bg-white px-2 text-[16px] font-extrabold tabular-nums text-tinta"
+                    className="w-full min-h-[52px] bg-transparent text-[22px] font-black tabular-nums text-tinta outline-none"
                   />
-                </label>
-                <Dato k="Cuota" v={UYU(nuevaCuota)} />
-                <Dato k="Cuotas" v={String(c.totalDias)} />
+                </div>
+              </label>
+
+              {/* 3) ATAJOS. Tipear en la calle es de donde salen los ceros de más.
+                  El mismo monto es lo normal; los otros dos son los pedidos reales. */}
+              <div className="flex flex-wrap gap-1.5">
+                {atajosRenov.map((a) => (
+                  <button
+                    key={a.etiqueta}
+                    type="button"
+                    onClick={() => {
+                      setMontoRenov(String(a.monto));
+                      setConfirmar(false);
+                    }}
+                    className={`min-h-9 rounded-full px-3 text-[12px] font-bold active:scale-95 ${
+                      nuevoMonto === a.monto
+                        ? "bg-[#1E47C8] text-white"
+                        : "border border-[#C7D2EC] bg-white text-azul"
+                    }`}
+                  >
+                    {a.etiqueta}
+                  </button>
+                ))}
               </div>
+
+              {/* 4) QUÉ VA A PAGAR EL CLIENTE. Es lo que el cobrador le dice en voz
+                  alta, y hasta ahora tenía que calcularlo de memoria. */}
+              <div className="grid grid-cols-3 gap-2 rounded-[11px] bg-white p-2.5">
+                <Dato k="Cuota" v={UYU(nuevaCuota)} />
+                <Dato k="Cuotas" v={`${c.totalDias} ${etiquetaFrec(c.frecuencia)}`} />
+                <Dato k="Paga en total" v={UYU(nuevaCuota * c.totalDias)} />
+              </div>
+              <span className="text-[11.5px] leading-[1.4] font-semibold text-gris">
+                Empieza a pagar {primerCobro}. Hoy recibe la plata, mañana arranca.
+              </span>
+
+              {/* 5) EL LÍMITE, SIEMPRE a la vista — no recién cuando ya se pasó. */}
+              {!pideAprobacion && techo > sugeridoRenov && (
+                <span className="text-[11.5px] leading-[1.4] font-semibold text-gris">
+                  Podés darle hasta {UYU(techo)} vos solo. Más que eso lo aprueba la oficina.
+                </span>
+              )}
+              {pideAprobacion && (
+                <span className="rounded-[10px] bg-[#FDF3E2] px-2.5 py-2 text-[11.5px] leading-[1.45] font-bold text-[#8A6D1E]">
+                  {UYU(nuevoMonto)} pasa los {UYU(techo)} que podés dar solo. Al confirmar se
+                  manda el pedido a la oficina y te avisan cuando lo aprueben.
+                  <br />
+                  <strong>Todavía NO le entregues la plata.</strong>
+                </span>
+              )}
               {renovEditado && (
                 <button
                   type="button"
                   onClick={() => {
-                    setMontoRenov(String(c.montoNuevo ?? c.monto));
+                    setMontoRenov(String(sugeridoRenov));
                     setConfirmar(false);
                   }}
                   className="self-start text-[11.5px] font-bold text-azul"
                 >
-                  Volver al sugerido ({UYU(c.montoNuevo ?? c.monto)})
+                  ← Volver al mismo monto ({UYU(sugeridoRenov)})
                 </button>
-              )}
-              {pideAprobacion && (
-                <span className="rounded-[10px] bg-[#FDF3E2] px-2.5 py-1.5 text-[11.5px] leading-[1.4] font-bold text-[#8A6D1E]">
-                  Ese monto pasa lo que podés dar solo ({UYU(techo)}). Al confirmar
-                  se le pide a la oficina — todavía no le entregues la plata.
-                </span>
-              )}
-              <span className="text-[11.5px] leading-[1.4] font-semibold text-gris">
-                {nuevoMonto > c.monto
-                  ? `Venía de ${UYU(c.monto)} · sube ${UYU(nuevoMonto - c.monto)} (+${Math.round(((nuevoMonto - c.monto) / c.monto) * 100)}%).`
-                  : `Se renueva por los mismos ${UYU(c.monto)}: un crédito de este monto ya no admite aumento.`}
-              </span>
-              {c.requiereAprobacion && (
-                <span className="rounded-[10px] bg-[#FDF3E2] px-2.5 py-1.5 text-[11.5px] leading-[1.4] font-bold text-[#8A6D1E]">
-                  Este monto lo tiene que aprobar la oficina. Al confirmar se manda el pedido —
-                  todavía no le entregues la plata.
-                </span>
               )}
             </div>
           ) : (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2.5 rounded-[13px] bg-[#F7F9FD] p-3">
+              <span className="text-[11.5px] font-bold text-gris">
+                Su último crédito fue de {UYU(c.monto)}
+              </span>
               <div className="flex gap-2">
-                <label className="flex flex-1 flex-col gap-0.5">
-                  <span className="text-[10.5px] font-bold text-gris">Monto</span>
-                  <input
-                    inputMode="numeric"
-                    value={monto}
-                    onChange={(e) => setMonto(e.target.value.replace(/\D/g, ""))}
-                    className="min-h-11 rounded-[11px] border border-borde px-3 text-[16px] font-bold tabular-nums text-tinta"
-                  />
+                <label className="flex flex-1 flex-col gap-1">
+                  <span className="text-[12px] font-extrabold text-tinta">¿Cuánto le das?</span>
+                  <div className="flex items-center gap-1.5 rounded-[11px] border-2 border-[#C7D2EC] bg-white px-3">
+                    <span className="text-[18px] font-black text-[#8A93AD]">$</span>
+                    <input
+                      inputMode="numeric"
+                      value={monto}
+                      onChange={(e) => setMonto(e.target.value.replace(/\D/g, ""))}
+                      className="w-full min-h-[52px] bg-transparent text-[22px] font-black tabular-nums text-tinta outline-none"
+                    />
+                  </div>
                 </label>
-                <label className="flex w-24 flex-col gap-0.5">
-                  <span className="text-[10.5px] font-bold text-gris">Cuotas</span>
+                <label className="flex w-24 flex-col gap-1">
+                  <span className="text-[12px] font-extrabold text-tinta">Cuotas</span>
                   <input
                     inputMode="numeric"
                     value={cuotas}
                     onChange={(e) => setCuotas(e.target.value.replace(/\D/g, ""))}
-                    className="min-h-11 rounded-[11px] border border-borde px-3 text-[16px] font-bold tabular-nums text-tinta"
+                    className="min-h-[52px] rounded-[11px] border-2 border-[#C7D2EC] bg-white px-3 text-[22px] font-black tabular-nums text-tinta outline-none"
                   />
                 </label>
               </div>
+
+              {/* Qué va a pagar el cliente: hasta ahora el cobrador tenía que
+                  calcularlo de memoria para poder decírselo. */}
+              {montoN > 0 && cuotasN > 0 && !excede && (
+                <>
+                  <div className="grid grid-cols-3 gap-2 rounded-[11px] bg-white p-2.5">
+                    <Dato k="Cuota" v={UYU(cuotaVenta)} />
+                    <Dato k="Cuotas" v={`${cuotasN} días`} />
+                    <Dato k="Paga en total" v={UYU(cuotaVenta * cuotasN)} />
+                  </div>
+                  <span className="text-[11.5px] leading-[1.4] font-semibold text-gris">
+                    Empieza a pagar {primerCobro}. Hoy recibe la plata, mañana arranca.
+                  </span>
+                </>
+              )}
+
               <span
                 className={`text-[11.5px] leading-[1.4] font-semibold ${
                   excede ? "text-[#C0392B]" : "text-gris"
                 }`}
               >
                 {excede
-                  ? `Sin permiso podés llegar hasta ${UYU(techo)}. Para más, pedíselo a tu supervisor.`
-                  : `Su último crédito fue de ${UYU(c.monto)} · podés llegar hasta ${UYU(techo)}.`}
+                  ? `${UYU(montoN)} pasa lo que podés dar solo. El máximo para este cliente es ${UYU(techo)} — para más, pedíselo a tu supervisor.`
+                  : `Podés darle hasta ${UYU(techo)}.`}
               </span>
             </div>
           )}
@@ -318,19 +438,25 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
             </button>
             <button
               type="button"
-              disabled={pendiente || excede || (modo === "venta" && (montoN <= 0 || cuotasN <= 0))}
+              disabled={pendiente || (modo === "venta" && (excede || montoN <= 0 || cuotasN <= 0)) || (modo === "renovar" && nuevoMonto <= 0)}
               onClick={() => (confirmar ? colocar() : setConfirmar(true))}
               className="min-h-11 flex-1 rounded-[13px] bg-[#1FA971] text-[13px] font-extrabold text-white disabled:opacity-50"
             >
+              {/* El primer toque YA dice qué va a pasar y con qué número: antes
+                  decía solo "Confirmar" y el cobrador confirmaba a ciegas. */}
               {pendiente
                 ? "Creando…"
                 : confirmar
                   ? modo === "renovar"
                     ? pideAprobacion
                       ? `Sí, pedir ${UYU(nuevoMonto)} a la oficina`
-                      : `Sí, renovar ${UYU(nuevoMonto)}`
-                    : `Sí, dar ${UYU(montoN)}`
-                  : "Confirmar"}
+                      : `Sí, entregarle ${UYU(nuevoMonto)}`
+                    : `Sí, entregarle ${UYU(montoN)}`
+                  : modo === "renovar"
+                    ? pideAprobacion
+                      ? `Pedir ${UYU(nuevoMonto)} a la oficina`
+                      : `Renovar por ${UYU(nuevoMonto)}`
+                    : `Dar ${UYU(montoN)}`}
             </button>
           </div>
         </>

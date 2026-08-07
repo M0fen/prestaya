@@ -262,6 +262,29 @@ export type ResultadoAlta =
  * Si el insert falla, revierte el finalizado (compensación) para no dejar al
  * cliente sin crédito activo. Corre con la sesión del gestor (RLS lo exige).
  */
+/**
+ * Traduce los códigos de `renovar_credito_seguro` a algo que el cobrador pueda
+ * ACTUAR, parado frente al cliente. Antes los cuatro caían en el mismo
+ * "No se pudo crear el crédito de renovación." y no había forma de saber si
+ * entregar la plata, esperar, o llamar a alguien.
+ */
+function mensajeRpc(code: string | undefined): string {
+  switch (code) {
+    case "P0412":
+      // El gate de TS mira Σ pagos vigentes y la RPC mira `pagado_acum`: si
+      // divergen sub-peso, el crédito aparece en "Renovar" y la base lo frena.
+      return "La oficina todavía ve saldo pendiente en ese crédito. NO le entregues la plata: avisá a tu supervisor para que lo revise.";
+    case "P0411":
+      return "Ese monto pasa el tope del sistema. Pedilo a la oficina desde la pantalla de renovar.";
+    case "P0410":
+      return "Ese crédito ya fue renovado. Revisá la ficha del cliente antes de entregar nada.";
+    case "P0002":
+      return "No encontramos ese crédito. Cerrá y volvé a abrir la lista; si sigue, avisá a tu supervisor.";
+    default:
+      return "No se pudo crear la renovación. Probá de nuevo; si vuelve a fallar, avisá a tu supervisor ANTES de entregar la plata.";
+  }
+}
+
 export async function crearRenovacion(
   db: SupabaseClient,
   input: AltaRenovacion,
@@ -365,7 +388,10 @@ export async function crearRenovacion(
     if (!capAutorizado && code !== "42883" && code !== "PGRST202") {
       const ya = await buscarRenovacion(db, { clienteId, monto, cuota, totalDias, fechaInicio });
       if (ya) return { ok: true, prestamoId: ya, cuota };
-      return { ok: false, error: "No se pudo crear el crédito de renovación." };
+      // Un rojo sin motivo, frente al cliente, es un callejón sin salida: el
+      // cobrador no sabe si entregar la plata ni a quién llamar. Cada código dice
+      // qué pasó y qué hacer.
+      return { ok: false, error: mensajeRpc(code) };
     }
     // 42883 / PGRST202 → la 0087 no está: sigue al camino de 2 requests (conducta previa).
   }

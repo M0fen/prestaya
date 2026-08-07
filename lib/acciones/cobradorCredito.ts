@@ -10,15 +10,16 @@
 //  tocar la base y recién entonces usan una vía de confianza.
 //
 //  Lo que el cobrador PUEDE:
-//   · RENOVAR — repetir el crédito que su cliente terminó de pagar, subido el
-//     +20% del negocio. El monto viene puesto pero es EDITABLE: si pide más de
-//     lo que puede dar solo, se le pide al admin en vez de rebotar.
+//   · RENOVAR — repetir el crédito que su cliente terminó de pagar, POR EL MISMO
+//     MONTO (regla de Carlos, 06-08: "si terminó 60k, se renueva en 60k"). El
+//     monto viene puesto pero es EDITABLE: hasta +20% lo aprueba él solo; por
+//     encima se le pide al admin en vez de rebotar.
 //   · NUEVA VENTA — colocarle otro crédito a un cliente suyo que ya no tiene
 //     crédito activo, dentro del tramo que le corresponde por historial.
 //
 //  Lo que NO puede (y por qué):
 //   · Superar el CAP de $100.000 — duro para todos, incluido el admin.
-//   · Exceder el +20% del negocio — eso NO lo rechaza: lo pide al admin.
+//   · Exceder el +20% — eso NO lo rechaza: lo pide al admin.
 //   · Dar el PRIMER crédito de alguien sin historial — no hay contra qué
 //     medir el riesgo; lo da la oficina.
 //   · Tocar un cliente que no está en SU ruta — lo garantiza el RLS.
@@ -45,14 +46,11 @@ import {
 import {
   evaluarRenovacion,
   montoRenovacionAutoAprobable,
-  montoRenovacionPedido,
   montoRenovacionSugerido,
-  requiereAprobacionAdmin,
   techoRenovacion,
-  RENOVACION_AUMENTO_PCT,
   RENOVACION_CAP_TOTAL,
 } from "@/lib/renovacion";
-import { crearSolicitudDb } from "@/lib/data/solicitudesRenovacion";
+import { crearSolicitudDb, cerrarSolicitudPendienteDeAnterior } from "@/lib/data/solicitudesRenovacion";
 import { calcularEstadosCarton, proximoDiaCobro } from "@/lib/cartones";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { esUuid, opIdDeterminista } from "@/lib/idempotencia";
@@ -151,11 +149,41 @@ async function pedirAprobacion(
 }
 
 /**
- * RENOVAR — repetir el crédito subido el +20% del negocio, de un toque.
- * Solo si el crédito activo del cliente está SALDADO (terminó de pagarlo).
- * El monto por defecto lo calcula el SERVIDOR (`montoRenovacionAutoAprobable`).
- * Si la calle manda uno EDITADO, se acepta hasta el techo del cobrador; por
- * encima no se crea nada: se genera la solicitud para el admin.
+ * ¿La renovación de este crédito YA SE HIZO? Mira el linaje `renovado_de` (0116),
+ * que es la verdad aunque la respuesta se haya perdido en el camino.
+ *
+ * ⚠️ Candado de propiedad: si el que renovó fue el compañero (o la oficina), NO se
+ * le confirma al cobrador una renovación que él no hizo — con 53 clientes
+ * compartidos entre rutas eso pasa de verdad, y confirmárselo lo haría entregar
+ * plata por un crédito ajeno.
+ */
+async function renovacionYaHecha(
+  db: Awaited<ReturnType<typeof createSupabaseServer>>,
+  prestamoAnteriorId: string,
+  cobradorId: string,
+): Promise<ResultadoColocar | null> {
+  const { data } = await db
+    .from("prestamos")
+    .select("id, cuota_diaria, cobrador_id")
+    .eq("renovado_de", prestamoAnteriorId)
+    .eq("estado", "activo")
+    .order("creado_en", { ascending: false })
+    .limit(1);
+  const h = data?.[0];
+  if (!h || (h.cobrador_id && h.cobrador_id !== cobradorId)) return null;
+  return {
+    ok: true,
+    prestamoId: h.id as string,
+    cuota: Math.round(Number(h.cuota_diaria) || 0),
+    repetido: true,
+  };
+}
+
+/**
+ * RENOVAR — repetir el crédito que el cliente terminó de pagar, de un toque.
+ * Solo si ese crédito está SALDADO. Por defecto va POR EL MISMO MONTO; si la
+ * calle manda uno editado, se acepta hasta el techo del cobrador (+20%), por
+ * encima se le pide al admin, y pasado el máximo se rechaza mostrando el número.
  */
 export async function renovarDesdeCalle(input: {
   clienteId: string;
@@ -179,25 +207,8 @@ export async function renovarDesdeCalle(input: {
     // activo", el cobrador daba la renovación por fallida y NO entregaba la plata
     // — pero el crédito existía y le empezaba a cobrar cuotas a alguien que no
     // recibió nada. El linaje `renovado_de` (0116) dice la verdad.
-    const { data: hijo } = await db
-      .from("prestamos")
-      .select("id, cuota_diaria, cobrador_id")
-      .eq("renovado_de", input.prestamoId)
-      .eq("estado", "activo")
-      .order("creado_en", { ascending: false })
-      .limit(1);
-    const h = hijo?.[0];
-    // ⚠️ El MISMO candado de propiedad que abajo, también acá. Si el que renovó
-    // fue el compañero (o la oficina), esto le confirmaría al cobrador una
-    // renovación que no hizo — y con 53 clientes compartidos eso pasa.
-    if (h && (!h.cobrador_id || h.cobrador_id === u.id)) {
-      return {
-        ok: true,
-        prestamoId: h.id as string,
-        cuota: Math.round(Number(h.cuota_diaria) || 0),
-        repetido: true,
-      };
-    }
+    const ya = await renovacionYaHecha(db, input.prestamoId, u.id);
+    if (ya) return ya;
     return { ok: false, error: "Ese crédito ya no está activo." };
   }
   // ⚠️ PROPIEDAD DEL CRÉDITO. La escritura va con service_role (ver abajo), así
@@ -240,54 +251,35 @@ export async function renovarDesdeCalle(input: {
   // y el cliente quedaba sin forma de renovar — encima el crédito ni siquiera
   // aparecía en la lista. El monto pedido NO se recorta al CAP: recortarlo sería
   // rebajarle el capital al cliente en silencio.
-  if (requiereAprobacionAdmin(montoAnterior)) {
-    // ⚠️ Se respeta el monto EDITADO por el cobrador. Antes esta rama mandaba
-    // siempre el monto del crédito anterior: el botón decía "pedir $50.000" y a la
-    // oficina le llegaba una solicitud por $120.000 que el admin aprobaba a ciegas.
-    const pedido =
-      input.monto == null ? montoRenovacionPedido(montoAnterior) : Math.round(Number(input.monto));
-    if (!Number.isFinite(pedido) || pedido <= 0) {
-      return { ok: false, error: "Revisá el monto de la renovación." };
-    }
-    const techo = techoRenovacion(montoAnterior);
-    if (pedido > techo) {
-      // No se recorta en silencio: el cobrador tiene que ver que su número no entra
-      // (un cero de más escrito sin querer se convertía en un crédito 5× más grande).
-      return {
-        ok: false,
-        error: `El máximo para este cliente es ${UYU(techo)}. Si necesita más, tiene que pedirlo la oficina.`,
-      };
-    }
-    return pedirAprobacion(db, u, {
-      clienteId: input.clienteId,
-      prestamoAnteriorId: ant.id,
-      monto: pedido,
-      totalDias,
-      frecuencia: (ant.frecuencia as FrecuenciaPrestamo) ?? "diario",
-    });
-  }
-
-  // El +20% del negocio (regla de Carlos, 06-08). El monto puede venir EDITADO
-  // desde la calle: el cobrador ve al cliente y a veces el número tiene que ser
-  // otro. Si lo que pide entra en su techo, va derecho; si se pasa, NO rebota —
-  // se le pide al admin, que es el mismo camino de todo lo que no se aprueba solo.
-  // El TECHO que el cobrador puede aprobar solo es +20%. El monto por DEFECTO es
-  // el MISMO del crédito que terminó (regla de Carlos, 06-08: "si terminó 60k, se
-  // renueva en 60k") — el 20% nunca fue un aumento de capital.
+  // ── UNA SOLA REGLA PARA EL MONTO DE LA RENOVACIÓN ────────────────────────
+  //  Por defecto se repite el MISMO monto que terminó (regla de Carlos, 06-08:
+  //  "si terminó 60k, se renueva en 60k"). El cobrador puede cambiarlo: está
+  //  frente al cliente. Y entonces hay tres tramos, en este orden:
+  //    · hasta su TECHO (+20%)        → lo aprueba él solo, se crea en el acto
+  //    · entre el techo y el MÁXIMO   → va a la oficina (no rebota)
+  //    · por encima del máximo        → se rechaza mostrando el número posible
+  //
+  //  ⚠️ Antes había DOS ramas y la primera se elegía por el monto ANTERIOR, no
+  //  por el pedido: un crédito heredado de $120.000 que se quería renovar en
+  //  $50.000 —por debajo del tope y del propio techo del cobrador— igual se iba
+  //  a la cola del admin y el cliente esperaba sin razón.
   const techoSolo = montoRenovacionAutoAprobable(montoAnterior);
+  const maximo = techoRenovacion(montoAnterior);
   const pedido =
     input.monto == null ? montoRenovacionSugerido(montoAnterior) : Math.round(Number(input.monto));
   if (!Number.isFinite(pedido) || pedido <= 0) {
     return { ok: false, error: "Revisá el monto de la renovación." };
   }
+  if (pedido > maximo) {
+    // No se recorta en silencio (un cero de más se volvía un crédito 5× más
+    // grande) ni se manda a una puerta que no existe: el máximo es duro también
+    // para la oficina, así que decirle "pedíselo a la oficina" era mentira.
+    return {
+      ok: false,
+      error: `Para este cliente el máximo posible es ${UYU(maximo)} — ni la oficina puede subirlo. Revisá el monto.`,
+    };
+  }
   if (pedido > techoSolo) {
-    const techo = techoRenovacion(montoAnterior);
-    if (pedido > techo) {
-      return {
-        ok: false,
-        error: `El máximo para este cliente es ${UYU(techo)}. Si necesita más, tiene que pedirlo la oficina.`,
-      };
-    }
     return pedirAprobacion(db, u, {
       clienteId: input.clienteId,
       prestamoAnteriorId: ant.id,
@@ -321,7 +313,29 @@ export async function renovarDesdeCalle(input: {
     new Date(),
     admin,
   );
-  if (!res.ok) return res;
+  if (!res.ok) {
+    // ⚠️ Antes de darle un error al cobrador: ¿el crédito NACIÓ igual? Pasa cuando
+    // el 2º toque del reintento —el que la propia app recomienda ("no se duplica")—
+    // entra mientras el 1º todavía tiene el candado: el anterior ya quedó finalizado
+    // y la RPC devuelve P0410 "ya fue renovado por otra persona"... siendo él mismo.
+    // Con el rojo en pantalla el cobrador NO entregaba la plata, y el cliente
+    // empezaba a pagar al día siguiente un crédito que nunca recibió.
+    const ya = await renovacionYaHecha(db, ant.id, u.id);
+    if (ya) return ya;
+    return res;
+  }
+
+  // Si había un pedido a la oficina por ESTE mismo crédito y al final se renovó
+  // acá (por un monto que sí entra en el techo), la solicitud queda huérfana:
+  // pendiente para siempre en la cola del admin, y el índice de "una pendiente por
+  // crédito" bloquea pedir otra cosa. Best-effort: el crédito ya está creado.
+  if (res.prestamoId) {
+    try {
+      await cerrarSolicitudPendienteDeAnterior(createSupabaseAdmin(), ant.id, res.prestamoId, u.id);
+    } catch {
+      /* la cola se limpia igual desde el panel; no frenar al cobrador por esto */
+    }
+  }
 
   await registrarAuditoria(db, {
     actorId: u.id,
@@ -330,9 +344,9 @@ export async function renovarDesdeCalle(input: {
     entidad: "cliente",
     entidadId: input.clienteId,
     detalle:
-      monto > montoAnterior
-        ? `${UYU(montoAnterior)} → ${UYU(monto)} × ${totalDias} (+${RENOVACION_AUMENTO_PCT}% del negocio)`
-        : `${UYU(monto)} × ${totalDias} (sin aumento: el tramo no lo admite)`,
+      monto === montoAnterior
+        ? `${UYU(monto)} × ${totalDias} (mismo monto que terminó)`
+        : `${UYU(montoAnterior)} → ${UYU(monto)} × ${totalDias} (${monto > montoAnterior ? "+" : "−"}${UYU(Math.abs(monto - montoAnterior))})`,
   });
   revalidatePath("/cobrador");
   revalidatePath(`/cobrador/cliente/${input.clienteId}`);
