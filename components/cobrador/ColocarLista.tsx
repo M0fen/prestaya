@@ -1,17 +1,25 @@
 "use client";
 // ─────────────────────────────────────────────────────────────────────────
-//  RENOVAR y NUEVA VENTA desde la calle.
+//  LAS DOS PUERTAS PARA COLOCAR CAPITAL (modelo de Carlos, 07-08):
 //
-//  RENOVAR arranca en el MISMO monto que el cliente terminó de pagar (regla de
-//  Carlos, 06-08: "si terminó 60k, se renueva en 60k") y es EDITABLE: el cobrador
-//  está frente al cliente. Hasta +20% lo aprueba él solo; por encima se le pide a
-//  la oficina, sin rebotar. El +20% NUNCA fue un aumento automático de capital.
+//   · RENOVAR      — repite el crédito TAL CUAL lo tenía: mismo monto, misma
+//                    cuota, mismas cuotas. SIN campos, sin decisiones, un toque.
+//                    Menos decisiones en la vereda = menos dedazos, y acá el
+//                    dedazo es plata.
+//   · NUEVA VENTA  — el MISMO momento, pero eligiendo monto y cuotas. Si el
+//                    cliente viene de terminar un crédito, va por el camino de
+//                    renovación (cierra el anterior en la misma operación); si no
+//                    tiene nada que cerrar, es un alta común.
 //
-//  La pantalla tiene que responder, sin que nadie la explique, las cuatro cosas
-//  que el cobrador le dice al cliente en voz alta: cuánto le doy, cuánto paga por
-//  día, cuánto paga en total y cuándo empieza. Antes solo pedía un monto pelado.
-//  Confirmación de dos toques antes de colocar capital, y el PRIMER toque ya dice
-//  el número (misma protección que el cobro: nada de plata sale de un solo tap).
+//  Las dos se entran desde la FICHA DEL CLIENTE, que es donde el cobrador ya está
+//  parado. La lista completa queda como respaldo, con buscador — y el que NO se
+//  puede colocar aparece igual, con el motivo: antes desaparecía sin decir nada y
+//  el cobrador creía que la app estaba rota (reporte de campo 07-08).
+//
+//  La pantalla responde, sin que nadie la explique, las cuatro cosas que el
+//  cobrador le dice al cliente en voz alta: cuánto le doy, cuánto paga por día,
+//  cuánto paga en total y cuándo empieza. Confirmación de dos toques antes de
+//  colocar capital, y el PRIMER toque ya dice el número.
 // ─────────────────────────────────────────────────────────────────────────
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -58,32 +66,99 @@ function etiquetaFrec(f: string): string {
   return "días";
 }
 
+export interface NoElegibleVista {
+  clienteId: string;
+  nombre: string;
+  documento: string | null;
+  motivo: string;
+  queHacer: string | null;
+}
+
 export function ColocarLista({
   modo,
   candidatos,
+  noElegibles = [],
+  clienteFoco = null,
 }: {
   modo: "renovar" | "venta";
   candidatos: Candidato[];
+  /** Clientes de la ruta que HOY no se pueden colocar, con el motivo. Solo se
+   *  muestran AL BUSCAR: no ensucian la lista, pero el que busca los encuentra. */
+  noElegibles?: NoElegibleVista[];
+  /** Se llegó desde la ficha de un cliente concreto (`?cliente=<id>`): se abre
+   *  directo en él, sin hacerle buscar en una lista de 120 nombres a alguien que
+   *  ya tiene a la persona enfrente. */
+  clienteFoco?: string | null;
 }) {
   const [q, setQ] = useState("");
+  const soloFoco = clienteFoco
+    ? candidatos.filter((c) => c.clienteId === clienteFoco)
+    : null;
+  const focoBloqueado = clienteFoco
+    ? (noElegibles.find((c) => c.clienteId === clienteFoco) ?? null)
+    : null;
+  const coincide = (nombre: string, documento: string | null, t: string, dig: string) =>
+    norm(nombre).includes(t) ||
+    (dig.length >= 3 && (documento ?? "").replace(/\D/g, "").includes(dig));
+
   const filtrados = useMemo(() => {
     const t = norm(q);
     if (!t) return candidatos;
     const dig = q.replace(/\D/g, "");
-    return candidatos.filter(
-      (c) =>
-        norm(c.nombre).includes(t) ||
-        (dig.length >= 3 && (c.documento ?? "").replace(/\D/g, "").includes(dig)),
-    );
+    return candidatos.filter((c) => coincide(c.nombre, c.documento, t, dig));
   }, [q, candidatos]);
 
-  if (candidatos.length === 0) {
+  // ⚠️ Los que NO se pueden aparecen SOLO al buscar. Antes desaparecían sin decir
+  // nada y el cobrador se quedaba parado frente al cliente creyendo que la app
+  // estaba rota (reporte de campo 07-08). Mostrarlos siempre sería ruido; que el
+  // que los busca los encuentre —con el motivo— es lo que hacía falta.
+  const bloqueados = useMemo(() => {
+    const t = norm(q);
+    if (!t) return [];
+    const dig = q.replace(/\D/g, "");
+    return noElegibles.filter((c) => coincide(c.nombre, c.documento, t, dig));
+  }, [q, noElegibles]);
+
+  if (candidatos.length === 0 && noElegibles.length === 0) {
     return (
       <p className="rounded-[14px] bg-white px-4 py-6 text-center text-[13px] leading-[1.5] font-medium text-gris">
         {modo === "renovar"
           ? "Ninguno de tus clientes terminó de pagar todavía. Cuando alguno complete su crédito, aparece acá para renovarlo de un toque."
           : "No tenés clientes libres para una venta nueva. Aparecen los que ya no tienen crédito activo y alguna vez tuvieron uno."}
       </p>
+    );
+  }
+
+  // Se llegó desde la ficha de UNA persona: se le muestra ESA, abierta, y nada más.
+  // Hacerle buscar en una lista de 120 nombres a alguien que tiene al cliente
+  // enfrente es exactamente lo que hizo que el operador no encontrara la venta.
+  if (clienteFoco) {
+    return (
+      <div className="flex flex-col gap-3">
+        {soloFoco && soloFoco.length > 0 ? (
+          soloFoco.map((c) => (
+            <Tarjeta key={c.clienteId + (c.prestamoId ?? "")} c={c} modo={modo} abrirYa />
+          ))
+        ) : focoBloqueado ? (
+          <TarjetaBloqueada c={focoBloqueado} />
+        ) : (
+          <div className="rounded-[14px] border border-borde bg-white px-4 py-5 text-center">
+            <p className="text-[13px] leading-[1.5] font-semibold text-tinta">
+              A esta persona no le podés colocar {modo === "renovar" ? "una renovación" : "un crédito"} ahora.
+            </p>
+            <p className="mt-1 text-[12px] leading-[1.5] font-medium text-gris">
+              Puede ser que sea su primer crédito (lo da la oficina) o que su crédito sea de
+              otro cobrador. Miralo en su cartón.
+            </p>
+          </div>
+        )}
+        <a
+          href="/cobrador/colocar?modo=venta"
+          className="min-h-11 rounded-[13px] border border-borde bg-white text-center text-[13px] font-bold leading-[44px] text-azul"
+        >
+          Ver todos mis clientes
+        </a>
+      </div>
     );
   }
 
@@ -96,30 +171,77 @@ export function ColocarLista({
         placeholder="🔍 Buscar por nombre o cédula…"
         className="w-full rounded-[13px] border border-borde bg-white px-3.5 py-3 text-[16px] outline-none focus:border-azul"
       />
-      {filtrados.length === 0 ? (
-        <p className="py-3 text-center text-[12.5px] font-medium text-gris">
-          Ninguno coincide con “{q}”.
+
+      {candidatos.length === 0 && !q && (
+        <p className="rounded-[14px] bg-white px-4 py-5 text-center text-[13px] leading-[1.5] font-medium text-gris">
+          {modo === "renovar"
+            ? "Ninguno de tus clientes terminó de pagar todavía."
+            : "No tenés clientes libres para una venta nueva ahora mismo."}
+          <br />
+          Buscá a la persona igual: te decimos por qué no aparece.
         </p>
-      ) : (
-        filtrados.map((c) => (
-          <Tarjeta key={c.clienteId + (c.prestamoId ?? "")} c={c} modo={modo} />
-        ))
+      )}
+
+      {filtrados.map((c) => (
+        <Tarjeta key={c.clienteId + (c.prestamoId ?? "")} c={c} modo={modo} />
+      ))}
+
+      {bloqueados.map((c) => (
+        <TarjetaBloqueada key={`no-${c.clienteId}`} c={c} />
+      ))}
+
+      {q && filtrados.length === 0 && bloqueados.length === 0 && (
+        <div className="rounded-[14px] border border-borde bg-white px-4 py-5 text-center">
+          <p className="text-[13px] leading-[1.5] font-semibold text-tinta">
+            No encontramos a nadie con “{q}” en tu ruta.
+          </p>
+          <p className="mt-1 text-[12px] leading-[1.5] font-medium text-gris">
+            Probá con el apellido o la cédula. Si la persona todavía no está en el sistema,
+            dala de alta con <strong className="font-bold">Censar cliente nuevo</strong>.
+          </p>
+        </div>
       )}
     </div>
   );
 }
 
-function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
+/** El cliente existe en la ruta pero HOY no se le puede colocar. Se dice por qué
+ *  y qué hacer — nunca un callejón sin salida. */
+function TarjetaBloqueada({ c }: { c: NoElegibleVista }) {
+  return (
+    <div className="flex flex-col gap-1.5 rounded-[16px] border border-[#F0DCA8] bg-[#FDF8EC] p-4">
+      <span className="text-[15px] font-extrabold text-tinta">{c.nombre}</span>
+      <span className="text-[12.5px] leading-[1.45] font-bold text-[#8A6D1E]">{c.motivo}</span>
+      {c.queHacer && (
+        <span className="text-[12px] leading-[1.45] font-medium text-[#8A6D1E]">{c.queHacer}</span>
+      )}
+      <a
+        href={`/cobrador/cliente/${c.clienteId}`}
+        className="mt-1 min-h-11 self-start rounded-full border border-[#E0CB93] bg-white px-4 text-[12.5px] font-bold leading-[44px] text-[#8A6D1E] active:scale-95"
+      >
+        Ver su cartón
+      </a>
+    </div>
+  );
+}
+
+function Tarjeta({
+  c,
+  modo,
+  abrirYa = false,
+}: {
+  c: Candidato;
+  modo: "renovar" | "venta";
+  /** Se entró desde la ficha de este cliente: ya está decidido de quién se trata. */
+  abrirYa?: boolean;
+}) {
   const router = useRouter();
-  const [abierto, setAbierto] = useState(false);
+  const [abierto, setAbierto] = useState(abrirYa);
   const [confirmar, setConfirmar] = useState(false);
-  const [monto, setMonto] = useState(String(c.monto));
-  /** Monto de la RENOVACIÓN, editable. Arranca en el MISMO monto que terminó de
-   *  pagar (lo manda el server): renovar es repetir el crédito, no subirlo. */
-  const [montoRenov, setMontoRenov] = useState(String(c.montoNuevo ?? c.monto));
+  /** Monto y cuotas de la NUEVA VENTA. Arrancan en los del último crédito: lo más
+   *  común es repetir, y así el que solo quiere cambiar UNA cosa toca UNA cosa. */
+  const [monto, setMonto] = useState(String(c.montoNuevo ?? c.monto));
   const [cuotas, setCuotas] = useState(String(c.totalDias));
-  /** Cuotas de la RENOVACIÓN, editables. Arrancan en las del crédito anterior. */
-  const [cuotasRenov, setCuotasRenov] = useState(String(c.totalDias));
   const [msg, setMsg] = useState<string | null>(null);
   const [okTxt, setOkTxt] = useState<string | null>(null);
   /** El resultado fue "ya estaba hecho", no "recién lo creé": se pinta distinto. */
@@ -130,42 +252,8 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
   const cuotasN = Math.round(Number(cuotas) || 0);
   const techo = c.techo;
   const excede = montoN > techo;
-  // Renovar: arranca en el MISMO monto que terminó y es EDITABLE (el cobrador está
-  // frente al cliente). El servidor revalida SIEMPRE: hasta el techo lo crea, por
-  // encima genera la solicitud para el admin, y pasado el máximo lo rechaza.
+  /** Lo que se le entrega al RENOVAR: el mismo monto del crédito que terminó. */
   const sugeridoRenov = c.montoNuevo ?? c.monto;
-  const nuevoMonto = Math.round(Number(montoRenov) || 0) || sugeridoRenov;
-  const renovEditado = nuevoMonto !== sugeridoRenov;
-  // ⚠️ Se compara contra el TECHO (+20%), NO contra el sugerido. Comparando contra
-  // el sugerido, un monto ENTRE el sugerido y el techo pintaba el aviso ámbar y el
-  // botón "pedir a la oficina" —"todavía no le entregues la plata"— mientras el
-  // servidor lo aprobaba solo y CREABA el crédito en el acto: el cliente empezaba a
-  // pagar mañana un préstamo que nunca recibió, y al cobrador se le descontaba de
-  // la caja un capital que seguía en su bolsillo.
-  const pideAprobacion = modo === "renovar" && (nuevoMonto > techo || !!c.requiereAprobacion);
-  const cuotasRenovN = Math.round(Number(cuotasRenov) || 0) || c.totalDias;
-  const cuotasEditadas = cuotasRenovN !== c.totalDias;
-  // Total que va a pagar el cliente = monto × SU tasa (la del crédito anterior).
-  // Cambiar las cuotas NO cambia ese total: lo reparte en más o menos pagos.
-  const totalAPagarRenov =
-    sugeridoRenov > 0
-      ? Math.round(((c.cuotaNueva ?? c.cuota) * c.totalDias * nuevoMonto) / sugeridoRenov)
-      : (c.cuotaNueva ?? c.cuota) * c.totalDias;
-  const nuevaCuota = cuotasRenovN > 0 ? Math.round(totalAPagarRenov / cuotasRenovN) : 0;
-
-  // Atajos de monto: tipear en la calle es de donde salen los ceros de más. El
-  // MISMO monto es lo normal (regla del negocio); los otros dos son los pedidos
-  // que aparecen de verdad. Se ocultan los que se pasan del techo del cobrador,
-  // así ningún atajo lo manda sin querer a la cola de la oficina.
-  const atajosRenov = useMemo(() => {
-    const base = sugeridoRenov;
-    const opciones = [
-      { etiqueta: `El mismo · ${UYU(base)}`, monto: base },
-      { etiqueta: `+10% · ${UYU(Math.round(base * 1.1))}`, monto: Math.round(base * 1.1) },
-      { etiqueta: `+20% · ${UYU(Math.round(base * 1.2))}`, monto: Math.round(base * 1.2) },
-    ];
-    return opciones.filter((o, i) => i === 0 || (o.monto <= techo && o.monto !== base));
-  }, [sugeridoRenov, techo]);
 
   // Cuota estimada de una VENTA nueva. Se calcula con la MISMA función pura que
   // usa el servidor, arrastrando la tasa del último crédito del cliente: el que
@@ -193,15 +281,29 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
     start(async () => {
       setMsg(null);
       try {
+        // RENOVAR = repetir tal cual: no se manda monto ni cuotas, los pone el
+        // servidor desde el crédito anterior. Cero decisiones, cero dedazos.
+        //
+        // NUEVA VENTA = el mismo momento pero con términos propios. Si el cliente
+        // viene de TERMINAR un crédito (`prestamoId`), va por el camino de
+        // RENOVACIÓN con monto y cuotas propios: así se cierra el anterior en la
+        // misma operación atómica. Si no tiene crédito que cerrar, es un alta común.
         const r =
           modo === "renovar"
-            ? await renovarDesdeCalle({ clienteId: c.clienteId, prestamoId: c.prestamoId!, monto: nuevoMonto, cuotas: cuotasRenovN })
-            : await nuevaVentaDesdeCalle({
-                clienteId: c.clienteId,
-                monto: montoN,
-                totalDias: cuotasN,
-                frecuencia: c.frecuencia as FrecuenciaPrestamo,
-              });
+            ? await renovarDesdeCalle({ clienteId: c.clienteId, prestamoId: c.prestamoId! })
+            : c.prestamoId
+              ? await renovarDesdeCalle({
+                  clienteId: c.clienteId,
+                  prestamoId: c.prestamoId,
+                  monto: montoN,
+                  cuotas: cuotasN,
+                })
+              : await nuevaVentaDesdeCalle({
+                  clienteId: c.clienteId,
+                  monto: montoN,
+                  totalDias: cuotasN,
+                  frecuencia: c.frecuencia as FrecuenciaPrestamo,
+                });
         if (r.ok) {
           // Puede haber quedado PEDIDO a la oficina (supera el tope) en vez de
           // creado: el mensaje lo dice, para que el cobrador no le prometa al
@@ -282,127 +384,45 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
         <>
           {modo === "renovar" ? (
             // Renovar viene con el +20% ya puesto, pero EDITABLE: el cobrador está
-            // frente al cliente y a veces el número tiene que ser otro. Si pide más
-            // que su techo, no rebota — se le pide a la oficina.
+            // ⚠️ RENOVAR = REPETIR TAL CUAL. Sin campos, sin decisiones (regla de
+            // Carlos, 07-08): el crédito vuelve a nacer con el mismo monto, la misma
+            // cuota y las mismas cuotas que el cliente ya venía pagando. Cambiar
+            // algo es "Nueva venta", que es la otra puerta. Menos decisiones en la
+            // vereda = menos dedazos, y acá el dedazo es plata.
             <div className="flex flex-col gap-2.5 rounded-[13px] bg-[#F7F9FD] p-3">
-              {/* 1) DE CUÁNTO VENÍA. Sin esto el cobrador no tiene contra qué
-                  comparar el número que va a escribir. */}
-              <span className="text-[11.5px] font-bold text-gris">
-                Terminó de pagar {UYU(c.monto)}
+              <span className="text-[12px] font-extrabold text-tinta">
+                Se repite el crédito tal cual lo tenía
               </span>
-
-              {/* 2) EL MONTO, grande y obviamente editable. El campo con el signo $
-                  adentro y el teclado numérico: es LO ÚNICO que se decide acá. */}
-              <div className="flex gap-2">
-                <label className="flex flex-1 flex-col gap-1">
-                  <span className="text-[12px] font-extrabold text-tinta">
-                    ¿Por cuánto se lo renovás?
-                  </span>
-                  <div className="flex items-center gap-1.5 rounded-[11px] border-2 border-[#C7D2EC] bg-white px-3">
-                    <span className="text-[18px] font-black text-[#8A93AD]">$</span>
-                    <input
-                      inputMode="numeric"
-                      value={montoRenov}
-                      onChange={(e) => {
-                        setMontoRenov(e.target.value.replace(/\D/g, ""));
-                        setConfirmar(false);
-                      }}
-                      className="w-full min-h-[52px] bg-transparent text-[22px] font-black tabular-nums text-tinta outline-none"
-                    />
-                  </div>
-                </label>
-                {/* CUOTAS editables (pedido de Carlos, 07-08): el cliente a veces
-                    necesita la cuota más baja aunque tarde más. Cambiarlas NO cambia
-                    lo que paga en total — reparte ese total en más o menos cuotas. */}
-                <label className="flex w-[92px] flex-col gap-1">
-                  <span className="text-[12px] font-extrabold text-tinta">Cuotas</span>
-                  <input
-                    inputMode="numeric"
-                    value={cuotasRenov}
-                    onChange={(e) => {
-                      setCuotasRenov(e.target.value.replace(/\D/g, ""));
-                      setConfirmar(false);
-                    }}
-                    className="min-h-[52px] rounded-[11px] border-2 border-[#C7D2EC] bg-white px-3 text-[22px] font-black tabular-nums text-tinta outline-none"
-                  />
-                </label>
-              </div>
-
-              {/* 3) ATAJOS. Tipear en la calle es de donde salen los ceros de más.
-                  El mismo monto es lo normal; los otros dos son los pedidos reales. */}
-              <div className="flex flex-wrap gap-1.5">
-                {atajosRenov.map((a) => (
-                  <button
-                    key={a.etiqueta}
-                    type="button"
-                    onClick={() => {
-                      setMontoRenov(String(a.monto));
-                      setConfirmar(false);
-                    }}
-                    className={`min-h-9 rounded-full px-3 text-[12px] font-bold active:scale-95 ${
-                      nuevoMonto === a.monto
-                        ? "bg-[#1E47C8] text-white"
-                        : "border border-[#C7D2EC] bg-white text-azul"
-                    }`}
-                  >
-                    {a.etiqueta}
-                  </button>
-                ))}
-              </div>
-
-              {/* 4) QUÉ VA A PAGAR EL CLIENTE. Es lo que el cobrador le dice en voz
-                  alta, y hasta ahora tenía que calcularlo de memoria. */}
-              <div className="grid grid-cols-3 gap-2 rounded-[11px] bg-white p-2.5">
-                <Dato k="Cuota" v={UYU(nuevaCuota)} />
-                <Dato k="Cuotas" v={`${cuotasRenovN} ${etiquetaFrec(c.frecuencia)}`} />
-                <Dato k="Paga en total" v={UYU(nuevaCuota * cuotasRenovN)} />
+              <div className="grid grid-cols-2 gap-2 rounded-[11px] bg-white p-2.5">
+                <Dato k="Le entregás" v={UYU(sugeridoRenov)} />
+                <Dato k="Cuota" v={UYU(c.cuotaNueva ?? c.cuota)} />
+                <Dato k="Cuotas" v={`${c.totalDias} ${etiquetaFrec(c.frecuencia)}`} />
+                <Dato k="Paga en total" v={UYU((c.cuotaNueva ?? c.cuota) * c.totalDias)} />
               </div>
               <span className="text-[11.5px] leading-[1.4] font-semibold text-gris">
                 Empieza a pagar {primerCobro}. Hoy recibe la plata, mañana arranca.
               </span>
-
-              {/* Cambiar las cuotas confunde si no se dice qué hace: NO cambia lo
-                  que el cliente paga en total, solo cómo se reparte. */}
-              {cuotasEditadas && (
-                <span className="rounded-[10px] bg-[#EEF3FF] px-2.5 py-2 text-[11.5px] leading-[1.45] font-bold text-[#1E47C8]">
-                  Antes eran {c.totalDias} {etiquetaFrec(c.frecuencia)}. Paga lo mismo en total
-                  ({UYU(totalAPagarRenov)}): con {cuotasRenovN} le queda una cuota de{" "}
-                  {UYU(nuevaCuota)}.
-                </span>
-              )}
-
-              {/* 5) EL LÍMITE, SIEMPRE a la vista — no recién cuando ya se pasó. */}
-              {!pideAprobacion && techo > sugeridoRenov && (
-                <span className="text-[11.5px] leading-[1.4] font-semibold text-gris">
-                  Podés darle hasta {UYU(techo)} vos solo. Más que eso lo aprueba la oficina.
-                </span>
-              )}
-              {pideAprobacion && (
+              {c.requiereAprobacion && (
                 <span className="rounded-[10px] bg-[#FDF3E2] px-2.5 py-2 text-[11.5px] leading-[1.45] font-bold text-[#8A6D1E]">
-                  {UYU(nuevoMonto)} pasa los {UYU(techo)} que podés dar solo. Al confirmar se
-                  manda el pedido a la oficina y te avisan cuando lo aprueben.
+                  Este monto lo tiene que aprobar la oficina. Al confirmar se manda el pedido.
                   <br />
                   <strong>Todavía NO le entregues la plata.</strong>
                 </span>
               )}
-              {(renovEditado || cuotasEditadas) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMontoRenov(String(sugeridoRenov));
-                    setCuotasRenov(String(c.totalDias));
-                    setConfirmar(false);
-                  }}
-                  className="self-start text-[11.5px] font-bold text-azul"
-                >
-                  ← Volver a como estaba ({UYU(sugeridoRenov)} en {c.totalDias})
-                </button>
-              )}
+              {/* La salida para el que necesita otro número: no es un callejón. */}
+              <a
+                href={`/cobrador/colocar?modo=venta&cliente=${c.clienteId}`}
+                className="self-start text-[12px] font-bold text-azul underline"
+              >
+                ¿Necesita otro monto o más cuotas? → Nueva venta
+              </a>
             </div>
           ) : (
             <div className="flex flex-col gap-2.5 rounded-[13px] bg-[#F7F9FD] p-3">
               <span className="text-[11.5px] font-bold text-gris">
-                Su último crédito fue de {UYU(c.monto)}
+                {c.prestamoId
+                  ? `Terminó de pagar ${UYU(c.monto)} en ${c.totalDias} ${etiquetaFrec(c.frecuencia)}`
+                  : `Su último crédito fue de ${UYU(c.monto)}`}
               </span>
               <div className="flex gap-2">
                 <label className="flex flex-1 flex-col gap-1">
@@ -434,7 +454,7 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
                 <>
                   <div className="grid grid-cols-3 gap-2 rounded-[11px] bg-white p-2.5">
                     <Dato k="Cuota" v={UYU(cuotaVenta)} />
-                    <Dato k="Cuotas" v={`${cuotasN} días`} />
+                    <Dato k="Cuotas" v={`${cuotasN} ${etiquetaFrec(c.frecuencia)}`} />
                     <Dato k="Paga en total" v={UYU(cuotaVenta * cuotasN)} />
                   </div>
                   <span className="text-[11.5px] leading-[1.4] font-semibold text-gris">
@@ -449,8 +469,10 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
                 }`}
               >
                 {excede
-                  ? `${UYU(montoN)} pasa lo que podés dar solo. El máximo para este cliente es ${UYU(techo)} — para más, pedíselo a tu supervisor.`
-                  : `Podés darle hasta ${UYU(techo)}.`}
+                  ? c.prestamoId
+                    ? `${UYU(montoN)} pasa los ${UYU(techo)} que podés dar solo. Al confirmar se manda el pedido a la oficina — todavía NO le entregues la plata.`
+                    : `${UYU(montoN)} pasa lo que podés dar solo. El máximo para este cliente es ${UYU(techo)} — para más, pedíselo a tu supervisor.`
+                  : `Podés darle hasta ${UYU(techo)} vos solo.`}
               </span>
             </div>
           )}
@@ -471,7 +493,7 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
             </button>
             <button
               type="button"
-              disabled={pendiente || (modo === "venta" && (excede || montoN <= 0 || cuotasN <= 0)) || (modo === "renovar" && nuevoMonto <= 0)}
+              disabled={pendiente || (modo === "venta" && ((excede && !c.prestamoId) || montoN <= 0 || cuotasN <= 0))}
               onClick={() => (confirmar ? colocar() : setConfirmar(true))}
               className="min-h-11 flex-1 rounded-[13px] bg-[#1FA971] text-[13px] font-extrabold text-white disabled:opacity-50"
             >
@@ -479,17 +501,19 @@ function Tarjeta({ c, modo }: { c: Candidato; modo: "renovar" | "venta" }) {
                   decía solo "Confirmar" y el cobrador confirmaba a ciegas. */}
               {pendiente
                 ? "Creando…"
-                : confirmar
-                  ? modo === "renovar"
-                    ? pideAprobacion
-                      ? `Sí, pedir ${UYU(nuevoMonto)} a la oficina`
-                      : `Sí, entregarle ${UYU(nuevoMonto)}`
-                    : `Sí, entregarle ${UYU(montoN)}`
-                  : modo === "renovar"
-                    ? pideAprobacion
-                      ? `Pedir ${UYU(nuevoMonto)} a la oficina`
-                      : `Renovar por ${UYU(nuevoMonto)}`
-                    : `Dar ${UYU(montoN)}`}
+                : (() => {
+                    // RENOVAR va por el monto del crédito anterior (no hay campos);
+                    // VENTA por lo que tipeó. Y "pedir a la oficina" solo cuando de
+                    // verdad se pasa: el botón nunca promete lo que no va a pasar.
+                    const n = modo === "renovar" ? sugeridoRenov : montoN;
+                    const aOficina =
+                      modo === "renovar" ? !!c.requiereAprobacion : excede && !!c.prestamoId;
+                    if (aOficina)
+                      return confirmar
+                        ? `Sí, pedir ${UYU(n)} a la oficina`
+                        : `Pedir ${UYU(n)} a la oficina`;
+                    return confirmar ? `Sí, entregarle ${UYU(n)}` : `Entregarle ${UYU(n)}`;
+                  })()}
             </button>
           </div>
         </>

@@ -23,6 +23,7 @@ import {
   RENOVACION_CAP_TOTAL,
 } from "@/lib/renovacion";
 import { hoyUY } from "@/lib/fecha";
+import { UYU } from "@/lib/format";
 import { getPagosDePrestamo } from "./pagos";
 import { traerTodo } from "./paginado";
 import type { Cliente, Prestamo } from "@/types/db";
@@ -219,6 +220,105 @@ export async function getCandidatosVenta(db: SupabaseClient): Promise<CandidatoC
           totalDias,
           frecuencia: (p.frecuencia as string) ?? "diario",
           techo: techoDe(monto),
+        },
+      ];
+    })
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+}
+
+/** Un cliente de la ruta que HOY no se puede colocar, y el motivo en criollo. */
+export interface NoElegible {
+  clienteId: string;
+  nombre: string;
+  documento: string | null;
+  /** Qué le pasa, dicho como se lo diría un compañero. */
+  motivo: string;
+  /** Qué puede hacer el cobrador al respecto (null = nada, solo esperar). */
+  queHacer: string | null;
+}
+
+/**
+ * Los clientes de MI ruta que NO están en ninguna de las dos listas, con el
+ * MOTIVO.
+ *
+ * ⚠️ Reporte de campo (07-08): "el operador no encuentra por dónde hacer la nueva
+ * venta; si entra a renovar no le aparece, y en nueva venta aparece un listado
+ * pero ella no". Las dos listas están FILTRADAS por reglas correctas, pero un
+ * cliente que no cumple ninguna simplemente DESAPARECE — sin decir por qué ni qué
+ * hacer. Es el mismo callejón sin salida que ya nos costó el censo el día 1: el
+ * cobrador se queda parado frente al cliente creyendo que la app está rota.
+ *
+ * Los dos casos reales:
+ *   · Todavía está pagando  → se renueva cuando termine (le falta $X).
+ *   · Ya tiene otro crédito → un segundo crédito en paralelo lo da la oficina.
+ * Nunca se esconde a nadie: si no se puede, se dice por qué.
+ */
+export async function getNoElegibles(
+  db: SupabaseClient,
+  cobradorId: string | null,
+): Promise<NoElegible[]> {
+  const { data: asig } = await db.from("asignaciones").select("cliente_id").eq("activo", true);
+  const ids = [...new Set((asig ?? []).map((a) => a.cliente_id as string))];
+  if (ids.length === 0) return [];
+
+  const activos = await traerTodo<Prestamo>((d, h) =>
+    db
+      .from("prestamos")
+      .select("*")
+      .eq("estado", "activo")
+      .in("cliente_id", ids)
+      .order("id", { ascending: true })
+      .range(d, h),
+  );
+  if (activos.length === 0) return []; // sin créditos activos → todos elegibles
+
+  const hoy = hoyUY();
+  const porCliente = new Map<string, { falta: number; ajenos: number; propios: number }>();
+  for (const p of activos) {
+    const pagos = await getPagosDePrestamo(db, p.id);
+    const { falta } = calcularEstadosCarton(p, pagos, hoy);
+    const acc = porCliente.get(p.cliente_id) ?? { falta: 0, ajenos: 0, propios: 0 };
+    const esAjeno = !!cobradorId && !!p.cobrador_id && p.cobrador_id !== cobradorId;
+    if (esAjeno) acc.ajenos += 1;
+    else {
+      acc.propios += 1;
+      acc.falta += Math.max(0, falta);
+    }
+    porCliente.set(p.cliente_id, acc);
+  }
+
+  const conDeuda = [...porCliente.entries()].filter(([, v]) => v.falta >= 1 || v.ajenos > 0);
+  if (conDeuda.length === 0) return [];
+
+  const { data: cls } = await db
+    .from("clientes")
+    .select("id, nombre, documento, activo")
+    .in("id", conDeuda.map(([cid]) => cid));
+  const cliDe = new Map((cls ?? []).map((c) => [c.id as string, c as unknown as Cliente]));
+
+  return conDeuda
+    .flatMap(([cid, v]) => {
+      const cli = cliDe.get(cid);
+      if (!cli || !cli.activo) return [];
+      // Créditos SOLO del compañero: no es su parada ni su decisión.
+      if (v.propios === 0)
+        return [
+          {
+            clienteId: cid,
+            nombre: cli.nombre,
+            documento: cli.documento ?? null,
+            motivo: "Su crédito es de otro cobrador.",
+            queHacer: "Que lo renueve él, o pedile a tu supervisor que te lo pase.",
+          },
+        ];
+      return [
+        {
+          clienteId: cid,
+          nombre: cli.nombre,
+          documento: cli.documento ?? null,
+          motivo: `Todavía está pagando: le falta ${UYU(Math.round(v.falta))}.`,
+          queHacer:
+            "Se renueva cuando termine. Si necesita plata ahora, un segundo crédito lo da la oficina.",
         },
       ];
     })

@@ -159,14 +159,27 @@ export default async function DetalleClientePage({
            encontraba con un cartel informativo sin ningún botón. El alta es
            solo-gestor, así que la única salida era llamar por teléfono fuera de
            la app. Ahora puede pedirlo desde acá y queda constancia. */
+        /* ⚠️ Este cartel decía "el alta la hace la oficina" y ya NO es cierto: desde
+           el 08-05 el cobrador coloca desde la calle si el cliente tiene historial.
+           El operador leía eso, no encontraba por dónde, y llamaba por teléfono
+           para algo que podía hacer solo (reporte de campo 07-08). */
         <div className="flex flex-col items-center gap-3 rounded-[14px] bg-white px-4 py-6 text-center">
           <p className="text-[13px] leading-[1.5] font-medium text-gris">
-            Todavía no tiene un crédito activo. El alta la hace la oficina —
-            <b className="text-tinta"> pedila desde acá</b> y te avisan cuando esté.
+            Todavía no tiene un crédito activo.
+            <b className="text-tinta"> Podés darle uno ahora mismo</b> si ya tuvo antes.
+          </p>
+          <Link
+            href={`/cobrador/colocar?modo=venta&cliente=${id}`}
+            className="min-h-11 w-full rounded-[13px] bg-[#1FA971] text-center text-[14px] font-extrabold leading-[44px] text-white active:scale-[0.99]"
+          >
+            💵 Darle un crédito
+          </Link>
+          <p className="text-[11.5px] leading-[1.45] font-medium text-gris">
+            Si es su PRIMER crédito, el alta la hace la oficina:
           </p>
           <PedirAyuda
             clienteId={id}
-            etiqueta="Pedir crédito para este cliente"
+            etiqueta="Pedirlo a la oficina"
             textoSugerido={`Pido crédito para ${cliente.nombre}${
               cliente.documento ? ` (cédula ${cliente.documento})` : ""
             }. Está en mi ruta y quiere tomar uno.`}
@@ -250,6 +263,37 @@ async function Detalle({
 
   return (
     <>
+      {/* ⚠️ TERMINÓ DE PAGAR: las dos puertas, acá, donde el cobrador ya está
+          parado con el cliente enfrente. Antes había que volver a la ruta, tocar
+          "+", elegir un modo y buscarlo en una lista de 120 nombres — y el que no
+          entraba en la lista simplemente no aparecía (reporte de campo 07-08).
+            · Renovar     → repite el crédito TAL CUAL. Un toque, cero decisiones.
+            · Nueva venta → el mismo momento, eligiendo monto y cuotas. */}
+      {r.falta < 1 && (
+        <div className="flex flex-col gap-2 rounded-[16px] border border-[#BEEBD5] bg-[#F0FBF5] p-4">
+          <span className="text-[14px] font-extrabold text-[#157A50]">
+            🎉 Terminó de pagar este crédito
+          </span>
+          <span className="text-[12.5px] leading-[1.45] font-medium text-[#157A50]">
+            Pagó {UYU(r.totalAPagar)} en {prestamo.total_dias} cuotas. Ya le podés dar uno nuevo.
+          </span>
+          <div className="mt-1 flex flex-col gap-2">
+            <Link
+              href={`/cobrador/colocar?modo=renovar&cliente=${clienteId}`}
+              className="min-h-[52px] rounded-[13px] bg-[#1FA971] text-center text-[15px] font-extrabold leading-[52px] text-white active:scale-[0.99]"
+            >
+              🔁 Renovar igual · {UYU(prestamo.monto_prestado)}
+            </Link>
+            <Link
+              href={`/cobrador/colocar?modo=venta&cliente=${clienteId}`}
+              className="min-h-11 rounded-[13px] border border-[#BEEBD5] bg-white text-center text-[13.5px] font-bold leading-[44px] text-[#157A50] active:scale-[0.99]"
+            >
+              💵 Nueva venta · otro monto o más cuotas
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Distintivo de VENTA de tienda: que el cobrador NO confunda el dinero
           (una compra financiada) con el crédito de efectivo del cliente. */}
       {prestamo.origen === "tienda" && (
