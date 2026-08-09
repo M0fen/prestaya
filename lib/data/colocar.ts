@@ -16,9 +16,7 @@ import { calcularEstadosCarton } from "@/lib/cartones";
 import {
   calcularCuotaRenovacion,
   montoRenovacionAutoAprobable,
-  montoRenovacionPedido,
   montoRenovacionSugerido,
-  requiereAprobacionAdmin,
   topeAumentoPct,
   RENOVACION_CAP_TOTAL,
 } from "@/lib/renovacion";
@@ -136,14 +134,17 @@ export async function getCandidatosRenovar(
     // cliente terminaba de pagar y desaparecía, sin explicación ni forma de
     // pedirlo. Ahora aparecen marcados y el toque manda la solicitud al admin
     // (decisión de Carlos, 06-08).
-    const requiereAprobacion = requiereAprobacionAdmin(montoAnterior);
     // Los números del crédito NUEVO, con las MISMAS funciones que usa el alta: la
     // tarjeta de la calle muestra lo que se va a colocar, no lo que ya se pagó.
     // Lo que se PROPONE es repetir el crédito igual. `montoRenovacionAutoAprobable`
     // es el TECHO hasta donde puede subirlo solo, y viaja aparte (`techo`).
-    const montoNuevo = requiereAprobacion
-      ? montoRenovacionPedido(montoAnterior)
-      : montoRenovacionSugerido(montoAnterior);
+    const montoNuevo = montoRenovacionSugerido(montoAnterior);
+    // ⚠️ ¿El monto PROPUESTO necesita permiso? Ya nunca: repetir el crédito va solo
+    // (regla de Carlos, 07-08). Se calcula igual —contra el TECHO, no contra el
+    // CAP— para que la pantalla no vuelva a prometer algo distinto de lo que hace
+    // el servidor: antes un heredado de $120.000 se marcaba "requiere aprobación"
+    // y el botón decía "Pedir a la oficina" mientras el servidor lo aprobaba solo.
+    const requiereAprobacion = montoNuevo > montoRenovacionAutoAprobable(montoAnterior);
     const cuotaNueva = calcularCuotaRenovacion(
       { monto: montoAnterior, cuota: cuotaAnterior, totalDias },
       montoNuevo,

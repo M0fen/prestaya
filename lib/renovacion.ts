@@ -76,7 +76,11 @@ export const RENOVACION_AUMENTO_PCT = 20;
 export function montoRenovacionSugerido(montoAnterior: number): number {
   const base = Math.round(Number(montoAnterior) || 0);
   if (!(base > 0)) return 0;
-  return Math.min(RENOVACION_CAP_TOTAL, base);
+  // ⚠️ NO se recorta al CAP. Repetir un crédito heredado de $120.000 proponiendo
+  // $100.000 sería REBAJARLE el capital al cliente en silencio, y "se repite tal
+  // cual" es la regla. El CAP acota el capital NUEVO, no la continuidad de una
+  // exposición que ya existe.
+  return base;
 }
 
 /**
@@ -91,8 +95,14 @@ export function montoRenovacionSugerido(montoAnterior: number): number {
 export function montoRenovacionAutoAprobable(montoAnterior: number): number {
   const base = Math.round(Number(montoAnterior) || 0);
   if (!(base > 0)) return 0;
-  const pct = Math.min(RENOVACION_AUMENTO_PCT, topeAumentoPct(base));
-  return Math.min(RENOVACION_CAP_TOTAL, Math.round(base * (1 + pct / 100)));
+  const conAumento = Math.round(base * (1 + RENOVACION_AUMENTO_PCT / 100));
+  // ⚠️ REPETIR EL MISMO MONTO SIEMPRE SE APRUEBA SOLO (regla de Carlos, 07-08:
+  // "la renovación va sola; solo requiere aprobación cuando sobrepasa el 20% de
+  // aumento"). El `max(base, …)` es lo que lo garantiza: sin él, un crédito
+  // heredado de $120.000 tenía techo $100.000 (el CAP) y renovarlo POR EL MISMO
+  // MONTO se iba a la cola del admin — el cliente esperaba días por repetir lo
+  // que ya tenía. El CAP sigue acotando el AUMENTO, que es para lo que está.
+  return Math.max(base, Math.min(RENOVACION_CAP_TOTAL, conAumento));
 }
 
 /**

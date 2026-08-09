@@ -131,7 +131,7 @@ async function pedirAprobacion(
   } catch (e) {
     // Una solicitud pendiente por crédito (unique): el segundo toque no duplica.
     if ((e as { code?: string } | null)?.code === "23505")
-      return { ok: true, solicitado: true, mensaje: "Ya está pedido a la oficina. Esperá el OK." };
+      return { ok: true, solicitado: true, mensaje: "Ya estaba pedido a la oficina. Sigue esperando el OK." };
     return { ok: false, error: "No se pudo pedir la aprobación. Probá de nuevo." };
   }
   await registrarAuditoria(db, {
@@ -146,7 +146,7 @@ async function pedirAprobacion(
   return {
     ok: true,
     solicitado: true,
-    mensaje: "Pedido a la oficina ✓ Te avisan cuando lo aprueben.",
+    mensaje: "PEDIDO a la oficina. Todavía no está aprobado.",
   };
 }
 
@@ -326,6 +326,10 @@ export async function renovarDesdeCalle(input: {
       totalDias,
       frecuencia: (ant.frecuencia as FrecuenciaPrestamo) ?? "diario",
       creadoPor: u.id,
+      // Un crédito HEREDADO por encima del CAP se repite tal cual: la RPC tiene su
+      // propio tope duro (P0411) que no sabe que esto es continuidad, no capital
+      // nuevo. Sin esto, renovar un $120.000 por el mismo monto reventaba en rojo.
+      permitirSobreCap: monto > RENOVACION_CAP_TOTAL,
     },
     new Date(),
     admin,
@@ -348,7 +352,16 @@ export async function renovarDesdeCalle(input: {
   // crédito" bloquea pedir otra cosa. Best-effort: el crédito ya está creado.
   if (res.prestamoId) {
     try {
-      await cerrarSolicitudPendienteDeAnterior(createSupabaseAdmin(), ant.id, res.prestamoId, u.id);
+      // Se cierra como RECHAZADA, no "aprobada": la oficina nunca la miró. El
+      // cobrador se arrepintió y colocó un monto que entra en su techo.
+      await cerrarSolicitudPendienteDeAnterior(
+        createSupabaseAdmin(),
+        ant.id,
+        res.prestamoId,
+        u.id,
+        "rechazada",
+        `El cobrador renovó por ${UYU(monto)} sin esperar la aprobación.`,
+      );
     } catch {
       /* la cola se limpia igual desde el panel; no frenar al cobrador por esto */
     }

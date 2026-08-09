@@ -172,6 +172,22 @@ export function ColocarLista({
         className="w-full rounded-[13px] border border-borde bg-white px-3.5 py-3 text-[16px] outline-none focus:border-azul"
       />
 
+      {/* ⚠️ Cuánta plata hay que LLEVAR. Ninguna tarjeta cerrada mostraba un peso:
+          para saber que hoy tiene que salir con $113.500 encima, el cobrador tenía
+          que abrir las 10 una por una y sumar de memoria. Si sale con $40.000, en
+          la cuarta casa se queda sin efectivo y le dice al cliente que vuelve. */}
+      {candidatos.length > 0 && !q && (
+        <div className="flex items-center justify-between gap-3 rounded-[13px] border border-[#DCE6FB] bg-[#F7F9FF] px-3.5 py-3">
+          <span className="text-[12.5px] leading-[1.4] font-bold text-tinta">
+            {candidatos.length} {modo === "renovar" ? "para renovar" : "para vender"}
+            <span className="font-medium text-gris"> · si los hacés a todos</span>
+          </span>
+          <span className="flex-shrink-0 text-[16px] font-black tabular-nums text-[#1E47C8]">
+            {UYU(candidatos.reduce((t, c) => t + (c.montoNuevo ?? c.monto), 0))}
+          </span>
+        </div>
+      )}
+
       {candidatos.length === 0 && !q && (
         <p className="rounded-[14px] bg-white px-4 py-5 text-center text-[13px] leading-[1.5] font-medium text-gris">
           {modo === "renovar"
@@ -244,8 +260,10 @@ function Tarjeta({
   const [cuotas, setCuotas] = useState(String(c.totalDias));
   const [msg, setMsg] = useState<string | null>(null);
   const [okTxt, setOkTxt] = useState<string | null>(null);
-  /** El resultado fue "ya estaba hecho", no "recién lo creé": se pinta distinto. */
-  const [eraRepetido, setEraRepetido] = useState(false);
+  /** Cómo terminó: "creado" (verde), "repetido" (ya estaba hecho) o "pedido" (a la
+   *  oficina — NO se creó nada y NO hay que entregar plata). Los tres son `ok` para
+   *  el servidor y tres cosas MUY distintas para el bolsillo del cobrador. */
+  const [comoTermino, setComoTermino] = useState<"creado" | "repetido" | "pedido">("creado");
   const [pendiente, start] = useTransition();
 
   const montoN = Math.round(Number(monto) || 0);
@@ -321,7 +339,7 @@ function Tarjeta({
                   ? `Listo ✓ · cuota ${UYU(r.cuota)}`
                   : "Listo ✓",
           );
-          setEraRepetido("solicitado" in r ? false : Boolean(r.repetido));
+          setComoTermino("solicitado" in r ? "pedido" : r.repetido ? "repetido" : "creado");
           router.refresh();
         } else {
           setMsg(r.error);
@@ -337,15 +355,29 @@ function Tarjeta({
     });
 
   if (okTxt) {
-    // Verde = se colocó recién. Ámbar = ya estaba hecho (reintento tras un corte
-    // de señal): mismo "ok" para el servidor, cosa MUY distinta para el bolsillo.
-    const tono = eraRepetido
-      ? { borde: "#F0DCA8", fondo: "#FDF8EC", texto: "#8A6D1E" }
-      : { borde: "#BEEBD5", fondo: "#F0FBF5", texto: "#157A50" };
+    // ⚠️ TRES resultados, TRES colores. Verde = el capital salió. Ámbar = ya estaba
+    // hecho (reintento tras un corte de señal). ROJO = se PIDIÓ a la oficina y NO
+    // se creó nada.
+    // El "pedido" se pintaba VERDE con ✓, igual que el éxito, y el único texto que
+    // decía "no le entregues la plata" desaparecía de la pantalla al confirmar. En
+    // la calle, de reojo, verde + ✓ = hecho: el cobrador entregaba el efectivo por
+    // un crédito que no existe.
+    const tono =
+      comoTermino === "pedido"
+        ? { borde: "#F0C0BC", fondo: "#FDEEEC", texto: "#B03A2E" }
+        : comoTermino === "repetido"
+          ? { borde: "#F0DCA8", fondo: "#FDF8EC", texto: "#8A6D1E" }
+          : { borde: "#BEEBD5", fondo: "#F0FBF5", texto: "#157A50" };
     return (
       <div className="rounded-[16px] border p-4" style={{ borderColor: tono.borde, background: tono.fondo }}>
         <span className="text-[14px] font-extrabold" style={{ color: tono.texto }}>{c.nombre}</span>
         <p className="mt-0.5 text-[12.5px] leading-[1.45] font-bold" style={{ color: tono.texto }}>{okTxt}</p>
+        {comoTermino === "pedido" && (
+          <p className="mt-2 rounded-[10px] bg-white/70 px-2.5 py-2 text-[13px] leading-[1.4] font-extrabold" style={{ color: tono.texto }}>
+            ⛔ NO le entregues la plata todavía. El crédito NO existe hasta que la
+            oficina apruebe.
+          </p>
+        )}
       </div>
     );
   }
@@ -357,7 +389,7 @@ function Tarjeta({
           <span className="truncate text-[15px] font-extrabold text-tinta">{c.nombre}</span>
           <span className="text-[11.5px] font-semibold text-gris tabular-nums">
             {modo === "renovar"
-              ? "Terminó de pagar ✓"
+              ? `Terminó de pagar ✓ · ${UYU(sugeridoRenov)}`
               : (c.deudaHermano ?? 0) >= 1
                 ? "Está pagando · se le puede dar otro"
                 : "Sin crédito activo"}

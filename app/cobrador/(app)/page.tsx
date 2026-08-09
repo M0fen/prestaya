@@ -9,6 +9,7 @@ import { getBannerCobradorActivo } from "@/lib/data/bannerCobrador";
 import { BannerEquipo } from "@/components/cobrador/BannerEquipo";
 import { getEstadoJornada, getDeudaRendicionAyer } from "@/lib/data/rendicion";
 import { getSolicitudesGastoCobrador } from "@/lib/data/solicitudesGasto";
+import { getAprobadasPendientes } from "@/lib/data/solicitudesRenovacion";
 import { getUsuarioActual } from "@/lib/auth";
 import { conTimeout } from "@/lib/timeout";
 import { hoyUY } from "@/lib/fecha";
@@ -45,7 +46,7 @@ export default async function RutaPage() {
   );
   // El nombre de la zona se resuelve con el cliente ADMIN: la tabla `zonas` está
   // bloqueada por RLS para el cobrador (0 filas), y esto es solo una etiqueta.
-  const [jornada, solicitudesGasto, zonaNombre, deudaAyer] = await conTimeout(
+  const [jornada, solicitudesGasto, zonaNombre, deudaAyer, aprobadas] = await conTimeout(
     Promise.all([
       usuario ? getEstadoJornada(db, usuario.id) : Promise.resolve(null),
       usuario ? getSolicitudesGastoCobrador(db, usuario.id) : Promise.resolve(null),
@@ -60,6 +61,9 @@ export default async function RutaPage() {
       // ¿Ayer cobró y NO rindió? La plata sigue en su bolsillo sin sello: el banner
       // se lo recuerda apenas abre la app (espejo humano de la invariante del cron).
       usuario ? getDeudaRendicionAyer(db, usuario.id) : Promise.resolve(null),
+      // Renovaciones que la oficina le APROBÓ: sin esto el circuito quedaba mudo
+      // justo del lado que importa, y el capital ya se le descontaba de la caja.
+      usuario ? getAprobadasPendientes(usuario.id) : Promise.resolve([]),
     ]),
     TOPE_MS,
     "cobrador.jornada",
@@ -322,6 +326,33 @@ export default async function RutaPage() {
       {/* AYER cobró y NO rindió: la plata de esa jornada sigue en su bolsillo sin
           sello de entrega. Se le recuerda apenas abre la app (la rendición de un día
           pasado ya no se puede crear acá → la entrega es en mano, con el supervisor). */}
+      {/* ⚠️ La oficina APROBÓ una renovación: el crédito YA existe a su nombre y el
+          capital ya se le descontó de la caja. Si no se lo decimos, se queda con la
+          plata sin saberlo y el cierre igual le cuadra. */}
+      {aprobadas.length > 0 && (
+        <section className="flex flex-col gap-2 rounded-[16px] border border-[#BEEBD5] bg-[#F0FBF5] p-4">
+          <span className="text-[13.5px] font-extrabold text-[#157A50]">
+            ✅ La oficina aprobó {aprobadas.length === 1 ? "una renovación" : `${aprobadas.length} renovaciones`}
+          </span>
+          {aprobadas.map((a) => (
+            <Link
+              key={a.id}
+              href={`/cobrador/cliente/${a.clienteId}`}
+              className="flex items-center justify-between gap-2 rounded-[12px] bg-white px-3 py-2.5 active:scale-[0.99]"
+            >
+              <span className="truncate text-[13px] font-bold text-tinta">{a.clienteNombre}</span>
+              <span className="flex-shrink-0 text-[14px] font-black tabular-nums text-[#157A50]">
+                entregale {UYU(a.monto)}
+              </span>
+            </Link>
+          ))}
+          <span className="text-[11.5px] leading-[1.45] font-medium text-[#157A50]">
+            Ese capital ya está descontado de tu caja del día: si no se lo entregaste
+            todavía, hacelo — el crédito ya está corriendo.
+          </span>
+        </section>
+      )}
+
       {deudaAyer && (
         <div className="rounded-[14px] border border-[#F0D9A8] bg-[#FEFBF3] px-4 py-3">
           <span className="text-[13px] font-extrabold text-[#9A6A0E]">

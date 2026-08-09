@@ -142,14 +142,16 @@ describe("montoRenovacionSugerido — el crédito se REPITE igual", () => {
     expect(Number.isInteger(montoRenovacionSugerido(7777))).toBe(true);
   });
 
-  it("el CAP de $100.000 recorta lo heredado por encima del tope", () => {
-    expect(montoRenovacionSugerido(120_000)).toBe(RENOVACION_CAP_TOTAL);
-    expect(montoRenovacionSugerido(100_000)).toBe(RENOVACION_CAP_TOTAL);
+  it("un crédito HEREDADO por encima del CAP se repite tal cual, sin rebajarlo", () => {
+    // Recortarlo al CAP sería bajarle el capital al cliente en silencio. El CAP
+    // acota el capital NUEVO, no la continuidad de una exposición que ya existe.
+    expect(montoRenovacionSugerido(120_000)).toBe(120_000);
+    expect(montoRenovacionSugerido(1_750_000)).toBe(1_750_000);
+    expect(montoRenovacionSugerido(100_000)).toBe(100_000);
   });
 
-  it("nunca propone más que el cap, para ningún monto anterior", () => {
-    for (let m = 500; m <= 120000; m += 500)
-      expect(montoRenovacionSugerido(m)).toBeLessThanOrEqual(RENOVACION_CAP_TOTAL);
+  it("propone SIEMPRE el mismo monto, para cualquier anterior", () => {
+    for (let m = 500; m <= 200_000; m += 500) expect(montoRenovacionSugerido(m)).toBe(m);
   });
 
   it("montos inválidos → 0 (el llamador decide, no inventa plata)", () => {
@@ -206,14 +208,15 @@ describe("lo que no se puede aprobar solo va al admin (no es callejón sin salid
     expect(requiereAprobacionAdmin(120_000)).toBe(true);
   });
 
-  it("lo pedido NUNCA le baja el capital al cliente", () => {
-    // La trampa: `montoRenovacionSugerido` recorta al CAP, así que para un crédito
-    // de $1.750.000 propondría $100.000 — una rebaja del 94% disfrazada de
-    // renovación. `montoRenovacionPedido` no recorta: pide el MISMO monto.
-    expect(montoRenovacionSugerido(1_750_000)).toBe(RENOVACION_CAP_TOTAL); // el recorte
-    expect(montoRenovacionPedido(1_750_000)).toBe(1_750_000); // el mismo crédito
-    for (const m of [110_000, 250_000, 843_200, 1_750_000])
+  it("ni lo propuesto ni lo pedido le bajan NUNCA el capital al cliente", () => {
+    // Un crédito de $1.750.000 no se puede "renovar" en $100.000: sería una rebaja
+    // del 94% disfrazada de renovación.
+    expect(montoRenovacionSugerido(1_750_000)).toBe(1_750_000);
+    expect(montoRenovacionPedido(1_750_000)).toBe(1_750_000);
+    for (const m of [110_000, 250_000, 843_200, 1_750_000]) {
+      expect(montoRenovacionSugerido(m)).toBeGreaterThanOrEqual(m);
       expect(montoRenovacionPedido(m)).toBeGreaterThanOrEqual(m);
+    }
   });
 
   it("un crédito grande se pide por el MISMO monto", () => {
@@ -428,5 +431,52 @@ describe("cambiar el NÚMERO DE CUOTAS al renovar (pedido de Carlos, 07-08)", ()
   it("términos inválidos no producen una cuota fantasma", () => {
     expect(calcularCuotaRenovacion(ANT, 60_000, 0)).toBe(0);
     expect(calcularCuotaRenovacion(ANT, 0, 30)).toBe(0);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  LA RENOVACIÓN VA SOLA — regla de Carlos (07-08)
+//
+//  "La renovación va sola. Si el vendedor necesita hacer la renovación (que es
+//  exactamente el mismo crédito que el cliente tenía) esto debe poder ser ágil e
+//  inmediato, claramente con su botón de confirmación. Sólo requiere aprobación
+//  cuando sobrepasa el 20% de aumento."
+// ═══════════════════════════════════════════════════════════════════════════
+describe("la renovación va sola: solo el +20% pide permiso", () => {
+  const vaSola = (anterior: number, pedido: number) =>
+    pedido <= montoRenovacionAutoAprobable(anterior);
+
+  it("repetir EXACTO va solo, para cualquier monto", () => {
+    for (const m of [5_000, 60_000, 99_000, 100_000, 120_000, 1_750_000]) {
+      expect(vaSola(m, montoRenovacionSugerido(m)), `repetir ${m} tiene que ir solo`).toBe(true);
+    }
+  });
+
+  it("un crédito HEREDADO sobre el CAP se repite solo (era el caso roto)", () => {
+    // Antes: techo = min(CAP, 120.000×1,2) = 100.000 < 120.000 → repetir el MISMO
+    // monto se iba a la cola del admin y el cliente esperaba días por lo que ya tenía.
+    expect(montoRenovacionAutoAprobable(120_000)).toBe(120_000);
+    expect(vaSola(120_000, 120_000)).toBe(true);
+    // Pero ese crédito NO admite aumento: ya está por encima del tope.
+    expect(vaSola(120_000, 130_000)).toBe(false);
+  });
+
+  it("bajar el monto siempre va solo", () => {
+    expect(vaSola(60_000, 40_000)).toBe(true);
+    expect(vaSola(1_750_000, 50_000)).toBe(true);
+  });
+
+  it("hasta +20% va solo; por encima pide permiso", () => {
+    expect(vaSola(60_000, 72_000)).toBe(true); // +20% exacto
+    expect(vaSola(60_000, 72_001)).toBe(false); // un peso más
+    expect(vaSola(10_000, 12_000)).toBe(true);
+    expect(vaSola(10_000, 12_500)).toBe(false);
+  });
+
+  it("el aumento no puede pasar el CAP, aunque el +20% dé más", () => {
+    // 95.000 +20% = 114.000, pero el capital NUEVO se acota en 100.000.
+    expect(montoRenovacionAutoAprobable(95_000)).toBe(RENOVACION_CAP_TOTAL);
+    expect(vaSola(95_000, 100_000)).toBe(true);
+    expect(vaSola(95_000, 105_000)).toBe(false);
   });
 });

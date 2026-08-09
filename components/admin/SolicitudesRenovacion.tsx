@@ -7,6 +7,16 @@ import { UYU } from "@/lib/format";
 import { aprobarSolicitud, rechazarSolicitud } from "@/app/admin/(panel)/renovaciones/actions";
 import type { SolicitudRenovacion } from "@/lib/data/solicitudesRenovacion";
 
+/** "hace 24 h" se lee mejor que una fecha: lo que importa es cuánto lleva
+ *  esperando el cliente, no el timestamp. */
+function haceCuanto(iso: string): string {
+  const min = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (min < 60) return `hace ${min} min`;
+  const h = Math.round(min / 60);
+  if (h < 48) return `esperando hace ${h} h`;
+  return `esperando hace ${Math.round(h / 24)} días`;
+}
+
 export function SolicitudesRenovacion({
   solicitudes,
   esAdmin,
@@ -57,14 +67,29 @@ function Item({ s, esAdmin }: { s: SolicitudRenovacion; esAdmin: boolean }) {
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 flex-col">
           <span className="truncate text-[14px] font-bold text-tinta">{s.clienteNombre}</span>
+          {/* ⚠️ El admin aprobaba a ciegas: solo veía el monto pedido. Sin el
+              anterior no hay contra qué compararlo — el mismo botón verde sirve
+              para "+$0" que para "+60%". */}
           <span className="text-[12px] font-medium text-gris tabular-nums">
-            {UYU(s.monto)} × {s.totalDias} ({s.frecuencia})
+            {(s.montoAnterior ?? 0) > 0 ? (
+              <>
+                Antes {UYU(s.montoAnterior!)} → pide <b className="text-tinta">{UYU(s.monto)}</b>
+                {s.monto !== s.montoAnterior && (
+                  <b className={s.monto > s.montoAnterior! ? "text-[#B9770E]" : "text-[#157A50]"}>
+                    {" "}({s.monto > s.montoAnterior! ? "+" : "−"}
+                    {Math.round((Math.abs(s.monto - s.montoAnterior!) / s.montoAnterior!) * 100)}%)
+                  </b>
+                )}
+              </>
+            ) : (
+              <>{UYU(s.monto)}</>
+            )}
+            {" · "}{s.totalDias} ({s.frecuencia})
           </span>
-          {s.solicitadoPorNombre && (
-            <span className="text-[11px] font-medium text-tenue">
-              Pidió: {s.solicitadoPorNombre}
-            </span>
-          )}
+          <span className="text-[11px] font-medium text-tenue">
+            {s.solicitadoPorNombre ? `Pidió: ${s.solicitadoPorNombre}` : "Pedido"}
+            {s.solicitadoEn ? ` · ${haceCuanto(s.solicitadoEn)}` : ""}
+          </span>
         </div>
         {esAdmin ? (
           <div className="flex flex-shrink-0 gap-2">
