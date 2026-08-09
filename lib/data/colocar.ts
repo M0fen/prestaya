@@ -183,8 +183,8 @@ export async function getCandidatosVenta(db: SupabaseClient): Promise<CandidatoC
       .order("id", { ascending: true })
       .range(d, h),
   );
-  // ⚠️ REGLA DEL NEGOCIO (Carlos, 07-08): un cliente PUEDE tener DOS créditos a la
-  // vez, sin estar al día con el primero. Acá se los EXCLUÍA (`!conActivo`) y por
+  // ⚠️ REGLA DEL NEGOCIO (Carlos, 07-08): un cliente PUEDE tener VARIOS créditos a
+  // la vez, sin estar al día con los anteriores (hasta 10 en la cartera viva). Acá se los EXCLUÍA (`!conActivo`) y por
   // eso el operador no encontraba a nadie para la venta nueva: el que ya estaba
   // pagando —o sea, casi toda la ruta— no aparecía en ninguna de las dos listas.
   // La deuda viva del otro crédito NO se esconde: viaja en `deudaHermano` y la
@@ -275,7 +275,7 @@ export async function getNoElegibles(
   modo: "renovar" | "venta" = "renovar",
 ): Promise<NoElegible[]> {
   // En NUEVA VENTA ya casi no hay bloqueados: desde el 07-08 un cliente puede
-  // tener DOS créditos a la vez sin estar al día. El único que no aparece es el
+  // tener VARIOS créditos a la vez sin estar al día (hasta 10 en la cartera viva). El único que no aparece es el
   // que nunca tuvo crédito (su primero lo da la oficina), y ese caso lo resuelve
   // la ficha del cliente con `PedirAyuda`, no esta lista.
   if (modo === "venta") return [];
@@ -340,7 +340,7 @@ export async function getNoElegibles(
           documento: cli.documento ?? null,
           motivo: `Todavía está pagando: le falta ${UYU(Math.round(v.falta))}.`,
           queHacer:
-            "Se RENUEVA cuando termine. Si necesita plata ahora, dale una NUEVA VENTA: puede tener dos créditos a la vez.",
+            "Se RENUEVA cuando termine. Si necesita plata ahora, dale una NUEVA VENTA: puede tener varios créditos a la vez.",
         },
       ];
     })

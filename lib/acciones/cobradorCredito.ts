@@ -15,9 +15,10 @@
 //     monto viene puesto pero es EDITABLE: hasta +20% lo aprueba él solo; por
 //     encima se le pide al admin en vez de rebotar.
 //   · NUEVA VENTA — colocarle OTRO crédito a un cliente suyo, dentro del tramo
-//     que le corresponde por historial. Puede tener DOS a la vez y no hace falta
-//     que esté al día con el primero (regla de Carlos, 07-08): la deuda viva se
-//     le muestra al cobrador y la decisión es suya.
+//     que le corresponde por historial. Puede tener VARIOS a la vez y no hace
+//     falta que esté al día (regla de Carlos, 07-08): la deuda viva se le muestra
+//     al cobrador y la decisión es suya. Sin tope de cantidad: lo que acota la
+//     exposición es el CAP por crédito y el tramo según su historial.
 //
 //  Lo que NO puede (y por qué):
 //   · Superar el CAP de $100.000 — duro para todos, incluido el admin.
@@ -397,8 +398,8 @@ export async function nuevaVentaDesdeCalle(input: {
   if (monto > RENOVACION_CAP_TOTAL)
     return { ok: false, error: `El crédito no puede superar ${UYU(RENOVACION_CAP_TOTAL)}.` };
 
-  // ⚠️ REGLA DEL NEGOCIO (Carlos, 07-08): un cliente PUEDE tener DOS créditos a la
-  // vez, sin necesidad de estar al día con el primero. Acá había un bloqueo
+  // ⚠️ REGLA DEL NEGOCIO (Carlos, 07-08): un cliente PUEDE tener VARIOS créditos a
+  // la vez, sin necesidad de estar al día con los anteriores. Acá había un bloqueo
   // ("Este cliente ya tiene un crédito. Renovalo cuando lo termine de pagar") que
   // hacía imposible la venta nueva en la calle — el reporte del operador. La
   // exposición NO queda suelta: sigue el CAP por crédito, sigue el techo del tramo

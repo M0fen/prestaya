@@ -1,5 +1,6 @@
 // ─────────────────────────────────────────────────────────────────────────
-//  Capa de datos — ALTA de un crédito NUEVO para un cliente SIN crédito activo.
+//  Capa de datos — ALTA de un crédito NUEVO. El cliente puede tener otros vivos:
+//  desde el 07-08 no hay tope de créditos simultáneos por cliente.
 //
 //  Orden de escritura DELIBERADO (ruta primero, crédito después):
 //    1) se asegura la ASIGNACIÓN activa cliente↔cobrador,
@@ -115,8 +116,8 @@ async function consolidarRuta(
 ): Promise<void> {
   try {
     // ⚠️ NO se le saca el cliente al compañero que tiene un crédito VIVO con él.
-    // Desde el 07-08 un cliente puede tener dos créditos a la vez, y a veces son
-    // de cobradores distintos (SONIA TELIS tenía 6 de uno y 2 de otro). Sin este
+    // Desde el 07-08 un cliente puede tener VARIOS créditos a la vez, y a veces
+    // son de cobradores distintos (SONIA TELIS tiene 10 activos, repartidos). Sin este
     // freno, colocarle un crédito nuevo desactivaba la asignación del compañero:
     // su crédito seguía vivo pero desaparecía de su ruta y nadie iba a cobrarlo.
     // La consolidación sigue valiendo para el caso que la motivó: el cliente que

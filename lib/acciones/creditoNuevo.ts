@@ -24,7 +24,6 @@ import { getClientePorId } from "@/lib/data/clientes";
 import { getCobradorDeCliente } from "@/lib/data/asignaciones";
 import {
   getUltimoCreditoDe,
-  contarCreditosActivos,
   crearCreditoNuevoDb,
 } from "@/lib/data/creditoNuevo";
 import { calcularCuotaCreditoNuevo, INTERES_DEFECTO_PCT, interesDeBase } from "@/lib/creditoNuevo";
@@ -80,11 +79,13 @@ export async function crearCreditoNuevo(input: {
   const cliente = await getClientePorId(db, input.clienteId);
   if (!cliente || !cliente.activo) return { ok: false, error: "El cliente no existe o está archivado." };
 
-  // Esta puerta es SOLO para clientes sin crédito vigente. Si ya tiene uno, la
-  // decisión correcta es renovar (que cierra el anterior saldado) — así no se
-  // fabrica un segundo crédito paralelo por error de navegación.
-  if ((await contarCreditosActivos(db, input.clienteId)) > 0)
-    return { ok: false, error: "Este cliente ya tiene un crédito activo. Usá Renovaciones cuando lo termine de pagar." };
+  // ⚠️ REGLA DEL NEGOCIO (Carlos, 07-08): un cliente puede tener VARIOS créditos
+  // a la vez, sin estar al día con los anteriores. Acá había un rechazo ("Este
+  // cliente ya tiene un crédito activo. Usá Renovaciones cuando lo termine de
+  // pagar") que dejaba a la OFICINA sin poder darle un crédito a nadie que
+  // estuviera pagando. La cartera viva ya trabaja así: 471 clientes con 2 o más,
+  // hasta 10 en un caso (SONIA TELIS). Lo que acota la exposición es el CAP por
+  // crédito y el tramo según historial, no un tope de cantidad.
 
   // ── Cobrador de destino: debe existir, estar activo y ser cobrador ──
   const { data: cob } = await db
