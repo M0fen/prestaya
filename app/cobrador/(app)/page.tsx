@@ -23,6 +23,8 @@ import { CerrarJornada } from "@/components/cobrador/CerrarJornada";
 import { BienvenidaCard } from "@/components/BienvenidaCard";
 import { OnboardingDia1 } from "@/components/OnboardingDia1";
 import { MenuColocar } from "@/components/cobrador/MenuColocar";
+import { BannerMotivacion } from "@/components/cobrador/BannerMotivacion";
+import { mensajeMotivacion } from "@/lib/motivacion";
 
 export const dynamic = "force-dynamic";
 
@@ -132,6 +134,22 @@ export default async function RutaPage() {
   const recaudadoBase = jornada?.recaudado ?? arqueo.recaudado;
   const comisionHoy = comisionPct > 0 ? calcularComision(recaudadoBase, comisionPct) : 0;
 
+  // El saludo de arriba: sale de SUS números de hoy, no de una frase pegada.
+  // Es un experimento medible (cada variante tiene su clave y el botón lleva
+  // `?d=b`): si en dos semanas no mueve los cobros registrados ni las jornadas
+  // cerradas, se saca. Ver el encabezado de lib/motivacion.ts.
+  const motivacion = mensajeMotivacion({
+    nombre: primerNombre,
+    clientes: arqueo.clientes,
+    resueltos,
+    esperado: arqueo.esperado,
+    recaudadoRuta: arqueo.recaudadoRuta,
+    atrasoVivo,
+    comisionHoy,
+    yaRendida: !!jornada?.yaRendida,
+    horaUY,
+  });
+
   // Gastos que el cobrador SOLICITÓ pero el admin todavía NO aprobó: no bajan el
   // "esperado" del cierre (la plata recién sale de caja al aprobar), pero si el
   // cobrador YA gastó ese efectivo, le saldría un faltante fantasma. Se le AVISA en
@@ -173,6 +191,10 @@ export default async function RutaPage() {
 
       {/* Banner del equipo (aviso del admin), si hay uno activo. */}
       {banner && <BannerEquipo banner={banner} />}
+
+      {/* El empujón del día, con SUS números. Va arriba del arqueo pero no le
+          compite: lo primero que el cobrador tiene que ver sigue siendo su plata. */}
+      <BannerMotivacion m={motivacion} />
 
       {/* Arqueo del día */}
       <section className="rounded-[18px] bg-[linear-gradient(155deg,#173063_0%,#0F1B3D_60%)] p-4 text-white shadow-[0_10px_24px_rgba(15,27,61,0.28)]">
@@ -329,7 +351,9 @@ export default async function RutaPage() {
         </Link>
       )}
 
-      <div className="flex items-center justify-between px-0.5">
+      {/* `id` = ancla del botón "Ver mi ruta" del banner: lo lleva a la lista sin
+          sacarlo de la pantalla en la que ya está. */}
+      <div id="ruta" className="flex scroll-mt-4 items-center justify-between px-0.5">
         <div className="flex flex-col">
           <h1 className="text-[16px] font-extrabold text-tinta">Mi ruta de hoy</h1>
           {arqueo.clientes > 0 && (
@@ -375,8 +399,10 @@ export default async function RutaPage() {
       {/* Gastos de ruta: el cobrador SOLICITA; el admin aprueba (0057). */}
       {solicitudesGasto && !jornada?.yaRendida && <GastosRuta solicitudes={solicitudesGasto} />}
 
-      {/* Cierre de jornada (rendición): esperado vs entregado. */}
+      {/* Cierre de jornada (rendición): esperado vs entregado.
+          `id` = ancla del botón "Cerrar mi jornada" del banner. */}
       {jornada && (
+        <div id="cierre" className="scroll-mt-4">
         <CerrarJornada
           recaudado={jornada.recaudado}
           cobrosCantidad={jornada.cobrosCantidad}
@@ -388,6 +414,7 @@ export default async function RutaPage() {
           yaRendida={jornada.yaRendida}
           disponible={jornada.disponible}
         />
+        </div>
       )}
     </div>
   );
