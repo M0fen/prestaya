@@ -9,6 +9,10 @@ import { getResumenPeriodo, normalizarPeriodo, PERIODOS } from "@/lib/data/perio
 import { getRendicionesDia } from "@/lib/data/rendicion";
 import { getActivosConPagos } from "@/lib/data/activos";
 import { alcanceDelActor } from "@/lib/data/alcance";
+import { createSupabaseAdmin } from "@/lib/supabase/admin";
+import { getBasesDelDia, getAperturasDia } from "@/lib/data/aperturas";
+import { reportarError } from "@/lib/observabilidad";
+import { BaseCajaManager, type CobradorBase } from "@/components/admin/BaseCajaManager";
 import { getLiquidacionDiaria, type LiquidacionDia } from "@/lib/data/liquidacion";
 import { getDesempenoRango } from "@/lib/data/desempeno";
 import { generarInsights } from "@/lib/insights";
@@ -91,6 +95,46 @@ export default async function DashboardPage({
   const [serie, mov] = serieMov;
   const reportesNuevos = resumen.reportesNuevos;
 
+  // ── BASE DE CAJA, EN EL DASHBOARD ────────────────────────────────────────
+  // Es lo PRIMERO que hay que hacer a las 7 de la mañana y estaba enterrado en
+  // /admin/jornada. Medido: el 06-08 se cargaron 10 bases de 47, y los otros cinco
+  // días del piloto NINGUNA — con $583.054 entregados sin registro. Sube acá, se
+  // muestra SOLO mientras falte alguna, y desaparece sola cuando están todas.
+  let basesPendientes: CobradorBase[] = [];
+  const adminDb = createSupabaseAdmin();
+  try {
+    const cobIds = alcance.global ? null : alcance.cobradorIds;
+    let cq = adminDb.from("usuarios").select("id, nombre, zona_id").eq("rol", "cobrador").eq("activo", true);
+    if (cobIds)
+      cq = cobIds.length > 0 ? cq.in("id", cobIds) : cq.eq("id", "00000000-0000-0000-0000-000000000000");
+    const [cobsRes, bases, basesAyer, zonasRes] = await Promise.all([
+      cq.order("nombre", { ascending: true }),
+      getBasesDelDia(db, hoy, cobIds),
+      getAperturasDia(db, new Date(hoy.getTime() - 86_400_000), cobIds).catch(() => new Map<string, number>()),
+      adminDb.from("zonas").select("id, nombre"),
+    ]);
+    const zonaN: Record<string, string> = {};
+    for (const z of zonasRes.data ?? []) zonaN[z.id as string] = z.nombre as string;
+    basesPendientes = (cobsRes.data ?? []).map((u) => {
+      const b = bases.get(u.id as string);
+      return {
+        id: u.id as string,
+        nombre: u.nombre as string,
+        zonaId: (u.zona_id as string | null) ?? null,
+        zonaNombre: u.zona_id ? (zonaN[u.zona_id as string] ?? null) : null,
+        base: b?.base ?? 0,
+        baseAyer: basesAyer.get(u.id as string) ?? 0,
+        origen: b?.origen ?? "sin_base",
+        desdeFecha: b?.desdeFecha,
+        detalleAyer: b?.detalle,
+      };
+    });
+  } catch (e) {
+    reportarError("dashboard.bases", e); // nunca tumba el dashboard
+  }
+  // Solo si falta alguna: cuando están todas cargadas, la tarjeta no aparece.
+  const faltanBases = basesPendientes.filter((c) => c.base <= 0).length;
+
   const { cartera, recaudacion, mora, cobradores } = resumen;
   // "Al día" = saldo total − mora EN TÉRMINO − CARTERA VENCIDA (castigo). Antes se
   // restaba solo la mora en término, así que la cartera vencida (deuda de plazo
@@ -154,6 +198,15 @@ export default async function DashboardPage({
         cuerpo="De un vistazo ves lo que entró hoy, la mora y cómo va tu equipo. Cuando quieras el paso a paso del día, entrá a Mi jornada."
         cta={{ href: "/admin/tutorial", texto: "Ver cómo se usa" }}
       />
+
+      {/* ⚠️ LA BASE DE CAJA, ARRIBA DE TODO Y SOLO MIENTRAS FALTE.
+          Es lo primero que hay que hacer a las 7 de la mañana y estaba enterrado en
+          otra pantalla: el 06-08 se cargaron 10 bases de 47, y los otros cinco días
+          del piloto ninguna — $583.054 entregados sin registro. Cuando están todas
+          cargadas, esta tarjeta desaparece sola y el dashboard queda como estaba. */}
+      {faltanBases > 0 && (
+        <BaseCajaManager cobradores={basesPendientes} />
+      )}
 
       {/* Encabezado */}
       <div className="flex flex-wrap items-end justify-between gap-2">

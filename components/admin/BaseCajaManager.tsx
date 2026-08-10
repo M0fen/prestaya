@@ -98,6 +98,36 @@ export function BaseCajaManager({
     });
   };
 
+  // ── CARGA MASIVA: el mismo monto para todos, de un toque ─────────────────
+  //  A las 7 de la mañana el supervisor entrega el MISMO efectivo de arranque a
+  //  casi todo el equipo. Tipear 18 veces el mismo número, con el equipo esperando
+  //  en la puerta, es la razón por la que la base no se carga: el 06-08 se cargaron
+  //  10 de 47, y los otros 5 días del piloto NINGUNA. Un monto + un toque.
+  const [montoTodos, setMontoTodos] = useState("");
+  const aplicarATodos = (soloVacios: boolean) => {
+    const m = Math.max(0, Math.round(Number(montoTodos) || 0));
+    if (m <= 0) return;
+    setMsg(null);
+    setVals((v) => {
+      const n = { ...v };
+      for (const c of cobradores) {
+        if (soloVacios && (Number(n[c.id]) || 0) > 0) continue;
+        n[c.id] = String(m);
+      }
+      return n;
+    });
+  };
+
+  /** Enter salta al siguiente campo: cargar de a uno sin soltar el teclado. */
+  const saltarAlSiguiente = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const inputs = [...(e.currentTarget.closest("section")?.querySelectorAll<HTMLInputElement>("input[data-base]") ?? [])];
+    const i = inputs.indexOf(e.currentTarget);
+    (inputs[i + 1] ?? inputs[0])?.focus();
+    inputs[i + 1]?.select();
+  };
+
   const guardarTodas = () =>
     start(async () => {
       setMsg(null);
@@ -149,6 +179,46 @@ export function BaseCajaManager({
         <p className="py-2 text-center text-[12px] font-medium text-gris">No hay cobradores en tu alcance.</p>
       ) : (
         <>
+          {/* ⚠️ LA CARGA MASIVA. A las 7 de la mañana casi todo el equipo arranca con
+              el MISMO efectivo, y tipear 18 veces el mismo número con la gente
+              esperando en la puerta es la razón por la que la base no se carga: el
+              06-08 se cargaron 10 de 47, y los otros cinco días del piloto, ninguna.
+              Un monto y un toque. */}
+          <div className="flex flex-wrap items-center gap-2 rounded-[12px] bg-suave px-3 py-2.5">
+            <span className="text-[11.5px] font-bold text-cuerpo">Ponerle a todos</span>
+            <div className="flex items-center gap-1 rounded-[9px] border border-borde bg-tarjeta px-2">
+              <span className="text-[13px] font-bold text-gris">$</span>
+              <input
+                inputMode="numeric"
+                value={montoTodos}
+                onChange={(e) => setMontoTodos(e.target.value.replace(/[^\d]/g, ""))}
+                placeholder="0"
+                className="w-24 bg-transparent py-1.5 text-right text-[16px] font-bold tabular-nums outline-none"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => aplicarATodos(false)}
+              disabled={pend || !(Number(montoTodos) > 0)}
+              className="min-h-9 rounded-full bg-azul px-3.5 text-[12px] font-bold text-white disabled:opacity-40"
+            >
+              A los {cobradores.length}
+            </button>
+            {sinCargar > 0 && sinCargar < cobradores.length && (
+              <button
+                type="button"
+                onClick={() => aplicarATodos(true)}
+                disabled={pend || !(Number(montoTodos) > 0)}
+                className="min-h-9 rounded-full border border-borde bg-tarjeta px-3.5 text-[12px] font-bold text-cuerpo disabled:opacity-40"
+              >
+                Solo a los {sinCargar} sin base
+              </button>
+            )}
+            <span className="ml-auto text-[11px] font-medium text-tenue">
+              Después podés corregir uno por uno · <b>Enter</b> salta al siguiente
+            </span>
+          </div>
+
           <div className="flex flex-col gap-2">
             {grupos.map((g) => {
               const subtotal = g.cobradores.reduce((s, c) => s + parsed(c.id), 0);
@@ -203,13 +273,31 @@ export function BaseCajaManager({
                           {cambiado && (
                             <span aria-hidden className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#E8A317]" title="Sin guardar" />
                           )}
+                          {/* Copiar SU base de ayer, sin tocar las de los demás:
+                              casi siempre es la misma y así no hay que tipearla. */}
+                          {(c.baseAyer ?? 0) > 0 && parsed(c.id) !== c.baseAyer && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMsg(null);
+                                setVals((v) => ({ ...v, [c.id]: String(c.baseAyer) }));
+                              }}
+                              className="flex-shrink-0 rounded-full border border-borde px-2 py-1 text-[10.5px] font-bold text-cuerpo tabular-nums"
+                              title={`Poner ${UYU(c.baseAyer!)}, la de ayer`}
+                            >
+                              = ayer
+                            </button>
+                          )}
                           <input
+                            data-base
                             inputMode="numeric"
                             value={vals[c.id] ?? ""}
                             onChange={(e) => {
                               setMsg(null);
                               setVals((v) => ({ ...v, [c.id]: e.target.value.replace(/[^\d]/g, "") }));
                             }}
+                            onFocus={(e) => e.currentTarget.select()}
+                            onKeyDown={saltarAlSiguiente}
                             placeholder="0"
                             className="w-28 rounded-[9px] border border-borde px-2.5 py-1.5 text-right text-[16px] tabular-nums outline-none focus:border-azul"
                           />
