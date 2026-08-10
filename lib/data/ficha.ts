@@ -17,6 +17,15 @@ import { calcularEstadosCarton } from "@/lib/cartones";
 import { calcularScore, evolucionScore, type PuntoEvolucion } from "@/lib/scoring";
 import { hoyUY } from "@/lib/fecha";
 
+/** Días de CALENDARIO que ocupa una cuota, por frecuencia. El diario no cobra
+ *  domingo (6 cuotas por semana → 7/6 de día por cuota). */
+const PASO_CAL: Record<string, number> = {
+  diario: 7 / 6,
+  semanal: 7,
+  quincenal: 15,
+  mensual: 30,
+};
+
 export interface PagoFicha {
   id: string;
   fecha: string;
@@ -37,6 +46,26 @@ export interface CreditoFicha {
   productoNombre: string | null;
   /** Crédito anterior que este renovó (linaje, 0116). null = no vino de renovación. */
   renovadoDe: string | null;
+  /** De dónde salió este crédito, en criollo. Se DERIVA, no se guarda:
+   *   renovacion  — nació de otro crédito del mismo cliente (`renovado_de`)
+   *   venta       — se colocó de cero, con alguien que lo dio de alta
+   *   tienda      — compra financiada
+   *   importado   — vino de Disapp (sin autor: el empalme no setea `creado_por`) */
+  tipo: "renovacion" | "venta" | "tienda" | "importado";
+  /** Quién lo dio de alta (null = importado). */
+  colocadoPor: string | null;
+  /** Cuándo se dio de alta y cuándo se cerró (ISO). */
+  creadoEn: string;
+  finalizadoEn: string | null;
+  /** Lo que el cliente tenía que pagar en total (cuota × cuotas). */
+  totalAPagar: number;
+  /** Cuántas VECES renovó hasta llegar acá: 1 = es su primer crédito de la cadena. */
+  vueltaNro: number;
+  /** Solo si terminó: en cuántos días CALENDARIO lo pagó, contra los que le tocaban.
+   *  Es el dato que dice si conviene volver a prestarle — un crédito de 35 días
+   *  pagado en 155 se ve idéntico a uno perfecto si no se mira esto. */
+  diasReales: number | null;
+  diasDePlazo: number | null;
 }
 export interface CreditoActivoFicha {
   id: string;
@@ -118,18 +147,7 @@ export async function getFichaCliente(
   });
 
   // Historial de créditos (con lo pagado en cada uno).
-  const creditos: CreditoFicha[] = historial.prestamos.map((p) => ({
-    id: p.id,
-    monto: p.monto_prestado,
-    cuota: p.cuota_diaria,
-    totalDias: p.total_dias,
-    fechaInicio: p.fecha_inicio,
-    estado: p.estado,
-    pagadoTotal: (historial.pagosPorPrestamo[p.id] ?? []).reduce((s, x) => s + x.monto, 0),
-    origen: p.origen,
-    productoNombre: p.producto_nombre,
-    renovadoDe: (p.renovado_de as string | null | undefined) ?? null,
-  }));
+  const creditos: CreditoFicha[] = await armarHistorialCreditos(db, historial);
 
   // Historial de pagos (todos los créditos), del más reciente al más viejo.
   const planos = historial.prestamos.flatMap((p) => historial.pagosPorPrestamo[p.id] ?? []);
@@ -152,3 +170,115 @@ export async function getFichaCliente(
 
   return { cliente, score, evolucionScore: evolucion, activos, creditos, pagos, notas };
 }
+
+/**
+ * HISTORIAL DE CRÉDITOS de un cliente, con todo lo DERIVADO que hace falta para
+ * decidir si conviene volver a prestarle: de dónde salió cada crédito
+ * (renovación / venta nueva / tienda / importado), en qué vuelta de la cadena va,
+ * quién se lo colocó, cuánto pagó y —el dato que faltaba— en cuántos días lo pagó
+ * de verdad contra los que le tocaban.
+ *
+ * Nada de esto se guarda: se calcula desde `prestamos` + `pagos`. Por eso vale
+ * igual para la oficina y para la calle, y no puede quedar desincronizado.
+ */
+export async function getHistorialCreditosCliente(
+  db: SupabaseClient,
+  clienteId: string,
+): Promise<CreditoFicha[]> {
+  const historial = await getHistorialCrediticio(db, clienteId);
+  return armarHistorialCreditos(db, historial);
+}
+
+/** El armado en sí (lo comparten `getFichaCliente` y `getHistorialCreditosCliente`). */
+async function armarHistorialCreditos(
+  db: SupabaseClient,
+  historial: Awaited<ReturnType<typeof getHistorialCrediticio>>,
+): Promise<CreditoFicha[]> {
+  // Nombres de quienes colocaron cada crédito (una sola consulta).
+  const autoresCred = [
+    ...new Set(
+      historial.prestamos
+        .map((p) => (p as { creado_por?: string | null }).creado_por)
+        .filter((x): x is string => !!x),
+    ),
+  ];
+  const nombreAutor = new Map<string, string>();
+  if (autoresCred.length > 0) {
+    const { data } = await db.from("usuarios").select("id, nombre").in("id", autoresCred);
+    for (const u of data ?? []) nombreAutor.set(u.id as string, u.nombre as string);
+  }
+
+  // CADENA de renovaciones: cada crédito apunta a su padre por `renovado_de`. Se
+  // sigue hacia atrás para saber en qué VUELTA va el cliente. Se corta a 50 saltos
+  // por si un dato malo armara un ciclo (nunca debería, pero un bucle infinito acá
+  // colgaría la ficha).
+  const padreDe = new Map<string, string | null>(
+    historial.prestamos.map((p) => [
+      p.id,
+      ((p as { renovado_de?: string | null }).renovado_de ?? null) as string | null,
+    ]),
+  );
+  const vueltaDe = (id: string): number => {
+    let n = 1;
+    let cur = padreDe.get(id) ?? null;
+    const visto = new Set<string>([id]);
+    while (cur && !visto.has(cur) && n < 50) {
+      visto.add(cur);
+      n += 1;
+      cur = padreDe.get(cur) ?? null;
+    }
+    return n;
+  };
+
+  return historial.prestamos.map((p) => {
+    const pagosCred = historial.pagosPorPrestamo[p.id] ?? [];
+    const renovadoDe = ((p as { renovado_de?: string | null }).renovado_de ?? null) as string | null;
+    const creadoPor = ((p as { creado_por?: string | null }).creado_por ?? null) as string | null;
+    const finalizadoEn = ((p as { finalizado_en?: string | null }).finalizado_en ??
+      null) as string | null;
+    // ⚠️ TIPO DERIVADO, no guardado. El orden importa: un crédito de tienda que
+    // además vino de una renovación sigue siendo una compra para el cliente.
+    const tipo: CreditoFicha["tipo"] =
+      p.origen === "tienda"
+        ? "tienda"
+        : renovadoDe
+          ? "renovacion"
+          : creadoPor
+            ? "venta"
+            : "importado";
+    // Días REALES de pago: del primer pago al último. Si no hay pagos, null.
+    const fechas = pagosCred
+      .map((x) => (x.registrado_en ? new Date(x.registrado_en).getTime() : NaN))
+      .filter((t) => Number.isFinite(t))
+      .sort((a, b) => a - b);
+    const diasReales =
+      p.estado !== "activo" && fechas.length > 0
+        ? Math.max(1, Math.round((fechas[fechas.length - 1] - fechas[0]) / 86_400_000) + 1)
+        : null;
+    return {
+      id: p.id,
+      monto: p.monto_prestado,
+      cuota: p.cuota_diaria,
+      totalDias: p.total_dias,
+      fechaInicio: p.fecha_inicio,
+      estado: p.estado,
+      pagadoTotal: pagosCred.reduce((s, x) => s + x.monto, 0),
+      origen: p.origen,
+      productoNombre: p.producto_nombre,
+      renovadoDe,
+      tipo,
+      colocadoPor: creadoPor ? (nombreAutor.get(creadoPor) ?? null) : null,
+      creadoEn: (p as { creado_en?: string }).creado_en ?? p.fecha_inicio,
+      finalizadoEn,
+      totalAPagar: Math.round(p.cuota_diaria * p.total_dias),
+      vueltaNro: vueltaDe(p.id),
+      diasReales,
+      // Plazo en días CALENDARIO que le tocaban. `total_dias` es la cantidad de
+      // CUOTAS, no de días: un semanal de 4 cuotas son 28 días, no 4. Y el diario
+      // no cobra domingo, así que 30 cuotas son ~35 días de calendario.
+      diasDePlazo: p.estado !== "activo" ? Math.max(1, Math.round(p.total_dias * PASO_CAL[p.frecuencia ?? "diario"])) : null,
+    };
+  });
+
+}
+

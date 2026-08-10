@@ -132,14 +132,26 @@ async function consolidarRuta(
       (ajenos ?? []).map((p) => p.cobrador_id as string).filter(Boolean),
     );
 
-    let q = db
+    const { data: activas } = await db
       .from("asignaciones")
-      .update({ activo: false })
+      .select("cobrador_id")
       .eq("cliente_id", clienteId)
-      .eq("activo", true)
-      .neq("cobrador_id", cobradorId);
-    if (conCreditoVivo.size > 0) q = q.not("cobrador_id", "in", `(${[...conCreditoVivo].join(",")})`);
-    await q;
+      .eq("activo", true);
+    const aBajar = [
+      ...new Set(
+        (activas ?? [])
+          .map((a) => a.cobrador_id as string)
+          .filter((id) => !!id && id !== cobradorId && !conCreditoVivo.has(id)),
+      ),
+    ];
+    if (aBajar.length > 0) {
+      await db
+        .from("asignaciones")
+        .update({ activo: false })
+        .eq("cliente_id", clienteId)
+        .eq("activo", true)
+        .in("cobrador_id", aBajar);
+    }
   } catch {
     /* el crédito ya quedó creado y con ruta; una ruta vieja de más no pierde plata */
   }

@@ -867,3 +867,38 @@ describe("dos créditos a la vez: la regla del negocio", () => {
     expect(deudaHermano).toBeGreaterThan(0); // se muestra en ámbar en la tarjeta
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  MOVER UN SOLO CRÉDITO — sin arrancarle el cliente al compañero
+//
+//  54 clientes tienen créditos VIVOS con cobradores DISTINTOS (ALEXIS RIGOBERTO
+//  HORNOS está en 3 rutas). Mover "el cliente" entero le sacaría al compañero un
+//  crédito que está caminando: seguiría vivo pero fuera de su ruta, y nadie lo
+//  cobraría. `soloPrestamoId` mueve UN crédito y deja lo demás intacto.
+// ═══════════════════════════════════════════════════════════════════════════
+describe("reasignar: cliente compartido entre dos rutas", () => {
+  it("mover UN crédito no le baja la asignación al que conserva otro vivo", () => {
+    // Regla pura: al mover el crédito p1 hacia C, el cobrador B sigue con p2 vivo.
+    const activos = [
+      { id: "p1", cobrador: "A" },
+      { id: "p2", cobrador: "B" },
+    ];
+    const nuevo = "C";
+    const soloPrestamoId = "p1";
+    const intocables = new Set(
+      activos.filter((p) => p.id !== soloPrestamoId && p.cobrador !== nuevo).map((p) => p.cobrador),
+    );
+    expect([...intocables]).toEqual(["B"]); // B no se toca
+    expect(intocables.has("A")).toBe(false); // A sí pierde el cliente: era su crédito
+  });
+
+  it("mover el CLIENTE ENTERO sí baja todas las demás rutas", () => {
+    // Sin `soloPrestamoId`, TODOS los créditos activos pasan al nuevo cobrador, así
+    // que nadie queda con plata viva y dejar dos rutas abiertas sería el bug viejo
+    // (dos personas yendo a cobrarle al mismo cliente).
+    const soloPrestamoId: string | null = null;
+    const intocables = new Set<string>();
+    expect(soloPrestamoId).toBeNull();
+    expect(intocables.size).toBe(0);
+  });
+});

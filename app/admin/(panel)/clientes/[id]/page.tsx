@@ -26,6 +26,7 @@ import { getAjustesJuego } from "@/lib/data/juegoConfig";
 import { claveCiclo } from "@/lib/estrellas";
 import { cicloUY } from "@/lib/fecha";
 import { NotasCliente } from "@/components/notas/NotasCliente";
+import { HistorialCreditos } from "@/components/HistorialCreditos";
 import { MorosidadCliente } from "@/components/admin/MorosidadCliente";
 import { ScoreEvolucion } from "@/components/admin/ScoreEvolucion";
 import { getMorosidadCliente, getNotasMora } from "@/lib/data/morosidad";
@@ -411,35 +412,10 @@ export default async function FichaClientePage({
         )}
       </section>
 
-      {/* Historial de créditos */}
-      <section className="rounded-[16px] border border-borde bg-tarjeta p-4">
-        <span className="text-[13px] font-bold text-tinta">Créditos</span>
-        {creditos.length === 0 ? (
-          <p className="mt-2 text-[13px] font-medium text-gris">Todavía no hay créditos.</p>
-        ) : (
-        <ul className="mt-2 flex flex-col gap-2">
-          {creditos.map((c) => (
-            <li
-              key={c.id}
-              className="flex items-center justify-between rounded-[12px] bg-suave px-3 py-2.5"
-            >
-              <div className="flex flex-col">
-                <span className="flex flex-wrap items-center gap-1.5 text-[13.5px] font-bold text-tinta">
-                  {c.origen === "tienda" ? "🛒 " : ""}{UYU(c.monto)} · cuota {UYU(c.cuota)} × {c.totalDias}
-                  {c.renovadoDe && <span className="rounded-full bg-[#EDE7FB] px-2 py-0.5 text-[10px] font-bold text-[#6D4AC7]">🔄 Renovación</span>}
-                </span>
-                <span className="text-[11.5px] font-medium text-tenue">
-                  {c.origen === "tienda" && c.productoNombre ? `${c.productoNombre} · ` : ""}Desde {fechaCorta(c.fechaInicio)} · pagó {UYU(c.pagadoTotal)}
-                </span>
-              </div>
-              <span className="rounded-full bg-tarjeta px-2.5 py-1 text-[11px] font-bold text-gris">
-                {ESTADO_CREDITO[c.estado] ?? "—"}
-              </span>
-            </li>
-          ))}
-        </ul>
-        )}
-      </section>
+      {/* Historial de créditos — misma vista que ve el cobrador en la calle:
+          tipo (renovación / venta nueva / tienda / importado), vuelta de la
+          cadena, quién lo colocó y CÓMO lo pagó (días reales contra el plazo). */}
+      <HistorialCreditos creditos={creditos} titulo="Créditos" />
 
       {/* Notas del equipo */}
       <NotasCliente clienteId={cliente.id} notas={notas} yoId={usuario.id} puedeGestionar />

@@ -1,0 +1,35 @@
+{
+ "que": "fecha_inicio corrida al proximo dia de cobro: la cuota 1 no puede vencer el dia de la entrega",
+ "cuando": "2026-08-09",
+ "revertir": "update prestamos set fecha_inicio='2026-08-06' where id in (...)",
+ "creditos": [
+  {
+   "id": "069dc82a-f3ba-43ae-97eb-189b243fb267",
+   "cliente": "ANDREA SAAVEDRA",
+   "fecha_inicio_ahora": "2026-08-07",
+   "antes": "2026-08-06",
+   "alta": "2026-08-06"
+  },
+  {
+   "id": "b75a0bf1-6181-4d22-8a43-0c7262934da7",
+   "cliente": "SOFíA MARIQUENA ÁLVAREZ",
+   "fecha_inicio_ahora": "2026-08-07",
+   "antes": "2026-08-06",
+   "alta": "2026-08-06"
+  },
+  {
+   "id": "14980180-7762-4d9a-81da-b2e70b22102e",
+   "cliente": "VERONICA MOREIRA",
+   "fecha_inicio_ahora": "2026-08-07",
+   "antes": "2026-08-06",
+   "alta": "2026-08-06"
+  },
+  {
+   "id": "0f2518db-cb66-4a59-a850-66d9fe3654ff",
+   "cliente": "WUALTER BARBOSA  FABIAN RETAMAR",
+   "fecha_inicio_ahora": "2026-08-07",
+   "antes": "2026-08-06",
+   "alta": "2026-08-06"
+  }
+ ]
+}

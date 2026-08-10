@@ -68,6 +68,11 @@ export async function reasignarCliente(
   db: SupabaseClient,
   clienteId: string,
   nuevoCobradorId: string,
+  /** Mover SOLO este crédito (el resto del cliente no se toca). Es lo correcto
+   *  cuando el cliente está compartido: 54 clientes tienen créditos vivos con
+   *  cobradores DISTINTOS y mover "el cliente" entero le arrancaría al compañero
+   *  un crédito que está cobrando. null = mover todo (cliente de un solo dueño). */
+  soloPrestamoId: string | null = null,
 ): Promise<void> {
   // ORDEN DELIBERADO: primero SE SUBE la nueva, después se bajan las viejas.
   //
@@ -88,14 +93,51 @@ export async function reasignarCliente(
     );
   if (on.error) throw on.error;
 
-  // 2) Bajar las OTRAS activas (nunca la que acabamos de subir).
-  const off = await db
+  // 2) Bajar las OTRAS activas — pero NUNCA la de un cobrador que tiene un
+  //    crédito VIVO con este cliente. Bajarla lo dejaba con plata en la calle y
+  //    sin el cliente en su ruta: no lo veía, no lo cobraba, y no se enteraba.
+  //    (Si se está moviendo UN crédito puntual, el dueño de ese crédito sí puede
+  //    perder la asignación: justamente se la estamos sacando.)
+  // ⚠️ Solo hay intocables cuando se mueve UN crédito puntual. Si se mueve el
+  // CLIENTE ENTERO, el paso 3 le cambia el dueño a TODOS sus créditos activos, así
+  // que ningún otro cobrador queda con plata viva y sus asignaciones sí deben
+  // bajarse (si no, el cliente quedaría en dos rutas sin motivo).
+  const intocables = new Set<string>();
+  if (soloPrestamoId) {
+    const { data: vivos } = await db
+      .from("prestamos")
+      .select("cobrador_id, id")
+      .eq("cliente_id", clienteId)
+      .eq("estado", "activo");
+    for (const p of vivos ?? []) {
+      const id = p.cobrador_id as string | null;
+      if (p.id !== soloPrestamoId && id && id !== nuevoCobradorId) intocables.add(id);
+    }
+  }
+
+  // Se listan las asignaciones activas y se baja SOLO las que corresponde: es más
+  // explícito que un `not in` y se puede probar.
+  const { data: activasRaw } = await db
     .from("asignaciones")
-    .update({ activo: false })
+    .select("cobrador_id")
     .eq("cliente_id", clienteId)
-    .eq("activo", true)
-    .neq("cobrador_id", nuevoCobradorId);
-  if (off.error) throw off.error;
+    .eq("activo", true);
+  const aBajar = [
+    ...new Set(
+      (activasRaw ?? [])
+        .map((a) => a.cobrador_id as string)
+        .filter((id) => !!id && id !== nuevoCobradorId && !intocables.has(id)),
+    ),
+  ];
+  if (aBajar.length > 0) {
+    const off = await db
+      .from("asignaciones")
+      .update({ activo: false })
+      .eq("cliente_id", clienteId)
+      .eq("activo", true)
+      .in("cobrador_id", aBajar);
+    if (off.error) throw off.error;
+  }
 
   // 3) Sincronizar el DUEÑO de los créditos ACTIVOS del cliente. La ruta se arma
   // desde `asignaciones`, pero `prestamos.cobrador_id` es la fuente de verdad del
@@ -103,12 +145,16 @@ export async function reasignarCliente(
   // esto quedaba STALE: comisión y auditoría apuntaban al cobrador viejo. Solo los
   // ACTIVOS (los finalizados conservan su historia). Los pagos ya hechos guardan su
   // registrado_por, no se tocan.
-  const upd = await db
+  // ⚠️ Si se pidió mover UN crédito, se mueve ESE y nada más: cambiarle el dueño
+  // a todos los créditos del cliente le transferiría al nuevo cobrador la comisión
+  // de un crédito que sigue caminando el compañero.
+  let updQ = db
     .from("prestamos")
     .update({ cobrador_id: nuevoCobradorId })
     .eq("cliente_id", clienteId)
-    .eq("estado", "activo")
-    .select("id");
+    .eq("estado", "activo");
+  if (soloPrestamoId) updQ = updQ.eq("id", soloPrestamoId);
+  const upd = await updQ.select("id");
   if (upd.error) throw upd.error;
 
   // Un UPDATE que no matchea filas bajo RLS NO es un error en PostgREST: vuelve

@@ -18,6 +18,8 @@ import { RegistroCobro } from "@/components/cobrador/RegistroCobro";
 import { CartonCobrador } from "@/components/cobrador/CartonCobrador";
 import { CobrosRecientes, type PagoReciente } from "@/components/cobrador/CobrosRecientes";
 import { HistorialPagos, type PagoHistorial } from "@/components/cobrador/HistorialPagos";
+import { HistorialCreditos } from "@/components/HistorialCreditos";
+import { getHistorialCreditosCliente } from "@/lib/data/ficha";
 import { RegistrarCompromiso } from "@/components/cobrador/RegistrarCompromiso";
 import { PedirAyuda } from "@/components/cobrador/PedirAyuda";
 import { BeaconFicha } from "@/components/cobrador/BeaconFicha";
@@ -40,11 +42,17 @@ export default async function DetalleClientePage({
 
   // Independientes (usuario aparte; cliente/activos/notas por id) → en PARALELO
   // (antes 4 round-trips en serie antes de poder resolver el cartón).
-  const [usuario, cliente, activos, notas] = await Promise.all([
+  const [usuario, cliente, activos, notas, historialCreditos] = await Promise.all([
     requireUsuario(),
     getClientePorId(db, id),
     getPrestamosActivosPorCliente(db, id),
     getNotasCliente(db, id),
+    // Historial de créditos del cliente: cuántas veces renovó, si cada uno fue
+    // renovación o venta nueva, quién lo colocó y en cuántos días lo pagó. Es lo
+    // que el cobrador necesita ANTES de decidir si le suelta capital de nuevo —
+    // hasta ahora esa decisión se tomaba a ciegas (ARACELI RANGER tardó 155 días
+    // en un crédito de 35 y en pantalla se veía igual que uno pagado perfecto).
+    getHistorialCreditosCliente(db, id),
   ]);
   if (!cliente) notFound();
 
@@ -197,6 +205,11 @@ export default async function DetalleClientePage({
           cobradorId={usuario.id}
         />
       )}
+
+      {/* Sus créditos anteriores. A nivel de PÁGINA a propósito: se ve también
+          cuando NO tiene crédito activo, que es justo el momento en que hay que
+          decidir una venta nueva y hasta ahora se decidía a ciegas. */}
+      <HistorialCreditos creditos={historialCreditos} titulo="Sus créditos" />
 
       <NotasCliente
         clienteId={id}
