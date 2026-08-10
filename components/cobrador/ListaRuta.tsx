@@ -12,6 +12,7 @@ import { guardarOrdenRuta } from "@/lib/acciones/preferenciasCobrador";
 import type { EstadoHoy } from "@/lib/data/ruta";
 import { UYU } from "@/lib/format";
 import { OjitoCliente } from "./OjitoCliente";
+import { CobroRapido } from "./CobroRapido";
 
 export interface ItemRutaVista {
   id: string;
@@ -42,6 +43,11 @@ export interface ItemRutaVista {
    *  a cualquier frecuencia: el semanal entre cuotas, y también el DIARIO los
    *  domingos o cuando pagó por adelantado (06-08). */
   sinCuotaHoy?: boolean;
+  /** Crédito al que se imputa el cobro rápido. null = no hay uno solo claro. */
+  prestamoId?: string | null;
+  /** Cuántos créditos activos PROPIOS tiene. Con más de uno, el cobro de un toque
+   *  no aparece: elegir a cuál se imputa es una decisión, no un atajo. */
+  creditosPropios?: number;
   /** De `cuota`, cuánto es ATRASO de días anteriores. Si `atraso === cuota`, hoy
    *  no le vence nada pero debe: se muestra "Atrasado", no como cuota del día. */
   atraso?: number;
@@ -81,7 +87,7 @@ function porMiOrden<T extends { orden?: number | null }>(xs: T[]): T[] {
   return [...xs].sort((a, b) => (a.orden ?? Infinity) - (b.orden ?? Infinity));
 }
 
-export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
+export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobradorId?: string | null }) {
   const [origen, setOrigen] = useState<Origen>(null);
   // Cuántos clientes tienen ubicación guardada. HOY el 93% NO la tiene: ordenar
   // "por cercanía" con eso numera 1,2,3 a los poquitos con GPS y manda al fondo
@@ -621,6 +627,26 @@ export function ListaRuta({ items }: { items: ItemRutaVista[] }) {
                 )}
               </div>
             </Link>
+            {/* ⚠️ COBRAR DE UN TOQUE, sin abrir la ficha. Solo cuando no hay NADA
+                que decidir: un solo crédito propio, cuota que vence hoy, parada sin
+                resolver y no es cartera vencida. En cualquier otro caso se entra a
+                la ficha, como siempre — la ficha no se reemplaza, se saltea cuando
+                no aporta. Es lo que convierte dos horas de tipeo en veinte minutos. */}
+            {cobradorId &&
+              it.prestamoId &&
+              it.creditosPropios === 1 &&
+              it.estadoHoy === "pendiente" &&
+              !it.sinCuotaHoy &&
+              !it.plazoVencido &&
+              it.cuota > 0 && (
+                <CobroRapido
+                  clienteId={it.id}
+                  clienteNombre={it.nombre}
+                  prestamoId={it.prestamoId}
+                  cobradorId={cobradorId}
+                  cuota={it.cuota}
+                />
+              )}
             {/* Ojito: vistazo rápido sin salir de la ruta. */}
             <OjitoCliente clienteId={it.id} nombre={it.nombre} />
           </div>

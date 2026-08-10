@@ -16,6 +16,10 @@ export type EstadoHoy = "pagado" | "abono" | "no_pago" | "pendiente" | "sin_cred
 export interface ItemRuta {
   cliente: Cliente;
   prestamoId: string | null;
+  /** Cuántos créditos activos PROPIOS tiene el cliente. Con más de uno, el cobro
+   *  de un toque desde la lista NO se habilita: hay que elegir a cuál se imputa y
+   *  adivinarlo es plata mal puesta (477 clientes tienen 2 o más). */
+  creditosPropios: number;
   /** Lo COBRABLE hoy: cuota que vence + atraso arrastrado (tope una cuota). */
   cuota: number;
   /** De `cuota`, cuánto es ATRASO de días anteriores (no cuota de hoy). >0 con
@@ -457,7 +461,7 @@ export async function getRutaCobrador(
       // suyo: se saca de la ruta. Si no tiene con nadie, queda como candidato a
       // venta nueva (al final, con "sin crédito"), que es información útil.
       if (conCreditoAjeno.has(c.id)) return [];
-      return [{ cliente: c, prestamoId: null, cuota: 0, atraso: 0, estadoHoy: "sin_credito" as const, pagadoHoy: 0, orden: ordenDe.get(c.id) ?? null, sinCuotaHoy: false, plazoVencido: false, recuperadoHoy: 0 }];
+      return [{ cliente: c, prestamoId: null, creditosPropios: 0, cuota: 0, atraso: 0, estadoHoy: "sin_credito" as const, pagadoHoy: 0, orden: ordenDe.get(c.id) ?? null, sinCuotaHoy: false, plazoVencido: false, recuperadoHoy: 0 }];
     }
     // No-pago si alguno de sus créditos quedó marcado como visita sin cobro.
     const esNoPago = cr.creditos.some((x) => noPagoPrestamos.has(x.id));
@@ -525,6 +529,7 @@ export async function getRutaCobrador(
     return [{
       cliente: c,
       prestamoId: cr.principalId,
+      creditosPropios: cr.creditos.length,
       // Lo que la TARJETA le pide: la cuota de hoy + el atraso arrastrado. La meta
       // del día (`esperado`) usa solo la cuota; acá va todo lo cobrable, porque
       // mostrarle $0 a un semanal que debe sería esconder la deuda.

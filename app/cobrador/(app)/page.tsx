@@ -111,6 +111,10 @@ export default async function RutaPage() {
     orden: i.orden,
     sinCuotaHoy: i.sinCuotaHoy,
     atraso: i.atraso,
+    // Para el cobro de un toque desde la lista: el crédito al que se imputa y
+    // cuántos propios tiene (con más de uno el atajo no aparece).
+    prestamoId: i.prestamoId,
+    creditosPropios: i.creditosPropios,
   }));
 
   // Avance de la ruta: clientes "resueltos" hoy (cobrados + no-pago) sobre el
@@ -376,7 +380,7 @@ export default async function RutaPage() {
         </p>
       ) : (
         <>
-          <ListaRuta items={vista} />
+          <ListaRuta items={vista} cobradorId={usuario?.id ?? null} />
           {/* Pre-carga las fichas de la ruta con señal → se pueden abrir/cobrar offline. */}
           <PrecargarFichas ids={vista.map((v) => v.id)} />
         </>
