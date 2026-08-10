@@ -194,6 +194,12 @@ async function pedidosRenovacion(cobradorId: string, desde: string, t: number): 
 
     return filas.map((r) => {
       const entregado = yaCobrados.has((r.prestamo_nuevo_id as string) ?? "");
+      // Un pedido cerrado que APUNTA a un crédito no fue rechazado: fue absorbido.
+      // Los cierres por "ya se colocó" siempre escriben `prestamo_nuevo_id`; un
+      // rechazo de verdad del admin lo deja en null.
+      const cerradoPorqueYaEstaba =
+        r.estado === "rechazada" &&
+        (!!r.prestamo_nuevo_id || /ya está colocado|sin esperar|sin resolver/i.test(String(r.motivo_rechazo ?? "")));
       const quien = nombre.get(r.cliente_id as string) ?? "un cliente";
       const monto = Math.round(Number(r.monto) || 0);
       const estado: EstadoPedido =
@@ -210,7 +216,17 @@ async function pedidosRenovacion(cobradorId: string, desde: string, t: number): 
               ? "Listo: el cliente ya empezó a pagar este crédito, así que la plata está entregada. No se la des de nuevo."
               : "Entregale la plata. El crédito ya está corriendo y el capital ya se descontó de tu caja."
             : estado === "rechazado"
-              ? "No se hizo. Si el cliente la necesita, renovalo por el mismo monto que tenía: eso sale al instante."
+              ? // ⚠️ "Rechazada" en esta app NO significa solo que la oficina dijo que
+                // no: es TAMBIÉN el estado con el que se cierra un pedido cuando el
+                // crédito ya se colocó por otra vía (el cobrador renovó sin esperar,
+                // el gestor lo dio de alta, o ya estaba en Disapp). Decirle "no se
+                // hizo, renovalo" a un pedido que se cerró PORQUE ya está hecho es el
+                // mecanismo textual exacto del crédito duplicado de JORGE. Ahora mismo
+                // hay 3 cobradores leyéndolo por $48.000. El dato que los distingue
+                // (`prestamo_nuevo_id`) ya se leía tres líneas más arriba y se tiraba.
+                cerradoPorqueYaEstaba
+                ? "Ya está hecho: el crédito se colocó por otra vía, así que el pedido se cerró. NO se lo vuelvas a colocar — mirá su cartón."
+                : "No se aprobó. Si el cliente la necesita, renovalo por el mismo monto que tenía: eso sale al instante y no necesita permiso."
               : "NO le entregues la plata todavía. Si no puede esperar, renovalo por el mismo monto que tenía: eso sale solo, sin permiso.",
         motivo: (r.motivo_rechazo as string | null) ?? null,
         href: `/cobrador/cliente/${r.cliente_id as string}`,

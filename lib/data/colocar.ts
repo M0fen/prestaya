@@ -382,7 +382,10 @@ export async function getNoElegibles(
       const cli = cliDe.get(cid);
       if (!cli || !cli.activo) return [];
       // Créditos SOLO del compañero: no es su parada ni su decisión.
-      if (v.propios === 0)
+      // ⚠️ Y también cuando lo PROPIO ya está saldado: la deuda que lo trajo a esta
+      // lista es del compañero, así que el cartel de abajo saldría con el número
+      // vacío — "Todavía está pagando: le falta $0", que no significa nada.
+      if (v.propios === 0 || v.falta < 1)
         return [
           {
             clienteId: cid,

@@ -331,8 +331,20 @@ export async function renovarDesdeCalle(input: {
   // Mismo tope que la venta de calle: sin él, un `totalDias` absurdo (1 o 5.000)
   // produce una cuota disparatada y el cartón queda ilegible.
   const totalDias = input.cuotas == null ? diasAnterior : Math.round(Number(input.cuotas));
-  if (!Number.isInteger(totalDias) || totalDias <= 0 || totalDias > 366) {
-    return { ok: false, error: "Revisá la cantidad de cuotas (máximo 366)." };
+  // ⚠️ El tope de 366 vale para lo que se TECLEA, no para lo que se HEREDA. Hay 5
+  // créditos vivos con plazos de Disapp más largos (PAOLA VANESSA CASTRO: $1.110.000
+  // en 555 cuotas), y aplicarle el tope al valor heredado los rebotaba con "Revisá
+  // la cantidad de cuotas (máximo 366)" en una pantalla que NO tiene campo de
+  // cuotas: el cobrador leía un rojo sobre algo que no puede tocar. Repetir el
+  // crédito tal cual es continuidad de una exposición que ya existe.
+  const cuotasTecleadas = input.cuotas != null;
+  if (!Number.isInteger(totalDias) || totalDias <= 0 || (cuotasTecleadas && totalDias > 366)) {
+    return {
+      ok: false,
+      error: cuotasTecleadas
+        ? "Revisá la cantidad de cuotas (máximo 366)."
+        : "Los términos del crédito anterior no son válidos. Avisá a la oficina.",
+    };
   }
 
   const techoSolo = montoRenovacionAutoAprobable(montoAnterior);

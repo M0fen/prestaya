@@ -360,7 +360,17 @@ export async function registrarPagoCobrador(input: {
     //  segundos y 2,3 horas es enorme, así que la ventana no necesita ser fina.
     // ─────────────────────────────────────────────────────────────────────
     if (!input.adelanto) {
-      const limite = Date.now() - VENTANA_DUPLICADO_MS;
+      // ⚠️ LA VENTANA SE MIDE CONTRA LA HORA DEL COBRO QUE ENTRA, NO CONTRA EL RELOJ
+      // DEL SERVIDOR. Los pagos guardan la hora del TELÉFONO (el momento en que el
+      // cobrador tocó el botón), pero la cola offline puede drenar horas después:
+      // dos toques a las 10:00 y 10:01 que suben a las 14:00 quedaban los dos fuera
+      // de una ventana medida desde `Date.now()` → el duplicado entraba justo en el
+      // escenario para el que se puso el candado. Con la hora del cobro, el candado
+      // compara lo que tiene que comparar: cuándo se COBRÓ, no cuándo llegó.
+      const ahoraCobro = input.registradoEn
+        ? new Date(input.registradoEn).getTime()
+        : Date.now();
+      const limite = (Number.isFinite(ahoraCobro) ? ahoraCobro : Date.now()) - VENTANA_DUPLICADO_MS;
       const gemelo = pagos.find(
         (p) =>
           !p.anulado &&

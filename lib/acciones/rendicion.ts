@@ -83,7 +83,17 @@ export async function cerrarJornada(input: {
   // queda el número, con su fecha y su firma, que es lo que hace falta para que
   // pueda reclamarlo. Casos reales: Víctor Moralez $29.020 (08-07) y $18.260 (08-08).
   if (aFavor > 0) {
-    const aviso = `A FAVOR DEL COBRADOR ${UYU(aFavor)}: colocó ${UYU(estado.colocado)} y puso esa diferencia de su bolsillo.`;
+    // ⚠️ El insumo de este número es la BASE, y hoy la base se pierde cuando el
+    // cobrador no cierra el día en que se la entregaron: al día siguiente vale $0
+    // para toda la app. Medido: de los 6 días-cobrador con "a favor" del piloto
+    // ($92.470), CUATRO ($76.080, el 99% de la plata) son de gente que tenía base
+    // entregada y no devuelta — o sea, un reclamo FALSO contra la oficina, con
+    // fecha y firma, en un acta que no se puede editar.
+    // Mientras la base no arrastre bien, la nota deja el dato y la duda, no una
+    // cifra absoluta: acusar de menos se corrige, acusar de más queda escrito.
+    const aviso =
+      `A FAVOR DEL COBRADOR ${UYU(aFavor)}: colocó ${UYU(estado.colocado)} y no le alcanzaba con lo del día` +
+      (estado.base > 0 ? "." : " (base $0 registrada — VERIFICAR con el supervisor si tenía base sin rendir).");
     notas = notas ? `${aviso} · ${notas}`.slice(0, 300) : aviso.slice(0, 300);
   }
 

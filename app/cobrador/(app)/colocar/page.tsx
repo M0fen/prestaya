@@ -56,12 +56,25 @@ export default async function ColocarPage({
   // siempre y el sistema lo seguía ofreciendo en "Renovar". Gana la de `saldados`,
   // que va por la renovación y cierra el anterior en la misma operación atómica.
   const conSaldado = new Set(saldados.map((c) => c.clienteId));
+
+  // ⚠️ EL QUE SE PUEDE COLOCAR NO PUEDE ESTAR TAMBIÉN EN LOS BLOQUEADOS.
+  //
+  // Hasta el 07-08 los dos conjuntos eran disjuntos por construcción: renovar
+  // exigía TODOS los créditos del cliente en cero. Cuando `e6ae477` cambió la regla
+  // a "saldado solo el crédito que se renueva" (bien, es la regla del negocio),
+  // `getNoElegibles` quedó con el criterio viejo — mira la deuda del CLIENTE, no del
+  // crédito. Resultado: el cobrador busca un nombre y le salen DOS tarjetas del
+  // mismo cliente, una arriba de la otra: la verde "Terminó de pagar ✓ · Renovar" y
+  // la ámbar "Todavía está pagando: le falta $34.800. Se RENUEVA cuando termine".
+  // Una dice colocá, la otra dice esperá. Medido: ~90 pares cliente-cobrador hoy.
   const candidatos =
     modo === "renovar"
       ? saldados
       : [...saldados, ...libres.filter((c) => !conSaldado.has(c.clienteId))].sort((a, b) =>
           a.nombre.localeCompare(b.nombre, "es"),
         );
+  const ofrecidos = new Set(candidatos.map((c) => c.clienteId));
+  const bloqueados = noElegibles.filter((n) => !ofrecidos.has(n.clienteId));
 
   return (
     <div className="flex flex-col gap-4">
@@ -107,7 +120,7 @@ export default async function ColocarPage({
       <ColocarLista
         modo={modo}
         candidatos={candidatos}
-        noElegibles={noElegibles}
+        noElegibles={bloqueados}
         clienteFoco={clienteFoco ?? null}
       />
 

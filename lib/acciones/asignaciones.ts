@@ -70,8 +70,15 @@ export async function reasignarClienteAction(input: {
   const duenos = [
     ...new Set((activos ?? []).map((p) => p.cobrador_id as string | null).filter(Boolean)),
   ] as string[];
+  // ⚠️ LA CONDICIÓN ERA "más de un AJENO", y se le escapaba justo el caso más
+  // probable: cliente con créditos de A y B, y el gestor lo mueve A B —consolidando,
+  // que es lo natural—. Ahí queda UN solo ajeno, no frenaba, y A perdía el crédito
+  // que colocó y está cobrando, con su comisión de la quincena. Lo que importa no es
+  // cuántos ajenos quedan: es que el cliente tenga DUEÑOS DISTINTOS y que este
+  // movimiento le saque algo a alguien. Los 2.210 clientes de un solo dueño siguen
+  // moviéndose igual que siempre.
   const ajenos = duenos.filter((id) => id !== input.nuevoCobradorId);
-  if (ajenos.length > 1) {
+  if (duenos.length > 1 && ajenos.length > 0) {
     const { data: quienes } = await db.from("usuarios").select("id, nombre").in("id", ajenos);
     const nombres = (quienes ?? []).map((x) => x.nombre as string).filter(Boolean);
     return {

@@ -36,6 +36,10 @@ export interface ParadaRuta {
   orden: number | null;
   /** Cuota-objetivo de HOY (créditos en término). */
   cuota: number;
+  /** Deuda VIEJA todavía cobrable de este cliente. Va aparte de la cuota —la meta
+   *  del día es solo lo que vence hoy— pero es plata real: sin mostrarla, el que
+   *  solo debe atrasado se ve con $0 y la ficha ni imprime su línea. */
+  atraso: number;
   /** Cobrado hoy hacia esa cuota. */
   pagadoHoy: number;
   estadoHoy: EstadoHoy;
@@ -254,7 +258,7 @@ async function rutaDeCobrador(
       orden: ordenDe.get(cid) ?? null,
     };
     if (!creds)
-      return { ...base, cuota: 0, pagadoHoy: 0, estadoHoy: "sin_credito" as EstadoHoy, sinCuotaHoy: false, plazoVencido: false, recuperadoHoy: 0, cobradoEn: null, enZona: null };
+      return { ...base, cuota: 0, atraso: 0, pagadoHoy: 0, estadoHoy: "sin_credito" as EstadoHoy, sinCuotaHoy: false, plazoVencido: false, recuperadoHoy: 0, cobradoEn: null, enZona: null };
 
     const esNoPago = creds.some((x) => noPagoPrestamos.has(x.id));
     const creditos: CreditoRuta[] = creds.map((x) => {
@@ -310,6 +314,14 @@ async function rutaDeCobrador(
     return {
       ...base,
       cuota: clase.cuotaEnTermino,
+      // ⚠️ EL ATRASO, que el supervisor había dejado de ver. Cuando `d8792d0` partió
+      // el número en dos (lo que vence hoy / lo atrasado) —correcto: la meta del día
+      // es solo lo que vence hoy— en el teléfono se actualizaron las dos puntas y en
+      // esta ficha una sola. El cliente que SOLO debe atrasado quedaba con cuota $0 y
+      // la pantalla ni imprime la línea cuando el monto es cero. Medido: 241 clientes,
+      // $1.441.830 invisibles para el supervisor, que en el teléfono del cobrador
+      // salen en naranja con su monto. Ningún peso mal calculado — plata que no se ve.
+      atraso: Math.round(clase.moraEnTermino),
       pagadoHoy: clase.pagadoHoyEnTermino,
       estadoHoy: clase.estadoHoy,
       sinCuotaHoy: clase.alDiaCronograma,

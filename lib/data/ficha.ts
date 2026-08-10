@@ -251,8 +251,19 @@ async function armarHistorialCreditos(
       .map((x) => (x.registrado_en ? new Date(x.registrado_en).getTime() : NaN))
       .filter((t) => Number.isFinite(t))
       .sort((a, b) => a - b);
+    // ⚠️ "Ya no está activo" NO es "terminó de pagar". Incluye `refinanciado` y
+    // `cancelado`, que son créditos CORTADOS — y un crédito cortado a la mitad es,
+    // por construcción, el que menos días de pago tiene, así que se llevaba la mejor
+    // insignia de la lista: "👌 Pagó en 1 días · le tocaban 35" sobre un crédito de
+    // $48.000 con $9.600 pagados. Medido: 294 de 317 refinanciados salían en verde,
+    // más 740 finalizados con saldo sin cubrir. En la ÚNICA pantalla que existe para
+    // decidir si conviene volver a prestarle, y esa decisión la toma un cobrador
+    // solo, parado en la puerta. Los días se calculan solo si de verdad se pagó.
+    const pagadoCred = pagosCred.reduce((s, x) => s + x.monto, 0);
+    const totalCred = Math.round(p.cuota_diaria * p.total_dias);
+    const seCubrio = pagadoCred >= totalCred - 1; // mismo umbral sub-peso del cartón
     const diasReales =
-      p.estado !== "activo" && fechas.length > 0
+      p.estado === "finalizado" && seCubrio && fechas.length > 0
         ? Math.max(1, Math.round((fechas[fechas.length - 1] - fechas[0]) / 86_400_000) + 1)
         : null;
     return {

@@ -350,6 +350,12 @@ function Parada({ x, n }: { x: ParadaRuta; n: number }) {
         <span className="truncate text-[13.5px] font-bold text-tinta">{x.nombre}</span>
         <span className="flex flex-wrap items-center gap-x-2 text-[11.5px] font-medium text-tenue tabular-nums">
           {x.cuota > 0 && <span>cuota {UYU(x.cuota)}</span>}
+          {/* ⚠️ EL ATRASO. El cliente que SOLO debe deuda vieja tiene cuota $0, así
+              que esta línea no imprimía nada y su plata era invisible para el
+              supervisor: 241 clientes, $1.441.830 — que en el teléfono del cobrador
+              salen en naranja con su monto. Va aparte de la cuota, como en la ruta:
+              la meta del día es lo que vence hoy, esto es lo que quedó atrás. */}
+          {x.atraso > 0 && <span className="font-bold text-[#B9770E]">atraso {UYU(x.atraso)}</span>}
           {x.pagadoHoy > 0 && <span className="font-bold text-[#157A50]">cobró {UYU(x.pagadoHoy)}</span>}
           {x.recuperadoHoy > 0 && <span className="font-bold text-[#157A50]">recuperó {UYU(x.recuperadoHoy)}</span>}
           {x.cobradoEn && <span>{horaDe(x.cobradoEn)}</span>}
