@@ -46,10 +46,10 @@ import {
   INTERES_DEFECTO_PCT,
 } from "@/lib/creditoNuevo";
 import {
-  evaluarRenovacion,
   montoRenovacionAutoAprobable,
   montoRenovacionSugerido,
   techoRenovacion,
+  techoVentaNueva,
   RENOVACION_CAP_TOTAL,
 } from "@/lib/renovacion";
 import { crearSolicitudDb, cerrarSolicitudPendienteDeAnterior } from "@/lib/data/solicitudesRenovacion";
@@ -504,9 +504,17 @@ export async function nuevaVentaDesdeCalle(input: {
     return { ok: false, error: "Es el primer crédito de esta persona: lo da de alta la oficina." };
 
   // Tope del tramo: DURO para el cobrador. Si quiere más, lo pide al supervisor.
-  const evalu = evaluarRenovacion(baseTasa!.monto, monto);
-  if (evalu.superaCap) return { ok: false, error: evalu.motivo ?? "Supera el tope." };
-  if (evalu.excedePct) return { ok: false, error: `${evalu.motivo} Pedíselo a tu supervisor.` };
+  //
+  // ⚠️ Se compara contra `techoVentaNueva` — LA MISMA función con la que la lista
+  // dibuja "podés darle hasta $X" — y no contra el PORCENTAJE. Comparando el
+  // porcentaje, el redondeo del techo mostrado podía dar 20,004% y el servidor
+  // rechazaba en rojo exactamente el número que la pantalla acababa de ofrecer.
+  const techo = techoVentaNueva(baseTasa!.monto);
+  if (monto > techo)
+    return {
+      ok: false,
+      error: `A este cliente le podés dar hasta ${UYU(techo)} vos solo (su último crédito fue de ${UYU(baseTasa!.monto)}). Para más, pedíselo a tu supervisor.`,
+    };
 
   const interesPct = interesDeBase(baseTasa);
   const cuota = calcularCuotaCreditoNuevo(

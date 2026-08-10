@@ -171,27 +171,40 @@ export default async function DetalleClientePage({
            el 08-05 el cobrador coloca desde la calle si el cliente tiene historial.
            El operador leía eso, no encontraba por dónde, y llamaba por teléfono
            para algo que podía hacer solo (reporte de campo 07-08). */
+        /* ⚠️ SIN HISTORIAL el botón verde llevaba a una pantalla que decía "no se
+           puede": el cobrador acababa de CENSAR a la persona justamente para darle
+           su primer crédito, y el camino más visible era el que no funciona. El
+           primer crédito lo da la oficina (regla), así que cuando no hay historial
+           lo que manda es PEDIRLO — y el botón de colocar ni aparece. */
         <div className="flex flex-col items-center gap-3 rounded-[14px] bg-white px-4 py-6 text-center">
-          <p className="text-[13px] leading-[1.5] font-medium text-gris">
-            Todavía no tiene un crédito activo.
-            <b className="text-tinta"> Podés darle uno ahora mismo</b> si ya tuvo antes.
-          </p>
-          <Link
-            href={`/cobrador/colocar?modo=venta&cliente=${id}`}
-            className="min-h-11 w-full rounded-[13px] bg-[#1FA971] text-center text-[14px] font-extrabold leading-[44px] text-white active:scale-[0.99]"
-          >
-            💵 Darle un crédito
-          </Link>
-          <p className="text-[11.5px] leading-[1.45] font-medium text-gris">
-            Si es su PRIMER crédito, el alta la hace la oficina:
-          </p>
-          <PedirAyuda
-            clienteId={id}
-            etiqueta="Pedirlo a la oficina"
-            textoSugerido={`Pido crédito para ${cliente.nombre}${
-              cliente.documento ? ` (cédula ${cliente.documento})` : ""
-            }. Está en mi ruta y quiere tomar uno.`}
-          />
+          {historialCreditos.length === 0 ? (
+            <>
+              <p className="text-[13px] leading-[1.5] font-medium text-gris">
+                Es su <b className="text-tinta">primer crédito</b>: el alta la hace la oficina.
+                Pedilo desde acá y queda anotado en su ficha.
+              </p>
+              <PedirAyuda
+                clienteId={id}
+                etiqueta="📩 Pedir su primer crédito a la oficina"
+                textoSugerido={`Pido el PRIMER crédito para ${cliente.nombre}${
+                  cliente.documento ? ` (cédula ${cliente.documento})` : ""
+                }. Está en mi ruta y quiere tomar uno.`}
+              />
+            </>
+          ) : (
+            <>
+              <p className="text-[13px] leading-[1.5] font-medium text-gris">
+                Terminó sus créditos anteriores.
+                <b className="text-tinta"> Podés darle uno ahora mismo.</b>
+              </p>
+              <Link
+                href={`/cobrador/colocar?modo=venta&cliente=${id}`}
+                className="min-h-11 w-full rounded-[13px] bg-[#1FA971] text-center text-[14px] font-extrabold leading-[44px] text-white active:scale-[0.99]"
+              >
+                💵 Darle un crédito
+              </Link>
+            </>
+          )}
         </div>
       ) : (
         <Detalle

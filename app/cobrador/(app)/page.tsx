@@ -9,7 +9,7 @@ import { getBannerCobradorActivo } from "@/lib/data/bannerCobrador";
 import { BannerEquipo } from "@/components/cobrador/BannerEquipo";
 import { getEstadoJornada, getDeudaRendicionAyer } from "@/lib/data/rendicion";
 import { getSolicitudesGastoCobrador } from "@/lib/data/solicitudesGasto";
-import { getAprobadasPendientes } from "@/lib/data/solicitudesRenovacion";
+import { getAprobadasPendientes, getPendientesMias } from "@/lib/data/solicitudesRenovacion";
 import { getUsuarioActual } from "@/lib/auth";
 import { conTimeout } from "@/lib/timeout";
 import { hoyUY } from "@/lib/fecha";
@@ -46,7 +46,7 @@ export default async function RutaPage() {
   );
   // El nombre de la zona se resuelve con el cliente ADMIN: la tabla `zonas` está
   // bloqueada por RLS para el cobrador (0 filas), y esto es solo una etiqueta.
-  const [jornada, solicitudesGasto, zonaNombre, deudaAyer, aprobadas] = await conTimeout(
+  const [jornada, solicitudesGasto, zonaNombre, deudaAyer, aprobadas, esperando] = await conTimeout(
     Promise.all([
       usuario ? getEstadoJornada(db, usuario.id) : Promise.resolve(null),
       usuario ? getSolicitudesGastoCobrador(db, usuario.id) : Promise.resolve(null),
@@ -64,6 +64,10 @@ export default async function RutaPage() {
       // Renovaciones que la oficina le APROBÓ: sin esto el circuito quedaba mudo
       // justo del lado que importa, y el capital ya se le descontaba de la caja.
       usuario ? getAprobadasPendientes(usuario.id) : Promise.resolve([]),
+      // Y lo que PIDIÓ y todavía no le contestaron: sin esto solo puede esperar a
+      // ciegas o volver a colocar — que es exactamente lo que duplicó el crédito
+      // de JORGE el 08-09.
+      usuario ? getPendientesMias(usuario.id) : Promise.resolve([]),
     ]),
     TOPE_MS,
     "cobrador.jornada",
@@ -349,6 +353,34 @@ export default async function RutaPage() {
           <span className="text-[11.5px] leading-[1.45] font-medium text-[#157A50]">
             Ese capital ya está descontado de tu caja del día: si no se lo entregaste
             todavía, hacelo — el crédito ya está corriendo.
+          </span>
+        </section>
+      )}
+
+      {/* Pedidos que la oficina TODAVÍA no resolvió. Se dice el estado real y qué
+          hacer mientras tanto, porque la salida existe: renovar por el mismo monto
+          va solo y no necesita permiso de nadie. */}
+      {esperando.length > 0 && (
+        <section className="flex flex-col gap-2 rounded-[16px] border border-[#DCE6FB] bg-white p-4">
+          <span className="text-[13.5px] font-extrabold text-tinta">
+            ⏳ La oficina todavía no resolvió {esperando.length === 1 ? "tu pedido" : `tus ${esperando.length} pedidos`}
+          </span>
+          {esperando.map((s) => (
+            <Link
+              key={s.id}
+              href={`/cobrador/cliente/${s.clienteId}`}
+              className="flex items-center justify-between gap-2 rounded-[12px] bg-[#F7F9FD] px-3 py-2.5 active:scale-[0.99]"
+            >
+              <span className="truncate text-[13px] font-bold text-tinta">{s.clienteNombre}</span>
+              <span className="flex-shrink-0 text-[13.5px] font-black tabular-nums text-[#8A6D1E]">
+                pediste {UYU(s.monto)}
+              </span>
+            </Link>
+          ))}
+          <span className="text-[11.5px] leading-[1.45] font-medium text-gris">
+            <strong className="font-bold">NO le entregues la plata todavía</strong> — el crédito
+            no existe hasta que aprueben. Si no puede esperar, renovalo por el mismo monto que
+            tenía: eso sale al instante y no necesita permiso.
           </span>
         </section>
       )}

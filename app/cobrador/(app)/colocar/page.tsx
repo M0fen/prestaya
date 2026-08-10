@@ -47,10 +47,21 @@ export default async function ColocarPage({
     TOPE_MS,
     `cobrador.colocar.${modo}`,
   );
+  // ⚠️ SIN DEDUPLICAR, el que TERMINÓ de pagar aparecía DOS VECES en "Nueva venta":
+  // una desde `saldados` ("Terminó de pagar ✓") y otra desde `libres` ("Sin crédito
+  // activo"), porque la lista de venta ya no excluye a los que tienen crédito
+  // activo. Son 142 clientes reales hoy — Yuli Toro vería 16 nombres repetidos.
+  // Y no es solo feo: la tarjeta de `libres` toma el camino de ALTA, que NO cierra
+  // el crédito terminado; el cliente quedaba con el viejo saldado activo para
+  // siempre y el sistema lo seguía ofreciendo en "Renovar". Gana la de `saldados`,
+  // que va por la renovación y cierra el anterior en la misma operación atómica.
+  const conSaldado = new Set(saldados.map((c) => c.clienteId));
   const candidatos =
     modo === "renovar"
       ? saldados
-      : [...saldados, ...libres].sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+      : [...saldados, ...libres.filter((c) => !conSaldado.has(c.clienteId))].sort((a, b) =>
+          a.nombre.localeCompare(b.nombre, "es"),
+        );
 
   return (
     <div className="flex flex-col gap-4">

@@ -727,14 +727,14 @@ describe("getPagosDeVariosPrestamos — un mapa por crédito, sin mezclar plata"
     expect(mapa[C_KARENT]).toHaveLength(1);
   });
 
-  // ⚠️ FALLA: bug real, ver informe (hallazgo medio #4).
-  // PostgREST corta en 1000 filas y devuelve `error: null`: el recorte pasa por
-  // dato completo. El único llamador es el historial crediticio (scoring), que
-  // pasa TODOS los créditos históricos del cliente; como el orden es global por
-  // dia_credito, lo que se pierde son siempre las cuotas FINALES → los clientes
-  // que más renovaron se ven como "terminados con saldo impago" y el scoring les
-  // recorta el crédito ofrecido, sin ninguna señal de que faltaron datos.
-  it.fails("un cliente con más de 1000 pagos históricos no pierde sus cuotas finales", async () => {
+  // ✅ ARREGLADO (09-08): ahora pagina con `traerTodo`.
+  // PostgREST corta en 1000 filas y devuelve `error: null`: el recorte pasaba por
+  // dato completo. Costaba en dos lugares — el historial crediticio (scoring), que
+  // pasa TODOS los créditos del cliente, y desde hoy la lista de colocar, que pide
+  // los pagos de los ~120 créditos activos de la ruta de una sola vez (≈3.000
+  // filas). Truncado, los créditos del final aparecían SIN pagos: el que terminó de
+  // pagar se veía debiendo todo y desaparecía de "Renovar".
+  it("un cliente con más de 1000 pagos históricos no pierde sus cuotas finales", async () => {
     const muchas = Array.from({ length: 1120 }, (_, i) =>
       filaPago({
         id: `p${i + 1}`,

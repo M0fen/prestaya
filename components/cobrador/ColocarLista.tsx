@@ -25,6 +25,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { UYU } from "@/lib/format";
 import { renovarDesdeCalle, nuevaVentaDesdeCalle } from "@/lib/acciones/cobradorCredito";
+import { PedirAyuda } from "@/components/cobrador/PedirAyuda";
 import type { FrecuenciaPrestamo } from "@/types/db";
 import {
   calcularCuotaCreditoNuevo,
@@ -37,13 +38,23 @@ interface Candidato {
   nombre: string;
   documento: string | null;
   prestamoId?: string;
+  /** Desde cuándo corría el crédito que se renueva: lo único que distingue dos
+   *  saldados del mismo monto. */
+  desde?: string;
   monto: number;
   cuota: number;
+  /** Cuota sin redondear: la tasa exacta con la que el servidor va a calcular.
+   *  Solo para la cuenta de abajo, nunca para mostrar. */
+  cuotaExacta?: number;
   totalDias: number;
   frecuencia: string;
   /** Hasta cuánto puede llegar sin permiso (tope del tramo de SU monto anterior).
    *  Lo calcula el servidor con la misma función que después valida el alta. */
   techo: number;
+  /** Tope DURO (solo al renovar): por encima NO lo puede ni la oficina. Sin esto
+   *  el botón ofrecía "Pedir $X a la oficina" para montos que el servidor rechaza
+   *  de plano — una promesa imposible, con el cliente enfrente. */
+  maximo?: number;
   /** Renovar: monto SUGERIDO del crédito nuevo = el mismo que terminó de pagar.
    *  Lo calcula el servidor con la misma función que después valida el alta. */
   montoNuevo?: number;
@@ -57,6 +68,12 @@ interface Candidato {
 
 const norm = (s: string) =>
   s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+
+/** "2026-03-01" → "01/03". Distingue dos créditos saldados del mismo monto. */
+function diaMes(iso: string): string {
+  const [, m, d] = iso.split("-");
+  return d && m ? `${d}/${m}` : iso;
+}
 
 /** "24 cuotas diarias" se lee mejor que "24 cuotas · diario". */
 function etiquetaFrec(f: string): string {
@@ -142,14 +159,24 @@ export function ColocarLista({
         ) : focoBloqueado ? (
           <TarjetaBloqueada c={focoBloqueado} />
         ) : (
-          <div className="rounded-[14px] border border-borde bg-white px-4 py-5 text-center">
+          /* ⚠️ Acá caía el cliente RECIÉN CENSADO: la ficha le ofrece "Darle un
+             crédito" en verde, toca, y aterrizaba en un cartel que le decía que no
+             se puede y nada más. Es el mismo callejón del censo del día 1, mudado
+             un paso más adelante. El primer crédito lo da la oficina —esa regla no
+             cambia— pero pedirlo tiene que ser un toque desde acá. */
+          <div className="flex flex-col items-center gap-2.5 rounded-[14px] border border-borde bg-white px-4 py-5 text-center">
             <p className="text-[13px] leading-[1.5] font-semibold text-tinta">
-              A esta persona no le podés colocar {modo === "renovar" ? "una renovación" : "un crédito"} ahora.
+              A esta persona no le podés colocar {modo === "renovar" ? "una renovación" : "un crédito"} vos solo.
             </p>
-            <p className="mt-1 text-[12px] leading-[1.5] font-medium text-gris">
-              Puede ser que sea su primer crédito (lo da la oficina) o que su crédito sea de
-              otro cobrador. Miralo en su cartón.
+            <p className="text-[12px] leading-[1.5] font-medium text-gris">
+              Si es su <strong className="font-bold">primer crédito</strong>, lo da de alta la
+              oficina. Si ya tiene uno, puede ser de otro cobrador: miralo en su cartón.
             </p>
+            <PedirAyuda
+              clienteId={clienteFoco}
+              etiqueta="Pedirlo a la oficina"
+              textoSugerido="Pido crédito para este cliente. Está en mi ruta y quiere tomar uno."
+            />
           </div>
         )}
         <a
@@ -271,7 +298,15 @@ function Tarjeta({
   const montoN = Math.round(Number(monto) || 0);
   const cuotasN = Math.round(Number(cuotas) || 0);
   const techo = c.techo;
+  /** Pasa lo que el cobrador puede solo → hay que pedirlo (si hay a quién). */
   const excede = montoN > techo;
+  /** Pasa el tope DURO: no lo puede ni la oficina. Solo existe al renovar; en la
+   *  venta nueva el techo del tramo YA es el máximo (el CAP acota el capital
+   *  nuevo), así que el máximo coincide con el techo. */
+  const pasaMaximo = montoN > (c.maximo ?? techo);
+  /** ¿Este toque manda un pedido a la oficina en vez de crear el crédito? */
+  const aOficina =
+    modo === "renovar" ? !!c.requiereAprobacion : excede && !!c.prestamoId && !pasaMaximo;
   /** Lo que se le entrega al RENOVAR: el mismo monto del crédito que terminó. */
   const sugeridoRenov = c.montoNuevo ?? c.monto;
 
@@ -282,9 +317,13 @@ function Tarjeta({
   // iba a pagar por día hasta después de crear el crédito.
   const cuotaVenta = useMemo(() => {
     if (!(montoN > 0) || !(cuotasN > 0)) return 0;
-    const base = { monto: c.monto, cuota: c.cuota, totalDias: c.totalDias };
+    // ⚠️ Con la cuota EXACTA (sin redondear) cuando viene: es la que usa el
+    // servidor para arrastrar la tasa. Con la redondeada, el número que el
+    // cobrador le decía en voz alta al cliente salía hasta $1 distinto del que
+    // quedaba en el cartón (53 créditos heredados tienen cuota fraccionaria).
+    const base = { monto: c.monto, cuota: c.cuotaExacta ?? c.cuota, totalDias: c.totalDias };
     return calcularCuotaCreditoNuevo(base, montoN, cuotasN, interesDeBase(base) ?? INTERES_DEFECTO_PCT);
-  }, [montoN, cuotasN, c.monto, c.cuota, c.totalDias]);
+  }, [montoN, cuotasN, c.monto, c.cuota, c.cuotaExacta, c.totalDias]);
 
   // Cuándo empieza a pagar: los créditos nacen el PRÓXIMO día de cobro (no hoy),
   // y el cobrador se lo tiene que poder decir al cliente sin hacer la cuenta.
@@ -396,7 +435,7 @@ function Tarjeta({
           <span className="truncate text-[15px] font-extrabold text-tinta">{c.nombre}</span>
           <span className="text-[11.5px] font-semibold text-gris tabular-nums">
             {modo === "renovar"
-              ? `Terminó de pagar ✓ · ${UYU(sugeridoRenov)}`
+              ? `Terminó de pagar ✓ · ${UYU(sugeridoRenov)}${c.desde ? ` · desde ${diaMes(c.desde)}` : ""}`
               : (c.deudaHermano ?? 0) >= 1
                 ? "Está pagando · se le puede dar otro"
                 : "Sin crédito activo"}
@@ -516,12 +555,37 @@ function Tarjeta({
                   excede ? "text-[#C0392B]" : "text-gris"
                 }`}
               >
-                {excede
-                  ? c.prestamoId
-                    ? `${UYU(montoN)} pasa los ${UYU(techo)} que podés dar solo. Al confirmar se manda el pedido a la oficina — todavía NO le entregues la plata.`
-                    : `${UYU(montoN)} pasa lo que podés dar solo. El máximo para este cliente es ${UYU(techo)} — para más, pedíselo a tu supervisor.`
-                  : `Podés darle hasta ${UYU(techo)} vos solo.`}
+                {/* Tres mensajes distintos porque son tres finales distintos: se
+                    crea solo · lo pide a la oficina · no lo puede NADIE. Antes el
+                    segundo y el tercero decían lo mismo ("se manda el pedido") y
+                    el tercero terminaba en un rojo del servidor. */}
+                {pasaMaximo
+                  ? `${UYU(montoN)} no se puede: para este cliente el máximo es ${UYU(c.maximo ?? techo)}, ni la oficina puede subirlo. Revisá el monto.`
+                  : excede
+                    ? c.prestamoId
+                      ? `${UYU(montoN)} pasa los ${UYU(techo)} que podés dar solo. Al confirmar se manda el pedido a la oficina — todavía NO le entregues la plata.`
+                      : `${UYU(montoN)} pasa lo que podés dar solo. El máximo para este cliente es ${UYU(techo)}.`
+                    : `Podés darle hasta ${UYU(techo)} vos solo.`}
               </span>
+
+              {/* ⚠️ LA SALIDA del único callejón que quedaba. Un cliente que TODAVÍA
+                  está pagando no tiene puerta a la oficina (aprobar una renovación
+                  finalizaría su crédito vivo), así que el botón queda deshabilitado
+                  — y hasta acá terminaba el camino. Ahora el pedido queda anotado en
+                  su ficha, que es lo que el supervisor mira. */}
+              {excede && !c.prestamoId && (
+                <div className="flex flex-col gap-1.5 rounded-[11px] bg-[#FDF3E2] px-3 py-2.5">
+                  <span className="text-[11.5px] leading-[1.4] font-bold text-[#8A6D1E]">
+                    Para darle {UYU(montoN)} hace falta tu supervisor. Dejale el pedido acá y
+                    seguí con la ruta.
+                  </span>
+                  <PedirAyuda
+                    clienteId={c.clienteId}
+                    etiqueta="Pedirlo a mi supervisor"
+                    textoSugerido={`Pido autorización para darle ${UYU(montoN)} en ${cuotasN} cuotas a ${c.nombre}. Su último crédito fue de ${UYU(c.monto)}, así que yo solo puedo hasta ${UYU(techo)}.`}
+                  />
+                </div>
+              )}
             </div>
           )}
 
@@ -541,7 +605,11 @@ function Tarjeta({
             </button>
             <button
               type="button"
-              disabled={pendiente || (modo === "venta" && ((excede && !c.prestamoId) || montoN <= 0 || cuotasN <= 0))}
+              disabled={
+                pendiente ||
+                (modo === "venta" &&
+                  ((excede && !c.prestamoId) || pasaMaximo || montoN <= 0 || cuotasN <= 0))
+              }
               onClick={() => (confirmar ? colocar() : setConfirmar(true))}
               className="min-h-11 flex-1 rounded-[13px] bg-[#1FA971] text-[13px] font-extrabold text-white disabled:opacity-50"
             >
@@ -554,8 +622,6 @@ function Tarjeta({
                     // VENTA por lo que tipeó. Y "pedir a la oficina" solo cuando de
                     // verdad se pasa: el botón nunca promete lo que no va a pasar.
                     const n = modo === "renovar" ? sugeridoRenov : montoN;
-                    const aOficina =
-                      modo === "renovar" ? !!c.requiereAprobacion : excede && !!c.prestamoId;
                     if (aOficina)
                       return confirmar
                         ? `Sí, pedir ${UYU(n)} a la oficina`

@@ -5,6 +5,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { NuevoPago, Pago } from "@/types/db";
+import { traerTodo } from "./paginado";
 
 /** Convierte una fila cruda en un Pago tipado (parsea numeric → number). */
 function mapPago(r: Record<string, unknown>): Pago {
@@ -55,19 +56,30 @@ export async function getPagosDeVariosPrestamos(
 ): Promise<Record<string, Pago[]>> {
   const porPrestamo: Record<string, Pago[]> = {};
   if (prestamoIds.length === 0) return porPrestamo;
-  const { data, error } = await db
-    .from("pagos")
-    .select("*")
-    .in("prestamo_id", prestamoIds)
-    .eq("anulado", false)
-    .order("dia_credito", { ascending: true });
-  if (error) throw error;
-  // El orden global por día se preserva dentro de cada grupo (misma semántica que
-  // getPagosDePrestamo, que ordena por dia_credito).
-  for (const r of data ?? []) {
+  // ⚠️ PAGINADO OBLIGATORIO. PostgREST corta en 1000 filas SIN avisar, y acá se
+  // piden los pagos de MUCHOS créditos a la vez: la ruta de un cobrador son ~120
+  // créditos activos con ~25 pagos cada uno ≈ 3.000 filas. Truncado, los créditos
+  // del final aparecen SIN PAGOS → `falta` = el total del crédito → un cliente que
+  // ya terminó se ve como si no hubiera pagado nada (desaparece de "Renovar") y la
+  // "deuda viva" que se le muestra al cobrador antes de prestarle es falsa.
+  // Orden por `id` (único y estable), que es lo que exige `traerTodo`; el orden por
+  // día se rearma abajo dentro de cada grupo.
+  const filas = await traerTodo<Record<string, unknown>>((d, h) =>
+    db
+      .from("pagos")
+      .select("*")
+      .in("prestamo_id", prestamoIds)
+      .eq("anulado", false)
+      .order("id", { ascending: true })
+      .range(d, h),
+  );
+  for (const r of filas) {
     const p = mapPago(r);
     (porPrestamo[p.prestamo_id] ??= []).push(p);
   }
+  // Misma semántica que getPagosDePrestamo: cada grupo ordenado por día.
+  for (const id of Object.keys(porPrestamo))
+    porPrestamo[id].sort((a, b) => a.dia_credito - b.dia_credito);
   return porPrestamo;
 }
 

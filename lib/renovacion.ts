@@ -106,6 +106,32 @@ export function montoRenovacionAutoAprobable(montoAnterior: number): number {
 }
 
 /**
+ * TECHO de una VENTA NUEVA que el cobrador coloca solo: +20% sobre el último
+ * crédito del cliente, y nunca por encima del CAP.
+ *
+ * ⚠️ NO lleva el `max(base, …)` de `montoRenovacionAutoAprobable`: esa excepción
+ * existe para la CONTINUIDAD (repetir tal cual un heredado de $120.000), no para
+ * capital nuevo — el CAP acota lo que se pone en la calle de cero.
+ *
+ * Es la MISMA función que usan la lista de la calle (para dibujar "podés darle
+ * hasta $X") y el servidor (para aceptarlo). Antes la pantalla calculaba
+ * `min(CAP, round(base×1,2))` y el servidor comparaba el PORCENTAJE
+ * (`aumentoPct > 20`): cuando `base×1,2` cae en …,6 o …,8 el redondeo sube un
+ * peso y ese peso da 20,004% → la pantalla ofrecía exactamente el número que el
+ * servidor rechazaba en rojo, delante del cliente. Una sola función, un solo
+ * número. Puro.
+ */
+export function techoVentaNueva(montoAnterior: number): number {
+  const base = Math.round(Number(montoAnterior) || 0);
+  if (!(base > 0)) return 0;
+  // `floor`, no `round`: el techo es una PROMESA ("podés darle hasta $X") y
+  // redondeando hacia arriba se pasaba del 20% que la promesa dice. Sobre una base
+  // de $8.403 el `round` ofrecía $10.084 = +20,0047%, y contra el tope del 20% eso
+  // se rechaza. Un peso menos, en la dirección conservadora, y el número es exacto.
+  return Math.min(RENOVACION_CAP_TOTAL, Math.floor(base * (1 + RENOVACION_AUMENTO_PCT / 100)));
+}
+
+/**
  * Monto que se PIDE cuando la renovación no se puede aprobar sola y va a la
  * oficina: el aumento que le corresponde al tramo, SIN recortar al CAP.
  *

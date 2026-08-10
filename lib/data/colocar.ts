@@ -17,14 +17,14 @@ import {
   calcularCuotaRenovacion,
   montoRenovacionAutoAprobable,
   montoRenovacionSugerido,
-  topeAumentoPct,
-  RENOVACION_CAP_TOTAL,
+  techoRenovacion,
+  techoVentaNueva,
 } from "@/lib/renovacion";
 import { hoyUY } from "@/lib/fecha";
 import { UYU } from "@/lib/format";
-import { getPagosDePrestamo } from "./pagos";
+import { getPagosDeVariosPrestamos } from "./pagos";
 import { traerTodo } from "./paginado";
-import type { Cliente, Prestamo } from "@/types/db";
+import type { Cliente, Pago, Prestamo } from "@/types/db";
 
 export interface CandidatoColocar {
   clienteId: string;
@@ -32,9 +32,21 @@ export interface CandidatoColocar {
   documento: string | null;
   /** Solo en "renovar": el crédito saldado que se va a repetir. */
   prestamoId?: string;
+  /** Solo en "renovar": desde cuándo corría ese crédito ("YYYY-MM-DD"). Es lo único
+   *  que distingue DOS créditos saldados del mismo monto — y hay clientes con dos
+   *  (SONIA TELIS llegó a tener 4 de $15.000×30). Sin la fecha, las dos tarjetas
+   *  son idénticas y el cobrador no sabe cuál está renovando. Mismo criterio que el
+   *  selector de crédito de la ficha. */
+  desde?: string;
   /** Términos del crédito que TERMINÓ (renovar) o del último crédito (venta). */
   monto: number;
   cuota: number;
+  /** La cuota SIN redondear, solo para que el navegador calcule la cuota estimada
+   *  con la misma tasa exacta que usa el servidor. 53 créditos vivos vienen de
+   *  Disapp con cuota fraccionaria (8.425/24 = 351,04): redondeando la base, la
+   *  cuota que la pantalla le dice al cliente salía hasta $1 distinta de la que
+   *  quedaba guardada. Se muestra `cuota`; esto es solo para la cuenta. */
+  cuotaExacta?: number;
   totalDias: number;
   frecuencia: string;
   /** Solo en "renovar": capital que se PROPONE = el MISMO del crédito anterior
@@ -51,16 +63,38 @@ export interface CandidatoColocar {
    *  avisa en pantalla al renovar: el cliente terminó este crédito pero sigue
    *  debiendo en otro, y el que presta tiene que saberlo antes de decidir. */
   deudaHermano?: number;
-  /** Hasta cuánto puede colocar el cobrador SIN pedir permiso. Se calcula con
-   *  `topeAumentoPct` — la MISMA función que después valida el alta — así la
-   *  pantalla nunca ofrece un monto que el servidor va a rechazar. */
+  /** Hasta cuánto puede colocar el cobrador SIN pedir permiso. Se calcula con la
+   *  MISMA función que después valida el alta, así la pantalla nunca ofrece un
+   *  monto que el servidor va a rechazar. */
   techo: number;
+  /** Tope DURO: por encima de esto no lo puede ni la oficina, así que el botón no
+   *  puede prometer "se manda el pedido". Solo viaja en "renovar" (el camino que
+   *  tiene puerta a la oficina); en la venta nueva el techo YA es el máximo. */
+  maximo?: number;
 }
 
-/** Techo auto-aprobable para un monto anterior dado (nunca por encima del CAP). */
-function techoDe(montoAnterior: number): number {
-  const pct = topeAumentoPct(montoAnterior);
-  return Math.min(RENOVACION_CAP_TOTAL, Math.round(montoAnterior * (1 + pct / 100)));
+/**
+ * `falta` de cada crédito, en UNA sola consulta de pagos (paginada).
+ *
+ * ⚠️ Esto era un N+1 en SERIE: `getPagosDePrestamo` por cada crédito activo de la
+ * ruta. Para Luz Ángela (124 créditos activos) eran 124 round-trips por pasada, y
+ * "Nueva venta" hace dos pasadas → ~250 viajes encadenados antes de pintar la
+ * primera tarjeta. En la calle, con señal pobre, eso se acerca al tope de 22 s de
+ * la página: el operador ve una pantalla en blanco y concluye que la app está rota
+ * — que es literalmente lo que reportó el 07-08.
+ */
+async function faltaDeCreditos(
+  db: SupabaseClient,
+  creditos: Prestamo[],
+  hoy: Date,
+): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  if (creditos.length === 0) return out;
+  const pagosDe = await getPagosDeVariosPrestamos(db, creditos.map((p) => p.id));
+  const vacio: Pago[] = [];
+  for (const p of creditos)
+    out.set(p.id, calcularEstadosCarton(p, pagosDe[p.id] ?? vacio, hoy).falta);
+  return out;
 }
 
 /** Clientes de MI ruta que ya terminaron de pagar: listos para renovar.
@@ -103,14 +137,11 @@ export async function getCandidatosRenovar(
   // ningún mensaje (reporte de campo 08-05, caso 8). La deuda del crédito hermano
   // viaja en `deudaHermano` para que la pantalla la AVISE en vez de esconder al
   // cliente: la decisión de prestarle igual es del negocio, no del filtro.
-  const faltaDe = new Map<string, number>();
+  const faltaDe = await faltaDeCreditos(db, activos, hoy);
   const deudaPorCliente = new Map<string, number>();
   for (const p of activos) {
-    const pagos = await getPagosDePrestamo(db, p.id);
-    const carton = calcularEstadosCarton(p, pagos, hoy);
-    faltaDe.set(p.id, carton.falta);
-    if (carton.falta >= 1)
-      deudaPorCliente.set(p.cliente_id, (deudaPorCliente.get(p.cliente_id) ?? 0) + carton.falta);
+    const falta = faltaDe.get(p.id) ?? 0;
+    if (falta >= 1) deudaPorCliente.set(p.cliente_id, (deudaPorCliente.get(p.cliente_id) ?? 0) + falta);
   }
   const out: CandidatoColocar[] = [];
   for (const p of activos) {
@@ -155,12 +186,19 @@ export async function getCandidatosRenovar(
       nombre: cli.nombre,
       documento: cli.documento ?? null,
       prestamoId: p.id,
+      desde: p.fecha_inicio ? String(p.fecha_inicio).slice(0, 10) : undefined,
       monto: montoAnterior,
       cuota: Math.round(cuotaAnterior),
+      cuotaExacta: cuotaAnterior,
       totalDias,
       frecuencia: (p.frecuencia as string) ?? "diario",
       falta: Math.max(0, Math.round(carton.falta)),
       techo: montoRenovacionAutoAprobable(montoAnterior),
+      // El tope duro del servidor (`renovarDesdeCalle` rechaza por encima). La
+      // tarjeta lo necesita para no ofrecer "se manda el pedido a la oficina" por
+      // un monto que la oficina TAMPOCO puede aprobar: ese botón mentía y el
+      // cobrador se comía el rojo delante del cliente.
+      maximo: techoRenovacion(montoAnterior),
       montoNuevo,
       cuotaNueva,
       requiereAprobacion,
@@ -192,10 +230,21 @@ export async function getCandidatosVenta(db: SupabaseClient): Promise<CandidatoC
   // tarjeta la muestra antes de que el cobrador decida.
 
   // Último crédito por cliente (de ahí salen los términos sugeridos y la tasa).
+  // ⚠️ El desempate por `creado_en` NO es cosmético: tiene que dar el MISMO crédito
+  // que `getUltimoCreditoDe`, que es contra el que el servidor mide el techo. El
+  // empalme cargó lotes enteros con la misma `fecha_inicio`, así que los empates
+  // son comunes; sin el desempate la pantalla dibujaba "podés darle hasta $X"
+  // calculado sobre un crédito y el servidor validaba contra otro.
   const ultimo = new Map<string, Prestamo>();
+  const masNuevo = (a: Prestamo, b: Prestamo) => {
+    const fa = String(a.fecha_inicio ?? "");
+    const fb = String(b.fecha_inicio ?? "");
+    if (fa !== fb) return fa > fb;
+    return String(a.creado_en ?? "") > String(b.creado_en ?? "");
+  };
   for (const p of todos) {
     const prev = ultimo.get(p.cliente_id);
-    if (!prev || String(p.fecha_inicio) > String(prev.fecha_inicio)) ultimo.set(p.cliente_id, p);
+    if (!prev || masNuevo(p, prev)) ultimo.set(p.cliente_id, p);
   }
   const elegibles = [...ultimo.entries()];
   if (elegibles.length === 0) return [];
@@ -203,11 +252,11 @@ export async function getCandidatosVenta(db: SupabaseClient): Promise<CandidatoC
   // Deuda VIVA de los créditos que siguen abiertos, por cliente: es lo que el
   // cobrador tiene que ver antes de darle un segundo crédito a alguien.
   const hoyCal = hoyUY();
+  const abiertos = todos.filter((p) => p.estado === "activo");
+  const faltaDe = await faltaDeCreditos(db, abiertos, hoyCal);
   const deudaViva = new Map<string, number>();
-  for (const p of todos) {
-    if (p.estado !== "activo") continue;
-    const pagos = await getPagosDePrestamo(db, p.id);
-    const { falta } = calcularEstadosCarton(p, pagos, hoyCal);
+  for (const p of abiertos) {
+    const falta = faltaDe.get(p.id) ?? 0;
     if (falta >= 1) deudaViva.set(p.cliente_id, (deudaViva.get(p.cliente_id) ?? 0) + falta);
   }
 
@@ -235,7 +284,7 @@ export async function getCandidatosVenta(db: SupabaseClient): Promise<CandidatoC
           cuota,
           totalDias,
           frecuencia: (p.frecuencia as string) ?? "diario",
-          techo: techoDe(monto),
+          techo: techoVentaNueva(monto),
           deudaHermano: Math.round(deudaViva.get(cid) ?? 0),
         },
       ];
@@ -296,10 +345,10 @@ export async function getNoElegibles(
   if (activos.length === 0) return []; // sin créditos activos → todos elegibles
 
   const hoy = hoyUY();
+  const faltaDe = await faltaDeCreditos(db, activos, hoy);
   const porCliente = new Map<string, { falta: number; ajenos: number; propios: number }>();
   for (const p of activos) {
-    const pagos = await getPagosDePrestamo(db, p.id);
-    const { falta } = calcularEstadosCarton(p, pagos, hoy);
+    const falta = faltaDe.get(p.id) ?? 0;
     const acc = porCliente.get(p.cliente_id) ?? { falta: 0, ajenos: 0, propios: 0 };
     const esAjeno = !!cobradorId && !!p.cobrador_id && p.cobrador_id !== cobradorId;
     if (esAjeno) acc.ajenos += 1;

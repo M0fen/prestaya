@@ -10,6 +10,7 @@ import {
   montoRenovacionSugerido,
   requiereAprobacionAdmin,
   techoRenovacion,
+  techoVentaNueva,
   topeAumentoPct,
   RENOVACION_AUMENTO_PCT,
   RENOVACION_CAP_TOTAL,
@@ -478,5 +479,48 @@ describe("la renovación va sola: solo el +20% pide permiso", () => {
     expect(montoRenovacionAutoAprobable(95_000)).toBe(RENOVACION_CAP_TOTAL);
     expect(vaSola(95_000, 100_000)).toBe(true);
     expect(vaSola(95_000, 105_000)).toBe(false);
+  });
+});
+
+describe("techoVentaNueva — el número que la pantalla ofrece y el servidor acepta", () => {
+  it("es el +20%, acotado por el CAP", () => {
+    expect(techoVentaNueva(10_000)).toBe(12_000);
+    expect(techoVentaNueva(95_000)).toBe(RENOVACION_CAP_TOTAL);
+  });
+
+  it("NO hereda la excepción de continuidad: capital nuevo nunca pasa el CAP", () => {
+    // Repetir un heredado de $120.000 va solo (es la MISMA exposición de siempre).
+    expect(montoRenovacionAutoAprobable(120_000)).toBe(120_000);
+    // Pero una VENTA nueva a ese cliente es capital fresco: se acota en el CAP.
+    expect(techoVentaNueva(120_000)).toBe(RENOVACION_CAP_TOTAL);
+  });
+
+  it("sin base usable devuelve 0 (el primer crédito lo da la oficina)", () => {
+    expect(techoVentaNueva(0)).toBe(0);
+    expect(techoVentaNueva(Number.NaN)).toBe(0);
+  });
+
+  // ⚠️ EL AGUJERO DEL REDONDEO. La pantalla dibujaba min(CAP, round(base×1,2)) y el
+  // servidor decidía por PORCENTAJE (`aumentoPct > 20`). Cuando base×1,2 cae en
+  // …,6 o …,8, el redondeo sube un peso y ese peso da 20,004%: la lista ofrecía
+  // exactamente el monto que el servidor rechazaba en rojo, con el cliente
+  // enfrente. Ahora los dos lados llaman a la MISMA función.
+  it("el techo ofrecido nunca es un monto que el servidor rechace", () => {
+    const rechazados: number[] = [];
+    for (let base = 1_000; base <= 90_000; base += 1) {
+      const techo = techoVentaNueva(base);
+      // El servidor acepta exactamente `monto <= techoVentaNueva(base)`.
+      if (techo > base * 1.2 + 1e-9) rechazados.push(base);
+    }
+    // Con la regla vieja (round) esto listaba miles de montos: todos los base
+    // que terminan en 3 o 4 módulo 5 (ej. 8.403 → ofrecía 10.084 = +20,0047%).
+    expect(rechazados).toEqual([]);
+  });
+
+  it("un peso más que el techo ya no lo puede el cobrador solo", () => {
+    expect(techoVentaNueva(7_000)).toBe(8_400);
+    // El servidor compara `monto > techo`: 8.400 entra, 8.401 no.
+    expect(8_400 > techoVentaNueva(7_000)).toBe(false);
+    expect(8_401 > techoVentaNueva(7_000)).toBe(true);
   });
 });

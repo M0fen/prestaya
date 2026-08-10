@@ -194,6 +194,56 @@ export interface AprobadaPendiente {
   resueltoEn: string | null;
 }
 
+/** Un pedido del cobrador que la oficina TODAVÍA no resolvió. */
+export interface EsperandoOficina {
+  id: string;
+  clienteId: string;
+  clienteNombre: string;
+  monto: number;
+  solicitadoEn: string;
+}
+
+/**
+ * Lo que este cobrador PIDIÓ y la oficina todavía no resolvió.
+ *
+ * ⚠️ Es la otra mitad del circuito mudo, y la mitad que ya costó plata. El 06-08
+ * Edward pidió la renovación de JORGE ($16.000); la oficina la aprobó dos días
+ * después y él nunca se enteró, así que volvió a colocarla — dos créditos por un
+ * préstamo. Le pusimos el aviso al lado APROBADO, pero mientras el pedido está
+ * PENDIENTE la app le sigue diciendo lo mismo que antes: nada. Sin esto, el
+ * cobrador solo puede elegir entre esperar a ciegas o volver a colocar.
+ *
+ * Mismo motivo que `getAprobadasPendientes` para leer con ADMIN + scope explícito:
+ * `solicitudes_renovacion` tiene RLS solo-gestor.
+ */
+export async function getPendientesMias(cobradorId: string): Promise<EsperandoOficina[]> {
+  try {
+    const admin = createSupabaseAdmin();
+    const { data, error } = await admin
+      .from("solicitudes_renovacion")
+      .select("id, cliente_id, monto, solicitado_en")
+      .eq("solicitado_por", cobradorId)
+      .eq("estado", "pendiente")
+      .order("solicitado_en", { ascending: false });
+    if (error) throw error;
+    const filas = data ?? [];
+    if (filas.length === 0) return [];
+    const ids = [...new Set(filas.map((r) => r.cliente_id as string))];
+    const { data: cls } = await admin.from("clientes").select("id, nombre").in("id", ids);
+    const nombre = new Map((cls ?? []).map((c) => [c.id as string, c.nombre as string]));
+    return filas.map((r) => ({
+      id: r.id as string,
+      clienteId: r.cliente_id as string,
+      clienteNombre: nombre.get(r.cliente_id as string) ?? "Cliente",
+      monto: Math.round(Number(r.monto) || 0),
+      solicitadoEn: r.solicitado_en as string,
+    }));
+  } catch (e) {
+    if (tablaFaltante(e)) return [];
+    throw e;
+  }
+}
+
 /**
  * Renovaciones que la oficina le APROBÓ a este cobrador en los últimos días.
  *
