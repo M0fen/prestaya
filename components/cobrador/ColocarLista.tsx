@@ -259,6 +259,8 @@ function Tarjeta({
   const [monto, setMonto] = useState(String(c.montoNuevo ?? c.monto));
   const [cuotas, setCuotas] = useState(String(c.totalDias));
   const [msg, setMsg] = useState<string | null>(null);
+  /** El servidor frenó un posible duplicado: el próximo toque lo confirma. */
+  const [repetirIgual, setRepetirIgual] = useState(false);
   const [okTxt, setOkTxt] = useState<string | null>(null);
   /** Cómo terminó: "creado" (verde), "repetido" (ya estaba hecho) o "pedido" (a la
    *  oficina — NO se creó nada y NO hay que entregar plata). Los tres son `ok` para
@@ -308,19 +310,21 @@ function Tarjeta({
         // misma operación atómica. Si no tiene crédito que cerrar, es un alta común.
         const r =
           modo === "renovar"
-            ? await renovarDesdeCalle({ clienteId: c.clienteId, prestamoId: c.prestamoId! })
+            ? await renovarDesdeCalle({ clienteId: c.clienteId, prestamoId: c.prestamoId!, repetirIgual })
             : c.prestamoId
               ? await renovarDesdeCalle({
                   clienteId: c.clienteId,
                   prestamoId: c.prestamoId,
                   monto: montoN,
                   cuotas: cuotasN,
+                  repetirIgual,
                 })
               : await nuevaVentaDesdeCalle({
                   clienteId: c.clienteId,
                   monto: montoN,
                   totalDias: cuotasN,
                   frecuencia: c.frecuencia as FrecuenciaPrestamo,
+                  repetirIgual,
                 });
         if (r.ok) {
           // Puede haber quedado PEDIDO a la oficina (supera el tope) en vez de
@@ -344,6 +348,9 @@ function Tarjeta({
         } else {
           setMsg(r.error);
           setConfirmar(false);
+          // Si lo frenó el candado anti-duplicado, el PRÓXIMO toque confirma que
+          // de verdad son dos créditos. No se arma solo: lo tiene que decidir él.
+          if ((r as { duplicado?: boolean }).duplicado) setRepetirIgual(true);
         }
       } catch {
         // Red caída a mitad de la colocación: aviso inline (antes reventaba al

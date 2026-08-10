@@ -64,7 +64,8 @@ export type ResultadoColocar =
   | { ok: true; prestamoId?: string; cuota?: number; repetido?: boolean }
   /** Se mandó a la oficina para que el admin la apruebe (no se creó nada todavía). */
   | { ok: true; solicitado: true; mensaje: string }
-  | { ok: false; error: string };
+  /** Frenado por el candado anti doble-colocación: el primer crédito YA existe. */
+  | { ok: false; error: string; duplicado?: boolean };
 
 const FRECUENCIAS: FrecuenciaPrestamo[] = ["diario", "semanal", "quincenal", "mensual"];
 
@@ -150,6 +151,47 @@ async function pedirAprobacion(
   };
 }
 
+/** Ventana del candado anti doble-colocación. Los duplicados reales del piloto
+ *  fueron de 1 y 2 minutos (MAICOL RIVERO 17:53→17:55, JOSE MONTERO 17:29→17:30). */
+const VENTANA_DOBLE_ALTA_MS = 15 * 60 * 1000;
+
+/**
+ * ¿Ya se le colocó ESTE MISMO monto a ESTE cliente hace un rato?
+ *
+ * ⚠️ La idempotencia por `op_id` solo reconoce el REINTENTO de la misma operación.
+ * Dos toques separados generan op_id distintos y pasan los dos: el 08-08 quedaron
+ * MAICOL RIVERO con dos créditos de $7.000 (2 minutos) y JOSE MONTERO con dos de
+ * $5.000 (1 minuto), $28.000 de capital duplicado contando el tercero. Y como un
+ * cliente PUEDE tener varios créditos a la vez, nada más lo iba a frenar.
+ *
+ * Se mira con el cliente ADMIN: la RLS del cobrador filtra por asignación y podría
+ * esconderle justo el crédito que él mismo acaba de crear.
+ */
+async function yaColocoEsteMonto(
+  clienteId: string,
+  monto: number,
+  cobradorId: string,
+): Promise<{ id: string; hace: number } | null> {
+  const admin = createSupabaseAdmin();
+  const desde = new Date(Date.now() - VENTANA_DOBLE_ALTA_MS).toISOString();
+  const { data } = await admin
+    .from("prestamos")
+    .select("id, creado_en")
+    .eq("cliente_id", clienteId)
+    .eq("creado_por", cobradorId)
+    .eq("estado", "activo")
+    .eq("monto_prestado", monto)
+    .gte("creado_en", desde)
+    .order("creado_en", { ascending: false })
+    .limit(1);
+  const p = data?.[0];
+  if (!p) return null;
+  return {
+    id: p.id as string,
+    hace: Math.round((Date.now() - new Date(p.creado_en as string).getTime()) / 60000),
+  };
+}
+
 /**
  * ¿La renovación de este crédito YA SE HIZO? Mira el linaje `renovado_de` (0116),
  * que es la verdad aunque la respuesta se haya perdido en el camino.
@@ -198,6 +240,9 @@ export async function renovarDesdeCalle(input: {
    *  Cambiarla NO cambia lo que el cliente paga en total (monto × su tasa): reparte
    *  ese total en más o menos cuotas, o sea que sube o baja la cuota diaria. */
   cuotas?: number;
+  /** El cobrador CONFIRMÓ que de verdad quiere colocar OTRO crédito por el mismo
+   *  monto, sabiendo que hace minutos ya le colocó uno igual a este cliente. */
+  repetirIgual?: boolean;
   nonce?: string;
 }): Promise<ResultadoColocar> {
   const p = await puerta(input.clienteId);
@@ -307,6 +352,18 @@ export async function renovarDesdeCalle(input: {
   }
   const monto = pedido;
 
+  // CANDADO ANTI DOBLE-COLOCACIÓN: el mismo monto al mismo cliente hace minutos.
+  // Solo se salta si el cobrador CONFIRMA que de verdad son dos créditos.
+  if (!input.repetirIgual) {
+    const gemelo = await yaColocoEsteMonto(input.clienteId, monto, u.id);
+    if (gemelo)
+      return {
+        ok: false,
+        error: `Hace ${gemelo.hace === 0 ? "un momento" : `${gemelo.hace} min`} ya le colocaste ${UYU(monto)} a este cliente. Si de verdad son DOS créditos, tocá de nuevo para confirmarlo; si fue sin querer, mirá su ficha — el primero ya está creado.`,
+        duplicado: true,
+      };
+  }
+
   // ⚠️ La ESCRITURA va con service_role, igual que la colocación de la calle
   // (línea ~238). Con la sesión del cobrador, la RPC `renovar_credito_seguro`
   // (SECURITY INVOKER) ejecuta su UPDATE bajo la policy `prestamos_update`, que
@@ -392,6 +449,8 @@ export async function nuevaVentaDesdeCalle(input: {
   monto: number;
   totalDias: number;
   frecuencia: FrecuenciaPrestamo;
+  /** Confirmación explícita de que son DOS créditos distintos (ver el candado). */
+  repetirIgual?: boolean;
   nonce?: string;
 }): Promise<ResultadoColocar> {
   const p = await puerta(input.clienteId);
@@ -410,6 +469,18 @@ export async function nuevaVentaDesdeCalle(input: {
   if (!FRECUENCIAS.includes(input.frecuencia)) return { ok: false, error: "Frecuencia inválida." };
   if (monto > RENOVACION_CAP_TOTAL)
     return { ok: false, error: `El crédito no puede superar ${UYU(RENOVACION_CAP_TOTAL)}.` };
+
+  // CANDADO ANTI DOBLE-COLOCACIÓN: el mismo monto al mismo cliente hace minutos.
+  // Solo se salta si el cobrador CONFIRMA que de verdad son dos créditos.
+  if (!input.repetirIgual) {
+    const gemelo = await yaColocoEsteMonto(input.clienteId, monto, u.id);
+    if (gemelo)
+      return {
+        ok: false,
+        error: `Hace ${gemelo.hace === 0 ? "un momento" : `${gemelo.hace} min`} ya le colocaste ${UYU(monto)} a este cliente. Si de verdad son DOS créditos, tocá de nuevo para confirmarlo; si fue sin querer, mirá su ficha — el primero ya está creado.`,
+        duplicado: true,
+      };
+  }
 
   // ⚠️ REGLA DEL NEGOCIO (Carlos, 07-08): un cliente PUEDE tener VARIOS créditos a
   // la vez, sin necesidad de estar al día con los anteriores. Acá había un bloqueo
