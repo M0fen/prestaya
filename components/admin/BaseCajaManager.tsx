@@ -29,6 +29,11 @@ export interface CobradorBase {
   /** Solo con `arrastre`: el día del que viene y cómo se llegó al número. */
   desdeFecha?: string;
   detalleAyer?: { base: number; recaudado: number; gastos: number; entregado: number; colocado: number };
+  /** Ya cerró su jornada de hoy → la base quedó SELLADA con su rendición y el
+   *  servidor rechaza el cambio. Saberlo ANTES evita tipear al pepe y, sobre todo,
+   *  evita la sospecha: bajarle la base a alguien después de contarle la plata es
+   *  la forma de fabricarle un faltante, y por eso la base se congela al rendir. */
+  yaRindio?: boolean;
 }
 
 const SIN_ZONA = "__sin_zona__";
@@ -77,26 +82,60 @@ export function BaseCajaManager({
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
   const [pend, start] = useTransition();
 
+  /** Filtro por nombre: con 47 cobradores, encontrar a uno para corregirle el
+   *  monto era scrollear. Solo filtra la VISTA; lo tipeado en los ocultos se
+   *  guarda igual (por eso el botón dice cuántos cambios hay en total). */
+  const [q, setQ] = useState("");
+  /** Fotos previas para DESHACER: aplicar a todos pisa lo tipeado, y sin vuelta
+   *  atrás eso es un botón que da miedo tocar. */
+  const [pila, setPila] = useState<Record<string, string>[]>([]);
+  /** Declarados EXPLÍCITAMENTE en $0 ("hoy arranca sin base"). Un campo vacío y un
+   *  cero declarado se ven igual y NO son lo mismo: uno es "nadie la cargó" y el
+   *  otro es "salió sin plata", que es una decisión con dueño. La invariante que
+   *  reclama las bases sin rendir necesita esa diferencia para no gritar al pedo. */
+  const [ceros, setCeros] = useState<Set<string>>(new Set());
+
   const parsed = (id: string) => Math.max(0, Math.round(Number(vals[id]) || 0));
   const grupos = useMemo(() => agrupar(cobradores, supervisoresPorZona), [cobradores, supervisoresPorZona]);
   // Total EN VIVO (lo que va tipeado), no solo lo ya guardado: el supervisor ve
   // cuánta plata está por poner en la calle ANTES de confirmar.
   const total = cobradores.reduce((s, c) => s + parsed(c.id), 0);
-  const sinCargar = cobradores.filter((c) => parsed(c.id) <= 0).length;
-  const cambios = cobradores.filter((c) => parsed(c.id) !== c.base);
+  const editables = cobradores.filter((c) => !c.yaRindio);
+  const sinCargar = editables.filter((c) => parsed(c.id) <= 0 && !ceros.has(c.id)).length;
+  // Un cambio es: un monto distinto al guardado, o un $0 DECLARADO sobre alguien
+  // que todavía no tenía base. Los que ya rindieron no entran: el servidor los
+  // rechaza y contarlos haría que el botón prometa lo que no puede hacer.
+  const cambios = editables.filter(
+    (c) => parsed(c.id) !== c.base || (ceros.has(c.id) && c.origen === "sin_base"),
+  );
   const hayAyer = cobradores.some((c) => (c.baseAyer ?? 0) > 0);
+  const listas = editables.length - sinCargar;
+  const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const visible = (c: CobradorBase) => !q.trim() || norm(c.nombre).includes(norm(q.trim()));
 
-  const usarAyer = () => {
+  /** Guarda una foto antes de pisar valores, para poder volver. */
+  const conDeshacer = (fn: (v: Record<string, string>) => Record<string, string>) => {
     setMsg(null);
-    setVals((v) => {
+    setPila((p) => [...p.slice(-4), vals]);
+    setVals(fn);
+  };
+  const deshacer = () => {
+    const previo = pila[pila.length - 1];
+    if (!previo) return;
+    setPila((p) => p.slice(0, -1));
+    setVals(previo);
+    setMsg(null);
+  };
+
+  const usarAyer = () =>
+    conDeshacer((v) => {
       const n = { ...v };
-      for (const c of cobradores) {
+      for (const c of editables) {
         // Solo llena los VACÍOS: no pisa un monto ya tipeado hoy.
         if ((Number(n[c.id]) || 0) <= 0 && (c.baseAyer ?? 0) > 0) n[c.id] = String(c.baseAyer);
       }
       return n;
     });
-  };
 
   // ── CARGA MASIVA: el mismo monto para todos, de un toque ─────────────────
   //  A las 7 de la mañana el supervisor entrega el MISMO efectivo de arranque a
@@ -107,15 +146,21 @@ export function BaseCajaManager({
   const aplicarATodos = (soloVacios: boolean) => {
     const m = Math.max(0, Math.round(Number(montoTodos) || 0));
     if (m <= 0) return;
-    setMsg(null);
-    setVals((v) => {
+    conDeshacer((v) => {
       const n = { ...v };
-      for (const c of cobradores) {
+      for (const c of editables) {
         if (soloVacios && (Number(n[c.id]) || 0) > 0) continue;
         n[c.id] = String(m);
       }
       return n;
     });
+  };
+
+  /** "Hoy sale sin base": un $0 con dueño, distinto de un campo que nadie llenó. */
+  const declararCero = (id: string) => {
+    setMsg(null);
+    setVals((v) => ({ ...v, [id]: "0" }));
+    setCeros((s) => new Set(s).add(id));
   };
 
   /** Enter salta al siguiente campo: cargar de a uno sin soltar el teclado. */
@@ -161,11 +206,15 @@ export function BaseCajaManager({
           <span className="text-[11px] font-medium text-tenue">
             Con cuánto efectivo arranca cada cobrador. La devuelve junto con lo cobrado al cerrar.
           </span>
-          {sinCargar > 0 && (
-            <span className="mt-1 w-fit rounded-full bg-ambar-suave px-2.5 py-1 text-[11px] font-bold text-ambar-osc">
-              ⚠️ {sinCargar === cobradores.length
+          {sinCargar > 0 ? (
+            <span className="mt-1 w-fit rounded-full bg-ambar-suave px-2.5 py-1 text-[11px] font-bold text-ambar-osc tabular-nums">
+              ⚠️ {sinCargar === editables.length
                 ? "Ninguna base cargada todavía — fijalas antes de que salga el equipo."
-                : `${sinCargar} cobrador${sinCargar === 1 ? "" : "es"} sin base.`}
+                : `${listas} lista${listas === 1 ? "" : "s"} · faltan ${sinCargar}`}
+            </span>
+          ) : (
+            <span className="mt-1 w-fit rounded-full bg-verde-suave px-2.5 py-1 text-[11px] font-bold text-verde tabular-nums">
+              ✓ Las {editables.length} bases están cargadas
             </span>
           )}
         </div>
@@ -214,14 +263,40 @@ export function BaseCajaManager({
                 Solo a los {sinCargar} sin base
               </button>
             )}
+            {/* Aplicar a todos PISA lo que ya estaba tipeado. Sin vuelta atrás es un
+                botón que da miedo tocar, y el que da miedo no se usa. */}
+            {pila.length > 0 && (
+              <button
+                type="button"
+                onClick={deshacer}
+                disabled={pend}
+                className="min-h-9 rounded-full border border-borde bg-tarjeta px-3 text-[12px] font-bold text-cuerpo disabled:opacity-40"
+              >
+                ↶ Deshacer
+              </button>
+            )}
             <span className="ml-auto text-[11px] font-medium text-tenue">
-              Después podés corregir uno por uno · <b>Enter</b> salta al siguiente
+              Después corregís uno por uno · <b>Enter</b> salta al siguiente
             </span>
           </div>
+
+          {/* Con 47 cobradores, encontrar a uno para corregirle el monto era
+              scrollear. Filtra la VISTA; lo tipeado en los ocultos se guarda igual. */}
+          {cobradores.length > 8 && (
+            <input
+              type="search"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="🔍 Buscar cobrador…"
+              className="w-full rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[16px] outline-none focus:border-azul"
+            />
+          )}
 
           <div className="flex flex-col gap-2">
             {grupos.map((g) => {
               const subtotal = g.cobradores.reduce((s, c) => s + parsed(c.id), 0);
+              const visibles = g.cobradores.filter(visible);
+              if (visibles.length === 0) return null;
               return (
                 <details key={g.clave} open className="group rounded-[12px] border border-linea">
                   <summary className="flex cursor-pointer list-none items-center gap-2 rounded-[12px] bg-suave px-3 py-2 select-none">
@@ -237,8 +312,9 @@ export function BaseCajaManager({
                     </div>
                   </summary>
                   <ul className="flex flex-col divide-y divide-linea px-3">
-                    {g.cobradores.map((c) => {
-                      const cambiado = parsed(c.id) !== c.base;
+                    {visibles.map((c) => {
+                      const cambiado =
+                        !c.yaRindio && (parsed(c.id) !== c.base || (ceros.has(c.id) && c.origen === "sin_base"));
                       return (
                         <li key={c.id} className="flex items-center gap-2 py-2.5">
                           <div className="flex min-w-0 flex-1 flex-col">
@@ -270,12 +346,41 @@ export function BaseCajaManager({
                               <span className="text-[10px] font-medium text-tenue">arranca sin base</span>
                             )}
                           </div>
+
+                          {/* ⚠️ YA RINDIÓ: la base quedó SELLADA con su rendición y el
+                              servidor rechaza el cambio. Antes se descubría recién al
+                              guardar. Se congela acá y se dice por qué — porque
+                              bajarle la base a alguien después de contarle la plata es
+                              justamente cómo se le fabrica un faltante. */}
+                          {c.yaRindio ? (
+                            <span className="flex flex-shrink-0 items-center gap-2">
+                              <span className="text-[13px] font-bold text-tinta tabular-nums">{UYU(c.base)}</span>
+                              <span className="rounded-full bg-suave px-2 py-1 text-[10px] font-bold text-gris">
+                                🔒 ya rindió
+                              </span>
+                            </span>
+                          ) : (
+                            <></>
+                          )}
                           {cambiado && (
                             <span aria-hidden className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#E8A317]" title="Sin guardar" />
                           )}
+                          {/* "Sale sin base": un $0 CON DUEÑO. Un campo vacío y un cero
+                              declarado se ven igual y no son lo mismo — uno es "nadie
+                              la cargó" y el otro es una decisión. */}
+                          {!c.yaRindio && parsed(c.id) <= 0 && !ceros.has(c.id) && (
+                            <button
+                              type="button"
+                              onClick={() => declararCero(c.id)}
+                              className="flex-shrink-0 rounded-full border border-borde px-2 py-1 text-[10.5px] font-bold text-gris"
+                              title="Dejar constancia de que hoy arranca sin efectivo"
+                            >
+                              sin base
+                            </button>
+                          )}
                           {/* Copiar SU base de ayer, sin tocar las de los demás:
                               casi siempre es la misma y así no hay que tipearla. */}
-                          {(c.baseAyer ?? 0) > 0 && parsed(c.id) !== c.baseAyer && (
+                          {!c.yaRindio && (c.baseAyer ?? 0) > 0 && parsed(c.id) !== c.baseAyer && (
                             <button
                               type="button"
                               onClick={() => {
@@ -288,19 +393,21 @@ export function BaseCajaManager({
                               = ayer
                             </button>
                           )}
-                          <input
-                            data-base
-                            inputMode="numeric"
-                            value={vals[c.id] ?? ""}
-                            onChange={(e) => {
-                              setMsg(null);
-                              setVals((v) => ({ ...v, [c.id]: e.target.value.replace(/[^\d]/g, "") }));
-                            }}
-                            onFocus={(e) => e.currentTarget.select()}
-                            onKeyDown={saltarAlSiguiente}
-                            placeholder="0"
-                            className="w-28 rounded-[9px] border border-borde px-2.5 py-1.5 text-right text-[16px] tabular-nums outline-none focus:border-azul"
-                          />
+                          {!c.yaRindio && (
+                            <input
+                              data-base
+                              inputMode="numeric"
+                              value={vals[c.id] ?? ""}
+                              onChange={(e) => {
+                                setMsg(null);
+                                setVals((v) => ({ ...v, [c.id]: e.target.value.replace(/[^\d]/g, "") }));
+                              }}
+                              onFocus={(e) => e.currentTarget.select()}
+                              onKeyDown={saltarAlSiguiente}
+                              placeholder="0"
+                              className="w-28 rounded-[9px] border border-borde px-2.5 py-1.5 text-right text-[16px] tabular-nums outline-none focus:border-azul"
+                            />
+                          )}
                         </li>
                       );
                     })}

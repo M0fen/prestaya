@@ -255,6 +255,10 @@ export default async function JornadaPage({
         origen: b?.origen ?? "sin_base",
         desdeFecha: b?.desdeFecha,
         detalleAyer: b?.detalle,
+        // Ya cerró → base sellada: la fila se congela en vez de rebotar al guardar.
+        yaRindio: cierre.consolidado.zonas.some((z) =>
+          z.cobradores.some((c) => c.cobradorId === (u.id as string) && c.estado !== "pendiente"),
+        ),
       };
     });
   }

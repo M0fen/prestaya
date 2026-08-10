@@ -115,6 +115,9 @@ export default async function DashboardPage({
     ]);
     const zonaN: Record<string, string> = {};
     for (const z of zonasRes.data ?? []) zonaN[z.id as string] = z.nombre as string;
+    // Quién YA rindió: su base quedó sellada con la rendición y el servidor rechaza
+    // el cambio. Se sabe ACÁ para congelar la fila, en vez de descubrirlo al guardar.
+    const rindieron = new Set(rend.rendidas.map((r) => r.cobradorId));
     basesPendientes = (cobsRes.data ?? []).map((u) => {
       const b = bases.get(u.id as string);
       return {
@@ -127,6 +130,7 @@ export default async function DashboardPage({
         origen: b?.origen ?? "sin_base",
         desdeFecha: b?.desdeFecha,
         detalleAyer: b?.detalle,
+        yaRindio: rindieron.has(u.id as string),
       };
     });
   } catch (e) {

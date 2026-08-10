@@ -103,8 +103,29 @@ export async function setAperturasLote(input: {
     .in("cobrador_id", items.map((x) => x.cobradorId));
   const sellados = new Set((rendidos ?? []).map((r) => r.cobrador_id as string));
 
+  // ⚠️ VALOR ANTERIOR de cada uno, ANTES de pisarlo. La auditoría del lote decía
+  // "Fijó las bases de caja del día · 1 cobrador · total $10.000" y nada más: no
+  // decía a QUIÉN ni DE CUÁNTO A CUÁNTO. Un rastro que no dice de qué a qué no
+  // sirve para auditar — y bajarle la base a alguien antes de que confirme el
+  // cierre es justamente la forma de taparle un faltante. Es la acción que el
+  // dueño hace todos los días y era la que peor traza dejaba.
+  const { data: previas } = await db
+    .from("aperturas_caja")
+    .select("cobrador_id, monto")
+    .eq("fecha", hoy)
+    .in("cobrador_id", items.map((x) => x.cobradorId));
+  const antesDe = new Map(
+    (previas ?? []).map((p) => [p.cobrador_id as string, Math.round(Number(p.monto) || 0)]),
+  );
+  const { data: nombres } = await db
+    .from("usuarios")
+    .select("id, nombre")
+    .in("id", items.map((x) => x.cobradorId));
+  const nombreDe = new Map((nombres ?? []).map((n) => [n.id as string, n.nombre as string]));
+
   let guardadas = 0;
   let total = 0;
+  const detalles: string[] = [];
   const rechazadas: { cobradorId: string; error: string }[] = [];
   for (const it of items) {
     if (sellados.has(it.cobradorId)) {
@@ -116,6 +137,13 @@ export async function setAperturasLote(input: {
       await setAperturaDb(db, { cobradorId: it.cobradorId, base, entregadaPor: u.id, nota: null });
       guardadas += 1;
       total += base;
+      const antes = antesDe.get(it.cobradorId);
+      const quien = nombreDe.get(it.cobradorId) ?? "cobrador";
+      detalles.push(
+        antes == null || antes === base
+          ? `${quien} ${UYU(base)}`
+          : `${quien} ${UYU(antes)}→${UYU(base)}`,
+      );
     } catch {
       rechazadas.push({ cobradorId: it.cobradorId, error: "No se pudo guardar." });
     }
@@ -127,7 +155,9 @@ export async function setAperturasLote(input: {
       accion: "Fijó las bases de caja del día",
       entidad: "caja",
       entidadId: u.id,
-      detalle: `${guardadas} cobrador${guardadas === 1 ? "" : "es"} · total ${UYU(total)}`,
+      // Quién y de cuánto a cuánto, uno por uno. Se recorta a 400 para no reventar
+      // la fila con 47 nombres: lo que se pierde es la cola, no las correcciones.
+      detalle: `${guardadas} cobrador${guardadas === 1 ? "" : "es"} · total ${UYU(total)} · ${detalles.join(", ")}`.slice(0, 400),
     });
     revalidatePath("/admin/jornada");
     revalidatePath("/admin");
