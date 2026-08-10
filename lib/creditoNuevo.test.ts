@@ -14,8 +14,24 @@ describe("interesDeBase", () => {
     expect(interesDeBase(BASE)).toBe(20); // 500×24 = 12.000 sobre 10.000
   });
 
-  it("reconoce el 0% de la cartera VIP/refinanciada", () => {
-    expect(interesDeBase({ monto: 12_000, cuota: 500, totalDias: 24 })).toBe(0);
+  // ⚠️ CAMBIÓ LA REGLA (10-08, decisión de Carlos): una tasa de 0% NO es "cartera
+  // VIP", es un dato roto. Medido ese día: 192 créditos activos así ($72.113.554) y
+  // 24 en NEGATIVO, todos heredados de Disapp — y cruzando contra el export se
+  // confirmó que en esas filas `monto_prestado` guarda el TOTAL a pagar, no el
+  // capital, por eso cuota×días da exactamente el monto. Devolver 0 hacía que la app
+  // ofreciera un crédito que devuelve MENOS de lo que presta: a JOSE RODRÍGUEZ,
+  // $5.000 en 24 cuotas → "paga en total $4.992".
+  it("una tasa de 0% NO se toma como tasa: es un dato roto", () => {
+    expect(interesDeBase({ monto: 12_000, cuota: 500, totalDias: 24 })).toBeNull();
+  });
+
+  it("una tasa NEGATIVA tampoco (el crédito perdería capital)", () => {
+    expect(interesDeBase({ monto: 28_050, cuota: 1_000, totalDias: 28 })).toBeNull();
+  });
+
+  it("las tasas REALES bajas se respetan: el piso solo actúa donde se perdía plata", () => {
+    // Forzar 20% acá sería cobrarle de más a media cartera (el error del 06-08).
+    expect(interesDeBase({ monto: 10_000, cuota: 343, totalDias: 30 })).toBe(2.9);
   });
 
   it("devuelve null sin base utilizable (no inventa una tasa)", () => {
@@ -45,9 +61,12 @@ describe("calcularCuotaCreditoNuevo — CON historial", () => {
     expect(conOtraBasura).toBe(500);
   });
 
-  it("mantiene el 0% de un cliente de cartera VIP", () => {
-    const vip = { monto: 12_000, cuota: 500, totalDias: 24 };
-    expect(calcularCuotaCreditoNuevo(vip, 24_000, 24, 20)).toBe(1_000); // sin interés
+  it("con base al 0% NO arrastra el 0%: usa el interés del negocio", () => {
+    // Antes daba cuota 1.000 → 24.000 sobre 24.000 prestados: cero ganancia.
+    const roto = { monto: 12_000, cuota: 500, totalDias: 24 };
+    const cuota = calcularCuotaCreditoNuevo(roto, 24_000, 24, 20);
+    expect(cuota).toBe(1_200); // 28.800 / 24 = 20%
+    expect(cuota * 24).toBeGreaterThan(24_000);
   });
 });
 

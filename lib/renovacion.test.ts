@@ -300,7 +300,8 @@ describe("el +20% junto con la cuota (lo que el cliente termina pagando)", () =>
   // estos tests se ponen en rojo: sería cobrarle de más a media cartera.
   describe("conserva la tasa REAL de cada crédito al renovar", () => {
     const CASOS = [
-      { interesPct: 0, nombre: "sin interés" },
+      // El 0% salió de esta lista el 10-08: dejó de ser una tasa que se hereda
+      // (ver el test dedicado más abajo). Las demás se siguen respetando tal cual.
       { interesPct: 3, nombre: "3%" },
       { interesPct: 3.5, nombre: "3,5%" },
       { interesPct: 10, nombre: "10%" },
@@ -326,24 +327,32 @@ describe("el +20% junto con la cuota (lo que el cliente termina pagando)", () =>
       });
     }
 
-    it("el 0% sigue en 0% al repetir el crédito", () => {
-      // Prestó 10.000 y devuelve 10.000 (cuota 500 × 20). Al renovarse igual,
-      // vuelve a devolver 10.000: la tasa es suya y no se le inventa un interés.
-      const sinInteres = { monto: 10000, cuota: 500, totalDias: 20 };
-      const nuevo = montoRenovacionSugerido(sinInteres.monto);
-      const cuota = calcularCuotaRenovacion(sinInteres, nuevo, 20);
-      expect(cuota).toBe(500);
-      expect(cuota * 20).toBe(10000);
+    // ⚠️ CAMBIÓ LA REGLA (10-08). Antes esto afirmaba "el 0% sigue en 0%: la tasa
+    // es suya y no se le inventa un interés". Se vio en la calle que eso hacía que
+    // el crédito nuevo devolviera lo mismo que se entregaba —cero ganancia— y en
+    // los casos con cuota fraccionaria, MENOS (JOSE RODRÍGUEZ: $5.000 → $4.992).
+    // Cruzando contra el export de Disapp se confirmó por qué: en esas 192 filas
+    // `monto_prestado` guarda el TOTAL a pagar, no el capital, así que cuota×días
+    // da exactamente el monto. No es una tasa del cliente: es un dato roto.
+    it("una tasa de 0% NO se hereda: el crédito nuevo sale al 20%", () => {
+      const roto = { monto: 10000, cuota: 500, totalDias: 20 }; // 10.000 sobre 10.000
+      const nuevo = montoRenovacionSugerido(roto.monto);
+      const cuota = calcularCuotaRenovacion(roto, nuevo, 20);
+      expect(cuota).toBe(600); // 12.000 / 20
+      expect(cuota * 20).toBeGreaterThan(10000);
     });
   });
 
   it("con cuota heredada FRACCIONARIA la cuota nueva sale entera", () => {
-    // Caso real de Disapp: 8.425 en 24 cuotas de 351,04 (tasa 1,0000…).
+    // Caso real de Disapp: 8.425 en 24 cuotas de 351,04 → tasa 1,0000… o sea 0%,
+    // que desde el 10-08 no se hereda (ver arriba). Lo que se prueba acá sigue
+    // siendo lo importante: la cuota que se guarda es SIEMPRE entera.
     const heredado = { monto: 8425, cuota: 8425 / 24, totalDias: 24 };
     const nuevo = montoRenovacionSugerido(heredado.monto); // el mismo: 8.425
     const cuota = calcularCuotaRenovacion(heredado, nuevo, 24);
     expect(Number.isInteger(cuota)).toBe(true);
-    expect(cuota).toBe(351); // 8.425 / 24 = 351,04 → 351
+    expect(cuota).toBe(421); // 8.425 × 1,20 / 24 = 421,25 → 421
+    expect(cuota * 24).toBeGreaterThan(8425);
   });
 });
 
@@ -396,8 +405,10 @@ describe("renovar por un monto DISTINTO: qué se aprueba solo, qué va a la ofic
     // media cartera.
     const alTresPct = { monto: 100_000, cuota: 5_150, totalDias: 20 }; // 103.000/20
     expect(calcularCuotaRenovacion(alTresPct, 100_000, 20)).toBe(5_150);
-    const alCero = { monto: 10_000, cuota: 500, totalDias: 20 }; // sin interés
-    expect(calcularCuotaRenovacion(alCero, 10_000, 20)).toBe(500);
+    // El 0% es la ÚNICA excepción (10-08): no es una tasa, es un dato roto, y
+    // heredarlo creaba créditos que no ganan nada o que pierden capital.
+    const alCero = { monto: 10_000, cuota: 500, totalDias: 20 };
+    expect(calcularCuotaRenovacion(alCero, 10_000, 20)).toBe(600);
   });
 });
 

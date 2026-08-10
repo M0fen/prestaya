@@ -32,6 +32,7 @@ import {
   interesDeBase,
   INTERES_DEFECTO_PCT,
 } from "@/lib/creditoNuevo";
+import { interesEfectivo, cuotasQueDanJusto } from "@/lib/renovacion";
 
 interface Candidato {
   clienteId: string;
@@ -544,6 +545,15 @@ function Tarjeta({
                 <Dato k="Cuotas" v={`${c.totalDias} ${etiquetaFrec(c.frecuencia)}`} />
                 <Dato k="Paga en total" v={UYU((c.cuotaNueva ?? c.cuota) * c.totalDias)} />
               </div>
+              {/* ⚠️ EL INTERÉS, SIEMPRE A LA VISTA. Sin este número nadie podía notar
+                  que un crédito estaba naciendo al 0% —o peor, en negativo— con la
+                  tasa heredada de Disapp: 192 créditos activos por $72.113.554 están
+                  en 0%, y renovarlos arrastraba ese 0% al crédito nuevo. */}
+              <Interes
+                monto={sugeridoRenov}
+                cuota={c.cuotaNueva ?? c.cuota}
+                dias={c.totalDias}
+              />
               <span className="text-[11.5px] leading-[1.4] font-semibold text-gris">
                 Empieza a pagar {primerCobro}. Hoy recibe la plata, mañana arranca.
               </span>
@@ -602,6 +612,9 @@ function Tarjeta({
                     <Dato k="Cuotas" v={`${cuotasN} ${etiquetaFrec(c.frecuencia)}`} />
                     <Dato k="Paga en total" v={UYU(cuotaVenta * cuotasN)} />
                   </div>
+                  {/* El interés REAL del crédito que se está por crear, con el
+                      redondeo de la cuota ya adentro. Es el número que importa. */}
+                  <Interes monto={montoN} cuota={cuotaVenta} dias={cuotasN} sugerirCuotas />
                   <span className="text-[11.5px] leading-[1.4] font-semibold text-gris">
                     Empieza a pagar {primerCobro}. Hoy recibe la plata, mañana arranca.
                   </span>
@@ -689,6 +702,62 @@ function Tarjeta({
             </button>
           </div>
         </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * EL INTERÉS DEL CRÉDITO, siempre visible. Tres estados y tres colores, porque son
+ * tres cosas distintas para el bolsillo del negocio:
+ *  · ROJO   → el crédito devuelve MENOS de lo que se presta. No puede salir así.
+ *  · ÁMBAR  → quedó por debajo del 20% del negocio (o el redondeo lo corrió).
+ *  · VERDE  → está en el 20% (o arriba).
+ * Cuando el redondeo de la cuota deja el total corrido, se ofrece la cantidad de
+ * cuotas más cercana que da JUSTO — que es la salida real al problema de los $2.
+ */
+function Interes({
+  monto,
+  cuota,
+  dias,
+  sugerirCuotas = false,
+}: {
+  monto: number;
+  cuota: number;
+  dias: number;
+  sugerirCuotas?: boolean;
+}) {
+  if (!(monto > 0) || !(cuota > 0) || !(dias > 0)) return null;
+  const pct = interesEfectivo(monto, cuota, dias);
+  const total = cuota * dias;
+  const objetivo = Math.round(monto * (1 + INTERES_DEFECTO_PCT / 100));
+  const dif = total - objetivo;
+  const justo = sugerirCuotas && dif !== 0 ? cuotasQueDanJusto(monto, INTERES_DEFECTO_PCT, dias) : null;
+  const tono =
+    pct <= 0
+      ? { bg: "#FBE4E2", fg: "#C0392B" }
+      : pct < INTERES_DEFECTO_PCT - 0.05
+        ? { bg: "#FDF3E2", fg: "#B9770E" }
+        : { bg: "#E4F5EC", fg: "#157A50" };
+  return (
+    <div
+      className="flex flex-col gap-1 rounded-[11px] px-3 py-2"
+      style={{ background: tono.bg }}
+    >
+      <span className="text-[12px] font-extrabold tabular-nums" style={{ color: tono.fg }}>
+        {pct <= 0 ? "⛔ " : ""}Interés {pct.toFixed(1).replace(".", ",")}%
+        <span className="font-semibold"> · gana {UYU(total - monto)}</span>
+      </span>
+      {pct <= 0 && (
+        <span className="text-[11.5px] leading-[1.4] font-bold" style={{ color: tono.fg }}>
+          Este crédito devuelve menos de lo que entregás. Avisá a la oficina antes de darlo.
+        </span>
+      )}
+      {justo && (
+        <span className="text-[11px] leading-[1.4] font-semibold" style={{ color: tono.fg }}>
+          Con <strong>{justo} cuotas</strong> queda justo en {INTERES_DEFECTO_PCT}% ({UYU(objetivo)}).
+          Así como está{dif < 0 ? ` se pierden ${UYU(-dif)}` : ` cobra ${UYU(dif)} de más`}.
+        </span>
       )}
     </div>
   );

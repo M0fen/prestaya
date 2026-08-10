@@ -27,9 +27,40 @@ export function tasaImplicita(anterior: TerminosAnterior): number {
 }
 
 /**
+ * ⚠️ PISO DE LA TASA. Un crédito no puede devolver MENOS de lo que prestó.
+ *
+ * Medido el 10-08 sobre la cartera viva: hay 192 créditos activos con tasa 0%
+ * ($72.113.554 de capital) y 24 con tasa NEGATIVA — casi todos heredados de Disapp,
+ * donde `cuota × días` da exactamente el capital. JOSE RODRÍGUEZ tiene SEIS
+ * seguidos así: $18.000 con cuota $600 × 30 = $18.000, 0%.
+ *
+ * Como la renovación ARRASTRA la tasa del crédito anterior, esa cartera se
+ * reproducía sola: al ofrecerle un crédito nuevo de $5.000 en 24 cuotas, la app
+ * calculaba cuota $208 y "Paga en total $4.992" — un crédito que devuelve MENOS de
+ * lo que se entregó. El negocio perdía capital en cada renovación de esos clientes.
+ *
+ * La regla de Carlos: el 20% se PRESERVA. Una tasa heredada de 0% o negativa no es
+ * "la tasa del cliente", es un dato roto: se cae al interés del negocio. Las tasas
+ * REALES distintas del 20% que conviven en la cartera (3%, 3,5%, 10-19%) son > 0 y
+ * se respetan tal cual — el piso solo actúa donde el crédito perdía plata.
+ */
+export function factorConPiso(anterior: TerminosAnterior): number {
+  const f = tasaImplicita(anterior);
+  return f > 1 ? f : 1 + RENOVACION_AUMENTO_PCT / 100;
+}
+
+/**
  * Cuota diaria del nuevo crédito, arrastrando la tasa del anterior:
  *   cuota = round( monto × tasa / días ).
  * Devuelve 0 si algún término es inválido (el llamador valida > 0).
+ *
+ * ⚠️ El redondeo a peso entero hace que `cuota × días` no siempre dé el total
+ * exacto: $7.000 al 20% son $8.400, pero en 17 cuotas la cuota exacta es 494,12 y
+ * 494 × 17 = $8.398 (se pierden $2). Con una cuota diaria FIJA y entera —que es lo
+ * que el cobrador cobra en la mano— no se puede tener a la vez el total exacto y
+ * cualquier cantidad de cuotas: hay que elegir. Por eso la pantalla muestra SIEMPRE
+ * el total real y el % real (`interesEfectivo`), y avisa cuándo un número de cuotas
+ * cercano da justo. Medido: solo 2 créditos vivos tienen esa diferencia, de $2.
  */
 export function calcularCuotaRenovacion(
   anterior: TerminosAnterior,
@@ -37,8 +68,34 @@ export function calcularCuotaRenovacion(
   diasNuevo: number,
 ): number {
   if (!(montoNuevo > 0) || !(diasNuevo > 0)) return 0;
-  const factor = tasaImplicita(anterior);
-  return Math.round((montoNuevo * factor) / diasNuevo);
+  return Math.round((montoNuevo * factorConPiso(anterior)) / diasNuevo);
+}
+
+/**
+ * El interés REAL que va a quedar guardado, ya con el redondeo de la cuota adentro:
+ *   (cuota × días / capital − 1) × 100
+ * Es el número que hay que MOSTRAR, no el nominal: si se pide 20% y la cuota
+ * redondeada da 19,97%, el que aprueba tiene que ver 19,97%. Una décima. Puro.
+ */
+export function interesEfectivo(monto: number, cuota: number, dias: number): number {
+  if (!(monto > 0) || !(cuota > 0) || !(dias > 0)) return 0;
+  return Math.round(((cuota * dias) / monto - 1) * 1000) / 10;
+}
+
+/**
+ * La cantidad de cuotas MÁS CERCANA a la pedida que da el total exacto (sin perder
+ * ni cobrar de más). `null` si no hay ninguna en ±6. Es lo que convierte el aviso
+ * "te quedó en 19,97%" en algo accionable: "con 20 cuotas queda justo".
+ */
+export function cuotasQueDanJusto(monto: number, interesPct: number, dias: number): number | null {
+  if (!(monto > 0) || !(dias > 0)) return null;
+  const total = Math.round(monto * (1 + Math.max(0, interesPct) / 100));
+  for (let d = 1; d <= 6; d++) {
+    for (const cand of [dias - d, dias + d]) {
+      if (cand >= 1 && cand <= 366 && total % cand === 0) return cand;
+    }
+  }
+  return null;
 }
 
 // ── Tope de AUMENTO por tramo + CAP total (money-critical) ─────────────────
