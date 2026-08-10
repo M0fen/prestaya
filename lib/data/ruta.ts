@@ -20,6 +20,12 @@ export interface ItemRuta {
    *  de un toque desde la lista NO se habilita: hay que elegir a cuál se imputa y
    *  adivinarlo es plata mal puesta (477 clientes tienen 2 o más). */
   creditosPropios: number;
+  /** La `cuota_diaria` del crédito, tal cual está guardada. ⚠️ NO es lo mismo que
+   *  `cuota` (que es el OBJETIVO de hoy: lo que falta para estar al día, tope una
+   *  cuota). Cuando difieren, el cobro de un toque NO puede ofrecerse: el atajo
+   *  manda `monto: null` y el servidor cobra la cuota_diaria ENTERA, así que el
+   *  botón prometería $400 y el libro registraría $4.000. */
+  cuotaCredito: number;
   /** Lo COBRABLE hoy: cuota que vence + atraso arrastrado (tope una cuota). */
   cuota: number;
   /** De `cuota`, cuánto es ATRASO de días anteriores (no cuota de hoy). >0 con
@@ -461,7 +467,7 @@ export async function getRutaCobrador(
       // suyo: se saca de la ruta. Si no tiene con nadie, queda como candidato a
       // venta nueva (al final, con "sin crédito"), que es información útil.
       if (conCreditoAjeno.has(c.id)) return [];
-      return [{ cliente: c, prestamoId: null, creditosPropios: 0, cuota: 0, atraso: 0, estadoHoy: "sin_credito" as const, pagadoHoy: 0, orden: ordenDe.get(c.id) ?? null, sinCuotaHoy: false, plazoVencido: false, recuperadoHoy: 0 }];
+      return [{ cliente: c, prestamoId: null, creditosPropios: 0, cuotaCredito: 0, cuota: 0, atraso: 0, estadoHoy: "sin_credito" as const, pagadoHoy: 0, orden: ordenDe.get(c.id) ?? null, sinCuotaHoy: false, plazoVencido: false, recuperadoHoy: 0 }];
     }
     // No-pago si alguno de sus créditos quedó marcado como visita sin cobro.
     const esNoPago = cr.creditos.some((x) => noPagoPrestamos.has(x.id));
@@ -530,6 +536,7 @@ export async function getRutaCobrador(
       cliente: c,
       prestamoId: cr.principalId,
       creditosPropios: cr.creditos.length,
+      cuotaCredito: Math.round(cr.creditos[0]?.cuotaDiaria ?? 0),
       // Lo que la TARJETA le pide: la cuota de hoy + el atraso arrastrado. La meta
       // del día (`esperado`) usa solo la cuota; acá va todo lo cobrable, porque
       // mostrarle $0 a un semanal que debe sería esconder la deuda.

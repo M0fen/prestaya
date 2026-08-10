@@ -115,6 +115,7 @@ export default async function RutaPage() {
     // cuántos propios tiene (con más de uno el atajo no aparece).
     prestamoId: i.prestamoId,
     creditosPropios: i.creditosPropios,
+    cuotaCredito: i.cuotaCredito,
   }));
 
   // Avance de la ruta: clientes "resueltos" hoy (cobrados + no-pago) sobre el

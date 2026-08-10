@@ -27,7 +27,13 @@
 //  cobrar, hay un atajo a la misma.
 // ─────────────────────────────────────────────────────────────────────────
 import { useEffect, useRef, useState } from "react";
-import { configurarUsuario, encolar, parchearGps, quitar } from "@/lib/cobrador/colaOffline";
+import {
+  configurarUsuario,
+  encolar,
+  parchearGps,
+  pendientes,
+  quitar,
+} from "@/lib/cobrador/colaOffline";
 import { UYU } from "@/lib/format";
 
 /** Ventana en la que el cobro queda retenido antes de sincronizar: habilita
@@ -67,7 +73,31 @@ export function CobroRapido({
   cuota: number;
 }) {
   const [confirmar, setConfirmar] = useState(false);
-  const [cobrado, setCobrado] = useState<{ opId: string; hasta: number } | null>(null);
+  // ⚠️ EL CANDADO ARRANCA MIRANDO LA COLA, NO EN CERO.
+  //
+  // Sin señal —que es el caso para el que existe toda la cola— el cobrador cobra
+  // desde la lista, toca otra ficha para mirar algo, y vuelve. La pantalla se sirve
+  // del caché del Service Worker: el pago está en la cola local, NO en `pagos`, así
+  // que la fila sigue diciendo "Pendiente · Cobrar $750" y este componente se
+  // re-montaba con el candado en blanco. Media hora después, filtrando por
+  // "Pendientes", lo cobraba de nuevo — y con 30 minutos entre toque y toque, el
+  // candado del servidor (ventana de 10 min) tampoco los reconoce como el mismo.
+  //
+  // Es exactamente el patrón que el piloto ya pagó dos veces (protección solo en
+  // useState, 08-04). La ficha lo tiene resuelto así desde entonces; el atajo nació
+  // sin eso. El estado inicial se deriva de la cola, que sobrevive al remonte.
+  const [cobrado, setCobrado] = useState<{ opId: string; hasta: number } | null>(() => {
+    try {
+      const ya = pendientes().find(
+        (o) => o.tipo === "pago" && o.clienteId === clienteId && (o.prestamoId ?? null) === prestamoId,
+      );
+      // `hasta: 0` = ya no se puede deshacer desde acá: la op puede haber pasado el
+      // hold o estar por subir, y "Deshacer" borraría un cobro que quizá ya salió.
+      return ya ? { opId: ya.id, hasta: 0 } : null;
+    } catch {
+      return null;
+    }
+  });
   const armado = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bloqueado = useRef(false);
 
@@ -90,6 +120,15 @@ export function CobroRapido({
     bloqueado.current = true;
     setConfirmar(false);
     configurarUsuario(cobradorId);
+    // Última verificación contra la cola, ya con el usuario configurado: entre el
+    // render y el toque pudo entrar un cobro por el otro camino (la ficha).
+    const yaEnCola = pendientes().find(
+      (o) => o.tipo === "pago" && o.clienteId === clienteId && (o.prestamoId ?? null) === prestamoId,
+    );
+    if (yaEnCola) {
+      setCobrado({ opId: yaEnCola.id, hasta: 0 });
+      return;
+    }
     const op = encolar(
       {
         tipo: "pago",

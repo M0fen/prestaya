@@ -48,6 +48,9 @@ export interface ItemRutaVista {
   /** Cuántos créditos activos PROPIOS tiene. Con más de uno, el cobro de un toque
    *  no aparece: elegir a cuál se imputa es una decisión, no un atajo. */
   creditosPropios?: number;
+  /** La cuota_diaria del crédito. Si difiere de `cuota` (el objetivo de hoy), el
+   *  atajo no se ofrece: el botón diría un número y el libro registraría otro. */
+  cuotaCredito?: number;
   /** De `cuota`, cuánto es ATRASO de días anteriores. Si `atraso === cuota`, hoy
    *  no le vence nada pero debe: se muestra "Atrasado", no como cuota del día. */
   atraso?: number;
@@ -638,7 +641,20 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
               it.estadoHoy === "pendiente" &&
               !it.sinCuotaHoy &&
               !it.plazoVencido &&
-              it.cuota > 0 && (
+              it.cuota > 0 &&
+              // ⚠️ SOLO SI LO QUE SE DEBE HOY ES UNA CUOTA ENTERA.
+              // El atajo manda `monto: null` y el servidor cobra la `cuota_diaria`
+              // completa. Cuando el cliente ya abonó parte (o es un semanal con un
+              // resto), `it.cuota` es el OBJETIVO de hoy —lo que falta para estar al
+              // día— y NO coincide: el botón decía "Cobrar $400" y el libro
+              // registraba $4.000. Medido: 8 créditos hoy, hasta 10× de diferencia.
+              //
+              // No se arregla mandando el monto: si el atajo manda un número y la
+              // ficha sigue mandando null, el candado anti doble-cobro del servidor
+              // (que compara montos) deja de reconocerlos como el mismo cobro y se
+              // abre el doble cobro entre los dos caminos. Se esconde el atajo y ese
+              // resto se cobra desde la ficha, que ya tiene "Para ponerse al día".
+              Math.abs(it.cuota - (it.cuotaCredito ?? it.cuota)) < 1 && (
                 <CobroRapido
                   clienteId={it.id}
                   clienteNombre={it.nombre}
