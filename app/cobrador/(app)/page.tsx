@@ -9,7 +9,8 @@ import { getBannerCobradorActivo } from "@/lib/data/bannerCobrador";
 import { BannerEquipo } from "@/components/cobrador/BannerEquipo";
 import { getEstadoJornada, getDeudaRendicionAyer } from "@/lib/data/rendicion";
 import { getSolicitudesGastoCobrador } from "@/lib/data/solicitudesGasto";
-import { getAprobadasPendientes, getPendientesMias } from "@/lib/data/solicitudesRenovacion";
+import { getMisPedidos } from "@/lib/data/misPedidos";
+import { MisPedidos } from "@/components/cobrador/MisPedidos";
 import { getUsuarioActual } from "@/lib/auth";
 import { conTimeout } from "@/lib/timeout";
 import { hoyUY } from "@/lib/fecha";
@@ -46,7 +47,7 @@ export default async function RutaPage() {
   );
   // El nombre de la zona se resuelve con el cliente ADMIN: la tabla `zonas` está
   // bloqueada por RLS para el cobrador (0 filas), y esto es solo una etiqueta.
-  const [jornada, solicitudesGasto, zonaNombre, deudaAyer, aprobadas, esperando] = await conTimeout(
+  const [jornada, solicitudesGasto, zonaNombre, deudaAyer, misPedidos] = await conTimeout(
     Promise.all([
       usuario ? getEstadoJornada(db, usuario.id) : Promise.resolve(null),
       usuario ? getSolicitudesGastoCobrador(db, usuario.id) : Promise.resolve(null),
@@ -61,13 +62,11 @@ export default async function RutaPage() {
       // ¿Ayer cobró y NO rindió? La plata sigue en su bolsillo sin sello: el banner
       // se lo recuerda apenas abre la app (espejo humano de la invariante del cron).
       usuario ? getDeudaRendicionAyer(db, usuario.id) : Promise.resolve(null),
-      // Renovaciones que la oficina le APROBÓ: sin esto el circuito quedaba mudo
-      // justo del lado que importa, y el capital ya se le descontaba de la caja.
-      usuario ? getAprobadasPendientes(usuario.id) : Promise.resolve([]),
-      // Y lo que PIDIÓ y todavía no le contestaron: sin esto solo puede esperar a
-      // ciegas o volver a colocar — que es exactamente lo que duplicó el crédito
-      // de JORGE el 08-09.
-      usuario ? getPendientesMias(usuario.id) : Promise.resolve([]),
+      // TODO lo que pidió (renovaciones, gastos, correcciones) con su estado, su
+      // antigüedad y qué hacer con cada uno. Los tres circuitos eran mudos del lado
+      // del que pide: así nació el crédito duplicado de JORGE, y así quedaron tres
+      // pedidos de $48.000 esperando por créditos que ya estaban colocados.
+      usuario ? getMisPedidos(usuario.id) : Promise.resolve([]),
     ]),
     TOPE_MS,
     "cobrador.jornada",
@@ -273,6 +272,13 @@ export default async function RutaPage() {
         </section>
       )}
 
+      {/* ⚠️ TUS PEDIDOS, arriba de la ruta y pegado a la caja, porque son PLATA: una
+          renovación aprobada ya se le descontó del efectivo que lleva encima, y si
+          no la entrega el cierre le cuadra igual mientras el cliente empieza a pagar
+          un crédito que nunca recibió. Los tres circuitos (renovación, gasto,
+          corrección) eran mudos del lado del que pide. */}
+      <MisPedidos pedidos={misPedidos} />
+
       {/* Campaña de ALTAS: aparece solo mientras queden clientes sin su cartón,
           y desaparece sola cuando están todos entregados. */}
       {sinAlta > 0 && (
@@ -330,61 +336,6 @@ export default async function RutaPage() {
       {/* AYER cobró y NO rindió: la plata de esa jornada sigue en su bolsillo sin
           sello de entrega. Se le recuerda apenas abre la app (la rendición de un día
           pasado ya no se puede crear acá → la entrega es en mano, con el supervisor). */}
-      {/* ⚠️ La oficina APROBÓ una renovación: el crédito YA existe a su nombre y el
-          capital ya se le descontó de la caja. Si no se lo decimos, se queda con la
-          plata sin saberlo y el cierre igual le cuadra. */}
-      {aprobadas.length > 0 && (
-        <section className="flex flex-col gap-2 rounded-[16px] border border-[#BEEBD5] bg-[#F0FBF5] p-4">
-          <span className="text-[13.5px] font-extrabold text-[#157A50]">
-            ✅ La oficina aprobó {aprobadas.length === 1 ? "una renovación" : `${aprobadas.length} renovaciones`}
-          </span>
-          {aprobadas.map((a) => (
-            <Link
-              key={a.id}
-              href={`/cobrador/cliente/${a.clienteId}`}
-              className="flex items-center justify-between gap-2 rounded-[12px] bg-white px-3 py-2.5 active:scale-[0.99]"
-            >
-              <span className="truncate text-[13px] font-bold text-tinta">{a.clienteNombre}</span>
-              <span className="flex-shrink-0 text-[14px] font-black tabular-nums text-[#157A50]">
-                entregale {UYU(a.monto)}
-              </span>
-            </Link>
-          ))}
-          <span className="text-[11.5px] leading-[1.45] font-medium text-[#157A50]">
-            Ese capital ya está descontado de tu caja del día: si no se lo entregaste
-            todavía, hacelo — el crédito ya está corriendo.
-          </span>
-        </section>
-      )}
-
-      {/* Pedidos que la oficina TODAVÍA no resolvió. Se dice el estado real y qué
-          hacer mientras tanto, porque la salida existe: renovar por el mismo monto
-          va solo y no necesita permiso de nadie. */}
-      {esperando.length > 0 && (
-        <section className="flex flex-col gap-2 rounded-[16px] border border-[#DCE6FB] bg-white p-4">
-          <span className="text-[13.5px] font-extrabold text-tinta">
-            ⏳ La oficina todavía no resolvió {esperando.length === 1 ? "tu pedido" : `tus ${esperando.length} pedidos`}
-          </span>
-          {esperando.map((s) => (
-            <Link
-              key={s.id}
-              href={`/cobrador/cliente/${s.clienteId}`}
-              className="flex items-center justify-between gap-2 rounded-[12px] bg-[#F7F9FD] px-3 py-2.5 active:scale-[0.99]"
-            >
-              <span className="truncate text-[13px] font-bold text-tinta">{s.clienteNombre}</span>
-              <span className="flex-shrink-0 text-[13.5px] font-black tabular-nums text-[#8A6D1E]">
-                pediste {UYU(s.monto)}
-              </span>
-            </Link>
-          ))}
-          <span className="text-[11.5px] leading-[1.45] font-medium text-gris">
-            <strong className="font-bold">NO le entregues la plata todavía</strong> — el crédito
-            no existe hasta que aprueben. Si no puede esperar, renovalo por el mismo monto que
-            tenía: eso sale al instante y no necesita permiso.
-          </span>
-        </section>
-      )}
-
       {deudaAyer && (
         <div className="rounded-[14px] border border-[#F0D9A8] bg-[#FEFBF3] px-4 py-3">
           <span className="text-[13px] font-extrabold text-[#9A6A0E]">

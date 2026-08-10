@@ -1,0 +1,41 @@
+{
+ "que": "se cerraron como RECHAZADAS solicitudes de renovación cuyo crédito YA existe en Disapp",
+ "porque": "aprobarlas habría creado un SEGUNDO crédito por el mismo préstamo (el empalme importa el de Disapp con su ref)",
+ "cuando": "2026-08-09",
+ "revertir": "update solicitudes_renovacion set estado='pendiente', resuelto_por=null, resuelto_en=null, motivo_rechazo=null where id in (...)",
+ "solicitudes": [
+  {
+   "solicitudId": "5a03493a-c2df-46bf-ae80-716eeb449692",
+   "cliente": "PATRICIA POSSE GIMENEZ",
+   "clienteId": "7079ede0-8549-4bc8-a4a5-7a90ab4f4842",
+   "monto": 25000.0,
+   "totalDias": 30,
+   "pidio": "Yuli Toro",
+   "solicitadoPor": "9b6b5fed-bca0-4bdb-8cc6-5433cbe14a23",
+   "solicitadoEn": "2026-08-09 17:03:49.669757+00:00",
+   "refDisapp": "PRD0003614338"
+  },
+  {
+   "solicitudId": "a3da987d-6ad7-4969-b4b5-0157ee0869ba",
+   "cliente": "BETINA NARTINES",
+   "clienteId": "de1a48b9-4d4e-49d2-8acd-27719f97bd99",
+   "monto": 15000.0,
+   "totalDias": 30,
+   "pidio": "Daniela Millán",
+   "solicitadoPor": "6bc9f287-992c-46f1-a4e6-3c9c20a57a0a",
+   "solicitadoEn": "2026-08-09 21:10:42.536521+00:00",
+   "refDisapp": "PRD0003614673"
+  },
+  {
+   "solicitudId": "e1ba5765-47c7-4563-91dc-59b7c6f87ada",
+   "cliente": "CLAUDIA ZUCARET",
+   "clienteId": "835c1edd-626e-459e-b897-bce758dd44a2",
+   "monto": 8000.0,
+   "totalDias": 30,
+   "pidio": "Fernando Castro",
+   "solicitadoPor": "ef70117d-4b1f-42aa-a8d8-06569ee3fa43",
+   "solicitadoEn": "2026-08-09 23:41:50.168725+00:00",
+   "refDisapp": "PRD0003615314"
+  }
+ ]
+}

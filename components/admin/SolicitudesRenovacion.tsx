@@ -117,6 +117,24 @@ function Item({ s, esAdmin }: { s: SolicitudRenovacion; esAdmin: boolean }) {
         )}
       </div>
 
+      {/* ⚠️ EL AVISO QUE FALTABA. Aprobar CREA plata en la calle, y el botón verde se
+          ve igual para un pedido de hace 10 minutos que para uno que el cobrador ya
+          resolvió por su cuenta. Si al cliente se le colocó capital DESPUÉS de este
+          pedido, aprobarlo es lo que fabrica el segundo crédito. */}
+      {s.colocadoDespues && (
+        <div className="rounded-[11px] border border-[#F0C0BC] bg-[#FDEEEC] px-3 py-2.5">
+          <span className="text-[12px] leading-[1.45] font-extrabold text-[#B03A2E]">
+            ⚠️ Ojo: a este cliente ya se le colocó {UYU(s.colocadoDespues.monto)} DESPUÉS de este
+            pedido.
+          </span>
+          <span className="mt-0.5 block text-[11.5px] leading-[1.45] font-semibold text-[#B03A2E]">
+            Puede que ya esté hecho. Si aprobás, le queda un SEGUNDO crédito por el mismo
+            préstamo. Confirmá con {s.solicitadoPorNombre ?? "el cobrador"} antes de tocar el
+            botón verde.
+          </span>
+        </div>
+      )}
+
       {esAdmin && rechazando && (
         <div className="flex gap-2">
           <input

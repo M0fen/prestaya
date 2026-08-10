@@ -23,6 +23,11 @@ export interface SolicitudRenovacion {
    *  crédito tiene que nacer a SU nombre, no al del gestor que aprieta "Aprobar". */
   solicitadoPor: string | null;
   solicitadoEn: string;
+  /** ⚠️ AVISO ANTI-DUPLICADO: capital que se le colocó a este cliente DESPUÉS de que
+   *  entró el pedido. Si hay algo acá, aprobar puede estar creando un segundo crédito
+   *  por el mismo préstamo — que es exactamente lo que pasó con JORGE (pidió el 06-08,
+   *  se lo aprobaron el 08-08, no se enteró, lo colocó de nuevo el 09-08). null = nada. */
+  colocadoDespues?: { monto: number; cuando: string } | null;
 }
 
 export interface NuevaSolicitud {
@@ -76,6 +81,31 @@ export async function getSolicitudesPendientes(db: SupabaseClient): Promise<Soli
       for (const p of prev ?? [])
         antes.set(p.id as string, Math.round(Number(p.monto_prestado) || 0));
     }
+    // ⚠️ ¿Ya se le colocó capital DESPUÉS del pedido? Es la señal de que el pedido
+    // quedó viejo y aprobarlo duplicaría el crédito. El admin lo tiene que ver ANTES
+    // de tocar el botón verde, no después: aprobar crea plata en la calle.
+    const colocado = new Map<string, { monto: number; cuando: string }>();
+    if (ids.length > 0) {
+      const { data: nuevos } = await db
+        .from("prestamos")
+        .select("cliente_id, monto_prestado, creado_en")
+        .in("cliente_id", ids)
+        .eq("estado", "activo")
+        .order("creado_en", { ascending: false });
+      const pedidoDe = new Map(
+        rows.map((r) => [r.cliente_id as string, String(r.solicitado_en ?? "")]),
+      );
+      for (const p of nuevos ?? []) {
+        const cid = p.cliente_id as string;
+        if (colocado.has(cid)) continue; // el más nuevo gana (viene ordenado)
+        if (String(p.creado_en ?? "") > (pedidoDe.get(cid) ?? ""))
+          colocado.set(cid, {
+            monto: Math.round(Number(p.monto_prestado) || 0),
+            cuando: p.creado_en as string,
+          });
+      }
+    }
+
     return rows.map((r) => ({
       id: r.id as string,
       clienteId: r.cliente_id as string,
@@ -88,6 +118,7 @@ export async function getSolicitudesPendientes(db: SupabaseClient): Promise<Soli
       solicitadoPorNombre: (r.solicitado_por_nombre as string | null) ?? null,
       solicitadoPor: (r.solicitado_por as string | null) ?? null,
       solicitadoEn: r.solicitado_en as string,
+      colocadoDespues: colocado.get(r.cliente_id as string) ?? null,
     }));
   } catch (e) {
     if (tablaFaltante(e)) return [];
@@ -194,58 +225,12 @@ export interface AprobadaPendiente {
   resueltoEn: string | null;
 }
 
-/** Un pedido del cobrador que la oficina TODAVÍA no resolvió. */
-export interface EsperandoOficina {
-  id: string;
-  clienteId: string;
-  clienteNombre: string;
-  monto: number;
-  solicitadoEn: string;
-}
-
-/**
- * Lo que este cobrador PIDIÓ y la oficina todavía no resolvió.
- *
- * ⚠️ Es la otra mitad del circuito mudo, y la mitad que ya costó plata. El 06-08
- * Edward pidió la renovación de JORGE ($16.000); la oficina la aprobó dos días
- * después y él nunca se enteró, así que volvió a colocarla — dos créditos por un
- * préstamo. Le pusimos el aviso al lado APROBADO, pero mientras el pedido está
- * PENDIENTE la app le sigue diciendo lo mismo que antes: nada. Sin esto, el
- * cobrador solo puede elegir entre esperar a ciegas o volver a colocar.
- *
- * Mismo motivo que `getAprobadasPendientes` para leer con ADMIN + scope explícito:
- * `solicitudes_renovacion` tiene RLS solo-gestor.
- */
-export async function getPendientesMias(cobradorId: string): Promise<EsperandoOficina[]> {
-  try {
-    const admin = createSupabaseAdmin();
-    const { data, error } = await admin
-      .from("solicitudes_renovacion")
-      .select("id, cliente_id, monto, solicitado_en")
-      .eq("solicitado_por", cobradorId)
-      .eq("estado", "pendiente")
-      .order("solicitado_en", { ascending: false });
-    if (error) throw error;
-    const filas = data ?? [];
-    if (filas.length === 0) return [];
-    const ids = [...new Set(filas.map((r) => r.cliente_id as string))];
-    const { data: cls } = await admin.from("clientes").select("id, nombre").in("id", ids);
-    const nombre = new Map((cls ?? []).map((c) => [c.id as string, c.nombre as string]));
-    return filas.map((r) => ({
-      id: r.id as string,
-      clienteId: r.cliente_id as string,
-      clienteNombre: nombre.get(r.cliente_id as string) ?? "Cliente",
-      monto: Math.round(Number(r.monto) || 0),
-      solicitadoEn: r.solicitado_en as string,
-    }));
-  } catch (e) {
-    if (tablaFaltante(e)) return [];
-    throw e;
-  }
-}
-
 /**
  * Renovaciones que la oficina le APROBÓ a este cobrador en los últimos días.
+ *
+ * ⚠️ Lo que el cobrador VE hoy sale de `lib/data/misPedidos.ts`, que junta los tres
+ * circuitos de pedidos (renovación, gasto, corrección) con su estado y su
+ * antigüedad. Esta función queda como lectura acotada de un solo tipo.
  *
  * ⚠️ Sin esto el circuito quedaba mudo del lado que importa: el cobrador pedía,
  * el admin aprobaba, el crédito nacía ACTIVO a nombre del cobrador... y él no se
