@@ -6,16 +6,19 @@
 //  dinero. Calcula la diferencia con el núcleo puro y guarda (RLS: solo puede
 //  crear la suya). Idempotente ante doble cierre (unique cobrador+fecha).
 // ─────────────────────────────────────────────────────────────────────────
+import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { reportarError } from "@/lib/observabilidad";
 import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
-import { getUsuarioActual } from "@/lib/auth";
-import { getEstadoJornada, crearRendicionDb } from "@/lib/data/rendicion";
+import { getUsuarioActual, esGestor, esAdmin } from "@/lib/auth";
+import { getEstadoJornada, crearRendicionDb, getJornadasSinRendir } from "@/lib/data/rendicion";
+import { alcanceDelActor } from "@/lib/data/alcance";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { registrarBitacora } from "@/lib/data/bitacora";
 import { calcularRendicion, type EstadoRendicion } from "@/lib/rendicion";
+import { esUuid } from "@/lib/idempotencia";
 import { UYU, toIso } from "@/lib/format";
-import { hoyUY } from "@/lib/fecha";
+import { hoyUY, sumarDiasYmd } from "@/lib/fecha";
 
 type Resultado =
   | { ok: true; estado: EstadoRendicion; diferencia: number; esperado: number }
@@ -134,5 +137,132 @@ export async function cerrarJornada(input: {
     if (esDuplicado(e)) return { ok: false, error: "Ya cerraste tu jornada de hoy." };
     reportarError("cerrarJornada", e);
     return { ok: false, error: "No se pudo cerrar la jornada. Probá de nuevo." };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+//  ENTREGA DIFERIDA — el supervisor registra el efectivo de una jornada VIEJA.
+//
+//  El agujero más caro del piloto: la app solo sabe cerrar el día de HOY. Si al
+//  cobrador se le pasó la noche —cargó a las 23:00 desde la casa y se fue a
+//  dormir— esa jornada queda incerrable PARA SIEMPRE, y el supervisor no tiene
+//  dónde anotar que recibió la plata. Medido el 10-08: 40 jornadas abiertas de 19
+//  cobradores, $2.702.391, la más vieja del 10 de julio.
+//
+//  La plata no está perdida: el libro de pagos la tiene toda. Lo que falta es el
+//  PAPEL — sin acta, ni el cobrador puede probar que entregó ni la oficina que
+//  recibió, y la alerta de "sin rendir" queda encendida para siempre hasta que se
+//  la deja de mirar.
+//
+//  DOBLE FIRMA: el acta queda a nombre del COBRADOR (es su jornada) pero
+//  `registrado_por` es el SUPERVISOR, y la nota dice quién la registró y cuándo.
+//  Es la diferencia entre "el cobrador declaró" y "el supervisor recibió": las dos
+//  cosas son ciertas y las dos tienen que estar escritas.
+//
+//  Lo que NO se toca: el recaudado, la base, los gastos y el capital colocado los
+//  pone el SERVIDOR desde los datos de ESE día. El supervisor solo declara cuánto
+//  efectivo recibió — que es lo único que él sabe y el sistema no.
+// ─────────────────────────────────────────────────────────────────────────
+export async function registrarEntregaDiferida(input: {
+  cobradorId: string;
+  /** Día UY "YYYY-MM-DD" de la jornada que se cierra. */
+  fecha: string;
+  /** Efectivo que el supervisor recibió en mano. */
+  entregado: number;
+  notas?: string | null;
+}): Promise<Resultado> {
+  const u = await getUsuarioActual();
+  if (!u || !u.activo || !esGestor(u.rol))
+    return { ok: false, error: "Esta acción es de la oficina." };
+  const bloqueo = await bloqueoSoloLectura();
+  if (bloqueo) return bloqueo;
+  if (!esUuid(input.cobradorId)) return { ok: false, error: "Cobrador inválido." };
+
+  const hoy = new Date();
+  const fechaHoy = toIso(hoyUY(hoy));
+  const fecha = String(input.fecha ?? "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return { ok: false, error: "Fecha inválida." };
+  // HOY tiene su propio cierre, que lo hace el cobrador desde su teléfono: dejarlo
+  // acá permitiría cerrarle el día a alguien que todavía está en la calle cobrando.
+  if (fecha >= fechaHoy)
+    return {
+      ok: false,
+      error: "La jornada de hoy la cierra el cobrador desde su teléfono. Acá se registran las que quedaron abiertas de días anteriores.",
+    };
+  // Ventana de 30 días: más atrás no es operación, es arqueología — y un acta
+  // fechada meses atrás mueve comisiones ya liquidadas.
+  if (fecha < sumarDiasYmd(fechaHoy, -30))
+    return { ok: false, error: "Esa jornada tiene más de 30 días. Resolvela con la oficina." };
+
+  const entregado = Math.max(0, Math.round(Number(input.entregado) || 0));
+  if (!Number.isFinite(entregado)) return { ok: false, error: "Revisá el monto entregado." };
+
+  try {
+    const db = await createSupabaseServer();
+    // ⚠️ EL SUPERVISOR SOLO CIERRA A SU GENTE. La RLS de `rendiciones` no acota por
+    // zona en la escritura, así que el alcance se exige acá: sin esto un supervisor
+    // podría sellar la jornada de un cobrador de otra zona.
+    if (!esAdmin(u.rol)) {
+      const alcance = await alcanceDelActor();
+      if (!alcance.global && !alcance.cobradorIds.includes(input.cobradorId))
+        return { ok: false, error: "Ese cobrador no es de tu zona." };
+    }
+
+    // Los números de ESE día los pone el servidor, no la pantalla.
+    const abiertas = await getJornadasSinRendir(db, [input.cobradorId], hoy, 30);
+    const j = abiertas.find((x) => x.fecha === fecha);
+    if (!j)
+      return {
+        ok: false,
+        error: "Esa jornada ya está cerrada o no tiene cobros registrados. Recargá la pantalla.",
+      };
+
+    const { esperado, diferencia, estado: est, aFavor } = calcularRendicion(
+      j.recaudado,
+      j.gastos,
+      entregado,
+      j.base,
+      j.colocado,
+    );
+    // La nota deja escrita la DOBLE FIRMA. Es lo que distingue un acta que el
+    // cobrador confirmó en su teléfono de una que registró la oficina por él.
+    const cabecera = `ENTREGA DIFERIDA: la registró ${u.nombre} el ${fechaHoy} por la jornada del ${fecha}.`;
+    const extra = aFavor > 0 ? ` A favor del cobrador ${UYU(aFavor)} (colocó ${UYU(j.colocado)}).` : "";
+    const notas = `${cabecera}${extra}${input.notas ? ` · ${String(input.notas).trim()}` : ""}`.slice(0, 300);
+
+    await crearRendicionDb({
+      cobradorId: input.cobradorId,
+      fecha,
+      recaudado: j.recaudado,
+      cobrosCantidad: j.cobros,
+      gastos: j.gastos,
+      entregado,
+      diferencia,
+      base: j.base,
+      colocado: j.colocado,
+      creditosColocados: 0,
+      notas,
+      // ⚠️ La FIRMA de quien recibió. El acta es del cobrador (su jornada, su
+      // plata) pero quien la registró es el supervisor, y eso tiene que poder
+      // reconstruirse después sin preguntarle a nadie.
+      registradoPor: u.id,
+    });
+    await registrarAuditoria(db, {
+      actorId: u.id,
+      actorNombre: u.nombre,
+      accion: "Registró la entrega de una jornada vieja",
+      entidad: "rendicion",
+      entidadId: input.cobradorId,
+      detalle: `${j.cobradorNombre} · jornada del ${fecha} (hace ${j.antiguedad} día${j.antiguedad === 1 ? "" : "s"}) · esperado ${UYU(esperado)} · recibió ${UYU(entregado)} · ${est}${diferencia !== 0 ? ` ${UYU(Math.abs(diferencia))}` : ""}`,
+    });
+    revalidatePath("/admin/jornada");
+    revalidatePath("/admin/alertas");
+    revalidatePath("/admin");
+    return { ok: true, estado: est, diferencia, esperado };
+  } catch (e) {
+    if (esDuplicado(e))
+      return { ok: false, error: "Esa jornada ya tiene su acta. Recargá la pantalla." };
+    reportarError("registrarEntregaDiferida", e, { cobradorId: input.cobradorId, fecha });
+    return { ok: false, error: "No se pudo registrar la entrega. Probá de nuevo." };
   }
 }

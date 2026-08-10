@@ -18,7 +18,8 @@ import { getCentroAlertas, type Alerta } from "@/lib/data/centroAlertas";
 import { getResumenCompromisos, type ResumenCompromisos } from "@/lib/data/gestionesCobranza";
 import { getActivosConPagos } from "@/lib/data/activos";
 import { getControlCobranza, type RankingCobrador } from "@/lib/data/control";
-import { getRendicionesDia } from "@/lib/data/rendicion";
+import { getRendicionesDia, getJornadasSinRendir, type JornadaAbierta } from "@/lib/data/rendicion";
+import { JornadasSinRendir } from "@/components/admin/JornadasSinRendir";
 import { getDesempenoRango, type DesempenoRango } from "@/lib/data/desempeno";
 import { contarSolicitudesGastoPendientes } from "@/lib/data/solicitudesGasto";
 import { getSolicitudesPendientes as getSolicitudesAnulacionPendientes } from "@/lib/data/anulaciones";
@@ -217,6 +218,22 @@ export default async function JornadaPage({
   for (const sz of supZonasRes.data ?? []) {
     const nombre = supN.get(sz.supervisor_id as string);
     if (nombre) (supervisoresPorZona[sz.zona_id as string] ??= []).push(nombre);
+  }
+
+  // Jornadas viejas sin acta: la plata que quedó en la calle sin papel. Solo se
+  // consultan en el acto de CIERRE (es donde se resuelven) para no cargarle a la
+  // apertura una consulta que ahí no se usa.
+  let jornadasAbiertas: JornadaAbierta[] = [];
+  if (acto === "cierre") {
+    try {
+      jornadasAbiertas = await conTimeout(
+        getJornadasSinRendir(db, alcance.global ? null : alcance.cobradorIds, hoy, 30),
+        TOPE_MS,
+        "jornada.sinRendir",
+      );
+    } catch (e) {
+      reportarError("jornada.sinRendir", e); // nunca tumba el cierre
+    }
   }
 
   let basesCobradores: CobradorBase[] = [];
@@ -517,7 +534,18 @@ export default async function JornadaPage({
           supervisoresPorZona={supervisoresPorZona}
         />
       )}
-      {acto === "cierre" && <Cierre cierre={cierre} cerrables={cerrables} resumenDia={resumenDia} todasCerradas={todasCerradas} />}
+      {acto === "cierre" && (
+        <>
+          {/* ⚠️ LO PRIMERO DEL CIERRE: las jornadas que quedaron abiertas de dias
+              anteriores. La app solo sabia cerrar HOY, asi que si al cobrador se le
+              paso la noche esa jornada era incerrable para siempre y el supervisor
+              no tenia donde anotar que recibio la plata: 40 jornadas, $2.702.391, la
+              mas vieja del 10 de julio. Va ARRIBA del cierre de hoy porque es plata
+              mas vieja, y lo viejo es lo que se olvida. */}
+          <JornadasSinRendir jornadas={jornadasAbiertas} />
+          <Cierre cierre={cierre} cerrables={cerrables} resumenDia={resumenDia} todasCerradas={todasCerradas} />
+        </>
+      )}
 
       {/* Bitácora del día: lo que YA hiciste (descarga de memoria + cierre de loop). */}
       <BitacoraDia entradas={bitacora} />

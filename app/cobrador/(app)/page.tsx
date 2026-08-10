@@ -7,7 +7,7 @@ import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getRutaCobrador } from "@/lib/data/ruta";
 import { getBannerCobradorActivo } from "@/lib/data/bannerCobrador";
 import { BannerEquipo } from "@/components/cobrador/BannerEquipo";
-import { getEstadoJornada, getDeudaRendicionAyer } from "@/lib/data/rendicion";
+import { getEstadoJornada, getJornadasSinRendir } from "@/lib/data/rendicion";
 import { getSolicitudesGastoCobrador } from "@/lib/data/solicitudesGasto";
 import { getMisPedidos } from "@/lib/data/misPedidos";
 import { MisPedidos } from "@/components/cobrador/MisPedidos";
@@ -49,7 +49,7 @@ export default async function RutaPage() {
   );
   // El nombre de la zona se resuelve con el cliente ADMIN: la tabla `zonas` está
   // bloqueada por RLS para el cobrador (0 filas), y esto es solo una etiqueta.
-  const [jornada, solicitudesGasto, zonaNombre, deudaAyer, misPedidos] = await conTimeout(
+  const [jornada, solicitudesGasto, zonaNombre, abiertas, misPedidos] = await conTimeout(
     Promise.all([
       usuario ? getEstadoJornada(db, usuario.id) : Promise.resolve(null),
       usuario ? getSolicitudesGastoCobrador(db, usuario.id) : Promise.resolve(null),
@@ -61,9 +61,10 @@ export default async function RutaPage() {
             .maybeSingle()
             .then((r) => r.data?.nombre ?? null)
         : Promise.resolve<string | null>(null),
-      // ¿Ayer cobró y NO rindió? La plata sigue en su bolsillo sin sello: el banner
-      // se lo recuerda apenas abre la app (espejo humano de la invariante del cron).
-      usuario ? getDeudaRendicionAyer(db, usuario.id) : Promise.resolve(null),
+      // ¿Le quedaron jornadas sin rendir? La plata sigue en su bolsillo sin sello.
+      // Barre los últimos 7 días: mirando solo AYER, a partir del segundo día el
+      // cobrador dejaba de ver su propia deuda (12 personas, $1.559.559).
+      usuario ? getJornadasSinRendir(db, [usuario.id], new Date(), 7) : Promise.resolve([]),
       // TODO lo que pidió (renovaciones, gastos, correcciones) con su estado, su
       // antigüedad y qué hacer con cada uno. Los tres circuitos eran mudos del lado
       // del que pide: así nació el crédito duplicado de JORGE, y así quedaron tres
@@ -384,14 +385,30 @@ export default async function RutaPage() {
       {/* AYER cobró y NO rindió: la plata de esa jornada sigue en su bolsillo sin
           sello de entrega. Se le recuerda apenas abre la app (la rendición de un día
           pasado ya no se puede crear acá → la entrega es en mano, con el supervisor). */}
-      {deudaAyer && (
-        <div className="rounded-[14px] border border-[#F0D9A8] bg-[#FEFBF3] px-4 py-3">
+      {/* ⚠️ Miraba SOLO ayer, así que a partir del segundo día el cobrador dejaba de
+          ver su propia deuda: hoy le hablaba a 5 personas por $1.034.862 y le callaba
+          a otras 12 que arrastran $1.559.559. Ahora barre los últimos días y lista
+          cada jornada con su monto — y dice a dónde va esa plata, porque ya no es un
+          callejón: el supervisor la puede registrar desde su pantalla. */}
+      {abiertas.length > 0 && (
+        <div className="flex flex-col gap-2 rounded-[14px] border border-[#F0D9A8] bg-[#FEFBF3] px-4 py-3">
           <span className="text-[13px] font-extrabold text-[#9A6A0E]">
-            ⚠️ Te quedó una jornada sin rendir
+            ⚠️ {abiertas.length === 1
+              ? "Te quedó una jornada sin rendir"
+              : `Te quedaron ${abiertas.length} jornadas sin rendir`}
           </span>
-          <p className="mt-1 text-[12.5px] leading-[1.45] font-medium text-[#9A6A0E]">
-            Ayer registraste {UYU(deudaAyer.monto)} ({deudaAyer.cobros} cobro{deudaAyer.cobros === 1 ? "" : "s"}) y no
-            cerraste la jornada. Entregale ese efectivo hoy a tu supervisor apenas lo veas.
+          {abiertas.map((j) => (
+            <div key={j.fecha} className="flex items-baseline justify-between gap-2 tabular-nums">
+              <span className="text-[12.5px] font-semibold text-[#9A6A0E]">
+                {j.fecha.slice(8, 10)}/{j.fecha.slice(5, 7)} · {j.cobros} cobro{j.cobros === 1 ? "" : "s"}
+                {j.antiguedad > 1 ? ` · hace ${j.antiguedad} días` : ""}
+              </span>
+              <span className="text-[14px] font-black text-[#9A6A0E]">{UYU(j.esperado)}</span>
+            </div>
+          ))}
+          <p className="text-[12px] leading-[1.45] font-medium text-[#9A6A0E]">
+            Ese efectivo sigue sin sello de entrega. Dáselo a tu supervisor apenas lo veas: él
+            lo registra desde su pantalla y queda a tu nombre.
           </p>
         </div>
       )}

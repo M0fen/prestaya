@@ -5,7 +5,7 @@
 //  Degrada si 0013 aún no existe (disponible=false): la UI avisa, no rompe.
 // ─────────────────────────────────────────────────────────────────────────
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { inicioDiaUYIso, hoyUY, sumarDiasYmd, diaUYInicioIso } from "@/lib/fecha";
+import { inicioDiaUYIso, hoyUY, sumarDiasYmd, diaUYInicioIso, fechaISOUY } from "@/lib/fecha";
 import { toIso } from "@/lib/format";
 import type { EstadoRendicion } from "@/lib/rendicion";
 import { getSolicitudesGastoCobrador } from "./solicitudesGasto";
@@ -224,6 +224,145 @@ export async function getDeudaRendicionAyer(
     (await colocadoEnDias([{ cobradorId, ymd: ayer }])).get(claveColocado(cobradorId, ayer)) ?? 0;
   const monto = Math.max(0, cobrado - colocadoAyer);
   return monto > 0 ? { fecha: ayer, monto, cobros: pagos.length } : null;
+}
+
+/** Una jornada que quedó con plata y SIN acta de entrega. */
+export interface JornadaAbierta {
+  cobradorId: string;
+  cobradorNombre: string;
+  /** Día UY "YYYY-MM-DD". */
+  fecha: string;
+  /** Lo que registró ese día (custodia, solo nativos). */
+  recaudado: number;
+  cobros: number;
+  /** Base que le habían entregado ese día. */
+  base: number;
+  /** Capital que puso en la calle ese día: no vuelve. */
+  colocado: number;
+  /** Gastos aprobados de ese día. */
+  gastos: number;
+  /** Lo que tendría que haber entregado: base + recaudado − gastos − colocado. */
+  esperado: number;
+  /** Días que pasaron: 1 = ayer. */
+  antiguedad: number;
+}
+
+/**
+ * JORNADAS SIN CERRAR de los últimos días, con la cuenta ya hecha.
+ *
+ * ⚠️ Es el agujero más caro del piloto. La app solo sabe cerrar el día de HOY: si al
+ * cobrador se le pasó la noche, esa jornada es incerrable PARA SIEMPRE y el
+ * supervisor no tiene dónde firmar "recibí el efectivo". Medido el 10-08: 40
+ * jornadas abiertas de 19 cobradores por $2.702.391, la más vieja del 10 de julio.
+ * Y el aviso del cobrador mira solo AYER, así que a partir del segundo día ni él ve
+ * su propia deuda.
+ *
+ * La plata no está perdida —el libro de pagos la tiene toda— lo que falta es el
+ * PAPEL: sin acta, ni el cobrador puede probar que entregó ni la oficina que recibió.
+ *
+ * Se lee con ADMIN y scope explícito por cobrador, igual que `recaudadoHoyDe`: la
+ * RLS por-fila no siempre deja contar los pagos de un crédito reasignado.
+ */
+export async function getJornadasSinRendir(
+  db: SupabaseClient,
+  cobradorIds: string[] | null,
+  hoy: Date = new Date(),
+  dias = 30,
+): Promise<JornadaAbierta[]> {
+  try {
+    if (cobradorIds && cobradorIds.length === 0) return [];
+    const admin = createSupabaseAdmin();
+    const fechaHoy = toIso(hoyUY(hoy));
+    const desdeYmd = sumarDiasYmd(fechaHoy, -dias);
+
+    // 1. Pagos NATIVOS del período, agrupados por (cobrador, día UY). El día se
+    //    deriva de `registrado_en` con el corte de las 03:00 UTC, igual que todo lo
+    //    demás: un cobro de las 23:50 pertenece a ese día, no al siguiente.
+    let qp = admin
+      .from("pagos")
+      .select("registrado_por, registrado_en, monto")
+      .eq("anulado", false)
+      .is("origen", null)
+      .gte("registrado_en", diaUYInicioIso(desdeYmd))
+      .lt("registrado_en", diaUYInicioIso(fechaHoy)); // HOY no: tiene su propio cierre
+    if (cobradorIds) qp = qp.in("registrado_por", cobradorIds);
+    const pagos = await traerTodo<{ registrado_por: string; registrado_en: string; monto: number }>(
+      (d, h) => qp.order("id", { ascending: true }).range(d, h),
+    );
+    if (pagos.length === 0) return [];
+
+    const clave = (c: string, f: string) => `${c}|${f}`;
+    const acc = new Map<string, { cobradorId: string; fecha: string; recaudado: number; cobros: number }>();
+    for (const p of pagos) {
+      const cid = p.registrado_por;
+      if (!cid) continue;
+      const f = fechaISOUY(new Date(p.registrado_en));
+      const k = clave(cid, f);
+      const a = acc.get(k) ?? { cobradorId: cid, fecha: f, recaudado: 0, cobros: 0 };
+      a.recaudado += Math.round(Number(p.monto) || 0);
+      a.cobros += 1;
+      acc.set(k, a);
+    }
+
+    // 2. Las que YA tienen acta salen de la lista.
+    const ids = [...new Set([...acc.values()].map((a) => a.cobradorId))];
+    const { data: rends } = await admin
+      .from("rendiciones")
+      .select("cobrador_id, fecha")
+      .in("cobrador_id", ids)
+      .gte("fecha", desdeYmd);
+    const cerradas = new Set((rends ?? []).map((r) => clave(r.cobrador_id as string, String(r.fecha))));
+    const abiertas = [...acc.values()].filter((a) => !cerradas.has(clave(a.cobradorId, a.fecha)));
+    if (abiertas.length === 0) return [];
+
+    // 3. Base, capital colocado y gastos de CADA día (los tres bajan el esperado).
+    const [{ data: aps }, colocado, { data: gs }, { data: usrs }] = await Promise.all([
+      admin.from("aperturas_caja").select("cobrador_id, fecha, monto").in("cobrador_id", ids).gte("fecha", desdeYmd),
+      colocadoEnDias(abiertas.map((a) => ({ cobradorId: a.cobradorId, ymd: a.fecha }))),
+      admin
+        .from("solicitudes_gasto")
+        .select("cobrador_id, monto, solicitado_en")
+        .eq("estado", "aprobada")
+        .in("cobrador_id", ids)
+        .gte("solicitado_en", diaUYInicioIso(desdeYmd)),
+      admin.from("usuarios").select("id, nombre").in("id", ids),
+    ]);
+    const baseDe = new Map(
+      (aps ?? []).map((a) => [clave(a.cobrador_id as string, String(a.fecha)), Math.round(Number(a.monto) || 0)]),
+    );
+    const gastoDe = new Map<string, number>();
+    for (const g of gs ?? []) {
+      const k = clave(g.cobrador_id as string, fechaISOUY(new Date(g.solicitado_en as string)));
+      gastoDe.set(k, (gastoDe.get(k) ?? 0) + Math.round(Number(g.monto) || 0));
+    }
+    const nombreDe = new Map((usrs ?? []).map((u) => [u.id as string, u.nombre as string]));
+    const dia = (ymd: string) => new Date(`${ymd}T00:00:00Z`).getTime();
+
+    return abiertas
+      .map((a) => {
+        const k = clave(a.cobradorId, a.fecha);
+        const base = baseDe.get(k) ?? 0;
+        const col = colocado.get(claveColocado(a.cobradorId, a.fecha)) ?? 0;
+        const gastos = gastoDe.get(k) ?? 0;
+        return {
+          cobradorId: a.cobradorId,
+          cobradorNombre: nombreDe.get(a.cobradorId) ?? "Cobrador",
+          fecha: a.fecha,
+          recaudado: a.recaudado,
+          cobros: a.cobros,
+          base,
+          colocado: col,
+          gastos,
+          esperado: Math.max(0, base + a.recaudado - gastos - col),
+          antiguedad: Math.max(1, Math.round((dia(fechaHoy) - dia(a.fecha)) / 86_400_000)),
+        };
+      })
+      // Lo más VIEJO arriba: es el orden de la urgencia, y es lo que se olvida.
+      .sort((x, y) => y.antiguedad - x.antiguedad || y.esperado - x.esperado);
+  } catch (e) {
+    if (tablaFaltante(e)) return [];
+    throw e;
+  }
 }
 
 export interface NuevaRendicion {
