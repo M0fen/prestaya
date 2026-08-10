@@ -73,9 +73,27 @@ export function PedirAyuda({
           onClick={() =>
             start(async () => {
               setError(null);
-              const r = await agregarNotaCliente({ clienteId, cuerpo: texto.trim() });
-              if (r.ok) setEnviado(true);
-              else setError(r.error);
+              try {
+                const r = await agregarNotaCliente({ clienteId, cuerpo: texto.trim() });
+                if (r.ok) setEnviado(true);
+                else setError(r.error);
+              } catch {
+                // ⚠️ SIN ESTE catch, la Server Action que falla por falta de señal
+                // escapaba del transition y tiraba el error boundary: se reemplazaba
+                // TODA la pantalla por "Fue algo temporal… Probá de nuevo" y el
+                // cobrador perdía lo que había tipeado — y la pantalla donde estaba
+                // (el cobro mal cargado, el cierre a medio contar). Sus cinco
+                // componentes hermanos ya tenían el catch; justo la SALIDA DE
+                // EMERGENCIA no. Y como la ficha se abre sin señal a propósito
+                // (está precargada), llegar acá offline es lo normal.
+                //
+                // El catch NO hace que el aviso salga: sin señal no sale nada. Lo
+                // que gana es no perder el texto, no perder la pantalla, y decir la
+                // verdad en vez de "probá de nuevo" —que offline va a fallar igual.
+                setError(
+                  "Sin señal: el aviso no salió. Tu texto sigue acá — tocá “Enviar aviso” de nuevo cuando tengas datos.",
+                );
+              }
             })
           }
           className="min-h-11 flex-1 rounded-full bg-[#1E47C8] px-4 text-[13px] font-extrabold text-white disabled:opacity-50"

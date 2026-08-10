@@ -260,7 +260,17 @@ export async function renovarDesdeCalle(input: {
     // recibió nada. El linaje `renovado_de` (0116) dice la verdad.
     const ya = await renovacionYaHecha(db, input.prestamoId, u.id);
     if (ya) return ya;
-    return { ok: false, error: "Ese crédito ya no está activo." };
+    // ⚠️ Era el ÚNICO rechazo de todo el camino de renovación que no decía qué
+    // hacer: "Ese crédito ya no está activo." y punto, con el cobrador parado
+    // frente al cliente y la plata contada en la mano. Reintentar no puede
+    // funcionar nunca, y el único link a la vista era "→ Nueva venta", que es
+    // JUSTO lo peligroso si el crédito ya se renovó por otra vía. Ahora dice qué
+    // pasó, qué NO hacer, y a dónde mirar.
+    return {
+      ok: false,
+      error:
+        "Ese crédito ya no está activo: alguien más lo renovó o la oficina lo dio de alta. NO le entregues la plata hasta verlo — mirá su cartón desde la ficha del cliente.",
+    };
   }
   // ⚠️ PROPIEDAD DEL CRÉDITO. La escritura va con service_role (ver abajo), así
   // que la RLS ya no filtra nada: hay que exigir acá que el crédito sea SUYO. Con

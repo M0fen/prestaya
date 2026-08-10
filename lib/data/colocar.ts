@@ -19,6 +19,7 @@ import {
   montoRenovacionSugerido,
   techoRenovacion,
   techoVentaNueva,
+  RENOVACION_CAP_TOTAL,
 } from "@/lib/renovacion";
 import { hoyUY } from "@/lib/fecha";
 import { UYU } from "@/lib/format";
@@ -285,6 +286,14 @@ export async function getCandidatosVenta(db: SupabaseClient): Promise<CandidatoC
           totalDias,
           frecuencia: (p.frecuencia as string) ?? "diario",
           techo: techoVentaNueva(monto),
+          // ⚠️ El tope DURO de una venta nueva es el CAP del sistema, no el techo del
+          // cobrador. Sin este dato la pantalla no distinguía "no lo podés dar VOS"
+          // de "no lo puede NADIE" y siempre elegía el mensaje más duro: al pedir
+          // $20.000 para un cliente con techo $12.000 leía "ni la oficina puede
+          // subirlo" —falso, el tope es $100.000— y justo abajo, en ámbar, "dejale
+          // el pedido a tu supervisor". Dos carteles que se contradicen delante del
+          // cliente, y el cobrador le cree al que dice que no se puede.
+          maximo: RENOVACION_CAP_TOTAL,
           deudaHermano: Math.round(deudaViva.get(cid) ?? 0),
         },
       ];

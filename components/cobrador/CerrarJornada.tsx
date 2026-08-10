@@ -57,6 +57,9 @@ export function CerrarJornada({
   const [editado, setEditado] = useState(false);
   const [notas, setNotas] = useState("");
   const [reintentando, setReintentando] = useState(false);
+  /** Cómo salió el último empujón manual de la cola. Sin esto el botón decía
+   *  "Intentando…" cuatro segundos y volvía, sin una palabra de resultado. */
+  const [resultadoSync, setResultadoSync] = useState<string | null>(null);
   const [confirmar, setConfirmar] = useState(false);
   /** Cobro atascado que espera el 2º toque para descartarse (nunca de un toque:
    *  descartar borra el registro de plata que el cobrador ya tiene encima). */
@@ -156,9 +159,18 @@ export function CerrarJornada({
   // NO bloquean; se muestran aparte y el cobrador los descarta o re-registra.
   const cobrosPago = ops.filter((o) => o.tipo === "pago");
   const cobrosPend = cobrosPago.filter((o) => !opAtascada(o));
-  const cobrosAtascados = cobrosPago.filter((o) => opAtascada(o));
+  // ⚠️ ATASCADOS = cobros Y "no pagó". Antes esta lista filtraba solo los pagos, y
+  // la franja naranja de arriba de TODAS las pantallas ("1 sin subir · revisalo en
+  // Cerrar jornada") cuenta las dos cosas: una visita atascada mandaba al cobrador
+  // a una pantalla donde no había ni una palabra de ella, y no había forma de
+  // sacarla. La franja quedaba encendida para siempre — y el indicador que protege
+  // los cobros de verdad se vuelve ruido que se aprende a ignorar.
+  const cobrosAtascados = ops.filter((o) => opAtascada(o));
   const montoPend = cobrosPend.reduce((s, o) => s + (o.monto ?? 0), 0);
   const hayColaPendiente = cobrosPend.length > 0;
+  /** Un cliente cualquiera de la cola trabada: la nota de aviso se cuelga de su
+   *  ficha, que es donde el supervisor y la oficina la van a ver. */
+  const clienteDeLaCola = cobrosPend[0]?.clienteId ?? null;
 
   const cerrar = () => {
     setError(null);
@@ -341,21 +353,57 @@ export function CerrarJornada({
             El recaudado todavía no los incluye. Suben solos cuando tengas señal — si estás en una
             zona sin datos, movete unos metros y esperá; el botón de cerrar se habilita solo.
           </span>
-          {/* El botón quedaba apagado sin ninguna acción posible: el cobrador
-              terminaba la ruta, entregaba la plata en mano y la jornada nunca se
-              cerraba en el sistema. Ahora puede empujar la cola él mismo. */}
+          {/* ⚠️ Este botón era DECORATIVO. Despachaba un evento `online` falso, que
+              con el teléfono ya "conectado" (barras llenas, datos que no pasan) no
+              disparaba nada — y encima, tocado sin señal, dejaba al sincronizador
+              creyendo que había conexión y la cola dejaba de subir sola. Ahora
+              llama al envío de verdad (`py:sync`) y DICE CÓMO SALIÓ: cuatro
+              segundos de "Intentando…" sin ninguna respuesta es lo que hace que el
+              cobrador deje de confiar en la app justo cuando más la necesita. */}
           <button
             type="button"
             onClick={() => {
               setReintentando(true);
-              window.dispatchEvent(new Event("online")); // despierta al sincronizador
-              setTimeout(() => setReintentando(false), 4000);
+              setResultadoSync(null);
+              const antes = cobrosPend.length;
+              if (typeof navigator !== "undefined" && !navigator.onLine) {
+                setReintentando(false);
+                setResultadoSync("Tu teléfono está sin datos. Movete unos metros y probá otra vez.");
+                return;
+              }
+              window.dispatchEvent(new Event("py:sync"));
+              // Se mira la cola DESPUÉS: es la única verdad sobre si subieron.
+              setTimeout(() => {
+                setReintentando(false);
+                const quedan = pendientes().filter((o) => o.tipo === "pago" && !opAtascada(o)).length;
+                const subieron = Math.max(0, antes - quedan);
+                setResultadoSync(
+                  quedan === 0
+                    ? `Subieron ${subieron} ✓ Ya podés cerrar.`
+                    : subieron > 0
+                      ? `Subieron ${subieron}, quedan ${quedan}. Probá de nuevo en un rato.`
+                      : "Todavía no suben: hay señal pero el servidor no contesta. Se siguen reintentando solos.",
+                );
+              }, 4000);
             }}
             disabled={reintentando}
             className="mt-1 min-h-11 self-start rounded-full bg-[#9A6A0E] px-4 text-[12.5px] font-bold text-white disabled:opacity-60"
           >
             {reintentando ? "Intentando…" : "Intentar subirlos ahora"}
           </button>
+          {resultadoSync && (
+            <span className="text-[11.5px] leading-[1.45] font-bold text-[#9A6A0E]">{resultadoSync}</span>
+          )}
+          {/* Si después de intentar sigue trabado, hay salida: que quede constancia
+              de que terminó la ruta con la plata encima y la app no lo dejó cerrar. */}
+          {resultadoSync && !resultadoSync.includes("✓") && clienteDeLaCola && (
+            <PedirAyuda
+              clienteId={clienteDeLaCola}
+              etiqueta="Avisar que no puedo cerrar"
+              textoSugerido={`Terminé la ruta y tengo ${UYU(montoPend)} encima que la app no me deja subir (${cobrosPend.length} cobro${cobrosPend.length === 1 ? "" : "s"}). No pude cerrar la jornada.`}
+              tono="alerta"
+            />
+          )}
         </div>
       )}
 
@@ -364,7 +412,7 @@ export function CerrarJornada({
       {cobrosAtascados.length > 0 && (
         <div className="mt-3 flex flex-col gap-2 rounded-[12px] border border-[#F3C0B8] bg-[#FEF6F3] px-3 py-2.5">
           <span className="flex items-center gap-1.5 text-[12.5px] font-extrabold text-[#C0392B]">
-            ⚠️ {cobrosAtascados.length} cobro{cobrosAtascados.length === 1 ? "" : "s"} no se pudo subir
+            ⚠️ {cobrosAtascados.length} registro{cobrosAtascados.length === 1 ? "" : "s"} no se pudo subir
           </span>
           <span className="text-[11.5px] font-medium text-[#9A4436]">
             Abajo está el motivo de cada uno, con lo que dice la oficina.{" "}
@@ -375,7 +423,8 @@ export function CerrarJornada({
             <div key={o.id} className="flex flex-col gap-1.5 border-t border-[#F3D6CF] pt-1.5">
               <div className="flex items-center justify-between gap-2">
                 <span className="min-w-0 truncate text-[12px] font-semibold text-tinta">
-                  {o.clienteNombre} · {o.monto != null ? UYU(o.monto) : "cuota"}
+                  {o.clienteNombre} ·{" "}
+                  {o.tipo === "no_pago" ? "no pagó" : o.monto != null ? UYU(o.monto) : "cuota"}
                 </span>
                 {/* ⚠️ DOS TOQUES. Era un botón único, sin confirmación y sin rastro:
                     un toque y el cobro desaparecía del libro. El cobrador cerraba el
@@ -399,12 +448,16 @@ export function CerrarJornada({
                   {o.motivoFallo}
                 </span>
               )}
-              <PedirAyuda
-                clienteId={o.clienteId}
-                etiqueta="Avisar a la oficina"
-                textoSugerido={`No pude registrar un cobro de ${o.monto != null ? UYU(o.monto) : "una cuota"} de ${o.clienteNombre}. ${o.motivoFallo ?? "La app no lo dejó subir."} Tengo la plata conmigo.`}
-                tono="alerta"
-              />
+              {/* Un "no pagó" atascado no es plata: no hace falta ofrecer el aviso
+                  ni asustar con "tengo la plata conmigo". Se descarta y listo. */}
+              {o.tipo === "pago" && (
+                <PedirAyuda
+                  clienteId={o.clienteId}
+                  etiqueta="Avisar a la oficina"
+                  textoSugerido={`No pude registrar un cobro de ${o.monto != null ? UYU(o.monto) : "una cuota"} de ${o.clienteNombre}. ${o.motivoFallo ?? "La app no lo dejó subir."} Tengo la plata conmigo.`}
+                  tono="alerta"
+                />
+              )}
             </div>
           ))}
         </div>

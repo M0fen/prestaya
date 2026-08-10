@@ -91,6 +91,14 @@ export interface NoElegibleVista {
   queHacer: string | null;
 }
 
+/** Lo que acaba de pasar, guardado FUERA de la tarjeta. */
+interface Hecho {
+  clienteId: string;
+  nombre: string;
+  texto: string;
+  como: "creado" | "repetido" | "pedido";
+}
+
 export function ColocarLista({
   modo,
   candidatos,
@@ -108,6 +116,19 @@ export function ColocarLista({
   clienteFoco?: string | null;
 }) {
   const [q, setQ] = useState("");
+  // ⚠️ LA CONFIRMACIÓN VIVE ACÁ, NO ADENTRO DE LA TARJETA.
+  //
+  // Antes el "Listo ✓ · cuota $1.200" se pintaba dentro de la tarjeta del cliente.
+  // Al terminar, la pantalla se refresca: el crédito recién creado ya no está
+  // saldado, el cliente sale de la lista de "para renovar" y la tarjeta —con el
+  // cartel verde adentro— se DESTRUYE. En su lugar aparece un cartel ámbar que
+  // dice "todavía está pagando… dale una NUEVA VENTA".
+  //
+  // O sea: el cobrador entregaba la plata, miraba para otro lado un segundo, y al
+  // volver la pantalla lo invitaba a colocar otra vez, sin ninguna señal de que
+  // ya lo había hecho. Es exactamente la duda que dejó a MAICOL RIVERO y a JOSE
+  // MONTERO con $28.000 duplicados. Acá arriba sobrevive al refresco.
+  const [hecho, setHecho] = useState<Hecho | null>(null);
   const soloFoco = clienteFoco
     ? candidatos.filter((c) => c.clienteId === clienteFoco)
     : null;
@@ -136,7 +157,11 @@ export function ColocarLista({
     return noElegibles.filter((c) => coincide(c.nombre, c.documento, t, dig));
   }, [q, noElegibles]);
 
+  // El cartel de "ya está hecho", arriba de todo y a prueba de refrescos.
+  const confirmacion = hecho ? <Confirmacion h={hecho} /> : null;
+
   if (candidatos.length === 0 && noElegibles.length === 0) {
+    if (hecho) return <div className="flex flex-col gap-3">{confirmacion}</div>;
     return (
       <p className="rounded-[14px] bg-white px-4 py-6 text-center text-[13px] leading-[1.5] font-medium text-gris">
         {modo === "renovar"
@@ -152,11 +177,18 @@ export function ColocarLista({
   if (clienteFoco) {
     return (
       <div className="flex flex-col gap-3">
+        {confirmacion}
         {soloFoco && soloFoco.length > 0 ? (
           soloFoco.map((c) => (
-            <Tarjeta key={c.clienteId + (c.prestamoId ?? "")} c={c} modo={modo} abrirYa />
+            <Tarjeta
+              key={c.clienteId + (c.prestamoId ?? "")}
+              c={c}
+              modo={modo}
+              abrirYa
+              onHecho={setHecho}
+            />
           ))
-        ) : focoBloqueado ? (
+        ) : hecho ? null : focoBloqueado ? (
           <TarjetaBloqueada c={focoBloqueado} />
         ) : (
           /* ⚠️ Acá caía el cliente RECIÉN CENSADO: la ficha le ofrece "Darle un
@@ -191,6 +223,7 @@ export function ColocarLista({
 
   return (
     <div className="flex flex-col gap-3">
+      {confirmacion}
       <input
         type="search"
         value={q}
@@ -226,7 +259,7 @@ export function ColocarLista({
       )}
 
       {filtrados.map((c) => (
-        <Tarjeta key={c.clienteId + (c.prestamoId ?? "")} c={c} modo={modo} />
+        <Tarjeta key={c.clienteId + (c.prestamoId ?? "")} c={c} modo={modo} onHecho={setHecho} />
       ))}
 
       {bloqueados.map((c) => (
@@ -268,15 +301,64 @@ function TarjetaBloqueada({ c }: { c: NoElegibleVista }) {
   );
 }
 
+/** El cartel de "ya está hecho". Vive en la LISTA, no en la tarjeta, así sobrevive
+ *  al refresco que borra al cliente de los candidatos.
+ *
+ *  TRES resultados, TRES colores. Verde = el capital salió. Ámbar = ya estaba hecho
+ *  (reintento tras un corte de señal). ROJO = se PIDIÓ a la oficina y NO se creó
+ *  nada. El "pedido" se pintaba verde con ✓ igual que el éxito: en la calle, de
+ *  reojo, verde + ✓ = hecho, y el cobrador entregaba el efectivo por un crédito
+ *  que no existe. */
+function Confirmacion({ h }: { h: Hecho }) {
+  const tono =
+    h.como === "pedido"
+      ? { borde: "#F0C0BC", fondo: "#FDEEEC", texto: "#B03A2E" }
+      : h.como === "repetido"
+        ? { borde: "#F0DCA8", fondo: "#FDF8EC", texto: "#8A6D1E" }
+        : { borde: "#BEEBD5", fondo: "#F0FBF5", texto: "#157A50" };
+  return (
+    <div
+      className="flex flex-col gap-1 rounded-[16px] border p-4"
+      style={{ borderColor: tono.borde, background: tono.fondo }}
+    >
+      <span className="text-[14px] font-extrabold" style={{ color: tono.texto }}>
+        {h.nombre}
+      </span>
+      <p className="text-[12.5px] leading-[1.45] font-bold" style={{ color: tono.texto }}>
+        {h.texto}
+      </p>
+      {h.como === "pedido" && (
+        <p
+          className="mt-1 rounded-[10px] bg-white/70 px-2.5 py-2 text-[13px] leading-[1.4] font-extrabold"
+          style={{ color: tono.texto }}
+        >
+          ⛔ NO le entregues la plata todavía. El crédito NO existe hasta que la oficina apruebe.
+        </p>
+      )}
+      <a
+        href={`/cobrador/cliente/${h.clienteId}`}
+        className="mt-1.5 min-h-11 self-start rounded-full bg-white px-4 text-[12.5px] font-bold leading-[44px] active:scale-95"
+        style={{ color: tono.texto, boxShadow: `inset 0 0 0 1px ${tono.borde}` }}
+      >
+        Ver su cartón
+      </a>
+    </div>
+  );
+}
+
 function Tarjeta({
   c,
   modo,
   abrirYa = false,
+  onHecho,
 }: {
   c: Candidato;
   modo: "renovar" | "venta";
   /** Se entró desde la ficha de este cliente: ya está decidido de quién se trata. */
   abrirYa?: boolean;
+  /** Avisa a la LISTA que ya se colocó: el cartel se pinta allá arriba, donde el
+   *  refresco no se lo lleva puesto. */
+  onHecho: (h: Hecho) => void;
 }) {
   const router = useRouter();
   const [abierto, setAbierto] = useState(abrirYa);
@@ -288,11 +370,8 @@ function Tarjeta({
   const [msg, setMsg] = useState<string | null>(null);
   /** El servidor frenó un posible duplicado: el próximo toque lo confirma. */
   const [repetirIgual, setRepetirIgual] = useState(false);
-  const [okTxt, setOkTxt] = useState<string | null>(null);
-  /** Cómo terminó: "creado" (verde), "repetido" (ya estaba hecho) o "pedido" (a la
-   *  oficina — NO se creó nada y NO hay que entregar plata). Los tres son `ok` para
-   *  el servidor y tres cosas MUY distintas para el bolsillo del cobrador. */
-  const [comoTermino, setComoTermino] = useState<"creado" | "repetido" | "pedido">("creado");
+  /** Esta tarjeta ya cumplió: se apaga y el cartel lo pinta la lista. */
+  const [hechoAca, setHechoAca] = useState(false);
   const [pendiente, start] = useTransition();
 
   const montoN = Math.round(Number(monto) || 0);
@@ -373,16 +452,19 @@ function Tarjeta({
           // reintento tras un corte de señal devuelve `repetido`, y si se muestra
           // el mismo verde el cobrador cree que recién colocó el capital y le
           // entrega la plata al cliente DE NUEVO. Se dice distinto, explícito.
-          setOkTxt(
-            "solicitado" in r
-              ? r.mensaje
-              : r.repetido
-                ? `Ya estaba renovado ✓ — no se creó otro. Si ya le entregaste la plata, no se la des de nuevo.`
-                : r.cuota
-                  ? `Listo ✓ · cuota ${UYU(r.cuota)}`
-                  : "Listo ✓",
-          );
-          setComoTermino("solicitado" in r ? "pedido" : r.repetido ? "repetido" : "creado");
+          const monto = modo === "renovar" ? sugeridoRenov : montoN;
+          onHecho({
+            clienteId: c.clienteId,
+            nombre: c.nombre,
+            como: "solicitado" in r ? "pedido" : r.repetido ? "repetido" : "creado",
+            texto:
+              "solicitado" in r
+                ? r.mensaje
+                : r.repetido
+                  ? "Ya estaba renovado ✓ — no se creó otro. Si ya le entregaste la plata, no se la des de nuevo."
+                  : `Le entregaste ${UYU(monto)}${r.cuota ? ` · cuota ${UYU(r.cuota)}` : ""} ✓`,
+          });
+          setHechoAca(true);
           router.refresh();
         } else {
           setMsg(r.error);
@@ -400,33 +482,9 @@ function Tarjeta({
       }
     });
 
-  if (okTxt) {
-    // ⚠️ TRES resultados, TRES colores. Verde = el capital salió. Ámbar = ya estaba
-    // hecho (reintento tras un corte de señal). ROJO = se PIDIÓ a la oficina y NO
-    // se creó nada.
-    // El "pedido" se pintaba VERDE con ✓, igual que el éxito, y el único texto que
-    // decía "no le entregues la plata" desaparecía de la pantalla al confirmar. En
-    // la calle, de reojo, verde + ✓ = hecho: el cobrador entregaba el efectivo por
-    // un crédito que no existe.
-    const tono =
-      comoTermino === "pedido"
-        ? { borde: "#F0C0BC", fondo: "#FDEEEC", texto: "#B03A2E" }
-        : comoTermino === "repetido"
-          ? { borde: "#F0DCA8", fondo: "#FDF8EC", texto: "#8A6D1E" }
-          : { borde: "#BEEBD5", fondo: "#F0FBF5", texto: "#157A50" };
-    return (
-      <div className="rounded-[16px] border p-4" style={{ borderColor: tono.borde, background: tono.fondo }}>
-        <span className="text-[14px] font-extrabold" style={{ color: tono.texto }}>{c.nombre}</span>
-        <p className="mt-0.5 text-[12.5px] leading-[1.45] font-bold" style={{ color: tono.texto }}>{okTxt}</p>
-        {comoTermino === "pedido" && (
-          <p className="mt-2 rounded-[10px] bg-white/70 px-2.5 py-2 text-[13px] leading-[1.4] font-extrabold" style={{ color: tono.texto }}>
-            ⛔ NO le entregues la plata todavía. El crédito NO existe hasta que la
-            oficina apruebe.
-          </p>
-        )}
-      </div>
-    );
-  }
+  // Ya se colocó: la tarjeta se apaga y el cartel lo pinta la LISTA (Confirmacion),
+  // que es lo único que sobrevive al refresco.
+  if (hechoAca) return null;
 
   return (
     <div className="flex flex-col gap-2.5 rounded-[16px] border border-borde bg-white p-4">

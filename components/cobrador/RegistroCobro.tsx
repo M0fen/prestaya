@@ -460,8 +460,16 @@ export function RegistroCobro({
   return (
     <div className="flex flex-col gap-2.5">
       {!tieneGps && (
+        /* ⚠️ Decía "al censarlo cerca de su casa queda registrada" y era un CONSEJO
+           IMPOSIBLE: la ubicación solo se escribe al CREAR un cliente, y este ya
+           existe. El cobrador que seguía la instrucción o volvía a la misma ficha
+           con el mismo cartel, o —si forzaba el censo sin cédula— creaba una ficha
+           DUPLICADA del mismo cliente. Lo ven 2.127 de 2.264 clientes con crédito
+           activo (94%): es el texto más visto de la app después del botón de cobrar.
+           Hasta que exista "guardar la ubicación de esta casa", se dice el hecho y
+           nada más. */
         <p className="text-[11.5px] font-medium text-[#8A93AD]">
-          Este cliente no tiene ubicación guardada — al censarlo cerca de su casa queda registrada.
+          Este cliente no tiene ubicación guardada.
         </p>
       )}
 

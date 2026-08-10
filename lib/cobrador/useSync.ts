@@ -189,5 +189,22 @@ export function useSync(usuarioId: string | null, onSynced?: () => void) {
     if (online && ops.length > 0) void flush();
   }, [online, ops.length, flush]);
 
+  // ⚠️ EMPUJÓN MANUAL ("Intentar subirlos ahora" del cierre de jornada).
+  //
+  // Antes ese botón despachaba un evento `online` falso, y era DECORATIVO: el
+  // único que lo escucha hace `setOnline(true)`, y si el teléfono ya se cree
+  // conectado —el caso normal: barras llenas, datos que no pasan— escribir el
+  // MISMO valor no re-renderiza, así que el efecto de arriba no vuelve a correr y
+  // `flush` nunca se llamaba. Peor: tocarlo estando sin señal dejaba `online` en
+  // true, y cuando la señal volvía DE VERDAD el evento real del navegador también
+  // quedaba en no-op → la cola dejaba de subir sola hasta cerrar y reabrir la app.
+  //
+  // Con un evento propio se llama al flush REAL, sin tocar el estado de conexión.
+  useEffect(() => {
+    const forzar = () => void flush();
+    window.addEventListener("py:sync", forzar);
+    return () => window.removeEventListener("py:sync", forzar);
+  }, [flush]);
+
   return { pendientes: ops, online, sincronizando, flush };
 }
