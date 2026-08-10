@@ -386,7 +386,7 @@ export async function crearRenovacion(
     // rechazo. La vía definitiva es agregarle el parámetro a la RPC (DDL de Carlos).
     const capAutorizado = input.permitirSobreCap === true && code === "P0411";
     if (!capAutorizado && code !== "42883" && code !== "PGRST202") {
-      const ya = await buscarRenovacion(db, { clienteId, monto, cuota, totalDias, fechaInicio });
+      const ya = await buscarRenovacion(db, { clienteId, monto, cuota, totalDias, fechaInicio, prestamoAnteriorId });
       if (ya) return { ok: true, prestamoId: ya, cuota };
       // Un rojo sin motivo, frente al cliente, es un callejón sin salida: el
       // cobrador no sabe si entregar la plata ni a quién llamar. Cada código dice
@@ -433,7 +433,7 @@ export async function crearRenovacion(
     // anterior. Sin esto, la compensación reactivaba el anterior mientras el nuevo YA
     // estaba creado → cliente con DOS créditos activos (capital/deuda DUPLICADOS) + el
     // reintento fabricaba un tercero. Se busca el crédito EXACTO que intentamos crear.
-    const ya = await buscarRenovacion(db, { clienteId, monto, cuota, totalDias, fechaInicio });
+    const ya = await buscarRenovacion(db, { clienteId, monto, cuota, totalDias, fechaInicio, prestamoAnteriorId });
     if (ya) {
       // El insert había commiteado: la renovación está hecha. NO compensar (evita el duplicado).
       return { ok: true, prestamoId: ya, cuota };
@@ -471,11 +471,27 @@ export async function crearRenovacion(
  */
 async function buscarRenovacion(
   db: SupabaseClient,
-  k: { clienteId: string; monto: number; cuota: number; totalDias: number; fechaInicio: string },
+  k: {
+    clienteId: string;
+    monto: number;
+    cuota: number;
+    totalDias: number;
+    fechaInicio: string;
+    prestamoAnteriorId: string;
+  },
 ): Promise<string | null> {
   const { data } = await db
     .from("prestamos")
     .select("id")
+    // ⚠️ EL LINAJE ES LA CLAVE, no el parecido de términos. Buscar por (cliente,
+    // monto, cuota, cuotas, fecha) matchea a un crédito HERMANO: 85 grupos / 177
+    // créditos activos comparten esos cuatro valores (SONIA TELIS tiene 4 de
+    // $15.000×30 y 3 de $30.000×30). Si la RPC fallaba por red, esta búsqueda
+    // devolvía el hermano y la app contestaba "Listo ✓ · cuota $1.200": el
+    // cobrador entregaba $30.000 por un crédito que nunca se creó, y esa plata no
+    // quedaba registrada en ningún lado. `renovado_de` (0116) identifica exacto
+    // al crédito que ESTA renovación intentó crear.
+    .eq("renovado_de", k.prestamoAnteriorId)
     .eq("cliente_id", k.clienteId)
     .eq("estado", "activo")
     .eq("monto_prestado", k.monto)

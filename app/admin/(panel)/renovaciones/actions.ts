@@ -144,7 +144,18 @@ export async function renovarCredito(input: {
   // cierra para que no quede huérfana apuntando a un crédito ya finalizado
   // (best-effort: el crédito ya está creado, esto es solo limpieza de la cola).
   try {
-    if (res.prestamoId) await cerrarSolicitudPendienteDeAnterior(db, input.prestamoAnteriorId, res.prestamoId, usuario.id);
+    // Se cierra como RECHAZADA con el motivo: el gestor renovó por su cuenta desde
+    // la lista de candidatos y nadie miró el pedido. Marcarlo "aprobada" dejaba
+    // escrito que la oficina autorizó un monto que jamás se colocó.
+    if (res.prestamoId)
+      await cerrarSolicitudPendienteDeAnterior(
+        db,
+        input.prestamoAnteriorId,
+        res.prestamoId,
+        usuario.id,
+        "rechazada",
+        `Se renovó desde el panel por ${UYU(monto)} sin resolver el pedido.`,
+      );
   } catch { /* no bloquea la renovación ya hecha */ }
   await registrarAuditoria(db, {
     actorId: usuario.id,
@@ -249,11 +260,21 @@ export async function rechazarSolicitud(id: string, motivo: string): Promise<Res
     return { ok: false, error: "Solo el administrador resuelve renovaciones." };
   try {
     const db = await createSupabaseServer();
-    await resolverSolicitudDb(db, id, {
+    // ⚠️ Si otro gestor ya la resolvió, el update afecta 0 filas — y eso NO es un
+    // error de SQL. Sin este chequeo, rechazar una solicitud que un compañero
+    // acababa de APROBAR devolvía ok, escribía "Rechazó renovación" en la auditoría
+    // y la tarjeta desaparecía: el segundo se iba convencido de haberla frenado
+    // mientras el crédito ya estaba creado y el cliente lo estaba pagando.
+    const resolvio = await resolverSolicitudDb(db, id, {
       estado: "rechazada",
       resueltoPor: u.id,
       motivoRechazo: (motivo ?? "").trim().slice(0, 300) || null,
     });
+    if (!resolvio)
+      return {
+        ok: false,
+        error: "Otra persona ya resolvió esta solicitud. Recargá la pantalla para ver cómo quedó — si la aprobaron, el crédito YA está creado.",
+      };
     await registrarAuditoria(db, {
       actorId: u.id,
       actorNombre: u.nombre,

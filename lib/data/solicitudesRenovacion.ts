@@ -131,8 +131,9 @@ export async function resolverSolicitudDb(
   db: SupabaseClient,
   id: string,
   r: { estado: "aprobada" | "rechazada"; resueltoPor: string; motivoRechazo?: string | null; prestamoNuevoId?: string | null },
-): Promise<void> {
-  const { error } = await db
+  /** @returns true si ESTA llamada la resolvió; false si ya la había resuelto otro. */
+): Promise<boolean> {
+  const { data, error } = await db
     .from("solicitudes_renovacion")
     .update({
       estado: r.estado,
@@ -142,8 +143,14 @@ export async function resolverSolicitudDb(
       prestamo_nuevo_id: r.prestamoNuevoId ?? null,
     })
     .eq("id", id)
-    .eq("estado", "pendiente"); // no re-resolver
+    .eq("estado", "pendiente") // no re-resolver
+    // ⚠️ Un update que afecta 0 filas NO es error. Sin el `.select`, rechazar una
+    // solicitud que otro admin ya aprobó devolvía ok, escribía "Rechazó" en la
+    // auditoría y la tarjeta desaparecía — el segundo admin se iba convencido de
+    // haberla frenado mientras el crédito ya estaba creado y activo.
+    .select("id");
   if (error) throw error;
+  return (data ?? []).length > 0;
 }
 
 /**

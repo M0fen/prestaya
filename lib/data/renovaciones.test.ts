@@ -161,6 +161,11 @@ function fakeDb(state: {
       fecha_inicio: params.p_fecha_inicio,
       estado: "activo",
       creado_por: params.p_creado_por,
+      // El LINAJE que escribe la RPC real (0135 inserta `p_prestamo_anterior_id`
+      // en `renovado_de`). El doble no lo copiaba, así que no se podía probar la
+      // recuperación por linaje — que es justo lo que distingue el crédito recién
+      // creado de un HERMANO con los mismos términos.
+      renovado_de: params.p_prestamo_anterior_id,
     };
     state.prestamos[id] = fila;
     calls.inserts.push(fila);
@@ -464,5 +469,35 @@ describe("crearRenovacion — camino ATÓMICO (RPC 0087 presente)", () => {
     expect(state.prestamos["ant-1"].estado).toBe("finalizado"); // no se reactivó
     // Se creó exactamente uno (el del RPC); el fallback no fabricó un segundo.
     expect(db._calls.inserts).toHaveLength(1);
+  });
+});
+
+describe("buscarRenovacion: el LINAJE, no el parecido de términos", () => {
+  it("no confunde al crédito HERMANO con el recién creado", async () => {
+    // SONIA TELIS tiene 4 créditos activos de $15.000 × 30 @ $600 y 3 de $30.000.
+    // Antes la confirmación buscaba por (cliente, monto, cuota, cuotas, fecha): si
+    // la RPC fallaba por red, matcheaba a un HERMANO y contestaba "Listo ✓" — el
+    // cobrador entregaba el efectivo por un crédito que nunca se creó.
+    // 85 grupos / 177 créditos activos comparten esos cuatro valores.
+    const hermano = {
+      id: "hermano-1",
+      cliente_id: "cli-1",
+      monto_prestado: ALTA_OK.monto,
+      cuota_diaria: 400,
+      total_dias: ALTA_OK.totalDias,
+      fecha_inicio: "2026-07-21",
+      estado: "activo",
+      renovado_de: "OTRO-PADRE", // ← lo único que lo delata
+    };
+    const state = {
+      prestamos: { "ant-1": prestamoAnterior(), "hermano-1": hermano },
+      pagos: { "ant-1": PAGOS_SALDADO },
+      rpcPresente: true,
+      rpcFallaSinCodigo: true, // la RPC revienta sin código reconocible
+    };
+    const db = fakeDb(state as never);
+    const r = await crearRenovacion(db, ALTA_OK, HOY);
+    // NO puede devolver el hermano como si fuera la renovación recién hecha.
+    if (r.ok) expect(r.prestamoId).not.toBe("hermano-1");
   });
 });
