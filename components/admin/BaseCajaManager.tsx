@@ -143,9 +143,20 @@ export function BaseCajaManager({
   //  en la puerta, es la razón por la que la base no se carga: el 06-08 se cargaron
   //  10 de 47, y los otros 5 días del piloto NINGUNA. Un monto + un toque.
   const [montoTodos, setMontoTodos] = useState("");
-  const aplicarATodos = (soloVacios: boolean) => {
-    const m = Math.max(0, Math.round(Number(montoTodos) || 0));
-    if (m <= 0) return;
+  /** ⚠️ EL CERO TAMBIÉN ES UN MONTO. La primera versión salía con `if (m <= 0) return`
+   *  y dejaba fuera justo el caso que el negocio necesita: "mañana TODOS arrancan sin
+   *  efectivo". Con 47 cobradores eso eran 47 toques del botón "sin base", uno por
+   *  fila — o sea, el mismo trabajo manual que esta herramienta vino a borrar, y la
+   *  razón medida por la que las bases no se cargaban. Escribir 0 y tocar "A los 47"
+   *  tiene que declarar los 47 en cero, con dueño y con auditoría. */
+  const aplicarATodos = (soloVacios: boolean, forzado?: string) => {
+    // El monto llega EXPLÍCITO cuando lo dispara un botón con valor propio: leerlo
+    // del estado ahí devolvería el valor viejo (setState no es inmediato) y el
+    // "Todos en $0" habría aplicado lo que hubiera escrito antes. Con plata, un
+    // botón que hace algo distinto de lo que dice su etiqueta no es aceptable.
+    const txt = (forzado ?? montoTodos).trim();
+    if (txt === "") return; // vacío ≠ cero: sin número no se hace nada
+    const m = Math.max(0, Math.round(Number(txt) || 0));
     conDeshacer((v) => {
       const n = { ...v };
       for (const c of editables) {
@@ -154,6 +165,19 @@ export function BaseCajaManager({
       }
       return n;
     });
+    // Un cero aplicado en masa es una DECLARACIÓN ("hoy salen sin base"), igual que
+    // el botón por fila: se marcan todos los alcanzados para que el guardado los
+    // mande y no los confunda con "el campo quedó vacío".
+    if (m === 0) {
+      setCeros((s) => {
+        const n = new Set(s);
+        for (const c of editables) {
+          if (soloVacios && parsed(c.id) > 0) continue;
+          n.add(c.id);
+        }
+        return n;
+      });
+    }
   };
 
   /** "Hoy sale sin base": un $0 con dueño, distinto de un campo que nadie llenó. */
@@ -248,21 +272,35 @@ export function BaseCajaManager({
             <button
               type="button"
               onClick={() => aplicarATodos(false)}
-              disabled={pend || !(Number(montoTodos) > 0)}
+              disabled={pend || montoTodos.trim() === ""}
               className="min-h-9 rounded-full bg-azul px-3.5 text-[12px] font-bold text-white disabled:opacity-40"
             >
-              A los {cobradores.length}
+              A los {editables.length}
             </button>
-            {sinCargar > 0 && sinCargar < cobradores.length && (
+            {sinCargar > 0 && sinCargar < editables.length && (
               <button
                 type="button"
                 onClick={() => aplicarATodos(true)}
-                disabled={pend || !(Number(montoTodos) > 0)}
+                disabled={pend || montoTodos.trim() === ""}
                 className="min-h-9 rounded-full border border-borde bg-tarjeta px-3.5 text-[12px] font-bold text-cuerpo disabled:opacity-40"
               >
                 Solo a los {sinCargar} sin base
               </button>
             )}
+            {/* El caso "hoy salen todos sin efectivo", que es una decisión frecuente
+                del negocio y no un error de tipeo: un toque, sin escribir nada. */}
+            <button
+              type="button"
+              onClick={() => {
+                setMontoTodos("0");
+                aplicarATodos(false, "0");
+              }}
+              disabled={pend}
+              className="min-h-9 rounded-full border border-borde bg-tarjeta px-3.5 text-[12px] font-bold text-cuerpo disabled:opacity-40"
+              title="Dejar constancia de que hoy el equipo arranca sin efectivo"
+            >
+              Todos en $0
+            </button>
             {/* Aplicar a todos PISA lo que ya estaba tipeado. Sin vuelta atrás es un
                 botón que da miedo tocar, y el que da miedo no se usa. */}
             {pila.length > 0 && (
