@@ -136,8 +136,14 @@ export default async function DashboardPage({
   } catch (e) {
     reportarError("dashboard.bases", e); // nunca tumba el dashboard
   }
-  // Solo si falta alguna: cuando están todas cargadas, la tarjeta no aparece.
-  const faltanBases = basesPendientes.filter((c) => c.base <= 0).length;
+  // Solo si falta alguna. ⚠️ "Falta" es que NADIE la declaró (`origen` distinto de
+  // "cargada"), no que el monto sea cero: con el equipo declarado en $0 —que es una
+  // decisión válida y frecuente— la tarjeta roja no se iba nunca. Un aviso que
+  // aparece todos los días aunque hayas hecho lo correcto se deja de mirar, y el día
+  // que falte una base de verdad va a estar tapado por el mismo cartel de siempre.
+  const faltanBases = basesPendientes.filter(
+    (c) => !c.yaRindio && c.origen !== "cargada" && c.base <= 0,
+  ).length;
 
   const { cartera, recaudacion, mora, cobradores } = resumen;
   // "Al día" = saldo total − mora EN TÉRMINO − CARTERA VENCIDA (castigo). Antes se

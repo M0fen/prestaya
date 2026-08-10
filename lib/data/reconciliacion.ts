@@ -574,11 +574,11 @@ export async function hallazgosExtraDelDia(db: SupabaseClient, hoy: Date): Promi
     const desdeYmd = sumarDiasYmd(fecha, -14);
     const { data: aps, error } = await db
       .from("aperturas_caja")
-      .select("cobrador_id, fecha, monto")
+      .select("cobrador_id, fecha, base")
       .gte("fecha", desdeYmd)
       .lt("fecha", fecha); // el día en curso NO se marca: todavía está en la calle
     if (error) throw error;
-    const filasAp = (aps ?? []).filter((a) => N(a.monto) > 0);
+    const filasAp = (aps ?? []).filter((a) => N(a.base) > 0);
     if (filasAp.length > 0) {
       const ids = [...new Set(filasAp.map((a) => a.cobrador_id as string))];
       const [{ data: rends }, { data: usrs }] = await Promise.all([
@@ -603,7 +603,7 @@ export async function hallazgosExtraDelDia(db: SupabaseClient, hoy: Date): Promi
               cobradorId: cid,
               cobradorNombre: nombreDe.get(cid) ?? "Cobrador",
               fecha: f,
-              monto: N(a.monto),
+              monto: N(a.base),
               rindioDespues: (ultimaRend.get(cid) ?? "") >= f,
               diasSinRendir: Math.max(0, Math.round((dia(fecha) - dia(f)) / 86_400_000)),
             };

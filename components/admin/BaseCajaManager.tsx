@@ -88,7 +88,7 @@ export function BaseCajaManager({
   const [q, setQ] = useState("");
   /** Fotos previas para DESHACER: aplicar a todos pisa lo tipeado, y sin vuelta
    *  atrás eso es un botón que da miedo tocar. */
-  const [pila, setPila] = useState<Record<string, string>[]>([]);
+  const [pila, setPila] = useState<{ vals: Record<string, string>; ceros: Set<string> }[]>([]);
   /** Declarados EXPLÍCITAMENTE en $0 ("hoy arranca sin base"). Un campo vacío y un
    *  cero declarado se ven igual y NO son lo mismo: uno es "nadie la cargó" y el
    *  otro es "salió sin plata", que es una decisión con dueño. La invariante que
@@ -101,12 +101,19 @@ export function BaseCajaManager({
   // cuánta plata está por poner en la calle ANTES de confirmar.
   const total = cobradores.reduce((s, c) => s + parsed(c.id), 0);
   const editables = cobradores.filter((c) => !c.yaRindio);
-  const sinCargar = editables.filter((c) => parsed(c.id) <= 0 && !ceros.has(c.id)).length;
+  // ⚠️ "FALTA CARGAR" NO ES "EL MONTO ES CERO". `ceros` vive solo en este montaje
+  // de React: al recargar la página se pierde, y una base declarada en $0 —que ESTÁ
+  // guardada, con nombre y hora— volvía a contarse como faltante. Con los 52 en cero
+  // el cartel decía "Ninguna base cargada todavía" arriba de 52 filas que dicen
+  // "base cargada por vos". La verdad persistida es `origen`, que distingue
+  // "alguien la declaró" de "nadie la cargó" — que es justamente para lo que existe.
+  const declarada = (c: CobradorBase) => c.origen === "cargada" || ceros.has(c.id);
+  const sinCargar = editables.filter((c) => parsed(c.id) <= 0 && !declarada(c)).length;
   // Un cambio es: un monto distinto al guardado, o un $0 DECLARADO sobre alguien
   // que todavía no tenía base. Los que ya rindieron no entran: el servidor los
   // rechaza y contarlos haría que el botón prometa lo que no puede hacer.
   const cambios = editables.filter(
-    (c) => parsed(c.id) !== c.base || (ceros.has(c.id) && c.origen === "sin_base"),
+    (c) => parsed(c.id) !== c.base || (ceros.has(c.id) && c.origen !== "cargada"),
   );
   const hayAyer = cobradores.some((c) => (c.baseAyer ?? 0) > 0);
   const listas = editables.length - sinCargar;
@@ -116,14 +123,19 @@ export function BaseCajaManager({
   /** Guarda una foto antes de pisar valores, para poder volver. */
   const conDeshacer = (fn: (v: Record<string, string>) => Record<string, string>) => {
     setMsg(null);
-    setPila((p) => [...p.slice(-4), vals]);
+    // Se guarda TAMBIÉN el set de ceros declarados: si solo se revirtieran los
+    // montos, "Deshacer" dejaba los campos vacíos con el semáforo en verde
+    // diciendo "las 52 bases están cargadas". Una pantalla inconsistente sobre
+    // plata es peor que no tener el botón.
+    setPila((p) => [...p.slice(-4), { vals, ceros }]);
     setVals(fn);
   };
   const deshacer = () => {
     const previo = pila[pila.length - 1];
     if (!previo) return;
     setPila((p) => p.slice(0, -1));
-    setVals(previo);
+    setVals(previo.vals);
+    setCeros(previo.ceros);
     setMsg(null);
   };
 
@@ -352,7 +364,7 @@ export function BaseCajaManager({
                   <ul className="flex flex-col divide-y divide-linea px-3">
                     {visibles.map((c) => {
                       const cambiado =
-                        !c.yaRindio && (parsed(c.id) !== c.base || (ceros.has(c.id) && c.origen === "sin_base"));
+                        !c.yaRindio && (parsed(c.id) !== c.base || (ceros.has(c.id) && c.origen !== "cargada"));
                       return (
                         <li key={c.id} className="flex items-center gap-2 py-2.5">
                           <div className="flex min-w-0 flex-1 flex-col">
@@ -406,7 +418,7 @@ export function BaseCajaManager({
                           {/* "Sale sin base": un $0 CON DUEÑO. Un campo vacío y un cero
                               declarado se ven igual y no son lo mismo — uno es "nadie
                               la cargó" y el otro es una decisión. */}
-                          {!c.yaRindio && parsed(c.id) <= 0 && !ceros.has(c.id) && (
+                          {!c.yaRindio && parsed(c.id) <= 0 && !declarada(c) && (
                             <button
                               type="button"
                               onClick={() => declararCero(c.id)}

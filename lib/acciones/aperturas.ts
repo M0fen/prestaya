@@ -90,8 +90,20 @@ export async function setAperturasLote(input: {
   if (!u || !u.activo || !esGestor(u.rol)) return { ok: false, error: "No tenés permisos." };
   const bloqueo = await bloqueoSoloLectura();
   if (bloqueo) return bloqueo;
-  const items = (input.items ?? []).filter((x) => esUuid(x.cobradorId)).slice(0, 60);
+  // ⚠️ El tope era 60 y cortaba EN SILENCIO: con 61 cobradores, el 61 se caía del
+  // guardado sin que nadie lo dijera — botón verde, cobrador con efectivo en la
+  // mano, cero registro. Hoy son 52 (8 de margen), así que todavía no muerde, pero
+  // el corte mudo es exactamente la clase de cosa que se descubre con una auditoría
+  // tres meses tarde. Se sube el tope y, si aun así sobra, se AVISA.
+  const TOPE_LOTE = 200;
+  const todos = (input.items ?? []).filter((x) => esUuid(x.cobradorId));
+  const items = todos.slice(0, TOPE_LOTE);
   if (items.length === 0) return { ok: false, error: "No hay bases para guardar." };
+  if (todos.length > TOPE_LOTE)
+    return {
+      ok: false,
+      error: `Son ${todos.length} bases y el máximo por vez es ${TOPE_LOTE}. Guardá en dos tandas (usá el buscador para filtrar).`,
+    };
 
   const db = await createSupabaseServer();
   const hoy = fechaISOUY();
@@ -111,11 +123,11 @@ export async function setAperturasLote(input: {
   // dueño hace todos los días y era la que peor traza dejaba.
   const { data: previas } = await db
     .from("aperturas_caja")
-    .select("cobrador_id, monto")
+    .select("cobrador_id, base")
     .eq("fecha", hoy)
     .in("cobrador_id", items.map((x) => x.cobradorId));
   const antesDe = new Map(
-    (previas ?? []).map((p) => [p.cobrador_id as string, Math.round(Number(p.monto) || 0)]),
+    (previas ?? []).map((p) => [p.cobrador_id as string, Math.round(Number(p.base) || 0)]),
   );
   const { data: nombres } = await db
     .from("usuarios")

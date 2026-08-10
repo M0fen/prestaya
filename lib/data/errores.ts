@@ -12,6 +12,17 @@ export function tablaFaltante(e: unknown): boolean {
   const err = e as { code?: string; message?: string } | null;
   const code = err?.code;
   if (code === "42P01" || code === "PGRST205") return true;
+  // ⚠️ NUNCA tragar un error de COLUMNA acá. El respaldo por mensaje (`does not
+  // exist`) matcheaba también "column x.y does not exist" (42703), y ese caso NO
+  // es "la migración todavía no corrió": es un nombre de columna mal escrito, o
+  // sea un bug. Lo caro es que quien llama a este helper DEGRADA EN SILENCIO —
+  // devuelve vacío y sigue— así que un typo se comía la función entera sin dejar
+  // ni una línea en Sentry. Le pasó a INV13 el 10-08: pedía `monto` sobre
+  // `aperturas_caja` (la columna es `base`), y el vigilante de las bases sin
+  // devolver quedó CIEGO Y MUDO desde el día que se escribió, con $497.801 en 8
+  // bolsillos que nadie estaba reclamando. Los 1.022 tests seguían verdes porque
+  // los tests prueban la función pura, no la consulta.
+  if (columnaFaltante(e)) return false;
   const msg = err?.message ?? "";
   return /schema cache|does not exist|could not find the table/i.test(msg);
 }
