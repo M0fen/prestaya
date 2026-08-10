@@ -27,7 +27,7 @@ import "server-only";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { tablaFaltante } from "./errores";
 
-export type TipoPedido = "renovacion" | "gasto" | "correccion";
+export type TipoPedido = "renovacion" | "gasto" | "correccion" | "aviso";
 export type EstadoPedido = "pendiente" | "aprobado" | "rechazado";
 
 export interface Pedido {
@@ -69,15 +69,16 @@ const horasDesde = (iso: string | null, ahora: number): number =>
 export async function getMisPedidos(cobradorId: string, ahora: Date = new Date()): Promise<Pedido[]> {
   const t = ahora.getTime();
   const desde = new Date(t - DIAS_RESUELTOS * 24 * 3_600_000).toISOString();
-  const [renov, gastos, corr] = await Promise.all([
+  const [renov, gastos, corr, avisos] = await Promise.all([
     pedidosRenovacion(cobradorId, desde, t),
     pedidosGasto(cobradorId, desde, t),
     pedidosCorreccion(cobradorId, desde, t),
+    avisosALaOficina(cobradorId, desde, t),
   ]);
 
   const peso = (p: Pedido) =>
     p.estado === "aprobado" && p.tipo === "renovacion" ? 0 : p.estado === "pendiente" ? 1 : 2;
-  return [...renov, ...gastos, ...corr].sort(
+  return [...renov, ...gastos, ...corr, ...avisos].sort(
     (a, b) => peso(a) - peso(b) || b.horasEsperando - a.horasEsperando,
   );
 }
@@ -85,6 +86,72 @@ export async function getMisPedidos(cobradorId: string, ahora: Date = new Date()
 /** Cuántos piden atención AHORA (para el contador del encabezado). */
 export function pedidosQuePidenAccion(pedidos: Pedido[]): number {
   return pedidos.filter((p) => p.estado !== "rechazado").length;
+}
+
+/** Un aviso de la calle esperando que alguien de la oficina lo mire. */
+export interface AvisoDeLaCalle {
+  id: string;
+  clienteId: string;
+  clienteNombre: string;
+  cobradorNombre: string;
+  cuerpo: string;
+  creadoIso: string;
+  horasEsperando: number;
+}
+
+/**
+ * LA OTRA MITAD DEL CIRCUITO: los avisos de la calle, juntos, para la oficina.
+ *
+ * Los cinco botones de `PedirAyuda` escriben una nota en la ficha del cliente y le
+ * prometen al cobrador que "le va a llegar a tu supervisor y a la oficina". Nadie
+ * las leía: había que abrir de a una las fichas de 13.166 clientes. Tres pedidos
+ * de primer crédito llevan dos días esperando por eso.
+ *
+ * No hace falta infraestructura nueva: son las mismas notas, leídas por prefijo y
+ * ordenadas por antigüedad, para colgarlas de la pantalla que la oficina ya abre.
+ * Se lee con ADMIN porque `notas_cliente` está acotada por cliente; el recorte por
+ * ZONA lo hace el llamador pasando `cobradorIds` (null = admin, ve todo).
+ */
+export async function getAvisosDeLaCalle(
+  cobradorIds: string[] | null,
+  dias = 7,
+): Promise<AvisoDeLaCalle[]> {
+  try {
+    if (cobradorIds && cobradorIds.length === 0) return [];
+    const admin = createSupabaseAdmin();
+    const desde = new Date(Date.now() - dias * 24 * 3_600_000).toISOString();
+    let q = admin
+      .from("notas_cliente")
+      .select("id, cliente_id, autor_id, cuerpo, creado_en")
+      .gte("creado_en", desde)
+      .order("creado_en", { ascending: true }); // LO MÁS VIEJO ARRIBA: es lo que urge
+    if (cobradorIds) q = q.in("autor_id", cobradorIds);
+    const { data, error } = await q;
+    if (error) throw error;
+    const pedidos = (data ?? []).filter((n) =>
+      /^\s*(pido|pedido|no pude|terminé la ruta)/i.test(String(n.cuerpo ?? "")),
+    );
+    if (pedidos.length === 0) return [];
+    const [{ data: cls }, { data: usrs }] = await Promise.all([
+      admin.from("clientes").select("id, nombre").in("id", [...new Set(pedidos.map((n) => n.cliente_id as string))]),
+      admin.from("usuarios").select("id, nombre").in("id", [...new Set(pedidos.map((n) => n.autor_id as string))]),
+    ]);
+    const cliDe = new Map((cls ?? []).map((c) => [c.id as string, c.nombre as string]));
+    const usrDe = new Map((usrs ?? []).map((u) => [u.id as string, u.nombre as string]));
+    const t = Date.now();
+    return pedidos.map((n) => ({
+      id: n.id as string,
+      clienteId: n.cliente_id as string,
+      clienteNombre: cliDe.get(n.cliente_id as string) ?? "Cliente",
+      cobradorNombre: usrDe.get(n.autor_id as string) ?? "Cobrador",
+      cuerpo: String(n.cuerpo ?? ""),
+      creadoIso: n.creado_en as string,
+      horasEsperando: horasDesde(n.creado_en as string, t),
+    }));
+  } catch (e) {
+    if (tablaFaltante(e)) return [];
+    throw e;
+  }
 }
 
 // ── RENOVACIONES sobre el tope ─────────────────────────────────────────────
@@ -192,6 +259,63 @@ async function pedidosGasto(cobradorId: string, desde: string, t: number): Promi
         horasEsperando: horasDesde(r.solicitado_en as string, t),
       };
     });
+  } catch (e) {
+    if (tablaFaltante(e)) return [];
+    throw e;
+  }
+}
+
+// ── AVISOS a la oficina (el patrón `PedirAyuda`) ───────────────────────────
+/**
+ * ⚠️ EL CIRCUITO QUE ESCRIBÍA EN EL VACÍO.
+ *
+ * `PedirAyuda` es la salida de emergencia del proyecto: está montada en cinco
+ * lugares ("pedir su primer crédito", "pedirlo a mi supervisor", "está mal,
+ * avisar", "avisar que no puedo cerrar") y le promete al cobrador que "esto le va
+ * a llegar a tu supervisor y a la oficina". La verdad es que escribe una nota en
+ * la ficha de ESE cliente y nada más: no hay bandeja, ni contador, ni aviso. Para
+ * enterarse habría que abrir de a una las fichas de 13.166 clientes.
+ *
+ * Medido el 10-08: de las 4 notas "Pido crédito para…" escritas por cobradores, 3
+ * corresponden a clientes que uno y dos días después SIGUEN sin crédito. Y ningún
+ * gestor creó jamás un crédito desde la app.
+ *
+ * Acá se cierra la mitad del circuito que le toca al cobrador: sus avisos aparecen
+ * en "Tus pedidos" con su antigüedad, así ve que están esperando y puede insistir
+ * por otro lado en vez de creer que ya está resuelto. Se reconocen por el prefijo
+ * "Pido " / "Pedido:" que los cinco botones ya escriben.
+ */
+async function avisosALaOficina(cobradorId: string, desde: string, t: number): Promise<Pedido[]> {
+  try {
+    const admin = createSupabaseAdmin();
+    const { data, error } = await admin
+      .from("notas_cliente")
+      .select("id, cliente_id, cuerpo, creado_en")
+      .eq("autor_id", cobradorId)
+      .gte("creado_en", desde)
+      .order("creado_en", { ascending: false });
+    if (error) throw error;
+    const pedidos = (data ?? []).filter((n) => /^\s*(pido|pedido|no pude|terminé la ruta)/i.test(String(n.cuerpo ?? "")));
+    if (pedidos.length === 0) return [];
+    const ids = [...new Set(pedidos.map((n) => n.cliente_id as string))];
+    const { data: cls } = await admin.from("clientes").select("id, nombre").in("id", ids);
+    const nombre = new Map((cls ?? []).map((c) => [c.id as string, c.nombre as string]));
+    return pedidos.map((n) => ({
+      id: n.id as string,
+      tipo: "aviso" as const,
+      // Una nota no tiene estado: nadie la resuelve ni la rechaza. Se muestra como
+      // pendiente a propósito — porque eso es exactamente lo que es.
+      estado: "pendiente" as const,
+      titulo: `Aviso sobre ${nombre.get(n.cliente_id as string) ?? "un cliente"}`,
+      monto: 0,
+      queHacer:
+        "Quedó anotado en su ficha. La oficina lo ve cuando abre al cliente: si es urgente, avisale también por el chat.",
+      motivo: String(n.cuerpo ?? "").slice(0, 200),
+      href: `/cobrador/cliente/${n.cliente_id as string}`,
+      pedidoIso: n.creado_en as string,
+      resueltoIso: null,
+      horasEsperando: horasDesde(n.creado_en as string, t),
+    }));
   } catch (e) {
     if (tablaFaltante(e)) return [];
     throw e;

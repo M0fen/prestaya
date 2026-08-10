@@ -448,6 +448,161 @@ export function invFormaCreditoActivo(rows: readonly CreditoForma[]): Hallazgo[]
   return out;
 }
 
+// ── INV13 — BASE ENTREGADA QUE NADIE VOLVIÓ A PEDIR (auditoría 10-08) ──────
+export interface AperturaHuerfana {
+  cobradorId: string;
+  cobradorNombre: string;
+  /** "YYYY-MM-DD" del día en que se le entregó la base. */
+  fecha: string;
+  monto: number;
+  /** ¿Ese cobrador rindió ESE día o alguno posterior? */
+  rindioDespues: boolean;
+  /** Días que pasaron desde la entrega hasta hoy. */
+  diasSinRendir: number;
+}
+
+/**
+ * INVARIANTE 13 — a quien se le entregó BASE, en algún momento tiene que rendir.
+ *
+ * ⚠️ Es el hueco que ninguna invariante miraba. INV6 (`invBaseCaja`) revisa que la
+ * base no se haya EDITADO después del cierre, y se auto-excluye justamente cuando
+ * no hay cierre (`if (r.baseRendicion == null) continue`) — o sea, el caso
+ * peligroso quedaba fuera por diseño.
+ *
+ * Medido el 10-08: se entregaron $583.054 de base a 10 cobradores (9 el 06-08, 1 el
+ * 08-08) y NINGUNO rindió ese día. La base no arrastra —eso está bien, es la regla—
+ * pero desaparece de todas las pantallas al día siguiente: plata que salió de la
+ * caja central, está en el bolsillo de alguien, y no la reclama nadie.
+ *
+ * NO se marca el mismo día (el cobrador todavía está en la calle): recién a partir
+ * del día siguiente es un hallazgo. Puro.
+ */
+export function invBaseSinRendir(rows: readonly AperturaHuerfana[]): Hallazgo[] {
+  const out: Hallazgo[] = [];
+  for (const r of rows) {
+    if (r.rindioDespues || r.diasSinRendir < 1 || r.monto <= 0) continue;
+    out.push({
+      invariante: "base_sin_rendir",
+      // Un día es olvido; tres días es plata de la empresa sin dueño declarado.
+      severidad: r.diasSinRendir >= 3 ? "alto" : "medio",
+      detalle:
+        `${r.cobradorNombre}: se le entregó base de $${Math.round(r.monto)} el ${r.fecha} ` +
+        `y no rindió ninguna jornada desde entonces (${r.diasSinRendir} día${r.diasSinRendir === 1 ? "" : "s"}). ` +
+        `Esa plata salió de la caja y no la está pidiendo ninguna pantalla.`,
+    });
+  }
+  return out;
+}
+
+// ── INV14 — GASTO APROBADO SIN SU SALIDA DE CAJA (auditoría 10-08) ─────────
+export interface GastoAprobadoRecon {
+  solicitudId: string;
+  cobradorNombre: string;
+  monto: number;
+  /** "YYYY-MM-DD" en que se resolvió. */
+  fecha: string;
+  /** ¿Existe el movimiento de caja (egreso) que le corresponde? */
+  tieneEgreso: boolean;
+  /** ¿Quedó registrado en `auditoria` quién lo aprobó? */
+  tieneAuditoria: boolean;
+}
+
+/**
+ * INVARIANTE 14 — todo gasto APROBADO tiene su egreso en el libro de caja.
+ *
+ * Cierra las dos puntas de un mismo agujero:
+ *  · El egreso que EXISTIÓ y no está. Medido: `movimientos_caja` tiene 0 filas pero
+ *    la base registra 3 inserciones y 3 borrados; el único gasto aprobado del
+ *    piloto (Valentina, $1.000 de combustible) tiene su solicitud, su fila de
+ *    auditoría y su descuento en la rendición — y su egreso desapareció. Por eso
+ *    /admin/caja subdeclara los gastos en exactamente $1.000. (La 0138 le puso el
+ *    candado de borrado; esto lo DETECTA si vuelve a pasar por otra vía.)
+ *  · El gasto que nunca fue aprobado por nadie. Antes de la 0137, un cobrador podía
+ *    insertar una solicitud ya "aprobada" y firmada con el nombre del admin: se
+ *    bajaba el esperado del cierre y NO aparecía en ninguna bandeja, porque las
+ *    bandejas listan los pendientes. Un aprobado sin egreso ni auditoría es
+ *    exactamente esa firma que nadie puso.
+ * Puro.
+ */
+export function invGastoSinEgreso(rows: readonly GastoAprobadoRecon[]): Hallazgo[] {
+  const out: Hallazgo[] = [];
+  for (const r of rows) {
+    if (r.monto <= 0) continue;
+    if (!r.tieneEgreso && !r.tieneAuditoria) {
+      out.push({
+        invariante: "gasto_aprobado_sin_firma",
+        severidad: "critico",
+        detalle:
+          `${r.cobradorNombre}: gasto de $${Math.round(r.monto)} del ${r.fecha} figura APROBADO ` +
+          `y no tiene ni egreso de caja ni registro de quién lo aprobó. Baja el esperado del ` +
+          `cierre sin que nadie lo haya autorizado.`,
+      });
+      continue;
+    }
+    if (!r.tieneEgreso) {
+      out.push({
+        invariante: "gasto_sin_egreso",
+        severidad: "alto",
+        detalle:
+          `${r.cobradorNombre}: gasto de $${Math.round(r.monto)} del ${r.fecha} está aprobado y ` +
+          `descontado del cierre, pero no tiene su salida en el libro de caja (la caja subdeclara ese monto).`,
+      });
+    }
+  }
+  return out;
+}
+
+// ── INV15 — EL LIBRO DE PAGOS CONTRA LA BITÁCORA (auditoría 10-08) ─────────
+export interface JornadaBitacora {
+  cobradorId: string;
+  cobradorNombre: string;
+  /** "YYYY-MM-DD" del día UY. */
+  fecha: string;
+  /** Cobros que la BITÁCORA de campo registró ese día (el acto físico). */
+  cobrosBitacora: number;
+  /** Pagos VIGENTES en el libro para esos actos. */
+  pagosLibro: number;
+  /** Pagos ANULADOS ese día (son legítimos: el cobrador deshizo). */
+  pagosAnulados: number;
+  /** Plata que la bitácora dice que se cobró y el libro no tiene. */
+  montoFaltante: number;
+}
+
+/**
+ * INVARIANTE 15 — cada cobro de la bitácora tiene su pago en el libro.
+ *
+ * ⚠️ Es la invariante que habría cazado el peor caso de trazabilidad del piloto.
+ * El acta de Valentina Ramírez del 03-08 dice recaudado $220.960 en 45 cobros, y
+ * hoy en la base NO hay un solo pago que la respalde: un script de limpieza abrió
+ * la escotilla `permitir_borrado_pagos` el 04-08 y los borró creyendo que eran
+ * pruebas. La bitácora, que es otra tabla y nadie tocó, conserva los 50 cobros de
+ * esa noche menos los 4 que ella misma deshizo = exactamente 45 y $220.960.
+ *
+ * O sea: la bitácora y el libro son DOS testigos independientes del mismo hecho, y
+ * cuando uno desaparece el otro lo delata. Ninguna pantalla comparaba los dos.
+ *
+ * Los ANULADOS no son un hallazgo: deshacer un cobro es una operación legítima y
+ * deja su propio rastro. Lo que se busca es el pago que no está ni vigente ni
+ * anulado — o sea, borrado. Puro.
+ */
+export function invBitacoraVsLibro(rows: readonly JornadaBitacora[]): Hallazgo[] {
+  const out: Hallazgo[] = [];
+  for (const r of rows) {
+    const sinRastro = r.cobrosBitacora - r.pagosLibro - r.pagosAnulados;
+    if (sinRastro <= 0) continue;
+    out.push({
+      invariante: "bitacora_sin_libro",
+      severidad: "critico",
+      detalle:
+        `${r.cobradorNombre} (${r.fecha}): la bitácora registró ${r.cobrosBitacora} cobros y el ` +
+        `libro tiene ${r.pagosLibro} vigentes + ${r.pagosAnulados} anulados. Faltan ${sinRastro} ` +
+        `pagos${r.montoFaltante > 0 ? ` por $${Math.round(r.montoFaltante)}` : ""}: no fueron ` +
+        `anulados, fueron BORRADOS. El cartón de esos clientes perdió su historial.`,
+    });
+  }
+  return out;
+}
+
 export interface ResumenReconciliacion {
   ok: boolean;
   totalCreditos: number;

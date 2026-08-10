@@ -14,6 +14,9 @@ import {
   invGastosRendicion,
   invRutaCredito,
   invFormaCreditoActivo,
+  invBaseSinRendir,
+  invGastoSinEgreso,
+  invBitacoraVsLibro,
   type CreditoRecon,
   type Hallazgo,
   type BaseCajaRecon,
@@ -21,13 +24,14 @@ import {
   type RendicionRecon,
   type GastosRecon,
   type RutaRecon,
+  type JornadaBitacora,
   type ResumenReconciliacion,
 } from "@/lib/reconciliacion";
 import { inicioDiaUYIso, hoyUY, sumarDiasYmd, diaUYInicioIso } from "@/lib/fecha";
 import { toIso } from "@/lib/format";
 import { saldoCredito } from "@/lib/cartones";
 import { reportarError } from "@/lib/observabilidad";
-import { tablaFaltante } from "./errores";
+import { tablaFaltante, columnaFaltante } from "./errores";
 import { getDiscrepanciasMap, esCerrada, type TriageDiscrepancia } from "./discrepancias";
 import { traerTodo } from "./paginado";
 
@@ -558,6 +562,151 @@ export async function hallazgosExtraDelDia(db: SupabaseClient, hoy: Date): Promi
     }
   } catch (e) {
     if (!tablaFaltante(e)) reportarError("reconciliarDia:leadTienda", e);
+  }
+
+  // ── INV13 — BASE ENTREGADA QUE NADIE VOLVIÓ A PEDIR ──────────────────────
+  // El hueco que INV6 se auto-excluía: revisa la base EDITADA después del cierre y
+  // saltea justo el caso peligroso (entregó base y nunca rindió). Medido el 10-08:
+  // $583.054 a 10 cobradores, ninguno rindió ese día, y la plata desapareció de
+  // todas las pantallas al día siguiente. Ventana de 14 días: más atrás ya es
+  // arqueología, no operación.
+  try {
+    const desdeYmd = sumarDiasYmd(fecha, -14);
+    const { data: aps, error } = await db
+      .from("aperturas_caja")
+      .select("cobrador_id, fecha, monto")
+      .gte("fecha", desdeYmd)
+      .lt("fecha", fecha); // el día en curso NO se marca: todavía está en la calle
+    if (error) throw error;
+    const filasAp = (aps ?? []).filter((a) => N(a.monto) > 0);
+    if (filasAp.length > 0) {
+      const ids = [...new Set(filasAp.map((a) => a.cobrador_id as string))];
+      const [{ data: rends }, { data: usrs }] = await Promise.all([
+        db.from("rendiciones").select("cobrador_id, fecha").in("cobrador_id", ids).gte("fecha", desdeYmd),
+        db.from("usuarios").select("id, nombre").in("id", ids),
+      ]);
+      const nombreDe = new Map((usrs ?? []).map((u) => [u.id as string, u.nombre as string]));
+      // Rendición MÁS NUEVA por cobrador: alcanza con una posterior a la entrega.
+      const ultimaRend = new Map<string, string>();
+      for (const r of rends ?? []) {
+        const cid = r.cobrador_id as string;
+        const f = String(r.fecha);
+        if (!ultimaRend.has(cid) || f > ultimaRend.get(cid)!) ultimaRend.set(cid, f);
+      }
+      const dia = (ymd: string) => new Date(`${ymd}T00:00:00Z`).getTime();
+      out.push(
+        ...invBaseSinRendir(
+          filasAp.map((a) => {
+            const cid = a.cobrador_id as string;
+            const f = String(a.fecha);
+            return {
+              cobradorId: cid,
+              cobradorNombre: nombreDe.get(cid) ?? "Cobrador",
+              fecha: f,
+              monto: N(a.monto),
+              rindioDespues: (ultimaRend.get(cid) ?? "") >= f,
+              diasSinRendir: Math.max(0, Math.round((dia(fecha) - dia(f)) / 86_400_000)),
+            };
+          }),
+        ),
+      );
+    }
+  } catch (e) {
+    if (!tablaFaltante(e)) reportarError("reconciliarDia:baseSinRendir", e);
+  }
+
+  // ── INV14 — GASTO APROBADO SIN SU SALIDA DE CAJA ─────────────────────────
+  // Dos puntas del mismo agujero: el egreso que existió y se borró (el de $1.000
+  // de Valentina), y el gasto "aprobado" que nadie aprobó (lo que la 0137 ahora
+  // impide crear — esto lo detecta si entra por otra vía).
+  try {
+    const desdeIso = diaUYInicioIso(sumarDiasYmd(fecha, -14));
+    const { data: gs, error } = await db
+      .from("solicitudes_gasto")
+      .select("id, cobrador_id, monto, resuelto_en, resuelto_por, solicitado_por_nombre")
+      .eq("estado", "aprobada")
+      .gte("resuelto_en", desdeIso);
+    if (error) throw error;
+    const aprobados = gs ?? [];
+    if (aprobados.length > 0) {
+      const ids = aprobados.map((g) => g.id as string);
+      const [{ data: movs }, { data: auds }] = await Promise.all([
+        // El egreso guarda la solicitud que lo originó en `referencia_id`; si esa
+        // columna no existe todavía, el catch de abajo lo degrada sin ruido.
+        db.from("movimientos_caja").select("referencia_id").in("referencia_id", ids),
+        db.from("auditoria").select("entidad_id").eq("entidad", "gasto").in("entidad_id", ids),
+      ]);
+      const conEgreso = new Set((movs ?? []).map((m) => m.referencia_id as string));
+      const conAud = new Set((auds ?? []).map((a) => a.entidad_id as string));
+      out.push(
+        ...invGastoSinEgreso(
+          aprobados.map((g) => ({
+            solicitudId: g.id as string,
+            cobradorNombre: (g.solicitado_por_nombre as string | null) ?? "Cobrador",
+            monto: N(g.monto),
+            fecha: String(g.resuelto_en ?? "").slice(0, 10),
+            tieneEgreso: conEgreso.has(g.id as string),
+            tieneAuditoria: conAud.has(g.id as string),
+          })),
+        ),
+      );
+    }
+  } catch (e) {
+    if (!tablaFaltante(e) && !columnaFaltante(e)) reportarError("reconciliarDia:gastoSinEgreso", e);
+  }
+
+  // ── INV15 — LA BITÁCORA CONTRA EL LIBRO DE PAGOS ─────────────────────────
+  // Dos testigos independientes del mismo hecho. Cuando uno desaparece, el otro lo
+  // delata — y es el ÚNICO chequeo que habría cazado el peor caso de trazabilidad
+  // del piloto: los 45 pagos de Valentina Ramírez ($220.960) que un script de
+  // limpieza borró el 04-08 abriendo la escotilla, mientras su acta seguía diciendo
+  // "cuadra ✓". Se mira AYER (día completo) para no pelearse con la cola offline,
+  // que puede tener cobros de hoy todavía sin subir.
+  try {
+    const [{ data: actos }, { data: pagosAyer }] = await Promise.all([
+      db
+        .from("bitacora")
+        .select("actor_id, actor_nombre, prestamo_id, monto")
+        .eq("accion", "cobro")
+        .gte("creado_en", diaUYInicioIso(ayer))
+        .lt("creado_en", diaUYInicioIso(fecha)),
+      db
+        .from("pagos")
+        .select("registrado_por, anulado")
+        .is("origen", null)
+        .gte("registrado_en", diaUYInicioIso(ayer))
+        .lt("registrado_en", diaUYInicioIso(fecha)),
+    ]);
+    const porCobrador = new Map<string, JornadaBitacora>();
+    for (const a of actos ?? []) {
+      const cid = a.actor_id as string;
+      if (!cid) continue;
+      const acc =
+        porCobrador.get(cid) ??
+        ({
+          cobradorId: cid,
+          cobradorNombre: (a.actor_nombre as string) ?? "Cobrador",
+          fecha: ayer,
+          cobrosBitacora: 0,
+          pagosLibro: 0,
+          pagosAnulados: 0,
+          montoFaltante: 0,
+        } as JornadaBitacora);
+      acc.cobrosBitacora += 1;
+      acc.montoFaltante += N(a.monto);
+      porCobrador.set(cid, acc);
+    }
+    for (const p of pagosAyer ?? []) {
+      const cid = p.registrado_por as string | null;
+      if (!cid) continue;
+      const acc = porCobrador.get(cid);
+      if (!acc) continue; // pago sin acto de campo: no es lo que busca esta invariante
+      if (p.anulado) acc.pagosAnulados += 1;
+      else acc.pagosLibro += 1;
+    }
+    out.push(...invBitacoraVsLibro([...porCobrador.values()]));
+  } catch (e) {
+    if (!tablaFaltante(e)) reportarError("reconciliarDia:bitacoraVsLibro", e);
   }
 
   return out;

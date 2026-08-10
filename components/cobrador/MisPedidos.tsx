@@ -20,7 +20,7 @@ const TONO = {
   rechazado: { borde: "#E4E8F4", fondo: "#FFFFFF", texto: "#6B7494", chip: "No se aprobó" },
 } as const;
 
-const ICONO = { renovacion: "🔁", gasto: "🧾", correccion: "✏️" } as const;
+const ICONO = { renovacion: "🔁", gasto: "🧾", correccion: "✏️", aviso: "📣" } as const;
 
 /** "hace 20 min" · "hace 3 h" · "hace 2 días". Vago a propósito arriba de un día:
  *  lo que importa es la sensación de que se está haciendo viejo. */
@@ -59,12 +59,16 @@ export function MisPedidos({ pedidos }: { pedidos: Pedido[] }) {
                 </span>
                 <span className="truncate text-[13px] font-extrabold text-tinta">{p.titulo}</span>
               </span>
-              <span
-                className="flex-shrink-0 text-[13.5px] font-black tabular-nums"
-                style={{ color: t.texto }}
-              >
-                {UYU(p.monto)}
-              </span>
+              {/* Un aviso no tiene monto: mostrar "$0" al lado de un pedido de
+                  ayuda lo hace parecer un error de la app. */}
+              {p.monto > 0 && (
+                <span
+                  className="flex-shrink-0 text-[13.5px] font-black tabular-nums"
+                  style={{ color: t.texto }}
+                >
+                  {UYU(p.monto)}
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-1.5">
               <span

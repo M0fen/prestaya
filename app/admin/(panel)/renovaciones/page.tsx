@@ -6,6 +6,8 @@ import { requireGestor, esAdmin } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { listarCandidatosRenovacion } from "@/lib/data/renovaciones";
 import { getSolicitudesPendientes } from "@/lib/data/solicitudesRenovacion";
+import { getAvisosDeLaCalle } from "@/lib/data/misPedidos";
+import { alcanceDelActor } from "@/lib/data/alcance";
 import type { BandaScore, AccionRenovacion } from "@/types/scoring";
 import { UYU } from "@/lib/format";
 import { montoRenovacionSugerido, RENOVACION_AUMENTO_PCT } from "@/lib/renovacion";
@@ -37,9 +39,15 @@ export default async function RenovacionesPage({
   const usuario = await requireGestor();
   const db = await createSupabaseServer();
   const q = ((await searchParams).q ?? "").trim().slice(0, 60);
-  const [lista, solicitudes] = await Promise.all([
+  // Los avisos que los cobradores dejan con "Pedir a la oficina": hasta hoy caían
+  // en la ficha de un cliente entre 13.166 y no los leía NADIE (3 pedidos de primer
+  // crédito llevaban dos días esperando). Se recortan por zona con el alcance del
+  // gestor: el admin ve todo, el supervisor solo los de su gente.
+  const alcance = await alcanceDelActor();
+  const [lista, solicitudes, avisos] = await Promise.all([
     listarCandidatosRenovacion(db, new Date(), 0.75, 60, q || null),
     getSolicitudesPendientes(db),
+    getAvisosDeLaCalle(alcance.global ? null : alcance.cobradorIds),
   ]);
   const { candidatos, totalQueCalifican, ocultos } = lista;
   const esAdminV = esAdmin(usuario.rol);
@@ -58,6 +66,48 @@ export default async function RenovacionesPage({
 
       {/* Solicitudes pendientes: el admin aprueba/rechaza; el supervisor las ve. */}
       <SolicitudesRenovacion solicitudes={solicitudes} esAdmin={esAdminV} />
+
+      {/* ⚠️ PEDIDOS DE LA CALLE. Los cinco botones de "avisar a la oficina" le
+          prometen al cobrador que su pedido "le va a llegar al supervisor y a la
+          oficina", y hasta hoy escribían una nota en la ficha de un cliente entre
+          13.166: no los leía nadie. Tres pedidos de primer crédito llevaban dos
+          días esperando. Van acá, en la pantalla que la oficina ya abre todos los
+          días, y ordenados de MÁS VIEJO a más nuevo — que es el orden de la urgencia. */}
+      {avisos.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <span className="text-[12px] font-bold tracking-[0.03em] text-gris uppercase">
+            Pedidos de la calle · sin resolver ({avisos.length})
+          </span>
+          {avisos.map((a) => {
+            const viejo = a.horasEsperando >= 24;
+            return (
+              <Link
+                key={a.id}
+                href={`/admin/clientes/${a.clienteId}`}
+                className="flex flex-col gap-1 rounded-[14px] border p-3.5 active:scale-[0.995]"
+                style={{
+                  borderColor: viejo ? "#F0C0BC" : "#DCE7FB",
+                  background: viejo ? "#FDEEEC" : "#F7F9FF",
+                }}
+              >
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="truncate text-[14px] font-bold text-tinta">{a.clienteNombre}</span>
+                  <span
+                    className="flex-shrink-0 text-[11.5px] font-bold tabular-nums"
+                    style={{ color: viejo ? "#B03A2E" : "#6B7494" }}
+                  >
+                    {a.horasEsperando < 24
+                      ? `hace ${Math.max(1, Math.round(a.horasEsperando))} h`
+                      : `esperando hace ${Math.round(a.horasEsperando / 24)} día${a.horasEsperando >= 48 ? "s" : ""}`}
+                  </span>
+                </div>
+                <span className="text-[12.5px] leading-[1.45] font-medium text-[#3A445F]">{a.cuerpo}</span>
+                <span className="text-[11px] font-medium text-tenue">Lo pidió {a.cobradorNombre}</span>
+              </Link>
+            );
+          })}
+        </section>
+      )}
 
       {/* Buscador por nombre o cédula. Filtra ANTES del corte de la lista: sin esto,
           quien no entraba en los 60 más avanzados era inalcanzable. */}
