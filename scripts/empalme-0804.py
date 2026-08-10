@@ -595,11 +595,51 @@ if cli_nuevos:
     cliDe = {str(c["disapp_id"]): c["id"] for c in clientes_db if c.get("disapp_id")}
 
 # 2) créditos (insert plano; idempotencia por el pre-filtro contra la base)
+#
+# ⚠️ ADOPCIÓN DEL GEMELO NATIVO (lección del 09-08). El piloto corre EN PARALELO:
+# el cobrador coloca el crédito en la app y la oficina lo registra en Disapp. Son
+# el MISMO préstamo. Sin este paso, el empalme creaba el de Disapp al lado del
+# nativo y el capital en la calle se contaba DOS VECES — 89 casos, $1.365.500.
+#
+# Antes de crear nada, se busca un crédito NUESTRO que sea el mismo préstamo
+# (mismo cliente, mismo monto, activo, nacido en la app y todavía sin referencia)
+# y se le PEGA la referencia de Disapp en vez de insertar un duplicado.
+#
+# El criterio es estricto a propósito: si hay más de un candidato NO se adopta
+# ninguno y el crédito se salta, para que lo mire una persona. Adivinar acá es
+# plata (ver scripts/empalmar-nativos-0809.py, que hizo la primera pasada).
+nativos_libres = {}
+st, data = E.http(
+    db["url"] + "/rest/v1/prestamos?estado=eq.activo&disapp_credit_ref=is.null"
+    "&creado_por=not.is.null&select=id,cliente_id,monto_prestado",
+    "GET", key, None,
+)
+if st < 300:
+    for p_ in data or []:
+        nativos_libres.setdefault((p_["cliente_id"], round(float(p_["monto_prestado"]))), []).append(p_["id"])
+
+adoptados = 0
 filas_credito = []
 for c in crear:
     cliente_id = cliDe.get(c["id_cliente"])
     if not cliente_id:
         print(f"  ✗ crédito {c['cid']}: cliente disapp {c['id_cliente']} no resuelto")
+        continue
+    clave = (cliente_id, round(c["valor"]))
+    gemelos = nativos_libres.get(clave, [])
+    if len(gemelos) == 1:
+        pid = gemelos.pop()
+        st2, _ = E.http(
+            db["url"] + f"/rest/v1/prestamos?id=eq.{pid}&disapp_credit_ref=is.null",
+            "PATCH", key,
+            {"disapp_credit_id": c["cid"], "disapp_credit_ref": c["ref"]},
+        )
+        if st2 < 300:
+            adoptados += 1
+            continue  # NO se inserta: ya lo teníamos
+        gemelos.append(pid)  # falló el PATCH → que siga el camino normal
+    elif len(gemelos) > 1:
+        print(f"  ⚠ crédito {c['ref']}: {len(gemelos)} nativos posibles para el mismo monto — se saltea (revisar a mano)")
         continue
     filas_credito.append({
         "cliente_id": cliente_id,

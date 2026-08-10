@@ -1,0 +1,728 @@
+{
+ "que": "se pegó la disapp_credit_ref del gemelo a créditos nacidos en la app",
+ "porque": "el piloto corre en paralelo y el mismo préstamo se carga en los dos sistemas; sin esto el empalme los duplicaba",
+ "cuando": "2026-08-09",
+ "revertir": "update prestamos set disapp_credit_ref = null where id in (...)",
+ "creditos": [
+  {
+   "prestamoId": "069dc82a-f3ba-43ae-97eb-189b243fb267",
+   "cliente": "ANDREA SAAVEDRA",
+   "documento": "546984",
+   "monto": 20000.0,
+   "cobrador": "Juan José Castro",
+   "dia": "2026-08-06",
+   "ref": "PRD0003612745"
+  },
+  {
+   "prestamoId": "b75a0bf1-6181-4d22-8a43-0c7262934da7",
+   "cliente": "SOFíA MARIQUENA ÁLVAREZ",
+   "documento": "52920595",
+   "monto": 10000.0,
+   "cobrador": "Juan José Castro",
+   "dia": "2026-08-06",
+   "ref": "PRD0003612295"
+  },
+  {
+   "prestamoId": "14980180-7762-4d9a-81da-b2e70b22102e",
+   "cliente": "VERONICA MOREIRA",
+   "documento": "41242104",
+   "monto": 10000.0,
+   "cobrador": "Juan José Castro",
+   "dia": "2026-08-06",
+   "ref": "PRD0003613432"
+  },
+  {
+   "prestamoId": "0f2518db-cb66-4a59-a850-66d9fe3654ff",
+   "cliente": "WUALTER BARBOSA  FABIAN RETAMAR",
+   "documento": "55407540",
+   "monto": 8000.0,
+   "cobrador": "Anyela Quiñonez",
+   "dia": "2026-08-06",
+   "ref": "PRD0003612694"
+  },
+  {
+   "prestamoId": "9310d25c-0c36-4098-a9ac-19422bc1fa0d",
+   "cliente": "ALEJANDRA JORGELINA MELO LOPEZ",
+   "documento": "35877769",
+   "monto": 30000.0,
+   "cobrador": "María Artunduaga",
+   "dia": "2026-08-07",
+   "ref": "PRD0003611406"
+  },
+  {
+   "prestamoId": "a94672e5-d837-45d5-b7c2-373d22243d55",
+   "cliente": "ANGEL GABRIEL FREYRE BURGOS",
+   "documento": "43650375",
+   "monto": 10000.0,
+   "cobrador": "Jorge Ospina",
+   "dia": "2026-08-07",
+   "ref": "PRD0003612389"
+  },
+  {
+   "prestamoId": "6517ba51-47db-4725-8354-d8b838d2f505",
+   "cliente": "DAYANA ELIZABETH ARTAVE",
+   "documento": "48955116",
+   "monto": 10000.0,
+   "cobrador": "María Artunduaga",
+   "dia": "2026-08-07",
+   "ref": "PRD0003614154"
+  },
+  {
+   "prestamoId": "3ebed661-2ede-424e-aa14-61baf7adb110",
+   "cliente": "DIANA ESTEFANY FACCHIN",
+   "documento": "55587176",
+   "monto": 7000.0,
+   "cobrador": "María Artunduaga",
+   "dia": "2026-08-07",
+   "ref": "PRD0003614159"
+  },
+  {
+   "prestamoId": "e7777961-6de6-485d-9cb6-a7f1bd51d707",
+   "cliente": "ELIDA SALINAS",
+   "documento": "34450277",
+   "monto": 20000.0,
+   "cobrador": "Anyela Quiñonez",
+   "dia": "2026-08-07",
+   "ref": "PRD0003614786"
+  },
+  {
+   "prestamoId": "62b42867-bda4-4930-8a48-e1031af95b6e",
+   "cliente": "ESTEBAN CALEV PEREZ",
+   "documento": "56832112",
+   "monto": 6000.0,
+   "cobrador": "Víctor Moralez",
+   "dia": "2026-08-07",
+   "ref": "PRD0003614275"
+  },
+  {
+   "prestamoId": "74eaa2f9-157d-4d54-8ead-b97b09be709b",
+   "cliente": "JORGE ARIEL SALDAñA SOSA",
+   "documento": "56006583",
+   "monto": 6000.0,
+   "cobrador": "Jorge Ospina",
+   "dia": "2026-08-07",
+   "ref": "PRD0003612609"
+  },
+  {
+   "prestamoId": "f5764cd5-8f9b-4cb1-9b7d-d461325a6975",
+   "cliente": "JORGE TARAMAZGO",
+   "documento": "9109670",
+   "monto": 35000.0,
+   "cobrador": "Víctor Moralez",
+   "dia": "2026-08-07",
+   "ref": "PRD0003611457"
+  },
+  {
+   "prestamoId": "cc097355-dd97-4555-a89f-3d794ef7269f",
+   "cliente": "JOSE CARLOS CARBALLO",
+   "documento": "41824380",
+   "monto": 10000.0,
+   "cobrador": "María Artunduaga",
+   "dia": "2026-08-07",
+   "ref": "PRD0003612062"
+  },
+  {
+   "prestamoId": "4076e2a0-38c6-4a1d-9973-2309f4147612",
+   "cliente": "LUCILA CAROLINA MARTíNEZ",
+   "documento": "51401865",
+   "monto": 15000.0,
+   "cobrador": "María Artunduaga",
+   "dia": "2026-08-07",
+   "ref": "PRD0003614155"
+  },
+  {
+   "prestamoId": "951d9cdc-2749-4f06-b449-953c6eb876dd",
+   "cliente": "MARIA ORTELLI",
+   "documento": "40349896",
+   "monto": 10000.0,
+   "cobrador": "María Artunduaga",
+   "dia": "2026-08-07",
+   "ref": "PRD0003615605"
+  },
+  {
+   "prestamoId": "c14a7a87-3fe5-404c-a0a7-b921418001ec",
+   "cliente": "NATALIA MALLON",
+   "documento": "54980194",
+   "monto": 15000.0,
+   "cobrador": "Víctor Moralez",
+   "dia": "2026-08-07",
+   "ref": "PRD0003614183"
+  },
+  {
+   "prestamoId": "aa34b37e-2f64-4ac5-a388-13b1ba430619",
+   "cliente": "PATRICIA ARMAS ROSA",
+   "documento": "34802319",
+   "monto": 5000.0,
+   "cobrador": "Jorge Ospina",
+   "dia": "2026-08-07",
+   "ref": "PRD0003612277"
+  },
+  {
+   "prestamoId": "0122f122-ba13-4ce2-bdb2-4953904ccf65",
+   "cliente": "ROMINA ALEXANDRA DA SILVA",
+   "documento": "56305820",
+   "monto": 15000.0,
+   "cobrador": "María Artunduaga",
+   "dia": "2026-08-07",
+   "ref": "PRD0003614167"
+  },
+  {
+   "prestamoId": "f3982a9d-ebdf-4878-802e-2c2bb4727f4b",
+   "cliente": "ROMINA SALAS",
+   "documento": "551352000",
+   "monto": 13000.0,
+   "cobrador": "Jorge Ospina",
+   "dia": "2026-08-07",
+   "ref": "PRD0003612487"
+  },
+  {
+   "prestamoId": "269e5489-d396-41d3-83b8-f0c86027e9a4",
+   "cliente": "SHEILA RAMBLE",
+   "documento": "47893509",
+   "monto": 8000.0,
+   "cobrador": "Anyela Quiñonez",
+   "dia": "2026-08-07",
+   "ref": "PRD0003614226"
+  },
+  {
+   "prestamoId": "35becc6a-190b-4ce2-8429-4227bc6c2803",
+   "cliente": "ALEJANDRO CALZADO",
+   "documento": "31394060",
+   "monto": 7500.0,
+   "cobrador": "María Curbelo",
+   "dia": "2026-08-08",
+   "ref": "PRD0003612214"
+  },
+  {
+   "prestamoId": "6df8724b-ce80-4bab-99d5-0903e2af94ba",
+   "cliente": "AMBROSIO PEREIRA",
+   "documento": "28436180",
+   "monto": 5000.0,
+   "cobrador": "John Albert Hernández",
+   "dia": "2026-08-08",
+   "ref": "PRD0003617414"
+  },
+  {
+   "prestamoId": "bcbfcc88-9bf2-4221-b95e-0c8f2696f80f",
+   "cliente": "ANA CAROLINA",
+   "documento": "36008024",
+   "monto": 6000.0,
+   "cobrador": "Jorge Ospina",
+   "dia": "2026-08-08",
+   "ref": "PRD0003614761"
+  },
+  {
+   "prestamoId": "bd6b5f46-7100-4d03-8dff-7274fab477b6",
+   "cliente": "ANA STEVES MARTíNEZ",
+   "documento": "46372122",
+   "monto": 3000.0,
+   "cobrador": "Leonel Maciel",
+   "dia": "2026-08-08",
+   "ref": "PRD0003617585"
+  },
+  {
+   "prestamoId": "2932205d-15e6-4c08-9a14-01d5dad849a2",
+   "cliente": "ANA STEVES MARTíNEZ",
+   "documento": "46372122",
+   "monto": 15000.0,
+   "cobrador": "John Albert Hernández",
+   "dia": "2026-08-08",
+   "ref": "PRD0003617244"
+  },
+  {
+   "prestamoId": "df531330-8e00-47a0-8191-1df22d07cd20",
+   "cliente": "ARMANDO RIVERO",
+   "documento": "28905892",
+   "monto": 40000.0,
+   "cobrador": "Leonel Maciel",
+   "dia": "2026-08-08",
+   "ref": "PRD0003614731"
+  },
+  {
+   "prestamoId": "33f4568e-76c9-4257-bf50-9d2255355087",
+   "cliente": "CARLOS CASTAñOZ",
+   "documento": "36126911",
+   "monto": 60000.0,
+   "cobrador": "Leonel Maciel",
+   "dia": "2026-08-08",
+   "ref": "PRD0003614616"
+  },
+  {
+   "prestamoId": "320f0060-4f6c-4082-aa4b-8a032c99a516",
+   "cliente": "CATHERINE DAHIANA VARELA",
+   "documento": "4446657",
+   "monto": 10000.0,
+   "cobrador": "Anyela Quiñonez",
+   "dia": "2026-08-08",
+   "ref": "PRD0003617059"
+  },
+  {
+   "prestamoId": "8371adcb-0851-4e2d-a28a-c086667ea490",
+   "cliente": "CRISTINA",
+   "documento": "41822746",
+   "monto": 26000.0,
+   "cobrador": "Víctor Moralez",
+   "dia": "2026-08-08",
+   "ref": "PRD0003618344"
+  },
+  {
+   "prestamoId": "2628682e-85a6-4aba-9876-0a62bdef22c6",
+   "cliente": "DANIEL SANTOS",
+   "documento": "34699291",
+   "monto": 20000.0,
+   "cobrador": "Víctor Moralez",
+   "dia": "2026-08-08",
+   "ref": "PRD0003617354"
+  },
+  {
+   "prestamoId": "a68f7502-1432-4987-8829-9fa8511be5c3",
+   "cliente": "DIAN FAVREAU",
+   "documento": "51674583",
+   "monto": 12000.0,
+   "cobrador": "Fátima Cabillón",
+   "dia": "2026-08-08",
+   "ref": "PRD0003612356"
+  },
+  {
+   "prestamoId": "e6a429cf-79d3-4f3a-aa73-3d23ea9e6bc8",
+   "cliente": "DIEGO TORRES",
+   "documento": "51673238",
+   "monto": 20000.0,
+   "cobrador": "María Artunduaga",
+   "dia": "2026-08-08",
+   "ref": "PRD0003617993"
+  },
+  {
+   "prestamoId": "faa31e38-43f7-462c-9d51-385811715e2c",
+   "cliente": "DORIS MABEL CORGATELLI",
+   "documento": "41456317",
+   "monto": 4000.0,
+   "cobrador": "María Curbelo",
+   "dia": "2026-08-08",
+   "ref": "PRD0003617122"
+  },
+  {
+   "prestamoId": "cc5c310e-3684-4c0f-818a-de23745c5e08",
+   "cliente": "EDUARDO CREMELLA",
+   "documento": "30047496",
+   "monto": 5000.0,
+   "cobrador": "Fátima Cabillón",
+   "dia": "2026-08-08",
+   "ref": "PRD0003615313"
+  },
+  {
+   "prestamoId": "87df3eab-9af0-4090-b326-4ea9d94127c2",
+   "cliente": "GABRIELA OTONELLI",
+   "documento": "50502901",
+   "monto": 60000.0,
+   "cobrador": "Fátima Cabillón",
+   "dia": "2026-08-08",
+   "ref": "PRD0003612253"
+  },
+  {
+   "prestamoId": "5fe25cf9-698c-465d-9edc-6b012ee1c283",
+   "cliente": "GUSTAVO GALEANO",
+   "documento": "29875961",
+   "monto": 20000.0,
+   "cobrador": "María Artunduaga",
+   "dia": "2026-08-08",
+   "ref": "PRD0003616999"
+  },
+  {
+   "prestamoId": "5a0d413e-ba55-4b9b-a2e5-e8d7dff7abb4",
+   "cliente": "HECTOR DANIEL MENDIETTA CARDOZO",
+   "documento": "26849692",
+   "monto": 5000.0,
+   "cobrador": "John Albert Hernández",
+   "dia": "2026-08-08",
+   "ref": "PRD0003611909"
+  },
+  {
+   "prestamoId": "81ce3a2a-3ae4-4d05-b4a6-c9a7b2876cb4",
+   "cliente": "JENIFER MADRID",
+   "documento": "53766087",
+   "monto": 10000.0,
+   "cobrador": "Fátima Cabillón",
+   "dia": "2026-08-08",
+   "ref": "PRD0003615176"
+  },
+  {
+   "prestamoId": "b1a3046e-e0d7-443a-a38c-ee149f95051f",
+   "cliente": "JHONATAN RODRIGUEZ",
+   "documento": "53414345",
+   "monto": 5000.0,
+   "cobrador": "John Albert Hernández",
+   "dia": "2026-08-08",
+   "ref": "PRD0003611893"
+  },
+  {
+   "prestamoId": "9a113296-215c-46e5-8d9f-09ebea93ac21",
+   "cliente": "KARINA TORRES",
+   "documento": "4205255",
+   "monto": 20000.0,
+   "cobrador": "María Artunduaga",
+   "dia": "2026-08-08",
+   "ref": "PRD0003616996"
+  },
+  {
+   "prestamoId": "32f70e2b-bf22-4b51-b33d-e278f1485d73",
+   "cliente": "LUCIANA ALVAREZ CERQUI",
+   "documento": "43912060",
+   "monto": 10000.0,
+   "cobrador": "Anyela Quiñonez",
+   "dia": "2026-08-08",
+   "ref": "PRD0003614774"
+  },
+  {
+   "prestamoId": "e47b96b9-e283-47f7-8c63-7b934506ccab",
+   "cliente": "LUCILA CAROLINA MARTINEZ",
+   "documento": "51401865",
+   "monto": 10000.0,
+   "cobrador": "María Artunduaga",
+   "dia": "2026-08-08",
+   "ref": "PRD0003616992"
+  },
+  {
+   "prestamoId": "f0f17b9a-62e6-4e06-b153-478fa912b887",
+   "cliente": "MARíA FERNANDO MARTIARENA",
+   "documento": "1206634754",
+   "monto": 4000.0,
+   "cobrador": "John Albert Hernández",
+   "dia": "2026-08-08",
+   "ref": "PRD0003619528"
+  },
+  {
+   "prestamoId": "a2a3db59-ceae-484c-8a55-8744671532d7",
+   "cliente": "MARIA SUAREZ",
+   "documento": "44216245",
+   "monto": 7000.0,
+   "cobrador": "María Artunduaga",
+   "dia": "2026-08-08",
+   "ref": "PRD0003617012"
+  },
+  {
+   "prestamoId": "2934b7b2-e3f9-42f9-ac8e-0b4745e28eb3",
+   "cliente": "MARIA VELEN RODRíGUEZ",
+   "documento": "55090911",
+   "monto": 6000.0,
+   "cobrador": "Jorge Ospina",
+   "dia": "2026-08-08",
+   "ref": "PRD0003617635"
+  },
+  {
+   "prestamoId": "c6e045b5-c8e5-4e34-afce-d77cf4bdc284",
+   "cliente": "MIRTA YANET ALBIN",
+   "documento": "42177889",
+   "monto": 10000.0,
+   "cobrador": "María Artunduaga",
+   "dia": "2026-08-08",
+   "ref": "PRD0003618476"
+  },
+  {
+   "prestamoId": "5b43b0d2-d0ea-4ab1-ba93-a02b245acad3",
+   "cliente": "NELLY PEREYRA",
+   "documento": "33842348",
+   "monto": 10000.0,
+   "cobrador": "Anyela Quiñonez",
+   "dia": "2026-08-08",
+   "ref": "PRD0003617168"
+  },
+  {
+   "prestamoId": "a27b0440-5a42-4d9a-a6c5-3e4b885a7c53",
+   "cliente": "PABLO LEITES",
+   "documento": "25935672",
+   "monto": 6000.0,
+   "cobrador": "Anyela Quiñonez",
+   "dia": "2026-08-08",
+   "ref": "PRD0003617231"
+  },
+  {
+   "prestamoId": "e81a2edc-a78c-447a-b77e-b0a52cea1a0a",
+   "cliente": "PATRICIA CARDOZO SUáREZ",
+   "documento": "45331686",
+   "monto": 5000.0,
+   "cobrador": "María Artunduaga",
+   "dia": "2026-08-08",
+   "ref": "PRD0003617002"
+  },
+  {
+   "prestamoId": "3d1dc655-07b6-465a-a6fe-77263a58b9b5",
+   "cliente": "ROBERTO SATURNO",
+   "documento": "265887957",
+   "monto": 7000.0,
+   "cobrador": "Jorge Ospina",
+   "dia": "2026-08-08",
+   "ref": "PRD0003617242"
+  },
+  {
+   "prestamoId": "bcf07932-f494-4164-99f5-01408d0469f2",
+   "cliente": "SABRINA PEREYRA",
+   "documento": "42039247",
+   "monto": 12000.0,
+   "cobrador": "Anyela Quiñonez",
+   "dia": "2026-08-08",
+   "ref": "PRD0003617544"
+  },
+  {
+   "prestamoId": "f8d02878-32b0-4bea-8db4-f7191e529f0f",
+   "cliente": "SANDRA BARRETO",
+   "documento": "37970721",
+   "monto": 5000.0,
+   "cobrador": "Leonel Maciel",
+   "dia": "2026-08-08",
+   "ref": "PRD0003614638"
+  },
+  {
+   "prestamoId": "bd6d0040-12b9-4dde-9d4a-4f583ae6ba52",
+   "cliente": "SANDRA CARINA ARTEGOI",
+   "documento": "37172513",
+   "monto": 15000.0,
+   "cobrador": "María Artunduaga",
+   "dia": "2026-08-08",
+   "ref": "PRD0003617060"
+  },
+  {
+   "prestamoId": "cea60936-87b6-4b1f-a309-7ce9d014b37d",
+   "cliente": "SERGIO ANDRES LEGUISAMO",
+   "documento": "50145797",
+   "monto": 12000.0,
+   "cobrador": "Víctor Moralez",
+   "dia": "2026-08-08",
+   "ref": "PRD0003617036"
+  },
+  {
+   "prestamoId": "5a78da5b-2388-4a76-a557-3b3393eede3e",
+   "cliente": "Sergio Minutas",
+   "documento": "30549347",
+   "monto": 15000.0,
+   "cobrador": "John Albert Hernández",
+   "dia": "2026-08-08",
+   "ref": "PRD0003616578"
+  },
+  {
+   "prestamoId": "ca26acd8-f447-4b60-8ec2-df69d1ef9381",
+   "cliente": "TATIANA CRUZ",
+   "documento": "51094957",
+   "monto": 73000.0,
+   "cobrador": "Víctor Moralez",
+   "dia": "2026-08-08",
+   "ref": "PRD0003617005"
+  },
+  {
+   "prestamoId": "f304d40b-fcf4-4580-be8e-392980c76a59",
+   "cliente": "WASHINGTON FRISA",
+   "documento": "94409903",
+   "monto": 20000.0,
+   "cobrador": "María Curbelo",
+   "dia": "2026-08-08",
+   "ref": "PRD0003611488"
+  },
+  {
+   "prestamoId": "071f21aa-cfd4-4162-bb74-566fc2f83c98",
+   "cliente": "WILSON BURGOS",
+   "documento": "41335763",
+   "monto": 6000.0,
+   "cobrador": "Jorge Ospina",
+   "dia": "2026-08-08",
+   "ref": "PRD0003617267"
+  },
+  {
+   "prestamoId": "cb259df6-618c-47a2-bbb9-109c9bc42258",
+   "cliente": "YANINA GONZáLEZ",
+   "documento": "57144944",
+   "monto": 20000.0,
+   "cobrador": "María Artunduaga",
+   "dia": "2026-08-08",
+   "ref": "PRD0003616994"
+  },
+  {
+   "prestamoId": "e4bbcb2b-45b5-4ae2-a0c7-a7b30fd21ac1",
+   "cliente": "ALEXIA MOTTA",
+   "documento": "42279306",
+   "monto": 4000.0,
+   "cobrador": "Karent Londoño",
+   "dia": "2026-08-09",
+   "ref": "PRD0003617566"
+  },
+  {
+   "prestamoId": "80f2432a-f045-40f7-ac56-dca468834ded",
+   "cliente": "ANDREA KARINA ANDINO",
+   "documento": "3918826",
+   "monto": 17000.0,
+   "cobrador": "Yuli Toro",
+   "dia": "2026-08-09",
+   "ref": "PRD0003612662"
+  },
+  {
+   "prestamoId": "ef45254d-c1d0-45b7-8167-a5a854e51c35",
+   "cliente": "CHARLES FERREIRA",
+   "documento": "98398637",
+   "monto": 15000.0,
+   "cobrador": "Fernando Castro",
+   "dia": "2026-08-09",
+   "ref": "PRD0003617046"
+  },
+  {
+   "prestamoId": "887f7c08-cf69-4f2b-ab04-3426dff3c6b5",
+   "cliente": "EDISSON PERALTA",
+   "documento": "43066825",
+   "monto": 8000.0,
+   "cobrador": "Anyela Quiñonez",
+   "dia": "2026-08-09",
+   "ref": "PRD0003615250"
+  },
+  {
+   "prestamoId": "3c9b4bee-cfab-45a6-ab3f-2fc5a544738a",
+   "cliente": "EDUARDO MOTTA",
+   "documento": "42279306",
+   "monto": 6000.0,
+   "cobrador": "Karent Londoño",
+   "dia": "2026-08-09",
+   "ref": "PRD0003617569"
+  },
+  {
+   "prestamoId": "9aac331d-5dcf-4df4-a464-5e335379ce2e",
+   "cliente": "EDUARDO OMAR ESPINOZA FERRAS",
+   "documento": "40355611",
+   "monto": 20000.0,
+   "cobrador": "Edward Muñoz",
+   "dia": "2026-08-09",
+   "ref": "PRD0003611484"
+  },
+  {
+   "prestamoId": "d6e0fd3c-46be-499a-afe2-13e12ab79637",
+   "cliente": "GUSTAVO SAN ROMAN",
+   "documento": "16235499",
+   "monto": 12000.0,
+   "cobrador": "Anyela Quiñonez",
+   "dia": "2026-08-09",
+   "ref": "PRD0003617157"
+  },
+  {
+   "prestamoId": "447f4aaf-6869-4625-8512-dac6e13e2959",
+   "cliente": "JUAN MARCELO VILLAGAN",
+   "documento": "46699451",
+   "monto": 30000.0,
+   "cobrador": "Karent Londoño",
+   "dia": "2026-08-09",
+   "ref": "PRD0003615264"
+  },
+  {
+   "prestamoId": "365e7616-7e11-473b-b33f-f079fbb70016",
+   "cliente": "MARGARITA GONZALES",
+   "documento": "41212876",
+   "monto": 4000.0,
+   "cobrador": "Daniela Millán",
+   "dia": "2026-08-09",
+   "ref": "PRD0003614489"
+  },
+  {
+   "prestamoId": "2b1e4227-58ea-4409-9424-1469b20b86e6",
+   "cliente": "MARIA PICA",
+   "documento": "53639044",
+   "monto": 7000.0,
+   "cobrador": "Fernando Castro",
+   "dia": "2026-08-09",
+   "ref": "PRD0003614408"
+  },
+  {
+   "prestamoId": "a843e01b-6ea6-47aa-bc25-696d5607ae1f",
+   "cliente": "MARIA RODRIGUEZ",
+   "documento": "94557923",
+   "monto": 20000.0,
+   "cobrador": "Fernando Castro",
+   "dia": "2026-08-09",
+   "ref": "PRD0003615331"
+  },
+  {
+   "prestamoId": "75631914-67a9-41cd-b391-033c58c5aaf8",
+   "cliente": "MARíA SILVA",
+   "documento": "39392935",
+   "monto": 8000.0,
+   "cobrador": "Yuli Toro",
+   "dia": "2026-08-09",
+   "ref": "PRD0003618388"
+  },
+  {
+   "prestamoId": "f279429d-6677-43d7-b472-ab5d4f77c93e",
+   "cliente": "RAMON VASCONCELOS",
+   "documento": "54185232",
+   "monto": 7000.0,
+   "cobrador": "Karent Londoño",
+   "dia": "2026-08-09",
+   "ref": "PRD0003617594"
+  },
+  {
+   "prestamoId": "a1630217-1f5f-47b6-8fed-b9471a2b4e49",
+   "cliente": "RICARDO ROBERTO MONTOUTO",
+   "documento": "39105049",
+   "monto": 30000.0,
+   "cobrador": "Yuli Toro",
+   "dia": "2026-08-09",
+   "ref": "PRD0003614165"
+  },
+  {
+   "prestamoId": "f2dc4c2e-1282-4cf0-b851-a737270efd43",
+   "cliente": "ROBERTO ARTIGAS",
+   "documento": "34501303",
+   "monto": 25000.0,
+   "cobrador": "Edward Muñoz",
+   "dia": "2026-08-09",
+   "ref": "PRD0003617221"
+  },
+  {
+   "prestamoId": "96b50068-bb3a-4cdb-b95c-c09b366cb998",
+   "cliente": "ROBERTO FABRICIO MENDIETA RODRÍGUEZ",
+   "documento": "53339941",
+   "monto": 20000.0,
+   "cobrador": "Edward Muñoz",
+   "dia": "2026-08-09",
+   "ref": "PRD0003615036"
+  },
+  {
+   "prestamoId": "4616feee-6f66-4d94-9633-52aaaaab6818",
+   "cliente": "SEBASTIáN ARIAS",
+   "documento": "37305847",
+   "monto": 50000.0,
+   "cobrador": "Karent Londoño",
+   "dia": "2026-08-09",
+   "ref": "PRD0003614492"
+  },
+  {
+   "prestamoId": "30e2604b-59d6-4842-a5ac-7c583a0343c7",
+   "cliente": "SILVINA FAGIANI",
+   "documento": "33463550",
+   "monto": 72000.0,
+   "cobrador": "Fernando Castro",
+   "dia": "2026-08-09",
+   "ref": "PRD0003612143"
+  },
+  {
+   "prestamoId": "0b42135d-d87c-4714-a72e-4291eb2699ef",
+   "cliente": "WALTER EDUARDO FAURA",
+   "documento": "26568927",
+   "monto": 30000.0,
+   "cobrador": "Anyela Quiñonez",
+   "dia": "2026-08-09",
+   "ref": "PRD0003612041"
+  },
+  {
+   "prestamoId": "9c4ba236-2541-41c4-9774-4fe8bbe67f87",
+   "cliente": "WALTER TORRES",
+   "documento": "92863113",
+   "monto": 10000.0,
+   "cobrador": "Fernando Castro",
+   "dia": "2026-08-09",
+   "ref": "PRD0003611558"
+  },
+  {
+   "prestamoId": "c4fc6697-302c-4560-9917-dce991eb4285",
+   "cliente": "YENIFER NATALIA PEREZ CORDERO",
+   "documento": "47753743",
+   "monto": 10000.0,
+   "cobrador": "Fernando Castro",
+   "dia": "2026-08-09",
+   "ref": "PRD0003617509"
+  }
+ ]
+}
