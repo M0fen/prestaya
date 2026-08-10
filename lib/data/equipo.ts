@@ -169,10 +169,15 @@ export async function getEquipoDetallado(db: SupabaseClient): Promise<MiembroEqu
     })(),
     (async () => {
       try {
+        // ⚠️ Por la FECHA DE LA JORNADA, no por cuándo se firmó el acta. Con la
+        // entrega diferida, el supervisor sella hoy la jornada del martes: mirando
+        // `creado_en` el cobrador quedaba marcado "Rindió ✓" HOY al lado de su
+        // recaudado de hoy —que sigue en su bolsillo— y el supervisor dejaba de
+        // perseguirlo justo por haber hecho bien el trabajo de cobrarle lo viejo.
         const { data } = await admin
           .from("rendiciones")
           .select("cobrador_id")
-          .gte("creado_en", desdeHoy);
+          .eq("fecha", fechaISOUY());
         for (const r of data ?? []) rindio.add(r.cobrador_id as string);
       } catch {
         /* sin 0013: nadie figura rendido */

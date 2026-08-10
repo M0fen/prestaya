@@ -306,18 +306,29 @@ export async function getJornadasSinRendir(
 
     // 2. Las que YA tienen acta salen de la lista.
     const ids = [...new Set([...acc.values()].map((a) => a.cobradorId))];
-    const { data: rends } = await admin
+    const { data: rends, error: errRends } = await admin
       .from("rendiciones")
       .select("cobrador_id, fecha")
       .in("cobrador_id", ids)
       .gte("fecha", desdeYmd);
+    // Si esto falla en silencio, TODAS las jornadas se ven como abiertas y el
+    // supervisor sella de nuevo una que ya tenía acta.
+    if (errRends) throw errRends;
     const cerradas = new Set((rends ?? []).map((r) => clave(r.cobrador_id as string, String(r.fecha))));
     const abiertas = [...acc.values()].filter((a) => !cerradas.has(clave(a.cobradorId, a.fecha)));
     if (abiertas.length === 0) return [];
 
     // 3. Base, capital colocado y gastos de CADA día (los tres bajan el esperado).
-    const [{ data: aps }, colocado, { data: gs }, { data: usrs }] = await Promise.all([
-      admin.from("aperturas_caja").select("cobrador_id, fecha, monto").in("cobrador_id", ids).gte("fecha", desdeYmd),
+    const [aperturasRes, colocado, gastosRes, usuariosRes] = await Promise.all([
+      // ⚠️ La columna es `base`, NO `monto`. Este MISMO error dejó ciega a INV13
+      // hace tres horas, en el archivo de al lado. Acá era peor: sin la base, el
+      // "debería entregar" de CADA jornada salía corto —$461.824 en total— y ese
+      // número venía prellenado en el campo, con un botón "Sí, recibí $54.520"
+      // sobre un acta que después no se puede editar nunca. A Víctor Moralez se le
+      // habrían perdonado $178.265 con firma. Y a María Artunduaga le habría
+      // escrito "A FAVOR DEL COBRADOR $15.710" — una deuda de la oficina que no
+      // existe. Por eso abajo TODAS estas consultas ahora miran su error.
+      admin.from("aperturas_caja").select("cobrador_id, fecha, base").in("cobrador_id", ids).gte("fecha", desdeYmd),
       colocadoEnDias(abiertas.map((a) => ({ cobradorId: a.cobradorId, ymd: a.fecha }))),
       admin
         .from("solicitudes_gasto")
@@ -327,8 +338,23 @@ export async function getJornadasSinRendir(
         .gte("solicitado_en", diaUYInicioIso(desdeYmd)),
       admin.from("usuarios").select("id, nombre").in("id", ids),
     ]);
+    // ⚠️ SE MIRA EL ERROR. Estas cinco consultas devolvían `{data: null, error}` y
+    // el error ni se destructuraba: un nombre de columna torcido contestaba "cero"
+    // en vez de gritar, y así se pierde una invariante entera con los tests en
+    // verde. Acá se lanza: es plata que se va a sellar en un acta inmutable, y es
+    // preferible que la pantalla no cargue a que cargue con un número de menos.
+    for (const [que, r] of [
+      ["aperturas", aperturasRes],
+      ["gastos", gastosRes],
+      ["usuarios", usuariosRes],
+    ] as const) {
+      if (r.error) throw Object.assign(new Error(`getJornadasSinRendir: ${que}`), r.error);
+    }
+    const aps = aperturasRes.data;
+    const gs = gastosRes.data;
+    const usrs = usuariosRes.data;
     const baseDe = new Map(
-      (aps ?? []).map((a) => [clave(a.cobrador_id as string, String(a.fecha)), Math.round(Number(a.monto) || 0)]),
+      (aps ?? []).map((a) => [clave(a.cobrador_id as string, String(a.fecha)), Math.round(Number(a.base) || 0)]),
     );
     const gastoDe = new Map<string, number>();
     for (const g of gs ?? []) {

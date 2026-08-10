@@ -110,6 +110,14 @@ export function CobroRapido({
     return () => clearTimeout(t);
   }, [confirmar]);
 
+  // ⚠️ FRENO ANTI-DEDAZO. Los dos toques son a propósito, pero un doble-tap normal
+  // del dedo (dos toques en 200 ms) contaba como los DOS: el primero armaba y el
+  // segundo confirmaba, y se registraba una cuota entera sobre alguien que no pagó.
+  // En una lista de 117 filas, con el botón pegado al área que abre la ficha, en un
+  // teléfono barato. La ficha ya se topó con esto y le puso 650 ms; el atajo nació
+  // sin el freno. Un dedazo por cobrador por día son 18 cobros fantasma.
+  const armadoEn = useRef(0);
+
   useEffect(() => () => { if (armado.current) clearTimeout(armado.current); }, []);
 
   const cobrar = () => {
@@ -185,7 +193,15 @@ export function CobroRapido({
   return (
     <button
       type="button"
-      onClick={() => (confirmar ? cobrar() : setConfirmar(true))}
+      onClick={() => {
+        if (!confirmar) {
+          armadoEn.current = Date.now();
+          setConfirmar(true);
+          return;
+        }
+        if (Date.now() - armadoEn.current < 650) return; // dedazo, no confirmación
+        cobrar();
+      }}
       className={`min-h-11 flex-shrink-0 rounded-full px-3 text-[12px] font-extrabold tabular-nums active:scale-95 ${
         confirmar ? "bg-[#157A50] text-white" : "bg-[#1FA971] text-white"
       }`}
