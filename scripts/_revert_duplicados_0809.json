@@ -1,0 +1,24 @@
+{
+ "que": "creditos DUPLICADOS pasados a estado 'cancelado' (ninguno tenia pagos)",
+ "porque": "la base prohibe borrar creditos (trigger prestamos_no_borrar); cancelarlos conserva la trazabilidad",
+ "cuando": "2026-08-09",
+ "revertir": "update prestamos set estado='activo', finalizado_en=null where id in (...)",
+ "creditos": [
+  {
+   "prestamoId": "6c8c08c1-f56d-4580-b6ae-338acf46431e",
+   "cliente": "JORGE ANDRÉS RODRÍGUEZ TARAMASCO",
+   "monto": 16000,
+   "quedaVivo": "ef9ac291",
+   "estadoAnterior": "activo",
+   "porque": "Edward lo coloco el 08-09 sin saber que la oficina ya le habia aprobado la renovacion el 08-08: la aprobacion nunca le llegaba (RLS solo-gestor, sin aviso). Queda la RENOVACION, que tiene el linaje y el pago de $1.600."
+  },
+  {
+   "prestamoId": "5c7c466c-42a5-494a-865d-ab54b94114a2",
+   "cliente": "ROSMARIE BELDRAMINA VELAZQUIEZ",
+   "monto": 40000,
+   "quedaVivo": "b7010de5",
+   "estadoAnterior": "activo",
+   "porque": "Karent lo cargo en la app el 08-05 y el empalme importo el MISMO prestamo el 08-06. Queda el importado: tiene la referencia PRD0003609741 y los dos pagos de $1.200."
+  }
+ ]
+}
