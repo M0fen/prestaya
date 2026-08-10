@@ -30,7 +30,10 @@ export interface FilaLiquidacion {
   ventas: number;
   /** Capital que entregó en la calle hoy: sale de su bolsillo, no lo tiene. */
   colocado: number;
-  /** base(0 si null) + recaudo − retiros − colocado, nunca negativo. */
+  /** Lo que YA rindió a la oficina hoy (0 si todavía no cerró). Esa plata ya está
+   *  en la caja central: no puede seguir contando como efectivo de la calle. */
+  entregado: number;
+  /** Lo que TODAVÍA tiene encima: base + recaudo − retiros − colocado − entregado. */
   cajaFinal: number;
   estado: "cerrada" | "abierta";
 }
@@ -112,14 +115,26 @@ export async function getLiquidacionDiaria(
 
   // Rendiciones de hoy: quién ya cerró (degrada si falta 0013).
   const cerradas = new Set<string>();
+  // ⚠️ Lo que YA entregó. Sin esto, la fila de un cobrador que cerró y te puso la
+  // plata en la mano seguía mostrando esa misma plata como "caja final", y el total
+  // del home la contaba como efectivo en la calle: el 08-09 Karent y Anyela
+  // entregaron $240.869 y $245.840 y el titular seguía sumando los $486.709. Es el
+  // número con el que se decide cuánto sacar a prestar al día siguiente.
+  const entregadoDe = new Map<string, number>();
   let disponibleRendiciones = true;
   try {
     const { data, error } = await db
       .from("rendiciones")
-      .select("cobrador_id")
+      .select("cobrador_id, entregado")
       .eq("fecha", fechaHoy);
     if (error) throw error;
-    for (const r of data ?? []) cerradas.add(r.cobrador_id as string);
+    for (const r of data ?? []) {
+      cerradas.add(r.cobrador_id as string);
+      entregadoDe.set(
+        r.cobrador_id as string,
+        (entregadoDe.get(r.cobrador_id as string) ?? 0) + Math.round(Number(r.entregado) || 0),
+      );
+    }
   } catch (e) {
     if (tablaFaltante(e)) disponibleRendiciones = false;
     else throw e;
@@ -195,7 +210,11 @@ export async function getLiquidacionDiaria(
     .map((c) => {
       const a = acc.get(c.id)!;
       const colocado = colocadoPorCob.get(claveColocado(c.id, fechaHoy)) ?? 0;
-      const cajaFinal = Math.max(0, (a.base ?? 0) + a.recaudo - a.retiros - colocado);
+      const entregado = entregadoDe.get(c.id) ?? 0;
+      // "Caja final" = lo que TODAVÍA tiene encima. Lo entregado ya está en la caja
+      // central: contarlo acá lo mostraba dos veces (una en la mano del cobrador y
+      // otra en la de la oficina) e inflaba la exposición de la calle.
+      const cajaFinal = Math.max(0, (a.base ?? 0) + a.recaudo - a.retiros - colocado - entregado);
       return {
         cobradorId: c.id,
         nombre: c.nombre,
@@ -203,6 +222,7 @@ export async function getLiquidacionDiaria(
         visitas: a.visitas,
         recaudo: a.recaudo,
         colocado,
+        entregado,
         retiros: a.retiros,
         ventas: a.ventas,
         cajaFinal,

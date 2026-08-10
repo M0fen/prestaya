@@ -68,13 +68,24 @@ export async function cerrarJornada(input: {
 
   // esperado = base + cobros − gastos − COLOCADO. El capital que puso en la calle
   // hoy (renovaciones/ventas) ya no lo tiene: pedírselo le inventa un faltante.
-  const { esperado, diferencia, estado: est } = calcularRendicion(
+  const { esperado, diferencia, estado: est, aFavor } = calcularRendicion(
     estado.recaudado,
     gastos,
     entregado,
     estado.base,
     estado.colocado,
   );
+
+  // ⚠️ EL COBRADOR PUSO PLATA DE SU BOLSILLO. Cuando el capital colocado se pasa de
+  // lo que tenía encima, el "a entregar" se topa en $0 y el acta salía "Cuadra ✓"
+  // sin decir en ningún lado que la oficina le quedó debiendo. La tabla no tiene
+  // columna para esto (sería DDL), pero la NOTA es parte del acta inmutable: ahí
+  // queda el número, con su fecha y su firma, que es lo que hace falta para que
+  // pueda reclamarlo. Casos reales: Víctor Moralez $29.020 (08-07) y $18.260 (08-08).
+  if (aFavor > 0) {
+    const aviso = `A FAVOR DEL COBRADOR ${UYU(aFavor)}: colocó ${UYU(estado.colocado)} y puso esa diferencia de su bolsillo.`;
+    notas = notas ? `${aviso} · ${notas}`.slice(0, 300) : aviso.slice(0, 300);
+  }
 
   try {
     await crearRendicionDb({

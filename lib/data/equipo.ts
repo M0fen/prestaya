@@ -13,6 +13,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { inicioDiaUYIso, fechaISOUY } from "@/lib/fecha";
+import { traerTodo } from "./paginado";
 import type { Rol } from "@/types/db";
 import type { MiembroEquipo } from "@/types/equipo";
 
@@ -85,11 +86,18 @@ export async function getEquipoDetallado(db: SupabaseClient): Promise<MiembroEqu
   await Promise.all([
     (async () => {
       try {
-        const { data } = await admin
-          .from("eventos_uso")
-          .select("usuario_id, creado_en")
-          .gte("creado_en", desdeHoy)
-          .limit(20000);
+        // ⚠️ `.limit(20000)` NO trae 20.000 filas: PostgREST corta en 1000 EN
+        // SILENCIO, sin error. El 08-08 hubo 1.726 eventos → se descartaba el 42% y
+        // la pantalla de equipo decía que gente que había trabajado no se conectó.
+        // `traerTodo` pagina de verdad; el `.order("id")` es lo que lo hace estable.
+        const data = await traerTodo<Record<string, unknown>>((d, h) =>
+          admin
+            .from("eventos_uso")
+            .select("id, usuario_id, creado_en")
+            .gte("creado_en", desdeHoy)
+            .order("id", { ascending: true })
+            .range(d, h),
+        );
         for (const e of data ?? []) {
           const id = e.usuario_id as string | null;
           if (!id) continue;
@@ -104,13 +112,19 @@ export async function getEquipoDetallado(db: SupabaseClient): Promise<MiembroEqu
     (async () => {
       try {
         // Custodia: lo que la persona registró hoy (nativo, no anulado).
-        const { data } = await admin
-          .from("pagos")
-          .select("registrado_por, monto")
-          .is("origen", null)
-          .eq("anulado", false)
-          .gte("registrado_en", desdeHoy)
-          .limit(20000);
+        // Mismo motivo que arriba, y acá es PLATA: el tope de 1000 todavía no muerde
+        // (máximo 378 cobros en un día, con 9 de 52 cobradores capturando), pero con
+        // ~25 cobradores activos "Recaudado hoy" empezaría a subestimar en silencio.
+        const data = await traerTodo<Record<string, unknown>>((d, h) =>
+          admin
+            .from("pagos")
+            .select("id, registrado_por, monto")
+            .is("origen", null)
+            .eq("anulado", false)
+            .gte("registrado_en", desdeHoy)
+            .order("id", { ascending: true })
+            .range(d, h),
+        );
         for (const p of data ?? []) {
           const id = p.registrado_por as string | null;
           if (!id) continue;

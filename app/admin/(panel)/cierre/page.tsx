@@ -128,10 +128,19 @@ export default async function CierrePage() {
               href="/admin/alertas"
               nota="Recaudaron en la calle pero todavía no cerraron su jornada: ese efectivo (float) aún no entró a la caja. Si persiste, sube la exposición y baja la confianza del cobrador. Seguilo en el Centro de alertas."
             >
+              {/* ⚠️ "En mano" NO es el recaudo bruto: lo que el cobrador colocó en la
+                  calle salió de ese mismo efectivo. El 08-09 esta lista decía que
+                  Fernando Castro tenía $235.738 cuando tenía $76.738 — los otros
+                  $159.000 estaban prestados en 7 renovaciones. Reclamarle esa plata
+                  es reclamarle algo que ya está trabajando. La capa de datos manda
+                  `colocado` justamente para que la pantalla lo reste. */}
               <ListaAlerta
                 items={rend.pendientes.map((p) => ({
                   nombre: p.nombre,
-                  valor: `${UYU(p.recaudado)} en mano`,
+                  valor:
+                    p.colocado > 0
+                      ? `${UYU(Math.max(0, p.recaudado - p.colocado))} en mano · colocó ${UYU(p.colocado)}`
+                      : `${UYU(p.recaudado)} en mano`,
                   tono: "var(--color-ambar-osc)",
                 }))}
               />

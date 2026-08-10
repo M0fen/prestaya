@@ -9,6 +9,7 @@ import { UYU } from "@/lib/format";
 import { calcularRendicion, ETIQUETA_ESTADO, type EstadoRendicion } from "@/lib/rendicion";
 import { cerrarJornada } from "@/lib/acciones/rendicion";
 import { suscribir, pendientes, hidratar, quitar, opAtascada } from "@/lib/cobrador/colaOffline";
+import { PedirAyuda } from "@/components/cobrador/PedirAyuda";
 import type { RendicionDia } from "@/lib/data/rendicion";
 
 const TONO: Record<EstadoRendicion, { bg: string; fg: string }> = {
@@ -57,6 +58,9 @@ export function CerrarJornada({
   const [notas, setNotas] = useState("");
   const [reintentando, setReintentando] = useState(false);
   const [confirmar, setConfirmar] = useState(false);
+  /** Cobro atascado que espera el 2º toque para descartarse (nunca de un toque:
+   *  descartar borra el registro de plata que el cobrador ya tiene encima). */
+  const [porDescartar, setPorDescartar] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pendiente, startTransition] = useTransition();
 
@@ -143,7 +147,7 @@ export function CerrarJornada({
 
   const gastosN = Math.max(0, Math.round(Number(gastos) || 0));
   const entregadoN = Math.max(0, Math.round(Number(entregado) || 0));
-  const { esperado, diferencia, estado } = calcularRendicion(recaudado, gastosN, entregadoN, base, colocado);
+  const { esperado, diferencia, estado, aFavor } = calcularRendicion(recaudado, gastosN, entregadoN, base, colocado);
   const t = TONO[estado];
 
   // Cobros en la cola offline que no subieron. SINCRONIZANDO (se reintentan solos)
@@ -295,6 +299,26 @@ export function CerrarJornada({
         </span>
       </div>
 
+      {/* ⚠️ PUSO PLATA DE MÁS. Cuando el capital colocado se pasa de lo que tenía
+          encima (base + cobrado − gastos), el "Debería entregar" se topa en $0 y la
+          pantalla decía "Cuadra ✓" a secas: la plata que el cobrador puso de su
+          bolsillo no aparecía en ningún lado y no tenía con qué reclamarla al día
+          siguiente. Casos reales del piloto: Víctor Moralez $29.020 el 08-07 y
+          $18.260 el 08-08, Edward Muñoz $16.000, Anyela Quiñonez $12.800.
+          El número ya se calculaba (`aFavorDelCobrador`) y no lo leía nadie. */}
+      {aFavor > 0 && (
+        <div className="mt-2 flex flex-col gap-1 rounded-[12px] border border-[#BEEBD5] bg-[#F0FBF5] px-3 py-2.5">
+          <span className="text-[13px] font-extrabold text-[#157A50]">
+            💚 La oficina te debe {UYU(aFavor)}
+          </span>
+          <span className="text-[11.5px] leading-[1.45] font-medium text-[#157A50]">
+            Colocaste {UYU(colocado)} y hoy no te alcanzaba con lo que tenías: esa diferencia la
+            pusiste vos. Queda anotada en el cierre — mostrásela a tu supervisor para que te la
+            devuelva.
+          </span>
+        </div>
+      )}
+
       <input
         value={notas}
         onChange={(e) => setNotas(e.target.value)}
@@ -343,21 +367,44 @@ export function CerrarJornada({
             ⚠️ {cobrosAtascados.length} cobro{cobrosAtascados.length === 1 ? "" : "s"} no se pudo subir
           </span>
           <span className="text-[11.5px] font-medium text-[#9A4436]">
-            Puede que ese crédito se haya cerrado o cambiado de cobrador. Si el cobro fue real, registralo de
-            nuevo en la ficha del cliente. Descartá el que no corresponda para poder cerrar.
+            Abajo está el motivo de cada uno, con lo que dice la oficina.{" "}
+            <strong className="font-bold">Si ya recibiste esa plata, no la descartes sin avisar</strong> —
+            descartar solo borra el intento de registro, no la plata que tenés encima.
           </span>
           {cobrosAtascados.map((o) => (
-            <div key={o.id} className="flex items-center justify-between gap-2 border-t border-[#F3D6CF] pt-1.5">
-              <span className="min-w-0 truncate text-[12px] font-semibold text-tinta">
-                {o.clienteNombre} · {o.monto != null ? UYU(o.monto) : "cuota"}
-              </span>
-              <button
-                type="button"
-                onClick={() => quitar(o.id)}
-                className="flex-shrink-0 rounded-full border border-[#D6A79E] px-2.5 py-1 text-[11.5px] font-bold text-[#C0392B] active:scale-95"
-              >
-                Descartar
-              </button>
+            <div key={o.id} className="flex flex-col gap-1.5 border-t border-[#F3D6CF] pt-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="min-w-0 truncate text-[12px] font-semibold text-tinta">
+                  {o.clienteNombre} · {o.monto != null ? UYU(o.monto) : "cuota"}
+                </span>
+                {/* ⚠️ DOS TOQUES. Era un botón único, sin confirmación y sin rastro:
+                    un toque y el cobro desaparecía del libro. El cobrador cerraba el
+                    día con un sobrante que no sabía explicar. */}
+                <button
+                  type="button"
+                  onClick={() => (porDescartar === o.id ? quitar(o.id) : setPorDescartar(o.id))}
+                  className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-bold active:scale-95 ${
+                    porDescartar === o.id
+                      ? "bg-[#C0392B] text-white"
+                      : "border border-[#D6A79E] text-[#C0392B]"
+                  }`}
+                >
+                  {porDescartar === o.id ? "Sí, descartar" : "Descartar"}
+                </button>
+              </div>
+              {/* El mensaje del SERVIDOR, textual: dice qué pasó y qué hacer con la
+                  plata. Antes se descartaba y el cobrador leía un genérico. */}
+              {o.motivoFallo && (
+                <span className="rounded-[9px] bg-white/70 px-2.5 py-1.5 text-[11.5px] leading-[1.4] font-semibold text-[#9A4436]">
+                  {o.motivoFallo}
+                </span>
+              )}
+              <PedirAyuda
+                clienteId={o.clienteId}
+                etiqueta="Avisar a la oficina"
+                textoSugerido={`No pude registrar un cobro de ${o.monto != null ? UYU(o.monto) : "una cuota"} de ${o.clienteNombre}. ${o.motivoFallo ?? "La app no lo dejó subir."} Tengo la plata conmigo.`}
+                tono="alerta"
+              />
             </div>
           ))}
         </div>

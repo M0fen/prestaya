@@ -93,7 +93,7 @@ async function pedidosRenovacion(cobradorId: string, desde: string, t: number): 
     const admin = createSupabaseAdmin();
     const { data, error } = await admin
       .from("solicitudes_renovacion")
-      .select("id, cliente_id, monto, estado, solicitado_en, resuelto_en, motivo_rechazo")
+      .select("id, cliente_id, monto, estado, solicitado_en, resuelto_en, motivo_rechazo, prestamo_nuevo_id")
       .eq("solicitado_por", cobradorId)
       .order("solicitado_en", { ascending: false });
     if (error) throw error;
@@ -103,11 +103,30 @@ async function pedidosRenovacion(cobradorId: string, desde: string, t: number): 
       (r) => r.estado === "pendiente" || String(r.resuelto_en ?? "") >= desde,
     );
     if (filas.length === 0) return [];
+
+    // ⚠️ "Entregale $X" TIENE QUE APAGARSE. Si el crédito nuevo ya recibió un pago,
+    // la plata está entregada y el cliente ya está pagando: seguir diciéndoselo
+    // invita a entregar DOS VECES. De las 7 renovaciones aprobadas el 08-08, 3 ya
+    // tenían pago del cliente y la tarjeta seguía insistiendo.
+    const nuevos = filas
+      .map((r) => r.prestamo_nuevo_id as string | null)
+      .filter((x): x is string => !!x);
+    const yaCobrados = new Set<string>();
+    if (nuevos.length > 0) {
+      const { data: pg } = await admin
+        .from("pagos")
+        .select("prestamo_id")
+        .in("prestamo_id", nuevos)
+        .eq("anulado", false);
+      for (const p of pg ?? []) yaCobrados.add(p.prestamo_id as string);
+    }
+
     const ids = [...new Set(filas.map((r) => r.cliente_id as string))];
     const { data: cls } = await admin.from("clientes").select("id, nombre").in("id", ids);
     const nombre = new Map((cls ?? []).map((c) => [c.id as string, c.nombre as string]));
 
     return filas.map((r) => {
+      const entregado = yaCobrados.has((r.prestamo_nuevo_id as string) ?? "");
       const quien = nombre.get(r.cliente_id as string) ?? "un cliente";
       const monto = Math.round(Number(r.monto) || 0);
       const estado: EstadoPedido =
@@ -120,7 +139,9 @@ async function pedidosRenovacion(cobradorId: string, desde: string, t: number): 
         monto,
         queHacer:
           estado === "aprobado"
-            ? "Entregale la plata. El crédito ya está corriendo y el capital ya se descontó de tu caja."
+            ? entregado
+              ? "Listo: el cliente ya empezó a pagar este crédito, así que la plata está entregada. No se la des de nuevo."
+              : "Entregale la plata. El crédito ya está corriendo y el capital ya se descontó de tu caja."
             : estado === "rechazado"
               ? "No se hizo. Si el cliente la necesita, renovalo por el mismo monto que tenía: eso sale al instante."
               : "NO le entregues la plata todavía. Si no puede esperar, renovalo por el mismo monto que tenía: eso sale solo, sin permiso.",

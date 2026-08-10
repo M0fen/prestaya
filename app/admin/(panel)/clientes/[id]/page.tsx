@@ -374,6 +374,45 @@ export default async function FichaClientePage({
                 </div>
               </div>
             ))}
+
+            {/* ⚠️ LA PUERTA QUE FALTABA. Un cliente que YA está pagando puede
+                llevarse otro crédito (regla del 07-08: varios a la vez, sin estar al
+                día) y el motor lo acepta hace días — se le quitó a propósito el
+                rechazo "este cliente ya tiene un crédito activo". Pero esta pantalla
+                seguía escondiendo el formulario cuando había activos, así que cuando
+                el cobrador se pasaba de su techo (+20%) y lo mandaba a la oficina,
+                la oficina no tenía por dónde darlo: callejón sin salida, y la plata
+                terminaba saliendo por fuera del sistema. La deuda viva de los otros
+                créditos está arriba, a la vista, para que la decisión sea informada. */}
+            <div className="border-t border-linea pt-4">
+              <p className="mb-2 text-[12.5px] leading-[1.5] font-medium text-gris">
+                Este cliente puede llevarse <b className="text-tinta">otro crédito</b> aunque
+                todavía esté pagando. Hoy debe{" "}
+                <b className="text-tinta">{UYU(activos.reduce((s, a) => s + a.saldo, 0))}</b> en
+                {activos.length === 1 ? " su crédito" : ` sus ${activos.length} créditos`}.
+              </p>
+              <FormCreditoNuevo
+                clienteId={id}
+                clienteNombre={cliente.nombre}
+                base={
+                  ultimoCredito
+                    ? {
+                        monto: ultimoCredito.monto,
+                        cuota: ultimoCredito.cuota,
+                        totalDias: ultimoCredito.totalDias,
+                        frecuencia: ultimoCredito.frecuencia,
+                        fechaInicio: ultimoCredito.fechaInicio,
+                        estado: ultimoCredito.estado,
+                      }
+                    : null
+                }
+                cobradores={cobradoresAlta}
+                cobradorSugerido={ultimoCredito?.cobradorId ?? cobradorActual?.cobradorId ?? null}
+                esAdmin={esAdminRol(usuario.rol)}
+                moroso={morosidad.moroso}
+                reportado={cliente.reportado}
+              />
+            </div>
           </div>
         )}
       </section>

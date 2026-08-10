@@ -137,7 +137,14 @@ export function useSync(usuarioId: string | null, onSynced?: () => void) {
             // Error PERMANENTE (crédito finalizado/saldado/reasignado, datos inválidos):
             // reintentar daría el MISMO error → se marca ATASCADA de INMEDIATO (no bloquea
             // el cierre; aparece para descartar/re-registrar).
-            marcarAtascada(op.id);
+            //
+            // ⚠️ Se GUARDA el mensaje del servidor. Está escrito para el cobrador con la
+            // plata en la mano ("Este crédito ya está saldado. Si ya recibiste la plata,
+            // devolvésela al cliente o dejá una nota…") y hasta ahora se descartaba: él
+            // leía un genérico que además le pedía "registralo de nuevo", cosa que en ese
+            // estado es imposible. Como TODOS los cobros pasan por esta cola, esos
+            // mensajes eran inalcanzables siempre.
+            marcarAtascada(op.id, (res as { error?: string }).error ?? null);
           }
         } catch {
           // El propio llamado a la Server Action tiró (fetch failed): la red se cayó =

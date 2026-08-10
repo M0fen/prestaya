@@ -119,6 +119,11 @@ export default async function RutaPage() {
   // recuperación mostraría "Completo ✓" con cuotas de hoy aún sin cobrar.
   const cobroPct = arqueo.esperado > 0 ? Math.min(100, Math.round((arqueo.recaudadoRuta / arqueo.esperado) * 100)) : 0;
   const faltanVisitas = Math.max(0, arqueo.clientes - resueltos);
+  // ATRASO todavía vivo en la ruta: la app lo calcula cliente por cliente (y cada
+  // tarjeta lo muestra), pero no estaba sumado en ningún lado — así el cartel de
+  // arriba cantaba "Completo ✓" con deuda vieja sin recuperar. Se mide sobre lo que
+  // NO se recuperó hoy, no sobre el atraso bruto: lo ya cobrado no es atraso.
+  const atrasoVivo = Math.max(0, arqueo.atrasoEsperado - arqueo.atrasoRecuperado);
   // "Mi día": la comisión que YA se ganó hoy (motivación: plata en SU bolsillo).
   // Base = recaudado autoritativo del servidor (sus pagos de hoy). Solo si tiene %.
   // `comision_pct` ya viene en la fila propia (getUsuarioActual → select *), así
@@ -185,16 +190,35 @@ export default async function RutaPage() {
             </span>
           </div>
           <div className="flex flex-col items-end">
-            <span className="text-[12px] font-bold text-white/80 tabular-nums">{cobroPct}%</span>
+            {/* Sin nada que venza hoy (domingo, o una ruta toda de semanales) el
+                porcentaje daba 0% al lado de "Completo ✓": dos números que se
+                contradicen en el mismo renglón. Si no hay meta, no hay porcentaje. */}
+            {arqueo.esperado > 0 && (
+              <span className="text-[12px] font-bold text-white/80 tabular-nums">{cobroPct}%</span>
+            )}
             {/* Lo que FALTA cobrar (accionable) lidera sobre el esperado pasivo. */}
             {arqueo.esperado - arqueo.recaudadoRuta > 0 ? (
               <span className="text-[13px] font-bold tabular-nums text-[#F2C14E]">
                 Falta {UYU(arqueo.esperado - arqueo.recaudadoRuta)}
               </span>
+            ) : atrasoVivo > 0 ? (
+              /* ⚠️ "Completo ✓" a secas era MENTIRA con la calle llena: la meta del
+                 día son solo las cuotas que VENCEN hoy, y el atraso acumulado se
+                 calculaba pero no se mostraba sumado en ningún lado. María
+                 Artunduaga abre con meta $58.704 y atraso $131.940: apenas cubría
+                 las cuotas del día veía la palomita verde y se iba. Las cuotas de
+                 hoy sí están completas — se dice eso, y al lado lo que queda. */
+              <span className="text-[13px] font-bold tabular-nums text-[#34E0A1]">
+                Cuotas de hoy ✓
+              </span>
             ) : (
               <span className="text-[12px] font-bold text-[#34E0A1]">Completo ✓</span>
             )}
-            <span className="text-[10.5px] font-medium text-white/45">de {UYU(arqueo.esperado)}</span>
+            <span className="text-[10.5px] font-medium text-white/45">
+              {atrasoVivo > 0 && arqueo.esperado - arqueo.recaudadoRuta <= 0
+                ? `queda atraso ${UYU(atrasoVivo)}`
+                : `de ${UYU(arqueo.esperado)}`}
+            </span>
           </div>
         </div>
         {/* Progreso de cobro (recaudado / esperado). */}

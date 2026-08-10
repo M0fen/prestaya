@@ -33,6 +33,13 @@ export interface OpCobro {
   /** Hora real del cobro (Date.now() al registrar). */
   deviceTs: number;
   intentos: number;
+  /** POR QUÉ el servidor rechazó este cobro, con sus palabras. El servidor escribe
+   *  mensajes pensados para el cobrador parado frente al cliente ("Este crédito ya
+   *  está saldado. Si ya recibiste la plata, devolvésela o dejá una nota…") y se
+   *  tiraban a la basura: él solo veía un genérico que encima le pedía algo
+   *  imposible. Como el 100% de los cobros pasa por esta cola, ese texto era
+   *  inalcanzable SIEMPRE. Opcional: las ops viejas no lo tienen. */
+  motivoFallo?: string | null;
   /** No sincronizar antes de este instante (epoch ms). Da la ventana de
    *  "Deshacer" y el margen para que el GPS asíncrono se adjunte antes de
    *  enviar. undefined = enviar apenas haya señal (comportamiento clásico). */
@@ -210,8 +217,14 @@ export function marcarIntento(id: string): void {
  *  auto-flush no re-corre)—, lo que dejaba al cobrador TRABADO: la op bloqueaba el
  *  cierre (sigue "pendiente", intentos<MAX) pero nunca aparecía en "Descartar". Con
  *  esto pasa directo a atascada → no bloquea + se puede descartar/re-registrar. */
-export function marcarAtascada(id: string): void {
-  guardar(leer().map((o) => (o.id === id ? { ...o, intentos: MAX_INTENTOS_SYNC } : o)));
+export function marcarAtascada(id: string, motivo?: string | null): void {
+  guardar(
+    leer().map((o) =>
+      o.id === id
+        ? { ...o, intentos: MAX_INTENTOS_SYNC, motivoFallo: motivo?.slice(0, 240) ?? o.motivoFallo ?? null }
+        : o,
+    ),
+  );
 }
 
 // ── Confirmación con gracia ────────────────────────────────────────────────

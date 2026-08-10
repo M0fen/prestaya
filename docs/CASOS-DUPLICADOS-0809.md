@@ -73,6 +73,45 @@ Con esas tres respuestas se anulan los pagos que no correspondan (nunca se borra
 
 ---
 
+## 🛑 EVITADOS · tres pedidos que habrían duplicado $48.000
+
+Al cierre del 09-08 quedaban tres solicitudes de renovación pendientes. Contra el
+export fresco de Disapp (09-08 21:13) **los tres créditos YA EXISTEN**, con el
+monto exacto que se pidió, y los tres clientes **ya habían pagado su primera cuota
+el 08-08** — un día antes de que el pedido entrara a la app.
+
+| cliente | pidió | quién | ya está en Disapp como | 1ª cuota cobrada |
+|---|---|---|---|---|
+| PATRICIA POSSE GIMENEZ | $25.000 × 30 | Yuli Toro | `PRD0003614338` | 08/08 |
+| BETINA NARTINES | $15.000 × 30 | Daniela Millán | `PRD0003614673` | 08/08 ($600) |
+| CLAUDIA ZUCARET | $8.000 × 30 | Fernando Castro | `PRD0003615314` | 08/08 ($320) |
+
+**La secuencia real.** El cliente terminó el 07-08 → el cobrador colocó el crédito
+nuevo el 08-08 y la oficina lo registró en Disapp → el 09-08 el cobrador **además**
+lo pidió por la app, para algo que ya estaba hecho.
+
+**Por qué NO se aprobaron.** Aprobar crea un crédito en nuestra base por un préstamo
+que ya existe en Disapp, y el empalme importa ese mismo préstamo con su referencia
+`PRD` → el cliente quedaría con DOS créditos. Es el caso ROSMARIE de arriba, tres
+veces. Aprobar además fecharía el crédito HOY y le descontaría el capital de la caja
+del día al cobrador, cuando la plata salió de su bolsillo el 08-08.
+
+**Qué se hizo.** Se cerraron como `rechazada` con el motivo nombrando la referencia
+de Disapp (`scripts/cerrar-pedidos-ya-colocados-0809.py --commit`, reversa en
+`_revert_pedidos_0809.json`, tres filas en `auditoria`). Los tres créditos reales
+entran por el empalme, con su ref, su fecha y sus pagos.
+
+**El patrón, que es lo que importa.** La cola de aprobaciones de la app **se está
+resolviendo por fuera de la app**: el cobrador coloca, la oficina registra en
+Disapp, y el pedido queda pendiente para siempre. El que lo aprueba de buena fe
+fabrica un duplicado. Por eso el 09-08 se agregó:
+ · **"Tus pedidos"** en el home del cobrador (renovación + gasto + corrección) con
+   estado, antigüedad, motivo del rechazo y qué hacer mientras espera.
+ · **Aviso anti-duplicado** en la tarjeta de aprobación del admin: si al cliente se
+   le colocó capital DESPUÉS del pedido, lo dice en rojo antes del botón verde.
+
+---
+
 ## Lo que quedó midiendo bien
 
 - **0** referencias de Disapp repetidas entre créditos activos.
