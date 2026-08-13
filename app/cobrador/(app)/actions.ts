@@ -114,37 +114,33 @@ export async function relevarCliente(input: {
       // el import de Disapp dejó los dos estilos conviviendo.
       const yaExiste = await getClientePorDocumentoFlexible(db, documento);
       if (yaExiste) {
-        // ── EL MURO ────────────────────────────────────────────────────────
-        // Antes esto era un callejón sin salida ("Ese documento ya está
-        // registrado") y el cobrador se quedaba parado en la puerta del
-        // cliente. Pero la base tiene 12.588 fichas heredadas de Disapp y
-        // 9.317 de ellas con cédula NO están en la ruta de nadie: encontrarse
-        // con una es lo NORMAL, no la excepción.
+        // ── LA FICHA YA EXISTE: SE SUMA, NO SE PELEA ─────────────────────────
+        // Dos muros vivieron acá y los dos terminaron mal:
+        //  · "Ese documento ya está registrado" — día 1: 0 clientes creados.
+        //  · "Esa persona ya está en la ruta de un compañero" — contradecía la
+        //    regla del negocio: un cliente PUEDE estar en dos rutas a la vez, con
+        //    créditos de cobradores distintos (54 reales hoy, decisión de Carlos
+        //    10-08: "eso no debería ser limitante, ni debería existir").
         //
-        // Regla: si la ficha existe pero está libre (sin cobrador y sin
-        // crédito vivo), el cobrador la ADOPTA — que es exactamente lo que
-        // venía a hacer. Si ya tiene dueño o plata en la calle, no se toca:
-        // eso lo resuelve el supervisor (mover un cliente entre rutas mueve
-        // comisiones).
-        const [{ data: asigs }, { data: activos }] = await Promise.all([
-          db.from("asignaciones").select("cobrador_id").eq("cliente_id", yaExiste.id).eq("activo", true),
-          db.from("prestamos").select("id").eq("cliente_id", yaExiste.id).eq("estado", "activo").limit(1),
-        ]);
+        // La regla que queda: censar una ficha existente SUMA al cobrador a la
+        // ruta del cliente y NO le saca nada a nadie — el compañero conserva su
+        // asignación, sus créditos y su comisión (`asignaciones` admite varias
+        // activas por cliente, y `consolidarRuta` protege al que tiene crédito
+        // vivo). El único freno que sobrevive es el cliente dado de BAJA: esa es
+        // una decisión de la oficina, no un empate de rutas.
+        if (!yaExiste.activo) {
+          return { ok: false, error: "Esa persona está dada de baja en el sistema. Avisale a tu supervisor para reactivarla." };
+        }
+        const { data: asigs } = await db
+          .from("asignaciones")
+          .select("cobrador_id")
+          .eq("cliente_id", yaExiste.id)
+          .eq("activo", true);
         const dueños = (asigs ?? []).map((a) => a.cobrador_id as string);
         if (dueños.includes(usuario.id)) {
           return { ok: true, id: yaExiste.id, adoptado: true }; // ya es suyo
         }
-        if (dueños.length > 0 || (activos ?? []).length > 0) {
-          // No se revela el NOMBRE del cliente ni del cobrador: el chequeo corre
-          // con service_role (cross-zona) y filtrarlo dejaría enumerar PII.
-          return {
-            ok: false,
-            error: "Esa persona ya está en la ruta de un compañero. Pedile a tu supervisor que te la pase.",
-          };
-        }
-        if (!yaExiste.activo) {
-          return { ok: false, error: "Esa persona está dada de baja en el sistema. Avisale a tu supervisor para reactivarla." };
-        }
+        const compartida = dueños.length > 0;
         const { error: errAdopt } = await db
           .from("asignaciones")
           .upsert(
@@ -158,7 +154,13 @@ export async function relevarCliente(input: {
           rol: usuario.rol,
           accion: "censo",
           clienteId: yaExiste.id,
-          detalle: `${nombre} (ficha existente adoptada a la ruta)`,
+          // La bitácora dice si la ficha quedó COMPARTIDA: es el rastro que el
+          // supervisor necesita para entender por qué un cliente está en dos
+          // rutas — y la ficha ya le muestra al cobrador los créditos del
+          // compañero ("Esa parte no la cobrás vos"), así que nadie cobra ajeno.
+          detalle: compartida
+            ? `${nombre} (ficha sumada a la ruta — COMPARTIDA con otro cobrador)`
+            : `${nombre} (ficha existente adoptada a la ruta)`,
           gpsLat: gps_lat,
           gpsLng: gps_lng,
           gpsPrecision: precisionAncla,
