@@ -46,6 +46,7 @@ import {
 import {
   calcularCuotaCreditoNuevo,
   interesDeBase,
+  puedeDeshacerVenta,
   INTERES_DEFECTO_PCT,
 } from "@/lib/creditoNuevo";
 import {
@@ -490,6 +491,92 @@ export async function renovarDesdeCalle(input: {
   revalidatePath("/cobrador");
   revalidatePath(`/cobrador/cliente/${input.clienteId}`);
   return { ok: true, prestamoId: res.prestamoId, cuota: res.cuota };
+}
+
+/**
+ * DESHACER una venta recién colocada (pedido de Carlos, 08-14). El dedazo con
+ * el monto o el cliente que se arrepiente en la vereda tienen salida sin llamar
+ * a la oficina — pero SOLO cuando no pasó nada todavía: crédito propio, de
+ * efectivo, sin pagos, sin linaje de renovación y dentro de la hora. La regla
+ * completa vive en `puedeDeshacerVenta` (pura, la MISMA que decide si el botón
+ * se muestra). Los créditos no se borran jamás (P0403): deshacer = 'cancelado',
+ * y el estado cancelado queda EXCLUIDO del colocado de la caja y del historial
+ * que arrastra tasa — financieramente nunca existió, pero el registro queda.
+ */
+export async function deshacerVentaDesdeCalle(input: {
+  prestamoId: string;
+}): Promise<{ ok: true; yaEstaba?: boolean } | { ok: false; error: string }> {
+  const u = await getUsuarioActual();
+  if (!u || !u.activo) return { ok: false, error: "Tu sesión venció. Volvé a entrar." };
+  if (u.rol !== "cobrador") return { ok: false, error: "Esta acción es de la app del cobrador." };
+  if (!esUuid(input.prestamoId)) return { ok: false, error: "Crédito inválido." };
+  const bloqueo = await bloqueoSoloLectura();
+  if (bloqueo)
+    return { ok: false, error: bloqueo.error ?? "El sistema está en modo consulta. Probá enseguida." };
+
+  // Se lee y escribe con ADMIN: la RLS del cobrador no tiene UPDATE sobre
+  // prestamos (0129, y así debe seguir). La autorización la dan los gates de
+  // `puedeDeshacerVenta` — el primero es "lo creaste VOS".
+  const admin = createSupabaseAdmin();
+  const { data: p, error: errLee } = await admin
+    .from("prestamos")
+    .select("id, cliente_id, estado, origen, renovado_de, creado_por, creado_en, monto_prestado")
+    .eq("id", input.prestamoId)
+    .maybeSingle();
+  if (errLee) return { ok: false, error: "No se pudo leer el crédito. Probá de nuevo." };
+  if (!p) return { ok: false, error: "Ese crédito no existe." };
+  // Reintento tras ACK perdido: ya está deshecho → decirlo, no fallar.
+  if (p.estado === "cancelado") return { ok: true, yaEstaba: true };
+
+  const { count: pagosN, error: errPagos } = await admin
+    .from("pagos")
+    .select("id", { count: "exact", head: true })
+    .eq("prestamo_id", p.id)
+    .eq("anulado", false);
+  if (errPagos) return { ok: false, error: "No se pudo verificar los pagos. Probá de nuevo." };
+
+  const veredicto = puedeDeshacerVenta(
+    {
+      estado: p.estado as string,
+      origen: (p.origen as string | null) ?? null,
+      renovadoDe: (p.renovado_de as string | null) ?? null,
+      creadoPor: (p.creado_por as string | null) ?? null,
+      creadoEn: p.creado_en as string,
+      tienePagos: (pagosN ?? 0) > 0,
+    },
+    u.id,
+    Date.now(),
+  );
+  if (!veredicto.ok) return { ok: false, error: veredicto.motivo };
+
+  // Solo si SIGUE activo (carrera con otro deshacer / con un cierre): 0 filas
+  // afectadas NO es éxito — se relee para distinguir "ya estaba" de un fallo.
+  const { data: upd, error: errUpd } = await admin
+    .from("prestamos")
+    .update({ estado: "cancelado" })
+    .eq("id", p.id)
+    .eq("estado", "activo")
+    .select("id");
+  if (errUpd) return { ok: false, error: "No se pudo deshacer. Probá de nuevo." };
+  if ((upd ?? []).length === 0) {
+    const { data: re } = await admin.from("prestamos").select("estado").eq("id", p.id).maybeSingle();
+    if (re?.estado === "cancelado") return { ok: true, yaEstaba: true };
+    return { ok: false, error: "El crédito cambió de estado mientras tanto. Mirá su cartón." };
+  }
+
+  await registrarAuditoria(await createSupabaseServer(), {
+    actorId: u.id,
+    actorNombre: u.nombre,
+    accion: "Deshizo una venta desde la calle",
+    entidad: "cliente",
+    entidadId: p.cliente_id as string,
+    detalle: `${UYU(Math.round(Number(p.monto_prestado) || 0))} — dentro de la hora, sin pagos. El crédito queda cancelado.`,
+  });
+  revalidatePath("/cobrador");
+  revalidatePath("/cobrador/colocar");
+  revalidatePath("/cobrador/informes");
+  revalidatePath(`/cobrador/cliente/${p.cliente_id}`);
+  return { ok: true };
 }
 
 /**

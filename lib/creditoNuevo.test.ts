@@ -2,7 +2,10 @@ import { describe, it, expect } from "vitest";
 import {
   calcularCuotaCreditoNuevo,
   interesDeBase,
+  puedeDeshacerVenta,
+  DESHACER_VENTA_MS,
   INTERES_DEFECTO_PCT,
+  type VentaParaDeshacer,
 } from "./creditoNuevo";
 import { calcularCuotaRenovacion } from "./renovacion";
 
@@ -119,6 +122,91 @@ describe("calcularCuotaCreditoNuevo — invariantes de dinero", () => {
         expect(calcularCuotaCreditoNuevo(null, monto, dias, 20)).toBeGreaterThanOrEqual(0);
         expect(calcularCuotaCreditoNuevo(BASE, monto, dias, 20)).toBeGreaterThanOrEqual(0);
       }
+    }
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  DESHACER una venta (08-14). La regla es UNA función pura que usan el botón
+//  (mostrarse / cuenta regresiva) y la Server Action (la verdad) — pantalla y
+//  servidor no pueden decidir distinto. Reloj SIEMPRE fijo.
+// ═══════════════════════════════════════════════════════════════════════════
+describe("puedeDeshacerVenta: solo cuando no pasó nada todavía", () => {
+  const YO = "u-yuli";
+  const AHORA = new Date("2026-08-14T15:00:00Z").getTime();
+  /** Venta recién colocada por MÍ, hace 10 minutos, sin pagos. */
+  const venta = (extra: Partial<VentaParaDeshacer> = {}): VentaParaDeshacer => ({
+    estado: "activo",
+    origen: "credito",
+    renovadoDe: null,
+    creadoPor: YO,
+    creadoEn: new Date(AHORA - 10 * 60_000).toISOString(),
+    tienePagos: false,
+    ...extra,
+  });
+
+  it("la venta propia, fresca y sin pagos SE DESHACE (y dice cuánto queda)", () => {
+    const v = puedeDeshacerVenta(venta(), YO, AHORA);
+    expect(v.ok).toBe(true);
+    if (v.ok) expect(v.quedanMs).toBe(DESHACER_VENTA_MS - 10 * 60_000);
+  });
+
+  it("justo ANTES de la hora se puede; justo DESPUÉS ya no (borde exacto)", () => {
+    const alFilo = venta({ creadoEn: new Date(AHORA - DESHACER_VENTA_MS).toISOString() });
+    expect(puedeDeshacerVenta(alFilo, YO, AHORA).ok).toBe(true);
+    const pasado = venta({ creadoEn: new Date(AHORA - DESHACER_VENTA_MS - 1).toISOString() });
+    const v = puedeDeshacerVenta(pasado, YO, AHORA);
+    expect(v.ok).toBe(false);
+    if (!v.ok) expect(v.motivo).toContain("una hora");
+  });
+
+  it("con UN pago del cliente ya no se deshace: la plata empezó a moverse", () => {
+    const v = puedeDeshacerVenta(venta({ tienePagos: true }), YO, AHORA);
+    expect(v.ok).toBe(false);
+    if (!v.ok) expect(v.motivo).toContain("ya pagó");
+  });
+
+  it("una RENOVACIÓN no se deshace desde la calle (reabriría el crédito anterior)", () => {
+    const v = puedeDeshacerVenta(venta({ renovadoDe: "p-anterior" }), YO, AHORA);
+    expect(v.ok).toBe(false);
+    if (!v.ok) expect(v.motivo).toContain("RENOVACIÓN");
+  });
+
+  it("el crédito de OTRO cobrador no se toca (custodia)", () => {
+    expect(puedeDeshacerVenta(venta({ creadoPor: "u-edward" }), YO, AHORA).ok).toBe(false);
+  });
+
+  it("tienda / import no son efectivo de la calle: no se deshacen por acá", () => {
+    expect(puedeDeshacerVenta(venta({ origen: "tienda" }), YO, AHORA).ok).toBe(false);
+    expect(puedeDeshacerVenta(venta({ origen: "disapp_import" }), YO, AHORA).ok).toBe(false);
+    // origen null (créditos viejos del panel) se trata como efectivo: se permite.
+    expect(puedeDeshacerVenta(venta({ origen: null }), YO, AHORA).ok).toBe(true);
+  });
+
+  it("un estado que no es 'activo' no se deshace (finalizado, cancelado…)", () => {
+    expect(puedeDeshacerVenta(venta({ estado: "finalizado" }), YO, AHORA).ok).toBe(false);
+    expect(puedeDeshacerVenta(venta({ estado: "cancelado" }), YO, AHORA).ok).toBe(false);
+  });
+
+  it("una hora de creación inválida o futura NO se deshace (reloj torcido)", () => {
+    expect(puedeDeshacerVenta(venta({ creadoEn: "no-es-fecha" }), YO, AHORA).ok).toBe(false);
+    expect(
+      puedeDeshacerVenta(venta({ creadoEn: new Date(AHORA + 60_000).toISOString() }), YO, AHORA).ok,
+    ).toBe(false);
+  });
+
+  it("TODO rechazo trae la salida escrita (nunca un callejón)", () => {
+    const casos: VentaParaDeshacer[] = [
+      venta({ tienePagos: true }),
+      venta({ renovadoDe: "x" }),
+      venta({ creadoPor: "u-otro" }),
+      venta({ origen: "tienda" }),
+      venta({ creadoEn: new Date(AHORA - DESHACER_VENTA_MS - 1).toISOString() }),
+    ];
+    for (const c of casos) {
+      const v = puedeDeshacerVenta(c, YO, AHORA);
+      expect(v.ok).toBe(false);
+      if (!v.ok) expect(v.motivo.length).toBeGreaterThan(20);
     }
   });
 });

@@ -46,6 +46,10 @@ export async function getUltimoCreditoDe(
     // (el empalme cargó lotes con la misma fecha) y sin esto el "último" sería
     // arbitrario → la tasa arrastrada podría salir de un crédito equivocado.
     .eq("cliente_id", clienteId)
+    // Una venta DESHECHA (cancelado, 08-14) nunca existió financieramente: no
+    // puede ser la base de tasa/techo del próximo crédito — un dedazo de $90.000
+    // deshecho le abriría un techo de $100.000 a un cliente de $5.000.
+    .neq("estado", "cancelado")
     .order("fecha_inicio", { ascending: false })
     .order("creado_en", { ascending: false })
     .limit(1);

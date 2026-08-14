@@ -25,6 +25,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { UYU } from "@/lib/format";
 import { EstadoVacio } from "@/components/EstadoVacio";
+import { DeshacerVenta } from "@/components/cobrador/DeshacerVenta";
 import { renovarDesdeCalle, nuevaVentaDesdeCalle } from "@/lib/acciones/cobradorCredito";
 import { PedirAyuda } from "@/components/cobrador/PedirAyuda";
 import type { FrecuenciaPrestamo } from "@/types/db";
@@ -105,6 +106,9 @@ interface Hecho {
   nombre: string;
   texto: string;
   como: "creado" | "repetido" | "pedido";
+  /** Solo VENTAS recién creadas (no renovaciones): habilita el "↩ Deshacer" en
+   *  el cartel, que es donde el dedazo se nota al segundo (08-14). */
+  deshacer?: { prestamoId: string; monto: number; creadoEn: string };
 }
 
 export function ColocarLista({
@@ -358,13 +362,25 @@ function Confirmacion({ h }: { h: Hecho }) {
           ⛔ NO le entregues la plata todavía. El crédito NO existe hasta que la oficina apruebe.
         </p>
       )}
-      <a
-        href={`/cobrador/cliente/${h.clienteId}`}
-        className="mt-1.5 min-h-11 self-start rounded-full bg-tarjeta px-4 text-[12.5px] font-bold leading-[44px] active:scale-95"
-        style={{ color: tono.texto, boxShadow: `inset 0 0 0 1px ${tono.borde}` }}
-      >
-        Ver su cartón
-      </a>
+      <div className="mt-1.5 flex flex-wrap items-center gap-2">
+        <a
+          href={`/cobrador/cliente/${h.clienteId}`}
+          className="min-h-11 self-start rounded-full bg-tarjeta px-4 text-[12.5px] font-bold leading-[44px] active:scale-95"
+          style={{ color: tono.texto, boxShadow: `inset 0 0 0 1px ${tono.borde}` }}
+        >
+          Ver su cartón
+        </a>
+        {/* ↩ El dedazo con salida: solo ventas recién creadas, dentro de la hora
+            y sin pagos (la regla completa la valida el servidor con la MISMA
+            función). Deshacer una renovación lo hace la oficina. */}
+        {h.deshacer && (
+          <DeshacerVenta
+            prestamoId={h.deshacer.prestamoId}
+            monto={h.deshacer.monto}
+            creadoEn={h.deshacer.creadoEn}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -488,6 +504,11 @@ function Tarjeta({
           // el mismo verde el cobrador cree que recién colocó el capital y le
           // entrega la plata al cliente DE NUEVO. Se dice distinto, explícito.
           const monto = modo === "renovar" ? sugeridoRenov : montoN;
+          // ¿Fue una VENTA nueva recién creada? (no renovación, no pedido, no
+          // reintento): es el único caso con "↩ Deshacer" — deshacer una
+          // renovación reabriría el crédito anterior y eso lo hace la oficina.
+          const esVentaCreada =
+            modo === "venta" && !c.prestamoId && !("solicitado" in r) && !r.repetido && !!r.prestamoId;
           onHecho({
             clienteId: c.clienteId,
             nombre: c.nombre,
@@ -498,6 +519,9 @@ function Tarjeta({
                 : r.repetido
                   ? "Ya estaba renovado ✓ — no se creó otro. Si ya le entregaste la plata, no se la des de nuevo."
                   : `Le entregaste ${UYU(monto)}${r.cuota ? ` · cuota ${UYU(r.cuota)}` : ""} ✓`,
+            deshacer: esVentaCreada
+              ? { prestamoId: r.prestamoId!, monto, creadoEn: new Date().toISOString() }
+              : undefined,
           });
           setHechoAca(true);
           router.refresh();

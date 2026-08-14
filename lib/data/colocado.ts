@@ -38,6 +38,10 @@ export async function colocadoPorCobrador(
         .from("prestamos")
         .select("monto_prestado")
         .eq("creado_por", cobradorId)
+        // Un crédito CANCELADO no cuenta como colocado: es la venta DESHECHA
+        // dentro de la hora (08-14) — el efectivo volvió al bolsillo. Sin esto,
+        // deshacer dejaba la caja descontada por plata que el cobrador tiene.
+        .neq("estado", "cancelado")
         .gte("creado_en", desdeIso);
       if (hastaIso) q = q.lt("creado_en", hastaIso);
       return q.order("id", { ascending: true }).range(d, h);
@@ -89,6 +93,8 @@ export async function colocadoEnDias(
         .from("prestamos")
         .select("creado_por, monto_prestado, creado_en")
         .in("creado_por", ids)
+        // Misma regla que arriba: la venta deshecha (cancelado) nunca colocó.
+        .neq("estado", "cancelado")
         .gte("creado_en", diaUYInicioIso(ymds[0]))
         .lt("creado_en", diaUYFinIso(ymds[ymds.length - 1]))
         .order("id", { ascending: true })

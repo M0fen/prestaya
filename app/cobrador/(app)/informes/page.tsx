@@ -19,6 +19,7 @@ import { conTimeout } from "@/lib/timeout";
 import { hoyUY } from "@/lib/fecha";
 import { UYU, horaDe, diasSemana, meses } from "@/lib/format";
 import { EstadoVacio } from "@/components/EstadoVacio";
+import { DeshacerVenta } from "@/components/cobrador/DeshacerVenta";
 
 export const dynamic = "force-dynamic";
 const TOPE_MS = 22_000;
@@ -122,24 +123,37 @@ export default async function InformesPage() {
           />
         ) : (
           informe.colocaciones.map((c) => (
-            <Link
+            <div
               key={c.prestamoId}
-              href={`/cobrador/cliente/${c.clienteId}`}
-              className="flex items-center justify-between gap-3 rounded-[14px] bg-tarjeta px-3.5 py-3 shadow-sm active:scale-[0.995]"
+              className="flex flex-col gap-2 rounded-[14px] bg-tarjeta px-3.5 py-3 shadow-sm"
             >
-              <div className="flex min-w-0 flex-col">
-                <span className="line-clamp-2 text-[13.5px] leading-[1.25] font-bold break-words text-tinta">
-                  {c.clienteNombre}
+              <Link
+                href={`/cobrador/cliente/${c.clienteId}`}
+                className="flex items-center justify-between gap-3 active:scale-[0.995]"
+              >
+                <div className="flex min-w-0 flex-col">
+                  <span className="line-clamp-2 text-[13.5px] leading-[1.25] font-bold break-words text-tinta">
+                    {c.clienteNombre}
+                  </span>
+                  <span className="text-[11px] font-semibold text-gris tabular-nums">
+                    {c.esRenovacion ? "🔁 Renovación" : "💵 Venta"} · cuota {UYU(c.cuota)} ×{" "}
+                    {c.totalDias} · {horaDe(c.creadoEn)}
+                  </span>
+                </div>
+                <span className="flex-shrink-0 text-[15px] font-extrabold tabular-nums text-azul">
+                  {UYU(c.monto)}
                 </span>
-                <span className="text-[11px] font-semibold text-gris tabular-nums">
-                  {c.esRenovacion ? "🔁 Renovación" : "💵 Venta"} · cuota {UYU(c.cuota)} ×{" "}
-                  {c.totalDias} · {horaDe(c.creadoEn)}
-                </span>
-              </div>
-              <span className="flex-shrink-0 text-[15px] font-extrabold tabular-nums text-azul">
-                {UYU(c.monto)}
-              </span>
-            </Link>
+              </Link>
+              {/* ↩ Deshacer (08-14): solo ventas, dentro de la hora. El botón se
+                  esconde solo cuando vence; el servidor revalida TODO igual
+                  (pagos, dueño, estado) con la misma función pura. */}
+              <DeshacerVenta
+                prestamoId={c.prestamoId}
+                monto={c.monto}
+                creadoEn={c.creadoEn}
+                esRenovacion={c.esRenovacion}
+              />
+            </div>
           ))
         )}
       </section>

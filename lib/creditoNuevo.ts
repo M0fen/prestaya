@@ -64,3 +64,68 @@ export function calcularCuotaCreditoNuevo(
   const i = Number.isFinite(interesPct) ? Math.max(0, interesPct) : 0;
   return Math.round((monto * (1 + i / 100)) / cuotas);
 }
+
+// ── DESHACER una venta (pedido de Carlos, 08-14) ───────────────────────────
+//  El dedazo existe: un monto equivocado, el cliente que se arrepiente en la
+//  vereda. Los créditos NO se borran (P0403, el libro es la verdad), así que
+//  deshacer = pasarlo a estado 'cancelado' — y solo cuando NO pasó nada todavía.
+//
+//  La regla vive ACÁ, pura, porque la usan las dos puntas: el botón (para
+//  decidir si se muestra y cuánto tiempo queda) y la Server Action (la verdad).
+//  Pantalla y servidor con la MISMA función — la regla de hierro del proyecto.
+
+/** Ventana para deshacer: la misma HORA que tiene el "Deshacer" de un cobro. */
+export const DESHACER_VENTA_MS = 60 * 60 * 1000;
+
+export interface VentaParaDeshacer {
+  estado: string;
+  /** prestamos.origen ("credito" | "tienda" | "disapp_import" | null). */
+  origen: string | null;
+  /** Linaje de renovación: si existe, deshacerla reabriría el crédito anterior. */
+  renovadoDe: string | null;
+  creadoPor: string | null;
+  /** ISO de creado_en. */
+  creadoEn: string;
+  tienePagos: boolean;
+}
+
+export type VeredictoDeshacer =
+  | { ok: true; quedanMs: number }
+  | { ok: false; motivo: string };
+
+/**
+ * ¿Este crédito se puede deshacer, y por qué no? Cada rechazo dice la salida
+ * (nunca un callejón). Orden de chequeo: del más definitivo al más temporal.
+ */
+export function puedeDeshacerVenta(
+  v: VentaParaDeshacer,
+  yoId: string,
+  ahoraMs: number,
+): VeredictoDeshacer {
+  if (v.creadoPor !== yoId)
+    return { ok: false, motivo: "Este crédito lo colocó otra persona: que lo deshaga quien lo creó, o la oficina." };
+  if ((v.origen ?? "credito") !== "credito")
+    return { ok: false, motivo: "Este crédito no es de efectivo de la calle. Avisá a la oficina." };
+  if (v.renovadoDe != null)
+    return {
+      ok: false,
+      motivo:
+        "Es una RENOVACIÓN: deshacerla tendría que reabrir el crédito anterior, y eso lo hace la oficina. Avisale a tu supervisor.",
+    };
+  if (v.estado !== "activo")
+    return { ok: false, motivo: "Este crédito ya no está activo." };
+  if (v.tienePagos)
+    return {
+      ok: false,
+      motivo: "El cliente ya pagó una cuota de este crédito: ya no se puede deshacer. Avisá a la oficina.",
+    };
+  const edad = ahoraMs - new Date(v.creadoEn).getTime();
+  if (!Number.isFinite(edad) || edad < 0)
+    return { ok: false, motivo: "No se pudo verificar la hora del crédito. Avisá a la oficina." };
+  if (edad > DESHACER_VENTA_MS)
+    return {
+      ok: false,
+      motivo: "Pasó más de una hora desde que lo colocaste: ya no se deshace solo. Avisá a la oficina.",
+    };
+  return { ok: true, quedanMs: DESHACER_VENTA_MS - edad };
+}

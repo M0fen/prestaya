@@ -273,6 +273,9 @@ export async function getCandidatosVenta(db: SupabaseClient): Promise<CandidatoC
     return String(a.creado_en ?? "") > String(b.creado_en ?? "");
   };
   for (const p of todos) {
+    // La venta DESHECHA (cancelado) no es historial: misma regla que
+    // getUltimoCreditoDe — pantalla y servidor eligen el MISMO "último".
+    if (p.estado === "cancelado") continue;
     const prev = ultimo.get(p.cliente_id);
     if (!prev || masNuevo(p, prev)) ultimo.set(p.cliente_id, p);
   }
