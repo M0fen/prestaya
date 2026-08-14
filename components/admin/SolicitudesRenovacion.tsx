@@ -132,7 +132,7 @@ function Item({ s }: { s: SolicitudRenovacion }) {
           resolvió por su cuenta. Si al cliente se le colocó capital DESPUÉS de este
           pedido, aprobarlo es lo que fabrica el segundo crédito. */}
       {s.colocadoDespues && (
-        <div className="rounded-[11px] border border-[#F0C0BC] bg-[#FDEEEC] px-3 py-2.5">
+        <div className="rounded-[12px] border border-[#F0C0BC] bg-[#FDEEEC] px-3 py-2.5">
           <span className="text-[12px] leading-[1.45] font-extrabold text-[#B03A2E]">
             ⚠️ Ojo: a este cliente ya se le colocó {UYU(s.colocadoDespues.monto)} DESPUÉS de este
             pedido.
@@ -153,7 +153,7 @@ function Item({ s }: { s: SolicitudRenovacion }) {
             onChange={(e) => setMotivo(e.target.value)}
             maxLength={300}
             placeholder="Motivo del rechazo (opcional)"
-            className="flex-1 rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[13px] outline-none focus:border-azul"
+            className="flex-1 rounded-[12px] border border-borde bg-tarjeta px-3 py-2 text-[13px] outline-none focus:border-azul"
           />
           <button
             type="button"

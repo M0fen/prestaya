@@ -80,7 +80,7 @@ export function FormMovimientoCaja({ cuenta = "operativa" }: { cuenta?: "operati
       <button
         type="button"
         onClick={() => setAbierto(true)}
-        className="rounded-full bg-[#2453DC] px-4 py-2.5 text-[13px] font-bold text-white active:scale-[0.99]"
+        className="btn-primario px-4 py-2.5 text-[13px] font-bold text-white active:scale-[0.99]"
       >
         + {cuenta === "capital" ? "Registrar movimiento de capital" : "Registrar movimiento"}
       </button>
@@ -127,7 +127,7 @@ export function FormMovimientoCaja({ cuenta = "operativa" }: { cuenta?: "operati
             min={1}
             value={monto}
             onChange={(e) => setMonto(e.target.value)}
-            className="rounded-[10px] border border-borde px-3 py-2 text-[16px] font-semibold outline-none focus:border-azul"
+            className="rounded-[12px] border border-borde px-3 py-2 text-[16px] font-semibold outline-none focus:border-azul"
           />
         </label>
         <label className="flex flex-col gap-1">
@@ -137,7 +137,7 @@ export function FormMovimientoCaja({ cuenta = "operativa" }: { cuenta?: "operati
           <select
             value={categoria}
             onChange={(e) => setCategoria(e.target.value)}
-            className="rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[16px] outline-none focus:border-azul"
+            className="rounded-[12px] border border-borde bg-tarjeta px-3 py-2 text-[16px] outline-none focus:border-azul"
           >
             {cats.map((c) => (
               <option key={c} value={c}>
@@ -156,7 +156,7 @@ export function FormMovimientoCaja({ cuenta = "operativa" }: { cuenta?: "operati
           maxLength={200}
           onChange={(e) => setDescripcion(e.target.value)}
           placeholder="Ej: nafta de la moto, adelanto a Diego…"
-          className="rounded-[10px] border border-borde px-3 py-2 text-[16px] outline-none focus:border-azul"
+          className="rounded-[12px] border border-borde px-3 py-2 text-[16px] outline-none focus:border-azul"
         />
       </label>
 

@@ -1,6 +1,9 @@
 // Layout de la app del cobrador. Mobile-first (la usa en la calle, en el
 // teléfono). Exige usuario interno activo; barra superior con nombre + salir.
+// Modo oscuro (08-14): mismo mecanismo que el panel — cookie `tema` + data-tema
+// en la raíz; los tokens de globals.css flipean solos. El toggle vive en Menú.
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { requireUsuario } from "@/lib/auth";
 import { cerrarSesion } from "@/lib/auth-actions";
 import { createSupabaseServer } from "@/lib/supabase/server";
@@ -23,14 +26,15 @@ export default async function CobradorLayout({
   const usuario = await requireUsuario();
   const db = await createSupabaseServer();
   const noLeidos = await getTotalNoLeidos(db, usuario);
+  const tema = (await cookies()).get("tema")?.value === "oscuro" ? "oscuro" : "claro";
 
   return (
-    <div className="flex min-h-screen justify-center bg-[#F4F6FB]">
+    <div id="cobrador-root" data-tema={tema} className="flex min-h-screen justify-center bg-app">
       <div className="flex w-full max-w-[480px] flex-col">
-        <header className="header-safe sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[#E6EAF4] bg-[#0F1B3D] px-4 py-3">
+        <header className="header-safe sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-white/10 bg-[#0F1B3D] px-4 py-3">
           {/* El logo + nombre llevan SIEMPRE a la ruta (escape universal). */}
           <Link href="/cobrador" className="flex min-w-0 items-center gap-2.5" aria-label="Ir a mi ruta">
-            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[10px] bg-[linear-gradient(135deg,#2453DC,#13308C)] text-[14px] font-black text-white">
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[12px] bg-[linear-gradient(135deg,#2453DC,#13308C)] text-[14px] font-black text-white">
               P
             </div>
             <div className="flex min-w-0 flex-col leading-tight">

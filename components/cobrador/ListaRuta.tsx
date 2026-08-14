@@ -13,6 +13,7 @@ import type { EstadoHoy } from "@/lib/data/ruta";
 import { UYU } from "@/lib/format";
 import { OjitoCliente } from "./OjitoCliente";
 import { CobroRapido } from "./CobroRapido";
+import { EstadoVacio } from "@/components/EstadoVacio";
 
 export interface ItemRutaVista {
   id: string;
@@ -62,11 +63,11 @@ const pesoPrio = (c: string): number => PRIO[c] ?? 2;
 
 // `barra` = franja de color a la izquierda de la tarjeta (jerarquía de un vistazo).
 const CHIP: Record<EstadoHoy, { label: string; bg: string; fg: string; barra: string }> = {
-  pagado: { label: "Cobrado", bg: "#E4F5EC", fg: "#157A50", barra: "#1FA971" },
-  abono: { label: "Abonó", bg: "#FDF3E2", fg: "#B9770E", barra: "#E8A317" },
-  no_pago: { label: "No pago", bg: "#FBE4E2", fg: "#C0392B", barra: "#D64545" },
-  pendiente: { label: "Pendiente", bg: "#EEF1F8", fg: "#6B7494", barra: "#C7D0E4" },
-  sin_credito: { label: "Sin crédito", bg: "#F2F0FA", fg: "#7A6BA8", barra: "#C9BEE6" },
+  pagado: { label: "Cobrado", bg: "var(--color-verde-suave)", fg: "var(--color-verde-osc)", barra: "#1FA971" },
+  abono: { label: "Abonó", bg: "var(--color-ambar-suave)", fg: "var(--color-ambar-osc)", barra: "#E8A317" },
+  no_pago: { label: "No pago", bg: "var(--color-rojo-suave)", fg: "var(--color-rojo-osc)", barra: "#D64545" },
+  pendiente: { label: "Pendiente", bg: "var(--color-linea)", fg: "var(--color-gris)", barra: "var(--color-campo)" },
+  sin_credito: { label: "Sin crédito", bg: "var(--color-violeta-suave)", fg: "var(--color-violeta-osc)", barra: "#C9BEE6" },
 };
 
 /** Una parada "cerrada" (ya visitada: cobró, abonó parcial o marcó no-pago) baja al final. */
@@ -292,10 +293,10 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
           value={qEdit}
           onChange={(e) => setQEdit(e.target.value)}
           placeholder="🔍 Buscá un cliente y mandalo al principio…"
-          className="rounded-[12px] border border-[#DCE3F4] bg-white px-3.5 py-2.5 text-[16px] outline-none focus:border-azul"
+          className="rounded-[12px] border border-campo bg-tarjeta px-3.5 py-2.5 text-[16px] outline-none focus:border-azul"
         />
         {buscandoEdit && visiblesEdit.length === 0 && (
-          <p className="px-0.5 py-2 text-center text-[12px] font-medium text-[#8A93AD]">
+          <p className="px-0.5 py-2 text-center text-[12px] font-medium text-tenue">
             Nadie coincide con “{qEdit}”.
           </p>
         )}
@@ -307,14 +308,14 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
             return (
               <div
                 key={id}
-                className="flex items-center gap-2 rounded-[14px] bg-white py-2 pr-2 pl-3 shadow-sm"
+                className="flex items-center gap-2 rounded-[14px] bg-tarjeta py-2 pr-2 pl-3 shadow-sm"
               >
                 <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[#0F1B3D] text-[12px] font-black text-white tabular-nums">
                   {idx + 1}
                 </span>
                 <div className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate text-[13.5px] font-bold text-tinta">{it.nombre}</span>
-                  <span className="truncate text-[11px] font-medium text-[#8A93AD]">
+                  <span className="truncate text-[11px] font-medium text-tenue">
                     {it.direccion ?? "Sin dirección"}
                   </span>
                 </div>
@@ -326,7 +327,7 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
                       setQEdit(""); // volver a la lista completa: se lo ve arriba de todo
                     }}
                     aria-label="Mover al principio"
-                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[10px] bg-[#EEF3FF] text-[14px] font-black text-azul active:scale-95"
+                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[12px] bg-azul-suave text-[14px] font-black text-azul active:scale-95"
                   >
                     ⏫
                   </button>
@@ -340,7 +341,7 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
                       onClick={() => mover(id, -1)}
                       disabled={idx === 0}
                       aria-label="Subir"
-                      className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[10px] bg-[#EEF1F8] text-[15px] font-black text-tinta active:scale-95 disabled:opacity-30"
+                      className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[12px] bg-linea text-[15px] font-black text-tinta active:scale-95 disabled:opacity-30"
                     >
                       ↑
                     </button>
@@ -349,7 +350,7 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
                       onClick={() => mover(id, 1)}
                       disabled={idx === editando.length - 1}
                       aria-label="Bajar"
-                      className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[10px] bg-[#EEF1F8] text-[15px] font-black text-tinta active:scale-95 disabled:opacity-30"
+                      className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[12px] bg-linea text-[15px] font-black text-tinta active:scale-95 disabled:opacity-30"
                     >
                       ↓
                     </button>
@@ -360,14 +361,14 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
           })}
         </div>
         {errorOrden && (
-          <p className="px-0.5 text-[12px] font-semibold text-[#C0392B]">{errorOrden}</p>
+          <p className="px-0.5 text-[12px] font-semibold text-rojo-osc">{errorOrden}</p>
         )}
         {/* Barra fija abajo: guardar/cancelar siempre a mano en listas largas. */}
-        <div className="sticky bottom-20 z-30 flex gap-2 rounded-[16px] bg-white p-2 shadow-[0_-4px_18px_rgba(15,27,61,0.12)]">
+        <div className="sticky bottom-20 z-30 flex gap-2 rounded-[16px] bg-tarjeta p-2 shadow-[0_-4px_18px_rgba(15,27,61,0.12)]">
           <button
             type="button"
             onClick={() => setEditando(null)}
-            className="min-h-11 rounded-full border border-[#DCE3F4] bg-white px-4 text-[13px] font-bold text-gris active:scale-[0.98]"
+            className="min-h-11 rounded-full border border-campo bg-tarjeta px-4 text-[13px] font-bold text-gris active:scale-[0.98]"
           >
             Cancelar
           </button>
@@ -405,11 +406,11 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
               type="button"
               onClick={() => setFiltro(f.id)}
               className={`flex-shrink-0 rounded-full px-3 py-1.5 text-[12px] font-bold tabular-nums transition-transform active:scale-95 ${
-                activo ? "bg-[#2453DC] text-white" : "border border-[#DCE3F4] bg-white text-gris"
+                activo ? "bg-[#2453DC] text-white" : "border border-campo bg-tarjeta text-gris"
               }`}
             >
               {f.label}
-              <span className={activo ? "text-white/85" : "text-[#8A93AD]"}> · {f.n}</span>
+              <span className={activo ? "text-white/85" : "text-tenue"}> · {f.n}</span>
             </button>
           );
         })}
@@ -421,12 +422,12 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="🔍 Buscar por nombre, cédula o dirección…"
-        className="rounded-[12px] border border-[#DCE3F4] bg-white px-3.5 py-2.5 text-[16px] outline-none focus:border-azul"
+        className="rounded-[12px] border border-campo bg-tarjeta px-3.5 py-2.5 text-[16px] outline-none focus:border-azul"
       />
 
       {/* Orden de la ruta (mi recorrido / cercanía / prioridad / A-Z) + Maps + editor */}
       <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
-        <div className="flex gap-0.5 overflow-x-auto rounded-full bg-[#EEF1F8] p-0.5">
+        <div className="flex gap-0.5 overflow-x-auto rounded-full bg-linea p-0.5">
           {(
             [
               ["ruta", "📌 Mi orden"],
@@ -450,7 +451,7 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
                   setModo(id);
                 }}
                 className={`flex-shrink-0 rounded-full px-2.5 py-2 text-[12px] font-bold whitespace-nowrap transition-colors ${
-                  activo ? "bg-white text-azul shadow-[0_1px_2px_rgba(26,34,71,0.12)]" : "text-gris"
+                  activo ? "bg-tarjeta text-azul shadow-[0_1px_2px_rgba(26,34,71,0.12)]" : "text-gris"
                 }`}
               >
                 {label}
@@ -462,7 +463,7 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
           <button
             type="button"
             onClick={abrirEditor}
-            className="rounded-full border border-[#DCE3F4] bg-white px-3 py-1.5 text-[11.5px] font-bold text-azul active:scale-95"
+            className="rounded-full border border-campo bg-tarjeta px-3 py-1.5 text-[11.5px] font-bold text-azul active:scale-95"
             style={{ transition: "transform .1s" }}
           >
             ✏️ Ordenar
@@ -482,7 +483,7 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
       </div>
 
       {modo === "cercania" && estadoGeo === "no" && (
-        <p className="px-0.5 text-[11px] font-medium text-[#AEB6CC]">
+        <p className="px-0.5 text-[11px] font-medium text-tenue-2">
           Sin ubicación: se usa el orden por nombre. Probá <b>⚡ Prioridad</b> para cobrar primero a los de riesgo.
         </p>
       )}
@@ -491,14 +492,14 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
           guardada, el "camino" que dibuja son 7 clientes de 100 y el resto va al
           fondo por nombre. Antes no se decía en ningún lado. */}
       {modo === "cercania" && gpsPobre && (
-        <p className="px-0.5 text-[11px] leading-[1.45] font-medium text-[#B9770E]">
+        <p className="px-0.5 text-[11px] leading-[1.45] font-medium text-ambar-osc">
           Solo {nConUbicacion} de {items.length} clientes tienen ubicación guardada — el resto va al
           final por nombre. Se va llenando a medida que los censás.
         </p>
       )}
 
       {buscando && filtrados.length === 0 && (
-        <p className="px-0.5 py-3 text-center text-[12.5px] font-medium text-[#8A93AD]">
+        <p className="px-0.5 py-3 text-center text-[12.5px] font-medium text-tenue">
           Ningún cliente de tu ruta coincide con “{q}”.
         </p>
       )}
@@ -507,26 +508,37 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
           una palabra: tocar "Cobrado" a las 8 de la mañana parecía que la app se
           había roto o que el cobrador había perdido su ruta. */}
       {!buscando && filtrados.length === 0 && (
-        <div className="flex flex-col items-center gap-2 px-0.5 py-5 text-center">
-          <p className="text-[12.5px] font-semibold text-[#8A93AD]">
-            {filtro === "cobrado"
-              ? "Todavía no cobraste a nadie hoy."
+        <EstadoVacio
+          icono={filtro === "cobrado" ? "cash" : filtro === "pendiente" ? "estrella" : filtro === "no_pago" ? "ban" : "ruta"}
+          titulo={
+            filtro === "cobrado"
+              ? "Todavía no cobraste a nadie"
               : filtro === "pendiente"
                 ? "No te queda nadie pendiente 🎉"
                 : filtro === "no_pago"
-                  ? "Ningún cliente quedó sin pagar todavía."
-                  : "No hay clientes en esta vista."}
-          </p>
+                  ? "Nadie quedó sin pagar"
+                  : "No hay clientes en esta vista"
+          }
+          texto={
+            filtro === "cobrado"
+              ? "Los cobros del día van apareciendo acá a medida que los registrás."
+              : filtro === "pendiente"
+                ? "Terminaste las paradas del día."
+                : filtro === "no_pago"
+                  ? "Si un cliente no te paga, marcalo desde su ficha y queda acá."
+                  : undefined
+          }
+        >
           {filtro !== "todos" && (
             <button
               type="button"
               onClick={() => setFiltro("todos")}
-              className="min-h-11 rounded-full bg-[#EEF3FF] px-4 text-[12.5px] font-bold text-azul"
+              className="min-h-11 rounded-full bg-azul-suave px-4 text-[12.5px] font-bold text-azul"
             >
               Ver todos mis clientes
             </button>
           )}
-        </div>
+        </EstadoVacio>
       )}
 
       {visibles.map((it, idx) => {
@@ -561,9 +573,9 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
         const soloAtraso =
           !it.plazoVencido && (it.atraso ?? 0) > 0 && it.cuota > 0 && it.atraso === it.cuota;
         const chip = it.sinCuotaHoy
-          ? { label: "Hoy no toca", bg: "#EDF4FB", fg: "#4A6FA5", barra: "#B9CFE8" }
+          ? { label: "Hoy no toca", bg: "var(--color-azul-suave)", fg: "var(--color-azul)", barra: "var(--color-campo)" }
           : soloAtraso && it.estadoHoy === "pendiente"
-            ? { label: "Atrasado", bg: "#FDF1DC", fg: "#B9770E", barra: "#E8A317" }
+            ? { label: "Atrasado", bg: "var(--color-ambar-suave)", fg: "var(--color-ambar-osc)", barra: "#E8A317" }
             : CHIP[it.estadoHoy];
         // Fallback de inicial: un cliente sin nombre no debe romper toda la
         // lista de la ruta (charAt sobre null/undefined tira). "—" si no hay.
@@ -577,18 +589,18 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
         return (
           <Fragment key={it.id}>
           {encabezado === "pendientes" && (
-            <span className="px-1 pt-1 text-[11px] font-bold tracking-[0.05em] text-[#6B7494] uppercase">
+            <span className="px-1 pt-1 text-[11px] font-bold tracking-[0.05em] text-gris uppercase">
               Para cobrar ({nPend})
               {nRecuperar > 0 ? ` · ${nRecuperar} a recuperar` : ""}
             </span>
           )}
           {encabezado === "resueltos" && (
-            <span className="px-1 pt-2 text-[11px] font-bold tracking-[0.05em] text-[#8A93AD] uppercase">
+            <span className="px-1 pt-2 text-[11px] font-bold tracking-[0.05em] text-tenue uppercase">
               Visitados y sin cuota hoy ({filtrados.length - nPend})
             </span>
           )}
           <div
-            className="relative flex items-center gap-2 overflow-hidden rounded-[16px] bg-white py-2.5 pr-2 pl-4 shadow-sm"
+            className="relative flex items-center gap-2 overflow-hidden rounded-[16px] bg-tarjeta py-2.5 pr-2 pl-4 shadow-sm"
             style={{ opacity: esCerrado ? 0.72 : 1 }}
           >
             {/* Franja de estado a la izquierda: se lee la ruta de un vistazo. */}
@@ -603,7 +615,7 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
               className="flex min-w-0 flex-1 items-center gap-3 py-1 active:scale-[0.99]"
               style={{ transition: "transform .1s" }}
             >
-              <div className="relative flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[13px] avatar-marca text-[16px] font-black text-white">
+              <div className="relative flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[12px] avatar-marca text-[16px] font-black text-white">
                 {inicial}
                 {mostrarPaso && (
                   <span className="absolute -top-1.5 -left-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#0F1B3D] text-[10px] font-black text-white ring-2 ring-white">
@@ -631,20 +643,20 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
                 </span>
                 {it.plazoVencido ? (
                   (it.recuperadoHoy ?? 0) > 0 ? (
-                    <span className="flex items-center gap-1 text-[11px] font-bold text-[#157A50]">
+                    <span className="flex items-center gap-1 text-[11px] font-bold text-verde-osc">
                       ✓ Recuperaste {UYU(it.recuperadoHoy!)} hoy
                     </span>
                   ) : (
-                    <span className="flex items-center gap-1 text-[11px] font-bold text-[#B9770E]">
+                    <span className="flex items-center gap-1 text-[11px] font-bold text-ambar-osc">
                       ⏳ Cartera vencida · a recuperar
                     </span>
                   )
                 ) : soloAtraso && it.estadoHoy === "pendiente" ? (
-                  <span className="flex items-center gap-1 text-[11px] font-bold text-[#B9770E]">
+                  <span className="flex items-center gap-1 text-[11px] font-bold text-ambar-osc">
                     ⏰ Debe de días anteriores · hoy no le vence cuota
                   </span>
                 ) : (
-                  <span className="truncate text-[12px] font-medium text-[#8A93AD]">
+                  <span className="truncate text-[12px] font-medium text-tenue">
                     {it.direccion ?? "Sin dirección"}
                   </span>
                 )}
@@ -662,7 +674,7 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
                   {!it.sinCuotaHoy && it.estadoHoy === "abono" ? `Abonó ${UYU(it.pagadoHoy)}` : chip.label}
                 </span>
                 {restaHoy > 0 && (
-                  <span className="text-[10px] font-semibold text-[#B9770E] tabular-nums">
+                  <span className="text-[10px] font-semibold text-ambar-osc tabular-nums">
                     falta {UYU(restaHoy)}
                   </span>
                 )}
@@ -713,7 +725,7 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
         <button
           type="button"
           onClick={() => setVerTodos(true)}
-          className="mt-1 rounded-[12px] border border-[#DCE3F4] bg-white px-4 py-2.5 text-[13px] font-bold text-azul active:scale-[0.99]"
+          className="mt-1 rounded-[12px] border border-campo bg-tarjeta px-4 py-2.5 text-[13px] font-bold text-azul active:scale-[0.99]"
           style={{ transition: "transform .1s" }}
         >
           Ver los {restantes} clientes restantes ▾
@@ -723,7 +735,7 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
         <button
           type="button"
           onClick={() => setVerTodos(false)}
-          className="mt-1 rounded-[12px] border border-[#DCE3F4] bg-white px-4 py-2.5 text-[13px] font-bold text-gris active:scale-[0.99]"
+          className="mt-1 rounded-[12px] border border-campo bg-tarjeta px-4 py-2.5 text-[13px] font-bold text-gris active:scale-[0.99]"
           style={{ transition: "transform .1s" }}
         >
           Ver menos ▴

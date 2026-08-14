@@ -184,7 +184,7 @@ export default async function RecaudosPage({
         </Campo>
         <button
           type="submit"
-          className="rounded-[12px] bg-[#2453DC] px-4 py-2.5 text-[13px] font-bold text-white"
+          className="btn-primario px-4 py-2.5 text-[13px] font-bold text-white"
         >
           Aplicar
         </button>
@@ -250,7 +250,7 @@ export default async function RecaudosPage({
 }
 
 const INPUT =
-  "rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[16px] outline-none focus:border-azul";
+  "rounded-[12px] border border-borde bg-tarjeta px-3 py-2 text-[16px] outline-none focus:border-azul";
 
 function Campo({ label, children }: { label: string; children: React.ReactNode }) {
   return (

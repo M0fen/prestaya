@@ -174,7 +174,7 @@ export default function CensarPage() {
             name="notas"
             rows={2}
             maxLength={500}
-            className="resize-none rounded-[10px] border border-[#DCE3F4] px-3 py-2 text-[16px] outline-none focus:border-azul"
+            className="resize-none rounded-[12px] border border-campo px-3 py-2 text-[16px] outline-none focus:border-azul"
           />
         </label>
 
@@ -182,30 +182,30 @@ export default function CensarPage() {
           type="button"
           onClick={capturarGps}
           disabled={ubicando}
-          className="flex items-center justify-between rounded-[12px] border border-[#DCE3F4] bg-white px-4 py-2.5 text-left disabled:opacity-70"
+          className="flex items-center justify-between rounded-[12px] border border-campo bg-tarjeta px-4 py-2.5 text-left disabled:opacity-70"
         >
           <span className="flex min-w-0 flex-col">
             <span className="text-[13px] font-bold text-tinta">Ubicación de la casa</span>
             <span
               className={`text-[11.5px] font-medium ${
                 gps?.estado === "denegado" || gps?.estado === "timeout" || gps?.estado === "sin_fix"
-                  ? "text-[#C0392B]"
+                  ? "text-rojo-osc"
                   : gpsOk
-                    ? "text-[#157A50]"
-                    : "text-[#8A93AD]"
+                    ? "text-verde-osc"
+                    : "text-tenue"
               }`}
             >
               {estadoTexto}
             </span>
           </span>
-          <span className="flex-shrink-0 rounded-full bg-[#EEF3FF] px-3 py-1.5 text-[12px] font-bold text-azul">
+          <span className="flex-shrink-0 rounded-full bg-azul-suave px-3 py-1.5 text-[12px] font-bold text-azul">
             {gpsOk ? "Recapturar" : "Reintentar"}
           </span>
         </button>
 
         {/* Señal débil: el ancla sirve pero conviene mejorarla (está a la vista). */}
         {precisionMala && (
-          <span className="text-[11.5px] font-semibold text-[#B9770E]">
+          <span className="text-[11.5px] font-semibold text-ambar-osc">
             Señal débil (±{Math.round(gps.precision!)} m). Acercate a la casa y recapturá para
             una mejor ubicación.
           </span>
@@ -214,17 +214,17 @@ export default function CensarPage() {
             puede guardar igual, pero se avisa (la geo-cerca quedaría ciega) y el botón
             cambia a "sin ubicación". */}
         {!anclaUsable && !ubicando && gps && (
-          <span className="text-[11.5px] font-medium text-[#8A93AD]">
+          <span className="text-[11.5px] font-medium text-tenue">
             Sin ubicación no se podrá validar la geo-cerca de este cliente. Podés guardar
             igual, pero mejor acercate a la casa y recapturá con señal.
           </span>
         )}
 
-        {error && <span className="text-[12.5px] font-semibold text-[#C0392B]">{error}</span>}
+        {error && <span className="text-[12.5px] font-semibold text-rojo-osc">{error}</span>}
 
         {/* Confirmación de alta SIN foto: se puede, pero que sea a propósito. */}
         {!foto && sinFotoOk && (
-          <span className="rounded-[10px] bg-[#FDF3E2] px-3 py-2.5 text-[12px] leading-[1.5] font-semibold text-[#9A6A0E]">
+          <span className="rounded-[12px] bg-ambar-suave px-3 py-2.5 text-[12px] leading-[1.5] font-semibold text-ambar-osc">
             ⚠️ Vas a dar de alta a este cliente <b>sin foto</b>. Se puede, pero la foto ayuda a
             identificarlo después. Tocá “Guardar” de nuevo para confirmar.
           </span>
@@ -273,7 +273,7 @@ function Campo({
         inputMode={inputMode}
         required={required}
         placeholder={placeholder}
-        className="min-h-11 rounded-[10px] border border-[#DCE3F4] px-3 py-2.5 text-[16px] outline-none focus:border-azul"
+        className="min-h-11 rounded-[12px] border border-campo px-3 py-2.5 text-[16px] outline-none focus:border-azul"
       />
     </label>
   );

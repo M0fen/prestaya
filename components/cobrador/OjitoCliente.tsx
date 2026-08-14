@@ -10,11 +10,11 @@ import { UYU } from "@/lib/format";
 import { peekClienteCobrador, type PeekCliente } from "@/lib/acciones/fichaCobrador";
 
 const CALIF: Record<string, { label: string; bg: string; fg: string }> = {
-  excelente: { label: "Excelente", bg: "#E4F5EC", fg: "#157A50" },
-  bueno: { label: "Buen pagador", bg: "#E9F0FF", fg: "#1E47C8" },
-  regular: { label: "Regular", bg: "#FDF3E2", fg: "#B9770E" },
-  riesgo: { label: "Riesgo", bg: "#FBE4E2", fg: "#C0392B" },
-  nuevo: { label: "Nuevo", bg: "#F2F0FA", fg: "#7A4DD6" },
+  excelente: { label: "Excelente", bg: "var(--color-verde-suave)", fg: "var(--color-verde-osc)" },
+  bueno: { label: "Buen pagador", bg: "var(--color-azul-suave)", fg: "var(--color-azul)" },
+  regular: { label: "Regular", bg: "var(--color-ambar-suave)", fg: "var(--color-ambar-osc)" },
+  riesgo: { label: "Riesgo", bg: "var(--color-rojo-suave)", fg: "var(--color-rojo-osc)" },
+  nuevo: { label: "Nuevo", bg: "var(--color-violeta-suave)", fg: "var(--color-violeta-osc)" },
 };
 
 /** Teléfono → solo dígitos, para tel: y wa.me. */
@@ -58,7 +58,7 @@ export function OjitoCliente({ clienteId, nombre }: { clienteId: string; nombre:
         type="button"
         onClick={abrir}
         aria-label={`Vistazo de ${nombre}`}
-        className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-[#F0F3FA] text-[16px] active:scale-90"
+        className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-linea text-[16px] active:scale-90"
         style={{ transition: "transform .1s" }}
       >
         👁
@@ -70,7 +70,7 @@ export function OjitoCliente({ clienteId, nombre }: { clienteId: string; nombre:
           onClick={cerrar}
         >
           <div
-            className="flex max-h-[85vh] w-full max-w-[460px] flex-col gap-3 overflow-y-auto rounded-t-[22px] bg-white p-4 pb-6 sm:rounded-[22px]"
+            className="flex max-h-[85vh] w-full max-w-[460px] flex-col gap-3 overflow-y-auto rounded-t-[22px] bg-tarjeta p-4 pb-6 sm:rounded-[22px]"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Encabezado */}
@@ -78,14 +78,14 @@ export function OjitoCliente({ clienteId, nombre }: { clienteId: string; nombre:
               <div className="flex min-w-0 flex-col">
                 <span className="truncate text-[17px] font-extrabold text-tinta">{nombre}</span>
                 {ficha?.direccion && (
-                  <span className="truncate text-[12px] font-medium text-[#8A93AD]">{ficha.direccion}</span>
+                  <span className="truncate text-[12px] font-medium text-tenue">{ficha.direccion}</span>
                 )}
               </div>
               <button
                 type="button"
                 onClick={cerrar}
                 aria-label="Cerrar"
-                className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-[#F0F3FA] text-[15px] font-bold text-gris"
+                className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-linea text-[15px] font-bold text-gris"
               >
                 ✕
               </button>
@@ -95,7 +95,7 @@ export function OjitoCliente({ clienteId, nombre }: { clienteId: string; nombre:
               <p className="py-6 text-center text-[13px] font-medium text-gris">Cargando…</p>
             )}
             {error && (
-              <p className="rounded-[12px] bg-[#FBE4E2] px-3 py-2.5 text-[12.5px] font-semibold text-[#C0392B]">
+              <p className="rounded-[12px] bg-rojo-suave px-3 py-2.5 text-[12.5px] font-semibold text-rojo-osc">
                 {error}
               </p>
             )}
@@ -116,7 +116,7 @@ export function OjitoCliente({ clienteId, nombre }: { clienteId: string; nombre:
                     <div className="flex gap-1.5">
                       <a
                         href={`tel:${ficha.telefono}`}
-                        className="rounded-full bg-[#E9F0FF] px-3 py-1 text-[12px] font-bold text-azul"
+                        className="rounded-full bg-azul-suave px-3 py-1 text-[12px] font-bold text-azul"
                       >
                         📞 Llamar
                       </a>
@@ -124,7 +124,7 @@ export function OjitoCliente({ clienteId, nombre }: { clienteId: string; nombre:
                         href={`https://wa.me/${tel}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="rounded-full bg-[#E4F5EC] px-3 py-1 text-[12px] font-bold text-[#157A50]"
+                        className="rounded-full bg-verde-suave px-3 py-1 text-[12px] font-bold text-verde-osc"
                       >
                         WhatsApp
                       </a>
@@ -140,18 +140,18 @@ export function OjitoCliente({ clienteId, nombre }: { clienteId: string; nombre:
                         crédito los números son la SUMA de todos: se avisa, para
                         que la cifra no sorprenda contra la ficha. */}
                     {ficha.creditos > 1 && (
-                      <span className="rounded-[10px] bg-[#EEF3FF] px-2.5 py-1.5 text-[11.5px] font-bold text-[#1E47C8]">
+                      <span className="rounded-[12px] bg-azul-suave px-2.5 py-1.5 text-[11.5px] font-bold text-azul">
                         Tiene {ficha.creditos} créditos con vos — los números son el total de los {ficha.creditos}.
                       </span>
                     )}
                     <div className="grid grid-cols-3 gap-2">
                       <Dato label={ficha.creditos > 1 ? "Cuota total" : "Cuota"} valor={UYU(ficha.cuota)} />
-                      <Dato label="Saldo" valor={UYU(ficha.saldo)} tono="#B9770E" />
-                      <Dato label="Avance" valor={`${ficha.progresoPct}%`} tono="#157A50" />
+                      <Dato label="Saldo" valor={UYU(ficha.saldo)} tono="var(--color-ambar-osc)" />
+                      <Dato label="Avance" valor={`${ficha.progresoPct}%`} tono="var(--color-verde-osc)" />
                     </div>
                     <div className="flex items-center justify-between rounded-[12px] bg-suave px-3 py-2 text-[12px] font-semibold text-cuerpo">
                       <span>Días cubiertos: <b className="text-tinta">{ficha.diasCubiertos}/{ficha.totalDias}</b></span>
-                      <span className={ficha.pagadoHoy > 0 ? "text-[#157A50]" : "text-gris"}>
+                      <span className={ficha.pagadoHoy > 0 ? "text-verde-osc" : "text-gris"}>
                         Hoy: <b>{ficha.pagadoHoy > 0 ? UYU(ficha.pagadoHoy) : "sin pago"}</b>
                       </span>
                     </div>
@@ -169,7 +169,7 @@ export function OjitoCliente({ clienteId, nombre }: { clienteId: string; nombre:
                           {ficha.ultimosPagos.map((p, i) => (
                             <li key={i} className="flex items-center justify-between text-[12.5px]">
                               <span className="font-medium text-cuerpo">{fechaCorta(p.fecha)}</span>
-                              <span className="font-bold text-[#157A50] tabular-nums">{UYU(p.monto)}</span>
+                              <span className="font-bold text-verde-osc tabular-nums">{UYU(p.monto)}</span>
                             </li>
                           ))}
                         </ul>
@@ -183,7 +183,7 @@ export function OjitoCliente({ clienteId, nombre }: { clienteId: string; nombre:
                      algo que se hace en dos toques. */
                   <a
                     href={`/cobrador/colocar?modo=venta&cliente=${clienteId}`}
-                    className="block rounded-[12px] bg-[#F0FBF5] px-3 py-2.5 text-[12.5px] font-bold text-[#157A50] active:scale-[0.99]"
+                    className="block rounded-[12px] bg-verde-suave px-3 py-2.5 text-[12.5px] font-bold text-verde-osc active:scale-[0.99]"
                   >
                     Sin crédito activo. 💵 Podés darle uno ahora mismo →
                   </a>
@@ -209,7 +209,7 @@ export function OjitoCliente({ clienteId, nombre }: { clienteId: string; nombre:
 
                 <Link
                   href={`/cobrador/cliente/${clienteId}`}
-                  className="mt-1 rounded-full bg-[#2453DC] px-4 py-2.5 text-center text-[13px] font-extrabold text-white active:scale-[0.99]"
+                  className="mt-1 btn-primario px-4 py-2.5 text-center text-[13px] font-extrabold text-white active:scale-[0.99]"
                   style={{ transition: "transform .1s" }}
                 >
                   Abrir ficha completa →
@@ -227,7 +227,7 @@ function Dato({ label, valor, tono }: { label: string; valor: string; tono?: str
   return (
     <div className="flex flex-col gap-0.5 rounded-[12px] bg-suave px-3 py-2">
       <span className="text-[10.5px] font-semibold text-tenue">{label}</span>
-      <span className="text-[15px] font-extrabold tabular-nums" style={{ color: tono ?? "#0F1B3D" }}>
+      <span className="text-[15px] font-extrabold tabular-nums" style={{ color: tono ?? "var(--color-tinta)" }}>
         {valor}
       </span>
     </div>

@@ -11,7 +11,7 @@ import type { Rifa } from "@/lib/data/rifas";
 import type { DefinicionSegmento } from "@/lib/segmentos";
 
 const input =
-  "rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[14px] text-tinta outline-none focus:border-azul";
+  "rounded-[12px] border border-borde bg-tarjeta px-3 py-2 text-[14px] text-tinta outline-none focus:border-azul";
 
 export function RifaAdmin({ rifa, zonas = [] }: { rifa: Rifa | null; zonas?: { id: string; nombre: string }[] }) {
   const router = useRouter();

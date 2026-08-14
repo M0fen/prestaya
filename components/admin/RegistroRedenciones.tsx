@@ -47,7 +47,7 @@ export function RegistroRedenciones({
       router.refresh();
     });
 
-  const sel = "rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[12.5px] outline-none focus:border-azul";
+  const sel = "rounded-[12px] border border-borde bg-tarjeta px-3 py-2 text-[12.5px] outline-none focus:border-azul";
 
   return (
     <section className="flex flex-col gap-3 rounded-[16px] border border-borde bg-tarjeta p-4">
@@ -89,7 +89,7 @@ export function RegistroRedenciones({
             return (
               <li key={h.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-2.5">
                 <span
-                  className="flex h-8 w-9 flex-shrink-0 items-center justify-center rounded-[10px] text-[12px] font-black"
+                  className="flex h-8 w-9 flex-shrink-0 items-center justify-center rounded-[12px] text-[12px] font-black"
                   style={aprob ? { background: "#E4F5EC", color: "#157A50" } : { background: "#FBE4E2", color: "#C0392B" }}
                 >
                   {h.estrellas}⭐

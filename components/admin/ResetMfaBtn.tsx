@@ -25,7 +25,7 @@ export function ResetMfaBtn({ usuarioId, nombre }: { usuarioId: string; nombre: 
             if (r.ok) router.refresh();
           });
         }}
-        className="rounded-[9px] border border-[#DCE3F1] px-2.5 py-1 text-[11.5px] font-bold text-[#C0392B] hover:bg-[#FDECEA] disabled:opacity-40"
+        className="rounded-[12px] border border-[#DCE3F1] px-2.5 py-1 text-[11.5px] font-bold text-[#C0392B] hover:bg-[#FDECEA] disabled:opacity-40"
       >
         Resetear 2FA
       </button>

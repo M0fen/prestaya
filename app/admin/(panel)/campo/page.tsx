@@ -39,7 +39,7 @@ export default async function CampoPage({
           name="fecha"
           defaultValue={fecha}
           max={hoy}
-          className="rounded-[10px] border border-borde px-3 py-2 text-[13px] text-tinta outline-none focus:border-azul"
+          className="rounded-[12px] border border-borde px-3 py-2 text-[13px] text-tinta outline-none focus:border-azul"
         />
         <button
           type="submit"

@@ -99,15 +99,15 @@ export function FormPoliticaMora({
             <div className="grid grid-cols-3 gap-2.5">
               <Campo label={modo === "fijo" ? "Monto ($)" : "Porcentaje (%)"}>
                 <input inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value.replace(/[^\d.]/g, ""))}
-                  className="w-full rounded-[10px] border border-borde px-2.5 py-2 text-[14px] tabular-nums outline-none focus:border-azul" />
+                  className="w-full rounded-[12px] border border-borde px-2.5 py-2 text-[14px] tabular-nums outline-none focus:border-azul" />
               </Campo>
               <Campo label="Cuotas de gracia">
                 <input inputMode="numeric" value={gracia} onChange={(e) => setGracia(e.target.value.replace(/[^\d]/g, ""))}
-                  className="w-full rounded-[10px] border border-borde px-2.5 py-2 text-[14px] tabular-nums outline-none focus:border-azul" />
+                  className="w-full rounded-[12px] border border-borde px-2.5 py-2 text-[14px] tabular-nums outline-none focus:border-azul" />
               </Campo>
               <Campo label="Tope (% vencido)">
                 <input inputMode="decimal" value={tope} onChange={(e) => setTope(e.target.value.replace(/[^\d.]/g, ""))}
-                  className="w-full rounded-[10px] border border-borde px-2.5 py-2 text-[14px] tabular-nums outline-none focus:border-azul" />
+                  className="w-full rounded-[12px] border border-borde px-2.5 py-2 text-[14px] tabular-nums outline-none focus:border-azul" />
               </Campo>
             </div>
           )}
@@ -117,7 +117,7 @@ export function FormPoliticaMora({
               type="button"
               onClick={guardar}
               disabled={pendiente}
-              className="rounded-[11px] bg-[#2453DC] px-4 py-2 text-[13px] font-extrabold text-white disabled:opacity-60"
+              className="btn-primario px-4 py-2 text-[13px] font-extrabold text-white disabled:opacity-60"
             >
               {pendiente ? "Guardando…" : "Guardar política"}
             </button>

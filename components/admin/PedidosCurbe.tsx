@@ -45,7 +45,7 @@ export function PedidosCurbe({ pedidos }: { pedidos: PedidoCurbe[] }) {
         )}
       </div>
       {!CURBE_WHATSAPP && (
-        <p className="rounded-[10px] border border-linea bg-suave px-3 py-2 text-[11.5px] font-medium text-gris">
+        <p className="rounded-[12px] border border-linea bg-suave px-3 py-2 text-[11.5px] font-medium text-gris">
           💡 Cargá <code className="font-bold">NEXT_PUBLIC_CURBE_WHATSAPP</code> (el número de Curbe) para avisar con un toque.
           Por ahora podés copiar el pedido y enviarlo a mano.
         </p>

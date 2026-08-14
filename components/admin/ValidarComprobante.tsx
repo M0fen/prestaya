@@ -66,7 +66,7 @@ export function ValidarComprobante() {
           value={folio}
           onChange={(e) => setFolio(e.target.value.replace(/[^\d]/g, ""))}
           placeholder="N.º de comprobante (ej. 123)"
-          className="min-w-0 flex-1 rounded-[11px] border border-campo px-3 py-2.5 text-[15px] tabular-nums outline-none focus:border-azul"
+          className="min-w-0 flex-1 rounded-[12px] border border-campo px-3 py-2.5 text-[15px] tabular-nums outline-none focus:border-azul"
         />
         <button
           type="button"
@@ -130,7 +130,7 @@ export function ValidarComprobante() {
 
 function Fila({ k, v }: { k: string; v: string }) {
   return (
-    <div className="flex flex-col rounded-[10px] bg-tarjeta px-2.5 py-1.5">
+    <div className="flex flex-col rounded-[12px] bg-tarjeta px-2.5 py-1.5">
       <span className="text-[10.5px] font-semibold uppercase tracking-wide text-tenue">{k}</span>
       <span className="truncate text-[12.5px] font-bold text-tinta">{v}</span>
     </div>

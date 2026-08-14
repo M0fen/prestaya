@@ -45,7 +45,7 @@ export default function Error({
       <button
         type="button"
         onClick={() => reset()}
-        className="rounded-full bg-[#2453DC] px-6 py-2.5 text-[13px] font-bold text-white active:scale-[0.99]"
+        className="btn-primario px-6 py-2.5 text-[13px] font-bold text-white active:scale-[0.99]"
       >
         Reintentar
       </button>

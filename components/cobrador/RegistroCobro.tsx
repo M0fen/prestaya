@@ -468,7 +468,7 @@ export function RegistroCobro({
            activo (94%): es el texto más visto de la app después del botón de cobrar.
            Hasta que exista "guardar la ubicación de esta casa", se dice el hecho y
            nada más. */
-        <p className="text-[11.5px] font-medium text-[#8A93AD]">
+        <p className="text-[11.5px] font-medium text-tenue">
           Este cliente no tiene ubicación guardada.
         </p>
       )}
@@ -482,7 +482,7 @@ export function RegistroCobro({
           className={`rounded-full px-5 py-3.5 text-[14px] font-extrabold active:scale-[0.98] ${
             confirmarAdelanto
               ? "bg-[#1FA971] text-white shadow-[0_8px_20px_rgba(31,169,113,0.35)]"
-              : "border border-[#BFE6D2] bg-[#F1FBF6] text-[#157A50]"
+              : "border border-verde-suave bg-verde-suave text-verde-osc"
           }`}
           style={{ transition: "transform .1s" }}
         >
@@ -493,13 +493,13 @@ export function RegistroCobro({
           {/* ± de cuotas: atrasados o adelantos de N cuotas en UN registro, sin
               tipear. El monto exacto distinto de la cuota va por "Otro monto". */}
           {!saldado && maxCuotas > 1 && (
-            <div className="flex items-center justify-between rounded-[14px] border border-[#E4E8F4] bg-white px-2 py-1.5">
+            <div className="flex items-center justify-between rounded-[14px] border border-borde bg-tarjeta px-2 py-1.5">
               <button
                 type="button"
                 disabled={ocupado || cobroReciente || nCuotas <= 1}
                 onClick={() => setNCuotas((n) => Math.max(1, n - 1))}
                 aria-label="Una cuota menos"
-                className="flex h-11 w-11 items-center justify-center rounded-[11px] bg-[#EEF1F8] text-[20px] font-black text-tinta active:scale-95 disabled:opacity-30"
+                className="flex h-11 w-11 items-center justify-center rounded-[12px] bg-linea text-[20px] font-black text-tinta active:scale-95 disabled:opacity-30"
               >
                 −
               </button>
@@ -507,7 +507,7 @@ export function RegistroCobro({
                 <span className="text-[14px] font-extrabold text-tinta tabular-nums">
                   {nCuotas} cuota{nCuotas === 1 ? "" : "s"} · {UYU(montoSeleccion)}
                 </span>
-                <span className="text-[10.5px] font-medium text-[#8A93AD]">
+                <span className="text-[10.5px] font-medium text-tenue">
                   {nCuotas === 1
                     ? "Tocá + si paga varias cuotas juntas"
                     : "Se adelantan / cubren en orden, desde la más vieja"}
@@ -518,7 +518,7 @@ export function RegistroCobro({
                 disabled={ocupado || cobroReciente || nCuotas >= maxCuotas}
                 onClick={() => setNCuotas((n) => Math.min(maxCuotas, n + 1))}
                 aria-label="Una cuota más"
-                className="flex h-11 w-11 items-center justify-center rounded-[11px] bg-[#EEF1F8] text-[20px] font-black text-tinta active:scale-95 disabled:opacity-30"
+                className="flex h-11 w-11 items-center justify-center rounded-[12px] bg-linea text-[20px] font-black text-tinta active:scale-95 disabled:opacity-30"
               >
                 +
               </button>
@@ -528,7 +528,7 @@ export function RegistroCobro({
               crédito. Se pregunta por la plata en la mano, que es lo único que
               importa y lo que distingue un pago total de un dedazo. */}
           {cancelaCredito && !cobroReciente && (
-            <p className="rounded-[12px] bg-[#FDF3E2] px-3.5 py-2.5 text-[12.5px] leading-[1.45] font-bold text-[#8A6D1E]">
+            <p className="rounded-[12px] bg-ambar-suave px-3.5 py-2.5 text-[12.5px] leading-[1.45] font-bold text-ambar-osc">
               ⚠️ Esto <b>cancela el crédito entero</b>, no cobra una cuota.
               <br />
               ¿El cliente te entregó los {UYU(montoSeleccion)} en la mano? Si te
@@ -561,7 +561,7 @@ export function RegistroCobro({
                     : `Registrar pago · ${UYU(montoSeleccion)}${nCuotas > 1 ? ` (${nCuotas} cuotas)` : ""}`}
           </button>
           {confirmarCobro && !cobroReciente && !ocupado && (
-            <p className="text-center text-[11px] font-medium text-[#8A93AD]">
+            <p className="text-center text-[11px] font-medium text-tenue">
               Tocá de nuevo para confirmar — o esperá y no se registra nada.
             </p>
           )}
@@ -572,8 +572,8 @@ export function RegistroCobro({
           ahí; ahora se le da la salida real: dejar el aviso escrito en la ficha
           del cliente, que el supervisor y la oficina ven. */}
       {cobroTarde && (
-        <div className="flex flex-col gap-2 rounded-[14px] border border-[#F5C6C2] bg-[#FDF1F0] p-3">
-          <span className="text-[12.5px] leading-[1.45] font-bold text-[#C0392B]">
+        <div className="flex flex-col gap-2 rounded-[14px] border border-rojo-suave bg-rojo-suave p-3">
+          <span className="text-[12.5px] leading-[1.45] font-bold text-rojo-osc">
             Ese cobro ya quedó registrado y no se puede borrar desde acá.
           </span>
           <span className="text-[11.5px] leading-[1.45] font-medium text-gris">
@@ -607,8 +607,8 @@ export function RegistroCobro({
           }}
           className={`flex-1 min-h-11 rounded-full border px-4 py-3 text-[13px] font-bold transition-transform active:scale-[0.98] disabled:opacity-60 ${
             abono
-              ? "border-[#E8A317] bg-[#FDF3E2] text-[#B9770E]"
-              : "border-[#DCE3F4] bg-white text-[#6B7494]"
+              ? "border-[#E8A317] bg-ambar-suave text-ambar-osc"
+              : "border-campo bg-tarjeta text-gris"
           }`}
         >
           Otro monto {abono ? "▴" : "▾"}
@@ -622,8 +622,8 @@ export function RegistroCobro({
           }}
           className={`flex-1 min-h-11 rounded-full border px-4 py-3 text-[13px] font-bold transition-transform active:scale-[0.98] disabled:opacity-60 ${
             motivos
-              ? "border-[#D64545] bg-[#FBE4E2] text-[#C0392B]"
-              : "border-[#DCE3F4] bg-white text-[#6B7494]"
+              ? "border-[#D64545] bg-rojo-suave text-rojo-osc"
+              : "border-campo bg-tarjeta text-gris"
           }`}
         >
           No pago {motivos ? "▴" : "▾"}
@@ -631,12 +631,12 @@ export function RegistroCobro({
       </div>
 
       {abono && (
-        <div className="flex flex-col gap-2.5 rounded-[16px] border border-[#F0D9A8] bg-[#FDF9F0] p-3.5">
+        <div className="flex flex-col gap-2.5 rounded-[16px] border border-ambar-suave bg-ambar-suave p-3.5">
           <div className="flex flex-col gap-0.5">
             {/* Se llamaba "Abono parcial" y decía "paga menos que la cuota": el
                 cobrador que tenía enfrente a alguien pagando de MÁS no abría este
                 panel, aunque es el único lugar para tipear un monto libre. */}
-            <span className="text-[13.5px] font-extrabold text-[#B9770E]">Otro monto</span>
+            <span className="text-[13.5px] font-extrabold text-ambar-osc">Otro monto</span>
             <span className="text-[11.5px] leading-[1.5] font-medium text-gris">
               El cliente paga un monto <b>distinto</b> a la cuota de {UYU(cuota)}. Si paga menos, el día
               queda <b>pendiente</b>; si paga más, se <b>adelantan cuotas</b>.
@@ -652,7 +652,7 @@ export function RegistroCobro({
               onChange={(e) => setMontoAbono(e.target.value)}
               placeholder="¿Cuánto abona?"
               autoFocus
-              className="min-h-11 min-w-0 flex-1 rounded-[10px] border border-[#E7D4A6] bg-white px-3 py-3 text-[16px] font-semibold outline-none focus:border-[#E8A317]"
+              className="min-h-11 min-w-0 flex-1 rounded-[12px] border border-ambar-suave bg-tarjeta px-3 py-3 text-[16px] font-semibold outline-none focus:border-[#E8A317]"
             />
             <button
               type="button"
@@ -665,13 +665,13 @@ export function RegistroCobro({
           </div>
           {/* Aviso: el abono no puede superar el saldo del crédito (anti sobre-pago). */}
           {excedeSaldo && (
-            <span className="text-[11.5px] font-bold text-[#C0392B] tabular-nums">
+            <span className="text-[11.5px] font-bold text-rojo-osc tabular-nums">
               Es más que el saldo del crédito ({UYU(saldoActual)}). Cobrá como máximo eso.
             </span>
           )}
           {/* Pista en vivo: cuánto le queda faltando, o si ya cubre la cuota. */}
           {abonoValido && montoAbonoNum < cuota && (
-            <span className="text-[11.5px] font-semibold text-[#B9770E] tabular-nums">
+            <span className="text-[11.5px] font-semibold text-ambar-osc tabular-nums">
               Le quedará faltando {UYU(cuota - montoAbonoNum)} de la cuota de hoy.
             </span>
           )}
@@ -681,13 +681,13 @@ export function RegistroCobro({
               veía verde y confirmaba. Desde 2 cuotas se avisa en ámbar con el
               número de cuotas, que es la forma en que el cobrador piensa. */}
           {abonoValido && montoAbonoNum >= cuota && montoAbonoNum < cuota * 2 && (
-            <span className="text-[11.5px] font-semibold text-[#157A50] tabular-nums">
+            <span className="text-[11.5px] font-semibold text-verde-osc tabular-nums">
               Eso cubre la cuota completa — se registra como pago del día ✓.
             </span>
           )}
           {abonoValido && cuota > 0 && montoAbonoNum >= cuota * 2 &&
             montoAbonoNum < saldoRedondeado - 0.5 && (
-              <span className="text-[11.5px] leading-[1.45] font-bold text-[#B9770E] tabular-nums">
+              <span className="text-[11.5px] leading-[1.45] font-bold text-ambar-osc tabular-nums">
                 ⚠️ Son {Math.floor(montoAbonoNum / cuota)} cuotas de {UYU(cuota)}. Revisá el monto
                 antes de confirmar.
               </span>
@@ -696,7 +696,7 @@ export function RegistroCobro({
               que el del ±: el día 1 tres de los seis casos entraron por acá. */}
           {abonoValido && cuota > 0 && montoAbonoNum >= saldoRedondeado - 0.5 &&
             montoAbonoNum > cuotaEfectiva * 2 && (
-              <span className="rounded-[10px] bg-[#FDF3E2] px-3 py-2 text-[11.5px] leading-[1.45] font-bold text-[#8A6D1E] tabular-nums">
+              <span className="rounded-[12px] bg-ambar-suave px-3 py-2 text-[11.5px] leading-[1.45] font-bold text-ambar-osc tabular-nums">
                 ⚠️ Con eso <b>cancelás el crédito entero</b> ({UYU(saldoRedondeado)}), no cobrás
                 una cuota. ¿El cliente te entregó esa plata en la mano?
               </span>
@@ -705,14 +705,14 @@ export function RegistroCobro({
       )}
 
       {motivos && (
-        <div className="grid grid-cols-2 gap-2 rounded-[16px] bg-white p-3 shadow-sm">
+        <div className="grid grid-cols-2 gap-2 rounded-[16px] bg-tarjeta p-3 shadow-sm">
           {MOTIVOS_NOPAGO.map((m) => (
             <button
               key={m.id}
               type="button"
               disabled={ocupado || cobroReciente}
               onClick={() => noPago(m.id)}
-              className="flex min-h-11 items-center gap-2 rounded-[11px] bg-[#F4F6FB] px-3 py-3 text-[13px] font-semibold text-tinta active:scale-95 disabled:opacity-60"
+              className="flex min-h-11 items-center gap-2 rounded-[12px] bg-app px-3 py-3 text-[13px] font-semibold text-tinta active:scale-95 disabled:opacity-60"
               style={{ transition: "transform .1s" }}
             >
               <span>{m.emoji}</span>

@@ -11,10 +11,10 @@ export function AvisoAlta({ clienteId, estado }: { clienteId: string; estado: Es
     return (
       <Link
         href={href}
-        className="flex items-center justify-between gap-2 rounded-[12px] bg-[#E4F5EC] px-3.5 py-2"
+        className="flex items-center justify-between gap-2 rounded-[12px] bg-verde-suave px-3.5 py-2"
       >
-        <span className="text-[12px] font-bold text-[#157A50]">✓ Ya usa la app</span>
-        <span className="text-[11.5px] font-semibold text-[#157A50]/70">Ver su QR</span>
+        <span className="text-[12px] font-bold text-verde-osc">✓ Ya usa la app</span>
+        <span className="text-[11.5px] font-semibold text-verde-osc/70">Ver su QR</span>
       </Link>
     );
   }
@@ -23,9 +23,9 @@ export function AvisoAlta({ clienteId, estado }: { clienteId: string; estado: Es
     return (
       <Link
         href={href}
-        className="flex items-center justify-between gap-2 rounded-[12px] bg-[#EAF0FF] px-3.5 py-2"
+        className="flex items-center justify-between gap-2 rounded-[12px] bg-azul-suave px-3.5 py-2"
       >
-        <span className="text-[12px] font-bold text-[#1E47C8]">📨 Link entregado · falta que lo abra</span>
+        <span className="text-[12px] font-bold text-azul">📨 Link entregado · falta que lo abra</span>
         <span className="text-[11.5px] font-semibold text-azul">Reenviar</span>
       </Link>
     );
@@ -34,7 +34,7 @@ export function AvisoAlta({ clienteId, estado }: { clienteId: string; estado: Es
   return (
     <Link
       href={href}
-      className="flex items-center gap-3 rounded-[14px] border border-[#DCE6FB] bg-white px-3.5 py-3 shadow-sm active:scale-[0.99]"
+      className="flex items-center gap-3 rounded-[14px] border border-campo bg-tarjeta px-3.5 py-3 shadow-sm active:scale-[0.99]"
     >
       <span aria-hidden="true" className="text-[20px]">
         📱

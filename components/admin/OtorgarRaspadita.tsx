@@ -130,7 +130,7 @@ export function OtorgarRaspadita({
                 max={50}
                 value={cantidad}
                 onChange={(e) => setCantidad(Math.max(1, Math.min(50, Math.round(Number(e.target.value) || 1))))}
-                className="w-20 rounded-[10px] border border-borde px-3 py-2 text-[14px] font-bold outline-none focus:border-azul"
+                className="w-20 rounded-[12px] border border-borde px-3 py-2 text-[14px] font-bold outline-none focus:border-azul"
               />
             </label>
             <label className="flex flex-1 flex-col gap-0.5">
@@ -141,7 +141,7 @@ export function OtorgarRaspadita({
                 onChange={(e) => setMotivo(e.target.value)}
                 maxLength={120}
                 placeholder="Ej: cumpleaños, cliente fiel…"
-                className="w-full rounded-[10px] border border-borde px-3 py-2 text-[13px] outline-none focus:border-azul"
+                className="w-full rounded-[12px] border border-borde px-3 py-2 text-[13px] outline-none focus:border-azul"
               />
             </label>
           </div>
@@ -151,7 +151,7 @@ export function OtorgarRaspadita({
               <select
                 value={premioId}
                 onChange={(e) => setPremioId(e.target.value)}
-                className="w-full rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[13px] outline-none focus:border-azul"
+                className="w-full rounded-[12px] border border-borde bg-tarjeta px-3 py-2 text-[13px] outline-none focus:border-azul"
               >
                 <option value="">🎲 Al azar (según el sorteo que configuraste)</option>
                 {premios.map((p) => (
@@ -177,7 +177,7 @@ export function OtorgarRaspadita({
               );
             }
             return (
-              <span className="rounded-[10px] bg-[#EEF3FF] px-3 py-2 text-[12px] leading-[1.5] font-semibold text-[#3A4664]">
+              <span className="rounded-[12px] bg-[#EEF3FF] px-3 py-2 text-[12px] leading-[1.5] font-semibold text-[#3A4664]">
                 Este regalo te va a costar{" "}
                 <b className="tabular-nums text-[#1E47C8]">
                   ${total.toLocaleString("es-UY")}

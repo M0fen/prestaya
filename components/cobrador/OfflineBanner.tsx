@@ -27,14 +27,14 @@ export function OfflineBanner() {
     <div
       role="status"
       aria-live="polite"
-      className="sticky top-[57px] z-[9] flex items-start gap-2.5 border-b border-[#F0D9A8] bg-[#FDF3E2] px-4 py-2.5"
+      className="sticky top-[57px] z-[9] flex items-start gap-2.5 border-b border-ambar-suave bg-ambar-suave px-4 py-2.5"
     >
       <span className="text-[15px] leading-none" aria-hidden>
         📴
       </span>
       <div className="flex flex-col leading-tight">
-        <span className="text-[12.5px] font-extrabold text-[#B9770E]">Sin conexión</span>
-        <span className="text-[11.5px] font-medium text-[#8A6D2F]">
+        <span className="text-[12.5px] font-extrabold text-ambar-osc">Sin conexión</span>
+        <span className="text-[11.5px] font-medium text-ambar-osc">
           Estás viendo tu última ruta guardada. Tus cobros se guardan y se envían solos
           cuando vuelva la señal.
         </span>

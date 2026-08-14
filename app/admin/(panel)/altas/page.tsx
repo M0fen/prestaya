@@ -130,7 +130,7 @@ function FilaCobrador({ fila }: { fila: FilaAltas }) {
 
 function Chip({ label, valor, bg, fg }: { label: string; valor: number; bg: string; fg: string }) {
   return (
-    <div className="flex flex-col items-center rounded-[11px] px-3 py-1.5" style={{ background: bg }}>
+    <div className="flex flex-col items-center rounded-[12px] px-3 py-1.5" style={{ background: bg }}>
       <span className="text-[15px] font-black tabular-nums" style={{ color: fg }}>
         {valor}
       </span>

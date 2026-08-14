@@ -98,7 +98,7 @@ function Fila({ c }: { c: CompraEmpleado }) {
 
       {/* Historial de descuentos */}
       {c.descuentos.length > 0 && (
-        <div className="flex flex-col gap-1 rounded-[10px] bg-suave px-3 py-2">
+        <div className="flex flex-col gap-1 rounded-[12px] bg-suave px-3 py-2">
           <span className="text-[10.5px] font-bold uppercase tracking-wide text-gris">Descuentos de comisión</span>
           {c.descuentos.map((d, k) => (
             <div key={k} className="flex items-center justify-between text-[12px]">

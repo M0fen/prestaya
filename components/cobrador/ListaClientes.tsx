@@ -8,6 +8,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { UYU } from "@/lib/format";
+import { EstadoVacio } from "@/components/EstadoVacio";
 
 export interface ClienteVista {
   id: string;
@@ -31,11 +32,11 @@ const norm = (s: string) =>
 
 /** Colores por calificación (los mismos de la ruta). */
 const CALIF: Record<string, { bg: string; fg: string }> = {
-  excelente: { bg: "#E4F5EC", fg: "#157A50" },
-  bueno: { bg: "#EAF0FF", fg: "#1E47C8" },
-  regular: { bg: "#FDF3E2", fg: "#B9770E" },
-  riesgo: { bg: "#FBE4E2", fg: "#C0392B" },
-  nuevo: { bg: "#F2F0FA", fg: "#7A4DD6" },
+  excelente: { bg: "var(--color-verde-suave)", fg: "var(--color-verde-osc)" },
+  bueno: { bg: "var(--color-azul-suave)", fg: "var(--color-azul)" },
+  regular: { bg: "var(--color-ambar-suave)", fg: "var(--color-ambar-osc)" },
+  riesgo: { bg: "var(--color-rojo-suave)", fg: "var(--color-rojo-osc)" },
+  nuevo: { bg: "var(--color-violeta-suave)", fg: "var(--color-violeta-osc)" },
 };
 
 type Filtro = "todos" | "con" | "sin";
@@ -86,7 +87,7 @@ export function ListaClientes({ clientes }: { clientes: ClienteVista[] }) {
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="🔍 Nombre, cédula, dirección o teléfono…"
-        className="w-full rounded-[13px] border border-borde bg-white px-3.5 py-3 text-[16px] outline-none focus:border-azul"
+        className="w-full rounded-[12px] border border-borde bg-tarjeta px-3.5 py-3 text-[16px] outline-none focus:border-azul"
       />
 
       <div className="flex gap-2">
@@ -102,7 +103,7 @@ export function ListaClientes({ clientes }: { clientes: ClienteVista[] }) {
             type="button"
             onClick={() => setFiltro(f.id)}
             className={`rounded-full px-3 py-1.5 text-[12px] font-bold ${
-              filtro === f.id ? "bg-[#1E47C8] text-white" : "border border-borde bg-white text-gris"
+              filtro === f.id ? "bg-[#1E47C8] text-white" : "border border-borde bg-tarjeta text-gris"
             }`}
           >
             {f.label}
@@ -111,13 +112,17 @@ export function ListaClientes({ clientes }: { clientes: ClienteVista[] }) {
       </div>
 
       {visibles.length === 0 && (
-        <p className="rounded-[14px] bg-white px-4 py-6 text-center text-[13px] leading-[1.5] font-medium text-gris">
-          {q
-            ? `No encontramos a nadie con “${q}”. Si la persona todavía no está en el sistema, censala con el botón de arriba.`
-            : filtro === "sin"
-              ? "Todos tus clientes tienen crédito activo. Los que terminan de pagar aparecen acá."
-              : "Tu ruta todavía no tiene clientes. Censá al primero con el botón de arriba."}
-        </p>
+        <EstadoVacio
+          icono="user"
+          titulo={q ? `Nadie con “${q}” en tu ruta` : filtro === "sin" ? "Todos con crédito" : "Tu ruta arranca vacía"}
+          texto={
+            q
+              ? "Probá con el apellido o la cédula. Si la persona todavía no está en el sistema, censala con el botón de arriba."
+              : filtro === "sin"
+                ? "Todos tus clientes tienen crédito activo. Los que terminan de pagar aparecen acá."
+                : "Censá al primero con el botón de arriba y le das su crédito en el momento."
+          }
+        />
       )}
 
       {visibles.map((c) => {
@@ -125,13 +130,13 @@ export function ListaClientes({ clientes }: { clientes: ClienteVista[] }) {
         return (
           <div
             key={c.id}
-            className="flex items-center gap-2 rounded-[16px] bg-white py-2.5 pr-2 pl-3.5 shadow-sm"
+            className="flex items-center gap-2 rounded-[16px] bg-tarjeta py-2.5 pr-2 pl-3.5 shadow-sm"
           >
             <Link
               href={`/cobrador/cliente/${c.id}`}
               className="flex min-w-0 flex-1 items-center gap-3 active:scale-[0.99]"
             >
-              <div className="relative flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[13px] avatar-marca text-[16px] font-black text-white">
+              <div className="relative flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[12px] avatar-marca text-[16px] font-black text-white">
                 {(c.nombre.trim().charAt(0) || "—").toUpperCase()}
                 {calif && (
                   <span
@@ -145,7 +150,7 @@ export function ListaClientes({ clientes }: { clientes: ClienteVista[] }) {
                 <span className="line-clamp-2 text-[14.5px] leading-[1.25] font-bold break-words text-tinta">
                   {c.nombre}
                 </span>
-                <span className="truncate text-[11.5px] font-medium text-[#8A93AD]">
+                <span className="truncate text-[11.5px] font-medium text-tenue">
                   {c.direccion ?? "Sin dirección"}
                 </span>
                 <span className="flex flex-wrap items-center gap-1.5">
@@ -154,10 +159,10 @@ export function ListaClientes({ clientes }: { clientes: ClienteVista[] }) {
                       className="rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums"
                       style={
                         c.creditoAjeno
-                          ? { background: "#F5F2FB", color: "#5B4A8A" }
+                          ? { background: "var(--color-violeta-suave)", color: "var(--color-violeta-osc)" }
                           : c.plazoVencido
-                            ? { background: "#FDF1DC", color: "#B9770E" }
-                            : { background: "#E4F5EC", color: "#157A50" }
+                            ? { background: "var(--color-ambar-suave)", color: "var(--color-ambar-osc)" }
+                            : { background: "var(--color-verde-suave)", color: "var(--color-verde-osc)" }
                       }
                     >
                       {c.creditoAjeno
@@ -167,12 +172,12 @@ export function ListaClientes({ clientes }: { clientes: ClienteVista[] }) {
                           : `Crédito · cuota ${UYU(c.cuota)}`}
                     </span>
                   ) : (
-                    <span className="rounded-full bg-[#F2F0FA] px-2 py-0.5 text-[10px] font-bold text-[#7A6BA8]">
+                    <span className="rounded-full bg-violeta-suave px-2 py-0.5 text-[10px] font-bold text-violeta-osc">
                       Sin crédito · se le puede vender
                     </span>
                   )}
                   {c.esDeCenso && (
-                    <span className="rounded-full bg-[#EEF3FF] px-2 py-0.5 text-[10px] font-bold text-[#1E47C8]">
+                    <span className="rounded-full bg-azul-suave px-2 py-0.5 text-[10px] font-bold text-azul">
                       Censado
                     </span>
                   )}
@@ -183,7 +188,7 @@ export function ListaClientes({ clientes }: { clientes: ClienteVista[] }) {
               <a
                 href={`tel:${c.telefono.replace(/[^\d+]/g, "")}`}
                 aria-label={`Llamar a ${c.nombre}`}
-                className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-[#EEF3FF] text-[17px] active:scale-95"
+                className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-azul-suave text-[17px] active:scale-95"
               >
                 📞
               </a>

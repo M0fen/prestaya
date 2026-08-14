@@ -46,7 +46,7 @@ export function RotarToken({ clienteId, token }: { clienteId: string; token: str
           type="button"
           disabled={pending}
           onClick={regenerar}
-          className="rounded-[9px] border border-[#DCE3F1] px-2.5 py-1 text-[11.5px] font-bold text-azul hover:bg-suave disabled:opacity-40"
+          className="rounded-[12px] border border-[#DCE3F1] px-2.5 py-1 text-[11.5px] font-bold text-azul hover:bg-suave disabled:opacity-40"
         >
           {pending ? "Regenerando…" : "Regenerar link"}
         </button>

@@ -85,7 +85,7 @@ export default async function PanelLayout({
       {/* Barra lateral — SOLO escritorio. En mobile navega el PanelBottomNav (abajo). */}
       <aside className="print:hidden hidden flex-col bg-[#0F1B3D] md:flex md:min-h-screen md:w-60 md:flex-shrink-0">
         <div className="flex items-center gap-2.5 px-4 py-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-[linear-gradient(135deg,#2453DC,#13308C)] text-[16px] font-black text-white">
+          <div className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-[linear-gradient(135deg,#2453DC,#13308C)] text-[16px] font-black text-white">
             P
           </div>
           <div className="flex flex-col leading-tight">

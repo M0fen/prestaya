@@ -113,7 +113,7 @@ function Grupo({
   if (clientes.length === 0) {
     if (!vacio) return null;
     return (
-      <p className="rounded-[14px] bg-[#E4F5EC] px-4 py-3 text-center text-[13px] font-bold text-[#157A50]">
+      <p className="rounded-[14px] bg-verde-suave px-4 py-3 text-center text-[13px] font-bold text-verde-osc">
         {vacio}
       </p>
     );
@@ -129,10 +129,10 @@ function Grupo({
           <li key={c.id}>
             <Link
               href={`/cobrador/cliente/${c.id}/acceso`}
-              className={`flex items-center gap-3 rounded-[13px] px-3.5 py-3 active:scale-[0.99] ${
+              className={`flex items-center gap-3 rounded-[12px] px-3.5 py-3 active:scale-[0.99] ${
                 destacado
-                  ? "border border-[#DCE6FB] bg-white shadow-sm"
-                  : "bg-white/60"
+                  ? "border border-campo bg-tarjeta shadow-sm"
+                  : "bg-tarjeta/60"
               }`}
             >
               <div className="flex min-w-0 flex-1 flex-col">

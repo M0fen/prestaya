@@ -83,7 +83,7 @@ export default async function ClientesPage({
           placeholder="Buscar por nombre o documento…"
           className="flex-1 rounded-[12px] border border-borde bg-tarjeta px-3.5 py-2.5 text-[14px] outline-none focus:border-azul"
         />
-        <button type="submit" className="rounded-[12px] bg-[#2453DC] px-4 py-2.5 text-[13px] font-bold text-white">
+        <button type="submit" className="btn-primario px-4 py-2.5 text-[13px] font-bold text-white">
           Buscar
         </button>
       </form>

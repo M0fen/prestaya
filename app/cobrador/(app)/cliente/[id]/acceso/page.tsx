@@ -53,8 +53,8 @@ export default async function AccesoClientePage({
       </div>
 
       {/* IDENTIDAD — confirmá que es la persona antes de entregar el link. */}
-      <div className="flex items-center gap-3 rounded-[16px] border border-[#E4E8F4] bg-white p-3.5">
-        <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[13px] avatar-marca text-[17px] font-black text-white">
+      <div className="flex items-center gap-3 rounded-[16px] border border-borde bg-tarjeta p-3.5">
+        <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[12px] avatar-marca text-[17px] font-black text-white">
           {inicial}
         </div>
         <div className="flex min-w-0 flex-col">
@@ -88,7 +88,7 @@ export default async function AccesoClientePage({
       </div>
 
       {/* Los 3 pasos, para que el cobrador se los diga tal cual. */}
-      <ol className="flex flex-col gap-2 rounded-[16px] bg-[#EEF3FF] p-4">
+      <ol className="flex flex-col gap-2 rounded-[16px] bg-azul-suave p-4">
         {[
           "Abrí la cámara del teléfono del cliente.",
           "Apuntá al código de arriba (sin sacar la foto).",
@@ -98,7 +98,7 @@ export default async function AccesoClientePage({
             <span className="mt-[1px] flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[#1E47C8] text-[11px] font-black text-white tabular-nums">
               {i + 1}
             </span>
-            <span className="text-[13px] font-semibold text-[#26365F]">{paso}</span>
+            <span className="text-[13px] font-semibold text-azul">{paso}</span>
           </li>
         ))}
       </ol>
@@ -125,7 +125,7 @@ export default async function AccesoClientePage({
         motivo={cliente.app_no_aplica_motivo ?? null}
       />
 
-      <p className="rounded-[13px] border border-[#F0E3C8] bg-[#FDF8EC] px-3.5 py-3 text-[11.5px] font-medium text-[#7A5B10]">
+      <p className="rounded-[12px] border border-ambar-suave bg-ambar-suave px-3.5 py-3 text-[11.5px] font-medium text-ambar-osc">
         🔒 Este link es <b>personal de {cliente.nombre}</b>: quien lo tenga ve su cartón. No se
         lo pases a otra persona. Si se filtra, la oficina puede regenerarlo.
       </p>
@@ -144,12 +144,12 @@ function EstadoAltaCard({
 }) {
   const tono =
     estado === "activo"
-      ? { bg: "#E4F5EC", fg: "#157A50", icono: "🎉", titulo: "Ya está usando la app" }
+      ? { bg: "var(--color-verde-suave)", fg: "var(--color-verde-osc)", icono: "🎉", titulo: "Ya está usando la app" }
       : estado === "entregado"
-        ? { bg: "#EAF0FF", fg: "#1E47C8", icono: "📨", titulo: "Link entregado" }
+        ? { bg: "var(--color-azul-suave)", fg: "var(--color-azul)", icono: "📨", titulo: "Link entregado" }
         : estado === "no_aplica"
-          ? { bg: "#F3F5FB", fg: "#6B7494", icono: "○", titulo: "No usa la app" }
-          : { bg: "#F3F5FB", fg: "#6B7494", icono: "○", titulo: "Todavía sin entregar" };
+          ? { bg: "var(--color-linea)", fg: "var(--color-gris)", icono: "○", titulo: "No usa la app" }
+          : { bg: "var(--color-linea)", fg: "var(--color-gris)", icono: "○", titulo: "Todavía sin entregar" };
 
   const detalle =
     estado === "activo"

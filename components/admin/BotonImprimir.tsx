@@ -6,7 +6,7 @@ export function BotonImprimir({ label = "Imprimir / Guardar PDF" }: { label?: st
     <button
       type="button"
       onClick={() => window.print()}
-      className="print:hidden inline-flex items-center gap-1.5 rounded-full bg-[#2453DC] px-4 py-2 text-[13px] font-bold text-white hover:bg-[#1E47C8]"
+      className="print:hidden inline-flex items-center gap-1.5 btn-primario px-4 py-2 text-[13px] font-bold hover:opacity-90"
     >
       <span aria-hidden>🖨️</span>
       {label}

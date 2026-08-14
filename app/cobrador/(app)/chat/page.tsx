@@ -30,7 +30,7 @@ export default async function ChatCobradorPage({
         {/* Salida clara a la ruta (además del escape del logo en el header). */}
         <Link
           href="/cobrador"
-          className="flex items-center gap-1.5 rounded-full bg-[#EEF3FF] px-3.5 py-1.5 text-[12.5px] font-bold text-azul active:scale-95"
+          className="flex items-center gap-1.5 rounded-full bg-azul-suave px-3.5 py-1.5 text-[12.5px] font-bold text-azul active:scale-95"
         >
           ← Volver a la ruta
         </Link>

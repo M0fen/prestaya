@@ -58,7 +58,7 @@ export function PromosManager({
           <li><b>2 · ¿Con qué chance ganan?</b> A cada grupo le ponés su <b>% de ganar</b>: 100% = gana siempre; 40% = gana 4 de cada 10.</li>
           <li><b>3 · ¿Qué premios?</b> Cargás los premios de cada grupo. Cuando alguien gana, se sortea uno según la <b>chance</b> que le pusiste.</li>
         </ol>
-        <p className="rounded-[10px] bg-white/70 px-3 py-2 text-[11.5px] font-semibold text-[#3A4664]">
+        <p className="rounded-[12px] bg-white/70 px-3 py-2 text-[11.5px] font-semibold text-[#3A4664]">
           Ejemplo: un cliente con puntaje 95 cae en “Clientes estrella” → gana siempre → saca uno de los premios de ese grupo.
           Uno con 60 cae en “Los demás” → gana según el % que le pongas. El servidor decide el resultado (no se puede trucar).
         </p>
@@ -141,7 +141,7 @@ export function PromosManager({
             <li><b>3.</b> Abrís una quiniela con un <b>título</b> y un <b>premio</b> (beneficio, sin dinero).</li>
             <li><b>4.</b> Para <b>cerrar</b>: cargás el <b>número ganador</b> (000 a 999) o tocás <b>“Al azar”</b> → ganan los clientes cuyo número coincide.</li>
           </ol>
-          <p className="rounded-[10px] bg-white/70 px-3 py-2 text-[11.5px] font-semibold text-[#3A4664]">
+          <p className="rounded-[12px] bg-white/70 px-3 py-2 text-[11.5px] font-semibold text-[#3A4664]">
             Solo puede haber <b>una quiniela abierta</b> a la vez. Se muestra al cliente si la <b>Zona de juego</b> está encendida (en “Zona de juego”).
           </p>
         </div>
@@ -163,7 +163,7 @@ export function PromosManager({
 }
 
 const inputCls =
-  "rounded-[10px] border border-borde px-3 py-2 text-[13px] text-tinta outline-none focus:border-azul";
+  "rounded-[12px] border border-borde px-3 py-2 text-[13px] text-tinta outline-none focus:border-azul";
 
 function PremioFila({
   premio,
@@ -479,7 +479,7 @@ function QuinielaFila({ q, resumen, onDone }: { q: Quiniela; resumen?: ResumenQu
               className="w-full rounded-[8px] border border-borde bg-tarjeta px-2.5 py-1.5 text-[12px] outline-none focus:border-azul"
             />
           )}
-          <div className="max-h-[200px] overflow-y-auto rounded-[10px] border border-borde bg-suave p-2">
+          <div className="max-h-[200px] overflow-y-auto rounded-[12px] border border-borde bg-suave p-2">
             {!resumen || resumen.participantes.length === 0 ? (
               <span className="text-[11.5px] font-medium text-gris">Todavía no hay participantes.</span>
             ) : participantesFiltrados.length === 0 ? (
@@ -552,7 +552,7 @@ function QuinielaFila({ q, resumen, onDone }: { q: Quiniela; resumen?: ResumenQu
           </span>
         </div>
       ) : (
-        <div className="rounded-[10px] bg-suave p-2.5">
+        <div className="rounded-[12px] bg-suave p-2.5">
           <span className="text-[12.5px] font-bold text-tinta">Número ganador: {formatearSuerte(q.numeroGanador)}</span>
           {resumen && resumen.ganadores.length > 0 ? (
             <p className="mt-1 text-[12px] font-medium text-verde-osc">

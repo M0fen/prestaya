@@ -13,6 +13,7 @@ import { UYU } from "@/lib/format";
 import { montoRenovacionSugerido, RENOVACION_AUMENTO_PCT } from "@/lib/renovacion";
 import { FormRenovacion } from "@/components/admin/FormRenovacion";
 import { SolicitudesRenovacion } from "@/components/admin/SolicitudesRenovacion";
+import { EstadoVacio } from "@/components/EstadoVacio";
 
 export const dynamic = "force-dynamic";
 
@@ -122,7 +123,7 @@ export default async function RenovacionesPage({
         />
         <button
           type="submit"
-          className="min-h-[44px] rounded-full bg-[#2453DC] px-5 text-[13px] font-bold text-white"
+          className="min-h-[44px] btn-primario px-5 text-[13px] font-bold text-white"
         >
           Buscar
         </button>
@@ -144,11 +145,15 @@ export default async function RenovacionesPage({
       )}
 
       {candidatos.length === 0 && (
-        <p className="rounded-[14px] bg-tarjeta px-4 py-6 text-center text-[13px] font-medium text-gris">
-          {q
-            ? `Nadie con "${q}" está cerca de completar su crédito. Si ya lo terminó de pagar, buscalo en Clientes y dale un crédito nuevo desde su ficha.`
-            : "Nadie está cerca de completar su crédito todavía. Aparecerán acá al superar el 75% pagado."}
-        </p>
+        <EstadoVacio
+          icono="refresh"
+          titulo={q ? `Nadie con “${q}” por completar` : "Nadie por completar todavía"}
+          texto={
+            q
+              ? "Si ya lo terminó de pagar, buscalo en Clientes y dale un crédito nuevo desde su ficha."
+              : "Los clientes aparecen acá al superar el 75% pagado de su crédito."
+          }
+        />
       )}
 
       <div className="flex flex-col gap-3">
@@ -165,7 +170,7 @@ export default async function RenovacionesPage({
               className="rounded-[16px] border border-borde bg-tarjeta p-4"
             >
               <div className="mb-2 flex items-center gap-3">
-                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[13px] avatar-marca text-[16px] font-black text-white">
+                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[12px] avatar-marca text-[16px] font-black text-white">
                   {cliente.nombre.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex min-w-0 flex-1 flex-col">

@@ -25,7 +25,7 @@ const COLOR: Record<EstadoDia, string> = {
   pagado: "#1FA971",
   pendiente: "#E8A317",
   atrasado: "#D64545",
-  futuro: "#EEF1F8",
+  futuro: "var(--color-linea)",
 };
 
 // Cuánto tiempo se mantiene el sello tras confirmar el sync (cubre el refresco
@@ -81,10 +81,10 @@ export function CartonCobrador({
   const idxHoy = dias.findIndex((d) => d.esHoy);
 
   return (
-    <div className="rounded-[16px] bg-[#F1E8D2] p-3.5">
+    <div className="rounded-[16px] bg-ambar-suave p-3.5">
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-[11.5px] font-bold text-[#8A6D1E]">Cartón</span>
-        <span className="text-[11px] font-medium text-[#a98b3e]">{progresoPct}% pagado</span>
+        <span className="text-[11.5px] font-bold text-ambar-osc">Cartón</span>
+        <span className="text-[11px] font-medium text-ambar-osc">{progresoPct}% pagado</span>
       </div>
       <div className="grid grid-cols-6 gap-1.5">
         {dias.map((d, i) => {
@@ -108,7 +108,7 @@ export function CartonCobrador({
               }`}
               style={{
                 background: COLOR[estado],
-                color: estado === "futuro" ? "#B3A488" : "#fff",
+                color: estado === "futuro" ? "var(--color-tenue-2)" : "#fff",
                 // HOY: doble anillo (blanco + color del estado), como en la vista del cliente/admin.
                 boxShadow: d.esHoy ? `0 0 0 3px #fff, 0 0 0 6px ${COLOR[estado]}` : "none",
               }}
@@ -130,7 +130,7 @@ export function CartonCobrador({
         })}
       </div>
       {hayEnCola && (
-        <p className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-[#8A6D1E]">
+        <p className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-ambar-osc">
           <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[#1FA971]" />
           Tu cobro de hoy quedó registrado · se sincroniza solo.
         </p>

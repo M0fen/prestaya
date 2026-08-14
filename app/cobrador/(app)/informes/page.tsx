@@ -18,6 +18,7 @@ import { aFavorDelCobrador, cajaFinal } from "@/lib/rendicion";
 import { conTimeout } from "@/lib/timeout";
 import { hoyUY } from "@/lib/fecha";
 import { UYU, horaDe, diasSemana, meses } from "@/lib/format";
+import { EstadoVacio } from "@/components/EstadoVacio";
 
 export const dynamic = "force-dynamic";
 const TOPE_MS = 22_000;
@@ -60,7 +61,7 @@ export default async function InformesPage() {
       </div>
 
       {/* ── RESUMEN DE CAJA: la cuenta entera, en el orden en que se piensa ── */}
-      <section className="flex flex-col rounded-[16px] bg-white p-4 shadow-sm">
+      <section className="flex flex-col rounded-[16px] bg-tarjeta p-4 shadow-sm">
         <span className="mb-2 text-[12px] font-bold tracking-[0.03em] text-gris uppercase">
           Resumen de caja
         </span>
@@ -68,19 +69,19 @@ export default async function InformesPage() {
         <Fila
           k={`Pagos cobrados (${jornada.cobrosCantidad})`}
           v={`+${UYU(jornada.recaudado)}`}
-          tono="#157A50"
+          tono="var(--color-verde-osc)"
         />
         <Fila
           k="Retiros y gastos"
           v={jornada.gastosHoy > 0 ? `−${UYU(jornada.gastosHoy)}` : UYU(0)}
-          tono={jornada.gastosHoy > 0 ? "#B9770E" : undefined}
+          tono={jornada.gastosHoy > 0 ? "var(--color-ambar-osc)" : undefined}
         />
         <Fila
           k={`Ventas realizadas (${jornada.creditosColocados})`}
           v={ventasTotal > 0 ? `−${UYU(ventasTotal)}` : UYU(0)}
-          tono={ventasTotal > 0 ? "#1E47C8" : undefined}
+          tono={ventasTotal > 0 ? "var(--color-azul)" : undefined}
         />
-        <div className="mt-2 flex items-center justify-between border-t border-[#EDF0F8] pt-2.5">
+        <div className="mt-2 flex items-center justify-between border-t border-linea pt-2.5">
           <span className="text-[13.5px] font-extrabold text-tinta">Caja final</span>
           <span className="text-[22px] font-black tabular-nums text-tinta">{UYU(enMano)}</span>
         </div>
@@ -88,13 +89,13 @@ export default async function InformesPage() {
             oficina se la debe. Esconder esto tras un $0 fue el bug del aFavor
             (10-08) — acá se dice en verde, igual que en Cerrar jornada. */}
         {aFavor > 0 && (
-          <span className="mt-1.5 rounded-[10px] bg-[#E4F5EC] px-3 py-2 text-[12px] leading-[1.45] font-bold text-[#157A50]">
+          <span className="mt-1.5 rounded-[12px] bg-verde-suave px-3 py-2 text-[12px] leading-[1.45] font-bold text-verde-osc">
             💚 Pusiste {UYU(aFavor)} de tu bolsillo (colocaste más de lo que tenías). La oficina
             te lo debe — quedará anotado al cerrar la jornada.
           </span>
         )}
         {jornada.yaRendida ? (
-          <span className="mt-1.5 w-fit rounded-full bg-[#E4F5EC] px-2.5 py-1 text-[11px] font-bold text-[#157A50]">
+          <span className="mt-1.5 w-fit rounded-full bg-verde-suave px-2.5 py-1 text-[11px] font-bold text-verde-osc">
             Jornada rendida ✓ · entregaste {UYU(jornada.yaRendida.entregado)}
           </span>
         ) : (
@@ -114,15 +115,17 @@ export default async function InformesPage() {
           Ventas del día ({informe.colocaciones.length})
         </span>
         {informe.colocaciones.length === 0 ? (
-          <p className="rounded-[14px] bg-white px-4 py-4 text-center text-[12.5px] font-medium text-gris">
-            Todavía no colocaste créditos hoy.
-          </p>
+          <EstadoVacio
+            icono="cash"
+            titulo="Sin ventas todavía"
+            texto="Cada crédito que coloques hoy (renovación o venta) aparece acá con su cuota."
+          />
         ) : (
           informe.colocaciones.map((c) => (
             <Link
               key={c.prestamoId}
               href={`/cobrador/cliente/${c.clienteId}`}
-              className="flex items-center justify-between gap-3 rounded-[14px] bg-white px-3.5 py-3 shadow-sm active:scale-[0.995]"
+              className="flex items-center justify-between gap-3 rounded-[14px] bg-tarjeta px-3.5 py-3 shadow-sm active:scale-[0.995]"
             >
               <div className="flex min-w-0 flex-col">
                 <span className="line-clamp-2 text-[13.5px] leading-[1.25] font-bold break-words text-tinta">
@@ -133,7 +136,7 @@ export default async function InformesPage() {
                   {c.totalDias} · {horaDe(c.creadoEn)}
                 </span>
               </div>
-              <span className="flex-shrink-0 text-[15px] font-extrabold tabular-nums text-[#1E47C8]">
+              <span className="flex-shrink-0 text-[15px] font-extrabold tabular-nums text-azul">
                 {UYU(c.monto)}
               </span>
             </Link>
@@ -147,28 +150,30 @@ export default async function InformesPage() {
           Pagos del día ({informe.pagos.length} · {UYU(jornada.recaudado)})
         </span>
         {informe.pagos.length === 0 ? (
-          <p className="rounded-[14px] bg-white px-4 py-4 text-center text-[12.5px] font-medium text-gris">
-            Todavía no registraste pagos hoy. Cada cobro que registres aparece acá, con su hora.
-          </p>
+          <EstadoVacio
+            icono="clock"
+            titulo="Sin pagos todavía"
+            texto="Cada cobro que registres aparece acá, con el cliente y la hora."
+          />
         ) : (
-          <div className="flex flex-col overflow-hidden rounded-[14px] bg-white shadow-sm">
+          <div className="flex flex-col overflow-hidden rounded-[14px] bg-tarjeta shadow-sm">
             {informe.pagos.map((p, i) => (
               <Link
                 key={p.id}
                 href={p.clienteId ? `/cobrador/cliente/${p.clienteId}` : "/cobrador"}
-                className={`flex items-center justify-between gap-3 px-3.5 py-2.5 active:bg-[#F6F8FD] ${
-                  i > 0 ? "border-t border-[#F0F2F9]" : ""
+                className={`flex items-center justify-between gap-3 px-3.5 py-2.5 active:bg-app ${
+                  i > 0 ? "border-t border-linea" : ""
                 }`}
               >
                 <div className="flex min-w-0 flex-col">
                   <span className="line-clamp-2 text-[13px] leading-[1.25] font-bold break-words text-tinta">
                     {p.clienteNombre}
                   </span>
-                  <span className="text-[10.5px] font-semibold text-[#8A93AD] tabular-nums">
+                  <span className="text-[10.5px] font-semibold text-tenue tabular-nums">
                     {horaDe(p.registradoEn)}
                   </span>
                 </div>
-                <span className="flex-shrink-0 text-[14px] font-extrabold tabular-nums text-[#157A50]">
+                <span className="flex-shrink-0 text-[14px] font-extrabold tabular-nums text-verde-osc">
                   {UYU(p.monto)}
                 </span>
               </Link>
@@ -180,7 +185,7 @@ export default async function InformesPage() {
       {/* Los números largos (mes, quincena, comisión) viven en Mis números. */}
       <Link
         href="/cobrador/mis-numeros"
-        className="flex items-center justify-between rounded-[14px] border border-[#DCE6FB] bg-white px-4 py-3 active:scale-[0.99]"
+        className="flex items-center justify-between rounded-[14px] border border-campo bg-tarjeta px-4 py-3 active:scale-[0.99]"
       >
         <div className="flex flex-col">
           <span className="text-[13.5px] font-extrabold text-tinta">📈 Mis números del mes</span>
@@ -198,7 +203,7 @@ function Fila({ k, v, tono }: { k: string; v: string; tono?: string }) {
   return (
     <div className="flex items-center justify-between py-1">
       <span className="text-[12.5px] font-semibold text-gris">{k}</span>
-      <span className="text-[14px] font-extrabold tabular-nums" style={{ color: tono ?? "#0F1B3D" }}>
+      <span className="text-[14px] font-extrabold tabular-nums" style={{ color: tono ?? "var(--color-tinta)" }}>
         {v}
       </span>
     </div>

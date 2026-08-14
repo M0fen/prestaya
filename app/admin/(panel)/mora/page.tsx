@@ -200,13 +200,13 @@ export default async function MoraPage({
               <option value="medio">Medio</option>
             </select>
           </label>
-          <button type="submit" className="rounded-[10px] bg-[#2453DC] px-4 py-2 text-[13px] font-bold text-white">
+          <button type="submit" className="btn-primario px-4 py-2 text-[13px] font-bold text-white">
             Filtrar
           </button>
           {(filtroCob || filtroNivel) && (
             <Link
               href="/admin/mora"
-              className="rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[13px] font-bold text-gris"
+              className="rounded-[12px] border border-borde bg-tarjeta px-3 py-2 text-[13px] font-bold text-gris"
             >
               Limpiar
             </Link>
@@ -233,7 +233,7 @@ export default async function MoraPage({
               className="rounded-[16px] border border-borde bg-tarjeta p-4"
             >
               <div className="mb-2 flex items-start gap-3">
-                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[13px] avatar-marca text-[16px] font-black text-white">
+                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[12px] avatar-marca text-[16px] font-black text-white">
                   {c.nombre.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex min-w-0 flex-1 flex-col">
@@ -288,7 +288,7 @@ export default async function MoraPage({
                       asignada) para mandarlo a cobrar. No se llama al cliente. */}
                   <Link
                     href={c.cobradorId ? `/admin/chat?c=cob:${c.cobradorId}` : "/admin/chat"}
-                    className="rounded-full bg-[#2453DC] px-3.5 py-2 text-[12.5px] font-bold text-white"
+                    className="btn-primario px-3.5 py-2 text-[12.5px] font-bold text-white"
                   >
                     💬 {c.cobradorId ? "Mensaje al cobrador" : "Dejar mensaje"}
                   </Link>
@@ -319,7 +319,7 @@ export default async function MoraPage({
 }
 
 const INPUT =
-  "rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[16px] text-tinta outline-none focus:border-azul";
+  "rounded-[12px] border border-borde bg-tarjeta px-3 py-2 text-[16px] text-tinta outline-none focus:border-azul";
 
 function Kpi({
   label,

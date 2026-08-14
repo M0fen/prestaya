@@ -94,7 +94,7 @@ export function PanelGastosFlotante({ pendientes }: { pendientes: number }) {
             </div>
 
             <div className="flex-1 overflow-y-auto px-4 py-3">
-              {error && <p className="mb-2 rounded-[10px] bg-rojo-suave px-3 py-2 text-[12px] font-semibold text-rojo-osc">{error}</p>}
+              {error && <p className="mb-2 rounded-[12px] bg-rojo-suave px-3 py-2 text-[12px] font-semibold text-rojo-osc">{error}</p>}
               {cargando ? (
                 <p className="py-8 text-center text-[13px] font-medium text-gris">Cargando…</p>
               ) : !items || items.length === 0 ? (
@@ -126,7 +126,7 @@ export function PanelGastosFlotante({ pendientes }: { pendientes: number }) {
                             onChange={(e) => setMotivo(e.target.value)}
                             maxLength={200}
                             placeholder="Motivo del rechazo (opcional)"
-                            className="rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[16px] text-tinta outline-none focus:border-azul"
+                            className="rounded-[12px] border border-borde bg-tarjeta px-3 py-2 text-[16px] text-tinta outline-none focus:border-azul"
                           />
                           <div className="flex justify-end gap-3">
                             <button type="button" onClick={() => { setRechazando(null); setMotivo(""); }} className="min-h-11 rounded-full px-3 py-2.5 text-[13px] font-bold text-gris">Cancelar</button>

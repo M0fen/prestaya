@@ -148,7 +148,7 @@ export function FormRenovacion({
       </span>
 
       {moroso && (
-        <p className="rounded-[10px] bg-[#FBE4E2] px-3 py-2 text-[12px] font-bold text-[#C0392B]">
+        <p className="rounded-[12px] bg-[#FBE4E2] px-3 py-2 text-[12px] font-bold text-[#C0392B]">
           ⛔ Cliente marcado como MOROSO. Revisá bien antes de dar de alta.
         </p>
       )}
@@ -158,7 +158,7 @@ export function FormRenovacion({
           carga. Por eso la tasa se muestra siempre, en vez de asumir el 20%: quien
           da el alta tiene que ver con qué interés va a nacer el crédito. Subir el
           capital un 20% NO cambia la tasa: el que pagaba 3% sigue en 3%. */}
-      <p className="rounded-[10px] bg-tarjeta px-3 py-2 text-[12px] font-medium text-gris">
+      <p className="rounded-[12px] bg-tarjeta px-3 py-2 text-[12px] font-medium text-gris">
         Interés del crédito anterior:{" "}
         <b className="text-tinta">{interesAnterior != null ? `${interesAnterior}%` : "—"}</b>{" "}
         ({UYU(anterior.monto)} prestados, {UYU(anterior.cuota * anterior.totalDias)} a devolver).
@@ -170,7 +170,7 @@ export function FormRenovacion({
           monto arranca en el del crédito anterior. No se bloquea: lo autoriza el
           admin, y el supervisor lo pide (decisión de Carlos, 06-08). */}
       {superaTope && (
-        <p className="rounded-[10px] bg-[#FDF3E2] px-3 py-2 text-[12px] font-bold text-[#8A6D1E]">
+        <p className="rounded-[12px] bg-[#FDF3E2] px-3 py-2 text-[12px] font-bold text-[#8A6D1E]">
           Este crédito es de {UYU(anterior.monto)}, por encima del tope de{" "}
           {UYU(RENOVACION_CAP_TOTAL)}. Lo autorizás vos como gestor. Ojo con bajarle el monto:
           sería recortarle el capital al cliente.
@@ -189,7 +189,7 @@ export function FormRenovacion({
               setMonto(e.target.value);
               setConfirmar(false);
             }}
-            className="rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[16px] font-semibold outline-none focus:border-azul"
+            className="rounded-[12px] border border-borde bg-tarjeta px-3 py-2 text-[16px] font-semibold outline-none focus:border-azul"
           />
           {/* De dónde sale el número: el crédito se REPITE igual. Si el admin lo
               cambia, se le ofrece volver — así el desvío es siempre deliberado. */}
@@ -221,7 +221,7 @@ export function FormRenovacion({
               setDias(e.target.value);
               setConfirmar(false);
             }}
-            className="rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[16px] font-semibold outline-none focus:border-azul"
+            className="rounded-[12px] border border-borde bg-tarjeta px-3 py-2 text-[16px] font-semibold outline-none focus:border-azul"
           />
           {/* Plazos estándar del negocio (cobro diario Lun–Sáb). */}
           <div className="mt-1 flex gap-2">
@@ -266,7 +266,7 @@ export function FormRenovacion({
       </label>
 
       {valido && (
-        <div className="flex items-center justify-between rounded-[10px] bg-tarjeta px-3 py-2 text-[12.5px]">
+        <div className="flex items-center justify-between rounded-[12px] bg-tarjeta px-3 py-2 text-[12.5px]">
           <span className="font-medium text-gris">
             Cuota <b className="text-tinta">{UYU(cuota)}</b>
           </span>
@@ -279,7 +279,7 @@ export function FormRenovacion({
       {/* Preview del tope escalonado + cap */}
       {evalu && (
         <p
-          className={`rounded-[10px] px-3 py-2 text-[12px] font-semibold ${
+          className={`rounded-[12px] px-3 py-2 text-[12px] font-semibold ${
             evalu.autoAprobable
               ? "bg-[#E4F5EC] text-[#157A50]"
               : bloqueado
@@ -294,7 +294,7 @@ export function FormRenovacion({
       )}
 
       {error && (
-        <p className="rounded-[10px] bg-[#FBE4E2] px-3 py-2 text-[12px] font-semibold text-[#C0392B]">
+        <p className="rounded-[12px] bg-[#FBE4E2] px-3 py-2 text-[12px] font-semibold text-[#C0392B]">
           {error}
         </p>
       )}
@@ -317,7 +317,7 @@ export function FormRenovacion({
             type="button"
             onClick={() => setConfirmar(true)}
             disabled={!valido || ocupado || bloqueado}
-            className="flex-1 rounded-full bg-[#2453DC] px-4 py-2.5 text-[13px] font-bold text-white disabled:opacity-40"
+            className="flex-1 btn-primario px-4 py-2.5 text-[13px] font-bold text-white disabled:opacity-40"
           >
             {bloqueado ? "No permitido" : "Revisar y dar de alta"}
           </button>

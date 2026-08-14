@@ -198,14 +198,14 @@ export function CobroRapido({
     const puedeDeshacer = cobrado.hasta > 0;
     return (
       <div className="flex flex-shrink-0 items-center gap-1.5">
-        <span className="rounded-full bg-[#E4F5EC] px-2.5 py-1.5 text-[11px] font-black text-[#157A50]">
+        <span className="rounded-full bg-verde-suave px-2.5 py-1.5 text-[11px] font-black text-verde-osc">
           Cobrado ✓
         </span>
         {puedeDeshacer && (
           <button
             type="button"
             onClick={deshacer}
-            className="min-h-11 rounded-full border border-[#D6A79E] px-2.5 text-[11px] font-bold text-[#C0392B] active:scale-95"
+            className="min-h-11 rounded-full border border-rojo-suave px-2.5 text-[11px] font-bold text-rojo-osc active:scale-95"
           >
             Deshacer
           </button>

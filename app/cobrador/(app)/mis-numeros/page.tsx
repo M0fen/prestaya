@@ -26,7 +26,7 @@ export default async function MisNumerosPage() {
           <h1 className="text-[19px] font-extrabold tracking-[-0.01em] text-tinta">Mis números</h1>
           <span className="text-[12.5px] font-medium text-gris capitalize">{mesLabel}</span>
         </div>
-        <Link href="/cobrador" className="rounded-full bg-[#EEF3FF] px-3.5 py-1.5 text-[12.5px] font-bold text-azul">
+        <Link href="/cobrador" className="rounded-full bg-azul-suave px-3.5 py-1.5 text-[12.5px] font-bold text-azul">
           ← Mi ruta
         </Link>
       </div>
@@ -50,8 +50,8 @@ export default async function MisNumerosPage() {
 
       {/* Grid de estadísticas del mes. */}
       <div className="grid grid-cols-2 gap-2.5">
-        <Kpi label="Cobrado por vos (mes)" valor={UYU(n.mesRecaudado)} tono="#157A50" sub="lo que pasó por tus manos" />
-        <Kpi label="Últimos 7 días" valor={UYU(n.semanaRecaudado)} tono="#1E47C8" />
+        <Kpi label="Cobrado por vos (mes)" valor={UYU(n.mesRecaudado)} tono="var(--color-verde-osc)" sub="lo que pasó por tus manos" />
+        <Kpi label="Últimos 7 días" valor={UYU(n.semanaRecaudado)} tono="var(--color-azul)" />
         <Kpi label="Cobros del mes" valor={String(n.mesCobros)} />
         <Kpi label="Ticket promedio" valor={UYU(n.ticketPromedio)} />
         <Kpi label="Días activos" valor={String(n.mesDiasActivos)} sub="con al menos un cobro" />
@@ -59,7 +59,7 @@ export default async function MisNumerosPage() {
           label="Jornadas cuadradas"
           valor={`${n.cuadradas}/${n.rendiciones}`}
           sub={n.rendiciones > 0 ? "cerraste sin faltante" : "sin cierres aún"}
-          tono={n.rendiciones > 0 && n.cuadradas === n.rendiciones ? "#157A50" : undefined}
+          tono={n.rendiciones > 0 && n.cuadradas === n.rendiciones ? "var(--color-verde-osc)" : undefined}
         />
       </div>
 
@@ -69,7 +69,7 @@ export default async function MisNumerosPage() {
           <span className="px-0.5 text-[11.5px] font-bold uppercase tracking-wide text-gris">
             Comisiones cobradas
           </span>
-          <ul className="flex flex-col divide-y divide-[#F0F2F9] rounded-[14px] border border-[#E6EAF4] bg-white">
+          <ul className="flex flex-col divide-y divide-linea rounded-[14px] border border-borde bg-tarjeta">
             {n.liquidaciones.map((l) => (
               <li key={`${l.periodoKey}-${l.liquidadoEn}`} className="flex items-center justify-between gap-2 px-3.5 py-2.5">
                 <div className="flex flex-col leading-tight">
@@ -78,7 +78,7 @@ export default async function MisNumerosPage() {
                     pagada el {new Intl.DateTimeFormat("es-UY", { timeZone: "America/Montevideo", day: "numeric", month: "short" }).format(new Date(l.liquidadoEn))}
                   </span>
                 </div>
-                <span className="text-[14px] font-extrabold tabular-nums text-[#157A50]">{UYU(l.monto)}</span>
+                <span className="text-[14px] font-extrabold tabular-nums text-verde-osc">{UYU(l.monto)}</span>
               </li>
             ))}
           </ul>
@@ -100,9 +100,9 @@ export default async function MisNumerosPage() {
 
 function Kpi({ label, valor, sub, tono }: { label: string; valor: string; sub?: string; tono?: string }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-[14px] border border-[#E6EAF4] bg-white p-3.5">
+    <div className="flex flex-col gap-0.5 rounded-[14px] border border-borde bg-tarjeta p-3.5">
       <span className="text-[11px] font-bold uppercase tracking-wide text-gris">{label}</span>
-      <span className="text-[19px] font-extrabold tabular-nums" style={{ color: tono ?? "#0F1B3D" }}>
+      <span className="text-[19px] font-extrabold tabular-nums" style={{ color: tono ?? "var(--color-tinta)" }}>
         {valor}
       </span>
       {sub && <span className="text-[10.5px] font-medium text-tenue">{sub}</span>}

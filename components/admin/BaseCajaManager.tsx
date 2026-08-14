@@ -271,7 +271,7 @@ export function BaseCajaManager({
               Un monto y un toque. */}
           <div className="flex flex-wrap items-center gap-2 rounded-[12px] bg-suave px-3 py-2.5">
             <span className="text-[11.5px] font-bold text-cuerpo">Ponerle a todos</span>
-            <div className="flex items-center gap-1 rounded-[9px] border border-borde bg-tarjeta px-2">
+            <div className="flex items-center gap-1 rounded-[12px] border border-borde bg-tarjeta px-2">
               <span className="text-[13px] font-bold text-gris">$</span>
               <input
                 inputMode="numeric"
@@ -338,7 +338,7 @@ export function BaseCajaManager({
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="🔍 Buscar cobrador…"
-              className="w-full rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[16px] outline-none focus:border-azul"
+              className="w-full rounded-[12px] border border-borde bg-tarjeta px-3 py-2 text-[16px] outline-none focus:border-azul"
             />
           )}
 
@@ -455,7 +455,7 @@ export function BaseCajaManager({
                               onFocus={(e) => e.currentTarget.select()}
                               onKeyDown={saltarAlSiguiente}
                               placeholder="0"
-                              className="w-28 rounded-[9px] border border-borde px-2.5 py-1.5 text-right text-[16px] tabular-nums outline-none focus:border-azul"
+                              className="w-28 rounded-[12px] border border-borde px-2.5 py-1.5 text-right text-[16px] tabular-nums outline-none focus:border-azul"
                             />
                           )}
                         </li>

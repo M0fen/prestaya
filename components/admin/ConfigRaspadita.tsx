@@ -87,7 +87,7 @@ export function ConfigRaspadita({
             inputMode="numeric"
             value={tope}
             onChange={(e) => setTope(e.target.value.replace(/[^\d]/g, ""))}
-            className="w-14 rounded-[10px] border border-campo px-2.5 py-2 text-center text-[15px] font-bold tabular-nums text-tinta outline-none focus:border-azul"
+            className="w-14 rounded-[12px] border border-campo px-2.5 py-2 text-center text-[15px] font-bold tabular-nums text-tinta outline-none focus:border-azul"
             aria-label="Tope de raspaditas acumuladas"
           />
         </label>

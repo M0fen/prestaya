@@ -165,7 +165,7 @@ function Tarjeta({
       <div className="flex items-start gap-3">
         <span
           aria-hidden="true"
-          className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[13px] bg-[#EEF3FF] text-[22px]"
+          className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[12px] bg-[#EEF3FF] text-[22px]"
         >
           {icono}
         </span>

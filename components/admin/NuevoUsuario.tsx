@@ -62,7 +62,7 @@ export function NuevoUsuario({ zonas }: { zonas: Zona[] }) {
   }
 
   const inputCls =
-    "rounded-[10px] border border-[#DCE3F1] px-3 py-2 text-[13.5px] font-medium text-tinta outline-none focus:border-azul";
+    "rounded-[12px] border border-[#DCE3F1] px-3 py-2 text-[13.5px] font-medium text-tinta outline-none focus:border-azul";
 
   return (
     <section className="flex flex-col gap-3 rounded-[16px] border border-borde bg-tarjeta p-5">
@@ -92,7 +92,7 @@ export function NuevoUsuario({ zonas }: { zonas: Zona[] }) {
           <button
             type="button"
             onClick={() => setPassword(passwordAleatoria())}
-            className="rounded-[10px] border border-[#DCE3F1] px-3 py-2 text-[12px] font-bold text-azul hover:bg-suave"
+            className="rounded-[12px] border border-[#DCE3F1] px-3 py-2 text-[12px] font-bold text-azul hover:bg-suave"
           >
             Generar
           </button>
@@ -138,7 +138,7 @@ export function NuevoUsuario({ zonas }: { zonas: Zona[] }) {
 
       {msg && (
         <div
-          className={`rounded-[10px] px-3 py-2 text-[12.5px] font-bold ${
+          className={`rounded-[12px] px-3 py-2 text-[12.5px] font-bold ${
             msg.ok ? "bg-[#E4F5EC] text-[#157A50]" : "bg-[#FDECEA] text-[#C0392B]"
           }`}
         >
@@ -150,7 +150,7 @@ export function NuevoUsuario({ zonas }: { zonas: Zona[] }) {
         type="button"
         disabled={pending || nombre.trim().length < 2 || !email.includes("@") || password.length < 8}
         onClick={crear}
-        className="self-start rounded-[10px] bg-azul px-4 py-2 text-[13px] font-bold text-white disabled:opacity-40"
+        className="self-start rounded-[12px] bg-azul px-4 py-2 text-[13px] font-bold text-white disabled:opacity-40"
       >
         {pending ? "Creando…" : "Crear usuario"}
       </button>

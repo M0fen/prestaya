@@ -75,7 +75,7 @@ export function AccionesAcceso({
       <button
         type="button"
         onClick={porWhatsApp}
-        className="flex items-center justify-center gap-2 rounded-[15px] bg-[#25D366] px-4 py-4 text-[15px] font-extrabold text-white shadow-[0_6px_16px_rgba(37,211,102,0.32)] active:scale-[0.98]"
+        className="flex items-center justify-center gap-2 rounded-[16px] bg-[#25D366] px-4 py-4 text-[15px] font-extrabold text-white shadow-[0_6px_16px_rgba(37,211,102,0.32)] active:scale-[0.98]"
       >
         <span aria-hidden="true">💬</span>
         {tieneTel ? "Enviar por WhatsApp" : "Enviar por WhatsApp…"}
@@ -90,14 +90,14 @@ export function AccionesAcceso({
         <button
           type="button"
           onClick={compartir}
-          className="flex items-center justify-center gap-1.5 rounded-[13px] border border-[#DCE3F4] bg-white px-3 py-3 text-[13px] font-bold text-azul active:scale-[0.98]"
+          className="flex items-center justify-center gap-1.5 rounded-[12px] border border-campo bg-tarjeta px-3 py-3 text-[13px] font-bold text-azul active:scale-[0.98]"
         >
           <span aria-hidden="true">📤</span> Compartir
         </button>
         <button
           type="button"
           onClick={copiar}
-          className="flex items-center justify-center gap-1.5 rounded-[13px] border border-[#DCE3F4] bg-white px-3 py-3 text-[13px] font-bold text-azul active:scale-[0.98]"
+          className="flex items-center justify-center gap-1.5 rounded-[12px] border border-campo bg-tarjeta px-3 py-3 text-[13px] font-bold text-azul active:scale-[0.98]"
         >
           <span aria-hidden="true">🔗</span> {copiado ? "¡Copiado!" : "Copiar link"}
         </button>
@@ -113,7 +113,7 @@ export function AccionesAcceso({
           Ya se lo entregué
         </button>
       ) : (
-        <p className="mt-0.5 text-center text-[12px] font-bold text-[#157A50]">
+        <p className="mt-0.5 text-center text-[12px] font-bold text-verde-osc">
           ✓ Entrega registrada
         </p>
       )}

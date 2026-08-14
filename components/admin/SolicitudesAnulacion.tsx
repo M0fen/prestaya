@@ -67,7 +67,7 @@ export function SolicitudesAnulacion({
                 Pendiente
               </span>
             </div>
-            <p className="rounded-[10px] bg-suave px-3 py-2 text-[12.5px] font-medium text-tinta">
+            <p className="rounded-[12px] bg-suave px-3 py-2 text-[12.5px] font-medium text-tinta">
               “{s.motivo?.trim() || "Sin motivo"}”
             </p>
             <div className="flex items-center justify-end gap-2">
@@ -82,7 +82,7 @@ export function SolicitudesAnulacion({
                   if (m === null) return;
                   ejecutar(rechazarAnulacionAction({ solicitudId: s.id, motivo: m }));
                 }}
-                className="rounded-[10px] border border-[#DCE3F1] px-3.5 py-1.5 text-[12px] font-bold text-gris hover:bg-suave disabled:opacity-40"
+                className="rounded-[12px] border border-[#DCE3F1] px-3.5 py-1.5 text-[12px] font-bold text-gris hover:bg-suave disabled:opacity-40"
               >
                 Rechazar
               </button>
@@ -95,7 +95,7 @@ export function SolicitudesAnulacion({
                     ejecutar(confirmarAnulacionAction({ solicitudId: s.id }));
                   }
                 }}
-                className="rounded-[10px] bg-[#C0392B] px-3.5 py-1.5 text-[12px] font-bold text-white disabled:opacity-40"
+                className="rounded-[12px] bg-[#C0392B] px-3.5 py-1.5 text-[12px] font-bold text-white disabled:opacity-40"
               >
                 {esMia ? "La pediste vos" : "Confirmar anulación"}
               </button>

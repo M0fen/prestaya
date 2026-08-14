@@ -108,7 +108,7 @@ export function FormScoring({ inicial }: { inicial: ConfigScoring }) {
           type="button"
           onClick={guardar}
           disabled={pendiente || !umbOk || suma <= 0}
-          className="rounded-full bg-[#2453DC] px-5 py-2.5 text-[13px] font-bold text-white disabled:opacity-50"
+          className="btn-primario px-5 py-2.5 text-[13px] font-bold text-white disabled:opacity-50"
         >
           {pendiente ? "Guardando…" : "Guardar modelo"}
         </button>
@@ -130,7 +130,7 @@ function Campo({ label, valor, onChange }: { label: string; valor: number; onCha
         inputMode="numeric"
         value={valor}
         onChange={(e) => onChange(Number(e.target.value.replace(/[^\d]/g, "")) || 0)}
-        className="rounded-[10px] border border-borde px-2.5 py-2 text-[14px] tabular-nums outline-none focus:border-azul"
+        className="rounded-[12px] border border-borde px-2.5 py-2 text-[14px] tabular-nums outline-none focus:border-azul"
       />
     </label>
   );

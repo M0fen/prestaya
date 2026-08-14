@@ -35,7 +35,7 @@ export function PedirAyuda({
 
   if (enviado) {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E4F5EC] px-3 py-2 text-[12px] font-bold text-[#157A50]">
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-verde-suave px-3 py-2 text-[12px] font-bold text-verde-osc">
         ✓ Avisado — queda anotado en la ficha del cliente
       </span>
     );
@@ -47,7 +47,7 @@ export function PedirAyuda({
         type="button"
         onClick={() => setAbierto(true)}
         className={`min-h-11 rounded-full px-4 text-[12.5px] font-bold ${
-          tono === "alerta" ? "bg-[#FBE4E2] text-[#C0392B]" : "bg-[#EEF3FF] text-[#1E47C8]"
+          tono === "alerta" ? "bg-rojo-suave text-rojo-osc" : "bg-azul-suave text-azul"
         }`}
       >
         {etiqueta}
@@ -56,7 +56,7 @@ export function PedirAyuda({
   }
 
   return (
-    <div className="flex w-full flex-col gap-2 rounded-[12px] bg-[#F4F6FB] p-3">
+    <div className="flex w-full flex-col gap-2 rounded-[12px] bg-app p-3">
       <span className="text-[11.5px] font-bold text-gris">
         Esto le va a llegar a tu supervisor y a la oficina:
       </span>
@@ -64,7 +64,7 @@ export function PedirAyuda({
         value={texto}
         onChange={(e) => setTexto(e.target.value)}
         rows={3}
-        className="w-full rounded-[10px] border border-[#DCE3F4] bg-white px-3 py-2 text-[16px] leading-[1.4] text-tinta"
+        className="w-full rounded-[12px] border border-campo bg-tarjeta px-3 py-2 text-[16px] leading-[1.4] text-tinta"
       />
       <div className="flex items-center gap-2">
         <button
@@ -108,7 +108,7 @@ export function PedirAyuda({
           Cancelar
         </button>
       </div>
-      {error && <span className="text-[11.5px] font-semibold text-[#C0392B]">{error}</span>}
+      {error && <span className="text-[11.5px] font-semibold text-rojo-osc">{error}</span>}
     </div>
   );
 }

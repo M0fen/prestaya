@@ -24,6 +24,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { UYU } from "@/lib/format";
+import { EstadoVacio } from "@/components/EstadoVacio";
 import { renovarDesdeCalle, nuevaVentaDesdeCalle } from "@/lib/acciones/cobradorCredito";
 import { PedirAyuda } from "@/components/cobrador/PedirAyuda";
 import type { FrecuenciaPrestamo } from "@/types/db";
@@ -170,11 +171,15 @@ export function ColocarLista({
   if (candidatos.length === 0 && noElegibles.length === 0) {
     if (hecho) return <div className="flex flex-col gap-3">{confirmacion}</div>;
     return (
-      <p className="rounded-[14px] bg-white px-4 py-6 text-center text-[13px] leading-[1.5] font-medium text-gris">
-        {modo === "renovar"
-          ? "Ninguno de tus clientes terminó de pagar todavía. Cuando alguno complete su crédito, aparece acá para renovarlo de un toque."
-          : "No tenés clientes en la ruta todavía. Censá al primero y le podés dar su crédito acá mismo."}
-      </p>
+      <EstadoVacio
+        icono={modo === "renovar" ? "refresh" : "cash"}
+        titulo={modo === "renovar" ? "Nadie para renovar todavía" : "Tu ruta arranca vacía"}
+        texto={
+          modo === "renovar"
+            ? "Cuando alguno de tus clientes complete su crédito, aparece acá para renovarlo de un toque."
+            : "Censá al primero y le podés dar su crédito acá mismo."
+        }
+      />
     );
   }
 
@@ -202,7 +207,7 @@ export function ColocarLista({
              primer crédito lo coloca el cobrador directo), así que acá solo cae
              el caso raro: el crédito es de OTRO cobrador, o el cliente quedó
              fuera de la ruta. Se dice cuál es la salida — nunca un callejón. */
-          <div className="flex flex-col items-center gap-2.5 rounded-[14px] border border-borde bg-white px-4 py-5 text-center">
+          <div className="flex flex-col items-center gap-2.5 rounded-[14px] border border-borde bg-tarjeta px-4 py-5 text-center">
             <p className="text-[13px] leading-[1.5] font-semibold text-tinta">
               A esta persona no le podés colocar {modo === "renovar" ? "una renovación" : "un crédito"} vos solo.
             </p>
@@ -219,7 +224,7 @@ export function ColocarLista({
         )}
         <a
           href="/cobrador/colocar?modo=venta"
-          className="min-h-11 rounded-[13px] border border-borde bg-white text-center text-[13px] font-bold leading-[44px] text-azul"
+          className="min-h-11 rounded-[12px] border border-borde bg-tarjeta text-center text-[13px] font-bold leading-[44px] text-azul"
         >
           Ver todos mis clientes
         </a>
@@ -235,7 +240,7 @@ export function ColocarLista({
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="🔍 Buscar por nombre o cédula…"
-        className="w-full rounded-[13px] border border-borde bg-white px-3.5 py-3 text-[16px] outline-none focus:border-azul"
+        className="w-full rounded-[12px] border border-borde bg-tarjeta px-3.5 py-3 text-[16px] outline-none focus:border-azul"
       />
 
       {/* ⚠️ Cuánta plata hay que LLEVAR. Ninguna tarjeta cerrada mostraba un peso:
@@ -249,7 +254,7 @@ export function ColocarLista({
         const conMonto = candidatos.filter((c) => !c.primerCredito);
         const primeros = candidatos.length - conMonto.length;
         return (
-          <div className="flex items-center justify-between gap-3 rounded-[13px] border border-[#DCE6FB] bg-[#F7F9FF] px-3.5 py-3">
+          <div className="flex items-center justify-between gap-3 rounded-[12px] border border-campo bg-suave px-3.5 py-3">
             <span className="text-[12.5px] leading-[1.4] font-bold text-tinta">
               {conMonto.length} {modo === "renovar" ? "para renovar" : "para vender"}
               <span className="font-medium text-gris"> · si los hacés a todos</span>
@@ -259,7 +264,7 @@ export function ColocarLista({
                 </span>
               )}
             </span>
-            <span className="flex-shrink-0 text-[16px] font-black tabular-nums text-[#1E47C8]">
+            <span className="flex-shrink-0 text-[16px] font-black tabular-nums text-azul">
               {UYU(conMonto.reduce((t, c) => t + (c.montoNuevo ?? c.monto), 0))}
             </span>
           </div>
@@ -267,7 +272,7 @@ export function ColocarLista({
       })()}
 
       {candidatos.length === 0 && !q && (
-        <p className="rounded-[14px] bg-white px-4 py-5 text-center text-[13px] leading-[1.5] font-medium text-gris">
+        <p className="rounded-[14px] bg-tarjeta px-4 py-5 text-center text-[13px] leading-[1.5] font-medium text-gris">
           {modo === "renovar"
             ? "Ninguno de tus clientes terminó de pagar todavía."
             : "No tenés clientes libres para una venta nueva ahora mismo."}
@@ -285,7 +290,7 @@ export function ColocarLista({
       ))}
 
       {q && filtrados.length === 0 && bloqueados.length === 0 && (
-        <div className="rounded-[14px] border border-borde bg-white px-4 py-5 text-center">
+        <div className="rounded-[14px] border border-borde bg-tarjeta px-4 py-5 text-center">
           <p className="text-[13px] leading-[1.5] font-semibold text-tinta">
             No encontramos a nadie con “{q}” en tu ruta.
           </p>
@@ -303,15 +308,15 @@ export function ColocarLista({
  *  y qué hacer — nunca un callejón sin salida. */
 function TarjetaBloqueada({ c }: { c: NoElegibleVista }) {
   return (
-    <div className="flex flex-col gap-1.5 rounded-[16px] border border-[#F0DCA8] bg-[#FDF8EC] p-4">
+    <div className="flex flex-col gap-1.5 rounded-[16px] border border-ambar-suave bg-ambar-suave p-4">
       <span className="text-[15px] font-extrabold text-tinta">{c.nombre}</span>
-      <span className="text-[12.5px] leading-[1.45] font-bold text-[#8A6D1E]">{c.motivo}</span>
+      <span className="text-[12.5px] leading-[1.45] font-bold text-ambar-osc">{c.motivo}</span>
       {c.queHacer && (
-        <span className="text-[12px] leading-[1.45] font-medium text-[#8A6D1E]">{c.queHacer}</span>
+        <span className="text-[12px] leading-[1.45] font-medium text-ambar-osc">{c.queHacer}</span>
       )}
       <a
         href={`/cobrador/cliente/${c.clienteId}`}
-        className="mt-1 min-h-11 self-start rounded-full border border-[#E0CB93] bg-white px-4 text-[12.5px] font-bold leading-[44px] text-[#8A6D1E] active:scale-95"
+        className="mt-1 min-h-11 self-start rounded-full border border-ambar-suave bg-tarjeta px-4 text-[12.5px] font-bold leading-[44px] text-ambar-osc active:scale-95"
       >
         Ver su cartón
       </a>
@@ -330,10 +335,10 @@ function TarjetaBloqueada({ c }: { c: NoElegibleVista }) {
 function Confirmacion({ h }: { h: Hecho }) {
   const tono =
     h.como === "pedido"
-      ? { borde: "#F0C0BC", fondo: "#FDEEEC", texto: "#B03A2E" }
+      ? { borde: "var(--color-rojo-suave)", fondo: "var(--color-rojo-suave)", texto: "var(--color-rojo-osc)" }
       : h.como === "repetido"
-        ? { borde: "#F0DCA8", fondo: "#FDF8EC", texto: "#8A6D1E" }
-        : { borde: "#BEEBD5", fondo: "#F0FBF5", texto: "#157A50" };
+        ? { borde: "var(--color-ambar-suave)", fondo: "var(--color-ambar-suave)", texto: "var(--color-ambar-osc)" }
+        : { borde: "var(--color-verde-suave)", fondo: "var(--color-verde-suave)", texto: "var(--color-verde-osc)" };
   return (
     <div
       className="flex flex-col gap-1 rounded-[16px] border p-4"
@@ -347,7 +352,7 @@ function Confirmacion({ h }: { h: Hecho }) {
       </p>
       {h.como === "pedido" && (
         <p
-          className="mt-1 rounded-[10px] bg-white/70 px-2.5 py-2 text-[13px] leading-[1.4] font-extrabold"
+          className="mt-1 rounded-[12px] bg-tarjeta/70 px-2.5 py-2 text-[13px] leading-[1.4] font-extrabold"
           style={{ color: tono.texto }}
         >
           ⛔ NO le entregues la plata todavía. El crédito NO existe hasta que la oficina apruebe.
@@ -355,7 +360,7 @@ function Confirmacion({ h }: { h: Hecho }) {
       )}
       <a
         href={`/cobrador/cliente/${h.clienteId}`}
-        className="mt-1.5 min-h-11 self-start rounded-full bg-white px-4 text-[12.5px] font-bold leading-[44px] active:scale-95"
+        className="mt-1.5 min-h-11 self-start rounded-full bg-tarjeta px-4 text-[12.5px] font-bold leading-[44px] active:scale-95"
         style={{ color: tono.texto, boxShadow: `inset 0 0 0 1px ${tono.borde}` }}
       >
         Ver su cartón
@@ -517,7 +522,7 @@ function Tarjeta({
   if (hechoAca) return null;
 
   return (
-    <div className="flex flex-col gap-2.5 rounded-[16px] border border-borde bg-white p-4">
+    <div className="flex flex-col gap-2.5 rounded-[16px] border border-borde bg-tarjeta p-4">
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 flex-col">
           <span className="truncate text-[15px] font-extrabold text-tinta">{c.nombre}</span>
@@ -553,7 +558,7 @@ function Tarjeta({
           poniendo plata nueva encima de una deuda abierta. La decisión es humana:
           se informa, no se bloquea (un cliente puede tener dos créditos a la vez). */}
       {(c.deudaHermano ?? 0) >= 1 && (
-        <p className="rounded-[11px] bg-[#FDF3E2] px-3 py-2 text-[11.5px] leading-[1.4] font-bold text-[#8A6D1E]">
+        <p className="rounded-[12px] bg-ambar-suave px-3 py-2 text-[11.5px] leading-[1.4] font-bold text-ambar-osc">
           ⚠️ {modo === "renovar" ? "Tiene otro crédito abierto" : "Ya tiene un crédito abierto"} al
           que le falta {UYU(c.deudaHermano ?? 0)}.
         </p>
@@ -568,11 +573,11 @@ function Tarjeta({
             // cuota y las mismas cuotas que el cliente ya venía pagando. Cambiar
             // algo es "Nueva venta", que es la otra puerta. Menos decisiones en la
             // vereda = menos dedazos, y acá el dedazo es plata.
-            <div className="flex flex-col gap-2.5 rounded-[13px] bg-[#F7F9FD] p-3">
+            <div className="flex flex-col gap-2.5 rounded-[12px] bg-suave p-3">
               <span className="text-[12px] font-extrabold text-tinta">
                 Se repite el crédito tal cual lo tenía
               </span>
-              <div className="grid grid-cols-2 gap-2 rounded-[11px] bg-white p-2.5">
+              <div className="grid grid-cols-2 gap-2 rounded-[12px] bg-tarjeta p-2.5">
                 <Dato k="Le entregás" v={UYU(sugeridoRenov)} />
                 <Dato k="Cuota" v={UYU(c.cuotaNueva ?? c.cuota)} />
                 <Dato k="Cuotas" v={`${c.totalDias} ${etiquetaFrec(c.frecuencia)}`} />
@@ -591,7 +596,7 @@ function Tarjeta({
                 Empieza a pagar {primerCobro}. Hoy recibe la plata, mañana arranca.
               </span>
               {c.requiereAprobacion && (
-                <span className="rounded-[10px] bg-[#FDF3E2] px-2.5 py-2 text-[11.5px] leading-[1.45] font-bold text-[#8A6D1E]">
+                <span className="rounded-[12px] bg-ambar-suave px-2.5 py-2 text-[11.5px] leading-[1.45] font-bold text-ambar-osc">
                   Este monto lo tiene que aprobar la oficina. Al confirmar se manda el pedido.
                   <br />
                   <strong>Todavía NO le entregues la plata.</strong>
@@ -606,7 +611,7 @@ function Tarjeta({
               </a>
             </div>
           ) : (
-            <div className="flex flex-col gap-2.5 rounded-[13px] bg-[#F7F9FD] p-3">
+            <div className="flex flex-col gap-2.5 rounded-[12px] bg-suave p-3">
               <span className="text-[11.5px] font-bold text-gris">
                 {c.primerCredito
                   ? "Es su PRIMER crédito: sale al 20% del negocio."
@@ -617,8 +622,8 @@ function Tarjeta({
               <div className="flex gap-2">
                 <label className="flex flex-1 flex-col gap-1">
                   <span className="text-[12px] font-extrabold text-tinta">¿Cuánto le das?</span>
-                  <div className="flex items-center gap-1.5 rounded-[11px] border-2 border-[#C7D2EC] bg-white px-3">
-                    <span className="text-[18px] font-black text-[#8A93AD]">$</span>
+                  <div className="flex items-center gap-1.5 rounded-[12px] border-2 border-campo bg-tarjeta px-3">
+                    <span className="text-[18px] font-black text-tenue">$</span>
                     <input
                       inputMode="numeric"
                       value={monto}
@@ -633,7 +638,7 @@ function Tarjeta({
                     inputMode="numeric"
                     value={cuotas}
                     onChange={(e) => setCuotas(e.target.value.replace(/\D/g, ""))}
-                    className="min-h-[52px] rounded-[11px] border-2 border-[#C7D2EC] bg-white px-3 text-[22px] font-black tabular-nums text-tinta outline-none"
+                    className="min-h-[52px] rounded-[12px] border-2 border-campo bg-tarjeta px-3 text-[22px] font-black tabular-nums text-tinta outline-none"
                   />
                 </label>
               </div>
@@ -642,7 +647,7 @@ function Tarjeta({
                   calcularlo de memoria para poder decírselo. */}
               {montoN > 0 && cuotasN > 0 && !excede && !cuotasPasan && (
                 <>
-                  <div className="grid grid-cols-3 gap-2 rounded-[11px] bg-white p-2.5">
+                  <div className="grid grid-cols-3 gap-2 rounded-[12px] bg-tarjeta p-2.5">
                     <Dato k="Cuota" v={UYU(cuotaVenta)} />
                     <Dato k="Cuotas" v={`${cuotasN} ${etiquetaFrec(c.frecuencia)}`} />
                     <Dato k="Paga en total" v={UYU(cuotaVenta * cuotasN)} />
@@ -658,7 +663,7 @@ function Tarjeta({
 
               <span
                 className={`text-[11.5px] leading-[1.4] font-semibold ${
-                  excede ? "text-[#C0392B]" : "text-gris"
+                  excede ? "text-rojo-osc" : "text-gris"
                 }`}
               >
                 {/* Tres mensajes distintos porque son tres finales distintos: se
@@ -679,7 +684,7 @@ function Tarjeta({
             </div>
           )}
 
-          {msg && <span className="text-[11.5px] font-semibold text-[#C0392B]">{msg}</span>}
+          {msg && <span className="text-[11.5px] font-semibold text-rojo-osc">{msg}</span>}
 
           <div className="flex gap-2">
             <button
@@ -689,7 +694,7 @@ function Tarjeta({
                 setConfirmar(false);
                 setMsg(null);
               }}
-              className="min-h-11 flex-1 rounded-[13px] border border-borde text-[13px] font-bold text-gris"
+              className="min-h-11 flex-1 rounded-[12px] border border-borde text-[13px] font-bold text-gris"
             >
               Cancelar
             </button>
@@ -700,7 +705,7 @@ function Tarjeta({
                 (modo === "venta" && (pasaMaximo || cuotasPasan || montoN <= 0 || cuotasN <= 0))
               }
               onClick={() => (confirmar ? colocar() : setConfirmar(true))}
-              className="min-h-11 flex-1 rounded-[13px] bg-[#1FA971] text-[13px] font-extrabold text-white disabled:opacity-50"
+              className="min-h-11 flex-1 rounded-[12px] bg-[#1FA971] text-[13px] font-extrabold text-white disabled:opacity-50"
             >
               {/* El primer toque YA dice qué va a pasar y con qué número: antes
                   decía solo "Confirmar" y el cobrador confirmaba a ciegas. */}
@@ -758,13 +763,13 @@ function Interes({
   const justo = sugerirCuotas && dif !== 0 ? cuotasQueDanJusto(monto, INTERES_DEFECTO_PCT, dias) : null;
   const tono =
     gana <= 0
-      ? { bg: "#FBE4E2", fg: "#C0392B" }
+      ? { bg: "var(--color-rojo-suave)", fg: "var(--color-rojo-osc)" }
       : pct < INTERES_DEFECTO_PCT - 0.05
-        ? { bg: "#FDF3E2", fg: "#B9770E" }
-        : { bg: "#E4F5EC", fg: "#157A50" };
+        ? { bg: "var(--color-ambar-suave)", fg: "var(--color-ambar-osc)" }
+        : { bg: "var(--color-verde-suave)", fg: "var(--color-verde-osc)" };
   return (
     <div
-      className="flex flex-col gap-1 rounded-[11px] px-3 py-2"
+      className="flex flex-col gap-1 rounded-[12px] px-3 py-2"
       style={{ background: tono.bg }}
     >
       <span className="text-[12px] font-extrabold tabular-nums" style={{ color: tono.fg }}>

@@ -24,7 +24,7 @@ import type {
 } from "@/lib/data/tienda";
 
 const FRECUENCIAS: FrecuenciaProducto[] = ["diario", "semanal", "quincenal", "mensual"];
-const INPUT = "rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[16px] outline-none focus:border-azul";
+const INPUT = "rounded-[12px] border border-borde bg-tarjeta px-3 py-2 text-[16px] outline-none focus:border-azul";
 
 /** Opción de zona para el dropdown de "precio por segmento". */
 export type ZonaOpcion = { id: string; nombre: string };
@@ -119,10 +119,10 @@ function Productos({ productos, categorias, zonas }: { productos: Producto[]; ca
   return (
     <div className="flex flex-col gap-3">
       <button type="button" onClick={() => abrir()}
-        className="w-fit rounded-full bg-[#2453DC] px-4 py-2.5 text-[13px] font-bold text-white active:scale-[0.99]">
+        className="w-fit btn-primario px-4 py-2.5 text-[13px] font-bold text-white active:scale-[0.99]">
         + Nuevo producto
       </button>
-      {error && <p className="rounded-[10px] bg-[#FBE4E2] px-3 py-2 text-[12.5px] font-semibold text-[#C0392B]">{error}</p>}
+      {error && <p className="rounded-[12px] bg-[#FBE4E2] px-3 py-2 text-[12.5px] font-semibold text-[#C0392B]">{error}</p>}
       {productos.length === 0 && (
         <p className="rounded-[14px] border border-borde bg-tarjeta px-4 py-8 text-center text-[13px] font-medium text-gris">
           Todavía no hay productos. Creá el primero para que aparezca en el cartón de tus clientes.
@@ -276,7 +276,7 @@ function EditorProducto({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={url} alt="" className="h-full w-full object-contain p-1" />
               {i === 0 ? (
-                <span className="absolute left-1 top-1 rounded-full bg-[#2453DC] px-2 py-0.5 text-[9px] font-black text-white">PORTADA</span>
+                <span className="absolute left-1 top-1 btn-primario px-2 py-0.5 text-[9px] font-black text-white">PORTADA</span>
               ) : (
                 <button type="button" onClick={() => hacerPortada(i)}
                   className="absolute left-1 top-1 rounded-full bg-white/90 px-2 py-1 text-[11px] font-bold text-azul shadow">★ Portada</button>
@@ -369,7 +369,7 @@ function EditorProducto({
       </div>
       {/* Aviso money-safe: financiar sin interés o en 1 cuota suele ser un olvido. */}
       {f.precio > 0 && (f.interesPct === 0 || f.cuotas <= 1) && (
-        <div className="flex items-start gap-2 rounded-[10px] border border-[#F3D9A6] bg-[#FDF6E7] px-3 py-2 text-[11.5px] font-semibold text-[#8A5A00]">
+        <div className="flex items-start gap-2 rounded-[12px] border border-[#F3D9A6] bg-[#FDF6E7] px-3 py-2 text-[11.5px] font-semibold text-[#8A5A00]">
           <span aria-hidden>⚠️</span>
           <span>
             {f.cuotas <= 1
@@ -412,10 +412,10 @@ function EditorProducto({
       <div className="flex flex-col gap-1">
         <span className="text-[13px] font-semibold text-cuerpo">¿Quién lo despacha?</span>
         <div className="flex flex-wrap gap-2">
-          <label className={`flex cursor-pointer items-center gap-2 rounded-[10px] border px-3 py-2 text-[13px] font-semibold ${f.proveedor !== "curbe" ? "border-azul bg-azul-suave text-azul" : "border-borde bg-tarjeta text-cuerpo"}`}>
+          <label className={`flex cursor-pointer items-center gap-2 rounded-[12px] border px-3 py-2 text-[13px] font-semibold ${f.proveedor !== "curbe" ? "border-azul bg-azul-suave text-azul" : "border-borde bg-tarjeta text-cuerpo"}`}>
             <input type="radio" name="proveedor" checked={f.proveedor !== "curbe"} onChange={() => set("proveedor", null)} /> 🏠 Propio (lo lleva el cobrador)
           </label>
-          <label className={`flex cursor-pointer items-center gap-2 rounded-[10px] border px-3 py-2 text-[13px] font-semibold ${f.proveedor === "curbe" ? "border-azul bg-azul-suave text-azul" : "border-borde bg-tarjeta text-cuerpo"}`}>
+          <label className={`flex cursor-pointer items-center gap-2 rounded-[12px] border px-3 py-2 text-[13px] font-semibold ${f.proveedor === "curbe" ? "border-azul bg-azul-suave text-azul" : "border-borde bg-tarjeta text-cuerpo"}`}>
             <input type="radio" name="proveedor" checked={f.proveedor === "curbe"} onChange={() => set("proveedor", "curbe")} /> 💎 Curbe (lo despacha Curbe)
           </label>
         </div>
@@ -508,7 +508,7 @@ function PrecioPorSegmento({ productoId, zonas, baseInteres, baseCuotas }: { pro
       {cargando ? <span className="text-[12px] text-gris">Cargando…</span> : lista.length > 0 && (
         <div className="flex flex-col gap-1.5">
           {lista.map((s) => (
-            <div key={s.id} className="flex items-center justify-between rounded-[10px] border border-borde bg-tarjeta px-3 py-2">
+            <div key={s.id} className="flex items-center justify-between rounded-[12px] border border-borde bg-tarjeta px-3 py-2">
               <span className="text-[12.5px] font-semibold text-tinta">{etiqueta(s)}</span>
               <span className="flex items-center gap-3 text-[12px] font-medium text-gris">
                 {UYU(s.precio)}{s.interesPct > 0 ? ` · ${s.interesPct}%` : ""}{s.cuotas > 0 ? ` · ${s.cuotas}c` : ""}
@@ -519,7 +519,7 @@ function PrecioPorSegmento({ productoId, zonas, baseInteres, baseCuotas }: { pro
         </div>
       )}
 
-      <div className="flex flex-wrap items-end gap-2 rounded-[10px] border border-borde bg-tarjeta p-2.5">
+      <div className="flex flex-wrap items-end gap-2 rounded-[12px] border border-borde bg-tarjeta p-2.5">
         <label className="flex flex-col gap-1 text-[11px] font-bold text-gris uppercase">
           Segmentar por
           <select value={tipo} onChange={(e) => { setTipo(e.target.value as TipoSegmento); setValor(""); }} className={`${INPUT} w-32`}>
@@ -537,7 +537,7 @@ function PrecioPorSegmento({ productoId, zonas, baseInteres, baseCuotas }: { pro
         <input type="number" inputMode="numeric" placeholder="Precio" value={precio} onChange={(e) => setPrecio(e.target.value)} className={`${INPUT} w-24`} />
         <input type="number" inputMode="decimal" placeholder={`% (${baseInteres})`} value={interes} onChange={(e) => setInteres(e.target.value)} className={`${INPUT} w-20`} />
         <input type="number" inputMode="numeric" placeholder={`Cuot. (${baseCuotas})`} value={cuotas} onChange={(e) => setCuotas(e.target.value)} className={`${INPUT} w-24`} />
-        <button type="button" onClick={agregar} disabled={pend} className="rounded-full bg-[#2453DC] px-3 py-2.5 text-[12px] font-bold text-white">Fijar</button>
+        <button type="button" onClick={agregar} disabled={pend} className="btn-primario px-3 py-2.5 text-[12px] font-bold text-white">Fijar</button>
       </div>
       <span className="text-[11px] font-medium text-gris">Si dejás <b>% interés</b> o <b>cuotas</b> en blanco, se copia el valor ACTUAL del producto ({baseInteres}% · {baseCuotas} cuotas). Si después cambiás el interés base, esta regla no se actualiza sola.</span>
       {tipo === "zona" && zonas.length === 0 && (
@@ -602,7 +602,7 @@ function PrecioPorCliente({ productoId, baseInteres, baseCuotas }: { productoId:
       {cargando ? <span className="text-[12px] text-gris">Cargando…</span> : lista.length > 0 && (
         <div className="flex flex-col gap-1.5">
           {lista.map((p) => (
-            <div key={p.id} className="flex items-center justify-between rounded-[10px] border border-borde bg-tarjeta px-3 py-2">
+            <div key={p.id} className="flex items-center justify-between rounded-[12px] border border-borde bg-tarjeta px-3 py-2">
               <span className="text-[12.5px] font-semibold text-tinta">{p.clienteNombre}</span>
               <span className="flex items-center gap-3 text-[12px] font-medium text-gris">
                 {UYU(p.precio)}{p.interesPct > 0 ? ` · ${p.interesPct}%` : ""}{p.cuotas > 0 ? ` · ${p.cuotas}c` : ""}
@@ -613,11 +613,11 @@ function PrecioPorCliente({ productoId, baseInteres, baseCuotas }: { productoId:
         </div>
       )}
 
-      <div className="flex flex-col gap-2 rounded-[10px] border border-borde bg-tarjeta p-2.5">
+      <div className="flex flex-col gap-2 rounded-[12px] border border-borde bg-tarjeta p-2.5">
         <div className="relative">
           <input value={q} onChange={(e) => buscar(e.target.value)} placeholder="Buscar cliente por nombre…" className={`${INPUT} w-full`} />
           {resultados.length > 0 && !sel && (
-            <div className="absolute z-10 mt-1 max-h-44 w-full overflow-y-auto rounded-[10px] border border-borde bg-tarjeta shadow-lg">
+            <div className="absolute z-10 mt-1 max-h-44 w-full overflow-y-auto rounded-[12px] border border-borde bg-tarjeta shadow-lg">
               {resultados.map((c) => (
                 <button key={c.id} type="button" onClick={() => { setSel(c); setQ(c.nombre); setResultados([]); }}
                   className="block w-full px-3 py-2 text-left text-[13px] hover:bg-suave">{c.nombre}</button>
@@ -631,7 +631,7 @@ function PrecioPorCliente({ productoId, baseInteres, baseCuotas }: { productoId:
             <input type="number" inputMode="numeric" placeholder="Precio" value={precio} onChange={(e) => setPrecio(e.target.value)} className={`${INPUT} w-24`} />
             <input type="number" inputMode="decimal" placeholder={`% (${baseInteres})`} value={interes} onChange={(e) => setInteres(e.target.value)} className={`${INPUT} w-20`} />
             <input type="number" inputMode="numeric" placeholder={`Cuot. (${baseCuotas})`} value={cuotas} onChange={(e) => setCuotas(e.target.value)} className={`${INPUT} w-24`} />
-            <button type="button" onClick={agregar} disabled={pend} className="rounded-full bg-[#2453DC] px-3 py-2.5 text-[12px] font-bold text-white">Fijar</button>
+            <button type="button" onClick={agregar} disabled={pend} className="btn-primario px-3 py-2.5 text-[12px] font-bold text-white">Fijar</button>
           </div>
         )}
         {sel && <span className="text-[11px] font-medium text-gris">En blanco = copia el valor actual del producto ({baseInteres}% · {baseCuotas} cuotas).</span>}
@@ -663,9 +663,9 @@ function Categorias({ categorias }: { categorias: CategoriaProducto[] }) {
     <div className="flex flex-col gap-3">
       <div className="flex gap-2">
         <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nueva categoría (ej. Electrodomésticos)" className={`${INPUT} flex-1`} />
-        <button type="button" onClick={crear} disabled={pend} className="rounded-full bg-[#2453DC] px-4 py-2 text-[13px] font-bold text-white">Agregar</button>
+        <button type="button" onClick={crear} disabled={pend} className="btn-primario px-4 py-2 text-[13px] font-bold text-white">Agregar</button>
       </div>
-      {error && <p className="rounded-[10px] bg-[#FBE4E2] px-3 py-2 text-[12.5px] font-semibold text-[#C0392B]">{error}</p>}
+      {error && <p className="rounded-[12px] bg-[#FBE4E2] px-3 py-2 text-[12.5px] font-semibold text-[#C0392B]">{error}</p>}
       <div className="flex flex-col gap-1.5">
         {categorias.map((c) => (
           <div key={c.id} className="flex items-center justify-between rounded-[12px] border border-borde bg-tarjeta px-3.5 py-2.5">
@@ -827,7 +827,7 @@ function LeadCard({ s, producto, esAdmin }: { s: SolicitudProducto; producto?: P
           <textarea
             value={nota} onChange={(e) => setNota(e.target.value)} rows={2} maxLength={200}
             placeholder="Ej: quedó de pasar el viernes; ofrecerle 12 cuotas."
-            className="rounded-[10px] border border-campo bg-tarjeta px-2.5 py-1.5 text-[16px] text-tinta outline-none focus:border-azul"
+            className="rounded-[12px] border border-campo bg-tarjeta px-2.5 py-1.5 text-[16px] text-tinta outline-none focus:border-azul"
           />
           <div className="flex gap-2">
             <button type="button" onClick={guardarNota} disabled={pend}
@@ -838,7 +838,7 @@ function LeadCard({ s, producto, esAdmin }: { s: SolicitudProducto; producto?: P
         </div>
       ) : (
         <button type="button" onClick={() => setEditaNota(true)}
-          className="flex items-start gap-1.5 rounded-[10px] bg-suave px-2.5 py-1.5 text-left text-[12px] font-medium text-cuerpo">
+          className="flex items-start gap-1.5 rounded-[12px] bg-suave px-2.5 py-1.5 text-left text-[12px] font-medium text-cuerpo">
           <span>📝</span>
           <span className={s.nota ? "" : "text-tenue"}>{s.nota || "Agregar una nota…"}</span>
         </button>
@@ -908,7 +908,7 @@ function LeadCard({ s, producto, esAdmin }: { s: SolicitudProducto; producto?: P
 
               {/* Cliente sin cobrador: elegir uno acá, sino la venta queda fuera de ruta. */}
               {faltaCobrador && datos && (
-                <label className="flex flex-col gap-1 rounded-[10px] border border-[#F0C98A] bg-[#FFF7E8] p-2.5">
+                <label className="flex flex-col gap-1 rounded-[12px] border border-[#F0C98A] bg-[#FFF7E8] p-2.5">
                   <span className="text-[11px] font-bold text-[#8A6D1E]">⚠️ Este cliente no tiene cobrador · elegí quién lo va a cobrar</span>
                   <select value={cobradorSel} onChange={(e) => setCobradorSel(e.target.value)}
                     className="rounded-[8px] border border-campo bg-tarjeta px-2 py-2 text-[16px] outline-none focus:border-azul">

@@ -38,7 +38,7 @@ export function BajaUsuario({
           type="button"
           disabled={pend}
           onClick={() => aplicar(true)}
-          className="rounded-[10px] bg-verde-osc px-4 py-2.5 text-[13px] font-extrabold text-white disabled:opacity-50"
+          className="rounded-[12px] bg-verde-osc px-4 py-2.5 text-[13px] font-extrabold text-white disabled:opacity-50"
         >
           {pend ? "Reactivando…" : "Reactivar acceso"}
         </button>
@@ -53,7 +53,7 @@ export function BajaUsuario({
   return (
     <div className="flex flex-col gap-1.5">
       {confirmar ? (
-        <div className="flex flex-col gap-2 rounded-[10px] bg-rojo-suave p-3">
+        <div className="flex flex-col gap-2 rounded-[12px] bg-rojo-suave p-3">
           <span className="text-[12.5px] font-bold text-rojo-osc">
             Vas a dar de baja a {nombre}. Pierde el acceso al instante y no puede volver a entrar hasta que lo reactives.
           </span>
@@ -65,7 +65,7 @@ export function BajaUsuario({
               type="button"
               disabled={pend}
               onClick={() => aplicar(false)}
-              className="rounded-[10px] bg-rojo-osc px-3.5 py-1.5 text-[12.5px] font-bold text-white disabled:opacity-50"
+              className="rounded-[12px] bg-rojo-osc px-3.5 py-1.5 text-[12.5px] font-bold text-white disabled:opacity-50"
             >
               {pend ? "Dando de baja…" : "Sí, dar de baja"}
             </button>
@@ -76,7 +76,7 @@ export function BajaUsuario({
           type="button"
           disabled={pend}
           onClick={() => setConfirmar(true)}
-          className="rounded-[10px] border border-rojo-osc px-4 py-2.5 text-[13px] font-bold text-rojo-osc disabled:opacity-50"
+          className="rounded-[12px] border border-rojo-osc px-4 py-2.5 text-[13px] font-bold text-rojo-osc disabled:opacity-50"
         >
           Dar de baja (offboarding)
         </button>

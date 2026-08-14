@@ -40,7 +40,7 @@ export function AureoInsights({ insights, titulo = "Aureo ve hoy" }: { insights:
           return (
             <div
               key={i.id}
-              className="flex flex-col gap-1.5 rounded-[13px] p-3.5"
+              className="flex flex-col gap-1.5 rounded-[12px] p-3.5"
               style={{ background: c.fondo, border: `1px solid ${c.borde}` }}
             >
               <div className="flex items-start gap-2">

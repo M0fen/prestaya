@@ -166,7 +166,7 @@ export function FormCreditoNuevo({
       {/* Antecedentes: este cliente ya no está en la cartera, así que el gestor no
           tiene el cartón a la vista para acordarse de cómo pagó la vez pasada. */}
       {(moroso || reportado) && (
-        <p className="rounded-[10px] bg-[#FBE4E2] px-3 py-2 text-[12px] font-bold text-[#C0392B]">
+        <p className="rounded-[12px] bg-[#FBE4E2] px-3 py-2 text-[12px] font-bold text-[#C0392B]">
           {moroso && reportado
             ? "⛔ Cliente marcado como MOROSO y REPORTADO al buró."
             : moroso
@@ -177,12 +177,12 @@ export function FormCreditoNuevo({
       )}
 
       {conHistorial ? (
-        <p className="rounded-[10px] bg-[#EAF0FF] px-3 py-2 text-[12px] font-semibold text-[#1E47C8]">
+        <p className="rounded-[12px] bg-[#EAF0FF] px-3 py-2 text-[12px] font-semibold text-[#1E47C8]">
           Su último crédito fue de {UYU(base!.monto)} en {base!.totalDias} cuotas
           {tasaHistorica != null ? ` (interés ${tasaHistorica}%)` : ""}. Se mantienen esas condiciones.
         </p>
       ) : (
-        <p className="rounded-[10px] bg-[#FDF3E2] px-3 py-2 text-[12px] font-semibold text-[#8A6D1E]">
+        <p className="rounded-[12px] bg-[#FDF3E2] px-3 py-2 text-[12px] font-semibold text-[#8A6D1E]">
           Es el <b>primer crédito</b> de este cliente: no hay historial del que arrastrar la tasa,
           así que el interés se define acá.
         </p>
@@ -196,7 +196,7 @@ export function FormCreditoNuevo({
             setCobradorId(e.target.value);
             setConfirmar(false);
           }}
-          className="rounded-[10px] border border-borde bg-tarjeta px-3 py-2.5 text-[16px] font-semibold text-tinta outline-none focus:border-azul"
+          className="rounded-[12px] border border-borde bg-tarjeta px-3 py-2.5 text-[16px] font-semibold text-tinta outline-none focus:border-azul"
         >
           {cobradores.map((c) => (
             <option key={c.id} value={c.id}>{c.nombre}</option>
@@ -216,7 +216,7 @@ export function FormCreditoNuevo({
               setMonto(e.target.value);
               setConfirmar(false);
             }}
-            className="rounded-[10px] border border-borde bg-tarjeta px-3 py-2.5 text-[16px] font-semibold outline-none focus:border-azul"
+            className="rounded-[12px] border border-borde bg-tarjeta px-3 py-2.5 text-[16px] font-semibold outline-none focus:border-azul"
           />
         </label>
         <label className="flex flex-col gap-1">
@@ -230,7 +230,7 @@ export function FormCreditoNuevo({
               setDias(e.target.value);
               setConfirmar(false);
             }}
-            className="rounded-[10px] border border-borde bg-tarjeta px-3 py-2.5 text-[16px] font-semibold outline-none focus:border-azul"
+            className="rounded-[12px] border border-borde bg-tarjeta px-3 py-2.5 text-[16px] font-semibold outline-none focus:border-azul"
           />
           <div className="mt-1 flex gap-2">
             {PLAZOS.map((p) => (
@@ -265,7 +265,7 @@ export function FormCreditoNuevo({
               setInteres(e.target.value);
               setConfirmar(false);
             }}
-            className="rounded-[10px] border border-borde bg-tarjeta px-3 py-2.5 text-[16px] font-semibold outline-none focus:border-azul"
+            className="rounded-[12px] border border-borde bg-tarjeta px-3 py-2.5 text-[16px] font-semibold outline-none focus:border-azul"
           />
         </label>
       )}
@@ -292,7 +292,7 @@ export function FormCreditoNuevo({
       </label>
 
       {valido && cuota > 0 && (
-        <div className="flex items-center justify-between rounded-[10px] bg-tarjeta px-3 py-2 text-[12.5px]">
+        <div className="flex items-center justify-between rounded-[12px] bg-tarjeta px-3 py-2 text-[12.5px]">
           <span className="font-medium text-gris">
             Cuota <b className="text-tinta">{UYU(cuota)}</b>
           </span>
@@ -304,7 +304,7 @@ export function FormCreditoNuevo({
       {/* La tasa heredada era basura del import (tasa <1%): el crédito nace al
           interés del negocio, y eso se dice ANTES de que el gestor lo cante. */}
       {valido && baseRota && (
-        <p className="rounded-[10px] bg-ambar-suave px-3 py-2 text-[11.5px] leading-[1.45] font-semibold text-ambar-osc">
+        <p className="rounded-[12px] bg-ambar-suave px-3 py-2 text-[11.5px] leading-[1.45] font-semibold text-ambar-osc">
           El crédito anterior vino de Disapp sin interés real (tasa menor al 1%). Este crédito
           nuevo sale al <b>{INTERES_DEFECTO_PCT}%</b> del negocio — la cuota de arriba ya lo
           incluye.
@@ -313,7 +313,7 @@ export function FormCreditoNuevo({
 
       {(superaCap || evalu?.excedePct) && (
         <p
-          className={`rounded-[10px] px-3 py-2 text-[12px] font-semibold ${
+          className={`rounded-[12px] px-3 py-2 text-[12px] font-semibold ${
             bloqueado ? "bg-[#FBE4E2] text-[#C0392B]" : "bg-[#FDF3E2] text-[#8A6D1E]"
           }`}
         >
@@ -324,7 +324,7 @@ export function FormCreditoNuevo({
       )}
 
       {error && (
-        <p className="rounded-[10px] bg-[#FBE4E2] px-3 py-2 text-[12px] font-semibold text-[#C0392B]">{error}</p>
+        <p className="rounded-[12px] bg-[#FBE4E2] px-3 py-2 text-[12px] font-semibold text-[#C0392B]">{error}</p>
       )}
 
       <div className="flex gap-2">
@@ -345,7 +345,7 @@ export function FormCreditoNuevo({
             type="button"
             onClick={() => setConfirmar(true)}
             disabled={!valido || ocupado || bloqueado || cuota <= 0}
-            className="min-h-[44px] flex-1 rounded-full bg-[#2453DC] px-4 text-[13px] font-bold text-white disabled:opacity-40"
+            className="min-h-[44px] flex-1 btn-primario px-4 text-[13px] font-bold text-white disabled:opacity-40"
           >
             {bloqueado ? "No permitido" : "Revisar y dar de alta"}
           </button>

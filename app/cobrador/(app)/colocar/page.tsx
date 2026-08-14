@@ -109,7 +109,7 @@ export default async function ColocarPage({
             key={m.id}
             href={`/cobrador/colocar?modo=${m.id}`}
             className={`min-h-11 flex-1 rounded-full px-3 text-center text-[13px] font-bold leading-[44px] ${
-              modo === m.id ? "bg-[#1E47C8] text-white" : "bg-[#EEF3FF] text-azul"
+              modo === m.id ? "bg-[#1E47C8] text-white" : "bg-azul-suave text-azul"
             }`}
           >
             {m.label}
@@ -124,7 +124,7 @@ export default async function ColocarPage({
         clienteFoco={clienteFoco ?? null}
       />
 
-      <p className="rounded-[13px] border border-[#F0E3C8] bg-[#FDF8EC] px-3.5 py-3 text-[11.5px] leading-[1.5] font-medium text-[#7A5B10]">
+      <p className="rounded-[12px] border border-ambar-suave bg-ambar-suave px-3.5 py-3 text-[11.5px] leading-[1.5] font-medium text-ambar-osc">
         El crédito queda creado al instante y con tu nombre. Si ponés más de lo que permite el
         historial del cliente, el mismo botón le manda el pedido a tu supervisor — no entregues
         la plata hasta que lo aprueben.

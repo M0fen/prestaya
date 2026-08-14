@@ -7,7 +7,7 @@ import Link from "next/link";
 
 export default function NotFound() {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-[18px] border border-[#ECEFF8] bg-white px-6 py-10 text-center">
+    <div className="flex flex-col items-center gap-3 rounded-[18px] border border-linea bg-tarjeta px-6 py-10 text-center">
       <span className="text-[34px]" aria-hidden="true">🧭</span>
       <h1 className="m-0 text-[17px] font-extrabold tracking-[-0.01em] text-tinta">
         Ese cliente ya no está en tu ruta
@@ -18,7 +18,7 @@ export default function NotFound() {
       </p>
       <Link
         href="/cobrador"
-        className="mt-1 rounded-full bg-[#2453DC] px-5 py-2.5 text-[14px] font-bold text-white active:scale-[0.99]"
+        className="mt-1 btn-primario px-5 py-2.5 text-[14px] font-bold text-white active:scale-[0.99]"
       >
         Volver a mi ruta
       </Link>

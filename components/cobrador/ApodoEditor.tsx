@@ -29,7 +29,7 @@ export function ApodoEditor({ apodoActual }: { apodoActual: string | null }) {
     });
 
   return (
-    <div className="flex flex-col gap-1.5 rounded-[14px] border border-[#E6EAF4] bg-white p-3.5">
+    <div className="flex flex-col gap-1.5 rounded-[14px] border border-borde bg-tarjeta p-3.5">
       <div className="flex items-center justify-between gap-2">
         <div className="flex flex-col">
           <span className="text-[12.5px] font-bold text-tinta">🪪 Tu sobrenombre</span>
@@ -46,7 +46,7 @@ export function ApodoEditor({ apodoActual }: { apodoActual: string | null }) {
               setAbierto(true);
               setAviso(null);
             }}
-            className="flex-shrink-0 rounded-full bg-[#EEF3FF] px-3.5 py-2 text-[12px] font-bold text-azul active:scale-95"
+            className="flex-shrink-0 rounded-full bg-azul-suave px-3.5 py-2 text-[12px] font-bold text-azul active:scale-95"
           >
             {apodoActual ? "Cambiar" : "Elegir"}
           </button>
@@ -61,7 +61,7 @@ export function ApodoEditor({ apodoActual }: { apodoActual: string | null }) {
             maxLength={24}
             placeholder="Ej. El Colo 😎"
             autoFocus
-            className="min-h-11 min-w-0 flex-1 rounded-[10px] border border-[#DCE3F4] bg-white px-3 text-[16px] outline-none focus:border-azul"
+            className="min-h-11 min-w-0 flex-1 rounded-[12px] border border-campo bg-tarjeta px-3 text-[16px] outline-none focus:border-azul"
           />
           <button
             type="button"
@@ -74,7 +74,7 @@ export function ApodoEditor({ apodoActual }: { apodoActual: string | null }) {
         </div>
       )}
       {aviso && (
-        <p className={`text-[11.5px] font-semibold ${aviso.ok ? "text-[#157A50]" : "text-[#C0392B]"}`}>
+        <p className={`text-[11.5px] font-semibold ${aviso.ok ? "text-verde-osc" : "text-rojo-osc"}`}>
           {aviso.texto}
         </p>
       )}

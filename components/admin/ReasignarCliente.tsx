@@ -49,7 +49,7 @@ export function ReasignarCliente({
                 else router.refresh();
               });
             }}
-            className="rounded-[10px] border border-[#DCE3F1] bg-tarjeta px-2.5 py-1.5 text-[12.5px] font-semibold text-tinta outline-none focus:border-azul"
+            className="rounded-[12px] border border-[#DCE3F1] bg-tarjeta px-2.5 py-1.5 text-[12.5px] font-semibold text-tinta outline-none focus:border-azul"
           >
             <option value="">Reasignar a…</option>
             {candidatos

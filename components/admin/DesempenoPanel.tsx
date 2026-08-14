@@ -69,7 +69,7 @@ export function DesempenoPanel({
     { capital: 0, recaudo: 0, cobros: 0, creditos: 0 },
   );
 
-  const sel = "rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[13px] outline-none focus:border-azul";
+  const sel = "rounded-[12px] border border-borde bg-tarjeta px-3 py-2 text-[13px] outline-none focus:border-azul";
 
   return (
     <section className="flex flex-col gap-3 rounded-[16px] border border-borde bg-tarjeta p-4">

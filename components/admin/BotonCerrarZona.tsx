@@ -44,7 +44,7 @@ export function BotonCerrarZona({
         type="button"
         onClick={cerrar}
         disabled={pending}
-        className="rounded-[10px] bg-[#2453DC] px-3.5 py-2 text-[12.5px] font-bold text-white disabled:opacity-60"
+        className="btn-primario px-3.5 py-2 text-[12.5px] font-bold text-white disabled:opacity-60"
       >
         {pending ? "Cerrando…" : esSinZona ? "Cerrar Caja del día" : "Cerrar caja de la zona"}
       </button>

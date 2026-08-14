@@ -40,7 +40,7 @@ export function NoUsaApp({
 
   if (marcado) {
     return (
-      <div className="flex flex-col gap-2 rounded-[14px] bg-[#F3F5FB] px-4 py-3">
+      <div className="flex flex-col gap-2 rounded-[14px] bg-app px-4 py-3">
         <span className="text-[12.5px] font-bold text-gris">
           ○ Este cliente no usa la app{motivo ? ` · ${motivo}` : ""}
         </span>
@@ -55,7 +55,7 @@ export function NoUsaApp({
         >
           {pendiente ? "…" : "Consiguió teléfono · volver a intentar"}
         </button>
-        {error && <span className="text-[11.5px] font-semibold text-[#C0392B]">{error}</span>}
+        {error && <span className="text-[11.5px] font-semibold text-rojo-osc">{error}</span>}
       </div>
     );
   }
@@ -73,7 +73,7 @@ export function NoUsaApp({
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-[14px] border border-[#DCE3F4] bg-white p-3.5">
+    <div className="flex flex-col gap-2 rounded-[14px] border border-campo bg-tarjeta p-3.5">
       <span className="text-[12.5px] font-bold text-tinta">¿Por qué no la va a usar?</span>
       <div className="flex flex-wrap gap-2">
         {MOTIVOS_NO_APP.map((m) => (
@@ -82,7 +82,7 @@ export function NoUsaApp({
             type="button"
             disabled={pendiente}
             onClick={() => guardar(m, true)}
-            className="min-h-11 rounded-full bg-[#F4F6FB] px-3.5 text-[12.5px] font-bold text-tinta active:scale-95 disabled:opacity-50"
+            className="min-h-11 rounded-full bg-app px-3.5 text-[12.5px] font-bold text-tinta active:scale-95 disabled:opacity-50"
           >
             {m}
           </button>
@@ -95,7 +95,7 @@ export function NoUsaApp({
       >
         Cancelar
       </button>
-      {error && <span className="text-[11.5px] font-semibold text-[#C0392B]">{error}</span>}
+      {error && <span className="text-[11.5px] font-semibold text-rojo-osc">{error}</span>}
     </div>
   );
 }

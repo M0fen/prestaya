@@ -106,24 +106,24 @@ export function RecompensasManager({ recompensas }: { recompensas: RecompensaAdm
         <input
           value={titulo} onChange={(e) => setTitulo(e.target.value)} maxLength={60}
           placeholder="Título (ej. Racha de 15)"
-          className="rounded-[10px] border border-borde px-3 py-2 text-[13.5px] outline-none focus:border-azul"
+          className="rounded-[12px] border border-borde px-3 py-2 text-[13.5px] outline-none focus:border-azul"
         />
         <input
           value={premio} onChange={(e) => setPremio(e.target.value)} maxLength={120}
           placeholder="Premio (ej. Descuento en tu próximo crédito)"
-          className="rounded-[10px] border border-borde px-3 py-2 text-[13.5px] outline-none focus:border-azul"
+          className="rounded-[12px] border border-borde px-3 py-2 text-[13.5px] outline-none focus:border-azul"
         />
         <div className="flex gap-2">
           <select
             value={hito} onChange={(e) => setHito(e.target.value as HitoTipo)}
-            className="flex-1 rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[13.5px] outline-none focus:border-azul"
+            className="flex-1 rounded-[12px] border border-borde bg-tarjeta px-3 py-2 text-[13.5px] outline-none focus:border-azul"
           >
             {HITOS.map((h) => <option key={h.id} value={h.id}>{h.label}</option>)}
           </select>
           {usaValor && (
             <input
               inputMode="numeric" value={valor} onChange={(e) => setValor(e.target.value.replace(/[^\d]/g, ""))}
-              className="w-20 rounded-[10px] border border-borde px-3 py-2 text-center text-[14px] tabular-nums outline-none focus:border-azul"
+              className="w-20 rounded-[12px] border border-borde px-3 py-2 text-center text-[14px] tabular-nums outline-none focus:border-azul"
               aria-label="Valor del hito"
             />
           )}
@@ -132,7 +132,7 @@ export function RecompensasManager({ recompensas }: { recompensas: RecompensaAdm
           <button
             type="button" onClick={crear}
             disabled={pendiente || !titulo.trim() || !premio.trim()}
-            className="rounded-full bg-[#2453DC] px-4 py-2 text-[13px] font-bold text-white disabled:opacity-50"
+            className="btn-primario px-4 py-2 text-[13px] font-bold text-white disabled:opacity-50"
           >
             {pendiente ? "…" : "Agregar recompensa"}
           </button>

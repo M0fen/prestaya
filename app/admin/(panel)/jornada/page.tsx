@@ -613,7 +613,7 @@ function Apertura({
         </div>
         <Link
           href="/admin/mora"
-          className="flex items-center justify-center gap-1.5 rounded-[12px] bg-[#2453DC] px-4 py-2.5 text-[13px] font-bold text-white active:scale-[0.99]"
+          className="flex items-center justify-center gap-1.5 btn-primario px-4 py-2.5 text-[13px] font-bold text-white active:scale-[0.99]"
         >
           Ver mora y avisar a cobradores →
         </Link>
@@ -1053,7 +1053,7 @@ function HerramientasDia({ hrefs }: { hrefs: Set<string> }) {
             href={t.href}
             className="flex flex-col items-center gap-1.5 rounded-[14px] border border-borde bg-suave py-3 transition-transform hover:bg-tarjeta active:scale-95"
           >
-            <span className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-azul-suave text-azul">
+            <span className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-azul-suave text-azul">
               <Icono name={ICONO_NAV[t.href] ?? "menu"} className="h-[18px] w-[18px]" />
             </span>
             <span className="text-[11px] font-bold text-cuerpo">{t.label}</span>
@@ -1126,7 +1126,7 @@ function DatoGrande({
         ? "var(--color-azul)"
         : "var(--color-rojo-osc)";
   return (
-    <div className="flex flex-col gap-0.5 rounded-[13px] border border-borde bg-tarjeta px-3.5 py-3">
+    <div className="flex flex-col gap-0.5 rounded-[12px] border border-borde bg-tarjeta px-3.5 py-3">
       <span className="text-[11px] font-bold uppercase tracking-wide text-gris">{etiqueta}</span>
       <span className="text-[21px] font-extrabold tabular-nums" style={{ color: fg }}>
         {valor}
@@ -1138,7 +1138,7 @@ function DatoGrande({
 
 function TotalCierre({ etiqueta, valor, color }: { etiqueta: string; valor: string; color: string }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-[13px] border border-borde bg-tarjeta p-3 text-center">
+    <div className="flex flex-col gap-0.5 rounded-[12px] border border-borde bg-tarjeta p-3 text-center">
       <span className="text-[10.5px] font-bold uppercase tracking-wide text-gris">{etiqueta}</span>
       <span className="text-[17px] font-extrabold tabular-nums" style={{ color }}>
         {valor}
@@ -1162,7 +1162,7 @@ function Siguiente({ href, texto }: { href: string; texto: string }) {
   return (
     <Link
       href={href}
-      className="flex items-center justify-center gap-1.5 rounded-[13px] border border-dashed border-borde bg-suave px-4 py-2.5 text-[12.5px] font-bold text-gris hover:bg-tarjeta"
+      className="flex items-center justify-center gap-1.5 rounded-[12px] border border-dashed border-borde bg-suave px-4 py-2.5 text-[12.5px] font-bold text-gris hover:bg-tarjeta"
     >
       {texto} →
     </Link>
@@ -1176,11 +1176,11 @@ function DateBar({ fechaYmd, hoyYmd }: { fechaYmd: string; hoyYmd: string }) {
   const esHoy = fechaYmd === hoyYmd;
   const puedeAvanzar = next <= hoyYmd; // nunca al futuro
   const flecha =
-    "flex h-9 w-9 items-center justify-center rounded-[11px] border border-borde bg-tarjeta text-[16px] font-bold text-cuerpo hover:bg-suave";
+    "flex h-9 w-9 items-center justify-center rounded-[12px] border border-borde bg-tarjeta text-cuerpo hover:bg-suave";
   return (
     <section className="flex flex-wrap items-center gap-2">
       <Link href={`/admin/jornada?fecha=${prev}`} className={flecha} aria-label="Día anterior">
-        ‹
+        <Icono name="chevron" className="h-4 w-4 rotate-180" />
       </Link>
       <form method="get" action="/admin/jornada" className="flex items-center gap-2">
         <input
@@ -1188,25 +1188,25 @@ function DateBar({ fechaYmd, hoyYmd }: { fechaYmd: string; hoyYmd: string }) {
           name="fecha"
           defaultValue={fechaYmd}
           max={hoyYmd}
-          className="h-9 rounded-[11px] border border-borde bg-tarjeta px-3 text-[16px] font-semibold text-tinta outline-none focus:border-azul"
+          className="h-9 rounded-[12px] border border-borde bg-tarjeta px-3 text-[16px] font-semibold text-tinta outline-none focus:border-azul"
         />
-        <button type="submit" className="h-9 rounded-[11px] bg-[#2453DC] px-3.5 text-[13px] font-bold text-white">
+        <button type="submit" className="h-9 btn-primario px-3.5 text-[13px] font-bold text-white">
           Ver
         </button>
       </form>
       {puedeAvanzar ? (
         <Link href={`/admin/jornada?fecha=${next}`} className={flecha} aria-label="Día siguiente">
-          ›
+          <Icono name="chevron" className="h-4 w-4" />
         </Link>
       ) : (
         <span className={`${flecha} cursor-not-allowed opacity-40`} aria-hidden>
-          ›
+          <Icono name="chevron" className="h-4 w-4" />
         </span>
       )}
       {!esHoy && (
         <Link
           href="/admin/jornada"
-          className="acto-activo flex h-9 items-center justify-center rounded-[11px] border border-azul px-3.5 text-[13px] font-bold text-azul"
+          className="acto-activo flex h-9 items-center justify-center rounded-[12px] border border-azul px-3.5 text-[13px] font-bold text-azul"
         >
           Hoy
         </Link>

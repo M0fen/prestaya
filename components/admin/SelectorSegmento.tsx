@@ -67,7 +67,7 @@ export function SelectorSegmento({
       <button
         type="button"
         onClick={() => onChange({})}
-        className={`flex items-center gap-2 rounded-[10px] border px-3 py-2 text-left ${
+        className={`flex items-center gap-2 rounded-[12px] border px-3 py-2 text-left ${
           esTodos ? "border-[#C7D2EC] bg-azul-suave" : "border-borde bg-tarjeta hover:bg-suave"
         }`}
       >

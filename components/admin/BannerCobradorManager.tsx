@@ -136,7 +136,7 @@ export function BannerCobradorManager({ banners }: { banners: BannerCobrador[] }
   };
 
   const inputCls =
-    "w-full rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[13px] text-tinta outline-none focus:border-azul";
+    "w-full rounded-[12px] border border-borde bg-tarjeta px-3 py-2 text-[13px] text-tinta outline-none focus:border-azul";
 
   return (
     <section className="flex flex-col gap-2.5 rounded-[16px] border border-borde bg-tarjeta p-4">
@@ -151,7 +151,7 @@ export function BannerCobradorManager({ banners }: { banners: BannerCobrador[] }
           <button
             type="button"
             onClick={() => setAbierto(true)}
-            className="rounded-full bg-[#2453DC] px-3.5 py-2 text-[12.5px] font-bold text-white active:scale-[0.99]"
+            className="btn-primario px-3.5 py-2 text-[12.5px] font-bold text-white active:scale-[0.99]"
           >
             + Nuevo
           </button>
@@ -169,11 +169,11 @@ export function BannerCobradorManager({ banners }: { banners: BannerCobrador[] }
             onChange={(e) => setTexto(e.target.value)}
             rows={2}
             placeholder="Mensaje o descripción de la oferta. Ej: Perfumes y oro 18k de curbe, en cuotas."
-            className="resize-none rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[13.5px] outline-none focus:border-azul"
+            className="resize-none rounded-[12px] border border-borde bg-tarjeta px-3 py-2 text-[13.5px] outline-none focus:border-azul"
           />
 
           {/* Bloque OFERTA (opcional) */}
-          <details className="rounded-[10px] border border-borde bg-tarjeta">
+          <details className="rounded-[12px] border border-borde bg-tarjeta">
             <summary className="cursor-pointer px-3 py-2 text-[12.5px] font-bold text-azul">
               🎁 Convertir en oferta para compartir (opcional)
             </summary>
@@ -193,7 +193,7 @@ export function BannerCobradorManager({ banners }: { banners: BannerCobrador[] }
                   onChange={(e) => setImagenUrl(e.target.value)}
                 />
                 <label
-                  className={`flex-shrink-0 cursor-pointer rounded-[10px] border border-borde px-3 py-2 text-[12.5px] font-bold text-azul hover:bg-suave ${subiendo ? "opacity-50" : ""}`}
+                  className={`flex-shrink-0 cursor-pointer rounded-[12px] border border-borde px-3 py-2 text-[12.5px] font-bold text-azul hover:bg-suave ${subiendo ? "opacity-50" : ""}`}
                 >
                   {subiendo ? "Subiendo…" : "📷 Subir"}
                   <input
@@ -261,7 +261,7 @@ export function BannerCobradorManager({ banners }: { banners: BannerCobrador[] }
             <select
               value={horas}
               onChange={(e) => setHoras(Number(e.target.value))}
-              className="w-fit rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[12.5px] outline-none focus:border-azul"
+              className="w-fit rounded-[12px] border border-borde bg-tarjeta px-3 py-2 text-[12.5px] outline-none focus:border-azul"
             >
               {VENCE.map((v) => (
                 <option key={v.horas} value={v.horas}>
@@ -338,7 +338,7 @@ export function BannerCobradorManager({ banners }: { banners: BannerCobrador[] }
             return (
               <div
                 key={b.id}
-                className="flex flex-wrap items-center gap-2 rounded-[10px] border px-3 py-2"
+                className="flex flex-wrap items-center gap-2 rounded-[12px] border px-3 py-2"
                 style={oferta ? { background: "#FBF6E9", borderColor: "#EAD9AE" } : { background: t.bg, borderColor: t.bd }}
               >
                 <span

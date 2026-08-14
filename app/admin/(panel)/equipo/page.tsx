@@ -80,9 +80,9 @@ export default async function EquipoPage({
               name="q"
               defaultValue={q ?? ""}
               placeholder="Nombre, email o documento…"
-              className="rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[13px] outline-none focus:border-azul"
+              className="rounded-[12px] border border-borde bg-tarjeta px-3 py-2 text-[13px] outline-none focus:border-azul"
             />
-            <button type="submit" className="rounded-[10px] bg-[#2453DC] px-3.5 py-2 text-[12.5px] font-bold text-white">
+            <button type="submit" className="btn-primario px-3.5 py-2 text-[12.5px] font-bold text-white">
               Buscar
             </button>
           </form>

@@ -62,7 +62,7 @@ export function GestionZonas({
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
               placeholder="Ej. Centro, Cerro, Ruta 8…"
-              className="rounded-[10px] border border-[#DCE3F1] px-3 py-2 text-[13.5px] font-medium text-tinta outline-none focus:border-azul"
+              className="rounded-[12px] border border-[#DCE3F1] px-3 py-2 text-[13.5px] font-medium text-tinta outline-none focus:border-azul"
             />
           </label>
           <div className="flex flex-col gap-1">
@@ -87,7 +87,7 @@ export function GestionZonas({
               ejecutar(crearZonaAction({ nombre, color }));
               setNombre("");
             }}
-            className="rounded-[10px] bg-azul px-4 py-2 text-[13px] font-bold text-white disabled:opacity-40"
+            className="rounded-[12px] bg-azul px-4 py-2 text-[13px] font-bold text-white disabled:opacity-40"
           >
             Crear zona
           </button>
@@ -152,7 +152,7 @@ export function GestionZonas({
                   onChange={(e) =>
                     ejecutar(setZonaCobradorAction({ cobradorId: c.id, zonaId: e.target.value || null }))
                   }
-                  className="rounded-[10px] border border-[#DCE3F1] bg-tarjeta px-2.5 py-1.5 text-[12.5px] font-semibold text-tinta outline-none focus:border-azul"
+                  className="rounded-[12px] border border-[#DCE3F1] bg-tarjeta px-2.5 py-1.5 text-[12.5px] font-semibold text-tinta outline-none focus:border-azul"
                 >
                   <option value="">Sin zona</option>
                   {zonas.map((z) => (

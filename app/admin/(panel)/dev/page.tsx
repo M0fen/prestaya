@@ -107,7 +107,7 @@ export default async function DevPage() {
           <Kpi label="Desarrolladores" valor={devs} />
         </div>
         {demo != null && demo > 0 && (
-          <div className="mt-3 rounded-[10px] bg-[#FFF8E6] px-3 py-2 text-[12px] font-bold text-[#8A6D1E]">
+          <div className="mt-3 rounded-[12px] bg-[#FFF8E6] px-3 py-2 text-[12px] font-bold text-[#8A6D1E]">
             🧪 Hay {demo} clientes DEMO cargados. Borralos con:
             <code className="ml-1 font-mono">scripts/seed-demo-operador.mjs --limpiar</code>
           </div>
@@ -188,7 +188,7 @@ function Bloque({ titulo, children }: { titulo: string; children: React.ReactNod
 
 function Fila({ label, ok, okTxt, noTxt }: { label: string; ok: boolean; okTxt: string; noTxt: string }) {
   return (
-    <div className="flex items-center justify-between gap-2 rounded-[10px] bg-suave px-3 py-2">
+    <div className="flex items-center justify-between gap-2 rounded-[12px] bg-suave px-3 py-2">
       <span className="text-[12.5px] font-semibold text-tinta">{label}</span>
       <span
         className="rounded-full px-2.5 py-0.5 text-[11px] font-bold"

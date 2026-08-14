@@ -51,7 +51,7 @@ export function NotasCliente({
   };
 
   return (
-    <div className="flex flex-col gap-2.5 rounded-[16px] bg-white p-3.5 shadow-sm">
+    <div className="flex flex-col gap-2.5 rounded-[16px] bg-tarjeta p-3.5 shadow-sm">
       <span className="text-[13px] font-bold text-tinta">Notas del cliente</span>
 
       <div className="flex items-end gap-2">
@@ -60,21 +60,21 @@ export function NotasCliente({
           onChange={(e) => setTexto(e.target.value)}
           rows={1}
           placeholder="Agregar una nota para el equipo…"
-          className="max-h-28 min-h-[40px] flex-1 resize-none rounded-[12px] border border-[#DCE3F4] px-3 py-2 text-[13.5px] outline-none focus:border-azul"
+          className="max-h-28 min-h-[40px] flex-1 resize-none rounded-[12px] border border-campo px-3 py-2 text-[13.5px] outline-none focus:border-azul"
         />
         <button
           type="button"
           onClick={agregar}
           disabled={pendiente || texto.trim().length === 0}
-          className="h-[40px] flex-shrink-0 rounded-full bg-[#2453DC] px-4 text-[13px] font-bold text-white disabled:opacity-40"
+          className="h-[40px] flex-shrink-0 btn-primario px-4 text-[13px] font-bold text-white disabled:opacity-40"
         >
           Guardar
         </button>
       </div>
-      {error && <span className="text-[11px] font-semibold text-[#C0392B]">{error}</span>}
+      {error && <span className="text-[11px] font-semibold text-rojo-osc">{error}</span>}
 
       {notas.length === 0 ? (
-        <p className="py-1 text-[12px] font-medium text-[#8A93AD]">
+        <p className="py-1 text-[12px] font-medium text-tenue">
           Sin notas todavía.
         </p>
       ) : (
@@ -82,12 +82,12 @@ export function NotasCliente({
           {notas.map((n) => {
             const puedeBorrar = puedeGestionar || n.autor_id === yoId;
             return (
-              <li key={n.id} className="rounded-[12px] bg-[#F7F9FD] px-3 py-2">
+              <li key={n.id} className="rounded-[12px] bg-suave px-3 py-2">
                 <p className="text-[13.5px] leading-snug whitespace-pre-wrap text-tinta">
                   {n.cuerpo}
                 </p>
                 <div className="mt-1 flex items-center justify-between">
-                  <span className="text-[11px] font-medium text-[#8A93AD]">
+                  <span className="text-[11px] font-medium text-tenue">
                     {n.autorNombre} · {fechaCorta(n.creado_en)}
                   </span>
                   {puedeBorrar && (
@@ -95,7 +95,7 @@ export function NotasCliente({
                       type="button"
                       onClick={() => borrar(n.id)}
                       disabled={pendiente}
-                      className="text-[11px] font-bold text-[#C0392B] disabled:opacity-40"
+                      className="text-[11px] font-bold text-rojo-osc disabled:opacity-40"
                     >
                       Borrar
                     </button>

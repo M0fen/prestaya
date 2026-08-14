@@ -10,7 +10,7 @@ import type { Recibo } from "@/lib/data/recibos";
 import type { Negocio } from "@/types/cartones";
 
 const input =
-  "rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[14px] text-tinta outline-none focus:border-azul";
+  "rounded-[12px] border border-borde bg-tarjeta px-3 py-2 text-[14px] text-tinta outline-none focus:border-azul";
 const CONCEPTOS = ["Comisión", "Sueldo", "Adelanto", "Viáticos", "Otro"];
 
 function fechaLarga(iso: string): string {
@@ -83,7 +83,7 @@ export function RecibosManager({
             <button
               type="button"
               onClick={() => window.print()}
-              className="rounded-full bg-[#2453DC] px-4 py-2 text-[13px] font-bold text-white"
+              className="btn-primario px-4 py-2 text-[13px] font-bold text-white"
             >
               🖨 Imprimir
             </button>

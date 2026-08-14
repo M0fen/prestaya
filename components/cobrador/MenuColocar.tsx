@@ -41,7 +41,7 @@ export function MenuColocar() {
       <button
         type="button"
         onClick={() => setAbierto(true)}
-        className="min-h-11 rounded-full bg-[#EEF3FF] px-3.5 text-[12.5px] font-bold text-azul active:scale-95"
+        className="min-h-11 rounded-full bg-azul-suave px-3.5 text-[12.5px] font-bold text-azul active:scale-95"
       >
         + Agregar
       </button>
@@ -53,10 +53,10 @@ export function MenuColocar() {
           role="presentation"
         >
           <div
-            className="flex w-full flex-col gap-2 rounded-t-[22px] bg-white p-4 pb-7"
+            className="flex w-full flex-col gap-2 rounded-t-[22px] bg-tarjeta p-4 pb-7"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mx-auto mb-1 h-1 w-10 rounded-full bg-[#DCE3F4]" aria-hidden="true" />
+            <div className="mx-auto mb-1 h-1 w-10 rounded-full bg-campo" aria-hidden="true" />
             <span className="mb-1 text-[15px] font-extrabold text-tinta">¿Qué querés hacer?</span>
 
             {OPCIONES.map((o) => (
@@ -64,7 +64,7 @@ export function MenuColocar() {
                 key={o.href}
                 href={o.href}
                 onClick={() => setAbierto(false)}
-                className="flex items-center gap-3 rounded-[14px] bg-[#F7F9FD] px-3.5 py-3.5 active:scale-[0.99]"
+                className="flex items-center gap-3 rounded-[14px] bg-suave px-3.5 py-3.5 active:scale-[0.99]"
               >
                 <span aria-hidden="true" className="text-[20px]">
                   {o.emoji}

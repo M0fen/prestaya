@@ -305,6 +305,14 @@ const PATHS: Record<string, React.ReactNode> = {
       <path d="m16 16 5 5" />
     </>
   ),
+  // Chevron (derecha). Para flechas de navegación: rotarlo con clases
+  // (`rotate-180` = izquierda, `rotate-90` = abajo) en vez de glifos de texto
+  // (▶ ‹ ›) que heredan métricas de fuente y no alinean igual en cada sitio.
+  chevron: (
+    <>
+      <path d="m9 5 7 7-7 7" />
+    </>
+  ),
 };
 
 /** Mapa href → ícono para la nav del panel (sidebar + launchpad). Cubre los ítems

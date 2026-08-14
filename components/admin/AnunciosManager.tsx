@@ -155,7 +155,7 @@ export function AnunciosManager({
   const estadoForm = estadoPublicacion({ activo: form.activo, desde: preview.fecha_inicio, hasta: preview.fecha_fin });
 
   const inputCls =
-    "w-full rounded-[10px] border border-borde px-3 py-2 text-[13px] text-tinta outline-none focus:border-azul";
+    "w-full rounded-[12px] border border-borde px-3 py-2 text-[13px] text-tinta outline-none focus:border-azul";
 
   return (
     <div className="flex flex-col gap-5">
@@ -223,7 +223,7 @@ export function AnunciosManager({
             <div className="flex items-center gap-2">
               <input className={`${inputCls} min-w-0 flex-1`} placeholder="URL de imagen (opcional) o subí una →"
                 value={form.imagenUrl ?? ""} onChange={(e) => set("imagenUrl", e.target.value)} />
-              <label className={`flex-shrink-0 cursor-pointer rounded-[10px] border border-borde px-3 py-2 text-[12.5px] font-bold text-azul hover:bg-suave ${subiendo ? "opacity-50" : ""}`}>
+              <label className={`flex-shrink-0 cursor-pointer rounded-[12px] border border-borde px-3 py-2 text-[12.5px] font-bold text-azul hover:bg-suave ${subiendo ? "opacity-50" : ""}`}>
                 {subiendo ? "Subiendo…" : "📷 Subir"}
                 <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="hidden"
                   disabled={subiendo}
@@ -305,9 +305,9 @@ export function AnunciosManager({
             <div key={a.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[14px] border border-borde bg-tarjeta p-3">
               {a.imagen_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={a.imagen_url} alt="" className="h-9 w-9 flex-shrink-0 rounded-[10px] object-cover" />
+                <img src={a.imagen_url} alt="" className="h-9 w-9 flex-shrink-0 rounded-[12px] object-cover" />
               ) : (
-                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[10px] bg-[#EEF3FF] text-[12px] font-black text-azul tabular-nums"
+                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[12px] bg-[#EEF3FF] text-[12px] font-black text-azul tabular-nums"
                   title="Prioridad (mayor = primero)">
                   {a.prioridad}
                 </span>

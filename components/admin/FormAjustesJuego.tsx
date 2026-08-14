@@ -53,7 +53,7 @@ export function FormAjustesJuego({
             value={a.juegoActivo}
             disabled={!a.activo}
             onChange={(e) => set("juegoActivo", e.target.value)}
-            className="rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[14px] outline-none focus:border-azul"
+            className="rounded-[12px] border border-borde bg-tarjeta px-3 py-2 text-[14px] outline-none focus:border-azul"
           >
             {juegos.map((j) => (
               <option key={j.id} value={j.id}>
@@ -73,7 +73,7 @@ export function FormAjustesJuego({
             value={a.metaRacha}
             disabled={!a.activo}
             onChange={(e) => set("metaRacha", Number(e.target.value))}
-            className="w-28 rounded-[10px] border border-borde px-3 py-2 text-[14px] outline-none focus:border-azul"
+            className="w-28 rounded-[12px] border border-borde px-3 py-2 text-[14px] outline-none focus:border-azul"
           />
         </label>
 
@@ -86,7 +86,7 @@ export function FormAjustesJuego({
             disabled={!a.activo}
             maxLength={200}
             onChange={(e) => set("premioMeta", e.target.value)}
-            className="rounded-[10px] border border-borde px-3 py-2 text-[14px] outline-none focus:border-azul"
+            className="rounded-[12px] border border-borde px-3 py-2 text-[14px] outline-none focus:border-azul"
           />
         </label>
 
@@ -99,7 +99,7 @@ export function FormAjustesJuego({
             disabled={!a.activo}
             maxLength={200}
             onChange={(e) => set("mensajeBienvenida", e.target.value)}
-            className="rounded-[10px] border border-borde px-3 py-2 text-[14px] outline-none focus:border-azul"
+            className="rounded-[12px] border border-borde px-3 py-2 text-[14px] outline-none focus:border-azul"
           />
         </label>
 
@@ -129,7 +129,7 @@ export function FormAjustesJuego({
                     type="text" value={a.temporadaNombre} maxLength={40} disabled={!a.activo}
                     onChange={(e) => set("temporadaNombre", e.target.value)}
                     placeholder="Verano 2026"
-                    className="rounded-[10px] border border-borde px-3 py-2 text-[14px] outline-none focus:border-azul"
+                    className="rounded-[12px] border border-borde px-3 py-2 text-[14px] outline-none focus:border-azul"
                   />
                 </label>
                 <label className="flex w-20 flex-col gap-1">
@@ -137,7 +137,7 @@ export function FormAjustesJuego({
                   <input
                     type="text" value={a.temporadaEmoji} maxLength={4} disabled={!a.activo}
                     onChange={(e) => set("temporadaEmoji", e.target.value)}
-                    className="rounded-[10px] border border-borde px-3 py-2 text-center text-[16px] outline-none focus:border-azul"
+                    className="rounded-[12px] border border-borde px-3 py-2 text-center text-[16px] outline-none focus:border-azul"
                   />
                 </label>
               </div>
@@ -146,7 +146,7 @@ export function FormAjustesJuego({
                 <input
                   type="number" min={1} max={100} value={a.temporadaMeta} disabled={!a.activo}
                   onChange={(e) => set("temporadaMeta", Number(e.target.value))}
-                  className="w-28 rounded-[10px] border border-borde px-3 py-2 text-[14px] outline-none focus:border-azul"
+                  className="w-28 rounded-[12px] border border-borde px-3 py-2 text-[14px] outline-none focus:border-azul"
                 />
               </label>
               <label className="flex flex-col gap-1">
@@ -155,7 +155,7 @@ export function FormAjustesJuego({
                   type="text" value={a.temporadaPremio} maxLength={120} disabled={!a.activo}
                   onChange={(e) => set("temporadaPremio", e.target.value)}
                   placeholder="Sorteo de una camiseta"
-                  className="rounded-[10px] border border-borde px-3 py-2 text-[14px] outline-none focus:border-azul"
+                  className="rounded-[12px] border border-borde px-3 py-2 text-[14px] outline-none focus:border-azul"
                 />
               </label>
             </div>
@@ -175,7 +175,7 @@ export function FormAjustesJuego({
           <select
             value={a.estrellasCiclo}
             onChange={(e) => set("estrellasCiclo", e.target.value as AjustesJuego["estrellasCiclo"])}
-            className="mt-1 w-56 rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[14px] outline-none focus:border-azul"
+            className="mt-1 w-56 rounded-[12px] border border-borde bg-tarjeta px-3 py-2 text-[14px] outline-none focus:border-azul"
           >
             <option value="mes">Por mes calendario</option>
             <option value="credito">Por crédito</option>
@@ -188,7 +188,7 @@ export function FormAjustesJuego({
           type="button"
           onClick={guardar}
           disabled={pendiente}
-          className="rounded-full bg-[#2453DC] px-5 py-2.5 text-[13px] font-bold text-white disabled:opacity-50"
+          className="btn-primario px-5 py-2.5 text-[13px] font-bold text-white disabled:opacity-50"
         >
           {pendiente ? "Guardando…" : "Guardar cambios"}
         </button>

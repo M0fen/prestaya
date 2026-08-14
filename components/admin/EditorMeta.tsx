@@ -40,7 +40,7 @@ export function EditorMeta({ meta }: { meta: number }) {
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1 rounded-[10px] border border-borde px-2.5 py-1.5">
+        <div className="flex items-center gap-1 rounded-[12px] border border-borde px-2.5 py-1.5">
           <span className="text-[13px] font-bold text-gris">$</span>
           <input
             inputMode="numeric"
@@ -56,7 +56,7 @@ export function EditorMeta({ meta }: { meta: number }) {
           type="button"
           onClick={guardar}
           disabled={pendiente}
-          className="rounded-full bg-[#2453DC] px-3.5 py-1.5 text-[12px] font-extrabold text-white disabled:opacity-60"
+          className="btn-primario px-3.5 py-1.5 text-[12px] font-extrabold text-white disabled:opacity-60"
         >
           {pendiente ? "…" : "Guardar"}
         </button>

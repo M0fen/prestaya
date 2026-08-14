@@ -117,7 +117,7 @@ function IncidenciaCard({ inc }: { inc: Incidencia }) {
             onChange={(e) => setNota(e.target.value)}
             maxLength={500}
             placeholder="Nota al resolver (opcional): qué se hizo…"
-            className="rounded-[10px] border border-campo bg-tarjeta px-2.5 py-1.5 text-[12.5px] text-tinta outline-none focus:border-azul"
+            className="rounded-[12px] border border-campo bg-tarjeta px-2.5 py-1.5 text-[12.5px] text-tinta outline-none focus:border-azul"
           />
           <div className="flex flex-wrap gap-1.5">
             {inc.estado === "abierto" && (

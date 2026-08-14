@@ -51,13 +51,13 @@ export function RestablecerAcceso({
           ✓ Acceso restablecido. Pasale esta contraseña a {nombre.split(/\s+/)[0]}:
         </span>
         <div className="flex items-center gap-2">
-          <code className="flex-1 rounded-[10px] border border-[#CDE9D8] bg-white px-3 py-2.5 text-center text-[18px] font-black tracking-wider text-tinta tabular-nums select-all">
+          <code className="flex-1 rounded-[12px] border border-[#CDE9D8] bg-white px-3 py-2.5 text-center text-[18px] font-black tracking-wider text-tinta tabular-nums select-all">
             {clave}
           </code>
           <button
             type="button"
             onClick={copiar}
-            className="flex-shrink-0 rounded-[10px] bg-[#1FA971] px-3 py-2.5 text-[12px] font-bold text-white active:scale-95"
+            className="flex-shrink-0 rounded-[12px] bg-[#1FA971] px-3 py-2.5 text-[12px] font-bold text-white active:scale-95"
           >
             {copiado ? "¡Copiado!" : "Copiar"}
           </button>
@@ -66,7 +66,7 @@ export function RestablecerAcceso({
           href={linkWhatsApp(telefono, msg)}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 rounded-[11px] bg-[#25D366] px-4 py-2.5 text-[13px] font-extrabold text-white active:scale-95"
+          className="flex items-center justify-center gap-2 rounded-[12px] bg-[#25D366] px-4 py-2.5 text-[13px] font-extrabold text-white active:scale-95"
         >
           <span aria-hidden="true">💬</span>
           Enviar por WhatsApp{telefono ? "" : "…"}

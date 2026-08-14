@@ -115,7 +115,7 @@ export function CurbeHub({
             {/* Rail de miniaturas (scroll horizontal, compacto) */}
             <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]">
               {productos.map((p) => (
-                <div key={p.id} className="group relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-[10px] border border-linea bg-suave" title={`${p.nombre} · ${money(p.precio)}`}>
+                <div key={p.id} className="group relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-[12px] border border-linea bg-suave" title={`${p.nombre} · ${money(p.precio)}`}>
                   {p.fotos[0] ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={p.fotos[0]} alt={p.nombre} className="h-full w-full object-cover" />

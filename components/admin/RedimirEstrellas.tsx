@@ -129,7 +129,7 @@ export function RedimirEstrellas() {
                 onChange={(e) => setPremio(e.target.value)}
                 maxLength={120}
                 placeholder="Premio entregado (opcional): ej. descuento, regalo…"
-                className="w-full rounded-[10px] border border-borde px-3 py-2 text-[13px] outline-none focus:border-azul"
+                className="w-full rounded-[12px] border border-borde px-3 py-2 text-[13px] outline-none focus:border-azul"
               />
               <div className="flex items-center gap-2">
                 <input
@@ -138,7 +138,7 @@ export function RedimirEstrellas() {
                   max={tope}
                   value={cantidad}
                   onChange={(e) => setCantidad(Math.max(1, Math.min(tope, Math.round(Number(e.target.value) || 1))))}
-                  className="w-20 rounded-[10px] border border-borde px-3 py-2 text-[14px] font-bold outline-none focus:border-azul"
+                  className="w-20 rounded-[12px] border border-borde px-3 py-2 text-[14px] font-bold outline-none focus:border-azul"
                 />
                 <button
                   type="button"

@@ -12,7 +12,7 @@ function Descargar({ href, children }: { href: string; children: React.ReactNode
     <a
       href={href}
       download
-      className="inline-flex items-center gap-1.5 rounded-full bg-[#2453DC] px-3.5 py-2 text-[12.5px] font-bold text-white hover:bg-[#1E47C8]"
+      className="inline-flex items-center gap-1.5 btn-primario px-3.5 py-2 text-[12.5px] font-bold text-white hover:bg-[#1E47C8]"
     >
       <span aria-hidden>⤓</span>
       {children}

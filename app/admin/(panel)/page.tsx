@@ -29,6 +29,7 @@ import { AureoInsights } from "@/components/admin/AureoInsights";
 import { GuiaAureo } from "@/components/admin/GuiaAureo";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Icono, ICONO_NAV } from "@/components/Iconos";
 
 export const dynamic = "force-dynamic";
 
@@ -235,7 +236,7 @@ export default async function DashboardPage({
           {/* Foco del día: caer en "Mi jornada" (el hub guiado). CTA primario. */}
           <Link
             href="/admin/jornada"
-            className="rounded-full bg-[linear-gradient(135deg,#2453DC,#13308C)] px-4 py-1.5 text-[12.5px] font-extrabold text-white shadow-[0_4px_14px_rgba(19,48,140,0.32)] transition-transform active:scale-95"
+            className="btn-primario px-4 py-1.5 text-[12.5px] font-extrabold transition-transform active:scale-95"
           >
             🧭 Ir a Mi jornada →
           </Link>
@@ -366,7 +367,7 @@ export default async function DashboardPage({
 
         {/* Tiles del período */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <div className="flex flex-col gap-1 rounded-[13px] bg-verde-suave p-3.5">
+          <div className="flex flex-col gap-1 rounded-[12px] bg-verde-suave p-3.5">
             <span className="text-[11px] font-bold tracking-wide text-verde-osc uppercase">Recaudado</span>
             <span className="text-[20px] font-extrabold tabular-nums text-verde">{UYU(mov.recaudado)}</span>
             <div className="flex items-center gap-1.5">
@@ -632,7 +633,7 @@ function ControlTile({
   return (
     <Link
       href={href}
-      className="flex flex-col gap-0.5 rounded-[13px] border px-3.5 py-3 transition-shadow hover:shadow-[0_2px_10px_rgba(0,0,0,0.06)]"
+      className="flex flex-col gap-0.5 rounded-[12px] border px-3.5 py-3 transition-shadow hover:shadow-[0_2px_10px_rgba(0,0,0,0.06)]"
       style={{ background: c.bg, borderColor: c.bd }}
     >
       <span className="text-[11px] font-bold uppercase tracking-wide text-gris">{titulo}</span>
@@ -649,15 +650,17 @@ function ControlTile({
 
 /** Atajos a las pantallas más usadas (estilo "Acceso rápido" de Disapp). */
 function AccesoRapido({ admin }: { admin: boolean }) {
-  const items: { href: string; label: string; icon: string; soloAdmin?: boolean }[] = [
-    { href: "/admin/informe-cartera", label: "Ventas Crédito", icon: "💳", soloAdmin: true },
-    { href: "/admin/cobranza", label: "Cobros del día", icon: "🛡️" },
-    { href: "/admin/caja", label: "Caja diaria", icon: "💰" },
-    { href: "/admin/recaudos", label: "Recaudos", icon: "💵" },
-    { href: "/admin/alertas", label: "Alertas", icon: "🚨" },
-    { href: "/admin/recibos", label: "Recibos", icon: "🧾", soloAdmin: true },
-    { href: "/admin/clientes", label: "Clientes", icon: "👤" },
-    { href: "/admin/para-clientes", label: "Para tus clientes", icon: "🎯", soloAdmin: true },
+  // Íconos SVG del set propio (vía ICONO_NAV): los tiles eran el último bloque
+  // del dashboard con emojis multicolor al lado de la nav monocroma.
+  const items: { href: string; label: string; soloAdmin?: boolean }[] = [
+    { href: "/admin/informe-cartera", label: "Ventas Crédito", soloAdmin: true },
+    { href: "/admin/cobranza", label: "Cobros del día" },
+    { href: "/admin/caja", label: "Caja diaria" },
+    { href: "/admin/recaudos", label: "Recaudos" },
+    { href: "/admin/alertas", label: "Alertas" },
+    { href: "/admin/recibos", label: "Recibos", soloAdmin: true },
+    { href: "/admin/clientes", label: "Clientes" },
+    { href: "/admin/para-clientes", label: "Para tus clientes", soloAdmin: true },
   ].filter((i) => admin || !i.soloAdmin);
   return (
     <section className="flex flex-col gap-2">
@@ -669,8 +672,8 @@ function AccesoRapido({ admin }: { admin: boolean }) {
             href={i.href}
             className="flex min-w-[92px] flex-1 flex-col items-center gap-1.5 rounded-[16px] border border-borde bg-tarjeta px-3 py-3 text-center hover:bg-suave"
           >
-            <span className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-azul-suave text-[17px]">
-              {i.icon}
+            <span className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-azul-suave text-azul">
+              <Icono name={ICONO_NAV[i.href] ?? "inicio"} className="h-[18px] w-[18px]" />
             </span>
             <span className="text-[11.5px] font-bold text-cuerpo leading-tight">{i.label}</span>
           </Link>
@@ -683,7 +686,7 @@ function AccesoRapido({ admin }: { admin: boolean }) {
 /** Mini-estadística compacta para el resumen de cartera. */
 function Mini2({ etiqueta, valor, color = "var(--color-tinta)" }: { etiqueta: string; valor: string; color?: string }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-[13px] bg-suave p-3">
+    <div className="flex flex-col gap-0.5 rounded-[12px] bg-suave p-3">
       <span className="text-[10.5px] font-bold uppercase tracking-wide text-tenue">{etiqueta}</span>
       <span className="text-[17px] font-extrabold tabular-nums" style={{ color }}>{valor}</span>
     </div>
@@ -702,7 +705,7 @@ function Kpi({ etiqueta, valor, sub, acento }: { etiqueta: string; valor: string
 
 function Tile({ etiqueta, valor, sub, acento = "var(--color-tinta)" }: { etiqueta: string; valor: string; sub: string; acento?: string }) {
   return (
-    <div className="flex flex-col gap-1 rounded-[13px] bg-suave p-3.5">
+    <div className="flex flex-col gap-1 rounded-[12px] bg-suave p-3.5">
       <span className="text-[11px] font-bold tracking-wide text-gris uppercase">{etiqueta}</span>
       <span className="text-[20px] font-extrabold tabular-nums tracking-[-0.02em]" style={{ color: acento }}>{valor}</span>
       <span className="text-[11.5px] font-medium text-tenue">{sub}</span>
@@ -712,7 +715,7 @@ function Tile({ etiqueta, valor, sub, acento = "var(--color-tinta)" }: { etiquet
 
 function Mini({ etiqueta, valor, alerta = false }: { etiqueta: string; valor: number; alerta?: boolean }) {
   return (
-    <div className="flex items-center justify-between rounded-[13px] border border-borde bg-tarjeta px-4 py-3">
+    <div className="flex items-center justify-between rounded-[12px] border border-borde bg-tarjeta px-4 py-3">
       <span className="text-[12.5px] font-semibold text-gris">{etiqueta}</span>
       <span className={`text-[18px] font-extrabold tabular-nums ${alerta ? "text-rojo-osc" : "text-tinta"}`}>{valor}</span>
     </div>

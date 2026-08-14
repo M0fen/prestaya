@@ -59,7 +59,7 @@ export function SidebarNav({
           const incidenciasOculto = incidenciasAbiertas > 0 && items.some((i) => i.href === "/admin/incidencias");
           return (
             <details key={grupo} open={tieneActivo} className="group mt-1.5">
-              <summary className="flex cursor-pointer list-none items-center gap-2 rounded-[10px] px-3 py-2 text-[11px] font-bold tracking-wide text-white/45 uppercase select-none hover:text-white/70">
+              <summary className="flex cursor-pointer list-none items-center gap-2 rounded-[12px] px-3 py-2 text-[11px] font-bold tracking-wide text-white/45 uppercase select-none hover:text-white/70">
                 <span>{grupo}</span>
                 {chatOculto && (
                   <span className="h-1.5 w-1.5 rounded-full bg-[#E06A6A] group-open:hidden" />
@@ -79,9 +79,10 @@ export function SidebarNav({
                 {incidenciasOculto && (
                   <span className="h-1.5 w-1.5 rounded-full bg-[#E06A6A] group-open:hidden" />
                 )}
-                <span aria-hidden="true" className="ml-auto text-[10px] text-white/35 transition-transform group-open:rotate-90">
-                  ▶
-                </span>
+                <Icono
+                  name="chevron"
+                  className="ml-auto h-3 w-3 text-white/35 transition-transform group-open:rotate-90"
+                />
               </summary>
               <div className="mt-0.5 flex flex-col gap-0.5">
                 {items.map((item) => (
@@ -124,7 +125,7 @@ function ItemLink({ item, activo, badges }: { item: NavItem; activo: boolean; ba
     return (
       <span
         aria-disabled="true"
-        className="flex flex-shrink-0 items-center gap-2.5 rounded-[10px] px-3 py-2.5 text-[13.5px] font-semibold text-white/35"
+        className="flex flex-shrink-0 items-center gap-2.5 rounded-[12px] px-3 py-2.5 text-[13.5px] font-semibold text-white/35"
       >
         <span aria-hidden="true" className="text-[15px]">
           {item.icon}
@@ -141,7 +142,7 @@ function ItemLink({ item, activo, badges }: { item: NavItem; activo: boolean; ba
   return (
     <Link
       href={item.href}
-      className={`flex flex-shrink-0 items-center gap-2.5 rounded-[10px] px-3 py-2.5 text-[13.5px] font-semibold transition-colors ${
+      className={`flex flex-shrink-0 items-center gap-2.5 rounded-[12px] px-3 py-2.5 text-[13.5px] font-semibold transition-colors ${
         activo ? "bg-white/15 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"
       }`}
     >

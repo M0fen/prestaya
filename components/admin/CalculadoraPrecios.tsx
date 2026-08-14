@@ -41,7 +41,7 @@ function Campo({ label, children, hint }: { label: string; children: React.React
     </label>
   );
 }
-const INPUT = "rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[16px] text-tinta tabular-nums outline-none focus:border-azul";
+const INPUT = "rounded-[12px] border border-borde bg-tarjeta px-3 py-2 text-[16px] text-tinta tabular-nums outline-none focus:border-azul";
 
 function Kpi({ valor, label, sub, acento }: { valor: string; label: string; sub?: string; acento?: "verde" | "azul" }) {
   const b = acento === "verde" ? "border-[#BFE6D2] bg-[#EAF7F0]" : acento === "azul" ? "border-[#BFD4F5] bg-[#EEF3FF]" : "border-borde bg-tarjeta";
@@ -129,7 +129,7 @@ export function CalculadoraPrecios({ productos }: { productos: ProductoCalc[] })
       {productos.length > 0 && (
         <label className="flex flex-wrap items-center gap-2 rounded-[14px] border border-borde bg-tarjeta p-3">
           <span className="text-[12.5px] font-bold text-cuerpo">Partí de un producto:</span>
-          <select onChange={(e) => cargar(e.target.value)} value={loadedId ?? ""} className="rounded-[10px] border border-borde bg-tarjeta px-3 py-1.5 text-[16px] text-tinta outline-none">
+          <select onChange={(e) => cargar(e.target.value)} value={loadedId ?? ""} className="rounded-[12px] border border-borde bg-tarjeta px-3 py-1.5 text-[16px] text-tinta outline-none">
             <option value="" disabled>Elegí un producto…</option>
             {productos.map((p) => (
               <option key={p.id} value={p.id}>{p.nombre} · {UYU(p.precio)}{p.costo == null ? " (sin costo)" : ""}</option>
@@ -236,7 +236,7 @@ export function CalculadoraPrecios({ productos }: { productos: ProductoCalc[] })
           <div className="flex flex-wrap items-end gap-2">
             <Campo label="Nombre del producto">
               <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej: Heladera No Frost 300L"
-                className="w-64 max-w-full rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[16px] text-tinta outline-none focus:border-azul" />
+                className="w-64 max-w-full rounded-[12px] border border-borde bg-tarjeta px-3 py-2 text-[16px] text-tinta outline-none focus:border-azul" />
             </Campo>
             <button type="button" onClick={crear} disabled={pend}
               className="rounded-full bg-[#1FA971] px-4 py-2 text-[13px] font-extrabold text-white disabled:opacity-50">

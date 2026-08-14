@@ -128,7 +128,7 @@ export function MorosidadCliente({
             maxLength={300}
             autoFocus
             placeholder="Motivo (dejó deuda, desapareció, documento dudoso…)"
-            className="rounded-[10px] border border-borde px-3 py-2 text-[13px] outline-none focus:border-azul"
+            className="rounded-[12px] border border-borde px-3 py-2 text-[13px] outline-none focus:border-azul"
           />
           <div className="flex gap-2">
             <button
@@ -184,13 +184,13 @@ export function MorosidadCliente({
                     ? "Motivo: perdió el trabajo, se mudó…"
                     : "Nota…"
               }
-              className="flex-1 rounded-[10px] border border-borde px-3 py-2 text-[13px] outline-none focus:border-azul"
+              className="flex-1 rounded-[12px] border border-borde px-3 py-2 text-[13px] outline-none focus:border-azul"
             />
             <button
               type="button"
               onClick={agregar}
               disabled={pendiente || !textoNota.trim()}
-              className="rounded-full bg-[#2453DC] px-3.5 py-2 text-[12.5px] font-bold text-white disabled:opacity-50"
+              className="btn-primario px-3.5 py-2 text-[12.5px] font-bold text-white disabled:opacity-50"
             >
               Agregar
             </button>
@@ -204,7 +204,7 @@ export function MorosidadCliente({
             {notas.map((n) => {
               const t = TIPO_LABEL[n.tipo];
               return (
-                <li key={n.id} className="flex items-start gap-2 rounded-[10px] bg-suave px-2.5 py-2">
+                <li key={n.id} className="flex items-start gap-2 rounded-[12px] bg-suave px-2.5 py-2">
                   <span
                     className="mt-0.5 flex-shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-bold"
                     style={{ background: t.bg, color: t.fg }}

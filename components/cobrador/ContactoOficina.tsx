@@ -13,11 +13,11 @@ export function ContactoOficina() {
       href={soporte.href}
       target={soporte.esWhatsApp ? "_blank" : undefined}
       rel={soporte.esWhatsApp ? "noopener noreferrer" : undefined}
-      className="flex items-center gap-3 rounded-[14px] border border-[#DCE6FB] bg-white px-4 py-3 shadow-sm active:scale-[0.99]"
+      className="flex items-center gap-3 rounded-[14px] border border-campo bg-tarjeta px-4 py-3 shadow-sm active:scale-[0.99]"
     >
       <span
         aria-hidden="true"
-        className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#EAF6EE] text-[18px]"
+        className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-verde-suave text-[18px]"
       >
         {soporte.esWhatsApp ? "💬" : "📞"}
       </span>

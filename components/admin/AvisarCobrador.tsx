@@ -72,13 +72,13 @@ export function AvisarCobrador({ cobradorId, nombre }: { cobradorId: string; nom
               }}
               autoFocus
               placeholder="Escribí una indicación…"
-              className="min-w-0 flex-1 rounded-[9px] border border-borde bg-tarjeta px-2.5 py-1.5 text-[12.5px] text-tinta outline-none focus:border-azul"
+              className="min-w-0 flex-1 rounded-[12px] border border-borde bg-tarjeta px-2.5 py-1.5 text-[12.5px] text-tinta outline-none focus:border-azul"
             />
             <button
               type="button"
               disabled={pending}
               onClick={() => enviar(texto)}
-              className="rounded-[9px] bg-[#2453DC] px-3 py-1.5 text-[12px] font-bold text-white disabled:opacity-40"
+              className="btn-primario px-3 py-1.5 text-[12px] font-bold text-white disabled:opacity-40"
             >
               {pending ? "…" : "Enviar"}
             </button>

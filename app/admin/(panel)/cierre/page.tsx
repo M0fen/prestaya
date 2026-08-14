@@ -190,7 +190,7 @@ export default async function CierrePage() {
                   key={c.cobradorId}
                   className="flex items-center gap-3 rounded-[12px] border border-linea bg-suave px-3 py-2.5"
                 >
-                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[10px] avatar-marca text-[13px] font-black text-white">
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[12px] avatar-marca text-[13px] font-black text-white">
                     {c.nombre.charAt(0).toUpperCase()}
                   </div>
                   <div className="flex min-w-0 flex-1 flex-col">
@@ -290,7 +290,7 @@ function Kpi({
 
 function Desglose({ label, valor, sub, tono }: { label: string; valor: number; sub: string; tono: string }) {
   return (
-    <div className="flex flex-col rounded-[10px] border border-borde bg-tarjeta px-3 py-2">
+    <div className="flex flex-col rounded-[12px] border border-borde bg-tarjeta px-3 py-2">
       <span className="text-[10.5px] font-semibold text-tenue">{label}</span>
       <span className="text-[15px] font-extrabold tabular-nums" style={{ color: tono }}>{UYU(valor)}</span>
       <span className="text-[10px] font-medium text-tenue-2">{sub}</span>

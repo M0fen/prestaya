@@ -163,13 +163,13 @@ export function Comprobante({
         </dl>
 
         {datos.noGuardado ? (
-          <p className="mx-5 mb-3 rounded-[10px] bg-[#FBE4E2] px-3 py-2.5 text-[11.5px] leading-[1.55] font-semibold text-[#C0392B]">
+          <p className="mx-5 mb-3 rounded-[12px] bg-[#FBE4E2] px-3 py-2.5 text-[11.5px] leading-[1.55] font-semibold text-[#C0392B]">
             ⚠️ No se pudo guardar en este teléfono (memoria llena o navegación
             privada). Mantené señal o volvé a registrarlo:{" "}
             <b>el cobro aún no está a salvo</b>.
           </p>
         ) : datos.offline ? (
-          <p className="mx-5 mb-3 rounded-[10px] bg-[#FFF7E6] px-3 py-2 text-[11.5px] font-medium text-[#9A6B00]">
+          <p className="mx-5 mb-3 rounded-[12px] bg-[#FFF7E6] px-3 py-2 text-[11.5px] font-medium text-[#9A6B00]">
             Guardado sin conexión: se sincroniza al recuperar señal.
           </p>
         ) : null}
@@ -180,7 +180,7 @@ export function Comprobante({
           <button
             type="button"
             onClick={deshacer!.onDeshacer}
-            className="mx-5 mb-3 flex w-[calc(100%-2.5rem)] items-center justify-center gap-2 rounded-[10px] border border-dashed border-[#DCE3F4] bg-white px-3 py-2 text-[12px] font-bold text-[#6B7494] active:scale-[0.98]"
+            className="mx-5 mb-3 flex w-[calc(100%-2.5rem)] items-center justify-center gap-2 rounded-[12px] border border-dashed border-[#DCE3F4] bg-white px-3 py-2 text-[12px] font-bold text-[#6B7494] active:scale-[0.98]"
           >
             ¿Te equivocaste? Deshacer cobro · {restante}s
           </button>

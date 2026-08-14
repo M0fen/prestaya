@@ -94,7 +94,7 @@ export function Gestion2FA() {
           type="button"
           disabled={busy}
           onClick={desactivar}
-          className="rounded-[10px] border border-[#B8DEC8] px-3 py-1.5 text-[12px] font-bold text-[#157A50] disabled:opacity-40"
+          className="rounded-[12px] border border-[#B8DEC8] px-3 py-1.5 text-[12px] font-bold text-[#157A50] disabled:opacity-40"
         >
           Desactivar
         </button>
@@ -109,7 +109,7 @@ export function Gestion2FA() {
         </p>
         {qr && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={qr} alt="QR de 2FA" className="mx-auto h-44 w-44 rounded-[10px] bg-tarjeta" />
+          <img src={qr} alt="QR de 2FA" className="mx-auto h-44 w-44 rounded-[12px] bg-tarjeta" />
         )}
         {secret && (
           <p className="text-center text-[11.5px] font-medium text-gris">
@@ -150,7 +150,7 @@ export function Gestion2FA() {
         type="button"
         disabled={busy}
         onClick={activar}
-        className="rounded-[10px] bg-azul px-3.5 py-1.5 text-[12.5px] font-bold text-white disabled:opacity-40"
+        className="rounded-[12px] bg-azul px-3.5 py-1.5 text-[12.5px] font-bold text-white disabled:opacity-40"
       >
         {busy ? "…" : "Activar 2FA"}
       </button>

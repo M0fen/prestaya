@@ -145,7 +145,7 @@ export function CierrePorZona({
               y su recaudo sube después, ya no entra a este sello. Que el supervisor
               lo vea ANTES de firmar. */}
           {!z.confirmado && (z.sinActividad?.length ?? 0) > 0 && (
-            <div className="mt-2 rounded-[10px] border border-borde bg-suave px-3 py-2">
+            <div className="mt-2 rounded-[12px] border border-borde bg-suave px-3 py-2">
               <span className="text-[11.5px] font-bold text-tinta">
                 {z.sinActividad!.length} cobrador{z.sinActividad!.length === 1 ? "" : "es"} sin
                 actividad hoy

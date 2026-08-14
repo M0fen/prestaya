@@ -74,7 +74,7 @@ export function KillSwitch({ activo }: { activo: boolean }) {
               type="button"
               disabled={pending}
               onClick={() => setConfirmar(false)}
-              className="flex-1 rounded-[10px] border border-campo py-2 text-[13px] font-bold text-gris"
+              className="flex-1 rounded-[12px] border border-campo py-2 text-[13px] font-bold text-gris"
             >
               Cancelar
             </button>
@@ -82,7 +82,7 @@ export function KillSwitch({ activo }: { activo: boolean }) {
               type="button"
               disabled={pending}
               onClick={() => cambiar(true)}
-              className="flex-1 rounded-[10px] bg-[#C0392B] py-2 text-[13px] font-extrabold text-white disabled:opacity-60"
+              className="flex-1 rounded-[12px] bg-[#C0392B] py-2 text-[13px] font-extrabold text-white disabled:opacity-60"
             >
               {pending ? "Congelando…" : "Sí, congelar"}
             </button>

@@ -15,9 +15,9 @@ import { UYU } from "@/lib/format";
 import type { Pedido } from "@/lib/data/misPedidos";
 
 const TONO = {
-  aprobado: { borde: "#BEEBD5", fondo: "#F0FBF5", texto: "#157A50", chip: "Aprobado ✓" },
-  pendiente: { borde: "#F0DCA8", fondo: "#FDF8EC", texto: "#8A6D1E", chip: "Esperando" },
-  rechazado: { borde: "#E4E8F4", fondo: "#FFFFFF", texto: "#6B7494", chip: "No se aprobó" },
+  aprobado: { borde: "var(--color-verde-suave)", fondo: "var(--color-verde-suave)", texto: "var(--color-verde-osc)", chip: "Aprobado ✓" },
+  pendiente: { borde: "var(--color-ambar-suave)", fondo: "var(--color-ambar-suave)", texto: "var(--color-ambar-osc)", chip: "Esperando" },
+  rechazado: { borde: "var(--color-borde)", fondo: "var(--color-tarjeta)", texto: "var(--color-gris)", chip: "No se aprobó" },
 } as const;
 
 const ICONO = { renovacion: "🔁", gasto: "🧾", correccion: "✏️", aviso: "📣" } as const;
@@ -38,7 +38,7 @@ export function MisPedidos({ pedidos }: { pedidos: Pedido[] }) {
   const listos = pedidos.filter((p) => p.estado === "aprobado").length;
 
   return (
-    <section className="flex flex-col gap-2 rounded-[16px] border border-[#DCE6FB] bg-white p-4">
+    <section className="flex flex-col gap-2 rounded-[16px] border border-campo bg-tarjeta p-4">
       <div className="flex items-baseline justify-between gap-2">
         <span className="text-[13.5px] font-extrabold text-tinta">📬 Tus pedidos</span>
         <span className="text-[11.5px] font-semibold text-gris tabular-nums">
@@ -73,7 +73,7 @@ export function MisPedidos({ pedidos }: { pedidos: Pedido[] }) {
             <div className="flex items-center gap-1.5">
               <span
                 className="rounded-full px-2 py-0.5 text-[10px] font-bold"
-                style={{ background: t.fondo === "#FFFFFF" ? "#EEF1F8" : "#FFFFFF", color: t.texto }}
+                style={{ background: t.fondo === "var(--color-tarjeta)" ? "var(--color-linea)" : "var(--color-tarjeta)", color: t.texto }}
               >
                 {t.chip}
               </span>
@@ -86,7 +86,7 @@ export function MisPedidos({ pedidos }: { pedidos: Pedido[] }) {
               {p.queHacer}
             </span>
             {p.motivo && (
-              <span className="rounded-[9px] bg-[#F4F6FB] px-2.5 py-1.5 text-[11.5px] leading-[1.4] font-semibold text-[#3A445F]">
+              <span className="rounded-[12px] bg-app px-2.5 py-1.5 text-[11.5px] leading-[1.4] font-semibold text-cuerpo">
                 📝 {p.motivo}
               </span>
             )}

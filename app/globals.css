@@ -160,6 +160,21 @@ body {
   letter-spacing: -0.01em;
 }
 
+/* ── Botón PRIMARIO único ───────────────────────────────────────────────────
+   Antes convivían 4 recetas (plano #2453DC en 3 radios distintos + un gradiente
+   solo en el dashboard). UNA sola: píldora con el degradado de marca y sombra
+   azul. El tamaño (px/py/min-h) lo pone cada uso; el disabled hereda la opacidad
+   de Tailwind. En oscuro funciona igual (azules de marca sobre fondo tinta). */
+.btn-primario {
+  border-radius: 999px;
+  background: linear-gradient(135deg, #2453dc, #1e47c8 55%, #13308c);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(19, 48, 140, 0.28);
+}
+.btn-primario:active {
+  transform: scale(0.99);
+}
+
 /* ── Avatar de marca (inicial del cliente/cobrador) ─────────────────────────
    El MISMO degradado azul del logo del login, con un brillo superior sutil:
    antes cada avatar era un cuadrado plano #2453DC — unificar la marca en las

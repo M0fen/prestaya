@@ -9,9 +9,9 @@ import Link from "next/link";
 import type { Motivacion } from "@/lib/motivacion";
 
 const TONO = {
-  logro: { borde: "#BEEBD5", fondo: "#F0FBF5", texto: "#157A50", suave: "#1D8A5E" },
-  aliento: { borde: "#DCE6FB", fondo: "#F7F9FF", texto: "#1E47C8", suave: "#3A5BA8" },
-  arranque: { borde: "#F0DCA8", fondo: "#FDF8EC", texto: "#8A6D1E", suave: "#9A7A28" },
+  logro: { borde: "var(--color-verde-suave)", fondo: "var(--color-verde-suave)", texto: "var(--color-verde-osc)", suave: "var(--color-verde-osc)" },
+  aliento: { borde: "var(--color-campo)", fondo: "var(--color-suave)", texto: "var(--color-azul)", suave: "var(--color-azul)" },
+  arranque: { borde: "var(--color-ambar-suave)", fondo: "var(--color-ambar-suave)", texto: "var(--color-ambar-osc)", suave: "var(--color-ambar-osc)" },
 } as const;
 
 export function BannerMotivacion({ m }: { m: Motivacion | null }) {
@@ -35,7 +35,7 @@ export function BannerMotivacion({ m }: { m: Motivacion | null }) {
         {m.cta && (
           <Link
             href={m.cta.href}
-            className="mt-1.5 min-h-11 self-start rounded-full bg-white px-4 text-[12.5px] font-bold leading-[44px] active:scale-95"
+            className="mt-1.5 min-h-11 self-start rounded-full bg-tarjeta px-4 text-[12.5px] font-bold leading-[44px] active:scale-95"
             style={{ color: t.texto, boxShadow: `inset 0 0 0 1px ${t.borde}` }}
           >
             {m.cta.texto}

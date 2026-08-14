@@ -11,10 +11,10 @@ import type { BannerCobrador } from "@/lib/data/bannerCobrador";
 import { hrefSeguro } from "@/lib/seguridad";
 
 const TEMA: Record<BannerCobrador["tema"], { bg: string; fg: string; bd: string; icono: string }> = {
-  azul: { bg: "#E9F0FF", fg: "#173a9e", bd: "#C6D6FB", icono: "📣" },
-  verde: { bg: "#E4F5EC", fg: "#136243", bd: "#BFE6D2", icono: "✅" },
-  ambar: { bg: "#FDF3E2", fg: "#96610b", bd: "#F0D9A8", icono: "⚠️" },
-  rojo: { bg: "#FBE4E2", fg: "#a5301f", bd: "#F3C0B8", icono: "🔴" },
+  azul: { bg: "var(--color-azul-suave)", fg: "var(--color-azul)", bd: "var(--color-campo)", icono: "📣" },
+  verde: { bg: "var(--color-verde-suave)", fg: "var(--color-verde-osc)", bd: "var(--color-verde-suave)", icono: "✅" },
+  ambar: { bg: "var(--color-ambar-suave)", fg: "var(--color-ambar-osc)", bd: "var(--color-ambar-suave)", icono: "⚠️" },
+  rojo: { bg: "var(--color-rojo-suave)", fg: "var(--color-rojo-osc)", bd: "var(--color-rojo-suave)", icono: "🔴" },
 };
 
 const CLAVE = "banner-equipo-descartado";
@@ -106,7 +106,7 @@ function TarjetaOferta({ banner, onDescartar }: { banner: BannerCobrador; onDesc
   };
 
   return (
-    <div className="relative overflow-hidden rounded-[16px] border border-[#EAD9AE] bg-white p-3.5 shadow-[0_10px_24px_rgba(120,90,20,0.10)]">
+    <div className="relative overflow-hidden rounded-[16px] border border-[#EAD9AE] bg-tarjeta p-3.5 shadow-[0_10px_24px_rgba(120,90,20,0.10)]">
       {/* Brillo dorado sutil de fondo */}
       <div
         className="pointer-events-none absolute -top-[40px] -right-[30px] h-[120px] w-[120px] rounded-full"
@@ -120,7 +120,7 @@ function TarjetaOferta({ banner, onDescartar }: { banner: BannerCobrador; onDesc
             alt=""
             loading="lazy"
             decoding="async"
-            className="h-[60px] w-[60px] flex-shrink-0 rounded-[13px] object-cover"
+            className="h-[60px] w-[60px] flex-shrink-0 rounded-[12px] object-cover"
           />
         )}
         <div className="flex min-w-0 flex-1 flex-col gap-1">

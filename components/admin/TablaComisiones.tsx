@@ -124,7 +124,7 @@ function Fila({
       {puedeGestionar ? (
         <>
           <div className="flex items-center gap-2.5">
-            <div className="flex items-center gap-1 rounded-[11px] border border-borde px-2.5 py-1.5">
+            <div className="flex items-center gap-1 rounded-[12px] border border-borde px-2.5 py-1.5">
               <input
                 inputMode="decimal"
                 value={pct}

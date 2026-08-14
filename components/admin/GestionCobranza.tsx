@@ -222,7 +222,7 @@ function ModalGestion({
                     placeholder="Monto prometido"
                     // text fijo oscuro (no el token text-tinta, que en modo oscuro
                     // se aclara a casi-blanco y desaparecía sobre el input blanco).
-                    className="min-w-0 flex-1 rounded-[10px] border border-[#BFE6D3] bg-white px-3 py-2 text-[14px] font-bold tabular-nums text-[#0F1B3D] focus:border-verde-osc focus:outline-none"
+                    className="min-w-0 flex-1 rounded-[12px] border border-[#BFE6D3] bg-white px-3 py-2 text-[14px] font-bold tabular-nums text-[#0F1B3D] focus:border-verde-osc focus:outline-none"
                   />
                 </div>
                 <div className="flex flex-wrap gap-1.5">
@@ -262,13 +262,13 @@ function ModalGestion({
               </div>
             )}
 
-            {error && <p className="rounded-[10px] bg-[#FBE4E2] px-3 py-2 text-[12.5px] font-semibold text-[#C0392B]">{error}</p>}
+            {error && <p className="rounded-[12px] bg-[#FBE4E2] px-3 py-2 text-[12.5px] font-semibold text-[#C0392B]">{error}</p>}
 
             <button
               type="button"
               onClick={enviar}
               disabled={guardando || (conCompromiso && !compromisoValido)}
-              className="flex items-center justify-center gap-2 rounded-[13px] bg-[linear-gradient(120deg,#1E47C8,#13308C)] px-4 py-3 text-[13.5px] font-extrabold text-white transition-opacity disabled:opacity-50"
+              className="flex items-center justify-center gap-2 rounded-[12px] bg-[linear-gradient(120deg,#1E47C8,#13308C)] px-4 py-3 text-[13.5px] font-extrabold text-white transition-opacity disabled:opacity-50"
             >
               {guardando ? "Guardando…" : okFlash ? "✓ Registrado" : "Registrar gestión"}
             </button>
@@ -292,14 +292,14 @@ function ModalGestion({
                     <span className="absolute -left-6 top-0.5 flex h-[18px] w-[18px] items-center justify-center rounded-full border-2 border-app bg-tarjeta text-[9px] shadow-[0_0_0_1px_#E6EAF4]">
                       {ICONO_TIPO[g.tipo]}
                     </span>
-                    <div className="rounded-[13px] border border-borde bg-tarjeta p-3">
+                    <div className="rounded-[12px] border border-borde bg-tarjeta p-3">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-[12.5px] font-extrabold text-tinta capitalize">{g.tipo}</span>
                         <span className="text-[10.5px] font-medium text-tenue tabular-nums">{selloCorto(g.creadoEn)}</span>
                       </div>
                       {g.resultado && <p className="mt-0.5 text-[12px] font-medium text-cuerpo">{g.resultado}</p>}
                       {g.montoCompromiso != null && g.estadoCompromiso && (
-                        <div className="mt-2 flex flex-wrap items-center gap-2 rounded-[10px] bg-suave px-2.5 py-2">
+                        <div className="mt-2 flex flex-wrap items-center gap-2 rounded-[12px] bg-suave px-2.5 py-2">
                           <span
                             className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold"
                             style={{ background: ESTADO_COMP[g.estadoCompromiso].bg, color: ESTADO_COMP[g.estadoCompromiso].fg }}

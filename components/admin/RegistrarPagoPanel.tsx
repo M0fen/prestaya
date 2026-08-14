@@ -107,7 +107,7 @@ export function RegistrarPagoPanel({
             value={monto}
             onChange={(e) => setMonto(e.target.value)}
             placeholder={`Cuota ${Math.round(cuota).toLocaleString("es-UY")}`}
-            className="w-32 rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[13.5px] text-tinta outline-none focus:border-azul"
+            className="w-32 rounded-[12px] border border-borde bg-tarjeta px-3 py-2 text-[13.5px] text-tinta outline-none focus:border-azul"
           />
         </label>
         <label className="flex flex-col gap-1">
@@ -115,7 +115,7 @@ export function RegistrarPagoPanel({
           <select
             value={canal}
             onChange={(e) => setCanal(e.target.value)}
-            className="rounded-[10px] border border-borde bg-tarjeta px-3 py-2 text-[13.5px] text-tinta outline-none focus:border-azul"
+            className="rounded-[12px] border border-borde bg-tarjeta px-3 py-2 text-[13.5px] text-tinta outline-none focus:border-azul"
           >
             {CANALES.map((c) => (
               <option key={c.id} value={c.id}>
@@ -128,7 +128,7 @@ export function RegistrarPagoPanel({
           type="button"
           disabled={pending}
           onClick={enviar}
-          className="rounded-[10px] bg-[#1FA971] px-4 py-2 text-[13px] font-bold text-white disabled:opacity-40"
+          className="rounded-[12px] bg-[#1FA971] px-4 py-2 text-[13px] font-bold text-white disabled:opacity-40"
         >
           {pending ? "Registrando…" : "Confirmar"}
         </button>

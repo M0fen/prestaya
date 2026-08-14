@@ -97,7 +97,7 @@ export default async function DetalleClientePage({
             {cliente.direccion ?? "Sin dirección"}
           </span>
           {cliente.numero_registro != null && (
-            <span className="mt-1 w-fit rounded-full bg-[#EEF3FF] px-2 py-0.5 text-[10.5px] font-bold text-[#1E47C8] tabular-nums">
+            <span className="mt-1 w-fit rounded-full bg-azul-suave px-2 py-0.5 text-[10.5px] font-bold text-azul tabular-nums">
               Registro N.º {cliente.numero_registro} · 🍀 {formatearSuerte(cliente.numero_registro)}
             </span>
           )}
@@ -107,7 +107,7 @@ export default async function DetalleClientePage({
             href={mapsUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex flex-shrink-0 items-center gap-1 rounded-full bg-[#EEF3FF] px-3 py-2 text-[12.5px] font-bold text-azul active:scale-95"
+            className="flex flex-shrink-0 items-center gap-1 rounded-full bg-azul-suave px-3 py-2 text-[12.5px] font-bold text-azul active:scale-95"
           >
             📍 Cómo llegar
           </a>
@@ -121,7 +121,7 @@ export default async function DetalleClientePage({
           que sepa que la persona ya paga por otro lado (y no le exija de más),
           pero NO se pueden elegir ni cobrar — no son su plata ni su comisión. */}
       {ajenos.length > 0 && (
-        <p className="rounded-[12px] border border-[#E6DFF5] bg-[#F5F2FB] px-3.5 py-2.5 text-[11.5px] font-semibold text-[#5B4A8A]">
+        <p className="rounded-[12px] border border-violeta-suave bg-violeta-suave px-3.5 py-2.5 text-[11.5px] font-semibold text-violeta-osc">
           Este cliente tiene {ajenos.length} crédito{ajenos.length === 1 ? "" : "s"} con otro cobrador
           {" "}({ajenos.map((p) => UYU(p.cuota_diaria)).join(" + ")} de cuota). Esa parte no la cobrás vos.
         </p>
@@ -144,7 +144,7 @@ export default async function DetalleClientePage({
                   className={`rounded-full px-3 py-1.5 text-[12px] font-bold ${
                     activo
                       ? "bg-[#1E47C8] text-white"
-                      : "border border-[#DCE3F4] bg-white text-[#6B7494]"
+                      : "border border-campo bg-tarjeta text-gris"
                   }`}
                 >
                   {/* Monto + fecha de inicio: dos créditos de efectivo con igual
@@ -168,7 +168,7 @@ export default async function DetalleClientePage({
            mismo, al 20% del negocio y con el CAP como único tope. Antes este
            bloque era un `PedirAyuda` que dejaba al cliente esperando días por un
            OK — 3 pedidos de primer crédito llevaban 2 días en la cola (09-08). */
-        <div className="flex flex-col items-center gap-3 rounded-[14px] bg-white px-4 py-6 text-center">
+        <div className="flex flex-col items-center gap-3 rounded-[14px] bg-tarjeta px-4 py-6 text-center">
           <p className="text-[13px] leading-[1.5] font-medium text-gris">
             {historialCreditos.length === 0 ? (
               <>
@@ -184,7 +184,7 @@ export default async function DetalleClientePage({
           </p>
           <Link
             href={`/cobrador/colocar?modo=venta&cliente=${id}`}
-            className="min-h-11 w-full rounded-[13px] bg-[#1FA971] text-center text-[14px] font-extrabold leading-[44px] text-white active:scale-[0.99]"
+            className="min-h-11 w-full rounded-[12px] bg-[#1FA971] text-center text-[14px] font-extrabold leading-[44px] text-white active:scale-[0.99]"
           >
             {historialCreditos.length === 0 ? "💵 Darle su primer crédito" : "💵 Darle un crédito"}
           </Link>
@@ -268,7 +268,7 @@ async function Detalle({
     .filter((p) => (p.origen ?? null) === null && p.registrado_en && fechaISOUY(new Date(p.registrado_en)) === hoyStr)
     .reduce((s, p) => s + Number(p.monto), 0);
   const tieneGps = Boolean(cliente?.gps_lat != null && cliente?.gps_lng != null);
-  const tonoAtraso = atrasados > 0 ? { bg: "#FBE4E2", fg: "#C0392B" } : { bg: "#FDF3E2", fg: "#9A6A0E" };
+  const tonoAtraso = atrasados > 0 ? { bg: "var(--color-rojo-suave)", fg: "var(--color-rojo-osc)" } : { bg: "var(--color-ambar-suave)", fg: "var(--color-ambar-osc)" };
 
   return (
     <>
@@ -279,23 +279,23 @@ async function Detalle({
             · Renovar     → repite el crédito TAL CUAL. Un toque, cero decisiones.
             · Nueva venta → el mismo momento, eligiendo monto y cuotas. */}
       {r.falta < 1 ? (
-        <div className="flex flex-col gap-2 rounded-[16px] border border-[#BEEBD5] bg-[#F0FBF5] p-4">
-          <span className="text-[14px] font-extrabold text-[#157A50]">
+        <div className="flex flex-col gap-2 rounded-[16px] border border-verde-suave bg-verde-suave p-4">
+          <span className="text-[14px] font-extrabold text-verde-osc">
             🎉 Terminó de pagar este crédito
           </span>
-          <span className="text-[12.5px] leading-[1.45] font-medium text-[#157A50]">
+          <span className="text-[12.5px] leading-[1.45] font-medium text-verde-osc">
             Pagó {UYU(r.totalAPagar)} en {prestamo.total_dias} cuotas. Ya le podés dar uno nuevo.
           </span>
           <div className="mt-1 flex flex-col gap-2">
             <Link
               href={`/cobrador/colocar?modo=renovar&cliente=${clienteId}`}
-              className="min-h-[52px] rounded-[13px] bg-[#1FA971] text-center text-[15px] font-extrabold leading-[52px] text-white active:scale-[0.99]"
+              className="min-h-[52px] rounded-[12px] bg-[#1FA971] text-center text-[15px] font-extrabold leading-[52px] text-white active:scale-[0.99]"
             >
               🔁 Renovar igual · {UYU(prestamo.monto_prestado)}
             </Link>
             <Link
               href={`/cobrador/colocar?modo=venta&cliente=${clienteId}`}
-              className="min-h-11 rounded-[13px] border border-[#BEEBD5] bg-white text-center text-[13.5px] font-bold leading-[44px] text-[#157A50] active:scale-[0.99]"
+              className="min-h-11 rounded-[12px] border border-verde-suave bg-tarjeta text-center text-[13.5px] font-bold leading-[44px] text-verde-osc active:scale-[0.99]"
             >
               💵 Nueva venta · otro monto o más cuotas
             </Link>
@@ -309,7 +309,7 @@ async function Detalle({
            Se muestra la deuda viva al lado: la decisión es del cobrador, informada. */
         <Link
           href={`/cobrador/colocar?modo=venta&cliente=${clienteId}`}
-          className="flex items-center justify-between gap-3 rounded-[14px] border border-[#DCE6FB] bg-white px-4 py-3 active:scale-[0.99]"
+          className="flex items-center justify-between gap-3 rounded-[14px] border border-campo bg-tarjeta px-4 py-3 active:scale-[0.99]"
         >
           <div className="flex min-w-0 flex-col">
             <span className="text-[13.5px] font-extrabold text-tinta">💵 Darle otro crédito</span>
@@ -324,7 +324,7 @@ async function Detalle({
       {/* Distintivo de VENTA de tienda: que el cobrador NO confunda el dinero
           (una compra financiada) con el crédito de efectivo del cliente. */}
       {prestamo.origen === "tienda" && (
-        <div className="flex items-center gap-2 rounded-[12px] bg-[#E7ECFF] px-3.5 py-2.5 text-[13px] font-bold text-[#13308C]">
+        <div className="flex items-center gap-2 rounded-[12px] bg-azul-suave px-3.5 py-2.5 text-[13px] font-bold text-azul">
           <span className="text-[16px]">🛒</span>
           <span>Compra en la tienda{prestamo.producto_nombre ? `: ${prestamo.producto_nombre}` : ""}</span>
         </div>
@@ -356,9 +356,9 @@ async function Detalle({
           </span>
         </div>
       ) : (
-        <div className="flex items-center gap-2 rounded-[14px] bg-[#E4F5EC] px-4 py-2.5">
+        <div className="flex items-center gap-2 rounded-[14px] bg-verde-suave px-4 py-2.5">
           <span className="text-[14px]">✅</span>
-          <span className="text-[12.5px] font-bold text-[#157A50]">Está al día. Solo la cuota de hoy si corresponde.</span>
+          <span className="text-[12.5px] font-bold text-verde-osc">Está al día. Solo la cuota de hoy si corresponde.</span>
         </div>
       )}
 
@@ -423,8 +423,8 @@ async function Detalle({
 
 function Resumen({ label, valor }: { label: string; valor: string }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-[14px] bg-white p-3.5 shadow-sm">
-      <span className="text-[11px] font-semibold text-[#8A93AD]">{label}</span>
+    <div className="flex flex-col gap-0.5 rounded-[14px] bg-tarjeta p-3.5 shadow-sm">
+      <span className="text-[11px] font-semibold text-tenue">{label}</span>
       <span className="text-[18px] font-extrabold text-tinta tabular-nums">{valor}</span>
     </div>
   );
@@ -437,16 +437,16 @@ function CompromisoCarton({ compromiso }: { compromiso: Gestion }) {
   const estado = compromiso.estadoCompromiso;
   const tono =
     estado === "cumplido"
-      ? { bg: "#E4F5EC", fg: "#157A50", txt: "Cumplido ✓" }
+      ? { bg: "var(--color-verde-suave)", fg: "var(--color-verde-osc)", txt: "Cumplido ✓" }
       : estado === "incumplido"
-        ? { bg: "#FBE4E2", fg: "#C0392B", txt: "No cumplió" }
+        ? { bg: "var(--color-rojo-suave)", fg: "var(--color-rojo-osc)", txt: "No cumplió" }
         : estado === "vence_hoy"
-          ? { bg: "#FDF3E2", fg: "#B9770E", txt: "Vence hoy" }
-          : { bg: "#EAF0FF", fg: "#1E47C8", txt: "Vigente" };
+          ? { bg: "var(--color-ambar-suave)", fg: "var(--color-ambar-osc)", txt: "Vence hoy" }
+          : { bg: "var(--color-azul-suave)", fg: "var(--color-azul)", txt: "Vigente" };
   const [y, m, d] = (compromiso.fechaCompromiso ?? "").split("-");
   const fechaCorta = y ? `${d}/${m}/${y.slice(2)}` : "";
   return (
-    <div className="flex flex-col gap-1.5 rounded-[14px] border border-[#E4E8F4] bg-white p-3.5 shadow-sm">
+    <div className="flex flex-col gap-1.5 rounded-[14px] border border-borde bg-tarjeta p-3.5 shadow-sm">
       <div className="flex items-center justify-between">
         <span className="text-[12px] font-bold text-tinta">🤝 Compromiso de pago</span>
         <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tono.bg, color: tono.fg }}>
@@ -458,7 +458,7 @@ function CompromisoCarton({ compromiso }: { compromiso: Gestion }) {
         {fechaCorta && <span className="text-[12.5px] font-medium text-gris">para el {fechaCorta}</span>}
       </div>
       {compromiso.resultado && (
-        <p className="rounded-[10px] bg-suave px-3 py-2 text-[12.5px] font-medium text-[#3A445F]">
+        <p className="rounded-[12px] bg-suave px-3 py-2 text-[12.5px] font-medium text-cuerpo">
           📝 {compromiso.resultado}
         </p>
       )}

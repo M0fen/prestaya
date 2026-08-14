@@ -13,9 +13,9 @@ import { PedirAyuda } from "@/components/cobrador/PedirAyuda";
 import type { RendicionDia } from "@/lib/data/rendicion";
 
 const TONO: Record<EstadoRendicion, { bg: string; fg: string }> = {
-  cuadra: { bg: "#E4F5EC", fg: "#157A50" },
-  faltante: { bg: "#FBE4E2", fg: "#C0392B" },
-  sobrante: { bg: "#FDF3E2", fg: "#B9770E" },
+  cuadra: { bg: "var(--color-verde-suave)", fg: "var(--color-verde-osc)" },
+  faltante: { bg: "var(--color-rojo-suave)", fg: "var(--color-rojo-osc)" },
+  sobrante: { bg: "var(--color-ambar-suave)", fg: "var(--color-ambar-osc)" },
 };
 
 export function CerrarJornada({
@@ -93,7 +93,7 @@ export function CerrarJornada({
     // acta ya firmada.
     const colocadoSellado = yaRendida.colocado ?? colocado;
     return (
-      <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-4">
+      <section className="rounded-[16px] border border-borde bg-tarjeta p-4">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-[14px] font-extrabold text-tinta">
             {yaRendida.estado === "cuadra" ? "¡Bien ahí! Jornada cerrada 🎉" : "Jornada cerrada ✓"}
@@ -103,7 +103,7 @@ export function CerrarJornada({
           </span>
         </div>
         {yaRendida.estado === "cuadra" && (
-          <p className="mb-2 text-[12.5px] font-medium text-[#4E9E79]">
+          <p className="mb-2 text-[12.5px] font-medium text-verde-osc">
             Cuadraste perfecto. Gracias por tu laburo de hoy 💚
           </p>
         )}
@@ -129,7 +129,7 @@ export function CerrarJornada({
           <Fila k="Entregado" v={UYU(yaRendida.entregado)} />
         </div>
         {yaRendida.diferencia !== 0 && (
-          <div className="mt-2 rounded-[10px] px-3 py-2 text-[12.5px] font-bold" style={{ background: t.bg, color: t.fg }}>
+          <div className="mt-2 rounded-[12px] px-3 py-2 text-[12.5px] font-bold" style={{ background: t.bg, color: t.fg }}>
             {yaRendida.diferencia < 0 ? "Faltante" : "Sobrante"} de {UYU(Math.abs(yaRendida.diferencia))}
           </div>
         )}
@@ -138,7 +138,7 @@ export function CerrarJornada({
             1500, le quedaba un faltante de $13.500 a su nombre y ni un teléfono
             al que avisar. No hace falta poder editarlo — hace falta que exista
             una salida y que quede constancia de que él lo reportó. */}
-        <p className="mt-3 border-t border-[#EEF1F8] pt-2.5 text-[11.5px] leading-[1.45] font-medium text-gris">
+        <p className="mt-3 border-t border-linea pt-2.5 text-[11.5px] leading-[1.45] font-medium text-gris">
           ¿Cargaste algo mal? El cierre no se edita, pero avisá y la oficina lo corrige.{" "}
           <a href="/cobrador/chat" className="font-bold text-azul underline">
             Avisar a mi supervisor →
@@ -194,7 +194,7 @@ export function CerrarJornada({
   };
 
   return (
-    <section className="rounded-[16px] border border-[#E6EAF4] bg-white p-4">
+    <section className="rounded-[16px] border border-borde bg-tarjeta p-4">
       <span className="text-[14px] font-extrabold text-tinta">Cerrar jornada</span>
 
       {/* La línea de la base se muestra SIEMPRE, también en $0. Antes se ocultaba
@@ -204,21 +204,21 @@ export function CerrarJornada({
           sobrante fantasma (o se quedaba la base sin que nadie lo anotara). Hoy
           es el primer día que se usa esta pantalla: `aperturas_caja` está vacía. */}
       {base > 0 ? (
-        <div className="mt-2 flex items-end justify-between rounded-[12px] bg-[#EEF3FF] px-3 py-2.5">
-          <span className="text-[12px] font-semibold text-[#1E47C8]">Base recibida (la devolvés)</span>
-          <span className="text-[16px] font-black tabular-nums text-[#1E47C8]">{UYU(base)}</span>
+        <div className="mt-2 flex items-end justify-between rounded-[12px] bg-azul-suave px-3 py-2.5">
+          <span className="text-[12px] font-semibold text-azul">Base recibida (la devolvés)</span>
+          <span className="text-[16px] font-black tabular-nums text-azul">{UYU(base)}</span>
         </div>
       ) : (
-        <div className="mt-2 flex flex-col gap-0.5 rounded-[12px] bg-[#FDF3E2] px-3 py-2.5">
-          <span className="text-[12px] font-bold text-[#8A6D1F]">Base de arranque: $0</span>
-          <span className="text-[11px] leading-[1.45] font-medium text-[#8A6D1F]">
+        <div className="mt-2 flex flex-col gap-0.5 rounded-[12px] bg-ambar-suave px-3 py-2.5">
+          <span className="text-[12px] font-bold text-ambar-osc">Base de arranque: $0</span>
+          <span className="text-[11px] leading-[1.45] font-medium text-ambar-osc">
             Si tu supervisor te dio efectivo para arrancar el día, avisale que lo cargue
             <b> antes</b> de que cierres: si no, te va a figurar como plata de más.
           </span>
         </div>
       )}
 
-      <div className="mt-2 flex items-end justify-between rounded-[12px] bg-[#F4F6FB] px-3 py-2.5">
+      <div className="mt-2 flex items-end justify-between rounded-[12px] bg-app px-3 py-2.5">
         <span className="text-[12px] font-semibold text-gris">Recaudado hoy</span>
         <span className="text-[18px] font-black tabular-nums text-verde">
           {UYU(recaudado)}
@@ -229,14 +229,14 @@ export function CerrarJornada({
       {/* Capital que YA entregó en la calle: esa plata no la tiene, así que no se
           le pide. Faltaba y le inventaba un faltante del tamaño de lo que colocó. */}
       {colocado > 0 && (
-        <div className="mt-2 flex items-end justify-between rounded-[12px] bg-[#F3EEFC] px-3 py-2.5">
-          <span className="text-[12px] font-semibold text-[#6B3FBF]">
+        <div className="mt-2 flex items-end justify-between rounded-[12px] bg-violeta-suave px-3 py-2.5">
+          <span className="text-[12px] font-semibold text-violeta-osc">
             Capital que entregaste hoy
             <span className="ml-1 text-[11px] font-medium">
               · {creditosColocados} crédito{creditosColocados === 1 ? "" : "s"}
             </span>
           </span>
-          <span className="text-[16px] font-black tabular-nums text-[#6B3FBF]">− {UYU(colocado)}</span>
+          <span className="text-[16px] font-black tabular-nums text-violeta-osc">− {UYU(colocado)}</span>
         </div>
       )}
 
@@ -247,7 +247,7 @@ export function CerrarJornada({
             value={gastos}
             onChange={(e) => { setEditado(true); setGastos(e.target.value.replace(/[^\d]/g, "")); }}
             placeholder="0"
-            className="min-h-11 w-full rounded-[11px] border border-[#DCE3F4] px-3 py-3 text-[16px] tabular-nums outline-none focus:border-azul"
+            className="min-h-11 w-full rounded-[12px] border border-campo px-3 py-3 text-[16px] tabular-nums outline-none focus:border-azul"
           />
         </Campo>
         <Campo label="Efectivo que entrego">
@@ -256,12 +256,12 @@ export function CerrarJornada({
             value={entregado}
             onChange={(e) => { setEditado(true); setEntregado(e.target.value.replace(/[^\d]/g, "")); }}
             placeholder="0"
-            className="min-h-11 w-full rounded-[11px] border border-[#DCE3F4] px-3 py-3 text-[16px] tabular-nums outline-none focus:border-azul"
+            className="min-h-11 w-full rounded-[12px] border border-campo px-3 py-3 text-[16px] tabular-nums outline-none focus:border-azul"
           />
         </Campo>
       </div>
       {gastosHoy > 0 && (
-        <p className="mt-1.5 px-1 text-[11px] font-medium text-[#8A93AD]">
+        <p className="mt-1.5 px-1 text-[11px] font-medium text-tenue">
           Incluye {UYU(gastosHoy)} de gastos que cargaste hoy. Podés ajustarlo.
         </p>
       )}
@@ -270,11 +270,11 @@ export function CerrarJornada({
           ya gastó esa plata, sin este aviso le saldría un faltante fantasma. Se le
           ofrece SUMARLOS (decisión suya), nunca se restan solos (control anti-fuga). */}
       {gastosPendientes > 0 && (
-        <div className="mt-2 flex flex-col items-start gap-1.5 rounded-[12px] border border-[#DCE3F4] bg-[#F7F9FD] px-3 py-2.5">
-          <span className="text-[12px] font-bold text-[#5A6B94]">
+        <div className="mt-2 flex flex-col items-start gap-1.5 rounded-[12px] border border-campo bg-suave px-3 py-2.5">
+          <span className="text-[12px] font-bold text-gris">
             Tenés {UYU(gastosPendientes)} en gastos pendientes de aprobación.
           </span>
-          <span className="text-[11.5px] font-medium text-[#8A93AD]">
+          <span className="text-[11.5px] font-medium text-tenue">
             No cuentan en el “Debería entregar” hasta que el admin los apruebe. Si ya
             sacaste esa plata, sumalos así no te marca un faltante que no es real.
           </span>
@@ -293,7 +293,7 @@ export function CerrarJornada({
               setEditado(true);
               setGastos(String(nuevoGastos));
             }}
-            className="rounded-full border border-[#C7D2EC] bg-white px-3 py-1.5 text-[11.5px] font-bold text-azul active:scale-95"
+            className="rounded-full border border-campo bg-tarjeta px-3 py-1.5 text-[11.5px] font-bold text-azul active:scale-95"
           >
             Sumar {UYU(gastosPendientes)} a gastos
           </button>
@@ -306,7 +306,7 @@ export function CerrarJornada({
           <span className="text-[11px] font-semibold" style={{ color: t.fg }}>Debería entregar</span>
           <span className="text-[15px] font-extrabold tabular-nums" style={{ color: t.fg }}>{UYU(esperado)}</span>
         </div>
-        <span className="rounded-full bg-white/70 px-2.5 py-1 text-[12px] font-black" style={{ color: t.fg }}>
+        <span className="rounded-full bg-tarjeta/70 px-2.5 py-1 text-[12px] font-black" style={{ color: t.fg }}>
           {estado === "cuadra" ? "Cuadra ✓" : `${estado === "faltante" ? "Falta" : "Sobra"} ${UYU(Math.abs(diferencia))}`}
         </span>
       </div>
@@ -319,11 +319,11 @@ export function CerrarJornada({
           $18.260 el 08-08, Edward Muñoz $16.000, Anyela Quiñonez $12.800.
           El número ya se calculaba (`aFavorDelCobrador`) y no lo leía nadie. */}
       {aFavor > 0 && (
-        <div className="mt-2 flex flex-col gap-1 rounded-[12px] border border-[#BEEBD5] bg-[#F0FBF5] px-3 py-2.5">
-          <span className="text-[13px] font-extrabold text-[#157A50]">
+        <div className="mt-2 flex flex-col gap-1 rounded-[12px] border border-verde-suave bg-verde-suave px-3 py-2.5">
+          <span className="text-[13px] font-extrabold text-verde-osc">
             💚 La oficina te debe {UYU(aFavor)}
           </span>
-          <span className="text-[11.5px] leading-[1.45] font-medium text-[#157A50]">
+          <span className="text-[11.5px] leading-[1.45] font-medium text-verde-osc">
             Colocaste {UYU(colocado)} y hoy no te alcanzaba con lo que tenías: esa diferencia la
             pusiste vos. Queda anotada en el cierre — mostrásela a tu supervisor para que te la
             devuelva.
@@ -336,20 +336,20 @@ export function CerrarJornada({
         onChange={(e) => setNotas(e.target.value)}
         maxLength={300}
         placeholder="Nota (opcional): motivo del faltante, etc."
-        className="mt-2.5 w-full rounded-[11px] border border-[#DCE3F4] px-3 py-2 text-[16px] outline-none focus:border-azul"
+        className="mt-2.5 w-full rounded-[12px] border border-campo px-3 py-2 text-[16px] outline-none focus:border-azul"
       />
 
-      {error && <p className="mt-2 text-[12px] font-semibold text-[#C0392B]">{error}</p>}
+      {error && <p className="mt-2 text-[12px] font-semibold text-rojo-osc">{error}</p>}
 
       {/* Anti-faltante-fantasma: cobros sin sincronizar todavía no están en el
           "recaudado" del servidor. Avisar y bloquear el cierre hasta que suban. */}
       {hayColaPendiente && (
-        <div className="mt-3 flex flex-col gap-1 rounded-[12px] border border-[#F0D9A8] bg-[#FEFBF3] px-3 py-2.5">
-          <span className="flex items-center gap-1.5 text-[12.5px] font-extrabold text-[#9A6A0E]">
+        <div className="mt-3 flex flex-col gap-1 rounded-[12px] border border-ambar-suave bg-ambar-suave px-3 py-2.5">
+          <span className="flex items-center gap-1.5 text-[12.5px] font-extrabold text-ambar-osc">
             ⏳ Tenés {cobrosPend.length} cobro{cobrosPend.length === 1 ? "" : "s"} sin subir
             {montoPend > 0 ? ` (${UYU(montoPend)})` : ""}
           </span>
-          <span className="text-[11.5px] leading-[1.45] font-medium text-[#9A6A0E]">
+          <span className="text-[11.5px] leading-[1.45] font-medium text-ambar-osc">
             El recaudado todavía no los incluye. Suben solos cuando tengas señal — si estás en una
             zona sin datos, movete unos metros y esperá; el botón de cerrar se habilita solo.
           </span>
@@ -392,7 +392,7 @@ export function CerrarJornada({
             {reintentando ? "Intentando…" : "Intentar subirlos ahora"}
           </button>
           {resultadoSync && (
-            <span className="text-[11.5px] leading-[1.45] font-bold text-[#9A6A0E]">{resultadoSync}</span>
+            <span className="text-[11.5px] leading-[1.45] font-bold text-ambar-osc">{resultadoSync}</span>
           )}
           {/* Si después de intentar sigue trabado, hay salida: que quede constancia
               de que terminó la ruta con la plata encima y la app no lo dejó cerrar. */}
@@ -410,17 +410,17 @@ export function CerrarJornada({
       {/* Cobros ATASCADOS: no suben (el crédito se cerró/reasignó). No bloquean el
           cierre; el cobrador los descarta (y si el cobro fue real, lo re-registra). */}
       {cobrosAtascados.length > 0 && (
-        <div className="mt-3 flex flex-col gap-2 rounded-[12px] border border-[#F3C0B8] bg-[#FEF6F3] px-3 py-2.5">
-          <span className="flex items-center gap-1.5 text-[12.5px] font-extrabold text-[#C0392B]">
+        <div className="mt-3 flex flex-col gap-2 rounded-[12px] border border-rojo-suave bg-rojo-suave px-3 py-2.5">
+          <span className="flex items-center gap-1.5 text-[12.5px] font-extrabold text-rojo-osc">
             ⚠️ {cobrosAtascados.length} registro{cobrosAtascados.length === 1 ? "" : "s"} no se pudo subir
           </span>
-          <span className="text-[11.5px] font-medium text-[#9A4436]">
+          <span className="text-[11.5px] font-medium text-rojo-osc">
             Abajo está el motivo de cada uno, con lo que dice la oficina.{" "}
             <strong className="font-bold">Si ya recibiste esa plata, no la descartes sin avisar</strong> —
             descartar solo borra el intento de registro, no la plata que tenés encima.
           </span>
           {cobrosAtascados.map((o) => (
-            <div key={o.id} className="flex flex-col gap-1.5 border-t border-[#F3D6CF] pt-1.5">
+            <div key={o.id} className="flex flex-col gap-1.5 border-t border-rojo-suave pt-1.5">
               <div className="flex items-center justify-between gap-2">
                 <span className="min-w-0 truncate text-[12px] font-semibold text-tinta">
                   {o.clienteNombre} ·{" "}
@@ -435,7 +435,7 @@ export function CerrarJornada({
                   className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-bold active:scale-95 ${
                     porDescartar === o.id
                       ? "bg-[#C0392B] text-white"
-                      : "border border-[#D6A79E] text-[#C0392B]"
+                      : "border border-rojo-suave text-rojo-osc"
                   }`}
                 >
                   {porDescartar === o.id ? "Sí, descartar" : "Descartar"}
@@ -444,7 +444,7 @@ export function CerrarJornada({
               {/* El mensaje del SERVIDOR, textual: dice qué pasó y qué hacer con la
                   plata. Antes se descartaba y el cobrador leía un genérico. */}
               {o.motivoFallo && (
-                <span className="rounded-[9px] bg-white/70 px-2.5 py-1.5 text-[11.5px] leading-[1.4] font-semibold text-[#9A4436]">
+                <span className="rounded-[12px] bg-tarjeta/70 px-2.5 py-1.5 text-[11.5px] leading-[1.4] font-semibold text-rojo-osc">
                   {o.motivoFallo}
                 </span>
               )}
@@ -468,7 +468,7 @@ export function CerrarJornada({
           type="button"
           onClick={() => setConfirmar(true)}
           disabled={hayColaPendiente}
-          className="mt-3 w-full rounded-[13px] bg-[#2453DC] py-3 text-[15px] font-extrabold text-white active:scale-[0.99] disabled:opacity-50"
+          className="mt-3 w-full btn-primario py-3 text-[15px] font-extrabold disabled:opacity-50"
         >
           {hayColaPendiente ? "Esperá a que suban los cobros…" : "Cerrar jornada"}
         </button>
@@ -480,7 +480,7 @@ export function CerrarJornada({
               día nuevo (unique cobrador+fecha) y todo lo que cobrara después quedaba
               post-cierre. Se avisa fuerte antes de confirmar. */}
           {recaudado === 0 && cobrosCantidad === 0 && (
-            <p className="rounded-[11px] border border-[#F0D9A8] bg-[#FEFBF3] px-3 py-2 text-center text-[12px] font-bold text-[#9A6A0E]">
+            <p className="rounded-[12px] border border-ambar-suave bg-ambar-suave px-3 py-2 text-center text-[12px] font-bold text-ambar-osc">
               ⚠️ Vas a cerrar con $0 recaudado. Si querías cerrar la jornada de AYER,
               ya cambió el día: entregale el efectivo al supervisor y no cierres esta.
             </p>
@@ -491,7 +491,7 @@ export function CerrarJornada({
               faltante por el monto recortado, sin una palabra de por qué. El
               cobrador iba a pensar que el sistema le comió la plata. */}
           {gastosN > gastosPendientes + gastosHoy && (
-            <p className="rounded-[11px] border border-[#F0D9A8] bg-[#FEFBF3] px-3 py-2 text-[12px] leading-[1.45] font-bold text-[#9A6A0E]">
+            <p className="rounded-[12px] border border-ambar-suave bg-ambar-suave px-3 py-2 text-[12px] leading-[1.45] font-bold text-ambar-osc">
               ⚠️ De los {UYU(gastosN)} de gastos, solo {UYU(gastosHoy + gastosPendientes)} están
               cargados como gasto de ruta. La diferencia te va a figurar como faltante: cargá el
               gasto primero y volvé.
@@ -500,8 +500,8 @@ export function CerrarJornada({
           {/* Un descuadre sin explicación es una discusión con el supervisor
               mañana. Escrita en el momento, se resuelve sola. */}
           {diferencia !== 0 && (
-            <div className="flex flex-col gap-1.5 rounded-[11px] border border-[#F5C6C2] bg-[#FDF1F0] px-3 py-2.5">
-              <span className="text-[12px] font-bold text-[#C0392B]">
+            <div className="flex flex-col gap-1.5 rounded-[12px] border border-rojo-suave bg-rojo-suave px-3 py-2.5">
+              <span className="text-[12px] font-bold text-rojo-osc">
                 {diferencia < 0
                   ? `Te falta ${UYU(Math.abs(diferencia))}. ¿Contaste de nuevo?`
                   : `Te sobra ${UYU(diferencia)}. ¿Contaste de nuevo?`}
@@ -511,7 +511,7 @@ export function CerrarJornada({
                 onChange={(e) => setNotas(e.target.value)}
                 placeholder="Contá en una línea qué pasó (obligatorio)"
                 aria-label="Motivo de la diferencia"
-                className="min-h-11 rounded-[10px] border border-[#DCE3F4] bg-white px-3 text-[16px] text-tinta"
+                className="min-h-11 rounded-[12px] border border-campo bg-tarjeta px-3 text-[16px] text-tinta"
               />
             </div>
           )}
@@ -523,7 +523,7 @@ export function CerrarJornada({
               type="button"
               onClick={() => setConfirmar(false)}
               disabled={pendiente}
-              className="flex-1 rounded-[13px] border border-[#DCE3F4] py-3 text-[14px] font-bold text-gris"
+              className="flex-1 rounded-[12px] border border-campo py-3 text-[14px] font-bold text-gris"
             >
               Cancelar
             </button>
@@ -534,7 +534,7 @@ export function CerrarJornada({
               // cobrador sobre lo que pasó, y mañana vale más que cualquier
               // reconstrucción.
               disabled={pendiente || (diferencia !== 0 && notas.trim().length < 5)}
-              className="flex-1 rounded-[13px] bg-[#1FA971] py-3 text-[14px] font-extrabold text-white disabled:opacity-60"
+              className="flex-1 rounded-[12px] bg-[#1FA971] py-3 text-[14px] font-extrabold text-white disabled:opacity-60"
             >
               {pendiente
                 ? "Cerrando…"
@@ -560,7 +560,7 @@ function Campo({ label, children }: { label: string; children: React.ReactNode }
 
 function Fila({ k, v }: { k: string; v: string }) {
   return (
-    <div className="flex items-center justify-between rounded-[10px] bg-[#F7F9FD] px-2.5 py-1.5">
+    <div className="flex items-center justify-between rounded-[12px] bg-suave px-2.5 py-1.5">
       <span className="text-[11.5px] font-medium text-gris">{k}</span>
       <span className="text-[13px] font-extrabold tabular-nums text-tinta">{v}</span>
     </div>

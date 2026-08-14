@@ -79,7 +79,7 @@ export function HistorialPagos({ pagos }: { pagos: PagoHistorial[] }) {
   };
 
   return (
-    <div className="flex flex-col rounded-[14px] bg-white p-3.5 shadow-sm">
+    <div className="flex flex-col rounded-[14px] bg-tarjeta p-3.5 shadow-sm">
       <button
         type="button"
         onClick={() => setAbierto((v) => !v)}
@@ -92,7 +92,7 @@ export function HistorialPagos({ pagos }: { pagos: PagoHistorial[] }) {
       </button>
 
       {abierto && (
-        <ul className="mt-1.5 flex flex-col divide-y divide-[#F0F2F9]">
+        <ul className="mt-1.5 flex flex-col divide-y divide-linea">
           {visibles.map((p) => {
             const vencida = ahora - new Date(p.registradoEn).getTime() > VENTANA_DESHACER_MS;
             // Corregible: cobro PROPIO, hecho EN LA APP, pasada la ventana de
@@ -104,7 +104,7 @@ export function HistorialPagos({ pagos }: { pagos: PagoHistorial[] }) {
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex flex-col leading-tight">
                     <span className="text-[13px] font-bold text-tinta tabular-nums">{UYU(p.monto)}</span>
-                    <span className="text-[10.5px] font-medium text-[#8A93AD]">
+                    <span className="text-[10.5px] font-medium text-tenue">
                       {fechaCorta(p.registradoEn)}
                       {p.diaCredito != null ? ` · cuota ${p.diaCredito}` : ""}
                       {p.origen !== null ? " · registro de oficina" : ""}
@@ -118,14 +118,14 @@ export function HistorialPagos({ pagos }: { pagos: PagoHistorial[] }) {
                         setMotivo("");
                         setAviso(null);
                       }}
-                      className="rounded-full border border-[#DCE3F4] bg-white px-3 py-1.5 text-[11.5px] font-bold text-[#6B7494] active:scale-95"
+                      className="rounded-full border border-campo bg-tarjeta px-3 py-1.5 text-[11.5px] font-bold text-gris active:scale-95"
                     >
                       Pedir corrección
                     </button>
                   )}
                 </div>
                 {abiertoEste && (
-                  <div className="flex flex-col gap-1.5 rounded-[11px] bg-[#F6F8FD] p-2.5">
+                  <div className="flex flex-col gap-1.5 rounded-[12px] bg-app p-2.5">
                     <span className="text-[11px] leading-[1.45] font-medium text-gris">
                       La corrección la aprueba tu supervisor o la oficina. El pago no se borra:
                       queda anulado con tu reporte como constancia.
@@ -136,13 +136,13 @@ export function HistorialPagos({ pagos }: { pagos: PagoHistorial[] }) {
                       rows={2}
                       maxLength={300}
                       placeholder="Ej.: el monto correcto es $500, tipeé de más."
-                      className="rounded-[10px] border border-[#DCE3F4] bg-white px-3 py-2 text-[16px] outline-none focus:border-azul"
+                      className="rounded-[12px] border border-campo bg-tarjeta px-3 py-2 text-[16px] outline-none focus:border-azul"
                     />
                     <div className="flex gap-1.5">
                       <button
                         type="button"
                         onClick={() => setPidiendo(null)}
-                        className="min-h-10 rounded-full border border-[#DCE3F4] bg-white px-3.5 text-[12px] font-bold text-gris"
+                        className="min-h-10 rounded-full border border-campo bg-tarjeta px-3.5 text-[12px] font-bold text-gris"
                       >
                         Cancelar
                       </button>
@@ -159,8 +159,8 @@ export function HistorialPagos({ pagos }: { pagos: PagoHistorial[] }) {
                 )}
                 {aviso && aviso.pagoId === p.id && (
                   <p
-                    className={`rounded-[10px] px-3 py-2 text-[11.5px] leading-[1.45] font-semibold ${
-                      aviso.ok ? "bg-[#E4F5EC] text-[#157A50]" : "bg-[#FBE4E2] text-[#C0392B]"
+                    className={`rounded-[12px] px-3 py-2 text-[11.5px] leading-[1.45] font-semibold ${
+                      aviso.ok ? "bg-verde-suave text-verde-osc" : "bg-rojo-suave text-rojo-osc"
                     }`}
                   >
                     {aviso.texto}
@@ -176,7 +176,7 @@ export function HistorialPagos({ pagos }: { pagos: PagoHistorial[] }) {
         <button
           type="button"
           onClick={() => setVerMas((v) => v + TANDA)}
-          className="mt-1 min-h-10 rounded-[10px] border border-[#DCE3F4] bg-white text-[12px] font-bold text-azul"
+          className="mt-1 min-h-10 rounded-[12px] border border-campo bg-tarjeta text-[12px] font-bold text-azul"
         >
           Ver más ▾
         </button>

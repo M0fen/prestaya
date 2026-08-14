@@ -67,7 +67,7 @@ export function CobrosRecientes({ pagos }: { pagos: PagoReciente[] }) {
   };
 
   return (
-    <div className="flex flex-col gap-2 rounded-[14px] bg-white p-3.5 shadow-sm">
+    <div className="flex flex-col gap-2 rounded-[14px] bg-tarjeta p-3.5 shadow-sm">
       <span className="text-[11.5px] font-bold text-gris">Cobros recientes</span>
       <ul className="flex flex-col gap-1.5">
         {pagos.map((p) => {
@@ -78,12 +78,12 @@ export function CobrosRecientes({ pagos }: { pagos: PagoReciente[] }) {
             <li key={p.id} className="flex items-center justify-between gap-2 text-[13px]">
               <span className="font-bold text-tinta tabular-nums">{UYU(p.monto)}</span>
               {deshechos.has(p.id) ? (
-                <span className="text-[11px] font-bold text-[#157A50]">Deshecho ✓</span>
+                <span className="text-[11px] font-bold text-verde-osc">Deshecho ✓</span>
               ) : puede ? (
                 <button
                   type="button"
                   onClick={() => deshacer(p.id)}
-                  className="rounded-full border border-[#F3C0B8] bg-[#FBE4E2] px-3 py-1.5 text-[12px] font-bold text-[#C0392B] active:scale-95"
+                  className="rounded-full border border-rojo-suave bg-rojo-suave px-3 py-1.5 text-[12px] font-bold text-rojo-osc active:scale-95"
                 >
                   Deshacer · {min} min
                 </button>
@@ -96,7 +96,7 @@ export function CobrosRecientes({ pagos }: { pagos: PagoReciente[] }) {
           );
         })}
       </ul>
-      {error && <p className="text-[11.5px] font-semibold text-[#C0392B]">{error}</p>}
+      {error && <p className="text-[11.5px] font-semibold text-rojo-osc">{error}</p>}
     </div>
   );
 }

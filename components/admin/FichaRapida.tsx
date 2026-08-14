@@ -101,7 +101,7 @@ export function FichaRapidaBoton({ clienteId }: { clienteId: string }) {
             </div>
 
             {pending && !ficha && <p className="mt-4 text-[13px] font-medium text-gris">Cargando ficha…</p>}
-            {error && <p className="mt-4 rounded-[10px] bg-[#FBE4E2] px-3 py-2 text-[12.5px] font-semibold text-[#C0392B]">{error}</p>}
+            {error && <p className="mt-4 rounded-[12px] bg-[#FBE4E2] px-3 py-2 text-[12.5px] font-semibold text-[#C0392B]">{error}</p>}
 
             {ficha && (
               <>
@@ -200,7 +200,7 @@ export function FichaRapidaBoton({ clienteId }: { clienteId: string }) {
 
                 <Link
                   href={`/admin/clientes/${ficha.id}`}
-                  className="mt-4 inline-flex w-full items-center justify-center rounded-[12px] bg-[#2453DC] px-4 py-2.5 text-[13px] font-bold text-white"
+                  className="mt-4 inline-flex w-full items-center justify-center btn-primario px-4 py-2.5 text-[13px] font-bold text-white"
                 >
                   Ver ficha completa →
                 </Link>
@@ -224,7 +224,7 @@ function Dato({ k, v }: { k: string; v: string }) {
 
 function Mini({ k, v, tono }: { k: string; v: string; tono?: string }) {
   return (
-    <div className="flex flex-col rounded-[10px] bg-suave py-1.5">
+    <div className="flex flex-col rounded-[12px] bg-suave py-1.5">
       <span className="text-[13px] font-extrabold tabular-nums" style={{ color: tono ?? "var(--color-tinta)" }}>{v}</span>
       <span className="text-[9.5px] font-semibold text-tenue">{k}</span>
     </div>
