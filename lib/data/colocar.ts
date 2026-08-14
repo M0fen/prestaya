@@ -7,8 +7,10 @@
 //     guardado: `falta < 1` es el mismo umbral que usa el gate del servidor,
 //     porque las cuotas fraccionarias heredadas de Disapp (351,04 × 24) dejan
 //     residuos de centavos que son incobrables.
-//   · NUEVA VENTA — clientes de la ruta SIN crédito activo pero CON historial
-//     (el primer crédito de alguien lo da la oficina).
+//   · NUEVA VENTA — todos los clientes de la ruta: con historial se arrastra su
+//     tasa y su techo; el que NUNCA tuvo crédito sale como PRIMER crédito al 20%
+//     del negocio (regla de Carlos, 08-13 — antes "lo daba la oficina" y todo
+//     censo terminaba en un pedido esperando días).
 // ─────────────────────────────────────────────────────────────────────────
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -72,6 +74,33 @@ export interface CandidatoColocar {
    *  puede prometer "se manda el pedido". Solo viaja en "renovar" (el camino que
    *  tiene puerta a la oficina); en la venta nueva el techo YA es el máximo. */
   maximo?: number;
+  /** Es su PRIMER crédito (nunca tuvo, o su historial vino roto del import): sale
+   *  al 20% del negocio y lo coloca el cobrador directo, con el CAP como único
+   *  tope (regla de Carlos, 08-13). `monto`/`cuota`/`totalDias` vienen en 0. */
+  primerCredito?: boolean;
+  /** El "primer crédito" viene de un historial con términos ROTOS del import (no
+   *  de alguien que nunca tuvo): la tarjeta no puede decir "Nunca tuvo crédito"
+   *  al lado del aviso de deuda viva — dos frases que se niegan (auditoría 08-14). */
+  historialRoto?: boolean;
+}
+
+/**
+ * Ids de cliente de la ruta (asignaciones activas bajo la RLS del que consulta),
+ * PAGINADO: el corte mudo de PostgREST a 1000 dejaba fuera justo a la asignación
+ * más nueva — el recién censado, que desde el 08-13 es candidato a su primer
+ * crédito. Con ~120 clientes por ruta hoy no muerde, pero el censo directo
+ * acelera el crecimiento y este es el camino nuevo (auditoría 08-14).
+ */
+async function clientesDeLaRuta(db: SupabaseClient): Promise<string[]> {
+  const filas = await traerTodo<{ cliente_id: string }>((d, h) =>
+    db
+      .from("asignaciones")
+      .select("cliente_id")
+      .eq("activo", true)
+      .order("id", { ascending: true })
+      .range(d, h),
+  );
+  return [...new Set(filas.map((a) => a.cliente_id))];
 }
 
 /**
@@ -109,8 +138,7 @@ export async function getCandidatosRenovar(
   db: SupabaseClient,
   cobradorId?: string | null,
 ): Promise<CandidatoColocar[]> {
-  const { data: asig } = await db.from("asignaciones").select("cliente_id").eq("activo", true);
-  const ids = [...new Set((asig ?? []).map((a) => a.cliente_id as string))];
+  const ids = await clientesDeLaRuta(db);
   if (ids.length === 0) return [];
 
   const activos = await traerTodo<Prestamo>((d, h) =>
@@ -209,10 +237,11 @@ export async function getCandidatosRenovar(
   return out.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 }
 
-/** Clientes de MI ruta SIN crédito activo y CON historial: listos para vender. */
+/** Clientes de MI ruta listos para vender: los que tienen historial (la tasa se
+ *  arrastra de su último crédito) y también los que NUNCA tuvIERON uno — el
+ *  recién censado sale como PRIMER crédito al 20% (regla de Carlos, 08-13). */
 export async function getCandidatosVenta(db: SupabaseClient): Promise<CandidatoColocar[]> {
-  const { data: asig } = await db.from("asignaciones").select("cliente_id").eq("activo", true);
-  const ids = [...new Set((asig ?? []).map((a) => a.cliente_id as string))];
+  const ids = await clientesDeLaRuta(db);
   if (ids.length === 0) return [];
 
   const todos = await traerTodo<Prestamo>((d, h) =>
@@ -247,9 +276,6 @@ export async function getCandidatosVenta(db: SupabaseClient): Promise<CandidatoC
     const prev = ultimo.get(p.cliente_id);
     if (!prev || masNuevo(p, prev)) ultimo.set(p.cliente_id, p);
   }
-  const elegibles = [...ultimo.entries()];
-  if (elegibles.length === 0) return [];
-
   // Deuda VIVA de los créditos que siguen abiertos, por cliente: es lo que el
   // cobrador tiene que ver antes de darle un segundo crédito a alguien.
   const hoyCal = hoyUY();
@@ -261,44 +287,74 @@ export async function getCandidatosVenta(db: SupabaseClient): Promise<CandidatoC
     if (falta >= 1) deudaViva.set(p.cliente_id, (deudaViva.get(p.cliente_id) ?? 0) + falta);
   }
 
-  const { data: cls } = await db
-    .from("clientes")
-    .select("id, nombre, documento, activo")
-    .in("id", elegibles.map(([cid]) => cid));
-  const cliDe = new Map((cls ?? []).map((c) => [c.id as string, c as unknown as Cliente]));
+  // Los clientes se buscan por TODA la ruta (no solo los que ya tuvieron crédito):
+  // el recién censado no tiene ni una fila en `prestamos` y aun así es candidato —
+  // su PRIMER crédito lo coloca el cobrador directo (Carlos, 08-13). Antes ese
+  // cliente no aparecía en NINGUNA lista y el único camino era pedirlo por aviso.
+  // Paginado por lo mismo que arriba: la respuesta de `.in(ids)` también corta a 1000.
+  const cls = await traerTodo<Cliente>((d, h) =>
+    db.from("clientes").select("id, nombre, documento, activo").in("id", ids).order("id", { ascending: true }).range(d, h),
+  );
+  const cliDe = new Map(cls.map((c) => [c.id, c]));
 
-  return elegibles
-    .flatMap(([cid, p]) => {
-      const cli = cliDe.get(cid);
-      if (!cli || !cli.activo) return [];
-      const monto = Math.round(Number(p.monto_prestado) || 0);
-      const cuota = Math.round(Number(p.cuota_diaria) || 0);
-      const totalDias = Number(p.total_dias) || 0;
-      // Sin historial usable, el alta la hace la oficina: no se ofrece acá.
-      if (!(monto > 0 && cuota > 0 && totalDias > 0)) return [];
-      return [
-        {
-          clienteId: cid,
-          nombre: cli.nombre,
-          documento: cli.documento ?? null,
-          monto,
-          cuota,
-          totalDias,
-          frecuencia: (p.frecuencia as string) ?? "diario",
-          techo: techoVentaNueva(monto),
-          // ⚠️ El tope DURO de una venta nueva es el CAP del sistema, no el techo del
-          // cobrador. Sin este dato la pantalla no distinguía "no lo podés dar VOS"
-          // de "no lo puede NADIE" y siempre elegía el mensaje más duro: al pedir
-          // $20.000 para un cliente con techo $12.000 leía "ni la oficina puede
-          // subirlo" —falso, el tope es $100.000— y justo abajo, en ámbar, "dejale
-          // el pedido a tu supervisor". Dos carteles que se contradicen delante del
-          // cliente, y el cobrador le cree al que dice que no se puede.
-          maximo: RENOVACION_CAP_TOTAL,
-          deudaHermano: Math.round(deudaViva.get(cid) ?? 0),
-        },
-      ];
-    })
-    .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+  /** Tarjeta de PRIMER crédito: sin términos que arrastrar, tope = CAP. */
+  const primero = (cid: string, cli: Cliente, historialRoto: boolean): CandidatoColocar => ({
+    clienteId: cid,
+    nombre: cli.nombre,
+    documento: cli.documento ?? null,
+    monto: 0,
+    cuota: 0,
+    totalDias: 0,
+    frecuencia: "diario",
+    techo: RENOVACION_CAP_TOTAL,
+    maximo: RENOVACION_CAP_TOTAL,
+    primerCredito: true,
+    historialRoto,
+    deudaHermano: Math.round(deudaViva.get(cid) ?? 0),
+  });
+
+  const conUltimo = new Set(ultimo.keys());
+  const out: CandidatoColocar[] = [];
+  for (const cid of ids) {
+    const cli = cliDe.get(cid);
+    if (!cli || !cli.activo) continue;
+    if (!conUltimo.has(cid)) {
+      // Nunca tuvo un crédito: primer crédito, directo.
+      out.push(primero(cid, cli, false));
+      continue;
+    }
+    const p = ultimo.get(cid)!;
+    const monto = Math.round(Number(p.monto_prestado) || 0);
+    const cuota = Math.round(Number(p.cuota_diaria) || 0);
+    const totalDias = Number(p.total_dias) || 0;
+    if (!(monto > 0 && cuota > 0 && totalDias > 0)) {
+      // Tiene filas pero con términos rotos del import: no hay tasa que arrastrar
+      // ni techo que medir → mismas reglas que un primer crédito (20%, tope CAP).
+      // Es EXACTAMENTE lo que hace el servidor (`conHistorial` da false).
+      out.push(primero(cid, cli, true));
+      continue;
+    }
+    out.push({
+      clienteId: cid,
+      nombre: cli.nombre,
+      documento: cli.documento ?? null,
+      monto,
+      cuota,
+      totalDias,
+      frecuencia: (p.frecuencia as string) ?? "diario",
+      techo: techoVentaNueva(monto),
+      // ⚠️ El tope DURO de una venta nueva es el CAP del sistema, no el techo del
+      // cobrador. Sin este dato la pantalla no distinguía "no lo podés dar VOS"
+      // de "no lo puede NADIE" y siempre elegía el mensaje más duro: al pedir
+      // $20.000 para un cliente con techo $12.000 leía "ni la oficina puede
+      // subirlo" —falso, el tope es $100.000— y justo abajo, en ámbar, "dejale
+      // el pedido a tu supervisor". Dos carteles que se contradicen delante del
+      // cliente, y el cobrador le cree al que dice que no se puede.
+      maximo: RENOVACION_CAP_TOTAL,
+      deudaHermano: Math.round(deudaViva.get(cid) ?? 0),
+    });
+  }
+  return out.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 }
 
 /** Un cliente de la ruta que HOY no se puede colocar, y el motivo en criollo. */
@@ -325,7 +381,9 @@ export interface NoElegible {
  *
  * Los dos casos reales:
  *   · Todavía está pagando  → se renueva cuando termine (le falta $X).
- *   · Ya tiene otro crédito → un segundo crédito en paralelo lo da la oficina.
+ *   · Su crédito es de OTRO cobrador → que lo renueve él o lo pase el supervisor.
+ * (El "segundo crédito lo da la oficina" murió el 07-08, y el "primer crédito lo
+ * da la oficina" el 08-13: hoy los dos salen por Nueva venta, directo.)
  * Nunca se esconde a nadie: si no se puede, se dice por qué.
  */
 export async function getNoElegibles(
@@ -333,13 +391,12 @@ export async function getNoElegibles(
   cobradorId: string | null,
   modo: "renovar" | "venta" = "renovar",
 ): Promise<NoElegible[]> {
-  // En NUEVA VENTA ya casi no hay bloqueados: desde el 07-08 un cliente puede
-  // tener VARIOS créditos a la vez sin estar al día (hasta 10 en la cartera viva). El único que no aparece es el
-  // que nunca tuvo crédito (su primero lo da la oficina), y ese caso lo resuelve
-  // la ficha del cliente con `PedirAyuda`, no esta lista.
+  // En NUEVA VENTA ya no hay bloqueados: desde el 07-08 un cliente puede tener
+  // VARIOS créditos a la vez sin estar al día (hasta 10 en la cartera viva), y
+  // desde el 08-13 hasta el que NUNCA tuvo crédito aparece como candidato (su
+  // primer crédito lo coloca el cobrador directo, regla de Carlos).
   if (modo === "venta") return [];
-  const { data: asig } = await db.from("asignaciones").select("cliente_id").eq("activo", true);
-  const ids = [...new Set((asig ?? []).map((a) => a.cliente_id as string))];
+  const ids = await clientesDeLaRuta(db);
   if (ids.length === 0) return [];
 
   const activos = await traerTodo<Prestamo>((d, h) =>

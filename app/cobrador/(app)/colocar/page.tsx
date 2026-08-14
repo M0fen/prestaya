@@ -125,8 +125,9 @@ export default async function ColocarPage({
       />
 
       <p className="rounded-[13px] border border-[#F0E3C8] bg-[#FDF8EC] px-3.5 py-3 text-[11.5px] leading-[1.5] font-medium text-[#7A5B10]">
-        El crédito queda creado al instante y con tu nombre. Si necesitás dar más de lo que
-        permite el historial del cliente, pedíselo a tu supervisor.
+        El crédito queda creado al instante y con tu nombre. Si ponés más de lo que permite el
+        historial del cliente, el mismo botón le manda el pedido a tu supervisor — no entregues
+        la plata hasta que lo aprueben.
       </p>
     </div>
   );

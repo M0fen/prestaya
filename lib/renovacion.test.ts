@@ -506,7 +506,11 @@ describe("techoVentaNueva — el número que la pantalla ofrece y el servidor ac
     expect(techoVentaNueva(120_000)).toBe(RENOVACION_CAP_TOTAL);
   });
 
-  it("sin base usable devuelve 0 (el primer crédito lo da la oficina)", () => {
+  it("sin base usable devuelve 0 — el techo del PRIMER crédito es el CAP y lo pone otra capa", () => {
+    // ⚠️ Esto NO significa que el primer crédito esté bloqueado (esa regla murió
+    // el 08-13: el cobrador lo coloca directo). Significa que esta función solo
+    // sabe de techos DERIVADOS de un crédito anterior; cuando no hay base usable,
+    // el techo es el CAP y lo fijan getCandidatosVenta / nuevaVentaDesdeCalle.
     expect(techoVentaNueva(0)).toBe(0);
     expect(techoVentaNueva(Number.NaN)).toBe(0);
   });

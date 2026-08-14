@@ -7,19 +7,28 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icono, type NombreIcono } from "@/components/Iconos";
 
+// El flujo del día en el pulgar (pedido de Carlos, 08-13): HOY es la ruta a
+// cobrar; CLIENTES el padrón vivo de la ruta (activos y sin crédito); INFORMES
+// el día en números (base, pagos, retiros, ventas, caja final). Lo demás
+// (números del mes, notas, ayuda, altas) vive en MENÚ — un toque más lejos,
+// porque no se abre veinte veces por día.
 const TABS: { href: string; label: string; icon: NombreIcono; badge?: boolean }[] = [
-  { href: "/cobrador", label: "Ruta", icon: "ruta" },
+  { href: "/cobrador", label: "Hoy", icon: "ruta" },
+  { href: "/cobrador/clientes", label: "Clientes", icon: "user" },
+  { href: "/cobrador/informes", label: "Informes", icon: "numeros" },
   { href: "/cobrador/chat", label: "Chat", icon: "chat", badge: true },
-  { href: "/cobrador/mis-numeros", label: "Números", icon: "numeros" },
-  { href: "/cobrador/notas", label: "Notas", icon: "notas" },
-  { href: "/cobrador/tutorial", label: "Ayuda", icon: "ayuda" },
+  { href: "/cobrador/menu", label: "Menú", icon: "menu" },
 ];
 
 export function CobradorBottomNav({ noLeidos = 0 }: { noLeidos?: number }) {
   const pathname = usePathname();
-  // "Ruta" solo activa en la home exacta; el resto por prefijo (incluye subrutas).
+  // "Hoy" activa en la home y en la ficha de cliente (se llega desde la ruta);
+  // el resto por prefijo (incluye subrutas). Ojo: "/cobrador/cliente/" (ficha)
+  // no es prefijo de "/cobrador/clientes" (padrón) — son pestañas distintas.
   const activo = (href: string) =>
-    href === "/cobrador" ? pathname === "/cobrador" : pathname.startsWith(href);
+    href === "/cobrador"
+      ? pathname === "/cobrador" || pathname.startsWith("/cobrador/cliente/")
+      : pathname.startsWith(href);
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto flex max-w-[480px] border-t border-white/10 bg-[#0F1B3D] pb-safe">

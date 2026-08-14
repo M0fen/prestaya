@@ -1,6 +1,8 @@
 "use client";
-// Solicitudes de renovación PENDIENTES. El admin aprueba (crea el crédito) o
-// rechaza; el supervisor solo las ve "en espera".
+// Solicitudes de colocación PENDIENTES (renovación o venta nueva, 0139). Las
+// resuelve CUALQUIER gestor que las ve: el admin todas, el supervisor las de su
+// zona (la RLS 0096 recorta lo que le llega). Regla de Carlos, 08-13: "supervisor
+// debería poder aceptar estas solicitudes".
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { UYU } from "@/lib/format";
@@ -19,27 +21,25 @@ function haceCuanto(iso: string): string {
 
 export function SolicitudesRenovacion({
   solicitudes,
-  esAdmin,
 }: {
   solicitudes: SolicitudRenovacion[];
-  esAdmin: boolean;
 }) {
   if (solicitudes.length === 0) return null;
   return (
     <section className="flex flex-col gap-2">
       <span className="text-[12px] font-bold tracking-[0.03em] text-gris uppercase">
-        Solicitudes de renovación · pendientes ({solicitudes.length})
+        Solicitudes de la calle · pendientes ({solicitudes.length})
       </span>
       <div className="flex flex-col gap-2">
         {solicitudes.map((s) => (
-          <Item key={s.id} s={s} esAdmin={esAdmin} />
+          <Item key={s.id} s={s} />
         ))}
       </div>
     </section>
   );
 }
 
-function Item({ s, esAdmin }: { s: SolicitudRenovacion; esAdmin: boolean }) {
+function Item({ s }: { s: SolicitudRenovacion }) {
   const router = useRouter();
   const [pendiente, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -66,7 +66,21 @@ function Item({ s, esAdmin }: { s: SolicitudRenovacion; esAdmin: boolean }) {
     <div className="flex flex-col gap-2 rounded-[14px] border border-[#DCE7FB] bg-[#F7F9FF] p-3.5">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 flex-col">
-          <span className="truncate text-[14px] font-bold text-tinta">{s.clienteNombre}</span>
+          <span className="truncate text-[14px] font-bold text-tinta">
+            {s.clienteNombre}
+            {/* El tipo cambia QUÉ crea el botón verde: la renovación FINALIZA el
+                crédito anterior; la venta nueva solo agrega otro (0139). */}
+            <span
+              className="ml-2 rounded-full px-2 py-0.5 align-middle text-[10px] font-bold"
+              style={
+                s.tipo === "venta"
+                  ? { background: "#E7F5EE", color: "#157A50" }
+                  : { background: "#EEF3FF", color: "#1E47C8" }
+              }
+            >
+              {s.tipo === "venta" ? "Venta nueva" : "Renovación"}
+            </span>
+          </span>
           {/* ⚠️ El admin aprobaba a ciegas: solo veía el monto pedido. Sin el
               anterior no hay contra qué compararlo — el mismo botón verde sirve
               para "+$0" que para "+60%". */}
@@ -91,30 +105,26 @@ function Item({ s, esAdmin }: { s: SolicitudRenovacion; esAdmin: boolean }) {
             {s.solicitadoEn ? ` · ${haceCuanto(s.solicitadoEn)}` : ""}
           </span>
         </div>
-        {esAdmin ? (
-          <div className="flex flex-shrink-0 gap-2">
-            <button
-              type="button"
-              onClick={() => setRechazando((v) => !v)}
-              disabled={pendiente}
-              className="rounded-full border border-borde px-3 py-1.5 text-[12px] font-bold text-gris disabled:opacity-50"
-            >
-              Rechazar
-            </button>
-            <button
-              type="button"
-              onClick={aprobar}
-              disabled={pendiente}
-              className="rounded-full bg-[#1FA971] px-3.5 py-1.5 text-[12px] font-extrabold text-white disabled:opacity-50"
-            >
-              {pendiente ? "…" : "Aprobar"}
-            </button>
-          </div>
-        ) : (
-          <span className="flex-shrink-0 rounded-full bg-[#EEF3FF] px-2.5 py-1 text-[11px] font-bold text-azul">
-            Esperando al admin
-          </span>
-        )}
+        {/* El que la VE la puede resolver: el admin todas, el supervisor las de
+            su zona (RLS). "Esperando al admin" ya no existe como estado pasivo. */}
+        <div className="flex flex-shrink-0 gap-2">
+          <button
+            type="button"
+            onClick={() => setRechazando((v) => !v)}
+            disabled={pendiente}
+            className="rounded-full border border-borde px-3 py-1.5 text-[12px] font-bold text-gris disabled:opacity-50"
+          >
+            Rechazar
+          </button>
+          <button
+            type="button"
+            onClick={aprobar}
+            disabled={pendiente}
+            className="rounded-full bg-[#1FA971] px-3.5 py-1.5 text-[12px] font-extrabold text-white disabled:opacity-50"
+          >
+            {pendiente ? "…" : "Aprobar"}
+          </button>
+        </div>
       </div>
 
       {/* ⚠️ EL AVISO QUE FALTABA. Aprobar CREA plata en la calle, y el botón verde se
@@ -135,7 +145,7 @@ function Item({ s, esAdmin }: { s: SolicitudRenovacion; esAdmin: boolean }) {
         </div>
       )}
 
-      {esAdmin && rechazando && (
+      {rechazando && (
         <div className="flex gap-2">
           <input
             type="text"

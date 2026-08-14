@@ -12,6 +12,9 @@ export interface SolicitudRenovacion {
   clienteId: string;
   clienteNombre: string;
   prestamoAnteriorId: string;
+  /** 'renovacion' = aprobar finaliza el anterior y crea el nuevo. 'venta' = aprobar
+   *  solo CREA un crédito nuevo; el anterior es la referencia de tasa/techo (0139). */
+  tipo: "renovacion" | "venta";
   monto: number;
   totalDias: number;
   frecuencia: FrecuenciaPrestamo;
@@ -38,6 +41,9 @@ export interface NuevaSolicitud {
   frecuencia: FrecuenciaPrestamo;
   solicitadoPor: string;
   solicitadoPorNombre: string;
+  /** Por defecto 'renovacion' (todo lo histórico lo es). 'venta' = crédito NUEVO
+   *  por encima del techo del cobrador: al aprobar NO se finaliza el anterior. */
+  tipo?: "renovacion" | "venta";
 }
 
 export async function crearSolicitudDb(db: SupabaseClient, s: NuevaSolicitud): Promise<void> {
@@ -49,6 +55,7 @@ export async function crearSolicitudDb(db: SupabaseClient, s: NuevaSolicitud): P
     frecuencia: s.frecuencia,
     solicitado_por: s.solicitadoPor,
     solicitado_por_nombre: s.solicitadoPorNombre,
+    tipo: s.tipo ?? "renovacion",
   });
   if (error) throw error;
 }
@@ -111,6 +118,8 @@ export async function getSolicitudesPendientes(db: SupabaseClient): Promise<Soli
       clienteId: r.cliente_id as string,
       clienteNombre: nombre.get(r.cliente_id as string) ?? "Cliente",
       prestamoAnteriorId: r.prestamo_anterior_id as string,
+      // Filas de antes de la 0139 no traen la columna: son renovaciones.
+      tipo: (r.tipo as "renovacion" | "venta" | undefined) ?? "renovacion",
       monto: Number(r.monto),
       totalDias: Number(r.total_dias),
       frecuencia: (r.frecuencia as FrecuenciaPrestamo) ?? "diario",
@@ -130,6 +139,7 @@ export interface SolicitudCruda {
   id: string;
   clienteId: string;
   prestamoAnteriorId: string;
+  tipo: "renovacion" | "venta";
   monto: number;
   totalDias: number;
   frecuencia: FrecuenciaPrestamo;
@@ -150,6 +160,7 @@ export async function getSolicitudPorId(
     id: data.id as string,
     clienteId: data.cliente_id as string,
     prestamoAnteriorId: data.prestamo_anterior_id as string,
+    tipo: (data.tipo as "renovacion" | "venta" | undefined) ?? "renovacion",
     monto: Number(data.monto),
     totalDias: Number(data.total_dias),
     frecuencia: (data.frecuencia as FrecuenciaPrestamo) ?? "diario",
@@ -185,6 +196,39 @@ export async function resolverSolicitudDb(
 }
 
 /**
+ * Reconciliación de la CARRERA aprobar-vs-rechazar (auditoría 08-14). Desde que
+ * dos gestores trabajan la misma cola, puede pasar: A aprueba (el crédito SE
+ * CREA) mientras B rechaza; el update de B gana y el `resolverSolicitudDb` de A
+ * afecta 0 filas. Si eso queda así, la solicitud dice "rechazada" con un crédito
+ * ACTIVO cobrando — y Mis pedidos le dice al cobrador "no se aprobó, colocalo
+ * vos" sobre plata que ya salió (la receta exacta del duplicado de JORGE).
+ * La VERDAD es el crédito: esta función re-marca la solicitud como aprobada
+ * SIN el guard de 'pendiente', dejando el choque anotado en motivo_rechazo.
+ */
+export async function marcarAprobadaPorCreditoExistente(
+  db: SupabaseClient,
+  id: string,
+  prestamoNuevoId: string,
+  resueltoPor: string,
+): Promise<void> {
+  const { error } = await db
+    .from("solicitudes_renovacion")
+    .update({
+      estado: "aprobada",
+      resuelto_por: resueltoPor,
+      resuelto_en: new Date().toISOString(),
+      prestamo_nuevo_id: prestamoNuevoId,
+      motivo_rechazo:
+        "Dos gestores la resolvieron a la vez: el crédito SE CREÓ, así que vale la aprobación.",
+    })
+    .eq("id", id)
+    // Solo pisa una resolución AJENA sin crédito: si el otro también aprobó (y
+    // anotó su prestamo_nuevo_id), no hay nada que corregir.
+    .is("prestamo_nuevo_id", null);
+  if (error) throw error;
+}
+
+/**
  * Cierra (aprobada) cualquier solicitud PENDIENTE de un crédito anterior. Se usa
  * cuando ese crédito se renovó por OTRA vía (alta directa del admin): así la
  * solicitud no queda huérfana apuntando a un crédito ya finalizado. Idempotente
@@ -201,6 +245,11 @@ export async function cerrarSolicitudPendienteDeAnterior(
    *  colocaron $10.000 — un OK que nunca existió. */
   como: "aprobada" | "rechazada" = "aprobada",
   motivo: string | null = null,
+  /** Qué TIPO de pedido se limpia (0139). Renovar cierra los de 'renovacion';
+   *  una venta directa cierra los de 'venta'. Sin este filtro, renovar el crédito
+   *  X mataba también el pedido de venta que usaba a X como referencia — un
+   *  pedido por capital NUEVO que la renovación no satisface. */
+  tipo: "renovacion" | "venta" = "renovacion",
 ): Promise<void> {
   const { error } = await db
     .from("solicitudes_renovacion")
@@ -212,6 +261,7 @@ export async function cerrarSolicitudPendienteDeAnterior(
       prestamo_nuevo_id: prestamoNuevoId,
     })
     .eq("prestamo_anterior_id", prestamoAnteriorId)
+    .eq("tipo", tipo)
     .eq("estado", "pendiente");
   if (error) throw error;
 }

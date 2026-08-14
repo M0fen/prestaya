@@ -65,6 +65,12 @@ interface Candidato {
   requiereAprobacion?: boolean;
   /** Deuda viva en sus OTROS créditos activos (0 si no tiene). Se avisa, no bloquea. */
   deudaHermano?: number;
+  /** Es su PRIMER crédito (recién censado, o historial roto del import): sale al
+   *  20% del negocio, directo, con el CAP como único tope (Carlos, 08-13). */
+  primerCredito?: boolean;
+  /** El "primer crédito" viene de historial ROTO del import, no de alguien que
+   *  nunca tuvo: cambia el subtítulo para no contradecir al aviso de deuda viva. */
+  historialRoto?: boolean;
 }
 
 const norm = (s: string) =>
@@ -167,7 +173,7 @@ export function ColocarLista({
       <p className="rounded-[14px] bg-white px-4 py-6 text-center text-[13px] leading-[1.5] font-medium text-gris">
         {modo === "renovar"
           ? "Ninguno de tus clientes terminó de pagar todavía. Cuando alguno complete su crédito, aparece acá para renovarlo de un toque."
-          : "No tenés clientes libres para una venta nueva. Aparecen los que ya no tienen crédito activo y alguna vez tuvieron uno."}
+          : "No tenés clientes en la ruta todavía. Censá al primero y le podés dar su crédito acá mismo."}
       </p>
     );
   }
@@ -192,18 +198,17 @@ export function ColocarLista({
         ) : hecho ? null : focoBloqueado ? (
           <TarjetaBloqueada c={focoBloqueado} />
         ) : (
-          /* ⚠️ Acá caía el cliente RECIÉN CENSADO: la ficha le ofrece "Darle un
-             crédito" en verde, toca, y aterrizaba en un cartel que le decía que no
-             se puede y nada más. Es el mismo callejón del censo del día 1, mudado
-             un paso más adelante. El primer crédito lo da la oficina —esa regla no
-             cambia— pero pedirlo tiene que ser un toque desde acá. */
+          /* ⚠️ Desde el 08-13 el recién censado YA aparece como candidato (su
+             primer crédito lo coloca el cobrador directo), así que acá solo cae
+             el caso raro: el crédito es de OTRO cobrador, o el cliente quedó
+             fuera de la ruta. Se dice cuál es la salida — nunca un callejón. */
           <div className="flex flex-col items-center gap-2.5 rounded-[14px] border border-borde bg-white px-4 py-5 text-center">
             <p className="text-[13px] leading-[1.5] font-semibold text-tinta">
               A esta persona no le podés colocar {modo === "renovar" ? "una renovación" : "un crédito"} vos solo.
             </p>
             <p className="text-[12px] leading-[1.5] font-medium text-gris">
-              Si es su <strong className="font-bold">primer crédito</strong>, lo da de alta la
-              oficina. Si ya tiene uno, puede ser de otro cobrador: miralo en su cartón.
+              Su crédito puede ser de <strong className="font-bold">otro cobrador</strong> (miralo
+              en su cartón), o quedó fuera de tu ruta. Si te corresponde, pedilo acá.
             </p>
             <PedirAyuda
               clienteId={clienteFoco}
@@ -237,17 +242,29 @@ export function ColocarLista({
           para saber que hoy tiene que salir con $113.500 encima, el cobrador tenía
           que abrir las 10 una por una y sumar de memoria. Si sale con $40.000, en
           la cuarta casa se queda sin efectivo y le dice al cliente que vuelve. */}
-      {candidatos.length > 0 && !q && (
-        <div className="flex items-center justify-between gap-3 rounded-[13px] border border-[#DCE6FB] bg-[#F7F9FF] px-3.5 py-3">
-          <span className="text-[12.5px] leading-[1.4] font-bold text-tinta">
-            {candidatos.length} {modo === "renovar" ? "para renovar" : "para vender"}
-            <span className="font-medium text-gris"> · si los hacés a todos</span>
-          </span>
-          <span className="flex-shrink-0 text-[16px] font-black tabular-nums text-[#1E47C8]">
-            {UYU(candidatos.reduce((t, c) => t + (c.montoNuevo ?? c.monto), 0))}
-          </span>
-        </div>
-      )}
+      {candidatos.length > 0 && !q && (() => {
+        // El total de "cuánta plata llevar" solo puede sumar montos CONOCIDOS:
+        // los primeros créditos no tienen monto hasta que el cobrador lo decide,
+        // y contarlos como $0 dejaba el número corto (auditoría 08-14).
+        const conMonto = candidatos.filter((c) => !c.primerCredito);
+        const primeros = candidatos.length - conMonto.length;
+        return (
+          <div className="flex items-center justify-between gap-3 rounded-[13px] border border-[#DCE6FB] bg-[#F7F9FF] px-3.5 py-3">
+            <span className="text-[12.5px] leading-[1.4] font-bold text-tinta">
+              {conMonto.length} {modo === "renovar" ? "para renovar" : "para vender"}
+              <span className="font-medium text-gris"> · si los hacés a todos</span>
+              {primeros > 0 && (
+                <span className="block text-[11px] font-semibold text-gris">
+                  + {primeros} primer{primeros === 1 ? "" : "os"} crédito{primeros === 1 ? "" : "s"} (monto a definir)
+                </span>
+              )}
+            </span>
+            <span className="flex-shrink-0 text-[16px] font-black tabular-nums text-[#1E47C8]">
+              {UYU(conMonto.reduce((t, c) => t + (c.montoNuevo ?? c.monto), 0))}
+            </span>
+          </div>
+        );
+      })()}
 
       {candidatos.length === 0 && !q && (
         <p className="rounded-[14px] bg-white px-4 py-5 text-center text-[13px] leading-[1.5] font-medium text-gris">
@@ -365,9 +382,11 @@ function Tarjeta({
   const [abierto, setAbierto] = useState(abrirYa);
   const [confirmar, setConfirmar] = useState(false);
   /** Monto y cuotas de la NUEVA VENTA. Arrancan en los del último crédito: lo más
-   *  común es repetir, y así el que solo quiere cambiar UNA cosa toca UNA cosa. */
-  const [monto, setMonto] = useState(String(c.montoNuevo ?? c.monto));
-  const [cuotas, setCuotas] = useState(String(c.totalDias));
+   *  común es repetir, y así el que solo quiere cambiar UNA cosa toca UNA cosa.
+   *  Para un PRIMER crédito no hay último: el monto arranca vacío (lo decide el
+   *  cobrador mirando al cliente) y las cuotas en 24, el plazo más común. */
+  const [monto, setMonto] = useState(c.primerCredito ? "" : String(c.montoNuevo ?? c.monto));
+  const [cuotas, setCuotas] = useState(c.primerCredito ? "24" : String(c.totalDias));
   const [msg, setMsg] = useState<string | null>(null);
   /** El servidor frenó un posible duplicado: el próximo toque lo confirma. */
   const [repetirIgual, setRepetirIgual] = useState(false);
@@ -377,6 +396,10 @@ function Tarjeta({
 
   const montoN = Math.round(Number(monto) || 0);
   const cuotasN = Math.round(Number(cuotas) || 0);
+  /** Mismo tope de cuotas que el servidor (366): sin espejarlo acá, un dedazo
+   *  (400 cuotas) pintaba números normales y el rojo llegaba del servidor con el
+   *  cliente enfrente — la promesa que la lista no puede romper (auditoría 08-14). */
+  const cuotasPasan = cuotasN > 366;
   const techo = c.techo;
   /** Pasa lo que el cobrador puede solo → hay que pedirlo (si hay a quién). */
   const excede = montoN > techo;
@@ -384,9 +407,12 @@ function Tarjeta({
    *  venta nueva el techo del tramo YA es el máximo (el CAP acota el capital
    *  nuevo), así que el máximo coincide con el techo. */
   const pasaMaximo = montoN > (c.maximo ?? techo);
-  /** ¿Este toque manda un pedido a la oficina en vez de crear el crédito? */
-  const aOficina =
-    modo === "renovar" ? !!c.requiereAprobacion : excede && !!c.prestamoId && !pasaMaximo;
+  /** ¿Este toque manda un pedido a la oficina en vez de crear el crédito?
+   *  En VENTA, cualquier monto sobre el techo (y bajo el CAP) genera solicitud —
+   *  también para el cliente sin crédito activo (0139): antes ese caso era un
+   *  "dejale el pedido a tu supervisor" que viajaba por fuera de la app. El
+   *  PRIMER crédito nunca pide: su techo ES el CAP. */
+  const aOficina = modo === "renovar" ? !!c.requiereAprobacion : excede && !pasaMaximo;
   /** Lo que se le entrega al RENOVAR: el mismo monto del crédito que terminó. */
   const sugeridoRenov = c.montoNuevo ?? c.monto;
 
@@ -401,9 +427,12 @@ function Tarjeta({
     // servidor para arrastrar la tasa. Con la redondeada, el número que el
     // cobrador le decía en voz alta al cliente salía hasta $1 distinto del que
     // quedaba en el cartón (53 créditos heredados tienen cuota fraccionaria).
-    const base = { monto: c.monto, cuota: c.cuotaExacta ?? c.cuota, totalDias: c.totalDias };
+    // PRIMER crédito: no hay base → 20% del negocio, igual que el servidor.
+    const base = c.primerCredito
+      ? null
+      : { monto: c.monto, cuota: c.cuotaExacta ?? c.cuota, totalDias: c.totalDias };
     return calcularCuotaCreditoNuevo(base, montoN, cuotasN, interesDeBase(base) ?? INTERES_DEFECTO_PCT);
-  }, [montoN, cuotasN, c.monto, c.cuota, c.cuotaExacta, c.totalDias]);
+  }, [montoN, cuotasN, c.monto, c.cuota, c.cuotaExacta, c.totalDias, c.primerCredito]);
 
   // Cuándo empieza a pagar: los créditos nacen el PRÓXIMO día de cobro (no hoy),
   // y el cobrador se lo tiene que poder decir al cliente sin hacer la cuenta.
@@ -495,9 +524,13 @@ function Tarjeta({
           <span className="text-[11.5px] font-semibold text-gris tabular-nums">
             {modo === "renovar"
               ? `Terminó de pagar ✓ · ${UYU(sugeridoRenov)}${c.desde ? ` · desde ${diaMes(c.desde)}` : ""}`
-              : (c.deudaHermano ?? 0) >= 1
-                ? "Está pagando · se le puede dar otro"
-                : "Sin crédito activo"}
+              : c.primerCredito
+                ? c.historialRoto
+                  ? "Sin historial usable · sale como primer crédito"
+                  : "Nunca tuvo crédito · primer crédito"
+                : (c.deudaHermano ?? 0) >= 1
+                  ? "Está pagando · se le puede dar otro"
+                  : "Sin crédito activo"}
             {c.documento ? ` · ${c.documento}` : ""}
           </span>
         </div>
@@ -575,9 +608,11 @@ function Tarjeta({
           ) : (
             <div className="flex flex-col gap-2.5 rounded-[13px] bg-[#F7F9FD] p-3">
               <span className="text-[11.5px] font-bold text-gris">
-                {c.prestamoId
-                  ? `Terminó de pagar ${UYU(c.monto)} en ${c.totalDias} ${etiquetaFrec(c.frecuencia)}`
-                  : `Su último crédito fue de ${UYU(c.monto)}`}
+                {c.primerCredito
+                  ? "Es su PRIMER crédito: sale al 20% del negocio."
+                  : c.prestamoId
+                    ? `Terminó de pagar ${UYU(c.monto)} en ${c.totalDias} ${etiquetaFrec(c.frecuencia)}`
+                    : `Su último crédito fue de ${UYU(c.monto)}`}
               </span>
               <div className="flex gap-2">
                 <label className="flex flex-1 flex-col gap-1">
@@ -605,7 +640,7 @@ function Tarjeta({
 
               {/* Qué va a pagar el cliente: hasta ahora el cobrador tenía que
                   calcularlo de memoria para poder decírselo. */}
-              {montoN > 0 && cuotasN > 0 && !excede && (
+              {montoN > 0 && cuotasN > 0 && !excede && !cuotasPasan && (
                 <>
                   <div className="grid grid-cols-3 gap-2 rounded-[11px] bg-white p-2.5">
                     <Dato k="Cuota" v={UYU(cuotaVenta)} />
@@ -627,36 +662,20 @@ function Tarjeta({
                 }`}
               >
                 {/* Tres mensajes distintos porque son tres finales distintos: se
-                    crea solo · lo pide a la oficina · no lo puede NADIE. Antes el
-                    segundo y el tercero decían lo mismo ("se manda el pedido") y
-                    el tercero terminaba en un rojo del servidor. */}
-                {pasaMaximo
-                  ? `${UYU(montoN)} no se puede: para este cliente el máximo es ${UYU(c.maximo ?? techo)}, ni la oficina puede subirlo. Revisá el monto.`
-                  : excede
-                    ? c.prestamoId
+                    crea solo · lo pide a la oficina · no lo puede NADIE. Desde la
+                    0139 el sobre-techo SIEMPRE tiene puerta: genera una solicitud
+                    que aprueba tu supervisor o el admin (antes el cliente sin
+                    crédito activo terminaba en un aviso que viajaba por fuera). */}
+                {cuotasN > 0 && cuotasPasan
+                  ? "El máximo son 366 cuotas. Revisá la cantidad."
+                  : pasaMaximo
+                    ? `${UYU(montoN)} no se puede: para este cliente el máximo es ${UYU(c.maximo ?? techo)}, ni la oficina puede subirlo. Revisá el monto.`
+                    : excede
                       ? `${UYU(montoN)} pasa los ${UYU(techo)} que podés dar solo. Al confirmar se manda el pedido a la oficina — todavía NO le entregues la plata.`
-                      : `${UYU(montoN)} pasa lo que podés dar solo. El máximo para este cliente es ${UYU(techo)}.`
-                    : `Podés darle hasta ${UYU(techo)} vos solo.`}
+                      : c.primerCredito
+                        ? `Podés darle hasta ${UYU(techo)} vos solo (tope del sistema).`
+                        : `Podés darle hasta ${UYU(techo)} vos solo.`}
               </span>
-
-              {/* ⚠️ LA SALIDA del único callejón que quedaba. Un cliente que TODAVÍA
-                  está pagando no tiene puerta a la oficina (aprobar una renovación
-                  finalizaría su crédito vivo), así que el botón queda deshabilitado
-                  — y hasta acá terminaba el camino. Ahora el pedido queda anotado en
-                  su ficha, que es lo que el supervisor mira. */}
-              {excede && !c.prestamoId && (
-                <div className="flex flex-col gap-1.5 rounded-[11px] bg-[#FDF3E2] px-3 py-2.5">
-                  <span className="text-[11.5px] leading-[1.4] font-bold text-[#8A6D1E]">
-                    Para darle {UYU(montoN)} hace falta tu supervisor. Dejale el pedido acá y
-                    seguí con la ruta.
-                  </span>
-                  <PedirAyuda
-                    clienteId={c.clienteId}
-                    etiqueta="Pedirlo a mi supervisor"
-                    textoSugerido={`Pido autorización para darle ${UYU(montoN)} en ${cuotasN} cuotas a ${c.nombre}. Su último crédito fue de ${UYU(c.monto)}, así que yo solo puedo hasta ${UYU(techo)}.`}
-                  />
-                </div>
-              )}
             </div>
           )}
 
@@ -678,8 +697,7 @@ function Tarjeta({
               type="button"
               disabled={
                 pendiente ||
-                (modo === "venta" &&
-                  ((excede && !c.prestamoId) || pasaMaximo || montoN <= 0 || cuotasN <= 0))
+                (modo === "venta" && (pasaMaximo || cuotasPasan || montoN <= 0 || cuotasN <= 0))
               }
               onClick={() => (confirmar ? colocar() : setConfirmar(true))}
               className="min-h-11 flex-1 rounded-[13px] bg-[#1FA971] text-[13px] font-extrabold text-white disabled:opacity-50"

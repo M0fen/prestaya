@@ -2,7 +2,7 @@
 // completar/completado + la recomendación del scoring (acción y monto). El alta
 // del nuevo crédito la confirma la oficina; acá está la decisión, servida.
 import Link from "next/link";
-import { requireGestor, esAdmin } from "@/lib/auth";
+import { requireGestor } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { listarCandidatosRenovacion } from "@/lib/data/renovaciones";
 import { getSolicitudesPendientes } from "@/lib/data/solicitudesRenovacion";
@@ -36,7 +36,7 @@ export default async function RenovacionesPage({
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
-  const usuario = await requireGestor();
+  await requireGestor(); // gate de rol; el alcance por zona lo aplica la RLS
   const db = await createSupabaseServer();
   const q = ((await searchParams).q ?? "").trim().slice(0, 60);
   // Los avisos que los cobradores dejan con "Pedir a la oficina": hasta hoy caían
@@ -50,7 +50,6 @@ export default async function RenovacionesPage({
     getAvisosDeLaCalle(alcance.global ? null : alcance.cobradorIds),
   ]);
   const { candidatos, totalQueCalifican, ocultos } = lista;
-  const esAdminV = esAdmin(usuario.rol);
 
   return (
     <div className="flex flex-col gap-5">
@@ -64,8 +63,9 @@ export default async function RenovacionesPage({
         </span>
       </div>
 
-      {/* Solicitudes pendientes: el admin aprueba/rechaza; el supervisor las ve. */}
-      <SolicitudesRenovacion solicitudes={solicitudes} esAdmin={esAdminV} />
+      {/* Solicitudes de la calle: las resuelve cualquier gestor que las ve — el
+          admin todas, el supervisor las de su zona (RLS 0096). */}
+      <SolicitudesRenovacion solicitudes={solicitudes} />
 
       {/* ⚠️ PEDIDOS DE LA CALLE. Los cinco botones de "avisar a la oficina" le
           prometen al cobrador que su pedido "le va a llegar al supervisor y a la
@@ -234,7 +234,6 @@ export default async function RenovacionesPage({
                   clienteId={cliente.id}
                   clienteNombre={cliente.nombre}
                   anterior={prestamoAnterior}
-                  esAdmin={esAdminV}
                   moroso={moroso}
                 />
               ) : (
@@ -249,8 +248,9 @@ export default async function RenovacionesPage({
 
       <p className="text-[11px] leading-[1.5] font-medium text-tenue-2">
         El puntaje sale del comportamiento de pago propio del cliente (interno, no se le
-        muestra). El supervisor puede <b>solicitar</b> la renovación; el <b>administrador</b> la
-        aprueba y crea el crédito.
+        muestra). Supervisor y administrador dan de alta directo; las <b>solicitudes</b> de
+        arriba son de los cobradores que se pasaron de su techo, y las resuelve cualquiera de
+        los dos.
       </p>
     </div>
   );

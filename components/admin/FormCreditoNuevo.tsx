@@ -37,7 +37,6 @@ export function FormCreditoNuevo({
   base,
   cobradores,
   cobradorSugerido,
-  esAdmin = false,
   moroso = false,
   reportado = false,
 }: {
@@ -47,7 +46,6 @@ export function FormCreditoNuevo({
   base: BaseUltimoCredito | null;
   cobradores: { id: string; nombre: string }[];
   cobradorSugerido: string | null;
-  esAdmin?: boolean;
   /** Marcado como moroso: aviso antes de volver a prestarle. */
   moroso?: boolean;
   /** Reportado al buró: aviso antes de volver a prestarle. */
@@ -102,12 +100,13 @@ export function FormCreditoNuevo({
    *  nacer al interés del negocio y el gestor tiene que SABERLO antes de cantarlo. */
   const baseRota = conHistorial && tasaHistorica == null;
 
-  // Preview de los MISMOS topes que aplica el servidor.
+  // Preview de los MISMOS topes que aplica el servidor. Desde el 08-13 el
+  // SUPERVISOR también es aprobador (regla de Carlos): puede dar el primer
+  // crédito y autorizar sobre el tramo, igual que el admin. El único freno duro
+  // para todos sigue siendo el CAP de $100.000.
   const evalu = valido && conHistorial ? evaluarRenovacion(baseTasa!.monto, montoNum) : null;
   const superaCap = valido ? montoNum > 100_000 : false;
-  const sinHistorialYNoAdmin = !conHistorial && !esAdmin;
-  const sobreTramoYNoAdmin = !!evalu?.excedePct && !esAdmin;
-  const bloqueado = superaCap || sinHistorialYNoAdmin || sobreTramoYNoAdmin;
+  const bloqueado = superaCap;
 
   const enviar = async () => {
     setOcupado(true);
@@ -184,8 +183,8 @@ export function FormCreditoNuevo({
         </p>
       ) : (
         <p className="rounded-[10px] bg-[#FDF3E2] px-3 py-2 text-[12px] font-semibold text-[#8A6D1E]">
-          Es el <b>primer crédito</b> de este cliente: no hay historial del que arrastrar la tasa, así
-          que el interés se define acá{esAdmin ? "." : " y lo autoriza el administrador."}
+          Es el <b>primer crédito</b> de este cliente: no hay historial del que arrastrar la tasa,
+          así que el interés se define acá.
         </p>
       )}
 
@@ -312,7 +311,7 @@ export function FormCreditoNuevo({
         </p>
       )}
 
-      {(superaCap || sobreTramoYNoAdmin || sinHistorialYNoAdmin || evalu?.excedePct) && (
+      {(superaCap || evalu?.excedePct) && (
         <p
           className={`rounded-[10px] px-3 py-2 text-[12px] font-semibold ${
             bloqueado ? "bg-[#FBE4E2] text-[#C0392B]" : "bg-[#FDF3E2] text-[#8A6D1E]"
@@ -320,11 +319,7 @@ export function FormCreditoNuevo({
         >
           {superaCap
             ? "El crédito no puede superar $100.000 (tope máximo). No se puede dar de alta."
-            : sinHistorialYNoAdmin
-              ? "El primer crédito de un cliente lo da de alta el administrador."
-              : sobreTramoYNoAdmin
-                ? `${evalu?.motivo} Pedile al administrador que lo autorice.`
-                : `${evalu?.motivo} Como admin, lo autorizás directo.`}
+            : `${evalu?.motivo} Como gestor, lo autorizás directo.`}
         </p>
       )}
 

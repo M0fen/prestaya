@@ -4,7 +4,7 @@
 // vecino más cercano), prioridad de cobro y A-Z. Los ya cobrados / no-pago bajan
 // al final. Progressive enhancement: sin permiso o sin JS, queda el orden del
 // servidor (por nombre).
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { Fragment, useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ordenarPorCercania } from "@/lib/ruta";
@@ -530,6 +530,29 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
       )}
 
       {visibles.map((it, idx) => {
+        // ── Encabezados de grupo (solo en "Todos" sin búsqueda) ──
+        // El orden ya pone primero las paradas por cobrar y al final las
+        // resueltas/fuera del día; el separador HACE VISIBLE ese corte. Sin él,
+        // el cobrador leía una lista plana y contaba su día a ojo (pedido de
+        // Carlos, 08-13: "que aparezcan los que son para cobrar de forma
+        // organizada").
+        const resuelto = (x: ItemRutaVista) =>
+          cerrado(x.estadoHoy) || !!x.sinCuotaHoy || x.estadoHoy === "sin_credito";
+        const conGrupos = !buscando && filtro === "todos";
+        const encabezado: "pendientes" | "resueltos" | null = !conGrupos
+          ? null
+          : idx === 0
+            ? resuelto(it)
+              ? "resueltos"
+              : "pendientes"
+            : resuelto(it) && !resuelto(visibles[idx - 1])
+              ? "resueltos"
+              : null;
+        // La cartera vencida NO es meta del día (la chip "Pendientes" y el arqueo
+        // la excluyen): contar los tres números juntos daba "Para cobrar (13)"
+        // arriba de una chip que decía 10 — dos verdades en la misma pantalla.
+        const nPend = filtrados.filter((x) => !resuelto(x) && !x.plazoVencido).length;
+        const nRecuperar = filtrados.filter((x) => !resuelto(x) && x.plazoVencido).length;
         // "Hoy no toca": el semanal/quincenal al día sin cuota hoy NO está
         // "Cobrado" (mentía a las 7 AM) — chip propio, neutro.
         // ATRASO PURO: no le vence cuota hoy pero debe de días anteriores (el
@@ -552,9 +575,20 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
         // Abono parcial: cuánto le falta para cubrir la cuota de hoy.
         const restaHoy = it.estadoHoy === "abono" ? Math.max(0, it.cuota - it.pagadoHoy) : 0;
         return (
+          <Fragment key={it.id}>
+          {encabezado === "pendientes" && (
+            <span className="px-1 pt-1 text-[11px] font-bold tracking-[0.05em] text-[#6B7494] uppercase">
+              Para cobrar ({nPend})
+              {nRecuperar > 0 ? ` · ${nRecuperar} a recuperar` : ""}
+            </span>
+          )}
+          {encabezado === "resueltos" && (
+            <span className="px-1 pt-2 text-[11px] font-bold tracking-[0.05em] text-[#8A93AD] uppercase">
+              Visitados y sin cuota hoy ({filtrados.length - nPend})
+            </span>
+          )}
           <div
-            key={it.id}
-            className="relative flex items-center gap-2 overflow-hidden rounded-[16px] bg-white py-2 pr-2 pl-4 shadow-[0_1px_3px_rgba(26,34,71,0.05)]"
+            className="relative flex items-center gap-2 overflow-hidden rounded-[16px] bg-white py-2.5 pr-2 pl-4 shadow-[0_1px_3px_rgba(26,34,71,0.05)]"
             style={{ opacity: esCerrado ? 0.72 : 1 }}
           >
             {/* Franja de estado a la izquierda: se lee la ruta de un vistazo. */}
@@ -587,8 +621,12 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
                   />
                 )}
               </div>
-              <div className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate text-[14.5px] font-bold text-tinta">
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                {/* ⚠️ NOMBRE COMPLETO, hasta DOS líneas (pedido de Carlos, 08-13:
+                    "los nombres se cortan… debe aparecer nombre y apellido").
+                    `truncate` dejaba "MARÍA FERNANDA RODRÍG…" y en la calle dos
+                    clientas de la misma cuadra se confundían por el apellido. */}
+                <span className="line-clamp-2 text-[15px] leading-[1.22] font-bold break-words text-tinta">
                   {it.nombre}
                 </span>
                 {it.plazoVencido ? (
@@ -666,6 +704,7 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
             {/* Ojito: vistazo rápido sin salir de la ruta. */}
             <OjitoCliente clienteId={it.id} nombre={it.nombre} />
           </div>
+          </Fragment>
         );
       })}
 

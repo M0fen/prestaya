@@ -177,9 +177,16 @@ export function OjitoCliente({ clienteId, nombre }: { clienteId: string; nombre:
                     </Plegable>
                   </>
                 ) : (
-                  <p className="rounded-[12px] bg-suave px-3 py-2.5 text-[12.5px] font-medium text-gris">
-                    Sin crédito activo. El alta la hace la oficina.
-                  </p>
+                  /* ⚠️ Antes decía "El alta la hace la oficina" — falso desde el
+                     08-13: el cobrador coloca directo (y el primer crédito
+                     también). El texto viejo mandaba a llamar por teléfono por
+                     algo que se hace en dos toques. */
+                  <a
+                    href={`/cobrador/colocar?modo=venta&cliente=${clienteId}`}
+                    className="block rounded-[12px] bg-[#F0FBF5] px-3 py-2.5 text-[12.5px] font-bold text-[#157A50] active:scale-[0.99]"
+                  >
+                    Sin crédito activo. 💵 Podés darle uno ahora mismo →
+                  </a>
                 )}
 
                 {/* Notas — plegado */}

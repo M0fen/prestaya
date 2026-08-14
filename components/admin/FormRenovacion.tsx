@@ -35,14 +35,11 @@ export function FormRenovacion({
   clienteId,
   clienteNombre,
   anterior,
-  esAdmin = true,
   moroso = false,
 }: {
   clienteId: string;
   clienteNombre: string;
   anterior: PrestamoAnterior;
-  /** Admin: da de alta directo. Supervisor (false): crea una solicitud a aprobar. */
-  esAdmin?: boolean;
   /** Cliente marcado como moroso → aviso antes de renovar. */
   moroso?: boolean;
 }) {
@@ -91,16 +88,13 @@ export function FormRenovacion({
     : 0;
   const totalAPagar = cuota * diasNum;
 
-  // Preview del tope (mismo cálculo que el servidor). Dentro del tope del tramo
-  // → alta directa. Sobre el tramo: solo el admin autoriza; el resto queda
-  // BLOQUEADO. El cap de $100.000 bloquea a TODOS (incluido el admin).
+  // Preview del tope (mismo cálculo que el servidor). Desde el 08-13 TODO GESTOR
+  // es aprobador (regla de Carlos: "que den aprobación o hagan esto manual ellos
+  // mismos"): el sobre-tope lo autoriza directo también el supervisor, y del
+  // panel ya no salen solicitudes — esas quedan para los cobradores en la calle.
+  // El techo absoluto (CAP, o el monto del heredado) lo valida el servidor.
   const evalu = valido ? evaluarRenovacion(anterior.monto, montoNum) : null;
-  // Solo el CAP de $100.000 bloquea a todos. El sobre-tope del tramo YA NO bloquea
-  // al supervisor: genera una SOLICITUD para el admin (Tanda 6).
-  // Ya nada BLOQUEA: lo que no se puede aprobar solo va al admin (decisión de
-  // Carlos, 06-08). El admin autoriza directo; el supervisor manda la solicitud.
   const bloqueado = false;
-  const esSolicitud = evalu ? (evalu.excedePct || evalu.superaCap) && !esAdmin : false;
 
   const enviar = async () => {
     setOcupado(true);
@@ -178,10 +172,8 @@ export function FormRenovacion({
       {superaTope && (
         <p className="rounded-[10px] bg-[#FDF3E2] px-3 py-2 text-[12px] font-bold text-[#8A6D1E]">
           Este crédito es de {UYU(anterior.monto)}, por encima del tope de{" "}
-          {UYU(RENOVACION_CAP_TOTAL)}.{" "}
-          {esAdmin
-            ? "Como admin lo autorizás vos. Ojo con bajarle el monto: sería recortarle el capital al cliente."
-            : "Lo tiene que aprobar el administrador: al confirmar se le manda el pedido."}
+          {UYU(RENOVACION_CAP_TOTAL)}. Lo autorizás vos como gestor. Ojo con bajarle el monto:
+          sería recortarle el capital al cliente.
         </p>
       )}
 
@@ -297,9 +289,7 @@ export function FormRenovacion({
         >
           {evalu.autoAprobable
             ? `✓ Dentro del tope (${evalu.topePct}% para créditos de este monto): se aprueba al instante.`
-            : esAdmin
-              ? `${evalu.motivo} Como admin, lo autorizás directo.`
-              : `${evalu.motivo} Se envía al administrador para que lo apruebe.`}
+            : `${evalu.motivo} Como gestor, lo autorizás directo.`}
         </p>
       )}
 
@@ -329,7 +319,7 @@ export function FormRenovacion({
             disabled={!valido || ocupado || bloqueado}
             className="flex-1 rounded-full bg-[#2453DC] px-4 py-2.5 text-[13px] font-bold text-white disabled:opacity-40"
           >
-            {bloqueado ? "No permitido" : esSolicitud ? "Solicitar aprobación" : "Revisar y dar de alta"}
+            {bloqueado ? "No permitido" : "Revisar y dar de alta"}
           </button>
         ) : (
           <button
@@ -338,15 +328,13 @@ export function FormRenovacion({
             disabled={ocupado}
             className="flex-1 rounded-full bg-[#1FA971] px-4 py-2.5 text-[13px] font-extrabold text-white disabled:opacity-60"
           >
-            {ocupado ? (esSolicitud ? "Enviando…" : "Creando…") : esSolicitud ? "Enviar solicitud al admin" : `Confirmar alta · ${UYU(montoNum)}`}
+            {ocupado ? "Creando…" : `Confirmar alta · ${UYU(montoNum)}`}
           </button>
         )}
       </div>
       {confirmar && !ocupado && (
         <p className="text-[11px] font-medium text-tenue-2">
-          {esSolicitud
-            ? "Queda pendiente hasta que el administrador la apruebe (nada se crea todavía)."
-            : "Esto finaliza el crédito actual (saldado) y crea uno nuevo activo."}
+          Esto finaliza el crédito actual (saldado) y crea uno nuevo activo.
         </p>
       )}
     </div>

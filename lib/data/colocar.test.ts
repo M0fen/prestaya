@@ -17,7 +17,12 @@ import { describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { getCandidatosRenovar, getCandidatosVenta, getNoElegibles } from "./colocar";
-import { montoRenovacionAutoAprobable, techoRenovacion, techoVentaNueva } from "@/lib/renovacion";
+import {
+  montoRenovacionAutoAprobable,
+  techoRenovacion,
+  techoVentaNueva,
+  RENOVACION_CAP_TOTAL,
+} from "@/lib/renovacion";
 
 const YULI = "u-yuli";
 const EDWARD = "u-edward";
@@ -254,14 +259,39 @@ describe("NUEVA VENTA: la lista del operador que 'no encontraba a nadie'", () =>
     expect(c.techo).toBe(techoVentaNueva(20_000)); // 24.000, no 6.000
   });
 
-  it("sin historial usable no se ofrece: el primer crédito lo da la oficina", async () => {
+  it("el RECIÉN CENSADO aparece como PRIMER crédito, con el CAP de techo", async () => {
+    // Regla de Carlos (08-13): "los créditos de censar cliente nuevo" ya no piden
+    // autorización — el primer crédito lo coloca el cobrador directo, al 20% del
+    // negocio. Antes este cliente no aparecía en NINGUNA lista y todo censo
+    // terminaba en un pedido a la oficina esperando días.
     const { db } = crearDb({
       asignaciones: [asignado("c-nuevo")],
       clientes: [cliente("c-nuevo", "RECIÉN CENSADO")],
       prestamos: [],
       pagos: [],
     });
-    expect(await getCandidatosVenta(db)).toEqual([]);
+    const out = await getCandidatosVenta(db);
+    expect(out).toHaveLength(1);
+    expect(out[0].primerCredito).toBe(true);
+    expect(out[0].techo).toBe(RENOVACION_CAP_TOTAL); // el único tope es el CAP
+    expect(out[0].monto).toBe(0); // no hay último crédito del que partir
+    expect(out[0].prestamoId).toBeUndefined(); // no hay nada que cerrar
+  });
+
+  it("historial con términos ROTOS del import = mismas reglas que un primer crédito", async () => {
+    // Tiene filas en `prestamos` pero con cuota 0: no hay tasa que arrastrar ni
+    // techo que medir. Es EXACTAMENTE lo que decide el servidor (`conHistorial`
+    // da false → 20% del negocio, tope CAP) — la lista no puede decidir distinto.
+    const { db } = crearDb({
+      asignaciones: [asignado("c-roto")],
+      clientes: [cliente("c-roto", "IMPORT ROTO")],
+      prestamos: [credito({ id: "p1", cliente: "c-roto", monto: 10_000, cuota: 0, dias: 24, estado: "finalizado" })],
+      pagos: [],
+    });
+    const out = await getCandidatosVenta(db);
+    expect(out).toHaveLength(1);
+    expect(out[0].primerCredito).toBe(true);
+    expect(out[0].techo).toBe(RENOVACION_CAP_TOTAL);
   });
 });
 

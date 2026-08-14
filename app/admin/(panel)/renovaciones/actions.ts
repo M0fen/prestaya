@@ -7,20 +7,26 @@
 // ─────────────────────────────────────────────────────────────────────────
 import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { getUsuarioActual, esGestor, esAdmin } from "@/lib/auth";
+import { getUsuarioActual, esGestor } from "@/lib/auth";
 import { crearRenovacion, type ResultadoAlta } from "@/lib/data/renovaciones";
 import {
-  crearSolicitudDb,
   getSolicitudPorId,
   resolverSolicitudDb,
   cerrarSolicitudPendienteDeAnterior,
+  marcarAprobadaPorCreditoExistente,
 } from "@/lib/data/solicitudesRenovacion";
+import { getClientePorId } from "@/lib/data/clientes";
 import { getPrestamoPorId } from "@/lib/data/prestamos";
+import { crearCreditoNuevoDb } from "@/lib/data/creditoNuevo";
+import { calcularCuotaCreditoNuevo, interesDeBase, INTERES_DEFECTO_PCT } from "@/lib/creditoNuevo";
 import { evaluarRenovacion, techoRenovacion, RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
 import { reportarError } from "@/lib/observabilidad";
-import { UYU } from "@/lib/format";
+import { opIdDeterminista } from "@/lib/idempotencia";
+import { proximoDiaCobro } from "@/lib/cartones";
+import { hoyUY } from "@/lib/fecha";
+import { toIso, UYU } from "@/lib/format";
 import type { FrecuenciaPrestamo } from "@/types/db";
 
 type ResultadoSimple = { ok: true } | { ok: false; error: string };
@@ -33,12 +39,13 @@ export type ResultadoRenovar =
 
 /**
  * Renovación cap-aware (una sola puerta):
- *  · DENTRO del tope (aumento ≤ 20% y ≤ $100.000) → se aprueba SOLA: crea el
- *    crédito al instante, sea admin o supervisor (renovación "automática").
- *  · FUERA del tope → requiere aprobación: el admin la crea directo (él ES el
- *    aprobador); el supervisor genera una SOLICITUD que el admin resuelve.
+ *  · DENTRO del tope (aumento ≤ 20% y ≤ $100.000) → se aprueba SOLA al instante.
+ *  · FUERA del tope → la autoriza EL GESTOR que la está creando, sea admin o
+ *    supervisor (regla de Carlos, 08-13: el supervisor también es aprobador — "que
+ *    den aprobación o hagan esto manual ellos mismos"). Las SOLICITUDES quedan
+ *    para la calle: el cobrador pide, y cualquier gestor de la zona resuelve.
  *  El servidor decide con `evaluarRenovacion` (verdad del dinero); el preview
- *  del form es solo informativo.
+ *  del form es solo informativo. El techo ABSOLUTO sigue siendo duro para todos.
  */
 export async function renovarCredito(input: {
   clienteId: string;
@@ -66,7 +73,6 @@ export async function renovarCredito(input: {
     return { ok: false, error: "El crédito anterior no está activo." };
   }
   const evalu = evaluarRenovacion(ant.monto_prestado, monto);
-  const admin = esAdmin(usuario.rol);
 
   // ⚠️ TECHO ABSOLUTO — el que impide que un cero de más se vuelva un crédito.
   // Al mandar el sobre-CAP por el camino de solicitud (antes era un rechazo duro
@@ -89,45 +95,12 @@ export async function renovarCredito(input: {
     };
   }
 
-  // Lo que NO se puede aprobar solo va al ADMIN, nunca a un callejón sin salida
-  // (decisión de Carlos, 06-08: "cuando no se puedan renovar así directamente, se
-  // envía a admin para que apruebe"). Son dos casos: pasarse del tope del tramo
-  // (20/15/10%) y pasarse del CAP de $100.000 — este último aparece con los
-  // créditos heredados de Disapp que ya venían por encima, donde la alternativa
-  // era rebajarle el capital al cliente. El admin ES el aprobador: da de alta
-  // directo. Cualquier otro rol genera una SOLICITUD que él resuelve (0029).
-  const necesitaAprobacion = evalu.superaCap || evalu.excedePct;
-  if (necesitaAprobacion && !admin) {
-    try {
-      await crearSolicitudDb(db, {
-        clienteId: input.clienteId,
-        prestamoAnteriorId: input.prestamoAnteriorId,
-        monto,
-        totalDias,
-        frecuencia: input.frecuencia,
-        solicitadoPor: usuario.id,
-        solicitadoPorNombre: usuario.nombre,
-      });
-      await registrarAuditoria(db, {
-        actorId: usuario.id,
-        actorNombre: usuario.nombre,
-        accion: evalu.superaCap
-          ? "Solicitó renovación (sobre el tope de $100.000)"
-          : "Solicitó renovación (sobre el tope del tramo)",
-        entidad: "cliente",
-        entidadId: input.clienteId,
-        detalle: `${UYU(monto)} × ${totalDias} (${input.frecuencia}) — espera aprobación del admin`,
-      });
-      revalidatePath("/admin/renovaciones");
-      return { ok: true, via: "solicitud" };
-    } catch (e) {
-      if ((e as { code?: string } | null)?.code === "23505")
-        return { ok: false, error: "Ya hay una solicitud pendiente para este crédito." };
-      return { ok: false, error: "No se pudo enviar la solicitud. Probá de nuevo." };
-    }
-  }
-
-  // Auto-aprobable, o ADMIN autorizando (tramo o CAP) — él es el aprobador.
+  // ⚠️ ACÁ YA NO NACEN SOLICITUDES. El que llegó hasta acá es un GESTOR (admin o
+  // supervisor), y desde el 08-13 los DOS son aprobadores (regla de Carlos: "que
+  // den aprobación o hagan esto manual ellos mismos"): lo que antes era "el
+  // supervisor genera una solicitud y espera al admin" ahora es autorización
+  // directa, con el techo absoluto de arriba como único freno duro. La cola de
+  // solicitudes queda para los pedidos de la CALLE (cobrador sobre su techo).
   const res = await crearRenovacion(db, {
     clienteId: input.clienteId,
     prestamoAnteriorId: input.prestamoAnteriorId,
@@ -135,9 +108,9 @@ export async function renovarCredito(input: {
     totalDias,
     frecuencia: input.frecuencia,
     creadoPor: usuario.id,
-    // Solo cuando de verdad hace falta, no "porque es admin": con el techo
-    // absoluto de arriba ya validado, esto no puede pasar del monto anterior.
-    permitirSobreCap: admin && monto > RENOVACION_CAP_TOTAL,
+    // Solo cuando de verdad hace falta: con el techo absoluto de arriba ya
+    // validado, esto no puede pasar del monto anterior (continuidad heredada).
+    permitirSobreCap: monto > RENOVACION_CAP_TOTAL,
   });
   if (!res.ok) return res;
   // Si este crédito tenía una SOLICITUD pendiente y se renovó por alta directa, se
@@ -163,8 +136,8 @@ export async function renovarCredito(input: {
     accion: evalu.autoAprobable
       ? "Renovó crédito (auto, dentro del tope)"
       : evalu.superaCap
-        ? "Renovó crédito (admin, POR ENCIMA del tope de $100.000)"
-        : "Renovó crédito (admin, sobre el tope del tramo)",
+        ? "Renovó crédito (autorizó POR ENCIMA del tope de $100.000)"
+        : "Renovó crédito (autorizó sobre el tope del tramo)",
     entidad: "cliente",
     entidadId: input.clienteId,
     detalle: `Nuevo crédito ${UYU(monto)} × ${totalDias} (${input.frecuencia})`,
@@ -176,17 +149,20 @@ export async function renovarCredito(input: {
   return { ok: true, via: evalu.autoAprobable ? "auto" : "admin", prestamoId: res.prestamoId, cuota: res.cuota };
 }
 
-// ── Flujo de APROBACIÓN (supervisor solicita → admin resuelve) ─────────────
-// La CREACIÓN de solicitudes vive dentro de renovarCredito (supervisor sobre-tope),
-// que pasa por todos los gates (CAP, tramo, saldado, kill-switch). No hay una acción
-// `solicitarRenovacion` suelta (se removió: era código muerto con validación más débil
-// que habría permitido solicitudes sobre-CAP imposibles de aprobar).
+// ── Flujo de APROBACIÓN (el cobrador solicita → cualquier gestor resuelve) ──
+// La CREACIÓN de solicitudes vive en la calle (lib/acciones/cobradorCredito.ts):
+// cobrador sobre su techo, en renovación o en venta nueva. Desde el 08-13 las
+// resuelve CUALQUIER GESTOR — el supervisor de la zona o el admin (regla de
+// Carlos: "supervisor debería poder aceptar estas solicitudes"). La RLS 0096 ya
+// acota lo que el supervisor VE y ESCRIBE a los clientes de su zona, así que el
+// alcance no se decide acá: una solicitud fuera de su zona ni le aparece.
 
-/** El ADMIN aprueba: crea el crédito de renovación y cierra la solicitud. */
+/** Un GESTOR aprueba: crea el crédito (renovación o venta según el tipo) y
+ *  cierra la solicitud. */
 export async function aprobarSolicitud(id: string): Promise<ResultadoAlta> {
   const u = await getUsuarioActual();
-  if (!u || !u.activo || !esAdmin(u.rol))
-    return { ok: false, error: "Solo el administrador aprueba renovaciones." };
+  if (!u || !u.activo || !esGestor(u.rol))
+    return { ok: false, error: "Las solicitudes las resuelve un supervisor o el administrador." };
   const bloqueo = await bloqueoSoloLectura(); // kill switch: aprobar coloca capital
   if (bloqueo) return bloqueo;
   try {
@@ -200,6 +176,105 @@ export async function aprobarSolicitud(id: string): Promise<ResultadoAlta> {
     // crédito que nadie podría haber dado de alta directo. Si el pedido no
     // corresponde, se rechaza en vez de fabricar plata.
     const ant = await getPrestamoPorId(db, s.prestamoAnteriorId);
+
+    if (s.tipo === "venta") {
+      // ── VENTA NUEVA sobre el techo del cobrador ──────────────────────────
+      // El "anterior" acá es la REFERENCIA de tasa/techo (el último crédito del
+      // cliente al momento del pedido), NO un crédito a finalizar: puede seguir
+      // vivo (multi-crédito legítimo) o estar saldado hace meses. Por eso este
+      // camino NO pasa por crearRenovacion — finalizaría un crédito que nadie
+      // quiso cerrar. El único tope revalidado es el CAP, duro para todos.
+      if (!ant || ant.cliente_id !== s.clienteId)
+        return { ok: false, error: "El crédito de referencia del pedido ya no existe. Rechazá la solicitud." };
+      if (s.monto > RENOVACION_CAP_TOTAL)
+        return {
+          ok: false,
+          error: `El monto pedido (${UYU(s.monto)}) supera el tope de ${UYU(RENOVACION_CAP_TOTAL)} — no lo puede aprobar nadie. Rechazá la solicitud.`,
+        };
+      // El cliente puede haber caído de baja MIENTRAS el pedido esperaba: todos
+      // los demás caminos lo frenan (puerta() en la calle, el chequeo del panel)
+      // y aprobar acá lo resucitaba en la ruta (auditoría 08-14).
+      const cliente = await getClientePorId(db, s.clienteId);
+      if (!cliente || !cliente.activo)
+        return { ok: false, error: "El cliente está dado de baja. Rechazá la solicitud." };
+      // El crédito nace a nombre del COBRADOR QUE LO PIDIÓ (misma regla que la
+      // renovación: el efectivo sale de su bolsillo y el colocado se cuenta por
+      // `creado_por`). Sin cobrador no hay a quién ruteárselo — y tiene que
+      // seguir SIENDO cobrador activo: aprobarle un pedido a uno dado de baja
+      // fabrica el "crédito fantasma" que ninguna ruta ve (46 casos, 08-02).
+      if (!s.solicitadoPor)
+        return { ok: false, error: "El pedido no dice qué cobrador lo hizo. Rechazalo y que lo pidan de nuevo." };
+      const { data: cob } = await db
+        .from("usuarios")
+        .select("id, rol, activo")
+        .eq("id", s.solicitadoPor)
+        .maybeSingle();
+      // La consulta corre con la sesión del gestor: si el cobrador es de OTRA
+      // zona (cliente compartido entre zonas), la RLS no lo devuelve — y el
+      // upsert de asignaciones rebotaría después con un error mudo. Se dice
+      // cuál es la salida en vez de invitar a reintentar lo imposible.
+      if (!cob)
+        return {
+          ok: false,
+          error: "El cobrador que pidió esto es de otra zona: este pedido lo tiene que resolver el administrador.",
+        };
+      if (cob.rol !== "cobrador" || !cob.activo)
+        return {
+          ok: false,
+          error: "El cobrador que lo pidió ya no está activo. Rechazá la solicitud y reasigná al cliente.",
+        };
+      const baseTasa = {
+        monto: Math.round(Number(ant.monto_prestado) || 0),
+        cuota: Number(ant.cuota_diaria) || 0,
+        totalDias: Number(ant.total_dias) || 0,
+      };
+      const interesPct = interesDeBase(baseTasa);
+      const cuota = calcularCuotaCreditoNuevo(baseTasa, s.monto, s.totalDias, interesPct ?? INTERES_DEFECTO_PCT);
+      if (!(cuota > 0)) return { ok: false, error: "La cuota calculada no es válida. Rechazá la solicitud." };
+      const res = await crearCreditoNuevoDb(db, {
+        clienteId: s.clienteId,
+        cobradorId: s.solicitadoPor,
+        monto: s.monto,
+        cuota,
+        totalDias: s.totalDias,
+        frecuencia: s.frecuencia,
+        fechaInicio: toIso(proximoDiaCobro(hoyUY(new Date()))),
+        interesPct,
+        creadoPor: s.solicitadoPor,
+        // Determinista POR SOLICITUD: el reintento de "Aprobar" tras un blip no
+        // coloca el capital dos veces (devuelve el crédito ya creado).
+        opId: opIdDeterminista("venta-aprobada", s.id),
+      });
+      if (!res.ok) return res;
+      try {
+        const marcada = await resolverSolicitudDb(db, id, { estado: "aprobada", resueltoPor: u.id, prestamoNuevoId: res.prestamoId });
+        // ⚠️ CARRERA aprobar-vs-rechazar: si otro gestor la rechazó mientras el
+        // crédito se creaba, la solicitud diría "rechazada" con plata ACTIVA en
+        // la calle — y Mis pedidos invitaría a colocarla de nuevo. La verdad es
+        // el crédito: se re-marca aprobada y el choque queda anotado.
+        if (!marcada) await marcarAprobadaPorCreditoExistente(db, id, res.prestamoId, u.id);
+      } catch (e) {
+        reportarError("aprobarSolicitud:resolver", e, { solicitudId: id, prestamoId: res.prestamoId });
+      }
+      // Auditoría solo del alta REAL: el reintento idempotente (repetido) ya
+      // tiene su entrada — dos filas "Aprobó venta" parecían capital doble.
+      if (!res.repetido) {
+        await registrarAuditoria(db, {
+          actorId: u.id,
+          actorNombre: u.nombre,
+          accion: "Aprobó venta nueva (sobre el techo del cobrador)",
+          entidad: "cliente",
+          entidadId: s.clienteId,
+          detalle: `${UYU(s.monto)} × ${s.totalDias} (${s.frecuencia}) · cuota ${UYU(cuota)}`,
+        });
+      }
+      revalidatePath("/admin/renovaciones");
+      revalidatePath("/admin/mora");
+      revalidatePath("/admin");
+      return { ok: true, prestamoId: res.prestamoId, cuota };
+    }
+
+    // ── RENOVACIÓN: finaliza el anterior (que debe seguir activo) y crea el nuevo ──
     if (!ant || ant.estado !== "activo")
       return { ok: false, error: "El crédito anterior ya no está activo." };
     const techoAbsoluto = techoRenovacion(ant.monto_prestado);
@@ -218,7 +293,7 @@ export async function aprobarSolicitud(id: string): Promise<ResultadoAlta> {
       // ⚠️ El crédito nace a nombre del COBRADOR QUE LO PIDIÓ, no del gestor que
       // aprueba: el efectivo lo saca él del bolsillo, parado al lado del cliente.
       // El capital colocado se cuenta por `creado_por`, así que ponerle el id del
-      // admin le dejaba el `colocado` en $0 y el cierre le volvía a pedir esa
+      // gestor le dejaba el `colocado` en $0 y el cierre le volvía a pedir esa
       // plata — exactamente el faltante fantasma que la 0136 vino a matar, mudado
       // al camino de aprobación. Quién aprobó queda en la auditoría, que es donde va.
       creadoPor: s.solicitadoPor ?? u.id,
@@ -232,7 +307,10 @@ export async function aprobarSolicitud(id: string): Promise<ResultadoAlta> {
     // si falla (blip), NO devolvemos error — el reintento chocaría con el anterior ya
     // finalizado. Se registra el fallo pero la aprobación se considera exitosa.
     try {
-      await resolverSolicitudDb(db, id, { estado: "aprobada", resueltoPor: u.id, prestamoNuevoId: res.prestamoId });
+      const marcada = await resolverSolicitudDb(db, id, { estado: "aprobada", resueltoPor: u.id, prestamoNuevoId: res.prestamoId });
+      // Carrera aprobar-vs-rechazar (ver rama venta): el crédito EXISTE y el
+      // anterior ya quedó finalizado — la solicitud no puede decir "rechazada".
+      if (!marcada) await marcarAprobadaPorCreditoExistente(db, id, res.prestamoId, u.id);
     } catch (e) {
       reportarError("aprobarSolicitud:resolver", e, { solicitudId: id, prestamoId: res.prestamoId });
     }
@@ -253,13 +331,16 @@ export async function aprobarSolicitud(id: string): Promise<ResultadoAlta> {
   }
 }
 
-/** El ADMIN rechaza una solicitud (con motivo opcional). */
+/** Un GESTOR rechaza una solicitud (con motivo opcional). */
 export async function rechazarSolicitud(id: string, motivo: string): Promise<ResultadoSimple> {
   const u = await getUsuarioActual();
-  if (!u || !u.activo || !esAdmin(u.rol))
-    return { ok: false, error: "Solo el administrador resuelve renovaciones." };
+  if (!u || !u.activo || !esGestor(u.rol))
+    return { ok: false, error: "Las solicitudes las resuelve un supervisor o el administrador." };
   try {
     const db = await createSupabaseServer();
+    // El tipo (0139) para que la auditoría diga la verdad: rechazar una VENTA
+    // no es rechazar una renovación (efectos distintos sobre el crédito anterior).
+    const s = await getSolicitudPorId(db, id);
     // ⚠️ Si otro gestor ya la resolvió, el update afecta 0 filas — y eso NO es un
     // error de SQL. Sin este chequeo, rechazar una solicitud que un compañero
     // acababa de APROBAR devolvía ok, escribía "Rechazó renovación" en la auditoría
@@ -278,7 +359,7 @@ export async function rechazarSolicitud(id: string, motivo: string): Promise<Res
     await registrarAuditoria(db, {
       actorId: u.id,
       actorNombre: u.nombre,
-      accion: "Rechazó renovación",
+      accion: s?.tipo === "venta" ? "Rechazó venta nueva" : "Rechazó renovación",
       entidad: "solicitud",
       entidadId: id,
       detalle: (motivo ?? "").slice(0, 120),

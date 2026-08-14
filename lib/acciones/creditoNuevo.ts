@@ -10,15 +10,15 @@
 //
 //  Reglas de plata (mismas que la renovación, no se inventan):
 //   · CAP $100.000 DURO para todos, incluido el admin.
-//   · El aumento respecto del ÚLTIMO crédito del cliente respeta el tope del
-//     tramo (20/15/10%) para el supervisor; el admin puede excederlo.
-//   · Primer crédito de alguien SIN historial → solo el admin (no hay contra qué
-//     medir el tope, así que la decisión sube al que pone el capital).
+//   · Desde el 08-13 (regla de Carlos) TODO GESTOR es aprobador: el supervisor
+//     da el primer crédito y autoriza sobre el tramo igual que el admin — la
+//     autorización solo aplica al COBRADOR que se pasa de su techo (+20%), y esa
+//     solicitud la resuelve acá cualquiera de los dos.
 //   · La cuota la calcula el SERVIDOR (el formulario solo previsualiza).
 // ─────────────────────────────────────────────────────────────────────────
 import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { getUsuarioActual, esGestor, esAdmin } from "@/lib/auth";
+import { getUsuarioActual, esGestor } from "@/lib/auth";
 import { alcanceDelActor } from "@/lib/data/alcance";
 import { getClientePorId } from "@/lib/data/clientes";
 import { getCobradorDeCliente } from "@/lib/data/asignaciones";
@@ -26,8 +26,9 @@ import {
   getUltimoCreditoDe,
   crearCreditoNuevoDb,
 } from "@/lib/data/creditoNuevo";
+import { cerrarSolicitudPendienteDeAnterior } from "@/lib/data/solicitudesRenovacion";
 import { calcularCuotaCreditoNuevo, INTERES_DEFECTO_PCT, interesDeBase } from "@/lib/creditoNuevo";
-import { evaluarRenovacion, RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
+import { RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
 import { esUuid, opIdDeterminista } from "@/lib/idempotencia";
@@ -74,7 +75,6 @@ export async function crearCreditoNuevo(input: {
     return { ok: false, error: `El crédito no puede superar ${UYU(RENOVACION_CAP_TOTAL)} (tope máximo).` };
 
   const db = await createSupabaseServer();
-  const admin = esAdmin(u.rol);
 
   const cliente = await getClientePorId(db, input.clienteId);
   if (!cliente || !cliente.activo) return { ok: false, error: "El cliente no existe o está archivado." };
@@ -114,13 +114,12 @@ export async function crearCreditoNuevo(input: {
   const baseTasa = base ? { monto: base.monto, cuota: base.cuota, totalDias: base.totalDias } : null;
   const conHistorial = !!(baseTasa && baseTasa.monto > 0 && baseTasa.cuota > 0 && baseTasa.totalDias > 0);
 
-  if (!conHistorial && !admin)
-    return { ok: false, error: "El primer crédito de un cliente lo da de alta el administrador." };
-  if (conHistorial) {
-    const evalu = evaluarRenovacion(baseTasa!.monto, monto);
-    if (evalu.excedePct && !admin)
-      return { ok: false, error: `${evalu.motivo} Pedile al administrador que lo autorice.` };
-  }
+  // ⚠️ Desde el 08-13 el SUPERVISOR también es aprobador (regla de Carlos: "que
+  // den aprobación o hagan esto manual ellos mismos"): puede dar el primer
+  // crédito de un cliente y autorizar por encima del tramo, igual que el admin.
+  // Si hasta el COBRADOR coloca el primer crédito directo desde la calle
+  // (cobradorCredito.ts), bloquearle esto al supervisor era un contrasentido.
+  // El CAP de $100.000 (arriba) sigue siendo duro para todos.
 
   // El interés solo se acepta del formulario cuando NO hay historial; si lo hay,
   // manda la tasa del crédito anterior (el gestor no puede re-tarifar por acá).
@@ -156,6 +155,28 @@ export async function crearCreditoNuevo(input: {
     opId,
   });
   if (!res.ok) return res;
+
+  // Si este cliente tenía un pedido de VENTA sobre-techo esperando en la cola y
+  // el gestor le dio el alta directa desde la ficha ("que hagan esto manual
+  // ellos mismos"), el pedido queda huérfano: días después el otro gestor lo
+  // aprueba y sale un SEGUNDO crédito (el patrón JORGE, 06→09-08 — el cartel
+  // ámbar de colocadoDespues no alcanzó entonces y por eso los otros tres
+  // caminos ya cierran automático). Best-effort: el crédito ya está creado.
+  if (conHistorial && base && res.prestamoId && !res.repetido) {
+    try {
+      await cerrarSolicitudPendienteDeAnterior(
+        db,
+        base.prestamoId,
+        res.prestamoId,
+        u.id,
+        "rechazada",
+        `Se colocó desde el panel por ${UYU(monto)} sin resolver el pedido.`,
+        "venta",
+      );
+    } catch {
+      /* la cola se limpia igual a mano; no frenar el alta ya hecha */
+    }
+  }
 
   if (!res.repetido) {
     await registrarAuditoria(db, {

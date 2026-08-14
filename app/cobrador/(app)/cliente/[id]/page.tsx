@@ -21,7 +21,6 @@ import { HistorialPagos, type PagoHistorial } from "@/components/cobrador/Histor
 import { HistorialCreditos } from "@/components/HistorialCreditos";
 import { getHistorialCreditosCliente } from "@/lib/data/ficha";
 import { RegistrarCompromiso } from "@/components/cobrador/RegistrarCompromiso";
-import { PedirAyuda } from "@/components/cobrador/PedirAyuda";
 import { BeaconFicha } from "@/components/cobrador/BeaconFicha";
 import { NotasCliente } from "@/components/notas/NotasCliente";
 import { AvisoAlta } from "@/components/cobrador/AvisoAlta";
@@ -162,49 +161,33 @@ export default async function DetalleClientePage({
       )}
 
       {!prestamo ? (
-        /* Acá terminaba el camino: el cobrador acababa de censar (o de adoptar
-           una de las 9.317 fichas heredadas) al cliente que tiene ENFRENTE, y se
-           encontraba con un cartel informativo sin ningún botón. El alta es
-           solo-gestor, así que la única salida era llamar por teléfono fuera de
-           la app. Ahora puede pedirlo desde acá y queda constancia. */
-        /* ⚠️ Este cartel decía "el alta la hace la oficina" y ya NO es cierto: desde
-           el 08-05 el cobrador coloca desde la calle si el cliente tiene historial.
-           El operador leía eso, no encontraba por dónde, y llamaba por teléfono
-           para algo que podía hacer solo (reporte de campo 07-08). */
-        /* ⚠️ SIN HISTORIAL el botón verde llevaba a una pantalla que decía "no se
-           puede": el cobrador acababa de CENSAR a la persona justamente para darle
-           su primer crédito, y el camino más visible era el que no funciona. El
-           primer crédito lo da la oficina (regla), así que cuando no hay historial
-           lo que manda es PEDIRLO — y el botón de colocar ni aparece. */
+        /* ⚠️ El PRIMER crédito ya NO se pide a la oficina (regla de Carlos, 08-13:
+           "solo pide autorización cuando exige más del 20% de aumento" — y un
+           primer crédito no tiene contra qué medir un aumento). El cobrador que
+           acaba de censar a la persona que tiene ENFRENTE le da el crédito acá
+           mismo, al 20% del negocio y con el CAP como único tope. Antes este
+           bloque era un `PedirAyuda` que dejaba al cliente esperando días por un
+           OK — 3 pedidos de primer crédito llevaban 2 días en la cola (09-08). */
         <div className="flex flex-col items-center gap-3 rounded-[14px] bg-white px-4 py-6 text-center">
-          {historialCreditos.length === 0 ? (
-            <>
-              <p className="text-[13px] leading-[1.5] font-medium text-gris">
-                Es su <b className="text-tinta">primer crédito</b>: el alta la hace la oficina.
-                Pedilo desde acá y queda anotado en su ficha.
-              </p>
-              <PedirAyuda
-                clienteId={id}
-                etiqueta="📩 Pedir su primer crédito a la oficina"
-                textoSugerido={`Pido el PRIMER crédito para ${cliente.nombre}${
-                  cliente.documento ? ` (cédula ${cliente.documento})` : ""
-                }. Está en mi ruta y quiere tomar uno.`}
-              />
-            </>
-          ) : (
-            <>
-              <p className="text-[13px] leading-[1.5] font-medium text-gris">
+          <p className="text-[13px] leading-[1.5] font-medium text-gris">
+            {historialCreditos.length === 0 ? (
+              <>
+                Nunca tuvo un crédito. <b className="text-tinta">Podés darle su primero ahora
+                mismo</b> — sale al 20% del negocio.
+              </>
+            ) : (
+              <>
                 Terminó sus créditos anteriores.
                 <b className="text-tinta"> Podés darle uno ahora mismo.</b>
-              </p>
-              <Link
-                href={`/cobrador/colocar?modo=venta&cliente=${id}`}
-                className="min-h-11 w-full rounded-[13px] bg-[#1FA971] text-center text-[14px] font-extrabold leading-[44px] text-white active:scale-[0.99]"
-              >
-                💵 Darle un crédito
-              </Link>
-            </>
-          )}
+              </>
+            )}
+          </p>
+          <Link
+            href={`/cobrador/colocar?modo=venta&cliente=${id}`}
+            className="min-h-11 w-full rounded-[13px] bg-[#1FA971] text-center text-[14px] font-extrabold leading-[44px] text-white active:scale-[0.99]"
+          >
+            {historialCreditos.length === 0 ? "💵 Darle su primer crédito" : "💵 Darle un crédito"}
+          </Link>
         </div>
       ) : (
         <Detalle

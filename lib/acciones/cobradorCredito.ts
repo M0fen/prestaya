@@ -19,12 +19,15 @@
 //     falta que esté al día (regla de Carlos, 07-08): la deuda viva se le muestra
 //     al cobrador y la decisión es suya. Sin tope de cantidad: lo que acota la
 //     exposición es el CAP por crédito y el tramo según su historial.
+//   · Dar el PRIMER crédito del cliente que acaba de censar (regla de Carlos,
+//     08-13: "solo pide autorización cuando exige más del 20% de aumento" — y un
+//     primer crédito no tiene contra qué medir un aumento). Sale al 20% del
+//     negocio, con el CAP como único tope.
 //
 //  Lo que NO puede (y por qué):
 //   · Superar el CAP de $100.000 — duro para todos, incluido el admin.
-//   · Exceder el +20% — eso NO lo rechaza: lo pide al admin.
-//   · Dar el PRIMER crédito de alguien sin historial — no hay contra qué
-//     medir el riesgo; lo da la oficina.
+//   · Exceder el +20% sobre el último crédito — eso NO lo rechaza: genera una
+//     solicitud que aprueba el supervisor de la zona o el admin (0139).
 //   · Tocar un cliente que no está en SU ruta — lo garantiza el RLS.
 // ─────────────────────────────────────────────────────────────────────────
 import { revalidatePath } from "next/cache";
@@ -103,10 +106,13 @@ async function puerta(clienteId: string): Promise<Puerta> {
 }
 
 /**
- * Manda la renovación a la OFICINA para que el admin la apruebe, en vez de
- * devolverle al cobrador un error sin salida. Se escribe con service_role porque
- * `solicitudes_renovacion` es de gestores por RLS; la autorización ya la dieron
- * `puerta()` (rol cobrador + cliente de su ruta) y los gates de propiedad/saldado.
+ * Manda la colocación a la OFICINA (supervisor de la zona o admin) para que la
+ * aprueben, en vez de devolverle al cobrador un error sin salida. Vale para los
+ * dos caminos: RENOVACIÓN sobre el techo y VENTA NUEVA sobre el techo (0139) —
+ * el tipo decide qué hace la aprobación (finalizar el anterior o solo crear).
+ * Se escribe con service_role porque `solicitudes_renovacion` es de gestores por
+ * RLS; la autorización ya la dieron `puerta()` (rol cobrador + cliente de su
+ * ruta) y los gates de propiedad/saldado/techo de cada camino.
  */
 async function pedirAprobacion(
   db: Awaited<ReturnType<typeof createSupabaseServer>>,
@@ -117,6 +123,7 @@ async function pedirAprobacion(
     monto: number;
     totalDias: number;
     frecuencia: FrecuenciaPrestamo;
+    tipo: "renovacion" | "venta";
   },
 ): Promise<ResultadoColocar> {
   try {
@@ -128,6 +135,7 @@ async function pedirAprobacion(
       frecuencia: s.frecuencia,
       solicitadoPor: u.id,
       solicitadoPorNombre: u.nombre,
+      tipo: s.tipo,
     });
   } catch (e) {
     // Una solicitud pendiente por crédito (unique): el segundo toque no duplica.
@@ -138,10 +146,13 @@ async function pedirAprobacion(
   await registrarAuditoria(db, {
     actorId: u.id,
     actorNombre: u.nombre,
-    accion: "Pidió aprobación para renovar (supera el tope)",
+    accion:
+      s.tipo === "venta"
+        ? "Pidió aprobación para una venta nueva (supera su techo)"
+        : "Pidió aprobación para renovar (supera el tope)",
     entidad: "cliente",
     entidadId: s.clienteId,
-    detalle: `${UYU(s.monto)} × ${s.totalDias} (${s.frecuencia}) — espera al admin`,
+    detalle: `${UYU(s.monto)} × ${s.totalDias} (${s.frecuencia}) — espera a la oficina`,
   });
   revalidatePath("/cobrador/colocar");
   return {
@@ -164,6 +175,13 @@ const VENTANA_DOBLE_ALTA_MS = 15 * 60 * 1000;
  * $5.000 (1 minuto), $28.000 de capital duplicado contando el tercero. Y como un
  * cliente PUEDE tener varios créditos a la vez, nada más lo iba a frenar.
  *
+ * ⚠️ Mira los créditos de CUALQUIER cobrador, no solo los propios (auditoría
+ * 08-14). Con el primer crédito saliendo directo desde la calle y el censo que
+ * ADOPTA fichas compartidas, un cliente en dos rutas puede pedirle plata a los
+ * dos el mismo día: si A le coloca $50.000 y B —con la pantalla vieja que aún
+ * dice "Nunca tuvo crédito"— confirma otros $50.000 minutos después, el filtro
+ * por `creado_por` hacía que B ni se enterara del gemelo de A.
+ *
  * Se mira con el cliente ADMIN: la RLS del cobrador filtra por asignación y podría
  * esconderle justo el crédito que él mismo acaba de crear.
  */
@@ -171,14 +189,13 @@ async function yaColocoEsteMonto(
   clienteId: string,
   monto: number,
   cobradorId: string,
-): Promise<{ id: string; hace: number } | null> {
+): Promise<{ id: string; hace: number; deOtro: boolean } | null> {
   const admin = createSupabaseAdmin();
   const desde = new Date(Date.now() - VENTANA_DOBLE_ALTA_MS).toISOString();
   const { data } = await admin
     .from("prestamos")
-    .select("id, creado_en")
+    .select("id, creado_en, creado_por")
     .eq("cliente_id", clienteId)
-    .eq("creado_por", cobradorId)
     .eq("estado", "activo")
     .eq("monto_prestado", monto)
     .gte("creado_en", desde)
@@ -189,7 +206,18 @@ async function yaColocoEsteMonto(
   return {
     id: p.id as string,
     hace: Math.round((Date.now() - new Date(p.creado_en as string).getTime()) / 60000),
+    deOtro: !!p.creado_por && p.creado_por !== cobradorId,
   };
+}
+
+/** El texto del candado, distinto cuando el gemelo lo colocó un COMPAÑERO: el
+ *  "tocá de nuevo para confirmarlo" solo vale para el propio — con el ajeno hay
+ *  que HABLAR antes de duplicar plata sobre el mismo cliente. */
+function mensajeGemelo(g: { hace: number; deOtro: boolean }, monto: number): string {
+  const cuando = g.hace === 0 ? "un momento" : `${g.hace} min`;
+  return g.deOtro
+    ? `Hace ${cuando} un COMPAÑERO ya le colocó ${UYU(monto)} a este cliente (está en dos rutas). Hablá con él antes de darle otro igual; si de verdad son DOS créditos, tocá de nuevo para confirmarlo.`
+    : `Hace ${cuando} ya le colocaste ${UYU(monto)} a este cliente. Si de verdad son DOS créditos, tocá de nuevo para confirmarlo; si fue sin querer, mirá su ficha — el primero ya está creado.`;
 }
 
 /**
@@ -370,18 +398,20 @@ export async function renovarDesdeCalle(input: {
       monto: pedido,
       totalDias,
       frecuencia: (ant.frecuencia as FrecuenciaPrestamo) ?? "diario",
+      tipo: "renovacion",
     });
   }
   const monto = pedido;
 
-  // CANDADO ANTI DOBLE-COLOCACIÓN: el mismo monto al mismo cliente hace minutos.
-  // Solo se salta si el cobrador CONFIRMA que de verdad son dos créditos.
+  // CANDADO ANTI DOBLE-COLOCACIÓN: el mismo monto al mismo cliente hace minutos
+  // (propio O de un compañero — cliente compartido). Solo se salta si el cobrador
+  // CONFIRMA que de verdad son dos créditos.
   if (!input.repetirIgual) {
     const gemelo = await yaColocoEsteMonto(input.clienteId, monto, u.id);
     if (gemelo)
       return {
         ok: false,
-        error: `Hace ${gemelo.hace === 0 ? "un momento" : `${gemelo.hace} min`} ya le colocaste ${UYU(monto)} a este cliente. Si de verdad son DOS créditos, tocá de nuevo para confirmarlo; si fue sin querer, mirá su ficha — el primero ya está creado.`,
+        error: mensajeGemelo(gemelo, monto),
         duplicado: true,
       };
   }
@@ -492,14 +522,15 @@ export async function nuevaVentaDesdeCalle(input: {
   if (monto > RENOVACION_CAP_TOTAL)
     return { ok: false, error: `El crédito no puede superar ${UYU(RENOVACION_CAP_TOTAL)}.` };
 
-  // CANDADO ANTI DOBLE-COLOCACIÓN: el mismo monto al mismo cliente hace minutos.
-  // Solo se salta si el cobrador CONFIRMA que de verdad son dos créditos.
+  // CANDADO ANTI DOBLE-COLOCACIÓN: el mismo monto al mismo cliente hace minutos
+  // (propio O de un compañero — cliente compartido). Solo se salta si el cobrador
+  // CONFIRMA que de verdad son dos créditos.
   if (!input.repetirIgual) {
     const gemelo = await yaColocoEsteMonto(input.clienteId, monto, u.id);
     if (gemelo)
       return {
         ok: false,
-        error: `Hace ${gemelo.hace === 0 ? "un momento" : `${gemelo.hace} min`} ya le colocaste ${UYU(monto)} a este cliente. Si de verdad son DOS créditos, tocá de nuevo para confirmarlo; si fue sin querer, mirá su ficha — el primero ya está creado.`,
+        error: mensajeGemelo(gemelo, monto),
         duplicado: true,
       };
   }
@@ -513,7 +544,13 @@ export async function nuevaVentaDesdeCalle(input: {
   // otros créditos antes de decidir. Cuántos créditos aguanta cada cliente es una
   // decisión de negocio, no del sistema.
 
-  // Sin historial no hay contra qué medir el riesgo → lo da la oficina.
+  // ⚠️ REGLA DEL PRIMER CRÉDITO (Carlos, 08-13). Antes acá había un rechazo seco
+  // ("Es el primer crédito de esta persona: lo da de alta la oficina") que hacía
+  // que TODO cliente recién censado necesitara autorización — justo lo contrario
+  // de la regla: "solo pide autorización cuando exige más del 20% de aumento". Un
+  // primer crédito no tiene crédito anterior contra qué medir un aumento, así que
+  // sale DIRECTO: al 20% del negocio, con el CAP de $100.000 como único tope (ya
+  // validado arriba) y el candado anti-doble-colocación de siempre.
   const base = await getUltimoCreditoDe(db, input.clienteId);
   const baseTasa = base ? { monto: base.monto, cuota: base.cuota, totalDias: base.totalDias } : null;
   const conHistorial = !!(
@@ -522,21 +559,31 @@ export async function nuevaVentaDesdeCalle(input: {
     baseTasa.cuota > 0 &&
     baseTasa.totalDias > 0
   );
-  if (!conHistorial)
-    return { ok: false, error: "Es el primer crédito de esta persona: lo da de alta la oficina." };
 
-  // Tope del tramo: DURO para el cobrador. Si quiere más, lo pide al supervisor.
-  //
-  // ⚠️ Se compara contra `techoVentaNueva` — LA MISMA función con la que la lista
-  // dibuja "podés darle hasta $X" — y no contra el PORCENTAJE. Comparando el
-  // porcentaje, el redondeo del techo mostrado podía dar 20,004% y el servidor
-  // rechazaba en rojo exactamente el número que la pantalla acababa de ofrecer.
-  const techo = techoVentaNueva(baseTasa!.monto);
-  if (monto > techo)
-    return {
-      ok: false,
-      error: `A este cliente le podés dar hasta ${UYU(techo)} vos solo (su último crédito fue de ${UYU(baseTasa!.monto)}). Para más, pedíselo a tu supervisor.`,
-    };
+  if (conHistorial) {
+    // Tope del tramo (+20% sobre su último crédito): hasta ahí lo coloca solo.
+    //
+    // ⚠️ Se compara contra `techoVentaNueva` — LA MISMA función con la que la lista
+    // dibuja "podés darle hasta $X" — y no contra el PORCENTAJE. Comparando el
+    // porcentaje, el redondeo del techo mostrado podía dar 20,004% y el servidor
+    // rechazaba en rojo exactamente el número que la pantalla acababa de ofrecer.
+    //
+    // Por ENCIMA del techo ya NO se rebota: se genera una SOLICITUD tipo 'venta'
+    // que aprueba el supervisor de la zona o el admin (0139). Antes el mensaje
+    // decía "pedíselo a tu supervisor" y el pedido viajaba por fuera de la app —
+    // el mismo agujero que la auditoría del 10-08 marcó en la cola de gastos.
+    const techo = techoVentaNueva(baseTasa!.monto);
+    if (monto > techo) {
+      return pedirAprobacion(db, u, {
+        clienteId: input.clienteId,
+        prestamoAnteriorId: base!.prestamoId,
+        monto,
+        totalDias,
+        frecuencia: input.frecuencia,
+        tipo: "venta",
+      });
+    }
+  }
 
   const interesPct = interesDeBase(baseTasa);
   const cuota = calcularCuotaCreditoNuevo(
@@ -572,6 +619,27 @@ export async function nuevaVentaDesdeCalle(input: {
   });
   if (!res.ok) return res;
 
+  // Si este cliente tenía un pedido de VENTA sobre-techo esperando y al final el
+  // cobrador colocó un monto que entra en su techo, el pedido queda huérfano: la
+  // oficina podría aprobarlo después y fabricar un SEGUNDO crédito (el caso
+  // JORGE, 06→09-08, mudado a las ventas). Se cierra como RECHAZADO con el
+  // motivo. Best-effort: el crédito ya está creado.
+  if (conHistorial && base && res.prestamoId && !res.repetido) {
+    try {
+      await cerrarSolicitudPendienteDeAnterior(
+        createSupabaseAdmin(),
+        base.prestamoId,
+        res.prestamoId,
+        u.id,
+        "rechazada",
+        `El cobrador colocó ${UYU(monto)} sin esperar la aprobación.`,
+        "venta",
+      );
+    } catch {
+      /* la cola se limpia igual desde el panel; no frenar al cobrador por esto */
+    }
+  }
+
   if (!res.repetido) {
     // ⚠️ Acá había un ROLLBACK que BORRABA el crédito recién creado si el cliente
     // quedaba con más de un activo. Con la regla nueva (dos créditos a la vez son
@@ -583,7 +651,12 @@ export async function nuevaVentaDesdeCalle(input: {
     await registrarAuditoria(db, {
       actorId: u.id,
       actorNombre: u.nombre,
-      accion: "Colocó un crédito nuevo desde la calle",
+      // El PRIMER crédito queda distinguible en la auditoría: es la operación de
+      // más riesgo (sin historial contra qué medir) y la que la oficina va a
+      // querer repasar cliente por cliente.
+      accion: conHistorial
+        ? "Colocó un crédito nuevo desde la calle"
+        : "Colocó el PRIMER crédito del cliente desde la calle (censo)",
       entidad: "cliente",
       entidadId: input.clienteId,
       detalle: `${UYU(monto)} × ${totalDias} (${input.frecuencia}) · cuota ${UYU(cuota)}`,

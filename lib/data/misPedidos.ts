@@ -164,7 +164,7 @@ async function pedidosRenovacion(cobradorId: string, desde: string, t: number): 
     const admin = createSupabaseAdmin();
     const { data, error } = await admin
       .from("solicitudes_renovacion")
-      .select("id, cliente_id, monto, estado, solicitado_en, resuelto_en, motivo_rechazo, prestamo_nuevo_id")
+      .select("id, cliente_id, monto, estado, tipo, solicitado_en, resuelto_en, motivo_rechazo, prestamo_nuevo_id")
       .eq("solicitado_por", cobradorId)
       .order("solicitado_en", { ascending: false });
     if (error) throw error;
@@ -206,13 +206,15 @@ async function pedidosRenovacion(cobradorId: string, desde: string, t: number): 
         (!!r.prestamo_nuevo_id || /ya está colocado|sin esperar|sin resolver/i.test(String(r.motivo_rechazo ?? "")));
       const quien = nombre.get(r.cliente_id as string) ?? "un cliente";
       const monto = Math.round(Number(r.monto) || 0);
+      const esVenta = (r.tipo as string | null) === "venta";
       const estado: EstadoPedido =
         r.estado === "aprobada" ? "aprobado" : r.estado === "rechazada" ? "rechazado" : "pendiente";
       return {
         id: r.id as string,
         tipo: "renovacion" as const,
         estado,
-        titulo: `Renovar a ${quien}`,
+        // El tipo 0139 cambia el verbo: una VENTA sobre-techo no es "renovar".
+        titulo: esVenta ? `Venta nueva a ${quien}` : `Renovar a ${quien}`,
         monto,
         queHacer:
           estado === "aprobado"
@@ -230,8 +232,12 @@ async function pedidosRenovacion(cobradorId: string, desde: string, t: number): 
                 // (`prestamo_nuevo_id`) ya se leía tres líneas más arriba y se tiraba.
                 cerradoPorqueYaEstaba
                 ? "Ya está hecho: el crédito se colocó por otra vía, así que el pedido se cerró. NO se lo vuelvas a colocar — mirá su cartón."
-                : "No se aprobó. Si el cliente la necesita, renovalo por el mismo monto que tenía: eso sale al instante y no necesita permiso."
-              : "NO le entregues la plata todavía. Si no puede esperar, renovalo por el mismo monto que tenía: eso sale solo, sin permiso.",
+                : esVenta
+                  ? "No se aprobó. Si el cliente necesita plata igual, podés darle hasta su techo vos solo desde Nueva venta."
+                  : "No se aprobó. Si el cliente la necesita, renovalo por el mismo monto que tenía: eso sale al instante y no necesita permiso."
+              : esVenta
+                ? "NO le entregues la plata todavía. Tu supervisor o la oficina lo tienen que aprobar."
+                : "NO le entregues la plata todavía. Si no puede esperar, renovalo por el mismo monto que tenía: eso sale solo, sin permiso.",
         motivo: (r.motivo_rechazo as string | null) ?? null,
         href: `/cobrador/cliente/${r.cliente_id as string}`,
         pedidoIso: r.solicitado_en as string,
