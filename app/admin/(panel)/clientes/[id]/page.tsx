@@ -143,7 +143,7 @@ export default async function FichaClientePage({
 
       {/* Encabezado */}
       <div className="flex items-center gap-3">
-        <div className="flex h-14 w-14 items-center justify-center rounded-[16px] bg-[#2453DC] text-[22px] font-black text-white">
+        <div className="flex h-14 w-14 items-center justify-center rounded-[16px] avatar-marca text-[22px] font-black text-white">
           {cliente.nombre.charAt(0).toUpperCase()}
         </div>
         <div className="flex min-w-0 flex-1 flex-col">

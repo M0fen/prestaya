@@ -51,7 +51,7 @@ export function NotasCliente({
   };
 
   return (
-    <div className="flex flex-col gap-2.5 rounded-[16px] bg-white p-3.5 shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
+    <div className="flex flex-col gap-2.5 rounded-[16px] bg-white p-3.5 shadow-sm">
       <span className="text-[13px] font-bold text-tinta">Notas del cliente</span>
 
       <div className="flex items-end gap-2">

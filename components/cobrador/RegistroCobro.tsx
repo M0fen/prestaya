@@ -705,7 +705,7 @@ export function RegistroCobro({
       )}
 
       {motivos && (
-        <div className="grid grid-cols-2 gap-2 rounded-[16px] bg-white p-3 shadow-[0_1px_3px_rgba(26,34,71,0.06)]">
+        <div className="grid grid-cols-2 gap-2 rounded-[16px] bg-white p-3 shadow-sm">
           {MOTIVOS_NOPAGO.map((m) => (
             <button
               key={m.id}

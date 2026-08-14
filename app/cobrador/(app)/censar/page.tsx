@@ -147,7 +147,7 @@ export default function CensarPage() {
       <Link href="/cobrador" className="text-[13px] font-semibold text-gris">
         ← Ruta
       </Link>
-      <h1 className="text-[18px] font-extrabold text-tinta">Censar cliente</h1>
+      <h1 className="text-[19px] font-extrabold text-tinta">Censar cliente</h1>
 
       {/* ⚠️ onSubmit, NO `action={enviar}`. React 19 hace form.reset() AUTOMÁTICO
           al terminar la función de `action`, y el handler devuelve temprano (línea

@@ -72,7 +72,7 @@ export function FichaRapidaBoton({ clienteId }: { clienteId: string }) {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={ficha.fotoUrl} alt="" className="h-12 w-12 flex-shrink-0 rounded-[12px] object-cover" />
                 ) : (
-                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[12px] bg-[#2453DC] text-[18px] font-black text-white">
+                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[12px] avatar-marca text-[18px] font-black text-white">
                     {(ficha?.nombre ?? "?").trim().charAt(0).toUpperCase() || "—"}
                   </div>
                 )}

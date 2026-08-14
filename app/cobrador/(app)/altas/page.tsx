@@ -131,7 +131,7 @@ function Grupo({
               href={`/cobrador/cliente/${c.id}/acceso`}
               className={`flex items-center gap-3 rounded-[13px] px-3.5 py-3 active:scale-[0.99] ${
                 destacado
-                  ? "border border-[#DCE6FB] bg-white shadow-[0_1px_3px_rgba(26,34,71,0.05)]"
+                  ? "border border-[#DCE6FB] bg-white shadow-sm"
                   : "bg-white/60"
               }`}
             >

@@ -200,6 +200,111 @@ const PATHS: Record<string, React.ReactNode> = {
       <path d="M12 3.6l2.6 5.2 5.7.8-4.1 4 1 5.7L12 16.6l-5.2 2.7 1-5.7-4.1-4 5.7-.8L12 3.6z" />
     </>
   ),
+  // ── Set que completa el sidebar (antes estos ítems caían a EMOJI y la mitad
+  //    de la lista quedaba multicolor al lado de la mitad monocroma). ──
+  // Informe de cartera (tarjeta).
+  tarjeta: (
+    <>
+      <rect x="2.5" y="5.5" width="19" height="13" rx="2" />
+      <path d="M2.5 9.5h19M6 15h4" />
+    </>
+  ),
+  // Altas / acceso del cliente (QR).
+  qr: (
+    <>
+      <rect x="4" y="4" width="6" height="6" rx="1" />
+      <rect x="14" y="4" width="6" height="6" rx="1" />
+      <rect x="4" y="14" width="6" height="6" rx="1" />
+      <path d="M14 14h2.5v2.5M20 14v2.5M14 20h2.5M19 19h1v1h-1z" />
+    </>
+  ),
+  // Valor de la cartera (diamante).
+  diamante: (
+    <>
+      <path d="M7.5 4h9L21 9l-9 11L3 9l4.5-5z" />
+      <path d="M3 9h18M9.5 9 12 20l2.5-11" />
+    </>
+  ),
+  // Comisiones (porcentaje).
+  porcentaje: (
+    <>
+      <path d="M19 5 5 19" />
+      <circle cx="7.5" cy="7.5" r="2.5" />
+      <circle cx="16.5" cy="16.5" r="2.5" />
+    </>
+  ),
+  // Capital (banco).
+  banco: (
+    <>
+      <path d="M3 9.5 12 4l9 5.5" />
+      <path d="M5 10v7.5M9.7 10v7.5M14.3 10v7.5M19 10v7.5M3 21h18" />
+    </>
+  ),
+  // Reportes por correo (sobre).
+  sobre: (
+    <>
+      <rect x="3" y="5.5" width="18" height="13" rx="2" />
+      <path d="m3.5 7.5 8.5 6 8.5-6" />
+    </>
+  ),
+  // Empalme (eslabones).
+  enlace: (
+    <>
+      <path d="M10.2 13.8a4.2 4.2 0 0 1 0-5.9l2.6-2.6a4.2 4.2 0 0 1 5.9 5.9l-1.7 1.7" />
+      <path d="M13.8 10.2a4.2 4.2 0 0 1 0 5.9l-2.6 2.6a4.2 4.2 0 0 1-5.9-5.9l1.7-1.7" />
+    </>
+  ),
+  // Juego (dado).
+  dado: (
+    <>
+      <rect x="4" y="4" width="16" height="16" rx="3.5" />
+      <path d="M8.8 8.8h.01M15.2 8.8h.01M12 12h.01M8.8 15.2h.01M15.2 15.2h.01" />
+    </>
+  ),
+  // Incidencias (bicho).
+  bicho: (
+    <>
+      <circle cx="12" cy="13.5" r="5.5" />
+      <path d="M12 8V5.5M8.5 5.5 10 7.6M15.5 5.5 14 7.6" />
+      <path d="M6.5 12H3.5M6.8 16 4.5 17.5M17.5 12h3M17.2 16l2.3 1.5" />
+    </>
+  ),
+  // Seguridad (candado).
+  candado: (
+    <>
+      <rect x="5" y="11" width="14" height="9" rx="2" />
+      <path d="M8 11V8a4 4 0 0 1 8 0v3M12 14.5V17" />
+    </>
+  ),
+  // Dev (código).
+  codigo: (
+    <>
+      <path d="M8.5 8 4 12l4.5 4M15.5 8 20 12l-4.5 4" />
+    </>
+  ),
+  // Uso / telemetría (ojo).
+  ojo: (
+    <>
+      <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" />
+      <circle cx="12" cy="12" r="2.6" />
+    </>
+  ),
+  // Equipo (dos personas).
+  equipo: (
+    <>
+      <circle cx="8.5" cy="8.5" r="3.2" />
+      <path d="M2.5 19.5a6 6 0 0 1 12 0" />
+      <circle cx="16.8" cy="9.5" r="2.6" />
+      <path d="M15.4 13.9a5.3 5.3 0 0 1 6.1 5.1" />
+    </>
+  ),
+  // Auditoría (lupa).
+  lupa: (
+    <>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m16 16 5 5" />
+    </>
+  ),
 };
 
 /** Mapa href → ícono para la nav del panel (sidebar + launchpad). Cubre los ítems
@@ -228,6 +333,28 @@ export const ICONO_NAV: Record<string, NombreIcono> = {
   "/admin/rifa": "regalo",
   "/admin/promos": "ticket",
   "/admin/estrellas": "estrella",
+  // Cobertura COMPLETA del sidebar: los que faltaban caían al emoji del NavItem
+  // y la lista quedaba mitad monocroma, mitad multicolor (pasada estética 08-14).
+  "/admin/informe-cartera": "tarjeta",
+  "/admin/altas": "qr",
+  "/admin/scoring": "objetivo",
+  "/admin/estadisticas": "numeros",
+  "/admin/valor": "diamante",
+  "/admin/comisiones": "porcentaje",
+  "/admin/capital": "banco",
+  "/admin/reportes": "sobre",
+  "/admin/empalme": "enlace",
+  "/admin/juego": "dado",
+  "/admin/banner-equipo": "megafono",
+  "/admin/zonas": "ruta",
+  "/admin/equipo": "equipo",
+  "/admin/recibos": "notas",
+  "/admin/auditoria": "lupa",
+  "/admin/incidencias": "bicho",
+  "/admin/tutorial": "ayuda",
+  "/admin/seguridad": "candado",
+  "/admin/dev": "codigo",
+  "/admin/uso": "ojo",
 };
 
 export type NombreIcono = keyof typeof PATHS;

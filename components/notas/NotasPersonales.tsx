@@ -41,7 +41,7 @@ export function NotasPersonales({ notas }: { notas: NotaPersonal[] }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-2 rounded-[16px] bg-white p-3.5 shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
+      <div className="flex flex-col gap-2 rounded-[16px] bg-white p-3.5 shadow-sm">
         <textarea
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
@@ -67,7 +67,7 @@ export function NotasPersonales({ notas }: { notas: NotaPersonal[] }) {
       ) : (
         <ul className="flex flex-col gap-2">
           {notas.map((n) => (
-            <li key={n.id} className="rounded-[14px] bg-white px-3.5 py-3 shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
+            <li key={n.id} className="rounded-[14px] bg-white px-3.5 py-3 shadow-sm">
               <p className="text-[14px] leading-snug whitespace-pre-wrap text-tinta">{n.cuerpo}</p>
               <div className="mt-1.5 flex items-center justify-between">
                 <span className="text-[11px] font-medium text-[#AEB6CC]">{fechaCorta(n.creado_en)}</span>

@@ -34,7 +34,7 @@ export function AvisoAlta({ clienteId, estado }: { clienteId: string; estado: Es
   return (
     <Link
       href={href}
-      className="flex items-center gap-3 rounded-[14px] border border-[#DCE6FB] bg-white px-3.5 py-3 shadow-[0_1px_3px_rgba(26,34,71,0.05)] active:scale-[0.99]"
+      className="flex items-center gap-3 rounded-[14px] border border-[#DCE6FB] bg-white px-3.5 py-3 shadow-sm active:scale-[0.99]"
     >
       <span aria-hidden="true" className="text-[20px]">
         📱

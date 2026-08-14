@@ -233,7 +233,7 @@ export default async function MoraPage({
               className="rounded-[16px] border border-borde bg-tarjeta p-4"
             >
               <div className="mb-2 flex items-start gap-3">
-                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[13px] bg-[#2453DC] text-[16px] font-black text-white">
+                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[13px] avatar-marca text-[16px] font-black text-white">
                   {c.nombre.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex min-w-0 flex-1 flex-col">
@@ -334,7 +334,7 @@ function Kpi({
   money?: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-1 rounded-[14px] bg-tarjeta p-3.5 shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
+    <div className="flex flex-col gap-1 rounded-[14px] bg-tarjeta p-3.5 shadow-sm">
       <span className="text-[11px] font-semibold text-tenue">{label}</span>
       <span
         className={`font-extrabold text-tinta tabular-nums ${money ? "text-[16px]" : "text-[22px]"}`}

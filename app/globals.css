@@ -160,6 +160,16 @@ body {
   letter-spacing: -0.01em;
 }
 
+/* ── Avatar de marca (inicial del cliente/cobrador) ─────────────────────────
+   El MISMO degradado azul del logo del login, con un brillo superior sutil:
+   antes cada avatar era un cuadrado plano #2453DC — unificar la marca en las
+   iniciales es lo que ata visualmente login, ruta, fichas y panel. En oscuro
+   funciona igual (azules sobre superficie oscura). */
+.avatar-marca {
+  background: linear-gradient(140deg, #3a6bff, #1e47c8 55%, #13308c);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
 /* ── Safe areas (notch / home indicator / PWA standalone) ───────────────
    Requiere viewport-fit=cover (ver `viewport` en app/layout.tsx). Se aplican en
    los headers sticky (arriba) y en lo fijo-abajo (bottom-nav, toasts). */

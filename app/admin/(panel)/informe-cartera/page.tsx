@@ -197,7 +197,7 @@ const INPUT =
 
 function Kpi({ label, valor, tono, sub }: { label: string; valor: string; tono?: string; sub?: string }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-[14px] bg-tarjeta p-3.5 shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
+    <div className="flex flex-col gap-0.5 rounded-[14px] bg-tarjeta p-3.5 shadow-sm">
       <span className="text-[11px] font-semibold text-tenue">{label}</span>
       <span className="text-[19px] font-extrabold tabular-nums" style={{ color: tono ?? "var(--color-tinta)" }}>
         {valor}

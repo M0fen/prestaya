@@ -60,7 +60,7 @@ export default async function InformesPage() {
       </div>
 
       {/* ── RESUMEN DE CAJA: la cuenta entera, en el orden en que se piensa ── */}
-      <section className="flex flex-col rounded-[16px] bg-white p-4 shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
+      <section className="flex flex-col rounded-[16px] bg-white p-4 shadow-sm">
         <span className="mb-2 text-[12px] font-bold tracking-[0.03em] text-gris uppercase">
           Resumen de caja
         </span>
@@ -122,7 +122,7 @@ export default async function InformesPage() {
             <Link
               key={c.prestamoId}
               href={`/cobrador/cliente/${c.clienteId}`}
-              className="flex items-center justify-between gap-3 rounded-[14px] bg-white px-3.5 py-3 shadow-[0_1px_3px_rgba(26,34,71,0.05)] active:scale-[0.995]"
+              className="flex items-center justify-between gap-3 rounded-[14px] bg-white px-3.5 py-3 shadow-sm active:scale-[0.995]"
             >
               <div className="flex min-w-0 flex-col">
                 <span className="line-clamp-2 text-[13.5px] leading-[1.25] font-bold break-words text-tinta">
@@ -151,7 +151,7 @@ export default async function InformesPage() {
             Todavía no registraste pagos hoy. Cada cobro que registres aparece acá, con su hora.
           </p>
         ) : (
-          <div className="flex flex-col overflow-hidden rounded-[14px] bg-white shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
+          <div className="flex flex-col overflow-hidden rounded-[14px] bg-white shadow-sm">
             {informe.pagos.map((p, i) => (
               <Link
                 key={p.id}

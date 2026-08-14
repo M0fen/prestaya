@@ -83,7 +83,7 @@ export default async function ColocarPage({
       </Link>
 
       <div className="flex flex-col gap-1">
-        <h1 className="text-[21px] font-extrabold text-tinta">
+        <h1 className="text-[19px] font-extrabold text-tinta">
           {modo === "renovar" ? "Renovar" : "Nueva venta"}
         </h1>
         <p className="text-[13px] leading-[1.5] font-medium text-gris">

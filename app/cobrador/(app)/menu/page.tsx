@@ -78,7 +78,7 @@ export default function MenuPage() {
           <span className="text-[12px] font-bold tracking-[0.03em] text-gris uppercase">
             {s.titulo}
           </span>
-          <div className="flex flex-col overflow-hidden rounded-[16px] bg-white shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
+          <div className="flex flex-col overflow-hidden rounded-[16px] bg-white shadow-sm">
             {s.items.map((it, i) => (
               <Link
                 key={it.href}

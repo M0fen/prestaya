@@ -90,12 +90,12 @@ export default async function PerfilCobradorPage(props: { params: Promise<{ id: 
       {/* ── Cabecera ── */}
       <header className="flex flex-col gap-3 rounded-[18px] border border-borde bg-tarjeta p-4 shadow-[0_1px_3px_rgba(19,48,140,0.06)]">
         <div className="flex items-start gap-3">
-          <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-[16px] bg-[#2453DC] text-[22px] font-black text-white">
+          <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-[16px] avatar-marca text-[22px] font-black text-white">
             {(q.nombre || "?").charAt(0).toUpperCase()}
           </div>
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <div className="flex flex-wrap items-baseline gap-2">
-              <h1 className="text-[22px] font-extrabold tracking-[-0.02em] text-tinta">{q.nombre}</h1>
+              <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">{q.nombre}</h1>
               {q.apodo && <span className="text-[13px] font-bold text-tenue">«{q.apodo}»</span>}
             </div>
             <div className="flex flex-wrap gap-1.5">

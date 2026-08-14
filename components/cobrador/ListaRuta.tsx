@@ -307,7 +307,7 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
             return (
               <div
                 key={id}
-                className="flex items-center gap-2 rounded-[14px] bg-white py-2 pr-2 pl-3 shadow-[0_1px_3px_rgba(26,34,71,0.05)]"
+                className="flex items-center gap-2 rounded-[14px] bg-white py-2 pr-2 pl-3 shadow-sm"
               >
                 <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[#0F1B3D] text-[12px] font-black text-white tabular-nums">
                   {idx + 1}
@@ -588,7 +588,7 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
             </span>
           )}
           <div
-            className="relative flex items-center gap-2 overflow-hidden rounded-[16px] bg-white py-2.5 pr-2 pl-4 shadow-[0_1px_3px_rgba(26,34,71,0.05)]"
+            className="relative flex items-center gap-2 overflow-hidden rounded-[16px] bg-white py-2.5 pr-2 pl-4 shadow-sm"
             style={{ opacity: esCerrado ? 0.72 : 1 }}
           >
             {/* Franja de estado a la izquierda: se lee la ruta de un vistazo. */}
@@ -603,7 +603,7 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
               className="flex min-w-0 flex-1 items-center gap-3 py-1 active:scale-[0.99]"
               style={{ transition: "transform .1s" }}
             >
-              <div className="relative flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[13px] bg-[#2453DC] text-[16px] font-black text-white">
+              <div className="relative flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[13px] avatar-marca text-[16px] font-black text-white">
                 {inicial}
                 {mostrarPaso && (
                   <span className="absolute -top-1.5 -left-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#0F1B3D] text-[10px] font-black text-white ring-2 ring-white">

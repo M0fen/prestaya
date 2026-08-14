@@ -190,7 +190,7 @@ export default async function CierrePage() {
                   key={c.cobradorId}
                   className="flex items-center gap-3 rounded-[12px] border border-linea bg-suave px-3 py-2.5"
                 >
-                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[10px] bg-[#2453DC] text-[13px] font-black text-white">
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[10px] avatar-marca text-[13px] font-black text-white">
                     {c.nombre.charAt(0).toUpperCase()}
                   </div>
                   <div className="flex min-w-0 flex-1 flex-col">

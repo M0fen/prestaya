@@ -106,7 +106,7 @@ export default async function UsoPage({
         </Link>
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-full px-2 py-0.5 text-[10.5px] font-bold" style={{ background: t.bg, color: t.fg }}>{t.label}</span>
-          <h1 className="text-[22px] font-extrabold tracking-[-0.02em] text-tinta">{persona?.nombre ?? "Persona"}</h1>
+          <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">{persona?.nombre ?? "Persona"}</h1>
           {persona?.zona && <span className="text-[12.5px] font-semibold text-tenue">{persona.zona}</span>}
           {persona && <ChipClave p={persona} />}
           {persona && persona.cobrosHoy > 0 && (

@@ -54,7 +54,7 @@ export default async function AccesoClientePage({
 
       {/* IDENTIDAD — confirmá que es la persona antes de entregar el link. */}
       <div className="flex items-center gap-3 rounded-[16px] border border-[#E4E8F4] bg-white p-3.5">
-        <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[13px] bg-[#2453DC] text-[17px] font-black text-white">
+        <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[13px] avatar-marca text-[17px] font-black text-white">
           {inicial}
         </div>
         <div className="flex min-w-0 flex-col">

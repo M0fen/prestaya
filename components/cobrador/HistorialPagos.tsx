@@ -79,7 +79,7 @@ export function HistorialPagos({ pagos }: { pagos: PagoHistorial[] }) {
   };
 
   return (
-    <div className="flex flex-col rounded-[14px] bg-white p-3.5 shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
+    <div className="flex flex-col rounded-[14px] bg-white p-3.5 shadow-sm">
       <button
         type="button"
         onClick={() => setAbierto((v) => !v)}

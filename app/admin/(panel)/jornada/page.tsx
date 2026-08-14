@@ -469,24 +469,26 @@ export default async function JornadaPage({
             <Link
               key={a.id}
               href={`/admin/jornada?acto=${a.id}`}
-              className={`flex flex-col gap-1 rounded-[15px] border p-3 transition-all ${
+              className={`flex flex-col gap-1 rounded-[16px] border p-3 transition-all ${
                 activo
-                  ? "acto-activo border-azul shadow-[0_6px_20px_rgba(30,71,200,0.16)]"
-                  : "border-borde bg-tarjeta hover:bg-suave hover:shadow-[0_2px_10px_rgba(15,27,61,0.06)]"
+                  ? "acto-activo border-azul shadow-md"
+                  : "border-borde bg-tarjeta hover:bg-suave hover:shadow-sm"
               }`}
             >
               <div className="flex items-center justify-between">
                 <span className={`text-[11px] font-bold uppercase tracking-wide ${activo ? "text-azul" : "text-tenue"}`}>
                   Acto {a.n}
                 </span>
+                {/* Chips con TOKENS (bg-*-suave + text-*-osc): los hex crudos no
+                    flipeaban en modo oscuro y quedaban pastel-sobre-tinta. */}
                 {a.id === "cierre" && todasCerradas ? (
                   sinRendirN > 0 ? (
-                    <span className="rounded-full bg-[#FDF3E2] px-1.5 py-0.5 text-[10px] font-bold text-[#8A6D1E]">✓ · {sinRendirN} sin rendir</span>
+                    <span className="rounded-full bg-ambar-suave px-1.5 py-0.5 text-[10px] font-bold text-ambar-osc">✓ · {sinRendirN} sin rendir</span>
                   ) : (
-                    <span className="rounded-full bg-[#E4F5EC] px-1.5 py-0.5 text-[10px] font-bold text-[#157A50]">✓ Cerrado</span>
+                    <span className="rounded-full bg-verde-suave px-1.5 py-0.5 text-[10px] font-bold text-verde-osc">✓ Cerrado</span>
                   )
                 ) : chip > 0 ? (
-                  <span className="rounded-full bg-[#FBE4E2] px-1.5 py-0.5 text-[10px] font-bold text-[#C0392B] tabular-nums">
+                  <span className="rounded-full bg-rojo-suave px-1.5 py-0.5 text-[10px] font-bold text-rojo-osc tabular-nums">
                     {chip}
                   </span>
                 ) : null}
@@ -591,8 +593,10 @@ function Apertura({
           el arranque: cuánto hay por cobrar hoy y cuánta mora crítica priorizar. */}
       <div className="flex flex-col gap-3 rounded-[16px] border border-borde bg-tarjeta p-4">
         <div className="flex flex-col gap-0.5">
-          <h2 className="text-[16px] font-extrabold tracking-[-0.01em] text-tinta">Arrancá el día</h2>
-          <p className="text-[12.5px] font-medium text-gris">Decidí a quién cobrar hoy antes de que salga el equipo.</p>
+          {/* Mismo tamaño que el `Encabezado` de los actos 2 y 3: tres títulos de
+              acto con la misma jerarquía (pasada estética 08-14). */}
+          <h2 className="text-[18px] font-extrabold tracking-[-0.01em] text-tinta">Arrancá el día</h2>
+          <p className="text-[13px] font-medium text-gris">Decidí a quién cobrar hoy antes de que salga el equipo.</p>
         </div>
         <div className="flex items-end justify-between gap-3">
           <div className="flex flex-col">
@@ -740,7 +744,7 @@ function EnVivo({
         <div className="mb-2 flex items-end justify-between">
           <div className="flex flex-col">
             <span className="text-[11px] font-semibold uppercase tracking-wide text-white/50">Cobrado en ruta hoy</span>
-            <span className="text-[27px] font-black leading-tight tabular-nums">{UYU(cobradoRuta)}</span>
+            <span className="text-[28px] font-black leading-tight tabular-nums">{UYU(cobradoRuta)}</span>
           </div>
           <div className="flex flex-col items-end">
             <span className="text-[12px] font-bold tabular-nums text-white/80">{avancePct}%</span>
@@ -867,7 +871,7 @@ function Cierre({
             <span className="text-[13px] font-extrabold text-tinta">Resumen del día</span>
             <span className="text-[12px] font-bold text-gris tabular-nums">{resumenDia.avancePct}% de la meta</span>
           </div>
-          <div className="h-2 overflow-hidden rounded-full bg-[#EEF1F8]">
+          <div className="h-2 overflow-hidden rounded-full bg-linea">
             <div className="h-full rounded-full bg-[linear-gradient(90deg,#34E0A1,#1FA971)]" style={{ width: `${resumenDia.avancePct}%` }} />
           </div>
           <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 text-[12px] font-medium text-gris">

@@ -768,7 +768,7 @@ function LiquidacionDiaria({ liq }: { liq: LiquidacionDia }) {
               </tr>
             )}
             {liq.filas.map((f) => (
-              <tr key={f.cobradorId} className="border-b border-[#F4F6FB] last:border-0">
+              <tr key={f.cobradorId} className="border-b border-linea last:border-0">
                 <td className="px-3 py-2.5 font-semibold text-tinta">{f.nombre}</td>
                 <td className={`${cellNum} text-gris`}>{f.base === null ? "—" : UYU(f.base)}</td>
                 <td className={`${cellNum} text-gris`}>{f.visitas}</td>

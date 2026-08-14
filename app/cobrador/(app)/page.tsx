@@ -278,7 +278,7 @@ export default async function RutaPage() {
           (base de apertura + recaudado − gastos aprobados), así el cierre nunca
           lo sorprende. Los gastos pedidos y AÚN no aprobados se avisan aparte. */}
       {jornada && jornada.disponible && (
-        <section className="rounded-[16px] border border-[#E4E8F4] bg-white p-4 shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
+        <section className="rounded-[16px] border border-[#E4E8F4] bg-white p-4 shadow-sm">
           <div className="mb-2.5 flex items-center justify-between">
             <span className="text-[13px] font-extrabold text-tinta">💼 Tu caja de hoy</span>
             {jornada.yaRendida ? (
@@ -336,7 +336,7 @@ export default async function RutaPage() {
       {sinAlta > 0 && (
         <Link
           href="/cobrador/altas"
-          className="flex items-center gap-3 rounded-[14px] border border-[#DCE6FB] bg-white px-3.5 py-3 shadow-[0_1px_3px_rgba(26,34,71,0.05)] active:scale-[0.99]"
+          className="flex items-center gap-3 rounded-[14px] border border-[#DCE6FB] bg-white px-3.5 py-3 shadow-sm active:scale-[0.99]"
         >
           <span aria-hidden="true" className="text-[20px]">
             📱

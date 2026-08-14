@@ -88,7 +88,7 @@ export default async function DetalleClientePage({
       </Link>
 
       <div className="flex items-center gap-3">
-        <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-[16px] bg-[#2453DC] text-[22px] font-black text-white">
+        <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-[16px] avatar-marca text-[22px] font-black text-white">
           {inicial}
         </div>
         <div className="flex min-w-0 flex-1 flex-col">
@@ -423,7 +423,7 @@ async function Detalle({
 
 function Resumen({ label, valor }: { label: string; valor: string }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-[14px] bg-white p-3.5 shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
+    <div className="flex flex-col gap-0.5 rounded-[14px] bg-white p-3.5 shadow-sm">
       <span className="text-[11px] font-semibold text-[#8A93AD]">{label}</span>
       <span className="text-[18px] font-extrabold text-tinta tabular-nums">{valor}</span>
     </div>
@@ -446,7 +446,7 @@ function CompromisoCarton({ compromiso }: { compromiso: Gestion }) {
   const [y, m, d] = (compromiso.fechaCompromiso ?? "").split("-");
   const fechaCorta = y ? `${d}/${m}/${y.slice(2)}` : "";
   return (
-    <div className="flex flex-col gap-1.5 rounded-[14px] border border-[#E4E8F4] bg-white p-3.5 shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
+    <div className="flex flex-col gap-1.5 rounded-[14px] border border-[#E4E8F4] bg-white p-3.5 shadow-sm">
       <div className="flex items-center justify-between">
         <span className="text-[12px] font-bold text-tinta">🤝 Compromiso de pago</span>
         <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tono.bg, color: tono.fg }}>

@@ -58,7 +58,7 @@ export function DetalleVendedor({
       >
         {/* Cabecera */}
         <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[14px] bg-[#2453DC] text-[18px] font-black text-white">
+          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[14px] avatar-marca text-[18px] font-black text-white">
             {(m.nombre || "?").charAt(0).toUpperCase()}
           </div>
           <div className="flex min-w-0 flex-1 flex-col">

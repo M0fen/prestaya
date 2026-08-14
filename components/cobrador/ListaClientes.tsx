@@ -125,13 +125,13 @@ export function ListaClientes({ clientes }: { clientes: ClienteVista[] }) {
         return (
           <div
             key={c.id}
-            className="flex items-center gap-2 rounded-[16px] bg-white py-2.5 pr-2 pl-3.5 shadow-[0_1px_3px_rgba(26,34,71,0.05)]"
+            className="flex items-center gap-2 rounded-[16px] bg-white py-2.5 pr-2 pl-3.5 shadow-sm"
           >
             <Link
               href={`/cobrador/cliente/${c.id}`}
               className="flex min-w-0 flex-1 items-center gap-3 active:scale-[0.99]"
             >
-              <div className="relative flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[13px] bg-[#2453DC] text-[16px] font-black text-white">
+              <div className="relative flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[13px] avatar-marca text-[16px] font-black text-white">
                 {(c.nombre.trim().charAt(0) || "—").toUpperCase()}
                 {calif && (
                   <span

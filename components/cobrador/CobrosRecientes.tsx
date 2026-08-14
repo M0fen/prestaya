@@ -67,7 +67,7 @@ export function CobrosRecientes({ pagos }: { pagos: PagoReciente[] }) {
   };
 
   return (
-    <div className="flex flex-col gap-2 rounded-[14px] bg-white p-3.5 shadow-[0_1px_3px_rgba(26,34,71,0.05)]">
+    <div className="flex flex-col gap-2 rounded-[14px] bg-white p-3.5 shadow-sm">
       <span className="text-[11.5px] font-bold text-gris">Cobros recientes</span>
       <ul className="flex flex-col gap-1.5">
         {pagos.map((p) => {
