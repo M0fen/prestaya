@@ -15,7 +15,12 @@ import { getEstadoJornada, crearRendicionDb, getJornadasSinRendir } from "@/lib/
 import { alcanceDelActor } from "@/lib/data/alcance";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { registrarBitacora } from "@/lib/data/bitacora";
-import { calcularRendicion, type EstadoRendicion } from "@/lib/rendicion";
+import {
+  calcularRendicion,
+  puedeEntregaDiferida,
+  ENTREGA_DIFERIDA_VENTANA_DIAS,
+  type EstadoRendicion,
+} from "@/lib/rendicion";
 import { esUuid } from "@/lib/idempotencia";
 import { UYU, toIso } from "@/lib/format";
 import { hoyUY, sumarDiasYmd } from "@/lib/fecha";
@@ -181,18 +186,14 @@ export async function registrarEntregaDiferida(input: {
   const hoy = new Date();
   const fechaHoy = toIso(hoyUY(hoy));
   const fecha = String(input.fecha ?? "").slice(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return { ok: false, error: "Fecha inválida." };
-  // HOY tiene su propio cierre, que lo hace el cobrador desde su teléfono: dejarlo
-  // acá permitiría cerrarle el día a alguien que todavía está en la calle cobrando.
-  if (fecha >= fechaHoy)
-    return {
-      ok: false,
-      error: "La jornada de hoy la cierra el cobrador desde su teléfono. Acá se registran las que quedaron abiertas de días anteriores.",
-    };
-  // Ventana de 30 días: más atrás no es operación, es arqueología — y un acta
-  // fechada meses atrás mueve comisiones ya liquidadas.
-  if (fecha < sumarDiasYmd(fechaHoy, -30))
-    return { ok: false, error: "Esa jornada tiene más de 30 días. Resolvela con la oficina." };
+  // La regla de fechas es UNA función pura (lib/rendicion, Fase 2 QA): la misma
+  // que puede usar la pantalla, con sus bordes sellados por tests.
+  const veredicto = puedeEntregaDiferida(
+    fecha,
+    fechaHoy,
+    sumarDiasYmd(fechaHoy, -ENTREGA_DIFERIDA_VENTANA_DIAS),
+  );
+  if (!veredicto.ok) return { ok: false, error: veredicto.motivo };
 
   const entregado = Math.max(0, Math.round(Number(input.entregado) || 0));
   if (!Number.isFinite(entregado)) return { ok: false, error: "Revisá el monto entregado." };

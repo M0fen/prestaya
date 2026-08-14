@@ -99,6 +99,38 @@ export function cajaFinal(
   );
 }
 
+// ── ENTREGA DIFERIDA: qué días puede sellar la oficina ──────────────────────
+//  El supervisor cierra jornadas que quedaron abiertas de días ANTERIORES.
+//  Extraída a función pura (Fase 2 QA, 08-14) para que la pantalla y la Server
+//  Action decidan con la MISMA regla, y para poder sellar los bordes con tests:
+//   · HOY no: el cierre de hoy lo hace el cobrador desde su teléfono — dejarlo
+//     acá permitiría cerrarle el día a alguien que sigue cobrando en la calle.
+//   · Más de 30 días atrás no: eso ya no es operación, es arqueología — y un
+//     acta fechada meses atrás mueve comisiones ya liquidadas.
+
+export const ENTREGA_DIFERIDA_VENTANA_DIAS = 30;
+
+export type VeredictoEntregaDiferida = { ok: true } | { ok: false; motivo: string };
+
+/** ¿Se puede sellar la jornada de `fecha` ("YYYY-MM-DD") parados en `fechaHoy`?
+ *  Comparación lexicográfica de YMD (válida para el formato ISO). Puro. */
+export function puedeEntregaDiferida(
+  fecha: string,
+  fechaHoy: string,
+  limiteYmd: string,
+): VeredictoEntregaDiferida {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return { ok: false, motivo: "Fecha inválida." };
+  if (fecha >= fechaHoy)
+    return {
+      ok: false,
+      motivo:
+        "La jornada de hoy la cierra el cobrador desde su teléfono. Acá se registran las que quedaron abiertas de días anteriores.",
+    };
+  if (fecha < limiteYmd)
+    return { ok: false, motivo: "Esa jornada tiene más de 30 días. Resolvela con la oficina." };
+  return { ok: true };
+}
+
 /** Etiqueta legible del estado (para la UI). */
 export const ETIQUETA_ESTADO: Record<EstadoRendicion, string> = {
   cuadra: "Cuadra ✓",

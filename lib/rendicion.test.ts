@@ -1,7 +1,12 @@
 // Tests del núcleo de RENDICIÓN: esperado = recaudado − gastos (>=0), y
 // diferencia/estado según lo entregado (cuadra / faltante / sobrante).
 import { describe, expect, it } from "vitest";
-import { calcularRendicion, cajaFinal } from "./rendicion";
+import {
+  calcularRendicion,
+  cajaFinal,
+  puedeEntregaDiferida,
+  ENTREGA_DIFERIDA_VENTANA_DIAS,
+} from "./rendicion";
 
 describe("calcularRendicion", () => {
   it("entrega exacto lo recaudado (sin gastos) → cuadra", () => {
@@ -142,5 +147,45 @@ describe("aFavorDelCobrador — cuando la oficina le queda debiendo a ÉL", () =
     const r = calcularRendicion(10_000, 0, 0, 5_000, 15_000);
     expect(r.esperado).toBe(0);
     expect(r.aFavor).toBe(0);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ENTREGA DIFERIDA (Fase 2 QA, 08-14): qué días puede sellar la oficina.
+//  Bordes exactos con fechas FIJAS — este gate mueve actas inmutables.
+// ═══════════════════════════════════════════════════════════════════════════
+describe("puedeEntregaDiferida: hoy no, ayer sí, 30 días sí, 31 no", () => {
+  const HOY = "2026-08-14";
+  const LIMITE = "2026-07-15"; // HOY − 30 (lo calcula la action con sumarDiasYmd)
+
+  it("AYER se puede: es el caso normal de la jornada que quedó abierta", () => {
+    expect(puedeEntregaDiferida("2026-08-13", HOY, LIMITE).ok).toBe(true);
+  });
+
+  it("HOY no: el cierre de hoy es del cobrador (le cerrarían el día en plena calle)", () => {
+    const v = puedeEntregaDiferida("2026-08-14", HOY, LIMITE);
+    expect(v.ok).toBe(false);
+    if (!v.ok) expect(v.motivo).toContain("el cobrador");
+  });
+
+  it("una fecha FUTURA tampoco (sellaría un acta de un día que no pasó)", () => {
+    expect(puedeEntregaDiferida("2026-08-20", HOY, LIMITE).ok).toBe(false);
+  });
+
+  it("justo en el límite de 30 días se puede; un día más atrás, no", () => {
+    expect(puedeEntregaDiferida("2026-07-15", HOY, LIMITE).ok).toBe(true);
+    const v = puedeEntregaDiferida("2026-07-14", HOY, LIMITE);
+    expect(v.ok).toBe(false);
+    if (!v.ok) expect(v.motivo).toContain("30 días");
+  });
+
+  it("formatos rotos se rechazan (no se compara basura lexicográficamente)", () => {
+    for (const mala of ["", "14/08/2026", "2026-8-14", "hoy", "2026-08-14T10:00"]) {
+      expect(puedeEntregaDiferida(mala, HOY, LIMITE).ok).toBe(false);
+    }
+  });
+
+  it("la ventana declarada es 30 días (si cambia, cambia la regla de negocio)", () => {
+    expect(ENTREGA_DIFERIDA_VENTANA_DIAS).toBe(30);
   });
 });
