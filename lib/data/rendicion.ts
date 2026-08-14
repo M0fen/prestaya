@@ -278,18 +278,21 @@ export async function getJornadasSinRendir(
     // 1. Pagos NATIVOS del período, agrupados por (cobrador, día UY). El día se
     //    deriva de `registrado_en` con el corte de las 03:00 UTC, igual que todo lo
     //    demás: un cobro de las 23:50 pertenece a ese día, no al siguiente.
-    let qp = admin
-      .from("pagos")
-      .select("registrado_por, registrado_en, monto")
-      .eq("anulado", false)
-      .is("origen", null)
-      .gte("registrado_en", diaUYInicioIso(desdeYmd))
-      .lt("registrado_en", diaUYInicioIso(fechaHoy)); // HOY no: tiene su propio cierre
-    if (cobradorIds) qp = qp.in("registrado_por", cobradorIds);
     const pagos = await traerTodo<{ registrado_por: string; registrado_en: string; monto: number }>(
-      (d, h) => qp.order("id", { ascending: true }).range(d, h),
+      (d, h) => {
+        // El builder se arma FRESCO por página (convención de alcance.ts): reusar
+        // uno mutable acumula params entre .range() sucesivos.
+        let q = admin
+          .from("pagos")
+          .select("registrado_por, registrado_en, monto")
+          .eq("anulado", false)
+          .is("origen", null)
+          .gte("registrado_en", diaUYInicioIso(desdeYmd))
+          .lt("registrado_en", diaUYInicioIso(fechaHoy)); // HOY no: tiene su propio cierre
+        if (cobradorIds) q = q.in("registrado_por", cobradorIds);
+        return q.order("id", { ascending: true }).range(d, h);
+      },
     );
-    if (pagos.length === 0) return [];
 
     const clave = (c: string, f: string) => `${c}|${f}`;
     const acc = new Map<string, { cobradorId: string; fecha: string; recaudado: number; cobros: number }>();
@@ -304,61 +307,74 @@ export async function getJornadasSinRendir(
       acc.set(k, a);
     }
 
-    // 2. Las que YA tienen acta salen de la lista.
+    // 1b. LAS BASES TAMBIÉN ABREN UNA JORNADA. Arrancar solo desde los pagos dejaba
+    // sin botón justo el peor caso: el que RECIBIÓ base y no registró NI UN cobro
+    // ese día (Daniela Millán $73.635 y Alejandro Cardona $31.885 del 06-08 —
+    // $105.520 en alerta perpetua sin ninguna salida en la app). Una base entregada
+    // es plata en la mano de alguien: su día queda abierto hasta que se selle,
+    // haya cobrado o no. ⚠️ Columna `base` (no `monto` — el error que ya cegó dos
+    // vigilantes) y PAGINADO: 52 cobradores × 30 días de bases superan el corte
+    // mudo de 1000 filas de PostgREST.
+    const aps = await traerTodo<{ cobrador_id: string; fecha: string; base: number }>((d, h) => {
+      let q = admin
+        .from("aperturas_caja")
+        .select("cobrador_id, fecha, base")
+        .gte("fecha", desdeYmd)
+        .lt("fecha", fechaHoy); // hoy tiene su propio cierre
+      if (cobradorIds) q = q.in("cobrador_id", cobradorIds);
+      return q.order("id", { ascending: true }).range(d, h);
+    });
+    const baseDe = new Map(
+      aps.map((a) => [clave(a.cobrador_id, String(a.fecha)), Math.round(Number(a.base) || 0)]),
+    );
+    for (const a of aps) {
+      const monto = Math.round(Number(a.base) || 0);
+      if (monto <= 0) continue;
+      const k = clave(a.cobrador_id, String(a.fecha));
+      if (!acc.has(k)) acc.set(k, { cobradorId: a.cobrador_id, fecha: String(a.fecha), recaudado: 0, cobros: 0 });
+    }
+    if (acc.size === 0) return [];
+
+    // 2. Las que YA tienen acta salen de la lista. Paginado por lo mismo de arriba:
+    // 52 cobradores rindiendo a diario son ~1.560 filas en 30 días.
     const ids = [...new Set([...acc.values()].map((a) => a.cobradorId))];
-    const { data: rends, error: errRends } = await admin
-      .from("rendiciones")
-      .select("cobrador_id, fecha")
-      .in("cobrador_id", ids)
-      .gte("fecha", desdeYmd);
-    // Si esto falla en silencio, TODAS las jornadas se ven como abiertas y el
-    // supervisor sella de nuevo una que ya tenía acta.
-    if (errRends) throw errRends;
-    const cerradas = new Set((rends ?? []).map((r) => clave(r.cobrador_id as string, String(r.fecha))));
+    const rends = await traerTodo<{ cobrador_id: string; fecha: string }>((d, h) =>
+      admin
+        .from("rendiciones")
+        .select("id, cobrador_id, fecha")
+        .in("cobrador_id", ids)
+        .gte("fecha", desdeYmd)
+        .order("id", { ascending: true })
+        .range(d, h),
+    );
+    const cerradas = new Set(rends.map((r) => clave(r.cobrador_id, String(r.fecha))));
     const abiertas = [...acc.values()].filter((a) => !cerradas.has(clave(a.cobradorId, a.fecha)));
     if (abiertas.length === 0) return [];
 
-    // 3. Base, capital colocado y gastos de CADA día (los tres bajan el esperado).
-    const [aperturasRes, colocado, gastosRes, usuariosRes] = await Promise.all([
-      // ⚠️ La columna es `base`, NO `monto`. Este MISMO error dejó ciega a INV13
-      // hace tres horas, en el archivo de al lado. Acá era peor: sin la base, el
-      // "debería entregar" de CADA jornada salía corto —$461.824 en total— y ese
-      // número venía prellenado en el campo, con un botón "Sí, recibí $54.520"
-      // sobre un acta que después no se puede editar nunca. A Víctor Moralez se le
-      // habrían perdonado $178.265 con firma. Y a María Artunduaga le habría
-      // escrito "A FAVOR DEL COBRADOR $15.710" — una deuda de la oficina que no
-      // existe. Por eso abajo TODAS estas consultas ahora miran su error.
-      admin.from("aperturas_caja").select("cobrador_id, fecha, base").in("cobrador_id", ids).gte("fecha", desdeYmd),
+    // 3. Capital colocado, gastos y nombres (los dos primeros bajan el esperado).
+    // ⚠️ SE MIRA EL ERROR de cada consulta (o pagina con traerTodo, que lanza solo):
+    // acá se sella plata en un acta inmutable, y es preferible que la pantalla no
+    // cargue a que cargue con un número de menos.
+    const [colocado, gs, usuariosRes] = await Promise.all([
       colocadoEnDias(abiertas.map((a) => ({ cobradorId: a.cobradorId, ymd: a.fecha }))),
-      admin
-        .from("solicitudes_gasto")
-        .select("cobrador_id, monto, solicitado_en")
-        .eq("estado", "aprobada")
-        .in("cobrador_id", ids)
-        .gte("solicitado_en", diaUYInicioIso(desdeYmd)),
+      traerTodo<{ cobrador_id: string; monto: number; solicitado_en: string }>((d, h) =>
+        admin
+          .from("solicitudes_gasto")
+          .select("id, cobrador_id, monto, solicitado_en")
+          .eq("estado", "aprobada")
+          .in("cobrador_id", ids)
+          .gte("solicitado_en", diaUYInicioIso(desdeYmd))
+          .order("id", { ascending: true })
+          .range(d, h),
+      ),
       admin.from("usuarios").select("id, nombre").in("id", ids),
     ]);
-    // ⚠️ SE MIRA EL ERROR. Estas cinco consultas devolvían `{data: null, error}` y
-    // el error ni se destructuraba: un nombre de columna torcido contestaba "cero"
-    // en vez de gritar, y así se pierde una invariante entera con los tests en
-    // verde. Acá se lanza: es plata que se va a sellar en un acta inmutable, y es
-    // preferible que la pantalla no cargue a que cargue con un número de menos.
-    for (const [que, r] of [
-      ["aperturas", aperturasRes],
-      ["gastos", gastosRes],
-      ["usuarios", usuariosRes],
-    ] as const) {
-      if (r.error) throw Object.assign(new Error(`getJornadasSinRendir: ${que}`), r.error);
-    }
-    const aps = aperturasRes.data;
-    const gs = gastosRes.data;
+    if (usuariosRes.error)
+      throw Object.assign(new Error("getJornadasSinRendir: usuarios"), usuariosRes.error);
     const usrs = usuariosRes.data;
-    const baseDe = new Map(
-      (aps ?? []).map((a) => [clave(a.cobrador_id as string, String(a.fecha)), Math.round(Number(a.base) || 0)]),
-    );
     const gastoDe = new Map<string, number>();
-    for (const g of gs ?? []) {
-      const k = clave(g.cobrador_id as string, fechaISOUY(new Date(g.solicitado_en as string)));
+    for (const g of gs) {
+      const k = clave(g.cobrador_id, fechaISOUY(new Date(g.solicitado_en)));
       gastoDe.set(k, (gastoDe.get(k) ?? 0) + Math.round(Number(g.monto) || 0));
     }
     const nombreDe = new Map((usrs ?? []).map((u) => [u.id as string, u.nombre as string]));

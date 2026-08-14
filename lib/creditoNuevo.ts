@@ -26,13 +26,15 @@ export const INTERES_DEFECTO_PCT = 20;
 export function interesDeBase(base: TerminosAnterior | null): number | null {
   if (!base || !(base.monto > 0) || !(base.cuota > 0) || !(base.totalDias > 0)) return null;
   const pct = (tasaImplicita(base) - 1) * 100;
-  // ⚠️ Una tasa de 0% o negativa NO es la tasa del cliente: es un dato roto. Hay 192
-  // créditos activos así ($72.113.554) heredados de Disapp, donde `cuota × días` da
-  // exactamente el capital. Devolver 0 hacía que la app propusiera un crédito que
-  // devuelve MENOS de lo que presta (JOSE RODRÍGUEZ: $5.000 → "paga en total
-  // $4.992"). Se cae al interés del negocio; las tasas reales distintas del 20%
-  // (3%, 3,5%, 10-19%) son > 0 y se siguen respetando tal cual.
-  if (!Number.isFinite(pct) || pct <= 0) return null;
+  // ⚠️ Una tasa por DEBAJO del 1% no es la tasa del cliente: es un dato roto. Hay
+  // 192 créditos activos al 0% ($72.113.554) más 82 entre 0 y 1% ($7.764.720),
+  // todos heredados de Disapp — y CERO créditos entre 1% y 3%: la tasa real más
+  // baja del negocio es 3%. Devolver estas micro-tasas hacía que la app propusiera
+  // créditos que no ganan nada o que pierden (JOSE RODRÍGUEZ: $5.000 → "paga en
+  // total $4.992"; GUSTAVO FERRAGUT: $94.500 al 0,03% → $25 de ganancia por ciclo
+  // en vez de ~$18.900). Se cae al interés del negocio; las tasas reales (3%,
+  // 3,5%, 10-19%, 20%) quedan por encima del umbral y se respetan tal cual.
+  if (!Number.isFinite(pct) || pct < 1) return null;
   return Math.round(pct * 10) / 10; // una decimal: la tasa histórica rara vez es entera
 }
 

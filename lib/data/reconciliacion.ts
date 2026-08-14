@@ -32,6 +32,7 @@ import { toIso } from "@/lib/format";
 import { saldoCredito } from "@/lib/cartones";
 import { reportarError } from "@/lib/observabilidad";
 import { tablaFaltante, columnaFaltante } from "./errores";
+import { opIdDeterminista } from "@/lib/idempotencia";
 import { getDiscrepanciasMap, esCerrada, type TriageDiscrepancia } from "./discrepancias";
 import { traerTodo } from "./paginado";
 
@@ -630,14 +631,26 @@ export async function hallazgosExtraDelDia(db: SupabaseClient, hoy: Date): Promi
     const aprobados = gs ?? [];
     if (aprobados.length > 0) {
       const ids = aprobados.map((g) => g.id as string);
-      const [{ data: movs }, { data: auds }] = await Promise.all([
-        // El egreso guarda la solicitud que lo originó en `referencia_id`; si esa
-        // columna no existe todavía, el catch de abajo lo degrada sin ruido.
-        db.from("movimientos_caja").select("referencia_id").in("referencia_id", ids),
+      // ⚠️ El egreso NO guarda `referencia_id` (esa columna nunca existió): el
+      // vínculo real es el `op_id` DETERMINISTA con el que `aprobarGastoRuta` crea
+      // el movimiento — opIdDeterminista("gasto", solicitudId) — estable por
+      // solicitud justamente para la idempotencia. La versión anterior buscaba una
+      // columna fantasma, así que en cuanto la oficina aprobara gastos con su
+      // egreso real, ESTA invariante los habría marcado TODOS como "sin egreso":
+      // una alarma que siempre grita es una alarma que nadie escucha.
+      const opDeSolicitud = new Map(ids.map((id) => [opIdDeterminista("gasto", id), id]));
+      const [movsRes, audsRes] = await Promise.all([
+        db.from("movimientos_caja").select("op_id").in("op_id", [...opDeSolicitud.keys()]),
         db.from("auditoria").select("entidad_id").eq("entidad", "gasto").in("entidad_id", ids),
       ]);
-      const conEgreso = new Set((movs ?? []).map((m) => m.referencia_id as string));
-      const conAud = new Set((auds ?? []).map((a) => a.entidad_id as string));
+      if (movsRes.error) throw movsRes.error;
+      if (audsRes.error) throw audsRes.error;
+      const conEgreso = new Set(
+        (movsRes.data ?? [])
+          .map((m) => opDeSolicitud.get(m.op_id as string))
+          .filter((x): x is string => !!x),
+      );
+      const conAud = new Set((audsRes.data ?? []).map((a) => a.entidad_id as string));
       out.push(
         ...invGastoSinEgreso(
           aprobados.map((g) => ({
@@ -663,13 +676,18 @@ export async function hallazgosExtraDelDia(db: SupabaseClient, hoy: Date): Promi
   // "cuadra ✓". Se mira AYER (día completo) para no pelearse con la cola offline,
   // que puede tener cobros de hoy todavía sin subir.
   try {
-    const [{ data: actos }, { data: pagosAyer }] = await Promise.all([
+    // ⚠️ `bitacora` NO tiene `creado_en`: tiene `fecha_uy` (date, hecha justo para
+    // esto) y `server_ts`. La primera versión consultaba `creado_en` y el 42703 se
+    // degradaba mudo — la TERCERA repetición del mismo bug de columna en 24 horas,
+    // en el vigilante que existe para cazar pagos borrados. Por eso acá se usa la
+    // columna de fecha REAL y los errores se LANZAN: un vigilante que no puede
+    // consultar tiene que gritar, no responder "todo bien".
+    const [actosRes, pagosRes] = await Promise.all([
       db
         .from("bitacora")
         .select("actor_id, actor_nombre, prestamo_id, monto")
         .eq("accion", "cobro")
-        .gte("creado_en", diaUYInicioIso(ayer))
-        .lt("creado_en", diaUYInicioIso(fecha)),
+        .eq("fecha_uy", ayer),
       db
         .from("pagos")
         .select("registrado_por, anulado")
@@ -677,6 +695,10 @@ export async function hallazgosExtraDelDia(db: SupabaseClient, hoy: Date): Promi
         .gte("registrado_en", diaUYInicioIso(ayer))
         .lt("registrado_en", diaUYInicioIso(fecha)),
     ]);
+    if (actosRes.error) throw actosRes.error;
+    if (pagosRes.error) throw pagosRes.error;
+    const actos = actosRes.data;
+    const pagosAyer = pagosRes.data;
     const porCobrador = new Map<string, JornadaBitacora>();
     for (const a of actos ?? []) {
       const cid = a.actor_id as string;

@@ -83,10 +83,24 @@ export function FormCreditoNuevo({
   const tasaHistorica = interesDeBase(baseTasa);
 
   // Misma función que recalcula el servidor (fuente de verdad del dinero).
+  // ⚠️ `?? INTERES_DEFECTO_PCT`, NUNCA `?? 0`. Con una base rota de Disapp (tasa
+  // <1%: 216+ créditos), interesDeBase devuelve null y el `?? 0` hacía que este
+  // preview mostrara la cuota al 0% ($417) mientras el servidor creaba al 20%
+  // ($500): el gestor le cantaba al cliente una cuota 20% más baja que la que iba
+  // a nacer. La plata escrita era correcta; el número dicho en voz alta, no. Es el
+  // mismo desacuerdo pantalla/servidor que se mató en todos los demás forms.
   const cuota = valido
-    ? calcularCuotaCreditoNuevo(baseTasa, montoNum, diasNum, conHistorial ? (tasaHistorica ?? 0) : interesNum)
+    ? calcularCuotaCreditoNuevo(
+        baseTasa,
+        montoNum,
+        diasNum,
+        conHistorial ? (tasaHistorica ?? INTERES_DEFECTO_PCT) : interesNum,
+      )
     : 0;
   const totalAPagar = cuota * diasNum;
+  /** La base venía rota (tasa <1% = dato del import, no tasa real): el crédito va a
+   *  nacer al interés del negocio y el gestor tiene que SABERLO antes de cantarlo. */
+  const baseRota = conHistorial && tasaHistorica == null;
 
   // Preview de los MISMOS topes que aplica el servidor.
   const evalu = valido && conHistorial ? evaluarRenovacion(baseTasa!.monto, montoNum) : null;
@@ -287,6 +301,15 @@ export function FormCreditoNuevo({
             Total a pagar <b className="text-tinta">{UYU(totalAPagar)}</b>
           </span>
         </div>
+      )}
+      {/* La tasa heredada era basura del import (tasa <1%): el crédito nace al
+          interés del negocio, y eso se dice ANTES de que el gestor lo cante. */}
+      {valido && baseRota && (
+        <p className="rounded-[10px] bg-ambar-suave px-3 py-2 text-[11.5px] leading-[1.45] font-semibold text-ambar-osc">
+          El crédito anterior vino de Disapp sin interés real (tasa menor al 1%). Este crédito
+          nuevo sale al <b>{INTERES_DEFECTO_PCT}%</b> del negocio — la cuota de arriba ya lo
+          incluye.
+        </p>
       )}
 
       {(superaCap || sobreTramoYNoAdmin || sinHistorialYNoAdmin || evalu?.excedePct) && (

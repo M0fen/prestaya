@@ -580,11 +580,15 @@ export function RegistroCobro({
             Si el monto está mal, avisá ahora: la oficina lo corrige y queda constancia de que
             fuiste vos quien lo reportó.
           </span>
+          {/* ⚠️ El texto ARRANCA con "Pido": es el prefijo por el que los tableros
+              de la oficina levantan los avisos de la calle. Sin él, la nota quedaba
+              solo en la ficha —entre 13.166 clientes— mientras el botón prometía
+              "esto le va a llegar a tu supervisor". */}
           <PedirAyuda
             clienteId={clienteId}
             etiqueta="Está mal · avisar a la oficina"
             tono="alerta"
-            textoSugerido={`Registré un cobro con el monto equivocado${
+            textoSugerido={`Pido corrección: registré un cobro con el monto equivocado${
               ultimoMonto.current ? ` (quedó ${UYU(ultimoMonto.current)})` : ""
             }. El monto correcto es $____. Por favor corregirlo.`}
           />

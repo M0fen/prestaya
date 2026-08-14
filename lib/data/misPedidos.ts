@@ -114,7 +114,11 @@ export interface AvisoDeLaCalle {
  */
 export async function getAvisosDeLaCalle(
   cobradorIds: string[] | null,
-  dias = 7,
+  // 30 días, no 7: nada "resuelve" un aviso todavía (no tienen estado), así que la
+  // única salida era el corte por fecha — y un pedido sin atender se esfumaba solo
+  // a la semana, violando la regla "un pedido nunca desaparece en silencio". Con 30
+  // días el que quedó colgado sigue a la vista (en rojo, arriba) hasta que duela.
+  dias = 30,
 ): Promise<AvisoDeLaCalle[]> {
   try {
     if (cobradorIds && cobradorIds.length === 0) return [];
@@ -129,7 +133,7 @@ export async function getAvisosDeLaCalle(
     const { data, error } = await q;
     if (error) throw error;
     const pedidos = (data ?? []).filter((n) =>
-      /^\s*(pido|pedido|no pude|terminé la ruta)/i.test(String(n.cuerpo ?? "")),
+      /^\s*(pido|pedido|no pude|terminé la ruta|registré un cobro)/i.test(String(n.cuerpo ?? "")),
     );
     if (pedidos.length === 0) return [];
     const [{ data: cls }, { data: usrs }] = await Promise.all([
@@ -311,7 +315,7 @@ async function avisosALaOficina(cobradorId: string, desde: string, t: number): P
       .gte("creado_en", desde)
       .order("creado_en", { ascending: false });
     if (error) throw error;
-    const pedidos = (data ?? []).filter((n) => /^\s*(pido|pedido|no pude|terminé la ruta)/i.test(String(n.cuerpo ?? "")));
+    const pedidos = (data ?? []).filter((n) => /^\s*(pido|pedido|no pude|terminé la ruta|registré un cobro)/i.test(String(n.cuerpo ?? "")));
     if (pedidos.length === 0) return [];
     const ids = [...new Set(pedidos.map((n) => n.cliente_id as string))];
     const { data: cls } = await admin.from("clientes").select("id, nombre").in("id", ids);

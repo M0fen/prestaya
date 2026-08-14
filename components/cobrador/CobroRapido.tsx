@@ -30,11 +30,30 @@ import { useEffect, useRef, useState } from "react";
 import {
   configurarUsuario,
   encolar,
+  hidratar,
   parchearGps,
   pendientes,
   quitar,
 } from "@/lib/cobrador/colaOffline";
 import { UYU } from "@/lib/format";
+import { fechaISOUY } from "@/lib/fecha";
+
+/** ¿Esta op de la cola es un cobro de HOY sobre este crédito? El filtro por día es
+ *  obligatorio: una op ATASCADA de AYER que siga en la cola pintaría "Cobrado ✓"
+ *  HOY y el cobrador se saltearía la parada — la cuota de hoy quedaría sin cobrar.
+ *  La ficha filtra igual (RegistroCobro exige deviceTs del día). */
+function opDeHoy(
+  o: { tipo: string; clienteId: string; prestamoId?: string | null; deviceTs: number },
+  clienteId: string,
+  prestamoId: string,
+): boolean {
+  return (
+    o.tipo === "pago" &&
+    o.clienteId === clienteId &&
+    (o.prestamoId ?? null) === prestamoId &&
+    fechaISOUY(new Date(o.deviceTs)) === fechaISOUY(new Date())
+  );
+}
 
 /** Ventana en la que el cobro queda retenido antes de sincronizar: habilita
  *  "Deshacer" ante un mis-tap y le da margen al GPS asíncrono. El MISMO valor que
@@ -88,9 +107,16 @@ export function CobroRapido({
   // sin eso. El estado inicial se deriva de la cola, que sobrevive al remonte.
   const [cobrado, setCobrado] = useState<{ opId: string; hasta: number } | null>(() => {
     try {
-      const ya = pendientes().find(
-        (o) => o.tipo === "pago" && o.clienteId === clienteId && (o.prestamoId ?? null) === prestamoId,
-      );
+      // ⚠️ La cola está PARTICIONADA por usuario y vive en localStorage. En un
+      // remonte por navegación el cache en memoria sobrevive, pero tras una RECARGA
+      // completa (página servida por el Service Worker, el caso offline) el cache
+      // nace vacío y nadie corrió todavía `configurarUsuario` — el SyncEngine lo
+      // hace en un useEffect, DESPUÉS de este initializer. Sin estas dos llamadas
+      // (idempotentes y síncronas), el candado nacía vacío justo en el escenario
+      // para el que existe.
+      configurarUsuario(cobradorId);
+      hidratar();
+      const ya = pendientes().find((o) => opDeHoy(o, clienteId, prestamoId));
       // `hasta: 0` = ya no se puede deshacer desde acá: la op puede haber pasado el
       // hold o estar por subir, y "Deshacer" borraría un cobro que quizá ya salió.
       return ya ? { opId: ya.id, hasta: 0 } : null;
@@ -130,9 +156,7 @@ export function CobroRapido({
     configurarUsuario(cobradorId);
     // Última verificación contra la cola, ya con el usuario configurado: entre el
     // render y el toque pudo entrar un cobro por el otro camino (la ficha).
-    const yaEnCola = pendientes().find(
-      (o) => o.tipo === "pago" && o.clienteId === clienteId && (o.prestamoId ?? null) === prestamoId,
-    );
+    const yaEnCola = pendientes().find((o) => opDeHoy(o, clienteId, prestamoId));
     if (yaEnCola) {
       setCobrado({ opId: yaEnCola.id, hasta: 0 });
       return;

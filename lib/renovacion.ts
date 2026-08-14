@@ -44,9 +44,20 @@ export function tasaImplicita(anterior: TerminosAnterior): number {
  * REALES distintas del 20% que conviven en la cartera (3%, 3,5%, 10-19%) son > 0 y
  * se respetan tal cual — el piso solo actúa donde el crédito perdía plata.
  */
+/**
+ * Umbral del dato ROTO: por debajo del 1% de interés no hay tasa real, hay basura
+ * del import. Medido contra la cartera viva (10-08): 82 créditos activos entre 0 y
+ * 1% ($7.764.720) — artefactos de redondeo de Disapp como GUSTAVO FERRAGUT,
+ * $94.500 al 0,03% — y CERO créditos entre 1% y 3%. La tasa real más baja del
+ * negocio es 3%. O sea: el umbral del 1% corta exactamente la basura y no toca ni
+ * un crédito legítimo. Si algún día existiera una tasa real menor al 1%, esto es
+ * lo que hay que revisar (decisión de negocio, no técnica).
+ */
+const FACTOR_MINIMO_REAL = 1.01;
+
 export function factorConPiso(anterior: TerminosAnterior): number {
   const f = tasaImplicita(anterior);
-  return f > 1 ? f : 1 + RENOVACION_AUMENTO_PCT / 100;
+  return f >= FACTOR_MINIMO_REAL ? f : 1 + RENOVACION_AUMENTO_PCT / 100;
 }
 
 /**

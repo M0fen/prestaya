@@ -361,25 +361,32 @@ export async function registrarPagoCobrador(input: {
     //  vueltas legítimas de un solo día — el 10% de los cobros. El hueco entre 50
     //  segundos y 2,3 horas es enorme, así que la ventana no necesita ser fina.
     // ─────────────────────────────────────────────────────────────────────
+    // La hora del cobro se SELLA una sola vez y la usan el candado Y el libro. Es
+    // la misma verdad en los dos lados: si el reloj del teléfono está torcido,
+    // sellarRegistroEn lo acota a "ahora" — y entonces el candado también compara
+    // contra "ahora", nunca contra una hora que no va a existir en el libro.
+    const registradoEn = sellarRegistroEn(input.registradoEn);
     if (!input.adelanto) {
-      // ⚠️ LA VENTANA SE MIDE CONTRA LA HORA DEL COBRO QUE ENTRA, NO CONTRA EL RELOJ
-      // DEL SERVIDOR. Los pagos guardan la hora del TELÉFONO (el momento en que el
-      // cobrador tocó el botón), pero la cola offline puede drenar horas después:
-      // dos toques a las 10:00 y 10:01 que suben a las 14:00 quedaban los dos fuera
-      // de una ventana medida desde `Date.now()` → el duplicado entraba justo en el
-      // escenario para el que se puso el candado. Con la hora del cobro, el candado
-      // compara lo que tiene que comparar: cuándo se COBRÓ, no cuándo llegó.
-      const ahoraCobro = input.registradoEn
-        ? new Date(input.registradoEn).getTime()
-        : Date.now();
-      const limite = (Number.isFinite(ahoraCobro) ? ahoraCobro : Date.now()) - VENTANA_DUPLICADO_MS;
+      // ⚠️ LA VENTANA SE MIDE CONTRA LA HORA SELLADA DEL COBRO, Y DE DOS LADOS.
+      //
+      // Contra la hora del cobro (no la del servidor): la cola offline puede drenar
+      // horas después, y dos toques a las 10:00 y 10:01 que suben a las 14:00
+      // quedaban los dos fuera de una ventana medida desde `Date.now()`.
+      //
+      // De DOS lados: con un solo lado (`>= limite`, sin tope superior), un cobro
+      // REAL que subía tarde encontraba como "gemelo" a un pago del mismo monto
+      // registrado HORAS DESPUÉS de él — y la cola lo confirmaba como duplicado, o
+      // sea que plata cobrada de verdad desaparecía del libro EN SILENCIO. Esta
+      // semana 21 cobros subieron con más de 10 minutos de atraso (13 con más de
+      // una hora): la ventana tiene que ser |Δ| ≤ 10 min, no "todo lo posterior".
+      const ahoraCobro = new Date(registradoEn).getTime();
       const gemelo = pagos.find(
         (p) =>
           !p.anulado &&
           p.origen == null &&
           Math.abs(Number(p.monto) - monto) < 0.5 &&
           p.registrado_en != null &&
-          new Date(p.registrado_en).getTime() >= limite,
+          Math.abs(new Date(p.registrado_en).getTime() - ahoraCobro) <= VENTANA_DUPLICADO_MS,
       );
       if (gemelo) {
         return {
@@ -418,11 +425,8 @@ export async function registrarPagoCobrador(input: {
       { lat: cliente.gps_lat, lng: cliente.gps_lng },
     );
 
-    // Día contable sellado con el reloj del SERVIDOR (tolera el reloj mal del
-    // celular): un cobro offline conserva su hora real solo si es del mismo día
-    // UY; si no, se sella con "ahora". Evita faltantes fantasma (ver sellarRegistroEn).
-    const registradoEn = sellarRegistroEn(input.registradoEn);
-
+    // (La hora sellada `registradoEn` viene de más arriba: se calcula UNA vez,
+    // antes del candado anti doble-toque, y es la misma que entra al libro.)
     let duplicado = false;
     try {
       await registrarPago(db, {

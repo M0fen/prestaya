@@ -58,6 +58,18 @@ describe("NUNCA se presta a pérdida (el caso JOSE RODRÍGUEZ)", () => {
     expect(cuota * 30).toBeGreaterThan(10_000);
   });
 
+  it("una tasa MICROSCÓPICA (<1%) tampoco se arrastra: es import roto, no un precio", () => {
+    // Medido el 12-08: 82 créditos activos entre 0% y 1% ($7.764.720) y NINGUNO
+    // entre 1% y 3% — la tasa real más baja que alguien pactó es 3%. Todo lo que
+    // vive debajo del 1% es resto del empalme con Disapp, así que el umbral del
+    // piso es 1%, no 0%.
+    const micro = { monto: 30_000, cuota: 1_001, totalDias: 30 }; // 30.030 = +0,1%
+    expect(interesDeBase(micro)).toBeNull();
+    expect(factorConPiso(micro)).toBeCloseTo(1 + RENOVACION_AUMENTO_PCT / 100, 10);
+    const cuota = calcularCuotaRenovacion(micro, 30_000, 30);
+    expect(cuota * 30).toBe(36_000); // sale al 20% del negocio
+  });
+
   it("renovar un crédito de 0% lo saca del 0%", () => {
     const cuota = calcularCuotaRenovacion(JOSE, 18_000, 30);
     expect(cuota).toBe(720); // 21.600 / 30

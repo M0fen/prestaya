@@ -730,11 +730,16 @@ function Interes({
   if (!(monto > 0) || !(cuota > 0) || !(dias > 0)) return null;
   const pct = interesEfectivo(monto, cuota, dias);
   const total = cuota * dias;
+  // La GANANCIA REAL en pesos manda el color, no el % redondeado: un crédito de
+  // $94.500 que gana $25 tiene pct 0,0% (redondeado) pero NO "devuelve menos de lo
+  // que entregás" — con el % solo, el cartel rojo decía eso y al lado "gana $25",
+  // dos frases que se contradicen en la misma tarjeta.
+  const gana = total - monto;
   const objetivo = Math.round(monto * (1 + INTERES_DEFECTO_PCT / 100));
   const dif = total - objetivo;
   const justo = sugerirCuotas && dif !== 0 ? cuotasQueDanJusto(monto, INTERES_DEFECTO_PCT, dias) : null;
   const tono =
-    pct <= 0
+    gana <= 0
       ? { bg: "#FBE4E2", fg: "#C0392B" }
       : pct < INTERES_DEFECTO_PCT - 0.05
         ? { bg: "#FDF3E2", fg: "#B9770E" }
@@ -745,12 +750,13 @@ function Interes({
       style={{ background: tono.bg }}
     >
       <span className="text-[12px] font-extrabold tabular-nums" style={{ color: tono.fg }}>
-        {pct <= 0 ? "⛔ " : ""}Interés {pct.toFixed(1).replace(".", ",")}%
-        <span className="font-semibold"> · gana {UYU(total - monto)}</span>
+        {gana <= 0 ? "⛔ " : ""}Interés {pct.toFixed(1).replace(".", ",")}%
+        <span className="font-semibold"> · gana {UYU(gana)}</span>
       </span>
-      {pct <= 0 && (
+      {gana <= 0 && (
         <span className="text-[11.5px] leading-[1.4] font-bold" style={{ color: tono.fg }}>
-          Este crédito devuelve menos de lo que entregás. Avisá a la oficina antes de darlo.
+          Este crédito {gana < 0 ? "devuelve menos de lo que entregás" : "no gana nada"}. Avisá a
+          la oficina antes de darlo.
         </span>
       )}
       {justo && (
