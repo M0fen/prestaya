@@ -58,15 +58,23 @@ describe("0126 · prestamos congelado para la API", () => {
     });
   });
 
-  it("la RPC de reparación (0119) sigue funcionando (vía de confianza)", async () => {
+  it("la RPC de reparación (0119): el ADMIN logueado repara; el supervisor rebota en el guard", async () => {
     await withRollback(async (c) => {
       const admin = await mkGestorConAuth(c, "admin");
+      const sup = await mkGestorConAuth(c, "supervisor");
       const cliente = await mkCliente(c);
       const pid = await mkPrestamo(c, { clienteId: cliente, cuotaDiaria: 500, totalDias: 24 });
       await c.query("insert into pagos (prestamo_id, dia_credito, monto) values ($1, 1, 500)", [pid]);
       // Fabricamos drift como superusuario (vía de confianza, igual que un incidente real).
       await c.query("update prestamos set pagado_acum = 9999 where id=$1", [pid]);
 
+      // ⚠️ Lo que este test cazó (15-08): la 0142 había revocado EXECUTE a
+      // authenticated, y como el guard interno exige el JWT de un admin, NADIE
+      // podía llamarla — la herramienta de reparación de INV1 quedó muerta sin
+      // aviso. La 0145 devuelve el grant: el guard interno ES la defensa.
+      await comoRol(c, "authenticated", sup.authUserId, () =>
+        esperaErrorPg(c, "P0001", () => c.query("select app_reparar_pagado_acum($1)", [pid])),
+      );
       const rep = await comoRol(c, "authenticated", admin.authUserId, () =>
         c.query("select app_reparar_pagado_acum($1) as reparados", [pid]),
       );
