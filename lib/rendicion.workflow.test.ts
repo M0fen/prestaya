@@ -489,6 +489,20 @@ describe("cerrarJornada — lo que el cobrador entrega al final del día", () =>
     expect(escritas("rendiciones")[0].recaudado).toBe(23000);
   });
 
+  it("el corte de las 03:00Z en la rendición: 02:30Z es de AYER, 03:30Z ya es de HOY", async () => {
+    // Sesión de caos 15-08: "ayer" solo se testeaba a las 20:00Z — nunca pegado
+    // al corte uruguayo. Un cobro de las 23:30 UY (02:30Z) pertenece a AYER.
+    tablas.pagos.push(
+      { id: 8, monto: 1000, registrado_por: COB, anulado: false, origen: null, registrado_en: "2026-08-06T02:30:00Z" },
+      { id: 9, monto: 700, registrado_por: COB, anulado: false, origen: null, registrado_en: "2026-08-06T03:30:00Z" },
+    );
+    const r = await cerrarJornada({ gastos: 2000, entregado: 26700 });
+    expect(r).toEqual({ ok: true, estado: "cuadra", diferencia: 0, esperado: 26700 });
+    const fila = escritas("rendiciones")[0];
+    expect(fila.recaudado).toBe(23700); // +700 de las 00:30 UY; los 1.000 de ayer NO
+    expect(fila.cobros_cantidad).toBe(4);
+  });
+
   it("los gastos FANTASMA no bajan el esperado: el excedente aflora como faltante", async () => {
     // Declara $9.000 de gastos con solo $2.500 respaldados (2.000 aprobados + 500
     // pendientes) y entrega como si los $9.000 fueran válidos.
@@ -1023,6 +1037,27 @@ describe("Mis números — la promesa tiene que ser lo que la oficina liquida", 
     expect(r.comisionQuincena).toBe(600);
     expect(r.mesRecaudado).toBe(30000);
     expect(r.comisionMes).toBe(900);
+  });
+
+  it("el BORDE de la quincena es el corte UY (03:00Z): el 15 a las 23:59 UY es de la 1ª, el 16 a las 00:00 UY de la 2ª", async () => {
+    // Sesión de caos 15-08: las primitivas de fecha estaban selladas en 5 TZs,
+    // pero ninguna COMPOSICIÓN metía un pago pegado al corte. Un pago del 16 a
+    // las 02:59Z sigue siendo 15-ago 23:59 en Uruguay → 1ª quincena.
+    montar({
+      prestamos: [{ id: "pr-b", cobrador_id: COB_B }],
+      pagos: [
+        { id: 1, prestamo_id: "pr-b", monto: 10000, registrado_por: COB_B, anulado: false, origen: null, registrado_en: "2026-08-16T02:59:00Z" },
+        { id: 2, prestamo_id: "pr-b", monto: 20000, registrado_por: COB_B, anulado: false, origen: null, registrado_en: "2026-08-16T03:00:00Z" },
+      ],
+      usuarios: [{ id: COB_B, comision_pct: 3 }],
+      rendiciones: [],
+      comisiones_liquidadas: [],
+    });
+    const r = await getMisNumeros(COB_B, new Date("2026-08-20T15:00:00Z"));
+    expect(r.quincenaDesde).toBe("2026-08-16");
+    expect(r.quincenaRecaudado).toBe(20000); // SOLO el de las 03:00Z (16-ago UY)
+    expect(r.comisionQuincena).toBe(600);
+    expect(r.mesRecaudado).toBe(30000); // el mes los abraza a los dos
   });
 
   it("los pagos importados del empalme no entran en la comisión que se le promete", async () => {

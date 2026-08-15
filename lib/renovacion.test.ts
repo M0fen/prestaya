@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 import {
   calcularCuotaRenovacion,
+  cuotasValidas,
   tasaImplicita,
   evaluarRenovacion,
   montoRenovacionAutoAprobable,
@@ -14,6 +15,7 @@ import {
   topeAumentoPct,
   RENOVACION_AUMENTO_PCT,
   RENOVACION_CAP_TOTAL,
+  TOPE_CUOTAS,
 } from "./renovacion";
 
 // Anterior: prestó 10.000, cuota 400 × 30 días = 12.000 a pagar → tasa 1.2.
@@ -537,5 +539,30 @@ describe("techoVentaNueva — el número que la pantalla ofrece y el servidor ac
     // El servidor compara `monto > techo`: 8.400 entra, 8.401 no.
     expect(8_400 > techoVentaNueva(7_000)).toBe(false);
     expect(8_401 > techoVentaNueva(7_000)).toBe(true);
+  });
+});
+
+describe("cuotasValidas — el tope 366 vale para lo TECLEADO, no lo heredado", () => {
+  it("366 tecleadas pasan; 367 rebotan (el dedazo)", () => {
+    expect(cuotasValidas(366, true)).toBe(true);
+    expect(cuotasValidas(367, true)).toBe(false);
+    expect(TOPE_CUOTAS).toBe(366); // el número es parte del contrato con la pantalla
+  });
+
+  it("las 555 cuotas HEREDADAS pasan sin tocarse (caso PAOLA VANESSA CASTRO)", () => {
+    // Repetir tal cual un crédito de Disapp con plazo largo es continuidad de una
+    // exposición que ya existe — rebotarlo mostraba un rojo sobre un campo que la
+    // pantalla ni tiene.
+    expect(cuotasValidas(555, false)).toBe(true);
+    // …pero TECLEAR 555 en un crédito nuevo sigue rebotando.
+    expect(cuotasValidas(555, true)).toBe(false);
+  });
+
+  it("lo inválido rebota siempre, tecleado o heredado: 0, negativo, fraccionario", () => {
+    for (const tecleadas of [true, false]) {
+      expect(cuotasValidas(0, tecleadas)).toBe(false);
+      expect(cuotasValidas(-24, tecleadas)).toBe(false);
+      expect(cuotasValidas(30.5, tecleadas)).toBe(false);
+    }
   });
 });

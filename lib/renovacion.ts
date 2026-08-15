@@ -122,6 +122,23 @@ export function cuotasQueDanJusto(monto: number, interesPct: number, dias: numbe
 //  Renovar por el mismo monto o por menos siempre es auto-aprobable.
 export const RENOVACION_CAP_TOTAL = 100_000;
 
+/** Tope de cuotas para lo que se TECLEA (un dedazo de 4.000 cuotas pulveriza la
+ *  cuota y deja el total por debajo del capital). 366 cubre de sobra el crédito
+ *  diario más largo del negocio. */
+export const TOPE_CUOTAS = 366;
+
+/**
+ * ¿La cantidad de cuotas es válida? El tope vale SOLO para lo tecleado: hay
+ * créditos heredados de Disapp con plazos más largos (PAOLA VANESSA CASTRO,
+ * $1.110.000 en 555 cuotas) y repetirlos TAL CUAL es continuidad de una
+ * exposición que ya existe — rebotarlos mostraba un rojo sobre un campo que la
+ * pantalla ni tiene. Una sola función para calle, oficina y pantalla: un
+ * refactor que cambie `> 366` por `>= 366` acá rompe los tests, no la ruta.
+ */
+export function cuotasValidas(totalDias: number, tecleadas: boolean): boolean {
+  return Number.isInteger(totalDias) && totalDias > 0 && (!tecleadas || totalDias <= TOPE_CUOTAS);
+}
+
 // ── Cómo se renueva (regla de Carlos, 06-08) ───────────────────────────────
 //  **El crédito se REPITE EXACTAMENTE como estaba el recién terminado.** Si
 //  terminó en $60.000, se renueva en $60.000 — mismo capital, mismos términos, y

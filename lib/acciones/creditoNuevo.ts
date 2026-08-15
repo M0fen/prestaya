@@ -28,7 +28,7 @@ import {
 } from "@/lib/data/creditoNuevo";
 import { cerrarSolicitudPendienteDeAnterior } from "@/lib/data/solicitudesRenovacion";
 import { calcularCuotaCreditoNuevo, INTERES_DEFECTO_PCT, interesDeBase } from "@/lib/creditoNuevo";
-import { RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
+import { cuotasValidas, RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
 import { esUuid, opIdDeterminista } from "@/lib/idempotencia";
@@ -65,9 +65,9 @@ export async function crearCreditoNuevo(input: {
   const monto = Math.round(Number(input.monto));
   const totalDias = Math.round(Number(input.totalDias));
   if (!Number.isFinite(monto) || monto <= 0) return { ok: false, error: "Revisá el monto." };
-  // Tope superior 366 (auditoría 08-05): un totalDias absurdo pulveriza la cuota
-  // (round → $1) y el total del crédito queda por debajo del capital prestado.
-  if (!Number.isInteger(totalDias) || totalDias <= 0 || totalDias > 366)
+  // Tope superior compartido (lib/renovacion.cuotasValidas): un totalDias absurdo
+  // pulveriza la cuota (round → $1) y el total queda por debajo del capital.
+  if (!cuotasValidas(totalDias, true))
     return { ok: false, error: "La cantidad de cuotas debe ser un entero entre 1 y 366." };
   if (!FRECUENCIAS.includes(input.frecuencia)) return { ok: false, error: "Frecuencia inválida." };
   // CAP total DURO (money-critical), idéntico al de la renovación.

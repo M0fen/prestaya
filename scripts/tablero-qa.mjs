@@ -171,7 +171,61 @@ console.log("═══ TABLERO DE QA · " + new Date().toISOString().slice(0, 16
   );
 }
 
-// ── 7 · Lo que NO vive en la base (recordatorio) ────────────────────────────
+// ── 7 · VIGILANTE DE POLICIES: la base viva vs el snapshot esperado ─────────
+//  El incidente 0029-vs-0096 (08-14): el repo decía una policy y la base viva
+//  tenía otra — un supervisor podía resolver pedidos de zonas ajenas y ningún
+//  test lo veía (el harness aplica las migraciones del REPO). Este check
+//  compara pg_policies REAL contra scripts/policies-esperadas.json.
+//  Tras aplicar una migración legítima: node scripts/tablero-qa.mjs --regenerar-policies
+{
+  const rutaSnap = join(raiz, "scripts", "policies-esperadas.json");
+  const vivas = (
+    await q(`select tablename, policyname, cmd, coalesce(array_to_string(roles,','),'') as roles,
+                    md5(coalesce(qual,'') || '|' || coalesce(with_check,'')) as md5
+             from pg_policies where schemaname='public' order by tablename, policyname`)
+  ).map((r) => ({ tabla: r.tablename, policy: r.policyname, cmd: r.cmd, roles: r.roles, md5: r.md5 }));
+
+  if (process.argv.includes("--regenerar-policies")) {
+    const { writeFileSync } = await import("node:fs");
+    writeFileSync(
+      rutaSnap,
+      JSON.stringify(
+        {
+          generado: new Date().toISOString().slice(0, 10),
+          nota: "Snapshot de pg_policies de la base VIVA (tabla, policy, cmd, roles, md5 del using|check). Regenerar tras cada migracion aplicada: node scripts/tablero-qa.mjs --regenerar-policies",
+          policies: vivas,
+        },
+        null,
+        1,
+      ),
+    );
+    linea("Policies: snapshot REGENERADO", `${vivas.length} policies`);
+  } else {
+    const snap = JSON.parse(readFileSync(rutaSnap, "utf8"));
+    const clave = (p) => `${p.tabla}.${p.policy}`;
+    const esperadas = new Map(snap.policies.map((p) => [clave(p), p]));
+    const enVivo = new Map(vivas.map((p) => [clave(p), p]));
+    const faltan = [...esperadas.keys()].filter((k) => !enVivo.has(k));
+    const sobran = [...enVivo.keys()].filter((k) => !esperadas.has(k));
+    const cambiadas = [...esperadas.entries()]
+      .filter(([k, e]) => enVivo.has(k))
+      .filter(([k, e]) => {
+        const v = enVivo.get(k);
+        return v.md5 !== e.md5 || v.cmd !== e.cmd || v.roles !== e.roles;
+      })
+      .map(([k]) => k);
+    const drift = faltan.length + sobran.length + cambiadas.length;
+    linea(
+      `Policies vivas vs snapshot ${snap.generado}`,
+      drift === 0 ? `${vivas.length} — sin drift` : `DRIFT: −${faltan.length} +${sobran.length} ~${cambiadas.length}`,
+      drift > 0
+        ? `pg_policies cambió sin regenerar el snapshot: ${[...faltan.map((k) => "falta " + k), ...sobran.map((k) => "sobra " + k), ...cambiadas.map((k) => "cambió " + k)].slice(0, 6).join(" · ")}`
+        : null,
+    );
+  }
+}
+
+// ── 8 · Lo que NO vive en la base (recordatorio) ────────────────────────────
 console.log("\n  Manuales: drift vs EXPORT de Disapp (nunca contra su dashboard) · ops");
 console.log("  atascadas en la cola offline (viven en cada teléfono; el cierre las canta)");
 console.log("  · errores [PY-ERROR] en los logs de Vercel.");

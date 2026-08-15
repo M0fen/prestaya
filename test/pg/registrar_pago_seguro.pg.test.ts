@@ -87,6 +87,51 @@ describe("registrar_pago_seguro (integración PG)", () => {
     });
   });
 
+  it("SELLA el día contable (clamp 0124): un registrado_en de OTRO día se descarta y se usa now()", async () => {
+    await withRollback(async (c) => {
+      const { cob, prestamoId } = await escenario(c, 500, 20);
+      // Ataque de fecha por REST: fechar el cobro AYER (evadir la rendición de
+      // hoy) o MAÑANA (adelantar el día). El clamp usa el día UY del servidor.
+      for (const truco of ["now() - interval '1 day'", "now() + interval '1 day'"]) {
+        const r = await c.query(
+          `select * from registrar_pago_seguro($1, 1, 100, $2, null, null, ${truco}, null)`,
+          [prestamoId, cob.id],
+        );
+        const sellado = await c.query(
+          `select ((registrado_en at time zone 'America/Montevideo')::date
+                   = (now() at time zone 'America/Montevideo')::date) as hoy_uy
+             from pagos where id = $1`,
+          [r.rows[0].id],
+        );
+        expect(sellado.rows[0].hoy_uy).toBe(true);
+      }
+    });
+  });
+
+  it("un registrado_en del MISMO día UY más temprano se CONSERVA (cola offline legítima)", async () => {
+    await withRollback(async (c) => {
+      const { cob, prestamoId } = await escenario(c, 500, 20);
+      // 30 min atrás: mismo día uruguayo → la hora real del cobro entra al libro.
+      const r = await c.query(
+        `select * from registrar_pago_seguro($1, 1, 100, $2, null, null, now() - interval '30 minutes', null)`,
+        [prestamoId, cob.id],
+      );
+      const fila = await c.query(
+        `select (registrado_en <= now() - interval '29 minutes') as conservada
+           from pagos where id = $1`,
+        [r.rows[0].id],
+      );
+      // ⚠️ Cerca del corte (03:00Z) "30 min atrás" puede caer en el día UY
+      // anterior y el clamp legítimamente lo re-sella a now(): en ese caso el
+      // assert de conservación no aplica (el test del clamp de arriba lo cubre).
+      const cruzoElCorte = await c.query(
+        `select ((now() - interval '30 minutes') at time zone 'America/Montevideo')::date
+                is distinct from (now() at time zone 'America/Montevideo')::date as cruzo`,
+      );
+      if (!cruzoElCorte.rows[0].cruzo) expect(fila.rows[0].conservada).toBe(true);
+    });
+  });
+
   it("anular un pago baja pagado_acum (consistencia con el libro)", async () => {
     await withRollback(async (c) => {
       const gestor = await mkCobradorConAuth(c);

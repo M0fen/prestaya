@@ -8,7 +8,8 @@ import { useRouter } from "next/navigation";
 import { UYU } from "@/lib/format";
 import { calcularRendicion, ETIQUETA_ESTADO, type EstadoRendicion } from "@/lib/rendicion";
 import { cerrarJornada } from "@/lib/acciones/rendicion";
-import { suscribir, pendientes, hidratar, quitar, opAtascada } from "@/lib/cobrador/colaOffline";
+import { suscribir, pendientes, hidratar, quitar } from "@/lib/cobrador/colaOffline";
+import { bloqueoCierrePorCola } from "@/lib/cobrador/bloqueoCierre";
 import { PedirAyuda } from "@/components/cobrador/PedirAyuda";
 import type { RendicionDia } from "@/lib/data/rendicion";
 
@@ -153,24 +154,16 @@ export function CerrarJornada({
   const { esperado, diferencia, estado, aFavor } = calcularRendicion(recaudado, gastosN, entregadoN, base, colocado);
   const t = TONO[estado];
 
-  // Cobros en la cola offline que no subieron. SINCRONIZANDO (se reintentan solos)
-  // → bloquean el cierre para no rendir un faltante fantasma. ATASCADOS (agotaron
-  // los reintentos: el crédito se finalizó/reasignó mientras estaba sin señal) →
-  // NO bloquean; se muestran aparte y el cobrador los descarta o re-registra.
-  const cobrosPago = ops.filter((o) => o.tipo === "pago");
-  const cobrosPend = cobrosPago.filter((o) => !opAtascada(o));
-  // ⚠️ ATASCADOS = cobros Y "no pagó". Antes esta lista filtraba solo los pagos, y
-  // la franja naranja de arriba de TODAS las pantallas ("1 sin subir · revisalo en
-  // Cerrar jornada") cuenta las dos cosas: una visita atascada mandaba al cobrador
-  // a una pantalla donde no había ni una palabra de ella, y no había forma de
-  // sacarla. La franja quedaba encendida para siempre — y el indicador que protege
-  // los cobros de verdad se vuelve ruido que se aprende a ignorar.
-  const cobrosAtascados = ops.filter((o) => opAtascada(o));
-  const montoPend = cobrosPend.reduce((s, o) => s + (o.monto ?? 0), 0);
-  const hayColaPendiente = cobrosPend.length > 0;
-  /** Un cliente cualquiera de la cola trabada: la nota de aviso se cuelga de su
-   *  ficha, que es donde el supervisor y la oficina la van a ver. */
-  const clienteDeLaCola = cobrosPend[0]?.clienteId ?? null;
+  // La regla del bloqueo vive en lib/cobrador/bloqueoCierre (pura y testeada):
+  // sincronizando bloquea (faltante fantasma), atascado no bloquea pero se
+  // lista — cobros Y visitas "no pagó", para que la franja naranja tenga salida.
+  const {
+    bloquea: hayColaPendiente,
+    cobrosPend,
+    atascados: cobrosAtascados,
+    montoPend,
+    clienteDeLaCola,
+  } = bloqueoCierrePorCola(ops);
 
   const cerrar = () => {
     setError(null);
@@ -375,7 +368,7 @@ export function CerrarJornada({
               // Se mira la cola DESPUÉS: es la única verdad sobre si subieron.
               setTimeout(() => {
                 setReintentando(false);
-                const quedan = pendientes().filter((o) => o.tipo === "pago" && !opAtascada(o)).length;
+                const quedan = bloqueoCierrePorCola(pendientes()).cobrosPend.length;
                 const subieron = Math.max(0, antes - quedan);
                 setResultadoSync(
                   quedan === 0

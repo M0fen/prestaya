@@ -50,6 +50,7 @@ import {
   INTERES_DEFECTO_PCT,
 } from "@/lib/creditoNuevo";
 import {
+  cuotasValidas,
   montoRenovacionAutoAprobable,
   montoRenovacionSugerido,
   techoRenovacion,
@@ -367,7 +368,7 @@ export async function renovarDesdeCalle(input: {
   // cuotas: el cobrador leía un rojo sobre algo que no puede tocar. Repetir el
   // crédito tal cual es continuidad de una exposición que ya existe.
   const cuotasTecleadas = input.cuotas != null;
-  if (!Number.isInteger(totalDias) || totalDias <= 0 || (cuotasTecleadas && totalDias > 366)) {
+  if (!cuotasValidas(totalDias, cuotasTecleadas)) {
     return {
       ok: false,
       error: cuotasTecleadas
@@ -612,8 +613,8 @@ export async function nuevaVentaDesdeCalle(input: {
   // Tope SUPERIOR de cuotas (auditoría 08-05): sin él, un totalDias absurdo
   // pulveriza la cuota (round(monto·factor/dias) → $1) y el total del crédito
   // queda por DEBAJO del capital prestado — interés destruido y pérdida de
-  // principal. 366 cubre de sobra el crédito diario más largo del negocio.
-  if (!Number.isInteger(totalDias) || totalDias <= 0 || totalDias > 366)
+  // principal. En la venta el monto y las cuotas SIEMPRE se teclean.
+  if (!cuotasValidas(totalDias, true))
     return { ok: false, error: "Revisá la cantidad de cuotas (máximo 366)." };
   if (!FRECUENCIAS.includes(input.frecuencia)) return { ok: false, error: "Frecuencia inválida." };
   if (monto > RENOVACION_CAP_TOTAL)

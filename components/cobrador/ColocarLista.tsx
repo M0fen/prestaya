@@ -34,7 +34,7 @@ import {
   interesDeBase,
   INTERES_DEFECTO_PCT,
 } from "@/lib/creditoNuevo";
-import { interesEfectivo, cuotasQueDanJusto } from "@/lib/renovacion";
+import { interesEfectivo, cuotasQueDanJusto, cuotasValidas } from "@/lib/renovacion";
 
 interface Candidato {
   clienteId: string;
@@ -417,10 +417,10 @@ function Tarjeta({
 
   const montoN = Math.round(Number(monto) || 0);
   const cuotasN = Math.round(Number(cuotas) || 0);
-  /** Mismo tope de cuotas que el servidor (366): sin espejarlo acá, un dedazo
-   *  (400 cuotas) pintaba números normales y el rojo llegaba del servidor con el
-   *  cliente enfrente — la promesa que la lista no puede romper (auditoría 08-14). */
-  const cuotasPasan = cuotasN > 366;
+  /** El MISMO tope de cuotas que el servidor (cuotasValidas, lib/renovacion):
+   *  sin espejarlo acá, un dedazo (400 cuotas) pintaba números normales y el
+   *  rojo llegaba del servidor con el cliente enfrente (auditoría 08-14). */
+  const cuotasPasan = cuotasN > 0 && !cuotasValidas(cuotasN, true);
   const techo = c.techo;
   /** Pasa lo que el cobrador puede solo → hay que pedirlo (si hay a quién). */
   const excede = montoN > techo;

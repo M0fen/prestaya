@@ -1,0 +1,902 @@
+{
+ "generado": "2026-08-15",
+ "nota": "Snapshot de pg_policies de la base VIVA (tabla, policy, cmd, roles, md5 del using|check). Regenerar tras cada migracion aplicada: node scripts/tablero-qa.mjs --regenerar-policies",
+ "policies": [
+  {
+   "tabla": "ajustes_juego",
+   "policy": "ajustes_juego_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "5ecd1743ccc21cef766fc0641aa10e27"
+  },
+  {
+   "tabla": "ajustes_juego",
+   "policy": "ajustes_juego_update",
+   "cmd": "UPDATE",
+   "roles": "authenticated",
+   "md5": "85b73836d08ff33bf8c1da396f7ffaaf"
+  },
+  {
+   "tabla": "anuncios",
+   "policy": "anuncios_delete",
+   "cmd": "DELETE",
+   "roles": "authenticated",
+   "md5": "5ecd1743ccc21cef766fc0641aa10e27"
+  },
+  {
+   "tabla": "anuncios",
+   "policy": "anuncios_insert",
+   "cmd": "INSERT",
+   "roles": "authenticated",
+   "md5": "dd8dc829144ca208abd37d53e8ea4e81"
+  },
+  {
+   "tabla": "anuncios",
+   "policy": "anuncios_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "961607cdd32870b9b5a905eba6c0432a"
+  },
+  {
+   "tabla": "anuncios",
+   "policy": "anuncios_update",
+   "cmd": "UPDATE",
+   "roles": "authenticated",
+   "md5": "85b73836d08ff33bf8c1da396f7ffaaf"
+  },
+  {
+   "tabla": "aperturas_caja",
+   "policy": "aperturas_insert",
+   "cmd": "INSERT",
+   "roles": "authenticated",
+   "md5": "7823ed6d9a0811ba692bf676d3f2a8be"
+  },
+  {
+   "tabla": "aperturas_caja",
+   "policy": "aperturas_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "aa6d472e63e9bfb06e1cbe2b4e6a3717"
+  },
+  {
+   "tabla": "aperturas_caja",
+   "policy": "aperturas_update",
+   "cmd": "UPDATE",
+   "roles": "authenticated",
+   "md5": "66c44f9863f184a82cc75d5f7aefe186"
+  },
+  {
+   "tabla": "asignaciones",
+   "policy": "asignaciones_delete",
+   "cmd": "DELETE",
+   "roles": "authenticated",
+   "md5": "49aa91382c6a67c911c3ac79d807fb51"
+  },
+  {
+   "tabla": "asignaciones",
+   "policy": "asignaciones_insert",
+   "cmd": "INSERT",
+   "roles": "authenticated",
+   "md5": "12a4167f4edbfab2be46e0b7ec02d624"
+  },
+  {
+   "tabla": "asignaciones",
+   "policy": "asignaciones_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "aa6d472e63e9bfb06e1cbe2b4e6a3717"
+  },
+  {
+   "tabla": "asignaciones",
+   "policy": "asignaciones_update",
+   "cmd": "UPDATE",
+   "roles": "authenticated",
+   "md5": "d0f5ab44c763a13a91256873cc7145ef"
+  },
+  {
+   "tabla": "auditoria",
+   "policy": "audit_insert",
+   "cmd": "INSERT",
+   "roles": "authenticated",
+   "md5": "d696557d8ff7c8e51cbe44dbaaaf7529"
+  },
+  {
+   "tabla": "auditoria",
+   "policy": "audit_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "5ecd1743ccc21cef766fc0641aa10e27"
+  },
+  {
+   "tabla": "backups_log",
+   "policy": "backups_log_admin_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "8b4bb0e7a08fe86de88fb24b46a5c04f"
+  },
+  {
+   "tabla": "banner_cobrador",
+   "policy": "banner_cob_gestor",
+   "cmd": "ALL",
+   "roles": "authenticated",
+   "md5": "85b73836d08ff33bf8c1da396f7ffaaf"
+  },
+  {
+   "tabla": "banner_cobrador",
+   "policy": "banner_cob_leer",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "7bbf5162c5f2d99a1c959324be4b8857"
+  },
+  {
+   "tabla": "bitacora",
+   "policy": "bitacora_insert",
+   "cmd": "INSERT",
+   "roles": "authenticated",
+   "md5": "d696557d8ff7c8e51cbe44dbaaaf7529"
+  },
+  {
+   "tabla": "bitacora",
+   "policy": "bitacora_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "574d9f88576f9511a7af32a7b102bf48"
+  },
+  {
+   "tabla": "categorias_producto",
+   "policy": "cat_prod_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "5ecd1743ccc21cef766fc0641aa10e27"
+  },
+  {
+   "tabla": "categorias_producto",
+   "policy": "cat_prod_write",
+   "cmd": "ALL",
+   "roles": "authenticated",
+   "md5": "d4aa538e73cc3ea05ab72059e402ea3e"
+  },
+  {
+   "tabla": "chat_lecturas",
+   "policy": "chat_lecturas_todo",
+   "cmd": "ALL",
+   "roles": "authenticated",
+   "md5": "63c1c70a6028422541fab3a03c145b96"
+  },
+  {
+   "tabla": "cierres_zona",
+   "policy": "cierres_zona_insert",
+   "cmd": "INSERT",
+   "roles": "authenticated",
+   "md5": "6fd6aa35b4dabb4f69ed80d0dda977d4"
+  },
+  {
+   "tabla": "cierres_zona",
+   "policy": "cierres_zona_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "31a434c10c068089e64285a7db8f8dcd"
+  },
+  {
+   "tabla": "clientes",
+   "policy": "clientes_delete",
+   "cmd": "DELETE",
+   "roles": "authenticated",
+   "md5": "018a9ed0bbab648bde7b7248f1d64a3d"
+  },
+  {
+   "tabla": "clientes",
+   "policy": "clientes_insert",
+   "cmd": "INSERT",
+   "roles": "authenticated",
+   "md5": "dd8dc829144ca208abd37d53e8ea4e81"
+  },
+  {
+   "tabla": "clientes",
+   "policy": "clientes_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "e38d8fa7196e79429ca88450a79490d3"
+  },
+  {
+   "tabla": "clientes",
+   "policy": "clientes_update",
+   "cmd": "UPDATE",
+   "roles": "authenticated",
+   "md5": "c0f84ee09265effc5a4fbda02a600c66"
+  },
+  {
+   "tabla": "comisiones_liquidadas",
+   "policy": "comisiones_liq_del",
+   "cmd": "DELETE",
+   "roles": "authenticated",
+   "md5": "8b4bb0e7a08fe86de88fb24b46a5c04f"
+  },
+  {
+   "tabla": "comisiones_liquidadas",
+   "policy": "comisiones_liq_ins",
+   "cmd": "INSERT",
+   "roles": "authenticated",
+   "md5": "e5af5f5d34ad0f1db612ef37e0a9846e"
+  },
+  {
+   "tabla": "comisiones_liquidadas",
+   "policy": "comisiones_liq_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "071c24acdf82458e5d931dff8f3feed7"
+  },
+  {
+   "tabla": "comisiones_liquidadas",
+   "policy": "comisiones_liq_upd",
+   "cmd": "UPDATE",
+   "roles": "authenticated",
+   "md5": "d4aa538e73cc3ea05ab72059e402ea3e"
+  },
+  {
+   "tabla": "compras_empleado",
+   "policy": "compras_empleado_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "880b608e82a6a80bf68bb7815de2bae7"
+  },
+  {
+   "tabla": "compras_empleado",
+   "policy": "compras_empleado_upd",
+   "cmd": "UPDATE",
+   "roles": "authenticated",
+   "md5": "d4aa538e73cc3ea05ab72059e402ea3e"
+  },
+  {
+   "tabla": "config_mora",
+   "policy": "config_mora_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "5ecd1743ccc21cef766fc0641aa10e27"
+  },
+  {
+   "tabla": "config_mora",
+   "policy": "config_mora_write",
+   "cmd": "ALL",
+   "roles": "authenticated",
+   "md5": "85b73836d08ff33bf8c1da396f7ffaaf"
+  },
+  {
+   "tabla": "config_operacion",
+   "policy": "config_operacion_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "5ecd1743ccc21cef766fc0641aa10e27"
+  },
+  {
+   "tabla": "config_operacion",
+   "policy": "config_operacion_write",
+   "cmd": "ALL",
+   "roles": "authenticated",
+   "md5": "85b73836d08ff33bf8c1da396f7ffaaf"
+  },
+  {
+   "tabla": "config_scoring",
+   "policy": "config_scoring_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "5ecd1743ccc21cef766fc0641aa10e27"
+  },
+  {
+   "tabla": "config_scoring",
+   "policy": "config_scoring_write",
+   "cmd": "ALL",
+   "roles": "authenticated",
+   "md5": "85b73836d08ff33bf8c1da396f7ffaaf"
+  },
+  {
+   "tabla": "descuentos_compra_empleado",
+   "policy": "descuentos_compra_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "880b608e82a6a80bf68bb7815de2bae7"
+  },
+  {
+   "tabla": "discrepancias_dinero",
+   "policy": "discrepancias_insert",
+   "cmd": "INSERT",
+   "roles": "authenticated",
+   "md5": "b857377bc2854eec00f7256fa9c13650"
+  },
+  {
+   "tabla": "discrepancias_dinero",
+   "policy": "discrepancias_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "8b4bb0e7a08fe86de88fb24b46a5c04f"
+  },
+  {
+   "tabla": "discrepancias_dinero",
+   "policy": "discrepancias_update",
+   "cmd": "UPDATE",
+   "roles": "authenticated",
+   "md5": "d4aa538e73cc3ea05ab72059e402ea3e"
+  },
+  {
+   "tabla": "estrellas_redenciones",
+   "policy": "redenciones_select_gestor",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "5ecd1743ccc21cef766fc0641aa10e27"
+  },
+  {
+   "tabla": "estrellas_redenciones",
+   "policy": "redenciones_update_admin",
+   "cmd": "UPDATE",
+   "roles": "authenticated",
+   "md5": "d4aa538e73cc3ea05ab72059e402ea3e"
+  },
+  {
+   "tabla": "eventos_uso",
+   "policy": "eventos_uso_insert",
+   "cmd": "INSERT",
+   "roles": "authenticated",
+   "md5": "d63d683d0e416aa9511deaec1e3e83e3"
+  },
+  {
+   "tabla": "eventos_uso",
+   "policy": "eventos_uso_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "8b4bb0e7a08fe86de88fb24b46a5c04f"
+  },
+  {
+   "tabla": "feature_flags",
+   "policy": "ff_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "eb28d87532d6edd9b635727493ef89f7"
+  },
+  {
+   "tabla": "feature_flags",
+   "policy": "ff_write",
+   "cmd": "ALL",
+   "roles": "service_role",
+   "md5": "fe2e7aa3a94b94b876d7713f1517686d"
+  },
+  {
+   "tabla": "gestiones_cobranza",
+   "policy": "gestiones_insert",
+   "cmd": "INSERT",
+   "roles": "authenticated",
+   "md5": "3ad89c3bfc2f499bed2caf680e5db47b"
+  },
+  {
+   "tabla": "gestiones_cobranza",
+   "policy": "gestiones_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "56cfc19b1c279e587d4a31deb49350d4"
+  },
+  {
+   "tabla": "incidencias",
+   "policy": "incidencias_insert",
+   "cmd": "INSERT",
+   "roles": "authenticated",
+   "md5": "d63d683d0e416aa9511deaec1e3e83e3"
+  },
+  {
+   "tabla": "incidencias",
+   "policy": "incidencias_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "18f39d259b895955433b426e76437850"
+  },
+  {
+   "tabla": "incidencias",
+   "policy": "incidencias_update",
+   "cmd": "UPDATE",
+   "roles": "authenticated",
+   "md5": "d4aa538e73cc3ea05ab72059e402ea3e"
+  },
+  {
+   "tabla": "leads_publicos",
+   "policy": "leads_pub_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "5ecd1743ccc21cef766fc0641aa10e27"
+  },
+  {
+   "tabla": "mensajes",
+   "policy": "mensajes_delete",
+   "cmd": "DELETE",
+   "roles": "authenticated",
+   "md5": "018a9ed0bbab648bde7b7248f1d64a3d"
+  },
+  {
+   "tabla": "mensajes",
+   "policy": "mensajes_insert",
+   "cmd": "INSERT",
+   "roles": "authenticated",
+   "md5": "f9280c2452169aa761359fa8fafd35ed"
+  },
+  {
+   "tabla": "mensajes",
+   "policy": "mensajes_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "2cea483bb7f2983f661dbe518cbf6ba4"
+  },
+  {
+   "tabla": "mora_notas",
+   "policy": "mora_notas_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "5ecd1743ccc21cef766fc0641aa10e27"
+  },
+  {
+   "tabla": "mora_notas",
+   "policy": "mora_notas_write",
+   "cmd": "ALL",
+   "roles": "authenticated",
+   "md5": "85b73836d08ff33bf8c1da396f7ffaaf"
+  },
+  {
+   "tabla": "movimientos_caja",
+   "policy": "mov_caja_insert",
+   "cmd": "INSERT",
+   "roles": "authenticated",
+   "md5": "b159765c69e47770bb3b03ca27ea4297"
+  },
+  {
+   "tabla": "movimientos_caja",
+   "policy": "mov_caja_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "91bbd96f3c6d603a4f6ed5859bf55825"
+  },
+  {
+   "tabla": "movimientos_caja",
+   "policy": "mov_caja_select_cobrador",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "8c169a17c0f3a59d5540d136bfe178b6"
+  },
+  {
+   "tabla": "notas_cliente",
+   "policy": "notas_cliente_delete",
+   "cmd": "DELETE",
+   "roles": "authenticated",
+   "md5": "29517167e1d5f4be9b1e33a360f8435a"
+  },
+  {
+   "tabla": "notas_cliente",
+   "policy": "notas_cliente_insert",
+   "cmd": "INSERT",
+   "roles": "authenticated",
+   "md5": "cea14d367528bb014c8a67e82dd1967c"
+  },
+  {
+   "tabla": "notas_cliente",
+   "policy": "notas_cliente_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "2eec097442ce1184cea70bb41a2fd488"
+  },
+  {
+   "tabla": "notas_personales",
+   "policy": "notas_personales_todo",
+   "cmd": "ALL",
+   "roles": "authenticated",
+   "md5": "63c1c70a6028422541fab3a03c145b96"
+  },
+  {
+   "tabla": "pagos",
+   "policy": "pagos_insert",
+   "cmd": "INSERT",
+   "roles": "authenticated",
+   "md5": "a3d8c27cb2e950aeea73e5c911475fe6"
+  },
+  {
+   "tabla": "pagos",
+   "policy": "pagos_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "64668e18eee40cd53cec4151ee474468"
+  },
+  {
+   "tabla": "pagos",
+   "policy": "pagos_update",
+   "cmd": "UPDATE",
+   "roles": "authenticated",
+   "md5": "d4aa538e73cc3ea05ab72059e402ea3e"
+  },
+  {
+   "tabla": "pedidos_curbe",
+   "policy": "pedidos_curbe_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "8b4bb0e7a08fe86de88fb24b46a5c04f"
+  },
+  {
+   "tabla": "prestamos",
+   "policy": "prestamos_insert",
+   "cmd": "INSERT",
+   "roles": "authenticated",
+   "md5": "1aa4dc701e08aff70c5f4f906c432729"
+  },
+  {
+   "tabla": "prestamos",
+   "policy": "prestamos_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "2eec097442ce1184cea70bb41a2fd488"
+  },
+  {
+   "tabla": "prestamos",
+   "policy": "prestamos_update",
+   "cmd": "UPDATE",
+   "roles": "authenticated",
+   "md5": "759d72c18f3d0fab034a6e10aeae01cb"
+  },
+  {
+   "tabla": "presupuesto_juegos",
+   "policy": "presu_juegos_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "5ecd1743ccc21cef766fc0641aa10e27"
+  },
+  {
+   "tabla": "presupuesto_juegos",
+   "policy": "presu_juegos_update",
+   "cmd": "UPDATE",
+   "roles": "authenticated",
+   "md5": "d4aa538e73cc3ea05ab72059e402ea3e"
+  },
+  {
+   "tabla": "producto_precio_cliente",
+   "policy": "precio_cli_all",
+   "cmd": "ALL",
+   "roles": "authenticated",
+   "md5": "d4aa538e73cc3ea05ab72059e402ea3e"
+  },
+  {
+   "tabla": "producto_precio_segmento",
+   "policy": "precio_seg_all",
+   "cmd": "ALL",
+   "roles": "authenticated",
+   "md5": "d4aa538e73cc3ea05ab72059e402ea3e"
+  },
+  {
+   "tabla": "productos",
+   "policy": "productos_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "5ecd1743ccc21cef766fc0641aa10e27"
+  },
+  {
+   "tabla": "productos",
+   "policy": "productos_write",
+   "cmd": "ALL",
+   "roles": "authenticated",
+   "md5": "d4aa538e73cc3ea05ab72059e402ea3e"
+  },
+  {
+   "tabla": "push_suscripciones",
+   "policy": "push_susc_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "d2bbffb4499f46f7a702f5c98fff2de0"
+  },
+  {
+   "tabla": "push_suscripciones",
+   "policy": "push_susc_write",
+   "cmd": "ALL",
+   "roles": "authenticated",
+   "md5": "63c1c70a6028422541fab3a03c145b96"
+  },
+  {
+   "tabla": "quiniela_participaciones",
+   "policy": "quiniela_participaciones_gestor_all",
+   "cmd": "ALL",
+   "roles": "authenticated",
+   "md5": "85b73836d08ff33bf8c1da396f7ffaaf"
+  },
+  {
+   "tabla": "quinielas",
+   "policy": "quinielas_gestor_all",
+   "cmd": "ALL",
+   "roles": "authenticated",
+   "md5": "85b73836d08ff33bf8c1da396f7ffaaf"
+  },
+  {
+   "tabla": "raspadita_premios",
+   "policy": "raspadita_premios_gestor_all",
+   "cmd": "ALL",
+   "roles": "authenticated",
+   "md5": "85b73836d08ff33bf8c1da396f7ffaaf"
+  },
+  {
+   "tabla": "raspadita_premios",
+   "policy": "raspadita_premios_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "eb28d87532d6edd9b635727493ef89f7"
+  },
+  {
+   "tabla": "raspadita_segmentos",
+   "policy": "raspadita_segmentos_gestor_all",
+   "cmd": "ALL",
+   "roles": "authenticated",
+   "md5": "85b73836d08ff33bf8c1da396f7ffaaf"
+  },
+  {
+   "tabla": "raspadita_segmentos",
+   "policy": "raspadita_segmentos_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "eb28d87532d6edd9b635727493ef89f7"
+  },
+  {
+   "tabla": "raspaditas_jugadas",
+   "policy": "raspaditas_jugadas_gestor_all",
+   "cmd": "ALL",
+   "roles": "authenticated",
+   "md5": "85b73836d08ff33bf8c1da396f7ffaaf"
+  },
+  {
+   "tabla": "raspaditas_otorgadas",
+   "policy": "raspa_otorgadas_insert",
+   "cmd": "INSERT",
+   "roles": "authenticated",
+   "md5": "dd8dc829144ca208abd37d53e8ea4e81"
+  },
+  {
+   "tabla": "raspaditas_otorgadas",
+   "policy": "raspa_otorgadas_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "66a6f80f013c68f3cc107b503d035a14"
+  },
+  {
+   "tabla": "recompensas",
+   "policy": "recompensas_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "5ecd1743ccc21cef766fc0641aa10e27"
+  },
+  {
+   "tabla": "recompensas",
+   "policy": "recompensas_write",
+   "cmd": "ALL",
+   "roles": "authenticated",
+   "md5": "85b73836d08ff33bf8c1da396f7ffaaf"
+  },
+  {
+   "tabla": "reconciliacion_log",
+   "policy": "recon_log_insert",
+   "cmd": "INSERT",
+   "roles": "service_role",
+   "md5": "663636083cb0c137dbd994f4505e5127"
+  },
+  {
+   "tabla": "reconciliacion_log",
+   "policy": "recon_log_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "eb28d87532d6edd9b635727493ef89f7"
+  },
+  {
+   "tabla": "rendiciones",
+   "policy": "rend_insert",
+   "cmd": "INSERT",
+   "roles": "authenticated",
+   "md5": "e907c550a64115073d87484b7b5b9d90"
+  },
+  {
+   "tabla": "rendiciones",
+   "policy": "rend_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "a6caf103db7fd09ca25b1812bb716e93"
+  },
+  {
+   "tabla": "reportes",
+   "policy": "reportes_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "1784f3f51bab0d3c63903d8bd0b9cac8"
+  },
+  {
+   "tabla": "reportes",
+   "policy": "reportes_update",
+   "cmd": "UPDATE",
+   "roles": "authenticated",
+   "md5": "759d72c18f3d0fab034a6e10aeae01cb"
+  },
+  {
+   "tabla": "rifa_participaciones",
+   "policy": "rifa_part_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "66a6f80f013c68f3cc107b503d035a14"
+  },
+  {
+   "tabla": "rifas",
+   "policy": "rifas_gestor_all",
+   "cmd": "ALL",
+   "roles": "authenticated",
+   "md5": "85b73836d08ff33bf8c1da396f7ffaaf"
+  },
+  {
+   "tabla": "segmentos",
+   "policy": "segmentos_gestor_todo",
+   "cmd": "ALL",
+   "roles": "authenticated",
+   "md5": "85b73836d08ff33bf8c1da396f7ffaaf"
+  },
+  {
+   "tabla": "snapshot_credito",
+   "policy": "snapshot_credito_leer",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "5ecd1743ccc21cef766fc0641aa10e27"
+  },
+  {
+   "tabla": "snapshot_totales",
+   "policy": "snapshot_totales_leer",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "5ecd1743ccc21cef766fc0641aa10e27"
+  },
+  {
+   "tabla": "solicitudes_anulacion",
+   "policy": "solanul_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "5f4b105a33994fffa8cb634c6fc13660"
+  },
+  {
+   "tabla": "solicitudes_anulacion",
+   "policy": "solanul_write",
+   "cmd": "ALL",
+   "roles": "authenticated",
+   "md5": "84a5a30a2853aee1809911d1b9a9bdea"
+  },
+  {
+   "tabla": "solicitudes_gasto",
+   "policy": "solgasto_cobrador_insert",
+   "cmd": "INSERT",
+   "roles": "public",
+   "md5": "be75d794ea7d299cb4db9fc028ccc638"
+  },
+  {
+   "tabla": "solicitudes_gasto",
+   "policy": "solgasto_cobrador_select",
+   "cmd": "SELECT",
+   "roles": "public",
+   "md5": "8c169a17c0f3a59d5540d136bfe178b6"
+  },
+  {
+   "tabla": "solicitudes_gasto",
+   "policy": "solgasto_gestor_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "071c24acdf82458e5d931dff8f3feed7"
+  },
+  {
+   "tabla": "solicitudes_producto",
+   "policy": "solic_prod_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "5ecd1743ccc21cef766fc0641aa10e27"
+  },
+  {
+   "tabla": "solicitudes_producto",
+   "policy": "solic_prod_update",
+   "cmd": "UPDATE",
+   "roles": "authenticated",
+   "md5": "85b73836d08ff33bf8c1da396f7ffaaf"
+  },
+  {
+   "tabla": "solicitudes_renovacion",
+   "policy": "solren_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "66a6f80f013c68f3cc107b503d035a14"
+  },
+  {
+   "tabla": "solicitudes_renovacion",
+   "policy": "solren_write",
+   "cmd": "ALL",
+   "roles": "authenticated",
+   "md5": "fcd7f5d1630256f328a68c929a73b0c3"
+  },
+  {
+   "tabla": "supervisor_zonas",
+   "policy": "supzonas_delete",
+   "cmd": "DELETE",
+   "roles": "authenticated",
+   "md5": "018a9ed0bbab648bde7b7248f1d64a3d"
+  },
+  {
+   "tabla": "supervisor_zonas",
+   "policy": "supzonas_insert",
+   "cmd": "INSERT",
+   "roles": "authenticated",
+   "md5": "2365aae796104c8d137d63c5253a29c8"
+  },
+  {
+   "tabla": "supervisor_zonas",
+   "policy": "supzonas_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "5ecd1743ccc21cef766fc0641aa10e27"
+  },
+  {
+   "tabla": "usuarios",
+   "policy": "usuarios_delete",
+   "cmd": "DELETE",
+   "roles": "authenticated",
+   "md5": "018a9ed0bbab648bde7b7248f1d64a3d"
+  },
+  {
+   "tabla": "usuarios",
+   "policy": "usuarios_insert",
+   "cmd": "INSERT",
+   "roles": "authenticated",
+   "md5": "2365aae796104c8d137d63c5253a29c8"
+  },
+  {
+   "tabla": "usuarios",
+   "policy": "usuarios_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "9985aa42a23375037e76c0eeca503ebc"
+  },
+  {
+   "tabla": "usuarios",
+   "policy": "usuarios_update",
+   "cmd": "UPDATE",
+   "roles": "authenticated",
+   "md5": "4a31564721b1ea13030887ff1e74f63b"
+  },
+  {
+   "tabla": "visitas",
+   "policy": "visitas_insert",
+   "cmd": "INSERT",
+   "roles": "authenticated",
+   "md5": "2f0ad8a3520e9ddd2c50bc595a9588d5"
+  },
+  {
+   "tabla": "visitas",
+   "policy": "visitas_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "968da13bedb916a20abcada33c455095"
+  },
+  {
+   "tabla": "zonas",
+   "policy": "zonas_delete",
+   "cmd": "DELETE",
+   "roles": "authenticated",
+   "md5": "018a9ed0bbab648bde7b7248f1d64a3d"
+  },
+  {
+   "tabla": "zonas",
+   "policy": "zonas_insert",
+   "cmd": "INSERT",
+   "roles": "authenticated",
+   "md5": "2365aae796104c8d137d63c5253a29c8"
+  },
+  {
+   "tabla": "zonas",
+   "policy": "zonas_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "5ecd1743ccc21cef766fc0641aa10e27"
+  },
+  {
+   "tabla": "zonas",
+   "policy": "zonas_update",
+   "cmd": "UPDATE",
+   "roles": "authenticated",
+   "md5": "4a31564721b1ea13030887ff1e74f63b"
+  }
+ ]
+}
