@@ -5,22 +5,30 @@
 //  más". Medido contra los 4 días del piloto, esa regla habría RECHAZADO 16
 //  cobros legítimos en un solo día (la segunda vuelta de la ruta) — el 10% de la
 //  jornada. Estos tests fijan la regla estrecha que sí separa los dos mundos.
+//
+//  ⚠️ Se testea el predicado REAL (lib/candadoCobro, el que ejecuta la Server
+//  Action), no una copia: la copia anterior drifteó a la ventana de UN solo
+//  lado — la regla vieja que confirmaba como "duplicado" plata cobrada de
+//  verdad que subía tarde de la cola — y los tests seguían verdes.
 // ─────────────────────────────────────────────────────────────────────────
 import { describe, expect, it } from "vitest";
+import { gemeloReciente, VENTANA_DUPLICADO_MS } from "@/lib/candadoCobro";
 
-/** La misma condición que aplica el servidor (app/cobrador/(app)/actions.ts). */
+// Los casos se expresan en "ms relativos": BASE ancla el reloj y cada pago se
+// vuelve una fila real {monto, registrado_en} como las que ve el servidor.
+const BASE = Date.parse("2026-08-15T12:00:00Z");
 function esDuplicado(
   nuevo: { monto: number; enMs: number },
   previos: { monto: number; enMs: number; anulado?: boolean; origen?: string | null }[],
-  ventanaMs = 10 * 60 * 1000,
+  ventanaMs = VENTANA_DUPLICADO_MS,
 ): boolean {
-  return previos.some(
-    (p) =>
-      !p.anulado &&
-      (p.origen ?? null) === null &&
-      Math.abs(p.monto - nuevo.monto) < 0.5 &&
-      p.enMs >= nuevo.enMs - ventanaMs,
-  );
+  const pagos = previos.map((p) => ({
+    monto: p.monto,
+    registrado_en: new Date(BASE + p.enMs).toISOString(),
+    anulado: p.anulado ?? false,
+    origen: p.origen ?? null,
+  }));
+  return gemeloReciente(pagos, nuevo.monto, BASE + nuevo.enMs, ventanaMs) !== undefined;
 }
 
 const seg = (n: number) => n * 1000;
@@ -79,5 +87,28 @@ describe("candado: frena el doble toque, NO la segunda vuelta de la ruta", () =>
   it("hay un abismo entre el duplicado y la vuelta legítima: la ventana no es fina", () => {
     // Duplicado más lento: 50 s. Vuelta legítima más rápida: 8.144 s. 163× de margen.
     expect(seg(8144) / seg(50)).toBeGreaterThan(160);
+  });
+});
+
+describe("candado A DOS LADOS: la ventana es |Δ|, no 'todo lo posterior'", () => {
+  // La cola offline drena tarde: un cobro sellado a las 10:00 puede ENTRAR al
+  // servidor cuando el libro ya tiene pagos de la tarde. Con la regla vieja de
+  // un solo lado, cualquier pago POSTERIOR del mismo monto era "gemelo" a
+  // cualquier distancia → el cobro real se confirmaba como duplicado y esa
+  // plata desaparecía del libro en silencio (21 cobros con +10 min de atraso
+  // en una sola semana).
+  it("un pago igual registrado HORAS DESPUÉS del cobro NO es su gemelo", () => {
+    // Con la copia drifteada (un solo lado) este caso daba `true`.
+    expect(esDuplicado({ monto: 600, enMs: 0 }, [{ monto: 600, enMs: hs(3) }])).toBe(false);
+  });
+
+  it("el gemelo POSTERIOR dentro de la ventana SÍ frena (el orden de llegada no importa)", () => {
+    expect(esDuplicado({ monto: 600, enMs: 0 }, [{ monto: 600, enMs: seg(300) }])).toBe(true);
+  });
+
+  it("sin registrado_en no hay contra qué medir: no frena", () => {
+    expect(
+      gemeloReciente([{ monto: 600, registrado_en: null }], 600, BASE),
+    ).toBeUndefined();
   });
 });

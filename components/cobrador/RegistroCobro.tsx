@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from "react";
 import { PedirAyuda } from "./PedirAyuda";
 import { configurarUsuario, encolar, parchearGps, quitar, pendientes, type OpCobro, type OpTipo } from "@/lib/cobrador/colaOffline";
+import { esPagoDeHoy } from "@/lib/cobrador/opsDia";
 import { MOTIVOS_NOPAGO, type MotivoNoPago } from "@/app/cobrador/(app)/motivos";
 import { UYU } from "@/lib/format";
 import { Comprobante, type DatosComprobante } from "@/components/cobrador/Comprobante";
@@ -153,13 +154,10 @@ export function RegistroCobro({
   // desde la cola: si ya hay un cobro de HOY para este cliente/crédito, se
   // arranca en "ya cobrado".
   useEffect(() => {
-    const hoy = new Date().toDateString();
+    // Día UY compartido (lib/cobrador/opsDia): `toDateString()` solo coincidía
+    // con el corte de las 03:00Z si el teléfono estaba en zona horaria uruguaya.
     const yaHay = pendientes().some(
-      (o) =>
-        o.tipo === "pago" &&
-        o.clienteId === clienteId &&
-        (o.prestamoId ?? null) === (prestamoId ?? null) &&
-        new Date(o.deviceTs).toDateString() === hoy,
+      (o) => esPagoDeHoy(o, clienteId) && (o.prestamoId ?? null) === (prestamoId ?? null),
     );
     if (yaHay) setHoyCobrado(true);
   }, [clienteId, prestamoId]);

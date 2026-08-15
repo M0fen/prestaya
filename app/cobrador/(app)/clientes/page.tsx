@@ -33,7 +33,8 @@ export default async function ClientesPage() {
 
   const clientes: ClienteVista[] = items.map((it) => ({
     id: it.cliente.id,
-    nombre: it.cliente.nombre ?? "Sin nombre",
+    // `??` no cubre la cadena vacía — y hay fichas heredadas con nombre "".
+    nombre: (it.cliente.nombre ?? "").trim() || "Sin nombre",
     documento: it.cliente.documento ?? null,
     direccion: it.cliente.direccion ?? null,
     telefono: it.cliente.telefono ?? null,

@@ -12,11 +12,13 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import type { DiaEstado, EstadoDia } from "@/types/cartones";
 import {
+  opAtascada,
   pendientes,
   suscribir,
   suscribirConfirmado,
   type OpCobro,
 } from "@/lib/cobrador/colaOffline";
+import { esPagoDeHoy } from "@/lib/cobrador/opsDia";
 
 // Rojo FUERTE (#D64545) para el atrasado: el cobrador tiene que cobrarlo, así que
 // el día vencido le grita (el rojo suave #E06A6A es el "amable" de la vista del
@@ -57,10 +59,14 @@ export function CartonCobrador({
   // Ops recién confirmadas (sync OK): se mantienen unos segundos de gracia.
   const [enGracia, setEnGracia] = useState<OpCobro[]>([]);
 
+  // Día UY compartido (lib/cobrador/opsDia) + sin atascadas: una op de AYER que
+  // siguiera en la cola, o una que agotó reintentos con error PERMANENTE, no
+  // puede pintar la casilla de HOY como pagada-provisional. El prestamoId null
+  // se acepta a propósito: el cobro de un toque no lo trae.
   const coincide = (o: OpCobro): boolean =>
-    o.tipo === "pago" &&
-    o.clienteId === clienteId &&
-    (o.prestamoId == null || o.prestamoId === prestamoId);
+    esPagoDeHoy(o, clienteId) &&
+    (o.prestamoId == null || o.prestamoId === prestamoId) &&
+    !opAtascada(o);
 
   useEffect(() => {
     return suscribirConfirmado((op) => {

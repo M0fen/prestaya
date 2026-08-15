@@ -36,23 +36,14 @@ import {
   quitar,
 } from "@/lib/cobrador/colaOffline";
 import { UYU } from "@/lib/format";
-import { fechaISOUY } from "@/lib/fecha";
+import { esPagoDeHoy, type OpDeCola } from "@/lib/cobrador/opsDia";
 
 /** ¿Esta op de la cola es un cobro de HOY sobre este crédito? El filtro por día es
  *  obligatorio: una op ATASCADA de AYER que siga en la cola pintaría "Cobrado ✓"
  *  HOY y el cobrador se saltearía la parada — la cuota de hoy quedaría sin cobrar.
- *  La ficha filtra igual (RegistroCobro exige deviceTs del día). */
-function opDeHoy(
-  o: { tipo: string; clienteId: string; prestamoId?: string | null; deviceTs: number },
-  clienteId: string,
-  prestamoId: string,
-): boolean {
-  return (
-    o.tipo === "pago" &&
-    o.clienteId === clienteId &&
-    (o.prestamoId ?? null) === prestamoId &&
-    fechaISOUY(new Date(o.deviceTs)) === fechaISOUY(new Date())
-  );
+ *  El día lo decide el criterio compartido (lib/cobrador/opsDia, día UY). */
+function opDeHoy(o: OpDeCola, clienteId: string, prestamoId: string): boolean {
+  return esPagoDeHoy(o, clienteId) && (o.prestamoId ?? null) === prestamoId;
 }
 
 /** Ventana en la que el cobro queda retenido antes de sincronizar: habilita

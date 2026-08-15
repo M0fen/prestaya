@@ -26,11 +26,10 @@ import { getPagosDePrestamo, registrarPago, esSobrePago } from "@/lib/data/pagos
 import { subirFotoCliente } from "@/lib/data/fotos";
 import type { Prestamo } from "@/types/db";
 
-/** Ventana del candado anti doble-toque. Los duplicados reales del piloto fueron
- *  de 40 y 50 segundos; la segunda vuelta legítima más cercana, 2,3 horas. */
-const VENTANA_DUPLICADO_MS = 10 * 60 * 1000;
+import { gemeloReciente } from "@/lib/candadoCobro";
 import { crearVisita } from "@/lib/data/visitas";
 import { registrarBitacora } from "@/lib/data/bitacora";
+import { registrarAuditoria } from "@/lib/data/auditoria";
 import { calcularEstadosCarton } from "@/lib/cartones";
 import { evaluarZona, MAX_PRECISION_ANCLA_M } from "@/lib/geo";
 import { hoyUY, sellarRegistroEn } from "@/lib/fecha";
@@ -273,6 +272,31 @@ export async function registrarPagoCobrador(input: {
     if (bloqueo) return bloqueo;
 
     const db = await createSupabaseServer();
+
+    // IDEMPOTENCIA del reintento (exactly-once): si este op_id YA está en el libro
+    // —el 1er intento commiteó pero se perdió el ACK de red (común en móvil rural)—
+    // es un ÉXITO idempotente: devolver ok con el pago ya guardado, sin reprocesar.
+    // Sin esto, el clamp anti-sobre-pago de abajo (min(monto, r.falta) con falta≈0 en
+    // el pago que SALDA el crédito) cortaría el reintento y lo marcaría "no se pudo
+    // subir" para un cobro que SÍ entró → el cobrador lo re-registra o lo descarta.
+    // El insert idempotente (23505) nunca se alcanzaba en ese caso. Índice único op_id.
+    //
+    // ⚠️ Corre ANTES de resolver cliente/crédito: el select solo necesita el op_id.
+    // Si entre el cobro y el reintento el cliente RENOVÓ (el crédito viejo pasa a
+    // finalizado), resolver primero devolvía "ya no está activo" —error permanente—
+    // para un cobro que SÍ está en el libro, y la pantalla de cierre invitaba a
+    // re-registrarlo sobre el crédito nuevo: la misma plata dos veces.
+    if (input.opId) {
+      const { data: yaGuardado } = await db
+        .from("pagos")
+        .select("dia_credito, monto")
+        .eq("op_id", input.opId)
+        .limit(1);
+      if (yaGuardado && yaGuardado.length > 0) {
+        return { ok: true, dia: Number(yaGuardado[0].dia_credito), monto: Math.round(Number(yaGuardado[0].monto)), enZona: null };
+      }
+    }
+
     const cliente = await getClientePorId(db, input.clienteId);
     if (!cliente) return { ok: false, error: "Cliente no encontrado." };
     const prestamo = await resolverPrestamo(
@@ -291,24 +315,6 @@ export async function registrarPagoCobrador(input: {
         error:
           "Ese crédito ya no está activo (lo renovaron o se saldó). No entregues esa plata todavía: dejá una nota en la ficha del cliente y avisale a tu supervisor.",
       };
-
-    // IDEMPOTENCIA del reintento (exactly-once): si este op_id YA está en el libro
-    // —el 1er intento commiteó pero se perdió el ACK de red (común en móvil rural)—
-    // es un ÉXITO idempotente: devolver ok con el pago ya guardado, sin reprocesar.
-    // Sin esto, el clamp anti-sobre-pago de abajo (min(monto, r.falta) con falta≈0 en
-    // el pago que SALDA el crédito) cortaría el reintento y lo marcaría "no se pudo
-    // subir" para un cobro que SÍ entró → el cobrador lo re-registra o lo descarta.
-    // El insert idempotente (23505) nunca se alcanzaba en ese caso. Índice único op_id.
-    if (input.opId) {
-      const { data: yaGuardado } = await db
-        .from("pagos")
-        .select("dia_credito, monto")
-        .eq("op_id", input.opId)
-        .limit(1);
-      if (yaGuardado && yaGuardado.length > 0) {
-        return { ok: true, dia: Number(yaGuardado[0].dia_credito), monto: Math.round(Number(yaGuardado[0].monto)), enZona: null };
-      }
-    }
 
     // Imputar al primer día no cubierto (o al día de hoy).
     const pagos = await getPagosDePrestamo(db, prestamo.id);
@@ -379,16 +385,20 @@ export async function registrarPagoCobrador(input: {
       // sea que plata cobrada de verdad desaparecía del libro EN SILENCIO. Esta
       // semana 21 cobros subieron con más de 10 minutos de atraso (13 con más de
       // una hora): la ventana tiene que ser |Δ| ≤ 10 min, no "todo lo posterior".
-      const ahoraCobro = new Date(registradoEn).getTime();
-      const gemelo = pagos.find(
-        (p) =>
-          !p.anulado &&
-          p.origen == null &&
-          Math.abs(Number(p.monto) - monto) < 0.5 &&
-          p.registrado_en != null &&
-          Math.abs(new Date(p.registrado_en).getTime() - ahoraCobro) <= VENTANA_DUPLICADO_MS,
-      );
+      // El predicado vive en lib/candadoCobro y lo importan también los tests:
+      // el "espejo" ya drifteó una vez (un solo lado) y casi borra plata real.
+      const gemelo = gemeloReciente(pagos, monto, new Date(registradoEn).getTime());
       if (gemelo) {
+        // Rastro del freno (tablero QA: "0 frenados/semana = candado muerto").
+        // Best-effort con admin: la auditoría jamás rompe (ni habilita) el cobro.
+        await registrarAuditoria(createSupabaseAdmin(), {
+          actorId: usuario.id,
+          actorNombre: usuario.nombre,
+          accion: "Candado frenó un posible doble cobro",
+          entidad: "prestamo",
+          entidadId: prestamo.id,
+          detalle: `${UYU(monto)} repetido dentro de los 10 min (gemelo de las ${new Date(gemelo.registrado_en as string).toISOString().slice(11, 16)} UTC).`,
+        });
         return {
           ok: false,
           error: `Hace un momento ya registraste ${UYU(monto)} en este crédito. Si el cliente PAGÓ DOS VECES, tocá de nuevo para confirmarlo; si fue sin querer, cerrá esta pantalla — el primer cobro ya está guardado.`,

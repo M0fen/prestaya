@@ -409,12 +409,22 @@ export async function renovarDesdeCalle(input: {
   // CONFIRMA que de verdad son dos créditos.
   if (!input.repetirIgual) {
     const gemelo = await yaColocoEsteMonto(input.clienteId, monto, u.id);
-    if (gemelo)
+    if (gemelo) {
+      // Rastro del freno (tablero QA: "0 frenados/semana = candado muerto").
+      await registrarAuditoria(createSupabaseAdmin(), {
+        actorId: u.id,
+        actorNombre: u.nombre,
+        accion: "Candado frenó una posible doble colocación",
+        entidad: "cliente",
+        entidadId: input.clienteId,
+        detalle: `Renovación: ${UYU(monto)} ya colocado hace ${gemelo.hace} min${gemelo.deOtro ? " por un COMPAÑERO" : ""}.`,
+      });
       return {
         ok: false,
         error: mensajeGemelo(gemelo, monto),
         duplicado: true,
       };
+    }
   }
 
   // ⚠️ La ESCRITURA va con service_role, igual que la colocación de la calle
@@ -614,12 +624,22 @@ export async function nuevaVentaDesdeCalle(input: {
   // CONFIRMA que de verdad son dos créditos.
   if (!input.repetirIgual) {
     const gemelo = await yaColocoEsteMonto(input.clienteId, monto, u.id);
-    if (gemelo)
+    if (gemelo) {
+      // Rastro del freno (tablero QA: "0 frenados/semana = candado muerto").
+      await registrarAuditoria(createSupabaseAdmin(), {
+        actorId: u.id,
+        actorNombre: u.nombre,
+        accion: "Candado frenó una posible doble colocación",
+        entidad: "cliente",
+        entidadId: input.clienteId,
+        detalle: `Venta nueva: ${UYU(monto)} ya colocado hace ${gemelo.hace} min${gemelo.deOtro ? " por un COMPAÑERO" : ""}.`,
+      });
       return {
         ok: false,
         error: mensajeGemelo(gemelo, monto),
         duplicado: true,
       };
+    }
   }
 
   // ⚠️ REGLA DEL NEGOCIO (Carlos, 07-08): un cliente PUEDE tener VARIOS créditos a

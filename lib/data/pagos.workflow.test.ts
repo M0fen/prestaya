@@ -97,6 +97,8 @@ vi.mock("@/lib/data/fotos", () => ({ subirFotoCliente: vi.fn() }));
 vi.mock("@/lib/data/visitas", () => ({ crearVisita: (...a: unknown[]) => crearVisita(...a) }));
 vi.mock("@/lib/data/bitacora", () => ({ registrarBitacora: (...a: unknown[]) => registrarBitacora(...a) }));
 vi.mock("@/lib/observabilidad", () => ({ reportarError: (...a: unknown[]) => reportarError(...a) }));
+const registrarAuditoria = vi.fn();
+vi.mock("@/lib/data/auditoria", () => ({ registrarAuditoria: (...a: unknown[]) => registrarAuditoria(...a) }));
 
 import { registrarPagoCobrador, registrarNoPagoCobrador } from "@/app/cobrador/(app)/actions";
 // La capa de datos REAL (sin el doble de arriba) para probar sus consultas.
@@ -358,21 +360,68 @@ describe("exactly-once: el mismo cobro nunca entra dos veces al libro", () => {
     expect(loRegistrado().op_id).toBeNull();
   });
 
-  // ⚠️ FALLA: bug real, ver informe (hallazgo alto #1).
-  // El pre-chequeo de idempotencia por op_id corre DESPUÉS de resolver el crédito.
-  // Si entre el cobro y el reintento el cliente renovó (C1 pasa a finalizado y nace
-  // C2), `resolverPrestamo` devuelve null y la acción sale con un error PERMANENTE
-  // "ese crédito ya no está activo" para un cobro que SÍ está en el libro. La cola
-  // lo marca atascado y la pantalla de cierre le pide al cobrador registrarlo de
-  // nuevo → los $351 quedan DOS VECES (ahora sobre C2, que tiene saldo entero y no
-  // frena ningún clamp). El `select ... where op_id = ?` no necesita el préstamo.
-  it.fails("un reintento cuyo pago YA está en el libro es exitoso aunque el crédito se haya renovado", async () => {
+  // Sellado en la sesión de caos (15-08): el pre-chequeo por op_id corre ANTES de
+  // resolver el crédito. Si entre el cobro y el reintento el cliente renovó (C1
+  // pasa a finalizado y nace C2), el reintento igual encuentra su pago en el libro
+  // y responde éxito — sin esto salía "ya no está activo" (permanente), la cola lo
+  // marcaba atascado y el cierre invitaba a re-registrar los $351 sobre C2.
+  it("un reintento cuyo pago YA está en el libro es exitoso aunque el crédito se haya renovado", async () => {
     libroPorOpId = [{ op_id: "op-A", dia_credito: 24, monto: 351 }];
     // Post-renovación: C1 quedó finalizado; el único activo es el crédito nuevo.
     getPrestamosActivosPorCliente.mockResolvedValue([credito({ id: C_KARENT_2 })]);
     const r = await registrarPagoCobrador({ clienteId: CLIENTE, prestamoId: C_KARENT, opId: "op-A" });
     expect(r).toEqual({ ok: true, dia: 24, monto: 351, enZona: null });
     expect(registrarPago).not.toHaveBeenCalled();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  2b. CANDADO ANTI DOBLE-TOQUE EN LA ACCIÓN (sesión de caos 15-08)
+//  El predicado puro vive en lib/candadoCobro (con sus propios tests); acá se
+//  fija que la Server Action lo APLICA: dos toques separados generan op_id
+//  distintos y solo este candado los reconoce como el mismo cobro.
+// ═══════════════════════════════════════════════════════════════════════════
+describe("candado anti doble-toque del servidor", () => {
+  /** El mismo monto, registrado hace 5 minutos (el doble toque típico). */
+  function conGemeloReciente() {
+    getPagosDePrestamo.mockResolvedValue([
+      { ...cuotasPagas(1)[0], registrado_en: "2026-08-05T14:55:00Z" },
+    ]);
+  }
+
+  it("el mismo monto a minutos → {duplicado:true}, nada entra al libro, y queda rastro en auditoría", async () => {
+    conGemeloReciente();
+    const r = await registrarPagoCobrador({ clienteId: CLIENTE, monto: 351, opId: "op-G1" });
+    expect(r.ok).toBe(false);
+    expect((r as { duplicado?: boolean }).duplicado).toBe(true);
+    expect(registrarPago).not.toHaveBeenCalled();
+    // El freno deja rastro medible (tablero QA: "0 frenados = candado muerto").
+    expect(registrarAuditoria).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ accion: "Candado frenó un posible doble cobro" }),
+    );
+  });
+
+  it("con la CONFIRMACIÓN explícita (adelanto) el candado se salta: el cliente pagó dos veces de verdad", async () => {
+    conGemeloReciente();
+    const r = await registrarPagoCobrador({ clienteId: CLIENTE, monto: 351, adelanto: true, opId: "op-G2" });
+    expect(r.ok).toBe(true);
+    expect(registrarPago).toHaveBeenCalledTimes(1);
+  });
+
+  it("A DOS LADOS: un pago igual registrado HORAS DESPUÉS de la hora sellada NO es gemelo", async () => {
+    // Cobro sellado a las 11:00 UY que sube tarde de la cola; a esa altura el
+    // libro ya tiene un pago igual de la tarde. Con la regla vieja de un solo
+    // lado esto se confirmaba como "duplicado" y la plata desaparecía.
+    conGemeloReciente(); // registrado 14:55Z — a casi 4 h del cobro sellado
+    const r = await registrarPagoCobrador({
+      clienteId: CLIENTE,
+      monto: 351,
+      registradoEn: "2026-08-05T11:00:00Z",
+      opId: "op-G3",
+    });
+    expect(r.ok).toBe(true);
+    expect(registrarPago).toHaveBeenCalledTimes(1);
   });
 });
 

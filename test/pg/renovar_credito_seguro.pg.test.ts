@@ -4,9 +4,10 @@
 // cruce de plata entre clientes (P0001) y el crédito inexistente (P0002).
 import { describe, it, expect } from "vitest";
 import { randomUUID } from "node:crypto";
-import { withRollback, mkCobradorConAuth, mkGestorConAuth, mkCliente, mkPrestamo, esperaErrorPg, n } from "./db";
+import { withRollback, comoRol, mkCobradorConAuth, mkGestorConAuth, mkCliente, mkPrestamo, esperaErrorPg, n } from "./db";
 
 const SQL = `select * from renovar_credito_seguro($1,$2,$3,$4,$5,$6,$7,$8)`;
+const SQL_FLAG = `select * from renovar_credito_seguro($1,$2,$3,$4,$5,$6,$7,$8,$9)`;
 
 async function anterior(c: import("pg").PoolClient) {
   const cob = await mkCobradorConAuth(c);
@@ -105,6 +106,65 @@ describe("renovar_credito_seguro (integración PG)", () => {
       await esperaErrorPg(c, "P0411", () =>
         c.query(SQL, [prev, cli, 100001, 700, 20, "diario", "2026-02-01", gestor.id]),
       );
+    });
+  });
+});
+
+describe("renovación sobre-CAP autorizada (0135 + guard de autoridad 0146)", () => {
+  /** Heredado de Disapp por encima del tope, ya saldado (el caso GERARDO $120.000). */
+  async function heredadoSobreCap(c: import("pg").PoolClient) {
+    const cob = await mkCobradorConAuth(c);
+    const gestor = await mkGestorConAuth(c, "admin");
+    const cli = await mkCliente(c);
+    const prev = await mkPrestamo(c, {
+      clienteId: cli, cobradorId: cob.id, cuotaDiaria: 6000, totalDias: 24, montoPrestado: 120000,
+    });
+    await saldar(c, prev, 144000);
+    return { cob, gestor, cli, prev };
+  }
+
+  it("la CONTINUIDAD del heredado: con el flag crea el crédito de $120.000; sin flag, P0411", async () => {
+    await withRollback(async (c) => {
+      const { gestor, cli, prev } = await heredadoSobreCap(c);
+      // Sin autorización el tope sigue duro (el mismo camino de siempre).
+      await esperaErrorPg(c, "P0411", () =>
+        c.query(SQL, [prev, cli, 120000, 6000, 24, "diario", "2026-02-01", gestor.id]),
+      );
+      // Con el flag (vía de confianza: acá corremos como superusuario, igual que
+      // el service_role de las Server Actions) la continuidad se crea entera —
+      // sin recortarle el capital al cliente en silencio.
+      const r = await c.query(SQL_FLAG, [prev, cli, 120000, 6000, 24, "diario", "2026-02-01", gestor.id, true]);
+      expect(n(r.rows[0].monto_prestado)).toBe(120000);
+      expect(r.rows[0].estado).toBe("activo");
+      const a = await c.query("select estado from prestamos where id=$1", [prev]);
+      expect(a.rows[0].estado).toBe("finalizado");
+    });
+  });
+
+  it("un SUPERVISOR por API directa NO se auto-autoriza el sobre-tope (P0414, 0146)", async () => {
+    await withRollback(async (c) => {
+      const { cli, prev } = await heredadoSobreCap(c);
+      // Supervisor SIN zonas asignadas: ve todo (transición), así que llega hasta
+      // el guard de autoridad — que es exactamente lo que este test sella.
+      const sup = await mkGestorConAuth(c, "supervisor");
+      await comoRol(c, "authenticated", sup.authUserId, () =>
+        esperaErrorPg(c, "P0414", () =>
+          c.query(SQL_FLAG, [prev, cli, 5000000, 6000, 24, "diario", "2026-02-01", sup.id, true]),
+        ),
+      );
+      // El anterior sigue activo: el guard cortó ANTES de finalizar nada.
+      const a = await c.query("select estado from prestamos where id=$1", [prev]);
+      expect(a.rows[0].estado).toBe("activo");
+    });
+  });
+
+  it("un ADMIN logueado sí puede (la promesa original de 0135, ahora con guard de verdad)", async () => {
+    await withRollback(async (c) => {
+      const { gestor, cli, prev } = await heredadoSobreCap(c);
+      const r = await comoRol(c, "authenticated", gestor.authUserId, () =>
+        c.query(SQL_FLAG, [prev, cli, 120000, 6000, 24, "diario", "2026-02-01", gestor.id, true]),
+      );
+      expect(n(r.rows[0].monto_prestado)).toBe(120000);
     });
   });
 });

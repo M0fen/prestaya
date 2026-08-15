@@ -136,8 +136,11 @@ async function flipAnulado(pagoId: string, u: Usuario, motivo: string): Promise<
   if (ok) {
     try {
       await avisarComisionYaLiquidada(admin, data![0] as Record<string, unknown>, u);
-    } catch {
-      /* best-effort: el libro ya quedó consistente, esto es visibilidad */
+    } catch (e) {
+      // Best-effort (el libro ya quedó consistente) pero NUNCA mudo: este aviso
+      // es la ÚNICA señal de una comisión pagada sobre plata que dejó de existir
+      // — ningún vigilante la re-mira. Si falla, que quede al menos en los logs.
+      reportarError("anulacion.aviso-comision", e, { pagoId, anuladoPor: u.id });
     }
   }
   // VISIBILIDAD (caza 07-28): anular un pago de un crédito NO activo (finalizado/
@@ -181,8 +184,11 @@ async function flipAnulado(pagoId: string, u: Usuario, motivo: string): Promise<
           ahoraIso: new Date().toISOString(),
         });
       }
-    } catch {
-      /* la visibilidad es best-effort: el libro ya quedó consistente */
+    } catch (e) {
+      // Best-effort pero no mudo: si este bloque falla se pierden JUNTOS el
+      // reporte y la discrepancia del write-off — el único par de ojos que
+      // revisa una anulación sobre un crédito ya cerrado.
+      reportarError("anulacion.visibilidad-write-off", e, { pagoId, anuladoPor: u.id });
     }
   }
   return ok;
