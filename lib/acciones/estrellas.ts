@@ -12,6 +12,7 @@ import { resolverRedencionDb, getSaldoEstrellas, redimirDirectoDb, marcarEntrega
 import { getPrestamosActivosPorCliente } from "@/lib/data/prestamos";
 import { getAjustesJuego } from "@/lib/data/juegoConfig";
 import { registrarAuditoria } from "@/lib/data/auditoria";
+import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
 import { validarRedencion, claveCiclo, TOPE_REDENCION_CICLO, type SaldoEstrellas } from "@/lib/estrellas";
 import { cicloUY } from "@/lib/fecha";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -95,6 +96,10 @@ export async function marcarEntregada(id: string): Promise<Resultado> {
   const u = await getUsuarioActual();
   if (!u || !u.activo || !esAdmin(u.rol)) return { ok: false, error: "No tenés permisos." };
   if (!ES_UUID.test(id)) return { ok: false, error: "Redención inválida." };
+  // Kill switch: entregar un premio congela su COSTO (trigger 0130) — es un gasto
+  // real. Durante un freeze de emergencia no se mueve ni la plata chica.
+  const bloqueo = await bloqueoSoloLectura();
+  if (bloqueo) return bloqueo;
   try {
     const db = await createSupabaseServer();
     await marcarEntregadaDb(db, id, u.id);
@@ -144,6 +149,9 @@ export async function redimirEstrellasAdmin(input: {
   const u = await getUsuarioActual();
   if (!u || !u.activo || !esAdmin(u.rol)) return { ok: false, error: "No tenés permisos." };
   if (!ES_UUID.test(input.clienteId)) return { ok: false, error: "Cliente inválido." };
+  // Kill switch: canjear estrellas entrega un premio (gasto). Congelado en freeze.
+  const bloqueo = await bloqueoSoloLectura();
+  if (bloqueo) return bloqueo;
   const n = Math.round(input.estrellas);
   const premioTexto = (input.premioTexto ?? "").trim().slice(0, 120) || null;
   try {

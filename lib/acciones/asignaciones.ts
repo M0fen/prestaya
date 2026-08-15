@@ -12,6 +12,7 @@ import { getZonasDeSupervisor } from "@/lib/data/zonas";
 import { actorDesde, puedeReasignarCliente } from "@/lib/permisos";
 import { getCobradorDeCliente, reasignarCliente } from "@/lib/data/asignaciones";
 import { registrarAuditoria } from "@/lib/data/auditoria";
+import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
 
 type Resultado = { ok: true } | { ok: false; error: string };
 
@@ -21,6 +22,11 @@ export async function reasignarClienteAction(input: {
 }): Promise<Resultado> {
   const u = await getUsuarioActual();
   if (!u || !u.activo) return { ok: false, error: "Sesión no válida." };
+  // Kill switch: reasignar mueve la CUSTODIA (quién cobra a quién). En un freeze de
+  // emergencia la ruta no se toca — un cliente que cambia de mano a mitad de una
+  // reconciliación es exactamente lo que la reconciliación no puede seguir.
+  const bloqueo = await bloqueoSoloLectura();
+  if (bloqueo) return bloqueo;
   const zonas = u.rol === "supervisor" ? await getZonasDeSupervisor(await createSupabaseServer(), u.id) : [];
   const actor = actorDesde(u, zonas);
 

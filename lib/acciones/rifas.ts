@@ -12,6 +12,7 @@ import { registrarAuditoria } from "@/lib/data/auditoria";
 import { guardarRifaDb, subirFotoRifa, getParticipacionesRifa, cerrarRifaDb, type ParticipanteRifa } from "@/lib/data/rifas";
 import { esUuid } from "@/lib/idempotencia";
 import { normalizarSegmento, esSegmentoTodos, type DefinicionSegmento } from "@/lib/segmentos";
+import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
 
 type Resultado = { ok: true } | { ok: false; error: string };
 
@@ -27,6 +28,9 @@ export async function sortearRifa(input: {
   const u = await getUsuarioActual();
   if (!u || !u.activo || !esAdmin(u.rol)) return { ok: false, error: "Solo el administrador puede sortear la rifa." };
   if (!esUuid(input.rifaId)) return { ok: false, error: "Rifa inválida." };
+  // Kill switch: sortear ADJUDICA un premio (gasto) y cierra la rifa. En freeze, no.
+  const bloqueo = await bloqueoSoloLectura();
+  if (bloqueo) return bloqueo;
   try {
     const db = await createSupabaseServer();
     const participantes = await getParticipacionesRifa(db, input.rifaId);
