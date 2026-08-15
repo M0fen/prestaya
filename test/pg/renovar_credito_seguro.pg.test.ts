@@ -4,7 +4,7 @@
 // cruce de plata entre clientes (P0001) y el crédito inexistente (P0002).
 import { describe, it, expect } from "vitest";
 import { randomUUID } from "node:crypto";
-import { withRollback, comoRol, mkCobradorConAuth, mkGestorConAuth, mkCliente, mkPrestamo, esperaErrorPg, n } from "./db";
+import { withRollback, comoRol, mkAsignacion, mkCobradorConAuth, mkGestorConAuth, mkCliente, mkPrestamo, esperaErrorPg, n } from "./db";
 
 const SQL = `select * from renovar_credito_seguro($1,$2,$3,$4,$5,$6,$7,$8)`;
 const SQL_FLAG = `select * from renovar_credito_seguro($1,$2,$3,$4,$5,$6,$7,$8,$9)`;
@@ -116,6 +116,9 @@ describe("renovación sobre-CAP autorizada (0135 + guard de autoridad 0146)", ()
     const cob = await mkCobradorConAuth(c);
     const gestor = await mkGestorConAuth(c, "admin");
     const cli = await mkCliente(c);
+    // La asignación activa es la que deriva la ZONA del cliente (0031): sin
+    // ella, un supervisor zonal no ve el crédito (desde 0148 ya no hay fallback).
+    await mkAsignacion(c, cob.id, cli);
     const prev = await mkPrestamo(c, {
       clienteId: cli, cobradorId: cob.id, cuotaDiaria: 6000, totalDias: 24, montoPrestado: 120000,
     });
@@ -143,10 +146,15 @@ describe("renovación sobre-CAP autorizada (0135 + guard de autoridad 0146)", ()
 
   it("un SUPERVISOR por API directa NO se auto-autoriza el sobre-tope (P0414, 0146)", async () => {
     await withRollback(async (c) => {
-      const { cli, prev } = await heredadoSobreCap(c);
-      // Supervisor SIN zonas asignadas: ve todo (transición), así que llega hasta
-      // el guard de autoridad — que es exactamente lo que este test sella.
+      const { cob, cli, prev } = await heredadoSobreCap(c);
+      // Supervisor CON su zona (desde 0148 el sin-zona no ve nada): el crédito
+      // es de SU zona, así que llega hasta el guard de autoridad — que es
+      // exactamente lo que este test sella.
       const sup = await mkGestorConAuth(c, "supervisor");
+      const zona = (await c.query<{ id: string }>("insert into zonas (nombre) values ('Z-0146') returning id"))
+        .rows[0].id;
+      await c.query("insert into supervisor_zonas (supervisor_id, zona_id) values ($1,$2)", [sup.id, zona]);
+      await c.query("update usuarios set zona_id = $2 where id = $1", [cob.id, zona]);
       await comoRol(c, "authenticated", sup.authUserId, () =>
         esperaErrorPg(c, "P0414", () =>
           c.query(SQL_FLAG, [prev, cli, 5000000, 6000, 24, "diario", "2026-02-01", sup.id, true]),

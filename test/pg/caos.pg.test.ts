@@ -205,6 +205,21 @@ describe("caos · el supervisor no cruza la frontera de su zona", () => {
     });
   });
 
+  it("un supervisor SIN zonas no ve NADA (0148: la escotilla de transición se cerró)", async () => {
+    await withRollback(async (c) => {
+      const { cliB, prestamoB } = await escenarioZonaAjena(c);
+      // Regla de Carlos (15-08): "no puede existir supervisor sin zona". Antes
+      // de la 0148 este supervisor veía TODO (fallback de transición); ahora,
+      // hasta que el admin le asigne su zona, la base no le muestra nada.
+      const supSin = await mkGestorConAuth(c, "supervisor");
+      await comoRol(c, "authenticated", supSin.authUserId, async () => {
+        expect((await c.query("select 1 from clientes where id = $1", [cliB])).rowCount).toBe(0);
+        expect((await c.query("select 1 from prestamos where id = $1", [prestamoB])).rowCount).toBe(0);
+        expect((await c.query("select 1 from solicitudes_renovacion")).rowCount).toBe(0);
+      });
+    });
+  });
+
   it("los PAGOS de la zona ajena ni se ven (policy 0031, ejecutada)", async () => {
     await withRollback(async (c) => {
       const { supA, supB, cobB, prestamoB } = await escenarioZonaAjena(c);

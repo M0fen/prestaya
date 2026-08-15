@@ -11,6 +11,7 @@
 // servidor tenía en 3/24, sin ninguna marca de que era viejo. Ahora el SW manda
 // un mensaje cuando sirve una copia y acá se muestra, con botón para reintentar.
 import { useEffect, useState } from "react";
+import { estadoBanner } from "@/lib/cobrador/estadoBanner";
 
 export function OfflineBanner() {
   // Arranca en null para no parpadear en el primer render (SSR no sabe si hay red).
@@ -35,7 +36,10 @@ export function OfflineBanner() {
     };
   }, []);
 
-  if (!offline && !copiaVieja) return null;
+  // La decisión es pura y está testeada (lib/cobrador/estadoBanner): acá solo
+  // se pinta lo que la regla diga.
+  const b = estadoBanner(offline, copiaVieja);
+  if (!b.mostrar) return null;
 
   return (
     <div
@@ -47,16 +51,10 @@ export function OfflineBanner() {
         📴
       </span>
       <div className="flex min-w-0 flex-1 flex-col leading-tight">
-        <span className="text-[12.5px] font-extrabold text-ambar-osc">
-          {offline ? "Sin conexión" : "Sin respuesta de la red"}
-        </span>
-        <span className="text-[11.5px] font-medium text-ambar-osc">
-          {offline
-            ? "Estás viendo tu última ruta guardada. Tus cobros se guardan y se envían solos cuando vuelva la señal."
-            : "Estás viendo una copia GUARDADA de esta pantalla: los pagos y el cartón pueden estar viejos. Tus cobros se guardan igual y se envían solos."}
-        </span>
+        <span className="text-[12.5px] font-extrabold text-ambar-osc">{b.titulo}</span>
+        <span className="text-[11.5px] font-medium text-ambar-osc">{b.detalle}</span>
       </div>
-      {!offline && (
+      {b.conBotonActualizar && (
         <button
           type="button"
           onClick={() => window.location.reload()}
