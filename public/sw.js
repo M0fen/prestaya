@@ -19,9 +19,29 @@
  *
  * Al cambiar de versión se limpian los caches viejos. Bump CACHE_VER para forzar.
  */
-const CACHE_VER = "presta-ya-v3";
+const CACHE_VER = "presta-ya-v4";
 const OFFLINE_URL = "/offline.html";
 const PRECACHE = [OFFLINE_URL, "/icons/icon-192.png", "/manifest.webmanifest"];
+
+// ⚠️ AVISAR CUANDO SE SIRVE UNA COPIA (15-08). Caso real: Edward Muñoz vio la
+// ficha de MARIA MERCEDES MOREIRA con "0/24 cubiertos" y las cuotas 1-2-3 grises,
+// cuando el servidor daba 3/24 pagadas — el teléfono tenía LTE con señal pero sin
+// respuesta, `navigator.onLine` seguía en true, el fetch falló y el SW sirvió la
+// última copia de la ficha SIN que nada lo dijera. En dinero, una pantalla vieja
+// que parece fresca es un bug: se le avisa a todas las ventanas abiertas para que
+// el banner lo marque, aunque el teléfono crea estar en línea.
+function avisarCopiaServida(url) {
+  self.clients
+    .matchAll({ type: "window", includeUncontrolled: true })
+    .then((cs) => cs.forEach((c) => c.postMessage({ tipo: "copia-servida", url })))
+    .catch(() => {});
+}
+function servirCopia(req, cadena) {
+  return cadena.then((hit) => {
+    if (hit) avisarCopiaServida(req.url);
+    return hit;
+  });
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -87,10 +107,13 @@ self.addEventListener("fetch", (event) => {
             // `ignoreSearch`: la ficha se cacheó con señal (por navegación o por la
             // precarga) aunque el query varíe → así se ENCUENTRA sin señal, en vez
             // de caer a la lista de ruta y no poder abrir/cobrar a ese cliente.
-            caches
-              .match(req, { ignoreSearch: true })
-              .then((hit) => hit || caches.match("/cobrador"))
-              .then((hit) => hit || caches.match(OFFLINE_URL)),
+            servirCopia(
+              req,
+              caches
+                .match(req, { ignoreSearch: true })
+                .then((hit) => hit || caches.match("/cobrador"))
+                .then((hit) => hit || caches.match(OFFLINE_URL)),
+            ),
           ),
       );
       return;
@@ -117,7 +140,7 @@ self.addEventListener("fetch", (event) => {
           }
           return resp;
         })
-        .catch(() => caches.match(req, { ignoreSearch: true })),
+        .catch(() => servirCopia(req, caches.match(req, { ignoreSearch: true }))),
     );
     return;
   }
