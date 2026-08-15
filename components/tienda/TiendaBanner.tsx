@@ -4,6 +4,8 @@
 // Presentacional puro (server-safe): solo un Link + datos ya resueltos.
 import Link from "next/link";
 import { UYU } from "@/lib/format";
+import { calcularPlanVenta } from "@/lib/venta";
+import { fotoTienda, FOTO } from "@/lib/fotoTienda";
 import type { ProductoParaCliente, FrecuenciaProducto } from "@/lib/data/tienda";
 
 const FREC: Record<FrecuenciaProducto, string> = {
@@ -19,8 +21,8 @@ export function TiendaBanner({
   token?: string | null;
 }) {
   // Mismo cálculo que la vitrina: precio con interés → cuota (framing "N× $X").
-  const conInteres = Math.round(producto.precio * (1 + producto.interesPct / 100));
-  const cuota = producto.cuotas > 0 ? Math.ceil(conInteres / producto.cuotas) : 0;
+  // Formula CANONICA (lib/venta) - misma que la vitrina y la venta real.
+  const cuota = producto.cuotas > 0 ? calcularPlanVenta({ precio: producto.precio, interesPct: producto.interesPct, cuotas: producto.cuotas }).cuota : 0;
   const oferta = producto.precioAnterior > producto.precio;
   const href = token
     ? `/c/${token}/tienda?producto=${producto.id}`
@@ -35,7 +37,7 @@ export function TiendaBanner({
       <div className="flex h-[94px] w-[94px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-[#F7F9FD]">
         {producto.fotos[0] ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={producto.fotos[0]} alt={producto.nombre} className="h-full w-full object-contain p-1" />
+          <img src={fotoTienda(producto.fotos[0], FOTO.tarjeta) ?? undefined} alt={producto.nombre} className="h-full w-full object-contain p-1" />
         ) : (
           <span className="text-[34px]" aria-hidden="true">🛍️</span>
         )}

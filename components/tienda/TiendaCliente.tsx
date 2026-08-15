@@ -7,14 +7,16 @@ import { useState, useMemo, useRef, useEffect, useTransition } from "react";
 import { Drawer } from "vaul";
 import { LazyMotion, domAnimation, m, MotionConfig } from "motion/react";
 import { UYU } from "@/lib/format";
-import { registrarInteres } from "@/app/c/[token]/actions";
+import { createPortal } from "react-dom";
+import { registrarInteres, pedirCarritoCliente } from "@/app/c/[token]/actions";
 import { pedirCarritoPublico } from "@/lib/acciones/leadsPublicos";
 import { registrarInteresPublico } from "@/lib/acciones/leadsPublicos";
 import { comprarComoEmpleado } from "@/lib/acciones/comprasEmpleado";
 import { soloDigitos } from "@/lib/telefono";
 import { calcularPlanVenta } from "@/lib/venta";
+import { fotoTienda, FOTO } from "@/lib/fotoTienda";
 import type { ProductoParaCliente, FrecuenciaProducto } from "@/lib/data/tienda";
-import { GaleriaEmbla, Confeti, folioNuevo, guardarPedidoLocal, BarraTienda, MiTienda, SeccionTienda, FilaScroll, AtajosTienda, BannerPromo, useEsDesktop, claseDrawer, registrarVisto, leerVistos, type Atajo, type CompraTienda } from "./piezas";
+import { GaleriaEmbla, ImgTienda, Confeti, folioNuevo, guardarPedidoLocal, BarraTienda, MiTienda, SeccionTienda, FilaScroll, AtajosTienda, BannerPromo, useEsDesktop, claseDrawer, registrarVisto, leerVistos, type Atajo, type CompraTienda } from "./piezas";
 
 const FREC_LABEL: Record<FrecuenciaProducto, string> = {
   diario: "por día", semanal: "por semana", quincenal: "por quincena", mensual: "por mes",
@@ -36,6 +38,9 @@ type ItemCarrito = {
   cuotas: number;
   frecuencia: FrecuenciaProducto;
   cantidad: number;
+  /** El plazo que el cliente ELIGIÓ en la ficha (6×/12×/18×). Viaja con el
+   *  pedido (0149) — antes se evaporaba y la oficina nunca lo veía. */
+  cuotasElegidas?: number | null;
 };
 
 /** Cuota + TOTAL a cobrar (= cuota × cuotas), con la fórmula CANÓNICA (lib/venta), la
@@ -82,6 +87,50 @@ export function TiendaCliente({
   const [abierto, setAbierto] = useState<ProductoParaCliente | null>(
     () => (abrirId ? productos.find((p) => p.id === abrirId) ?? null : null),
   );
+  // Deep-link con un id viejo/dado de baja: antes la tienda abría SIN detalle y
+  // sin explicación (el link de WhatsApp parecía roto). Aviso descartable.
+  const [deepLinkRoto, setDeepLinkRoto] = useState(
+    () => !!abrirId && !productos.some((p) => p.id === abrirId),
+  );
+
+  // ── El detalle TOCA la URL (patrón e-commerce, barrida 15-08) ──────────────
+  //  Abrir un producto hace pushState(?producto=id): el gesto ATRÁS de Android
+  //  cierra la ficha en vez de expulsar al comprador de la tienda entera, y la
+  //  URL del producto se puede compartir tal cual desde la barra del navegador.
+  const abrirProducto = (p: ProductoParaCliente) => {
+    setAbierto(p);
+    try {
+      const u = new URL(window.location.href);
+      u.searchParams.set("producto", p.id);
+      window.history.pushState({ __detalleTienda: p.id }, "", u);
+    } catch { /* la URL es mejora progresiva: la ficha abre igual */ }
+  };
+  const cerrarProducto = () => {
+    setAbierto(null);
+    try {
+      if (window.history.state?.__detalleTienda) {
+        window.history.back(); // dispara popstate (abajo), que ya dejó todo cerrado
+      } else {
+        // Deep-link directo (no hubo push): limpiar ?producto sin navegar.
+        const u = new URL(window.location.href);
+        if (u.searchParams.has("producto")) {
+          u.searchParams.delete("producto");
+          window.history.replaceState(null, "", u);
+        }
+      }
+    } catch { /* sin historial: la ficha ya está cerrada */ }
+  };
+  useEffect(() => {
+    const onPop = (e: PopStateEvent) => {
+      const id = (e.state as { __detalleTienda?: string } | null)?.__detalleTienda;
+      // Atrás sobre una ficha → se cierra (o vuelve a la ficha anterior si el
+      // comprador venía saltando entre relacionados).
+      setAbierto(id ? productos.find((p) => p.id === id) ?? null : null);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<string | null>(null);
   const [marca, setMarca] = useState<string | null>(null);
@@ -95,9 +144,39 @@ export function TiendaCliente({
   const [carritoAbierto, setCarritoAbierto] = useState(false);
   const [perfilAbierto, setPerfilAbierto] = useState(false); // hub "Mi tienda"
   const [pulso, setPulso] = useState(0); // anima el badge del carrito al agregar
-  // Cargar/guardar el carrito en el navegador (persiste entre visitas).
+  // Cargar el carrito guardado REHIDRATÁNDOLO contra el catálogo de HOY
+  // (barrida 15-08): el precio/cuota/foto se refrescan por id (el guardado podía
+  // tener precios de hace semanas), y los productos dados de baja o agotados se
+  // quitan CON aviso — antes quedaban congelados en el carrito para siempre.
   useEffect(() => {
-    try { const raw = localStorage.getItem(CLAVE_CARRITO); if (raw) setCarrito(JSON.parse(raw)); } catch { /* sin storage */ }
+    try {
+      const raw = localStorage.getItem(CLAVE_CARRITO);
+      if (!raw) return;
+      const guardado = JSON.parse(raw) as ItemCarrito[];
+      if (!Array.isArray(guardado) || guardado.length === 0) return;
+      const vivos: ItemCarrito[] = [];
+      let caidos = 0;
+      for (const it of guardado) {
+        const p = productos.find((x) => x.id === it.id);
+        if (!p || p.agotado || p.stock === 0) { caidos++; continue; }
+        const cuotasN = it.cuotasElegidas && it.cuotasElegidas > 0 ? it.cuotasElegidas : p.cuotas;
+        const plan = cuotasN > 0 ? calcularPlanVenta({ precio: p.precio, interesPct: p.interesPct, cuotas: cuotasN }) : null;
+        vivos.push({
+          ...it,
+          nombre: p.nombre,
+          precio: p.precio,
+          foto: p.fotos[0] ?? null,
+          frecuencia: p.frecuencia,
+          cuotas: cuotasN,
+          cuota: plan?.cuota ?? 0,
+        });
+      }
+      setCarrito(vivos);
+      if (caidos > 0) {
+        setAvisoCarrito(`Quitamos ${caidos} producto${caidos === 1 ? "" : "s"} de tu carrito que ya no ${caidos === 1 ? "está" : "están"} disponible${caidos === 1 ? "" : "s"}.`);
+        setTimeout(() => setAvisoCarrito(null), 4200);
+      }
+    } catch { /* sin storage */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => {
@@ -105,7 +184,8 @@ export function TiendaCliente({
   }, [carrito, CLAVE_CARRITO]);
 
   const [avisoCarrito, setAvisoCarrito] = useState<string | null>(null);
-  const agregarAlCarrito = (p: ProductoParaCliente) => {
+  /** `plan` = el plazo/cuota que el cliente ELIGIÓ en la ficha (si vino de ahí). */
+  const agregarAlCarrito = (p: ProductoParaCliente, plan?: { cuotas: number; cuota: number } | null) => {
     const ex = carrito.find((i) => i.id === p.id);
     // Tope de 20 productos DISTINTOS por pedido (coherente con el server): si está
     // lleno y es uno nuevo, avisar y NO pulsar (feedback falso de "agregado").
@@ -116,10 +196,30 @@ export function TiendaCliente({
     }
     setCarrito((c) => {
       const e = c.find((i) => i.id === p.id);
-      if (e) return c.map((i) => (i.id === p.id ? { ...i, cantidad: Math.min(50, i.cantidad + 1) } : i));
-      return [...c, { id: p.id, nombre: p.nombre, precio: p.precio, foto: p.fotos[0] ?? null, cuota: financiacion(p).cuota, cuotas: p.cuotas, frecuencia: p.frecuencia, cantidad: 1 }];
+      if (e)
+        return c.map((i) =>
+          i.id === p.id
+            ? {
+                ...i,
+                cantidad: Math.min(50, i.cantidad + 1),
+                // Si esta vez ELIGIÓ un plan, pisa al anterior (la última elección manda).
+                ...(plan ? { cuotas: plan.cuotas, cuota: plan.cuota, cuotasElegidas: plan.cuotas } : {}),
+              }
+            : i,
+        );
+      return [...c, {
+        id: p.id, nombre: p.nombre, precio: p.precio, foto: p.fotos[0] ?? null,
+        cuota: plan?.cuota ?? financiacion(p).cuota,
+        cuotas: plan?.cuotas ?? p.cuotas,
+        cuotasElegidas: plan && plan.cuotas !== p.cuotas ? plan.cuotas : null,
+        frecuencia: p.frecuencia, cantidad: 1,
+      }];
     });
     setPulso((n) => n + 1);
+    // Confirmación que se VE (patrón ML "agregado al carrito"), no solo un pulso
+    // del badge que en mobile queda fuera del pulgar.
+    setAvisoCarrito(`✓ Agregado al carrito`);
+    setTimeout(() => setAvisoCarrito(null), 1800);
   };
   const cambiarCantidad = (id: string, delta: number) =>
     setCarrito((c) => c.map((i) => (i.id === id ? { ...i, cantidad: Math.min(50, Math.max(1, i.cantidad + delta)) } : i)));
@@ -267,6 +367,18 @@ export function TiendaCliente({
       {/* Contenido de la página (hero + beneficios) DESPUÉS de la cabecera. */}
       {previo}
 
+      {/* Deep-link con un producto que ya no existe/se dio de baja: decirlo,
+          no abrir la tienda "como si nada" (el link de WhatsApp parecía roto). */}
+      {deepLinkRoto && (
+        <div className="flex items-center justify-between gap-2 rounded-[12px] border border-[#F2E2C4] bg-[#FDF3E2] px-4 py-2.5">
+          <span className="text-[12.5px] font-semibold text-[#B9770E]">
+            Ese producto ya no está disponible — mirá el catálogo, hay parecidos. 👇
+          </span>
+          <button type="button" onClick={() => setDeepLinkRoto(false)} aria-label="Cerrar aviso"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[14px] font-black text-[#B9770E]">✕</button>
+        </div>
+      )}
+
       {/* El buscador vive DENTRO de la barra sticky (ver BarraTienda): queda siempre
           a mano y deja de comerse una fila entera antes del primer producto. Cuando
           no hay barra —el cartón del cliente sin carrito— se muestra suelto acá. */}
@@ -330,7 +442,7 @@ export function TiendaCliente({
 
       {/* Hero: el destacado principal, grande (sensación de tienda). Solo sin filtro. */}
       {hero && !conHeroExterno && (
-        <button type="button" onClick={() => setAbierto(hero)}
+        <button type="button" onClick={() => abrirProducto(hero)}
           className="group overflow-hidden rounded-[22px] bg-[linear-gradient(135deg,#173063,#0F1B3D)] text-left shadow-[0_14px_34px_rgba(15,27,61,0.3)] active:scale-[0.99]">
           <div className="flex items-stretch">
             {/* En público desktop el hero no debe volverse un cuadro gigante: capamos la foto. */}
@@ -363,7 +475,7 @@ export function TiendaCliente({
         <SeccionTienda titulo="Ofertas del día">
           <FilaScroll>
             {ofertas.map((p) => (
-              <TarjetaCarrusel key={p.id} p={p} onClick={() => setAbierto(p)} />
+              <TarjetaCarrusel key={p.id} p={p} onClick={() => abrirProducto(p)} />
             ))}
           </FilaScroll>
         </SeccionTienda>
@@ -375,7 +487,7 @@ export function TiendaCliente({
         <SeccionTienda titulo="Visto recientemente">
           <FilaScroll>
             {vistosProductos.map((p) => (
-              <TarjetaCarrusel key={p.id} p={p} onClick={() => setAbierto(p)} ancho={148} />
+              <TarjetaCarrusel key={p.id} p={p} onClick={() => abrirProducto(p)} ancho={148} />
             ))}
           </FilaScroll>
         </SeccionTienda>
@@ -386,7 +498,7 @@ export function TiendaCliente({
         <SeccionTienda titulo="Tus favoritos" verTodos={() => { setCat(null); setMarca(null); setSoloFav(true); }}>
           <FilaScroll>
             {favProductos.map((p) => (
-              <TarjetaCarrusel key={p.id} p={p} onClick={() => setAbierto(p)} />
+              <TarjetaCarrusel key={p.id} p={p} onClick={() => abrirProducto(p)} />
             ))}
           </FilaScroll>
         </SeccionTienda>
@@ -397,7 +509,7 @@ export function TiendaCliente({
         <SeccionTienda titulo="Destacados para vos">
           <FilaScroll>
             {destacados.filter((p) => p.id !== hero?.id).map((p) => (
-              <TarjetaCarrusel key={p.id} p={p} onClick={() => setAbierto(p)} />
+              <TarjetaCarrusel key={p.id} p={p} onClick={() => abrirProducto(p)} />
             ))}
           </FilaScroll>
         </SeccionTienda>
@@ -423,7 +535,7 @@ export function TiendaCliente({
           </div>
           <div className="-mx-1 flex gap-2.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {curbeProds.map((p) => (
-              <button key={p.id} type="button" onClick={() => setAbierto(p)}
+              <button key={p.id} type="button" onClick={() => abrirProducto(p)}
                 className="flex w-[148px] shrink-0 flex-col overflow-hidden rounded-[14px] border border-[#4A3D1E] bg-[#0E0B04] text-left active:scale-[0.98]">
                 <div className="relative">
                   <Foto p={p} className="aspect-square" />
@@ -448,7 +560,7 @@ export function TiendaCliente({
           verTodos={() => { setSoloFav(false); setMarca(null); setCat(sh.nombre); setTimeout(() => document.getElementById("sec-catalogo")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60); }}>
           <FilaScroll>
             {sh.items.map((p) => (
-              <TarjetaCarrusel key={p.id} p={p} onClick={() => setAbierto(p)} ancho={148} />
+              <TarjetaCarrusel key={p.id} p={p} onClick={() => abrirProducto(p)} ancho={148} />
             ))}
           </FilaScroll>
         </SeccionTienda>
@@ -502,8 +614,8 @@ export function TiendaCliente({
         // del cliente queda en 2 (se ve en el teléfono, no tocamos su densidad).
         <div className={`grid gap-3 grid-cols-2 ${modoPublico ? "sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" : ""}`}>
           {filtrados.map((p, idx) => (
-            <m.div key={p.id} role="button" tabIndex={0} onClick={() => setAbierto(p)}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setAbierto(p); } }}
+            <m.div key={p.id} role="button" tabIndex={0} onClick={() => abrirProducto(p)}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); abrirProducto(p); } }}
               initial={{ opacity: 0, y: 10 }}
               whileInView={{ opacity: 1, y: 0 }}
               whileHover={{ y: -3 }}
@@ -561,7 +673,11 @@ export function TiendaCliente({
       </section>
 
       <p className="px-1 pt-1 text-center text-[12px] font-medium text-gris">
-        Precios de referencia. Tocá "Me interesa" y tu cobrador te pasa el precio y las cuotas para vos. 🙂
+        {/* El pie describe el flujo REAL (carrito): el botón "Me interesa" solo
+            existe donde no hay carrito (preview/empleado) — barrida 15-08. */}
+        {conCarrito
+          ? "Agregá al carrito y pedí todo junto — te confirmamos precio y cuotas. 🙂"
+          : "Precios de referencia. Tu cobrador te pasa el precio y las cuotas para vos. 🙂"}
       </p>
 
       <DetalleSheet
@@ -573,8 +689,8 @@ export function TiendaCliente({
         conCarrito={conCarrito}
         onAgregar={agregarAlCarrito}
         productos={productos}
-        onAbrirOtro={setAbierto}
-        onClose={() => setAbierto(null)}
+        onAbrirOtro={abrirProducto}
+        onClose={cerrarProducto}
       />
 
       {/* FAB flotante "Ver carrito" — refuerzo al scrollear (además del ícono de la barra). */}
@@ -610,7 +726,7 @@ export function TiendaCliente({
             favoritos={favProductos.map((p) => ({ id: p.id, nombre: p.nombre, foto: p.fotos[0] ?? null, precio: p.precio }))}
             onVerFavoritos={() => { setCat(null); setMarca(null); setSoloFav(true); }}
             onQuitarFav={toggleFav}
-            onAbrirProducto={(id) => { const pp = productos.find((x) => x.id === id); if (pp) setAbierto(pp); }}
+            onAbrirProducto={(id) => { const pp = productos.find((x) => x.id === id); if (pp) abrirProducto(pp); }}
             soporte={process.env.NEXT_PUBLIC_SOPORTE_WHATSAPP ?? null}
           />
         </>
@@ -703,8 +819,7 @@ function CategoriaTile({ emoji, foto = null, nombre, n, activo, onClick }: { emo
         activo ? "bg-white ring-2 ring-[#1E47C8]" : "bg-[#F4F6FC] ring-1 ring-[#E8ECF7] hover:ring-[#C7D6F7]"
       }`}>
         {foto ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={foto} alt="" loading="lazy" className="h-full w-full object-contain p-2" />
+          <ImgTienda src={foto} alt="" ancho={FOTO.mini} clase="object-contain p-2" />
         ) : (
           <span className="text-[24px] leading-none" aria-hidden>{emoji}</span>
         )}
@@ -725,14 +840,11 @@ function FiltroChip({ label, onQuitar }: { label: string; onQuitar: () => void }
 }
 
 function Foto({ p, className = "" }: { p: ProductoParaCliente; className?: string }) {
+  // ImgTienda = variante liviana del CDN (40× más chica) + shimmer + fallback:
+  // las cajas EN BLANCO de la grilla eran los PNG de 800 KB cargando crudos.
   return (
     <div className={`w-full bg-[linear-gradient(180deg,#FBFCFF,#F1F4FB)] ${className}`}>
-      {p.fotos[0] ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={p.fotos[0]} alt={p.nombre} loading="lazy" decoding="async" className="h-full w-full object-contain p-2" />
-      ) : (
-        <div className="flex h-full items-center justify-center text-[34px]">🛒</div>
-      )}
+      <ImgTienda src={p.fotos[0]} alt={p.nombre} ancho={FOTO.tarjeta} clase="object-contain p-2" />
     </div>
   );
 }
@@ -848,9 +960,19 @@ function CarritoSheet({
   // $/día con $/mes en un solo número). Si no, mostramos una aclaración.
   const frecUnica = items.length > 0 && items.every((i) => i.frecuencia === items[0].frecuencia) ? items[0].frecuencia : null;
 
-  // Al abrir el carrito, arrancar siempre en "revisar" y limpiar un éxito anterior.
+  // Nonce + folio del PEDIDO, generados al abrir el checkout:
+  //  · el nonce hace idempotente el lote (doble tap / reintento → 23505 = ok);
+  //  · el folio se genera ANTES de enviar y VIAJA al servidor (0149) — antes se
+  //    generaba después, solo en el navegador, y "guardá este código" era teatro:
+  //    la oficina no podía encontrar el pedido por ese código.
+  const nonceRef = useRef("");
+  const folioRef = useRef("");
   useEffect(() => {
-    if (open) { setPaso("revisar"); setEstado("idle"); setMsg(null); setFolio(null); }
+    if (open) {
+      setPaso("revisar"); setEstado("idle"); setMsg(null); setFolio(null);
+      nonceRef.current = crypto.randomUUID();
+      folioRef.current = folioNuevo();
+    }
   }, [open]);
 
   // Confirma el pedido → server action (queda pendiente de aprobación) → éxito + folio.
@@ -858,32 +980,58 @@ function CarritoSheet({
     start(async () => {
       setMsg(null);
       if (items.length === 0) return;
+      const f = folioRef.current || folioNuevo();
+      let itemsEnviados = items;
       if (modoPublico) {
         if (nombre.trim().length < 2) { setEstado("error"); setMsg("Poné tu nombre."); return; }
         if (soloDigitos(tel).length < 6) { setEstado("error"); setMsg("Poné un teléfono/WhatsApp válido."); return; }
         const r = await pedirCarritoPublico({
-          items: items.map((i) => ({ productoId: i.id, productoNombre: i.nombre, cantidad: i.cantidad })),
+          items: items.map((i) => ({ productoId: i.id, productoNombre: i.nombre, cantidad: i.cantidad, cuotasPreferidas: i.cuotasElegidas ?? null })),
           nombre: nombre.trim(), telefono: tel.trim(),
+          nonce: nonceRef.current || null, folio: f,
         });
         if (!r.ok) { setEstado("error"); setMsg(r.error); return; }
       } else if (token) {
-        // Chequear CADA resultado: no confirmar "enviado" ni vaciar si alguno falló
-        // (registrarInteres no lanza; devuelve {ok:false} por stock/rate-limit/audiencia).
-        const rs = await Promise.all(items.map((it) => registrarInteres({ token, productoId: it.id })));
-        if (rs.some((r) => !r.ok)) {
+        // UNA llamada con TODO el carrito (barrida 15-08: ítem por ítem, un fallo
+        // a mitad dejaba media compra hecha, el reintento duplicaba y el
+        // rate-limit contaba cada ítem). El server valida TODO y contesta POR
+        // ÍTEM: los que no pudieron quedan EN el carrito con su motivo real.
+        const r = await pedirCarritoCliente({
+          token, nonce: nonceRef.current || crypto.randomUUID(), folio: f,
+          items: items.map((it) => ({ productoId: it.id, cantidad: it.cantidad, cuotasPreferidas: it.cuotasElegidas ?? null })),
+        });
+        if (!r.ok) { setEstado("error"); setMsg(r.error); return; }
+        const fallidos = r.resultados.filter((x) => !x.ok);
+        if (fallidos.length > 0) {
+          const okIds = new Set(r.resultados.filter((x) => x.ok).map((x) => x.productoId));
+          itemsEnviados = items.filter((i) => okIds.has(i.id));
+          // Los que SÍ entraron salen del carrito; los fallidos se quedan a la
+          // vista con el motivo — nunca un "no se pudo" mudo con media compra hecha.
+          for (const id of okIds) onQuitar(id);
+          const detalle = fallidos
+            .map((x) => `${items.find((i) => i.id === x.productoId)?.nombre ?? "un producto"} (${x.error ?? "no disponible"})`)
+            .join(" · ");
+          if (itemsEnviados.length > 0) {
+            guardarPedidoLocal(scope, {
+              folio: f, fechaIso: new Date().toISOString(),
+              items: itemsEnviados.map((i) => ({ nombre: i.nombre, cantidad: i.cantidad })),
+              total: itemsEnviados.reduce((a, i) => a + i.precio * i.cantidad, 0),
+            });
+            setMsg(`Se enviaron ${itemsEnviados.length} (folio ${f}). No pudimos con: ${detalle}. Quitalos o probá más tarde.`);
+          } else {
+            setMsg(`No pudimos con: ${detalle}.`);
+          }
           setEstado("error");
-          setMsg("No pudimos registrar todos los productos. Probá de nuevo en un rato.");
           return;
         }
       } else {
         setEstado("error"); setMsg("Volvé a abrir tu enlace para pedir."); return;
       }
-      // Éxito: generar folio, dejar rastro local ("mis pedidos") y celebrar.
-      const f = folioNuevo();
+      // Éxito: el folio que viajó al servidor es el MISMO del comprobante.
       guardarPedidoLocal(scope, {
         folio: f,
         fechaIso: new Date().toISOString(),
-        items: items.map((i) => ({ nombre: i.nombre, cantidad: i.cantidad })),
+        items: itemsEnviados.map((i) => ({ nombre: i.nombre, cantidad: i.cantidad })),
         total: totalContado,
       });
       setFolio(f);
@@ -948,12 +1096,7 @@ function CarritoSheet({
                     {items.map((it) => (
                       <div key={it.id} className="flex gap-3 rounded-[14px] border border-[#EEF1F8] p-2.5">
                         <div className="h-16 w-16 shrink-0 overflow-hidden rounded-[10px] bg-[linear-gradient(180deg,#FBFCFF,#F1F4FB)]">
-                          {it.foto ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={it.foto} alt={it.nombre} loading="lazy" decoding="async" className="h-full w-full object-contain p-1" />
-                          ) : (
-                            <div className="flex h-full items-center justify-center text-[22px]">🛒</div>
-                          )}
+                          <ImgTienda src={it.foto} alt={it.nombre} ancho={FOTO.mini} clase="object-contain p-1" />
                         </div>
                         <div className="flex min-w-0 flex-1 flex-col">
                           <span className="line-clamp-2 text-[13px] font-bold leading-tight text-tinta">{it.nombre}</span>
@@ -1041,7 +1184,7 @@ function DetalleSheet({
   modoPublico: boolean;
   modoEmpleado: boolean;
   conCarrito: boolean;
-  onAgregar: (p: ProductoParaCliente) => void;
+  onAgregar: (p: ProductoParaCliente, plan?: { cuotas: number; cuota: number } | null) => void;
   productos: ProductoParaCliente[];
   onAbrirOtro: (p: ProductoParaCliente) => void;
   onClose: () => void;
@@ -1090,7 +1233,7 @@ function DetalleProducto({
   modoPublico?: boolean;
   modoEmpleado?: boolean;
   conCarrito?: boolean;
-  onAgregar?: (p: ProductoParaCliente) => void;
+  onAgregar?: (p: ProductoParaCliente, plan?: { cuotas: number; cuota: number } | null) => void;
   relacionados: ProductoParaCliente[];
   onAbrirOtro: (p: ProductoParaCliente) => void;
 }) {
@@ -1140,14 +1283,22 @@ function DetalleProducto({
   const enviar = () =>
     start(async () => {
       setMsg(null);
+      // Nonce estable por ficha abierta: el doble tap del mismo interés rebota
+      // en el índice único 0149 en vez de duplicar el lead.
+      if (!opRef.current) opRef.current = crypto.randomUUID();
+      // El plazo que ELIGIÓ viaja con el pedido (antes se evaporaba en pantalla).
+      const cuotasPreferidas = plazos.length > 1 && plazoSel !== p.cuotas ? plazoSel : null;
       if (modoPublico) {
         if (nombre.trim().length < 2) { setEstado("error"); setMsg("Poné tu nombre."); return; }
         if (soloDigitos(tel).length < 6) { setEstado("error"); setMsg("Poné un teléfono/WhatsApp válido."); return; }
-        const r = await registrarInteresPublico({ productoId: p.id, productoNombre: p.nombre, nombre: nombre.trim(), telefono: tel.trim() });
+        const r = await registrarInteresPublico({
+          productoId: p.id, productoNombre: p.nombre, nombre: nombre.trim(), telefono: tel.trim(),
+          cuotasPreferidas, opId: opRef.current,
+        });
         if (r.ok) setEstado("ok"); else { setEstado("error"); setMsg(r.error); }
       } else {
         if (!token) { setEstado("error"); setMsg("Volvé a abrir tu enlace para pedirlo."); return; }
-        const r = await registrarInteres({ token, productoId: p.id });
+        const r = await registrarInteres({ token, productoId: p.id, cuotasPreferidas, opId: opRef.current });
         if (r.ok) setEstado("ok"); else { setEstado("error"); setMsg(r.error); }
       }
     });
@@ -1323,9 +1474,10 @@ function DetalleProducto({
             )
           ) : conCarrito ? (
             <div className="flex flex-col gap-2">
-              <button type="button" onClick={() => { onAgregar?.(p); onClose(); }}
+              <button type="button"
+                onClick={() => { onAgregar?.(p, { cuotas: Math.max(1, plazoSel), cuota: cuotaSel }); onClose(); }}
                 className="w-full rounded-full bg-[#1E47C8] px-5 py-3.5 text-[16px] font-extrabold text-white shadow-[0_6px_18px_rgba(19,48,140,0.28)] transition active:scale-[0.99]">
-                🛒 Agregar al carrito
+                🛒 Agregar al carrito{plazos.length > 1 ? ` · ${plazoSel}×` : ""}
               </button>
               <p className="text-center text-[12px] font-medium text-gris">Sumalo al carrito y pedí todo junto. Sin compromiso.</p>
             </div>
@@ -1354,17 +1506,22 @@ function DetalleProducto({
           )}
         </div>
 
-      {/* Foto a PANTALLA COMPLETA (tap para cerrar) — zoom de la galería. */}
-      {zoomIdx != null && p.fotos[zoomIdx] && (
-        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/90 p-4" onClick={() => setZoomIdx(null)}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={p.fotos[zoomIdx]} alt={p.nombre} className="max-h-full max-w-full object-contain" />
-          <button type="button" onClick={(e) => { e.stopPropagation(); setZoomIdx(null); }} aria-label="Cerrar" className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-[16px] font-black text-tinta">✕</button>
-          {p.fotos.length > 1 && (
-            <span className="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full bg-white/85 px-3 py-1 text-[12px] font-bold text-tinta">{zoomIdx + 1} / {p.fotos.length}</span>
-          )}
-        </div>
-      )}
+      {/* Foto a PANTALLA COMPLETA (tap para cerrar) — zoom de la galería.
+          Por PORTAL al body (barrida 15-08): el Drawer de Vaul aplica transform
+          a sus hijos y un position:fixed adentro queda acotado AL SHEET — el
+          "pantalla completa" era mentira en mobile. */}
+      {zoomIdx != null && p.fotos[zoomIdx] && typeof document !== "undefined" &&
+        createPortal(
+          <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/90 p-4" onClick={() => setZoomIdx(null)}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={fotoTienda(p.fotos[zoomIdx], FOTO.zoom, 85) ?? p.fotos[zoomIdx]} alt={p.nombre} className="max-h-full max-w-full object-contain" />
+            <button type="button" onClick={(e) => { e.stopPropagation(); setZoomIdx(null); }} aria-label="Cerrar" className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-[16px] font-black text-tinta">✕</button>
+            {p.fotos.length > 1 && (
+              <span className="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full bg-white/85 px-3 py-1 text-[12px] font-bold text-tinta">{zoomIdx + 1} / {p.fotos.length}</span>
+            )}
+          </div>,
+          document.body,
+        )}
     </>
   );
 }

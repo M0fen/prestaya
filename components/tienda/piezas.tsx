@@ -12,6 +12,63 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { Drawer } from "vaul";
 import { UYU } from "@/lib/format";
+import { fotoTienda, FOTO } from "@/lib/fotoTienda";
+
+// ── Imagen de producto: optimizada + shimmer + fallback ─────────────────────
+//  UNA pieza para todas las fotos de la tienda (barrida 15-08):
+//   · pide la variante LIVIANA al CDN (fotoTienda: 800 KB → ~20 KB medido);
+//   · shimmer mientras carga (las cajas EN BLANCO de las capturas de prod);
+//   · onError → placeholder 🛒 (una URL rota mostraba el ícono roto del navegador).
+export function ImgTienda({
+  src, alt, ancho, calidad = 75, clase = "object-contain p-2", eager = false, onClick,
+}: {
+  src: string | null | undefined;
+  alt: string;
+  /** Ancho estándar (FOTO.mini / tarjeta / ficha / zoom). */
+  ancho: number;
+  calidad?: number;
+  /** Clases del <img> (object-fit + padding); el wrapper llena a su padre. */
+  clase?: string;
+  /** true para lo above-the-fold (hero): sin lazy. */
+  eager?: boolean;
+  onClick?: () => void;
+}) {
+  const [estado, setEstado] = useState<"cargando" | "ok" | "error">("cargando");
+  const ref = useRef<HTMLImageElement | null>(null);
+  const url = fotoTienda(src, ancho, calidad);
+  // La imagen puede venir del caché ANTES de hidratar: `complete` ya es true y
+  // el onLoad de React nunca dispara → sin esto quedaba invisible para siempre.
+  useEffect(() => {
+    if (ref.current?.complete && ref.current.naturalWidth > 0) setEstado("ok");
+  }, [url]);
+  if (!url || estado === "error") {
+    return (
+      <div className="flex h-full w-full items-center justify-center text-[32px]" aria-hidden>
+        🛒
+      </div>
+    );
+  }
+  return (
+    <div className="relative h-full w-full">
+      {estado === "cargando" && (
+        <div className="absolute inset-0 animate-pulse rounded-[inherit] bg-[linear-gradient(110deg,#EEF2FA_40%,#F8FAFF_50%,#EEF2FA_60%)] bg-[length:200%_100%]" aria-hidden />
+      )}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        ref={ref}
+        src={url}
+        alt={alt}
+        loading={eager ? "eager" : "lazy"}
+        decoding="async"
+        draggable={false}
+        onClick={onClick}
+        onLoad={() => setEstado("ok")}
+        onError={() => setEstado("error")}
+        className={`h-full w-full select-none ${clase} transition-opacity duration-300 ${estado === "ok" ? "opacity-100" : "opacity-0"}`}
+      />
+    </div>
+  );
+}
 
 // ── ¿Estamos en desktop? (para que los drawers sean laterales en vez de bottom-sheet) ──
 export function useEsDesktop(): boolean {
@@ -76,8 +133,8 @@ export function GaleriaEmbla({
           <div className="flex">
             {fotos.map((src, k) => (
               <div key={k} className="relative aspect-square min-w-0 flex-[0_0_100%] bg-[linear-gradient(180deg,#FBFCFF,#F1F4FB)]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={src} alt={nombre} draggable={false} onClick={() => onZoom(k)} className="h-full w-full cursor-zoom-in select-none object-contain p-3" />
+                <ImgTienda src={src} alt={nombre} ancho={FOTO.ficha} eager={k === 0}
+                  clase="cursor-zoom-in object-contain p-3" onClick={() => onZoom(k)} />
               </div>
             ))}
             {videoUrl && (
@@ -119,10 +176,9 @@ export function GaleriaEmbla({
       {total > 1 && (
         <div className="flex gap-2 overflow-x-auto px-4 py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {fotos.map((src, k) => (
-            <button key={k} type="button" onClick={() => ir(k)}
+            <button key={k} type="button" onClick={() => ir(k)} aria-label={`Foto ${k + 1} de ${nombre}`}
               className={`h-14 w-14 shrink-0 overflow-hidden rounded-[10px] border-2 bg-white ${sel === k ? "border-[#1E47C8]" : "border-[#ECEFF8]"}`}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt="" draggable={false} className="h-full w-full select-none object-contain p-0.5" />
+              <ImgTienda src={src} alt="" ancho={FOTO.mini} clase="object-contain p-0.5" />
             </button>
           ))}
           {videoUrl && (
@@ -350,8 +406,7 @@ export function BannerPromo({ tema = "azul", eyebrow, titulo, sub, badge, ctaLab
       {img && (
         <div className="relative flex w-[40%] max-w-[168px] shrink-0 items-center justify-center p-3">
           <div className="aspect-square w-full overflow-hidden rounded-[16px] bg-white p-1.5 shadow-[0_10px_24px_rgba(0,0,0,0.28)]">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={img} alt="" loading="lazy" className="h-full w-full object-contain" />
+            <ImgTienda src={img} alt="" ancho={FOTO.tarjeta} clase="object-contain" />
           </div>
         </div>
       )}
@@ -577,10 +632,7 @@ export function MiTienda({ open, onOpenChange, scope, titulo = "Mi tienda", comp
                     <div key={f.id} className="relative overflow-hidden rounded-[12px] border border-[#EEF1F8]">
                       <button type="button" onClick={() => { onAbrirProducto(f.id); onOpenChange(false); }} className="flex w-full flex-col text-left active:scale-[0.98]">
                         <div className="aspect-[4/3] w-full bg-[linear-gradient(180deg,#FBFCFF,#F1F4FB)]">
-                          {f.foto ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={f.foto} alt={f.nombre} loading="lazy" className="h-full w-full object-contain p-1.5" />
-                          ) : <div className="flex h-full items-center justify-center text-[24px]">🛒</div>}
+                          <ImgTienda src={f.foto} alt={f.nombre} ancho={FOTO.mini} clase="object-contain p-1.5" />
                         </div>
                         <div className="flex flex-col gap-0.5 px-2 py-1.5">
                           <span className="line-clamp-1 text-[11.5px] font-bold text-tinta">{f.nombre}</span>

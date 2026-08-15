@@ -31,17 +31,37 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 export default async function ProductoPublicoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const db = createSupabaseAdmin();
+  // El catch fino quedó en la capa de datos (tabla ausente → null); cualquier
+  // blip real sube al error.tsx — un timeout YA NO se disfraza de 404.
   const [prod, productos, usuario] = await Promise.all([
-    getProductoPublicoPorId(db, id).catch(() => null),
+    getProductoPublicoPorId(db, id),
     conTimeout(getProductosPublicos(db), 22_000, "tienda.pdp"),
     getUsuarioActual().catch(() => null),
   ]);
   if (!prod) notFound();
   const logueado = usuario && usuario.activo ? usuario : null;
   const esEmpleado = !!logueado && (logueado.rol === "cobrador" || logueado.rol === "supervisor");
+  // JSON-LD Product (patrón ML/Amazon): Google/WhatsApp entienden qué es y cuánto sale.
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: prod.nombre,
+    image: prod.fotos,
+    description: prod.descripcion ?? `${prod.nombre} en cuotas cómodas — Tienda ${NEGOCIO.nombre}.`,
+    ...(prod.marca ? { brand: { "@type": "Brand", name: prod.marca } } : {}),
+    offers: {
+      "@type": "Offer",
+      priceCurrency: "UYU",
+      price: Math.round(prod.precio),
+      availability: prod.agotado || prod.stock === 0 ? "https://schema.org/OutOfStock" : "https://schema.org/InStock",
+    },
+  };
 
   return (
-    <div className="flex min-h-screen justify-center bg-fondo text-tinta">
+    // overflow-x-clip: la banda 100vw de la cabecera generaba un bamboleo
+    // horizontal de un par de píxeles en esta ruta (las otras dos ya lo tenían).
+    <div className="flex min-h-screen justify-center overflow-x-clip bg-fondo text-tinta">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <div className="flex w-full max-w-[480px] flex-col gap-3 bg-[#EBEEF5] px-[18px] pt-4 pb-12 shadow-[0_0_60px_rgba(15,27,61,0.08)] md:max-w-[1120px] md:px-8 md:pt-6">
         <div className="flex items-center justify-between">
           <Link href="/tienda" className="flex items-center gap-2">
@@ -58,8 +78,10 @@ export default async function ProductoPublicoPage({ params }: { params: Promise<
         </div>
         <Link href="/tienda" className="-my-1 inline-flex w-fit items-center gap-1 py-2 pr-2 text-[12.5px] font-bold text-azul">← Volver a la tienda</Link>
 
-        {/* Abre el detalle del producto compartido y deja seguir viendo el catálogo. */}
-        <TiendaCliente productos={productos} token={null} modoPublico modoEmpleado={esEmpleado} conEncabezado={false} abrirId={id} />
+        {/* Abre el detalle del producto compartido y deja seguir viendo el catálogo.
+            Si el catálogo general falló en llegar VACÍO real, la ficha compartida
+            igual se muestra (el producto existe: es lo que vinieron a ver). */}
+        <TiendaCliente productos={productos.length > 0 ? productos : [prod]} token={null} modoPublico modoEmpleado={esEmpleado} conEncabezado={false} abrirId={id} />
 
         <p className="mt-2 text-center text-[11px] font-medium text-tenue">
           {NEGOCIO.nombre} · Financiación en cuotas. Dejanos tu interés y te contactamos con el precio y el plan para vos.

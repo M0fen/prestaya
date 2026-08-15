@@ -12,6 +12,8 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { UYU } from "@/lib/format";
+import { calcularPlanVenta } from "@/lib/venta";
+import { fotoTienda, FOTO } from "@/lib/fotoTienda";
 import type { ProductoParaCliente, FrecuenciaProducto } from "@/lib/data/tienda";
 
 const FREC: Record<FrecuenciaProducto, string> = {
@@ -128,8 +130,8 @@ export function VitrinaCliente({
 
 function Slide({ p, token }: { p: ProductoParaCliente; token?: string | null }) {
   // Mismo cálculo que la vitrina: precio con interés → cuota (framing "N× $X").
-  const conInteres = Math.round(p.precio * (1 + p.interesPct / 100));
-  const cuota = p.cuotas > 0 ? Math.ceil(conInteres / p.cuotas) : 0;
+  // Formula CANONICA (lib/venta) - la copia local ya divergio una vez en TiendaCliente.
+  const cuota = p.cuotas > 0 ? calcularPlanVenta({ precio: p.precio, interesPct: p.interesPct, cuotas: p.cuotas }).cuota : 0;
   const oferta = p.precioAnterior > p.precio;
   const href = token ? `/c/${token}/tienda?producto=${p.id}` : `/tienda?producto=${p.id}`;
 
@@ -181,7 +183,7 @@ function Slide({ p, token }: { p: ProductoParaCliente; token?: string | null }) 
         <div className="py-shine relative overflow-hidden rounded-[16px] bg-white p-2 shadow-[0_16px_34px_rgba(0,0,0,0.30)]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={p.fotos[0]}
+            src={fotoTienda(p.fotos[0], FOTO.ficha) ?? undefined}
             alt={p.nombre}
             loading="lazy"
             decoding="async"

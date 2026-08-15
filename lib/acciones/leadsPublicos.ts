@@ -10,12 +10,20 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import {
   crearLeadPublicoDb,
+  crearLeadsPublicosDb,
   resolverLeadPublicoDb,
   ESTADOS_LEAD_PUBLICO,
   type EstadoLeadPublico,
+  type NuevoLeadPublico,
 } from "@/lib/data/leadsPublicos";
 import { getUsuarioActual, esGestor } from "@/lib/auth";
-import { esUuid } from "@/lib/idempotencia";
+import { esUuid, opIdDeterminista } from "@/lib/idempotencia";
+
+/** Folio PY-XXXXXX del comprobante (lo genera la pantalla; acá se sanea). */
+function folioSaneado(v: unknown): string | null {
+  const f = (v ?? "").toString().trim().toUpperCase().slice(0, 12);
+  return /^PY-[A-Z0-9]{4,8}$/.test(f) ? f : null;
+}
 import { soloDigitos } from "@/lib/telefono";
 import { permitir, ipDesdeHeaders } from "@/lib/seguridad/rateLimit";
 
@@ -27,6 +35,11 @@ export async function registrarInteresPublico(input: {
   nombre: string;
   telefono: string;
   mensaje?: string | null;
+  cantidad?: number;
+  cuotasPreferidas?: number | null;
+  folio?: string | null;
+  /** Nonce del navegador: el doble tap del mismo interés no duplica (0149). */
+  opId?: string | null;
 }): Promise<Resultado> {
   const nombre = (input.nombre ?? "").toString().trim().slice(0, 80);
   const tel = (input.telefono ?? "").toString().trim().slice(0, 30);
@@ -39,14 +52,19 @@ export async function registrarInteresPublico(input: {
   }
   try {
     const db = createSupabaseAdmin();
+    const cuotasPref = Math.round(Number(input.cuotasPreferidas));
     await crearLeadPublicoDb(db, {
       productoId: input.productoId && esUuid(input.productoId) ? input.productoId : null,
       productoNombre: (input.productoNombre ?? "").toString().trim().slice(0, 120) || null,
       nombre,
       telefono: tel,
       mensaje: (input.mensaje ?? "").toString().trim().slice(0, 300) || null,
+      cantidad: Math.max(1, Math.min(50, Math.round(Number(input.cantidad) || 1))),
+      cuotasPreferidas: Number.isFinite(cuotasPref) && cuotasPref >= 1 && cuotasPref <= 1000 ? cuotasPref : null,
+      folio: folioSaneado(input.folio),
+      opId: input.opId && esUuid(input.opId) ? input.opId : null,
     });
-    return { ok: true };
+    return { ok: true }; // `duplicado` también es ok: el interés ya quedó registrado
   } catch {
     return { ok: false, error: "No se pudo enviar. Probá de nuevo." };
   }
@@ -57,9 +75,12 @@ export async function registrarInteresPublico(input: {
  * Crea un lead por ítem (el admin ve cada producto). Validado + rate-limit por IP.
  */
 export async function pedirCarritoPublico(input: {
-  items: { productoId?: string | null; productoNombre?: string | null; cantidad?: number }[];
+  items: { productoId?: string | null; productoNombre?: string | null; cantidad?: number; cuotasPreferidas?: number | null }[];
   nombre: string;
   telefono: string;
+  /** Nonce del pedido (uuid del navegador): el doble tap / reintento no duplica el lote. */
+  nonce?: string | null;
+  folio?: string | null;
 }): Promise<Resultado> {
   const nombre = (input.nombre ?? "").toString().trim().slice(0, 80);
   const tel = (input.telefono ?? "").toString().trim().slice(0, 30);
@@ -75,17 +96,27 @@ export async function pedirCarritoPublico(input: {
   }
   try {
     const db = createSupabaseAdmin();
-    for (let i = 0; i < items.length; i++) {
-      const it = items[i];
+    const nonce = input.nonce && esUuid(input.nonce) ? input.nonce : null;
+    const folio = folioSaneado(input.folio);
+    // UN insert atómico (antes: loop ítem por ítem — un fallo en el 3º dejaba
+    // media compra hecha y el reintento del visitante duplicaba los primeros).
+    const filas: NuevoLeadPublico[] = items.map((it, i) => {
       const cant = Math.max(1, Math.min(50, Math.round(Number(it.cantidad) || 1)));
-      await crearLeadPublicoDb(db, {
+      const cuotasPref = Math.round(Number(it.cuotasPreferidas));
+      return {
         productoId: it.productoId && esUuid(it.productoId) ? it.productoId : null,
         productoNombre: (it.productoNombre ?? "").toString().trim().slice(0, 120) || null,
         nombre,
         telefono: tel,
         mensaje: `🛒 Pedido del carrito (${i + 1}/${items.length})${cant > 1 ? ` · x${cant}` : ""}`,
-      });
-    }
+        cantidad: cant,
+        cuotasPreferidas: Number.isFinite(cuotasPref) && cuotasPref >= 1 && cuotasPref <= 1000 ? cuotasPref : null,
+        folio,
+        // Determinista por (nonce, ítem): el reintento del MISMO pedido rebota.
+        opId: nonce ? opIdDeterminista("lead-publico", `${nonce}:${i}`) : null,
+      };
+    });
+    await crearLeadsPublicosDb(db, filas);
     return { ok: true };
   } catch {
     return { ok: false, error: "No se pudo enviar el pedido. Probá de nuevo." };

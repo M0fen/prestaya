@@ -35,18 +35,55 @@ function map(r: Record<string, unknown>): LeadPublico {
   };
 }
 
-export async function crearLeadPublicoDb(
-  db: SupabaseClient,
-  input: { productoId: string | null; productoNombre: string | null; nombre: string; telefono: string; mensaje: string | null },
-): Promise<void> {
-  const { error } = await db.from("leads_publicos").insert({
-    producto_id: input.productoId,
-    producto_nombre: input.productoNombre,
-    nombre: input.nombre,
-    telefono: input.telefono,
-    mensaje: input.mensaje,
-  });
-  if (error) throw error;
+export interface NuevoLeadPublico {
+  productoId: string | null;
+  productoNombre: string | null;
+  nombre: string;
+  telefono: string;
+  mensaje: string | null;
+  /** Folio PY-XXXXXX del comprobante — el mismo que el visitante guarda (0149). */
+  folio?: string | null;
+  cantidad?: number;
+  cuotasPreferidas?: number | null;
+  /** Idempotencia por ítem (índice único 0149): el reintento no duplica. */
+  opId?: string | null;
+}
+
+const filaLead = (input: NuevoLeadPublico) => ({
+  producto_id: input.productoId,
+  producto_nombre: input.productoNombre,
+  nombre: input.nombre,
+  telefono: input.telefono,
+  mensaje: input.mensaje,
+  folio: input.folio ?? null,
+  cantidad: Math.max(1, Math.min(50, Math.round(Number(input.cantidad) || 1))),
+  cuotas_preferidas: input.cuotasPreferidas ?? null,
+  op_id: input.opId ?? null,
+});
+
+export async function crearLeadPublicoDb(db: SupabaseClient, input: NuevoLeadPublico): Promise<{ duplicado: boolean }> {
+  const { error } = await db.from("leads_publicos").insert(filaLead(input));
+  if (error) {
+    // Mismo op_id reintentado: el lead YA está — éxito idempotente.
+    if ((error as { code?: string }).code === "23505") return { duplicado: true };
+    throw error;
+  }
+  return { duplicado: false };
+}
+
+/**
+ * Lote del CARRITO público en UN insert atómico (barrida 15-08: el loop ítem
+ * por ítem dejaba mitad del carrito insertado cuando fallaba el 3º de 5, y el
+ * reintento natural del visitante duplicaba los primeros). Si el lote entero
+ * choca 23505 (reintento del MISMO pedido), cae a por-ítem para que ningún
+ * producto nuevo quede atrás — converge por los op_id.
+ */
+export async function crearLeadsPublicosDb(db: SupabaseClient, filas: NuevoLeadPublico[]): Promise<void> {
+  if (filas.length === 0) return;
+  const { error } = await db.from("leads_publicos").insert(filas.map(filaLead));
+  if (!error) return;
+  if ((error as { code?: string }).code !== "23505") throw error;
+  for (const f of filas) await crearLeadPublicoDb(db, f);
 }
 
 /** Leads públicos para la bandeja del admin. `estado` opcional filtra. Degrada a []. */

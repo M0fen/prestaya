@@ -10,6 +10,7 @@
 //  mayores); se detiene apenas el usuario toca/pasa el mouse y respeta reduced-motion.
 // ─────────────────────────────────────────────────────────────────────────
 import { useState, useCallback, useEffect } from "react";
+import { fotoTienda, FOTO } from "@/lib/fotoTienda";
 import useEmblaCarousel from "embla-carousel-react";
 
 export type HeroSlide = {
@@ -107,7 +108,7 @@ function Slide({ s }: { s: HeroSlide }) {
             {/* Panel blanco del producto (nuestras fotos vienen sobre blanco). */}
             <div className="relative overflow-hidden rounded-[22px] bg-white p-3 shadow-[0_26px_54px_rgba(0,0,0,0.32)]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={s.img} alt={s.imgLabel ?? ""} draggable={false} className="mx-auto aspect-square w-full select-none object-contain p-1" />
+              <img src={fotoTienda(s.img, FOTO.ficha) ?? undefined} alt={s.imgLabel ?? ""} draggable={false} className="mx-auto aspect-square w-full select-none object-contain p-1" />
               {s.imgLabel && (
                 <span className="mt-1.5 block truncate px-1 text-[12.5px] font-bold text-tinta">{s.imgLabel}</span>
               )}
@@ -129,7 +130,7 @@ function Slide({ s }: { s: HeroSlide }) {
                 {s.imgsExtra!.slice(0, 2).map((src, k) => (
                   <div key={k} className="h-[58px] w-[58px] overflow-hidden rounded-[13px] bg-white p-1.5 shadow-[0_8px_18px_rgba(0,0,0,0.26)] ring-1 ring-black/5 md:h-[68px] md:w-[68px]">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={src} alt="" loading="lazy" draggable={false} className="h-full w-full select-none object-contain" />
+                    <img src={fotoTienda(src, FOTO.mini) ?? undefined} alt="" loading="lazy" draggable={false} className="h-full w-full select-none object-contain" />
                   </div>
                 ))}
                 <span className="grid h-[58px] w-[58px] place-items-center rounded-[13px] bg-white/12 text-center text-[10.5px] font-bold leading-tight text-white/80 ring-1 ring-white/20 md:h-[68px] md:w-[68px]">

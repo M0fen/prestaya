@@ -230,41 +230,64 @@ export interface ClientePrecio {
 
 /** Zona del cliente = la del cobrador de su crédito ACTIVO más nuevo (los
  *  clientes no tienen zona propia; la heredan de su cobrador). null si no tiene
- *  crédito/cobrador/zona. Resiliente: nunca rompe la vista del cliente. */
+ *  crédito/cobrador/zona. Resiliente: nunca rompe la vista del cliente.
+ *  ⚠️ SOLO para visibilidad/display. Donde la zona decide PLATA (overrides de
+ *  precio), va la variante estricta de abajo. */
 export async function getZonaIdDeCliente(db: SupabaseClient, clienteId: string): Promise<string | null> {
   try {
-    const { data: pres } = await db.from("prestamos").select("cobrador_id")
-      .eq("cliente_id", clienteId).eq("estado", "activo")
-      .order("fecha_inicio", { ascending: false }).limit(1);
-    const cobradorId = (pres ?? [])[0]?.cobrador_id as string | null | undefined;
-    if (!cobradorId) return null;
-    const { data: u } = await db.from("usuarios").select("zona_id").eq("id", cobradorId).maybeSingle();
-    return (u?.zona_id as string | null) ?? null;
+    return await getZonaIdDeClienteEstricto(db, clienteId);
   } catch {
     return null;
   }
 }
 
+/** Variante ESTRICTA (barrida 15-08): un blip de red devolvía zona=null en
+ *  silencio y el precio ZONAL del cliente se caía al base — en la vitrina Y en
+ *  la conversión del crédito. Acá el error se lanza; que decida el llamador. */
+export async function getZonaIdDeClienteEstricto(db: SupabaseClient, clienteId: string): Promise<string | null> {
+  const { data: pres, error: e1 } = await db.from("prestamos").select("cobrador_id")
+    .eq("cliente_id", clienteId).eq("estado", "activo")
+    .order("fecha_inicio", { ascending: false }).limit(1);
+  if (e1) throw e1;
+  const cobradorId = (pres ?? [])[0]?.cobrador_id as string | null | undefined;
+  if (!cobradorId) return null;
+  const { data: u, error: e2 } = await db.from("usuarios").select("zona_id").eq("id", cobradorId).maybeSingle();
+  if (e2) throw e2;
+  return (u?.zona_id as string | null) ?? null;
+}
+
 /** Overrides de SEGMENTO aplicables a un cliente (por su calificación y zona),
  *  indexados por producto. La zona del cliente (2 queries) se resuelve SOLO si el
  *  producto tiene alguna regla por zona → no la pagamos cuando no hace falta.
- *  Resiliente: si falta 0078, mapa vacío (cae a individual/base). */
+ *  Resiliente: si falta 0078, mapa vacío (cae a individual/base).
+ *
+ *  `productoIds` acota el query a esos productos (la CONVERSIÓN necesita UNO):
+ *  sin el filtro, el query traía las reglas de TODO el catálogo y el corte mudo
+ *  de 1.000 filas de PostgREST podía dejar afuera justo la regla del producto
+ *  que se estaba vendiendo → precio base en silencio (barrida 15-08). */
 async function overridesSegmento(
   db: SupabaseClient,
   calificacion: Calificacion,
   clienteId: string,
+  productoIds?: string[],
 ): Promise<Map<string, { zona?: Terminos; calificacion?: Terminos }>> {
   const m = new Map<string, { zona?: Terminos; calificacion?: Terminos }>();
   try {
     // Reglas por ZONA (de cualquier zona) + reglas por la CALIFICACIÓN de este
     // cliente, en un solo query. (calificacion es un enum fijo → interpolación segura).
-    const { data, error } = await db.from("producto_precio_segmento")
+    let q = db.from("producto_precio_segmento")
       .select("producto_id, tipo, valor, precio, interes_pct, cuotas")
       .or(`tipo.eq.zona,and(tipo.eq.calificacion,valor.eq.${calificacion})`);
+    if (productoIds && productoIds.length > 0) q = q.in("producto_id", productoIds);
+    const { data, error } = await q.order("producto_id");
     if (error) throw error;
     const filas = data ?? [];
     // La zona del cliente solo se necesita si hay alguna regla por zona.
-    const zonaId = filas.some((r) => r.tipo === "zona") ? await getZonaIdDeCliente(db, clienteId) : null;
+    // ESTRICTA en este camino: un fallo al resolver la zona anulaba el precio
+    // zonal en silencio (se cobraba el base) — acá se decide plata, se lanza.
+    const zonaId = filas.some((r) => r.tipo === "zona")
+      ? await getZonaIdDeClienteEstricto(db, clienteId)
+      : null;
     for (const r of filas) {
       const pid = r.producto_id as string;
       const t: Terminos = { precio: N(r.precio), interesPct: NUM(r.interes_pct), cuotas: N(r.cuotas) };
@@ -305,8 +328,12 @@ export async function getProductosPublicos(db: SupabaseClient): Promise<Producto
       .map(mapProducto)
       .filter((p) => !p.segmentoDef)
       .map((p) => ({ ...p, precioPersonalizado: false }));
-  } catch {
-    return [];
+  } catch (e) {
+    // ⚠️ Barrida 15-08: el catch-all disfrazaba CUALQUIER blip de la base de
+    // "Pronto vas a ver productos acá" — una vidriera vacía falsa. Solo la
+    // tabla ausente degrada; el resto sube al error.tsx ("reintentá").
+    if (tablaFaltante(e)) return [];
+    throw e;
   }
 }
 
@@ -319,8 +346,11 @@ export async function getProductoPublicoPorId(db: SupabaseClient, id: string): P
     const p = mapProducto(data);
     if (p.segmentoDef) return null; // producto con audiencia restringida → no es público
     return { ...p, precioPersonalizado: false };
-  } catch {
-    return null;
+  } catch (e) {
+    // Mismo criterio: un blip NO es un 404 (la ficha compartida por WhatsApp
+    // devolvía "no existe" por un timeout). Solo tabla ausente → null.
+    if (tablaFaltante(e)) return null;
+    throw e;
   }
 }
 
@@ -352,9 +382,13 @@ export async function getProductosParaCliente(
     }
 
     // Override INDIVIDUAL de ESTE cliente (pocos): un solo query.
+    // ⚠️ El error se LANZA (barrida 15-08): supabase-js devuelve los fallos de
+    // red como `error`, no como excepción — ignorarlo dejaba el mapa vacío y el
+    // cliente veía el precio BASE en lugar de su precio especial, en silencio.
     const indiv = new Map<string, Terminos>();
-    const { data: ov } = await db.from("producto_precio_cliente")
+    const { data: ov, error: errOv } = await db.from("producto_precio_cliente")
       .select("producto_id, precio, interes_pct, cuotas").eq("cliente_id", cliente.id);
+    if (errOv && !tablaFaltante(errOv)) throw errOv;
     for (const o of ov ?? []) {
       indiv.set(o.producto_id as string, { precio: N(o.precio), interesPct: NUM(o.interes_pct), cuotas: N(o.cuotas) });
     }
@@ -402,11 +436,13 @@ export async function getProductoDestacadoParaCliente(
     const p = destacados[0];
     if (!p) return null;
     // Override INDIVIDUAL de ESTE cliente para ese producto (unique → maybeSingle).
-    const { data: ov } = await db.from("producto_precio_cliente")
+    // El error se LANZA: ignorarlo mostraba el precio base como si fuera el suyo.
+    const { data: ov, error: errOv } = await db.from("producto_precio_cliente")
       .select("precio, interes_pct, cuotas").eq("cliente_id", cliente.id).eq("producto_id", p.id).maybeSingle();
+    if (errOv && !tablaFaltante(errOv)) throw errOv;
     const individual = ov ? { precio: N(ov.precio), interesPct: NUM(ov.interes_pct), cuotas: N(ov.cuotas) } : null;
     // Overrides por SEGMENTO (misma prioridad que el catálogo).
-    const s = (await overridesSegmento(db, cliente.calificacion, cliente.id)).get(p.id);
+    const s = (await overridesSegmento(db, cliente.calificacion, cliente.id, [p.id])).get(p.id);
     const r = resolverPrecioCliente(
       { precio: p.precio, interesPct: p.interesPct, cuotas: p.cuotas },
       { individual, zona: s?.zona, calificacion: s?.calificacion },
@@ -642,15 +678,70 @@ export async function borrarPrecioClienteDb(db: SupabaseClient, id: string): Pro
   if (error) throw error;
 }
 
-/** Lead del cliente ("Me interesa"). Snapshot del nombre del producto. */
+/** Fila de pedido del cliente (0149): lo que ELIGIÓ viaja con el lead. */
+export interface NuevaSolicitudProducto {
+  productoId: string;
+  clienteId: string;
+  productoNombre: string;
+  /** Folio PY-XXXXXX del comprobante — el MISMO que ve el cliente. */
+  folio?: string | null;
+  cantidad?: number;
+  cuotasPreferidas?: number | null;
+  /** Idempotencia del reintento (índice único 0149). */
+  opId?: string | null;
+}
+
+const filaSolicitud = (s: NuevaSolicitudProducto) => ({
+  producto_id: s.productoId,
+  cliente_id: s.clienteId,
+  producto_nombre: s.productoNombre,
+  estado: "nueva",
+  folio: s.folio ?? null,
+  cantidad: Math.max(1, Math.min(50, Math.round(Number(s.cantidad) || 1))),
+  cuotas_preferidas: s.cuotasPreferidas ?? null,
+  op_id: s.opId ?? null,
+});
+
+/** Lead del cliente ("Pedir"). Devuelve `duplicada:true` si el candado 0149 lo
+ *  frenó (mismo op_id reintentado, o ya hay un lead ABIERTO de ese producto):
+ *  para el cliente su pedido YA está registrado — es un éxito idempotente. */
 export async function crearSolicitudDb(
   db: SupabaseClient,
-  s: { productoId: string; clienteId: string; productoNombre: string },
-): Promise<void> {
-  const { error } = await db.from("solicitudes_producto").insert({
-    producto_id: s.productoId, cliente_id: s.clienteId, producto_nombre: s.productoNombre, estado: "nueva",
-  });
-  if (error) throw error;
+  s: NuevaSolicitudProducto,
+): Promise<{ duplicada: boolean }> {
+  const { error } = await db.from("solicitudes_producto").insert(filaSolicitud(s));
+  if (error) {
+    if ((error as { code?: string }).code === "23505") return { duplicada: true };
+    throw error;
+  }
+  return { duplicada: false };
+}
+
+/**
+ * PEDIDO del carrito con token, ATÓMICO (0149): todas las filas en UN insert.
+ * Antes iba ítem por ítem — un fallo en el 3º de 5 dejaba los dos primeros
+ * insertados, el cliente veía "no se pudo" y su reintento natural duplicaba.
+ * Con op_id determinista por ítem, el reintento del MISMO lote rebota entero
+ * en 23505 → exactamente una vez.
+ */
+export async function crearSolicitudesDb(
+  db: SupabaseClient,
+  filas: NuevaSolicitudProducto[],
+): Promise<{ duplicadas: boolean }> {
+  if (filas.length === 0) return { duplicadas: false };
+  const { error } = await db.from("solicitudes_producto").insert(filas.map(filaSolicitud));
+  if (!error) return { duplicadas: false };
+  if ((error as { code?: string }).code !== "23505") throw error;
+  // Chocó un duplicado y el lote es atómico: NINGUNA fila entró. Reintento POR
+  // ÍTEM para que los productos NUEVOS del carrito no se pierdan detrás del que
+  // ya estaba pedido — cada ítem lleva su op_id, así que esto converge aunque
+  // se corte a mitad (los ya insertados rebotan 23505 = ok en el reintento).
+  let duplicadas = false;
+  for (const f of filas) {
+    const r = await crearSolicitudDb(db, f);
+    duplicadas = duplicadas || r.duplicada;
+  }
+  return { duplicadas };
 }
 export async function contarSolicitudesRecientesCliente(db: SupabaseClient, clienteId: string, desde: Date): Promise<number> {
   const { count, error } = await db.from("solicitudes_producto")
@@ -707,10 +798,16 @@ export async function getSolicitudProductoPorId(db: SupabaseClient, id: string):
 export async function getTerminosVentaParaCliente(
   db: SupabaseClient, producto: Producto, cliente: ClientePrecio,
 ): Promise<Terminos & { origen: OrigenPrecio }> {
-  const { data: ov } = await db.from("producto_precio_cliente")
+  // ⚠️ Camino del DINERO (acá nace el crédito): el error del override se LANZA.
+  // Ignorarlo convertía un blip de red en "cobrale el precio base" — con
+  // override especial más barato, cobrarle DE MÁS al cliente, sin ruido.
+  const { data: ov, error: errOv } = await db.from("producto_precio_cliente")
     .select("precio, interes_pct, cuotas").eq("cliente_id", cliente.id).eq("producto_id", producto.id).maybeSingle();
+  if (errOv && !tablaFaltante(errOv)) throw errOv;
   const individual = ov ? { precio: N(ov.precio), interesPct: NUM(ov.interes_pct), cuotas: N(ov.cuotas) } : null;
-  const s = (await overridesSegmento(db, cliente.calificacion, cliente.id)).get(producto.id);
+  // Acotado a ESTE producto: el fetch del catálogo entero podía perder justo
+  // esta regla en el corte mudo de 1.000 filas.
+  const s = (await overridesSegmento(db, cliente.calificacion, cliente.id, [producto.id])).get(producto.id);
   return resolverPrecioCliente(
     { precio: producto.precio, interesPct: producto.interesPct, cuotas: producto.cuotas },
     { individual, zona: s?.zona, calificacion: s?.calificacion },

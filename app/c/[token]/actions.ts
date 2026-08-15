@@ -35,9 +35,28 @@ import { getConfigScoring } from "@/lib/data/scoringConfig";
 import { calcularScore } from "@/lib/scoring";
 import { numeroSuerte } from "@/lib/quiniela";
 import { tokenValido } from "@/lib/validacion/esquemas";
-import { getProductoAdmin, crearSolicitudDb, contarSolicitudesRecientesCliente, existeSolicitudAbierta, getZonaIdDeCliente } from "@/lib/data/tienda";
+import {
+  getProductoAdmin,
+  crearSolicitudDb,
+  crearSolicitudesDb,
+  contarSolicitudesRecientesCliente,
+  existeSolicitudAbierta,
+  getZonaIdDeCliente,
+  type NuevaSolicitudProducto,
+} from "@/lib/data/tienda";
 import { getRifaParaCliente, participarRifaSeguro } from "@/lib/data/rifas";
-import { esUuid } from "@/lib/idempotencia";
+import { esUuid, opIdDeterminista } from "@/lib/idempotencia";
+
+/** Folio PY-XXXXXX del comprobante (lo genera la pantalla; acá solo se sanea). */
+function folioSaneado(v: unknown): string | null {
+  const f = (v ?? "").toString().trim().toUpperCase().slice(0, 12);
+  return /^PY-[A-Z0-9]{4,8}$/.test(f) ? f : null;
+}
+const cantidadSaneada = (v: unknown) => Math.max(1, Math.min(50, Math.round(Number(v) || 1)));
+const cuotasPreferidasSaneadas = (v: unknown) => {
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) && n >= 1 && n <= 1000 ? n : null;
+};
 
 /** Azar del SERVIDOR (no del cliente) para decidir premios. Uniforme en [0,1). */
 function azarServidor(): number {
@@ -60,6 +79,11 @@ export type ResultadoReporte = { ok: true } | { ok: false; error: string };
 export async function registrarInteres(input: {
   token: string;
   productoId: string;
+  /** Lo que el cliente ELIGIÓ en la ficha (0149): viaja con el pedido. */
+  cantidad?: number;
+  cuotasPreferidas?: number | null;
+  folio?: string | null;
+  opId?: string | null;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     if (!tokenValido(input.token)) return { ok: false, error: "Enlace no válido." };
@@ -83,19 +107,104 @@ export async function registrarInteres(input: {
       );
       if (!enAudiencia) return { ok: false, error: "Ese producto ya no está disponible." };
     }
-    // IDEMPOTENCIA: si el cliente ya tiene un lead ABIERTO de este producto, no se
-    // crea otro (tocar "Me interesa" varias veces no genera leads duplicados). Se
-    // devuelve ok igual (para el cliente, su interés ya quedó registrado).
+    // IDEMPOTENCIA (dos capas): el fast-path evita el insert; el índice único
+    // 0149 es la última línea (dos pestañas simultáneas pasaban este check).
     if (await existeSolicitudAbierta(db, cliente.id, prod.id)) return { ok: true };
     // Rate-limit: máx. 10 solicitudes en 10 minutos por cliente (anti-spam del link).
     const desde = new Date(Date.now() - 10 * 60 * 1000);
     if ((await contarSolicitudesRecientesCliente(db, cliente.id, desde)) >= 10) {
       return { ok: false, error: "Ya registramos tu interés. Te vamos a contactar." };
     }
-    await crearSolicitudDb(db, { productoId: prod.id, clienteId: cliente.id, productoNombre: prod.nombre });
-    return { ok: true };
+    await crearSolicitudDb(db, {
+      productoId: prod.id,
+      clienteId: cliente.id,
+      productoNombre: prod.nombre,
+      cantidad: cantidadSaneada(input.cantidad),
+      cuotasPreferidas: cuotasPreferidasSaneadas(input.cuotasPreferidas),
+      folio: folioSaneado(input.folio),
+      opId: input.opId && esUuid(input.opId) ? input.opId : null,
+    });
+    return { ok: true }; // `duplicada` también es ok: su pedido ya está registrado
   } catch {
     return { ok: false, error: "No se pudo registrar. Probá de nuevo." };
+  }
+}
+
+/**
+ * TIENDA — pedido del CARRITO entero con token, en UNA llamada (barrida 15-08:
+ * ítem por ítem, un fallo a mitad dejaba media compra hecha, el reintento
+ * duplicaba y el rate-limit contaba cada ítem como un request). Valida TODO
+ * primero, inserta el lote atómico, y devuelve el resultado POR ÍTEM para que
+ * el carrito marque en rojo los que no pudieron con su motivo real.
+ */
+export async function pedirCarritoCliente(input: {
+  token: string;
+  /** Nonce del pedido (uuid generado al abrir el checkout): idempotencia del lote. */
+  nonce: string;
+  folio?: string | null;
+  items: { productoId: string; cantidad?: number; cuotasPreferidas?: number | null }[];
+}): Promise<
+  | { ok: true; resultados: { productoId: string; ok: boolean; error?: string }[] }
+  | { ok: false; error: string }
+> {
+  try {
+    if (!tokenValido(input.token)) return { ok: false, error: "Enlace no válido." };
+    if (!esUuid(input.nonce)) return { ok: false, error: "Pedido inválido. Recargá la página." };
+    const items = Array.isArray(input.items) ? input.items.filter((i) => esUuid(i.productoId)) : [];
+    if (items.length === 0) return { ok: false, error: "Tu carrito está vacío." };
+    if (items.length > 20) return { ok: false, error: "Demasiados productos en un pedido (máximo 20). Pedí en dos tandas." };
+    const db = createSupabaseAdmin();
+    const cliente = await getClientePorToken(db, input.token);
+    if (!cliente) return { ok: false, error: "Enlace no válido." };
+    // Rate-limit por CLIENTE contando ÍTEMS (no requests).
+    const desde = new Date(Date.now() - 10 * 60 * 1000);
+    if ((await contarSolicitudesRecientesCliente(db, cliente.id, desde)) + items.length > 30) {
+      return { ok: false, error: "Ya registramos tus pedidos de hoy. La oficina te contacta enseguida." };
+    }
+    // La zona se resuelve UNA vez si algún producto está segmentado.
+    let zonaId: string | null | undefined; // undefined = aún no resuelta
+    const folio = folioSaneado(input.folio);
+    const resultados: { productoId: string; ok: boolean; error?: string }[] = [];
+    const filas: NuevaSolicitudProducto[] = [];
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      const prod = await getProductoAdmin(db, it.productoId);
+      if (!prod || !prod.activo) {
+        resultados.push({ productoId: it.productoId, ok: false, error: "Ya no está disponible." });
+        continue;
+      }
+      if (prod.agotado || prod.stock === 0) {
+        resultados.push({ productoId: it.productoId, ok: false, error: "Sin stock por ahora." });
+        continue;
+      }
+      if (prod.segmentoDef) {
+        if (zonaId === undefined) zonaId = await getZonaIdDeCliente(db, cliente.id);
+        const enAudiencia = clienteEnSegmento(
+          { id: cliente.id, calificacion: cliente.calificacion, zonaId, cobradorId: null, alDia: true },
+          prod.segmentoDef,
+        );
+        if (!enAudiencia) {
+          resultados.push({ productoId: it.productoId, ok: false, error: "Ya no está disponible." });
+          continue;
+        }
+      }
+      filas.push({
+        productoId: prod.id,
+        clienteId: cliente.id,
+        productoNombre: prod.nombre,
+        cantidad: cantidadSaneada(it.cantidad),
+        cuotasPreferidas: cuotasPreferidasSaneadas(it.cuotasPreferidas),
+        folio,
+        // Determinista por (nonce, ítem): el reintento del MISMO pedido rebota
+        // en el índice único y no duplica ni una fila.
+        opId: opIdDeterminista("tienda-carrito", `${input.nonce}:${i}`),
+      });
+      resultados.push({ productoId: it.productoId, ok: true });
+    }
+    if (filas.length > 0) await crearSolicitudesDb(db, filas);
+    return { ok: true, resultados };
+  } catch {
+    return { ok: false, error: "No se pudo enviar el pedido. Probá de nuevo." };
   }
 }
 

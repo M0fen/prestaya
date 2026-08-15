@@ -22,5 +22,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/c/", "/admin", "/cobrador", "/api/", "/ingresar", "/mfa", "/demo"],
       },
     ],
+    // Lo público descubrible: la tienda y sus fichas (app/sitemap.ts).
+    sitemap: "https://prestaya.uy/sitemap.xml",
   };
 }
