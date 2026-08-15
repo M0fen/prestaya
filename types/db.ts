@@ -334,6 +334,10 @@ export interface NuevoPago {
   registrado_en?: string | null;
   /** Id de la operación offline (dedupe exactly-once, índice único, ver 0006). */
   op_id?: string | null;
+  /** Bypass EXPLÍCITO del candado atómico de gemelos (0147): el cobrador
+   *  confirmó "pagó dos veces de verdad", o la cola sabe por las horas del
+   *  dispositivo que son dos cobros reales separados (esParteDeParSeparado). */
+  permitir_gemelo?: boolean;
 }
 
 /** Datos para crear un reporte de discrepancia del cliente. */

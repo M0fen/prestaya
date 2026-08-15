@@ -12,7 +12,7 @@
 //  verdad que subía tarde de la cola — y los tests seguían verdes.
 // ─────────────────────────────────────────────────────────────────────────
 import { describe, expect, it } from "vitest";
-import { gemeloReciente, VENTANA_DUPLICADO_MS } from "@/lib/candadoCobro";
+import { gemeloReciente, esParteDeParSeparado, VENTANA_DUPLICADO_MS } from "@/lib/candadoCobro";
 
 // Los casos se expresan en "ms relativos": BASE ancla el reloj y cada pago se
 // vuelve una fila real {monto, registrado_en} como las que ve el servidor.
@@ -110,5 +110,44 @@ describe("candado A DOS LADOS: la ventana es |Δ|, no 'todo lo posterior'", () =
     expect(
       gemeloReciente([{ monto: 600, registrado_en: null }], 600, BASE),
     ).toBeUndefined();
+  });
+});
+
+describe("esParteDeParSeparado — la cola distingue el doble tap del par legítimo", () => {
+  const op = (id: string, deviceTs: number, over: Record<string, unknown> = {}) => ({
+    id, tipo: "pago", clienteId: "cli-1", prestamoId: "cred-1", monto: 600, deviceTs, ...over,
+  });
+
+  it("dos cobros del mismo monto a HORAS de distancia son un par legítimo (bypass)", () => {
+    // El caso que pierde plata: encolados ayer 10:00 y 14:00, drenan HOY — el
+    // sellado colapsa las horas y el 2º moriría como 'duplicado' sin esto.
+    const cola = [op("a", 0), op("b", hs(4))];
+    expect(esParteDeParSeparado(cola[0], cola)).toBe(true);
+    expect(esParteDeParSeparado(cola[1], cola)).toBe(true);
+  });
+
+  it("un doble tap (40 s) NO es par legítimo: que el servidor lo frene", () => {
+    const cola = [op("a", 0), op("b", seg(40))];
+    expect(esParteDeParSeparado(cola[0], cola)).toBe(false);
+    expect(esParteDeParSeparado(cola[1], cola)).toBe(false);
+  });
+
+  it("doble tap + vuelta legítima juntos: los taps SIN bypass (uno muere), la vuelta CON bypass", () => {
+    const cola = [op("a", 0), op("b", seg(40)), op("c", hs(4))];
+    expect(esParteDeParSeparado(cola[0], cola)).toBe(false); // tiene gemelo cercano
+    expect(esParteDeParSeparado(cola[1], cola)).toBe(false); // ídem — el server mata a uno
+    expect(esParteDeParSeparado(cola[2], cola)).toBe(true); // sin vecinos cercanos
+  });
+
+  it("monto distinto, otro crédito u otro cliente no forman par", () => {
+    const cola = [op("a", 0), op("b", hs(4), { monto: 500 })];
+    expect(esParteDeParSeparado(cola[0], cola)).toBe(false);
+    const cola2 = [op("a", 0), op("b", hs(4), { prestamoId: "cred-2" })];
+    expect(esParteDeParSeparado(cola2[0], cola2)).toBe(false);
+  });
+
+  it("una visita 'no pagó' nunca participa", () => {
+    const cola = [op("a", 0), op("b", hs(4), { tipo: "no_pago" })];
+    expect(esParteDeParSeparado(cola[0], cola)).toBe(false);
   });
 });

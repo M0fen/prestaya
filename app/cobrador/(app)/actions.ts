@@ -22,7 +22,7 @@ import {
   getPrestamoActivoPorCliente,
   getPrestamosActivosPorCliente,
 } from "@/lib/data/prestamos";
-import { getPagosDePrestamo, registrarPago, esSobrePago } from "@/lib/data/pagos";
+import { getPagosDePrestamo, registrarPago, esSobrePago, esGemelo } from "@/lib/data/pagos";
 import { subirFotoCliente } from "@/lib/data/fotos";
 import type { Prestamo } from "@/types/db";
 
@@ -448,11 +448,32 @@ export async function registrarPagoCobrador(input: {
         gps_lng,
         registrado_en: registradoEn,
         op_id: input.opId ?? null,
+        // El candado ATÓMICO del RPC (0147) respeta la misma confirmación
+        // explícita que el candado de la acción: "pagó dos veces de verdad".
+        permitir_gemelo: !!input.adelanto,
       });
     } catch (e) {
       // Reintento de una op ya guardada (flush cortado): idempotente → ok.
       if (esDuplicado(e)) {
         duplicado = true;
+      } else if (esGemelo(e)) {
+        // La carrera de dos dispositivos que el chequeo de arriba no ve: el
+        // OTRO toque ganó adentro del lock. El primer cobro YA está en el
+        // libro → mismo tratamiento que el candado de la acción (la cola lo
+        // descarta sin marcarlo atascado; no es plata perdida).
+        await registrarAuditoria(createSupabaseAdmin(), {
+          actorId: usuario.id,
+          actorNombre: usuario.nombre,
+          accion: "Candado frenó un posible doble cobro",
+          entidad: "prestamo",
+          entidadId: prestamo.id,
+          detalle: `${UYU(monto)} repetido — frenado ADENTRO del RPC (carrera de dos dispositivos).`,
+        });
+        return {
+          ok: false,
+          error: `Hace un momento ya registraste ${UYU(monto)} en este crédito. Si el cliente PAGÓ DOS VECES, tocá de nuevo para confirmarlo; si fue sin querer, cerrá esta pantalla — el primer cobro ya está guardado.`,
+          duplicado: true,
+        };
       } else if (esSobrePago(e)) {
         // La carrera perdió: otro pago saldó el crédito primero. PERMANENTE (sin
         // retryable → la cola NO reintenta en loop; se surfacea para reconciliar la

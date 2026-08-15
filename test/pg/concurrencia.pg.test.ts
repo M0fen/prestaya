@@ -64,17 +64,20 @@ describe("concurrencia de dinero (integración PG, 2 conexiones)", () => {
       await A.query("begin");
       await B.query("begin");
       // A toma el advisory lock del crédito y NO commitea (lock retenido).
-      await A.query("select registrar_pago_seguro($1,1,1000,$2,null,null,null,$3)", [prestamoId, cobId, randomUUID()]);
+      // Montos DISTINTOS (600 y 500): lo que se prueba acá es el SOBRE-PAGO
+      // fresco bajo el lock; el mismo-monto concurrente es el gemelo (test
+      // siguiente, P0413 desde 0147).
+      await A.query("select registrar_pago_seguro($1,1,600,$2,null,null,null,$3)", [prestamoId, cobId, randomUUID()]);
       // B intenta cobrar el MISMO crédito → debe bloquearse en el lock.
-      const bProm = B.query("select registrar_pago_seguro($1,1,1000,$2,null,null,null,$3)", [
+      const bProm = B.query("select registrar_pago_seguro($1,1,500,$2,null,null,null,$3)", [
         prestamoId,
         cobId,
         randomUUID(),
       ]);
       bProm.catch(() => {}); // evita unhandledRejection mientras espera
       expect(await pendiente(bProm)).toBe(true); // sigue esperando el lock
-      await A.query("commit"); // libera: acum=1000 queda visible
-      await expect(bProm).rejects.toMatchObject({ code: "P0409" }); // re-chequea fresco → rechaza
+      await A.query("commit"); // libera: acum=600 queda visible
+      await expect(bProm).rejects.toMatchObject({ code: "P0409" }); // 600+500 > 1.001 → rechaza fresco
       await B.query("rollback");
     } finally {
       await A.query("rollback").catch(() => {});
@@ -88,7 +91,68 @@ describe("concurrencia de dinero (integración PG, 2 conexiones)", () => {
       const r = await chk.query("select coalesce(sum(monto),0) s from pagos where prestamo_id=$1 and anulado=false", [
         prestamoId,
       ]);
-      expect(n(r.rows[0].s)).toBe(1000); // un solo cobro, no 2.000
+      expect(n(r.rows[0].s)).toBe(600); // un solo cobro entró
+    } finally {
+      chk.release();
+    }
+  });
+
+  it("doble tap desde DOS dispositivos: el 2º cobro del MISMO monto muere ADENTRO del lock (P0413, 0147)", async () => {
+    // LA carrera que el candado de la Server Action no puede ver: dos SELECT
+    // simultáneos no se ven entre sí. Adentro del advisory lock, el segundo
+    // SIEMPRE ve al primero — el mismo peso ya no entra dos veces.
+    const s = await getPool().connect();
+    let prestamoId = "";
+    let cobId = "";
+    try {
+      const auth = (await s.query("insert into auth.users (email) values ('g@t.test') returning id")).rows[0].id;
+      cobId = (
+        await s.query(
+          "insert into usuarios (nombre,rol,activo,auth_user_id) values ('cob-g','cobrador',true,$1) returning id",
+          [auth],
+        )
+      ).rows[0].id;
+      const cli = (await s.query("insert into clientes (nombre) values ('c-g') returning id")).rows[0].id;
+      prestamoId = (
+        await s.query(
+          "insert into prestamos (cliente_id,cobrador_id,monto_prestado,cuota_diaria,total_dias,fecha_inicio,estado) values ($1,$2,10000,500,20,'2026-01-01','activo') returning id",
+          [cli, cobId],
+        )
+      ).rows[0].id;
+    } finally {
+      s.release();
+    }
+
+    const A = await getPool().connect();
+    const B = await getPool().connect();
+    try {
+      await A.query("begin");
+      await B.query("begin");
+      // Con saldo AMPLIO (10.000): el P0409 jamás frenaría esto — solo el gemelo.
+      await A.query("select registrar_pago_seguro($1,1,500,$2,null,null,null,$3)", [prestamoId, cobId, randomUUID()]);
+      const bProm = B.query("select registrar_pago_seguro($1,1,500,$2,null,null,null,$3)", [
+        prestamoId,
+        cobId,
+        randomUUID(), // op_id DISTINTO: dos toques, no un reintento
+      ]);
+      bProm.catch(() => {});
+      expect(await pendiente(bProm)).toBe(true); // bloqueado en el lock
+      await A.query("commit");
+      await expect(bProm).rejects.toMatchObject({ code: "P0413" }); // gemelo, no plata doble
+      await B.query("rollback");
+    } finally {
+      await A.query("rollback").catch(() => {});
+      await B.query("rollback").catch(() => {});
+      A.release();
+      B.release();
+    }
+
+    const chk = await getPool().connect();
+    try {
+      const r = await chk.query("select coalesce(sum(monto),0) s from pagos where prestamo_id=$1 and anulado=false", [
+        prestamoId,
+      ]);
+      expect(n(r.rows[0].s)).toBe(500); // UN cobro — la carrera ya no duplica
     } finally {
       chk.release();
     }

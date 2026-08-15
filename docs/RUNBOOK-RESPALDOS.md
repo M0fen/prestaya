@@ -155,3 +155,28 @@ Rotar la service key: Dashboard → Settings → API → "Roll" → actualizar V
 **Semanal:** respaldo con `--con-archivos` · copia offsite confirmada · mirar
 `backups_log` en el panel.
 **Trimestral:** drill de restauración (§5) · revisar esta tabla de claves.
+
+---
+
+## 9. Actualización 15-08-2026 — el flujo SIN PITR (decisión de costo)
+
+**PITR quedó DESCARTADO por costo** (decisión de Carlos, 15-08). El escenario #3
+(migración destructiva / error humano en SQL) pasa a cubrirse así, con lo que el
+plan Pro ya incluye más dos piezas propias:
+
+| Capa | Qué cubre | RPO real | Quién la corre |
+|---|---|---|---|
+| Respaldo diario de Supabase (Pro, 7 días) | catástrofe del día anterior | ≤ 24 h | Supabase, solo |
+| `backup-completo.mjs` + `verificar-backup.mjs` | TODO a disco propio, verificado | desde la última corrida | **semanal** (Carlos / sesión de Claude) |
+| **`respaldo-libro.mjs` (NUEVO)** — incremental del dinero | pagos/prestamos/caja/rendiciones/auditoría/bitácora NUEVOS + snapshot de solicitudes/aperturas/asignaciones | **≤ 1 h en jornada** | cada hora, Task Scheduler (comando en el encabezado del script) |
+| **Vigía externo (NUEVO)** — `.github/workflows/vigia.yml` | que vigilantes y respaldos SIGAN corriendo (el 15-08 cazó 12 días sin respaldo) | — | GitHub Actions, diario 12:00Z · **requiere el secret `SUPABASE_DB_URL` en el repo** |
+
+Cómo se recupera una jornada con esto: restaurar el respaldo diario de Supabase
+(o el lógico completo) → aplicar encima los `.jsonl` incrementales del día
+(append-only: van en orden de `registrado_en`, el `op_id` deduplica). La pérdida
+máxima es lo cobrado en la última hora — y eso además sigue VIVO en la cola
+offline de cada teléfono, que re-sincroniza al reconectar.
+
+**El bootstrap importa**: la primera corrida de `respaldo-libro.mjs` solo planta
+la marca de agua (la historia ya está en el completo). `--verificar` compara el
+tramo cubierto fila a fila contra la base viva.

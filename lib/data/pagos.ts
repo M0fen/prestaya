@@ -90,6 +90,15 @@ export function esSobrePago(e: unknown): boolean {
     || (e as { sobrepago?: boolean } | null)?.sobrepago === true;
 }
 
+/** Marca de "gemelo frenado por el candado ATÓMICO del RPC" (0147): el mismo
+ *  monto entró al crédito hace minutos — la carrera de dos dispositivos que el
+ *  chequeo de la acción no puede ver. El llamador lo trata como `duplicado`
+ *  (el primer cobro YA está en el libro; este no es plata perdida). */
+export function esGemelo(e: unknown): boolean {
+  return (e as { code?: string } | null)?.code === "P0413"
+    || (e as { gemelo?: boolean } | null)?.gemelo === true;
+}
+
 /**
  * Registra un pago nuevo. Los pagos NUNCA se editan ni borran: para corregir
  * un error se inserta la anulación (otro paso) sobre el registro existente.
@@ -108,6 +117,9 @@ export async function registrarPago(
   const rpc = await db.rpc("registrar_pago_seguro", {
     p_prestamo_id: pago.prestamo_id,
     p_dia_credito: pago.dia_credito,
+    // Candado atómico de gemelos (0147): solo se salta con confirmación
+    // explícita o par legítimo detectado por la cola (horas del dispositivo).
+    p_permitir_gemelo: pago.permitir_gemelo ?? false,
     // CHOKEPOINT money-critical: entero (el RPC vuelve a redondear). Nunca float al libro.
     p_monto: Math.round(pago.monto),
     p_registrado_por: pago.registrado_por ?? null,
@@ -123,6 +135,8 @@ export async function registrarPago(
   if (code === "42883" || code === "PGRST202") return insertarPagoPlano(db, pago);
   // Sobre-pago detectado bajo el candado → error permanente (que el llamador surfacee).
   if (code === "P0409") throw Object.assign(new Error("SOBREPAGO"), { code: "P0409", sobrepago: true });
+  // Gemelo frenado por el candado ATÓMICO (0147) → el llamador lo mapea a `duplicado`.
+  if (code === "P0413") throw Object.assign(new Error("GEMELO"), { code: "P0413", gemelo: true });
   // 23505 (op_id repetido) y cualquier otro error real → propagar tal cual.
   throw rpc.error;
 }

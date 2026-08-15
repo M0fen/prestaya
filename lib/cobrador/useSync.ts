@@ -18,6 +18,7 @@ import {
   registrarPagoCobrador,
   registrarNoPagoCobrador,
 } from "@/app/cobrador/(app)/actions";
+import { esParteDeParSeparado } from "@/lib/candadoCobro";
 import type { MotivoNoPago } from "@/app/cobrador/(app)/motivos";
 
 export function useSync(usuarioId: string | null, onSynced?: () => void) {
@@ -89,7 +90,12 @@ export function useSync(usuarioId: string | null, onSynced?: () => void) {
                   clienteId: op.clienteId,
                   prestamoId: op.prestamoId ?? null,
                   monto: op.monto,
-                  adelanto: op.adelanto ?? false,
+                  // Bypass del candado de gemelos cuando el TELÉFONO sabe que son
+                  // dos cobros reales separados (misma cola, mismo monto, >10 min
+                  // entre las horas del dispositivo): al drenar al día siguiente
+                  // el sellado del día colapsa las horas y sin esto el segundo
+                  // cobro REAL se confirmaba como "duplicado" — plata perdida.
+                  adelanto: (op.adelanto ?? false) || esParteDeParSeparado(op, listas),
                   gpsLat: op.gpsLat,
                   gpsLng: op.gpsLng,
                   gpsPrecision: op.gpsPrecision ?? null,

@@ -6,18 +6,16 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSync } from "@/lib/cobrador/useSync";
 import { opAtascada } from "@/lib/cobrador/colaOffline";
+import { protegerAlmacenamiento } from "@/lib/cobrador/almacenamiento";
 
 export function SyncEngine({ usuarioId }: { usuarioId: string }) {
   const router = useRouter();
 
-  // Pide almacenamiento PERSISTENTE una sola vez: la cola de cobros sin sincronizar
-  // vive en localStorage, que el navegador/OS puede DESALOJAR bajo presión de
-  // espacio (y iOS Safari purga el storage de una PWA sin uso a los ~7 días). Con
-  // persistencia concedida, el desalojo automático se desactiva → un cobro guardado
-  // no se evapora del teléfono antes de subir. Best-effort: si no está disponible o
-  // se rechaza, no cambia nada (seguimos igual que antes).
+  // Pide almacenamiento PERSISTENTE una sola vez (lib/cobrador/almacenamiento,
+  // CON test): es la única defensa contra el desalojo del OS que evapora cobros
+  // sin subir. Best-effort: si no está disponible o se rechaza, nada cambia.
   useEffect(() => {
-    navigator.storage?.persist?.().catch(() => {});
+    void protegerAlmacenamiento();
   }, []);
 
   const { pendientes, online, sincronizando } = useSync(usuarioId, () => router.refresh());

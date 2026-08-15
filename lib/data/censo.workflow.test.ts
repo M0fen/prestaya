@@ -74,6 +74,7 @@ vi.mock("@/lib/data/pagos", () => ({
   getPagosDePrestamo: vi.fn(),
   registrarPago: vi.fn(),
   esSobrePago: vi.fn(),
+  esGemelo: vi.fn(),
 }));
 vi.mock("@/lib/data/visitas", () => ({ crearVisita: vi.fn() }));
 vi.mock("@/lib/data/bitacora", () => ({ registrarBitacora: (...a: unknown[]) => registrarBitacora(...a) }));

@@ -47,3 +47,50 @@ export function gemeloReciente<T extends PagoPrevioCandado>(
       Math.abs(new Date(p.registrado_en).getTime() - horaCobroMs) <= ventanaMs,
   );
 }
+
+// ── Pares legítimos en la cola offline ──────────────────────────────────────
+
+export interface OpParaPares {
+  id?: string;
+  tipo: string;
+  clienteId: string;
+  prestamoId?: string | null;
+  monto?: number | null;
+  deviceTs: number;
+}
+
+/**
+ * ¿Esta op es parte de un PAR LEGÍTIMO — dos cobros reales del mismo monto al
+ * mismo crédito, tomados con MÁS de la ventana de distancia (la segunda vuelta
+ * de la ruta)?
+ *
+ * Por qué existe: la cola puede drenar AL DÍA SIGUIENTE (teléfono sin señal
+ * toda la tarde). El sellado del día contable colapsa las dos horas a "ahora"
+ * (un cobro no puede fecharse ayer), y con las horas colapsadas el candado de
+ * gemelos vería |Δ| ≈ 0 y confirmaría el segundo cobro REAL como "duplicado" —
+ * plata desapareciendo del libro en silencio. Pero el TELÉFONO sí conoce las
+ * horas verdaderas (deviceTs): si el par está a más de la ventana, son dos
+ * cobros de verdad y el drenaje los manda con el bypass explícito.
+ *
+ * ⚠️ El bypass NO aplica si además hay un gemelo CERCANO en la cola (doble tap
+ * de verdad): ahí se deja que el servidor rechace el duplicado — y el cobro
+ * legítimo lejano, que no tiene vecinos cercanos, pasa con su bypass.
+ */
+export function esParteDeParSeparado(
+  op: OpParaPares,
+  todas: OpParaPares[],
+  ventanaMs: number = VENTANA_DUPLICADO_MS,
+): boolean {
+  const mismoCobro = (o: OpParaPares) =>
+    o !== op &&
+    (o.id == null || op.id == null || o.id !== op.id) &&
+    o.tipo === "pago" &&
+    op.tipo === "pago" &&
+    o.clienteId === op.clienteId &&
+    (o.prestamoId ?? null) === (op.prestamoId ?? null) &&
+    (o.monto ?? null) === (op.monto ?? null);
+  const pares = todas.filter(mismoCobro);
+  const tieneLejano = pares.some((o) => Math.abs(o.deviceTs - op.deviceTs) > ventanaMs);
+  const tieneCercano = pares.some((o) => Math.abs(o.deviceTs - op.deviceTs) <= ventanaMs);
+  return tieneLejano && !tieneCercano;
+}

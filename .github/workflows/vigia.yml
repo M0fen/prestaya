@@ -1,0 +1,30 @@
+# ───────────────────────────────────────────────────────────────────────────
+#  VIGÍA (dead-man's switch) — corre FUERA de Vercel a propósito.
+#  Si los vigilantes nocturnos (cron de Vercel) o los respaldos dejan de
+#  correr, este workflow FALLA y GitHub avisa por mail. El silencio deja de
+#  parecer verde.
+#
+#  Requiere el secret del repo: SUPABASE_DB_URL (Settings → Secrets → Actions).
+#  Sin el secret, el job falla con un mensaje claro — que también es un aviso.
+# ───────────────────────────────────────────────────────────────────────────
+name: vigia
+on:
+  schedule:
+    # 12:00Z = 09:00 en Uruguay — dos horas después del cron de las 10:00Z,
+    # margen de sobra para que una corrida lenta no dé falsa alarma.
+    - cron: "0 12 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  vigia:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-save pg
+      - run: node scripts/vigia-cron.mjs
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}

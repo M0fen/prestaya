@@ -45,10 +45,12 @@ describe("registrar_pago_seguro (integración PG)", () => {
     await withRollback(async (c) => {
       const { cob, prestamoId } = await escenario(c, 1000, 1); // total 1.000
       await c.query(SQL, [prestamoId, 1, 1000, cob.id, null, null, null, randomUUID()]); // salda
+      // Monto DISTINTO (500): no es un gemelo — lo que se prueba acá es el
+      // tope del crédito, no el doble toque (ese es P0413, más abajo).
       await esperaErrorPg(c, "P0409", () =>
-        c.query(SQL, [prestamoId, 1, 1000, cob.id, null, null, null, randomUUID()]),
+        c.query(SQL, [prestamoId, 1, 500, cob.id, null, null, null, randomUUID()]),
       );
-      // El libro quedó intacto: sigue en 1.000, no en 2.000.
+      // El libro quedó intacto: sigue en 1.000.
       expect(await totalPagado(c, prestamoId)).toBe(1000);
     });
   });
@@ -92,9 +94,11 @@ describe("registrar_pago_seguro (integración PG)", () => {
       const { cob, prestamoId } = await escenario(c, 500, 20);
       // Ataque de fecha por REST: fechar el cobro AYER (evadir la rendición de
       // hoy) o MAÑANA (adelantar el día). El clamp usa el día UY del servidor.
+      // Montos DISTINTOS por vuelta: dos iguales a segundos serían un gemelo (0147).
+      let monto = 100;
       for (const truco of ["now() - interval '1 day'", "now() + interval '1 day'"]) {
         const r = await c.query(
-          `select * from registrar_pago_seguro($1, 1, 100, $2, null, null, ${truco}, null)`,
+          `select * from registrar_pago_seguro($1, 1, ${(monto += 100)}, $2, null, null, ${truco}, null)`,
           [prestamoId, cob.id],
         );
         const sellado = await c.query(
@@ -129,6 +133,66 @@ describe("registrar_pago_seguro (integración PG)", () => {
                 is distinct from (now() at time zone 'America/Montevideo')::date as cruzo`,
       );
       if (!cruzoElCorte.rows[0].cruzo) expect(fila.rows[0].conservada).toBe(true);
+    });
+  });
+
+  it("GEMELO ATÓMICO (0147): el mismo monto a minutos rebota P0413 — la carrera de dos dispositivos", async () => {
+    await withRollback(async (c) => {
+      const { cob, prestamoId } = await escenario(c, 500, 20);
+      // El "primer toque" ya está en el libro (registrado hace 2 minutos).
+      await c.query(
+        "insert into pagos (prestamo_id, dia_credito, monto, registrado_por, registrado_en) values ($1,1,500,$2, now() - interval '2 minutes')",
+        [prestamoId, cob.id],
+      );
+      // El segundo toque (op_id DISTINTO — no es un reintento) muere ADENTRO del lock.
+      await esperaErrorPg(c, "P0413", () =>
+        c.query(SQL, [prestamoId, 2, 500, cob.id, null, null, null, null]),
+      );
+      expect(await totalPagado(c, prestamoId)).toBe(500); // un solo cobro en el libro
+    });
+  });
+
+  it("GEMELO: la segunda vuelta de la ruta (30 min después) NO se frena", async () => {
+    await withRollback(async (c) => {
+      const { cob, prestamoId } = await escenario(c, 500, 20);
+      await c.query(
+        "insert into pagos (prestamo_id, dia_credito, monto, registrado_por, registrado_en) values ($1,1,500,$2, now() - interval '30 minutes')",
+        [prestamoId, cob.id],
+      );
+      await c.query(SQL, [prestamoId, 2, 500, cob.id, null, null, null, null]);
+      expect(await totalPagado(c, prestamoId)).toBe(1000);
+    });
+  });
+
+  it("GEMELO: la confirmación explícita (p_permitir_gemelo) lo salta — 'pagó dos veces de verdad'", async () => {
+    await withRollback(async (c) => {
+      const { cob, prestamoId } = await escenario(c, 500, 20);
+      await c.query(
+        "insert into pagos (prestamo_id, dia_credito, monto, registrado_por, registrado_en) values ($1,1,500,$2, now() - interval '2 minutes')",
+        [prestamoId, cob.id],
+      );
+      await c.query(
+        `select * from registrar_pago_seguro($1, 2, 500, $2, null, null, null, null, true)`,
+        [prestamoId, cob.id],
+      );
+      expect(await totalPagado(c, prestamoId)).toBe(1000);
+    });
+  });
+
+  it("GEMELO: un pago ANULADO o IMPORTADO no frena el cobro real", async () => {
+    await withRollback(async (c) => {
+      const { cob, prestamoId } = await escenario(c, 500, 20);
+      await c.query(
+        `insert into pagos (prestamo_id, dia_credito, monto, registrado_por, registrado_en,
+                            anulado, anulado_por, anulado_en, motivo_anulacion)
+         values ($1,1,500,$2, now() - interval '1 minute', true, $2, now(), 'caos: recobro tras anular')`,
+        [prestamoId, cob.id],
+      );
+      await c.query(
+        `insert into pagos (prestamo_id, dia_credito, monto, registrado_por, registrado_en, origen) values ($1,2,500,$2, now() - interval '1 minute', 'disapp_import')`,
+        [prestamoId, cob.id],
+      );
+      await c.query(SQL, [prestamoId, 3, 500, cob.id, null, null, null, null]); // pasa
     });
   });
 

@@ -164,10 +164,32 @@ console.log("═══ TABLERO DE QA · " + new Date().toISOString().slice(0, 16
       (select count(*)::int from aperturas_caja where fecha = (now() at time zone 'America/Montevideo')::date - 1) as ayer,
       (select count(*)::int from usuarios where rol='cobrador' and activo) as cobradores
   `);
+  // ⚠️ PILOTO EN PAUSA (Carlos, 15-08): no se está llevando el día a día en la
+  // app mientras dure esta etapa, así que "0 bases" es lo ESPERADO y no alarma.
+  // Cuando el piloto retome, volver a encender la alarma (< mitad = rojo).
+  linea("Bases cargadas hoy / ayer / cobradores", `${r.hoy} / ${r.ayer} / ${r.cobradores}`);
+  if (r.ayer < Math.ceil(r.cobradores / 2))
+    console.log("     (piloto en pausa — al retomar, esto vuelve a ser señal de alarma)");
+}
+
+// ── 6b · Supervisores SIN zona (decisión de Carlos, 15-08: no pueden existir) ─
+//  Mientras haya alguno, la rama app_supervisor_sin_zonas() les abre TODO
+//  (transición). Cuando este número llegue a 0 y se decida, se quita esa rama
+//  de las policies (migración) y el aislamiento zonal queda sin excepciones.
+{
+  const [r] = await q(`
+    select count(*)::int as sin_zona,
+           (select count(*)::int from usuarios where rol='supervisor' and activo) as total
+    from usuarios u
+    where u.rol='supervisor' and u.activo
+      and not exists (select 1 from supervisor_zonas sz where sz.supervisor_id = u.id)
+  `);
   linea(
-    "Bases cargadas hoy / ayer / cobradores",
-    `${r.hoy} / ${r.ayer} / ${r.cobradores}`,
-    r.ayer < Math.ceil(r.cobradores / 2) ? "menos de la mitad cargó base ayer: la caja vuelve a ser verbal" : null,
+    "Supervisores sin zona / total",
+    `${r.sin_zona} / ${r.total}`,
+    r.sin_zona > 0
+      ? `${r.sin_zona} supervisor(es) ven TODO por la rama de transición — asignar zonas y quitar app_supervisor_sin_zonas()`
+      : null,
   );
 }
 
