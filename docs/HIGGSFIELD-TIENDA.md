@@ -1,10 +1,12 @@
 # Higgsfield × Tienda Presta Ya — el plan de imágenes
 
-> La galería de la ficha YA soporta multi-foto + video + zoom + miniaturas
-> (Embla) — está **hambrienta de contenido, no de código**: hoy los 53
-> productos tienen UNA sola foto. Este documento es la receta completa para
-> generar el paquete con Higgsfield y subirlo. Con 3 tomas por producto la
-> ficha pasa a sentirse Mercado Libre de verdad.
+> **ESTADO (16-08): ✅ EJECUTADO.** Los 11 electro propios ya tienen su galería
+> de 3 tomas (34 imágenes generadas con `nano_banana_2` a 2K vía el MCP de
+> Higgsfield, ~68 créditos) + el banner OG de portada, subidas al bucket
+> `tienda/productos/` y cableadas en `productos.fotos` (script reanudable:
+> `scripts/importar-fotos-higgsfield-0815.mjs`). Quedan como OPCIONALES: las
+> tomas lifestyle de Curbe y los videos 360°. La receta de abajo sirve para
+> regenerar o ampliar el catálogo.
 
 ## Reglas técnicas (para TODAS las imágenes)
 
