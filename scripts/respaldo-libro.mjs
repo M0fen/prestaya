@@ -19,9 +19,12 @@
 //    node --env-file=.env.local scripts/respaldo-libro.mjs
 //    node --env-file=.env.local scripts/respaldo-libro.mjs --verificar
 //
-//  Programarlo (Windows, cada hora de 08:00 a 21:00):
-//    schtasks /create /tn "PrestaYa-respaldo-libro" /sc HOURLY /st 08:00 ^
-//      /tr "cmd /c cd C:\Users\Carlos\Desktop\prestaya && node --env-file=.env.local scripts\respaldo-libro.mjs"
+//  PROGRAMADO (16-08): tarea "PrestaYa-respaldo-libro" cada 15 MIN de 07:00 a
+//  22:00, INVISIBLE vía scripts/respaldo-libro-oculto.vbs (wscript, ventana 0),
+//  salida en respaldos-libro/registro.log. RPO en jornada: ≤ 15 minutos.
+//  Recrearla: schtasks /create /tn "PrestaYa-respaldo-libro" /sc minute /mo 15
+//    /st 07:00 /et 22:00 /k /tr "wscript.exe C:\Users\Carlos\Desktop\prestaya\scripts\respaldo-libro-oculto.vbs"
+//  ⚠️ y verificar en el XML que Duration sea PT15H (el /et localizado se mastica).
 // ─────────────────────────────────────────────────────────────────────────
 import pg from "pg";
 import { mkdirSync, readFileSync, writeFileSync, appendFileSync, existsSync } from "node:fs";
