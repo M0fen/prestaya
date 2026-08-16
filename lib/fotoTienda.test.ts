@@ -7,15 +7,18 @@ const ORIGINAL =
   "https://kvmqlkqfgjimfpzlwsdt.supabase.co/storage/v1/object/public/tienda/demo/03-smart-tv.png";
 
 describe("fotoTienda", () => {
-  it("reescribe el objeto público a render/image con ancho y calidad", () => {
+  it("reescribe a render/image con ancho, ALTO y resize=contain (la geometría completa)", () => {
+    // El caso Carlos (16-08): con `width` solo, el endpoint devolvía
+    // 480×2048 — productos achatados en toda la vitrina. width+height+contain
+    // preserva el aspecto REAL de la foto. Este test fija la URL entera.
     expect(fotoTienda(ORIGINAL, FOTO.tarjeta)).toBe(
-      "https://kvmqlkqfgjimfpzlwsdt.supabase.co/storage/v1/render/image/public/tienda/demo/03-smart-tv.png?width=480&quality=75",
+      "https://kvmqlkqfgjimfpzlwsdt.supabase.co/storage/v1/render/image/public/tienda/demo/03-smart-tv.png?width=480&height=480&resize=contain&quality=75",
     );
   });
 
-  it("cada superficie pide SU ancho (el CDN cachea pocas variantes)", () => {
-    expect(fotoTienda(ORIGINAL, FOTO.mini)).toContain("width=128");
-    expect(fotoTienda(ORIGINAL, FOTO.zoom, 85)).toContain("width=1600&quality=85");
+  it("cada superficie pide SU caja (el CDN cachea pocas variantes)", () => {
+    expect(fotoTienda(ORIGINAL, FOTO.mini)).toContain("width=128&height=128&resize=contain");
+    expect(fotoTienda(ORIGINAL, FOTO.zoom, 85)).toContain("width=1600&height=1600&resize=contain&quality=85");
   });
 
   it("una URL externa pasa TAL CUAL (no romper fotos de otros hosts)", () => {

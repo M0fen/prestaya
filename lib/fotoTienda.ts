@@ -40,5 +40,11 @@ export function fotoTienda(
   // La URL original no lleva query (verificado contra el catálogo vivo); si
   // alguna lo trajera, no la rompemos: no transformamos.
   if (base.includes("?")) return url;
-  return `${base}?width=${Math.round(ancho)}&quality=${Math.round(calidad)}`;
+  // ⚠️ width Y height + resize=contain, SIEMPRE (16-08): con `width` solo,
+  // el endpoint NO mantiene el aspecto — devuelve ancho pedido × ALTURA
+  // ORIGINAL (medido: 480×2048) y la vitrina mostraba productos achatados.
+  // `contain` encaja DENTRO de la caja preservando el aspecto real (una foto
+  // cuadrada sale cuadrada; el banner 16:9 sale 16:9), sin recortar nada.
+  const px = Math.round(ancho);
+  return `${base}?width=${px}&height=${px}&resize=contain&quality=${Math.round(calidad)}`;
 }

@@ -19,7 +19,9 @@ const TOPE_MS = 22_000;
 
 // Banner OG generado (Higgsfield 16-08, bucket tienda/og): compartir /tienda
 // por WhatsApp ahora muestra tarjeta con imagen, como cualquier e-commerce.
-const OG_TIENDA = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/render/image/public/tienda/og/og-tienda.png?width=1200&quality=80`;
+// width+height+contain: con `width` solo el endpoint deforma (no mantiene aspecto).
+// El banner es 16:9 → contain dentro de 1200×1200 lo sirve 1200×670, su forma real.
+const OG_TIENDA = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/render/image/public/tienda/og/og-tienda.png?width=1200&height=1200&resize=contain&quality=80`;
 export const metadata = {
   title: "Tienda Presta Ya — comprá en cuotas cómodas",
   description: "Electrodomésticos, tecnología y más, financiados en cuotas. Elegí lo que necesitás y te contactamos con tu plan de pago.",
