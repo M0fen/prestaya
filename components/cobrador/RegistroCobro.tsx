@@ -265,6 +265,9 @@ export function RegistroCobro({
         prestamoId,
         clienteNombre,
         monto: extra.monto,
+        // Referencia del par legitimo: si va 'cuota completa' (null), el valor
+        // que la pantalla ya conoce — asi el par mixto null/tipeado matchea.
+        montoRef: extra.monto == null && tipo === "pago" && cuotaEfectiva > 0 ? Math.round(cuotaEfectiva) : null,
         motivo: extra.motivo,
         // ⚠️ SIN esta línea la bandera se perdía acá: `cobrar()` la recibía, pero
         // el objeto que se encola no la llevaba (es opcional en OpCobro, así que

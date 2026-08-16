@@ -20,6 +20,11 @@ export interface OpCobro {
    *  principal. Opcional para retro-compatibilidad con ops ya encoladas. */
   prestamoId?: string | null;
   monto: number | null; // pago: monto o null (=cuota). no_pago: null
+  /** Monto de REFERENCIA en pesos cuando monto=null (la cuota efectiva que la
+   *  pantalla ya conocía al encolar). SOLO para detectar pares legítimos en el
+   *  drenaje: "cuota completa" (null) y el mismo valor TIPEADO deben matchear.
+   *  Al servidor sigue viajando monto (null = lo resuelve él). */
+  montoRef?: number | null;
   motivo: string | null; // no_pago: id del motivo
   /** pago: el cobrador CONFIRMÓ que quiere adelantar cuotas (por encima de lo que
    *  toca hoy). Viaja al servidor, que sin esto rechaza el 2º cobro del día sobre
@@ -200,6 +205,18 @@ export function parchearGps(
       o.id === id ? { ...o, gpsLat: lat, gpsLng: lng, gpsPrecision: precision ?? null } : o,
     ),
   );
+}
+
+/**
+ * Estampa adelanto=true EN LA COLA (acta pre-lunes): cuando el drenaje detecta
+ * un par legítimo (dos cobros reales del mismo monto a >10 min por horas del
+ * dispositivo), la decisión tiene que SOBREVIVIR a la pasada — si el 1º entra
+ * y el 2º falla transitorio, la pasada siguiente lo encuentra SOLO en la cola,
+ * ya no ve el par, y sin esta estampa lo mandaba sin bypass → el candado del
+ * servidor lo mataba como "duplicado" y un cobro REAL desaparecía del libro.
+ */
+export function persistirAdelanto(id: string): void {
+  guardar(leer().map((o) => (o.id === id ? { ...o, adelanto: true } : o)));
 }
 
 export function quitar(id: string): void {

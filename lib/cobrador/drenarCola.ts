@@ -65,6 +65,10 @@ export interface DepsDrenaje {
   marcarAtascada(id: string, motivo: string | null): void;
   marcarIntento(id: string): void;
   opAtascada(op: OpCobro): boolean;
+  /** Estampa adelanto=true EN LA COLA: la decisión "es un par legítimo"
+   *  sobrevive a la pasada (si el 2º del par falla transitorio y reintenta
+   *  SOLO, sin esto perdía el bypass y moría como "duplicado"). */
+  persistirAdelanto(id: string): void;
   ahora(): number;
 }
 
@@ -97,6 +101,11 @@ export async function drenarCola(cola: OpCobro[], deps: DepsDrenaje): Promise<Ve
 
   for (const op of listas) {
     const registradoEn = new Date(op.deviceTs).toISOString();
+    // Par legítimo: se decide contra TODA la cola (una op retenida por hold o
+    // atascada sigue contando como par) y se PERSISTE antes de enviar — si esta
+    // pasada se corta a mitad del par, la siguiente conserva la decisión.
+    const esPar = !(op.adelanto ?? false) && op.tipo === "pago" && esParteDeParSeparado(op, cola);
+    if (esPar) deps.persistirAdelanto(op.id);
     try {
       const res =
         op.tipo === "pago"
@@ -104,7 +113,7 @@ export async function drenarCola(cola: OpCobro[], deps: DepsDrenaje): Promise<Ve
               clienteId: op.clienteId,
               prestamoId: op.prestamoId ?? null,
               monto: op.monto,
-              adelanto: (op.adelanto ?? false) || esParteDeParSeparado(op, listas),
+              adelanto: (op.adelanto ?? false) || esPar,
               gpsLat: op.gpsLat,
               gpsLng: op.gpsLng,
               gpsPrecision: op.gpsPrecision ?? null,

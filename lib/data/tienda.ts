@@ -122,6 +122,11 @@ export interface SolicitudProducto {
   estado: EstadoSolicitud;
   nota: string | null;
   creadoEn: string;
+  /** Lo que el cliente ELIGIÓ (0149): la bandeja lo muestra para que la oficina
+   *  negocie desde el pedido real, no desde el default del producto. */
+  folio?: string | null;
+  cantidad?: number;
+  cuotasPreferidas?: number | null;
   /** Quién resolvió el lead (contactó/cerró) y cuándo. */
   resueltoPorNombre?: string | null;
   resueltoEn?: string | null;
@@ -511,7 +516,7 @@ export async function borrarPrecioSegmentoDb(db: SupabaseClient, id: string): Pr
 export async function getSolicitudes(db: SupabaseClient, estado?: EstadoSolicitud): Promise<SolicitudProducto[]> {
   try {
     let q = db.from("solicitudes_producto")
-      .select("id, producto_id, cliente_id, producto_nombre, estado, nota, creado_en, resuelto_por, resuelto_en, clientes(nombre, telefono)");
+      .select("id, producto_id, cliente_id, producto_nombre, estado, nota, creado_en, folio, cantidad, cuotas_preferidas, resuelto_por, resuelto_en, clientes(nombre, telefono)");
     if (estado) q = q.eq("estado", estado);
     const { data, error } = await q.order("creado_en", { ascending: false }).limit(500);
     if (error) throw error;
@@ -521,6 +526,9 @@ export async function getSolicitudes(db: SupabaseClient, estado?: EstadoSolicitu
       clienteTelefono: (r.clientes as { telefono?: string | null } | null)?.telefono ?? null,
       productoNombre: r.producto_nombre as string, estado: r.estado as EstadoSolicitud,
       nota: (r.nota as string | null) ?? null, creadoEn: r.creado_en as string,
+      folio: (r.folio as string | null) ?? null,
+      cantidad: Number(r.cantidad) || 1,
+      cuotasPreferidas: (r.cuotas_preferidas as number | null) ?? null,
       resueltoPor: (r.resuelto_por as string | null) ?? null,
       resueltoEn: (r.resuelto_en as string | null) ?? null,
     }));
@@ -767,6 +775,10 @@ export interface LeadDetalle {
   estado: EstadoSolicitud;
   /** Crédito ya generado si el lead se convirtió (0101). null si no. */
   prestamoId: string | null;
+  /** Lo pedido por el cliente (0149) — la conversión arranca de acá. */
+  folio: string | null;
+  cantidad: number;
+  cuotasPreferidas: number | null;
 }
 
 export async function getSolicitudProductoPorId(db: SupabaseClient, id: string): Promise<LeadDetalle | null> {
@@ -782,6 +794,9 @@ export async function getSolicitudProductoPorId(db: SupabaseClient, id: string):
       productoNombre: (data.producto_nombre as string | null) ?? "Producto",
       estado: data.estado as EstadoSolicitud,
       prestamoId: (data.prestamo_id as string | null | undefined) ?? null,
+      folio: (data.folio as string | null | undefined) ?? null,
+      cantidad: Number(data.cantidad) || 1,
+      cuotasPreferidas: (data.cuotas_preferidas as number | null | undefined) ?? null,
     };
   } catch (e) {
     if (tablaFaltante(e)) return null;

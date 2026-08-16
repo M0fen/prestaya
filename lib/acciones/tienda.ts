@@ -456,39 +456,50 @@ export async function getDatosVentaLead(input: { solicitudId: string }): Promise
       precio: number; interesPct: number; cuotas: number; frecuencia: FrecuenciaProducto;
       personalizado: boolean; tieneCobrador: boolean; cobradorNombre: string | null;
       cobradores: { id: string; nombre: string }[];
+      /** Lo que el cliente PIDIÓ (0149): la venta arranca de acá, no del default. */
+      pedido: { folio: string | null; cantidad: number; cuotasPreferidas: number | null };
     }
   | { ok: false; error: string }
 > {
   const u = await soloAdmin();
   if (!u) return { ok: false, error: "Solo el administrador." };
   if (!esUuid(input.solicitudId)) return { ok: false, error: "Pedido inválido." };
-  const db = await createSupabaseServer();
-  const lead = await getSolicitudProductoPorId(db, input.solicitudId);
-  if (!lead || !lead.productoId) return { ok: false, error: "No se encontró el pedido o su producto." };
-  const [producto, cliente] = await Promise.all([
-    getProductoAdmin(db, lead.productoId),
-    getClientePorId(db, lead.clienteId),
-  ]);
-  if (!producto || !cliente) return { ok: false, error: "El producto o el cliente ya no existe." };
-  const terminos = await getTerminosVentaParaCliente(db, producto, { id: cliente.id, calificacion: cliente.calificacion });
-  const cob = await getCobradorDeCliente(db, cliente.id);
-  // Solo se trae la lista de cobradores si hace falta elegir uno (cliente sin cobrador).
-  let cobradores: { id: string; nombre: string }[] = [];
-  if (!cob) {
-    const { data } = await db.from("usuarios").select("id, nombre").eq("rol", "cobrador").eq("activo", true).order("nombre");
-    cobradores = (data ?? []).map((c) => ({ id: c.id as string, nombre: c.nombre as string }));
+  try {
+    const db = await createSupabaseServer();
+    const lead = await getSolicitudProductoPorId(db, input.solicitudId);
+    if (!lead || !lead.productoId) return { ok: false, error: "No se encontró el pedido o su producto." };
+    const [producto, cliente] = await Promise.all([
+      getProductoAdmin(db, lead.productoId),
+      getClientePorId(db, lead.clienteId),
+    ]);
+    if (!producto || !cliente) return { ok: false, error: "El producto o el cliente ya no existe." };
+    // getTerminosVentaParaCliente LANZA ante un blip (regla de la barrida 15-08:
+    // jamás caer al precio base en silencio) → el catch de abajo lo vuelve un
+    // error CON salida en vez de una pantalla rota.
+    const terminos = await getTerminosVentaParaCliente(db, producto, { id: cliente.id, calificacion: cliente.calificacion });
+    const cob = await getCobradorDeCliente(db, cliente.id);
+    // Solo se trae la lista de cobradores si hace falta elegir uno (cliente sin cobrador).
+    let cobradores: { id: string; nombre: string }[] = [];
+    if (!cob) {
+      const { data } = await db.from("usuarios").select("id, nombre").eq("rol", "cobrador").eq("activo", true).order("nombre");
+      cobradores = (data ?? []).map((c) => ({ id: c.id as string, nombre: c.nombre as string }));
+    }
+    return {
+      ok: true,
+      precio: terminos.precio,
+      interesPct: terminos.interesPct,
+      cuotas: terminos.cuotas,
+      frecuencia: producto.frecuencia,
+      personalizado: terminos.origen !== "base",
+      tieneCobrador: !!cob,
+      cobradorNombre: cob?.cobradorNombre ?? null,
+      cobradores,
+      pedido: { folio: lead.folio, cantidad: lead.cantidad, cuotasPreferidas: lead.cuotasPreferidas },
+    };
+  } catch (e) {
+    reportarError("getDatosVentaLead", e, { solicitudId: input.solicitudId });
+    return { ok: false, error: "No pudimos resolver el precio de este pedido. Reintentá en un momento." };
   }
-  return {
-    ok: true,
-    precio: terminos.precio,
-    interesPct: terminos.interesPct,
-    cuotas: terminos.cuotas,
-    frecuencia: producto.frecuencia,
-    personalizado: terminos.origen !== "base",
-    tieneCobrador: !!cob,
-    cobradorNombre: cob?.cobradorNombre ?? null,
-    cobradores,
-  };
 }
 
 /**

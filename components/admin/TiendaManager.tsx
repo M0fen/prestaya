@@ -784,7 +784,12 @@ function LeadCard({ s, producto, esAdmin }: { s: SolicitudProducto; producto?: P
     getDatosVentaLead({ solicitudId: s.id }).then((d) => {
       if (!vivo || !d.ok) return;
       setDatos(d);
-      if (d.cuotas > 0) setPlazo(d.cuotas); // prefill con el plazo resuelto del cliente
+      // El plazo arranca de lo que el CLIENTE PIDIÓ en la ficha (0149); si no
+      // eligió, el resuelto del producto. Antes su elección moría en la tabla
+      // y la venta salía con otro plan (acta pre-lunes).
+      const pedidas = d.pedido?.cuotasPreferidas ?? 0;
+      if (pedidas > 0) setPlazo(pedidas);
+      else if (d.cuotas > 0) setPlazo(d.cuotas);
       if (d.frecuencia) setFrecuencia(d.frecuencia);
     });
     return () => { vivo = false; };
@@ -830,7 +835,25 @@ function LeadCard({ s, producto, esAdmin }: { s: SolicitudProducto; producto?: P
         </Link>
         <span className="flex-shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-bold" style={{ background: t.bg, color: t.fg }}>{t.label}</span>
       </div>
-      <span className="text-[12.5px] font-medium text-gris">Interesado en: <b className="text-cuerpo">{s.productoNombre}</b></span>
+      <span className="text-[12.5px] font-medium text-gris">
+        Interesado en: <b className="text-cuerpo">{s.productoNombre}</b>
+        {(s.cantidad ?? 1) > 1 && <b className="text-[#B9770E]"> ×{s.cantidad}</b>}
+      </span>
+      {/* Lo que el cliente ELIGIÓ (0149): el folio que él guarda + su plan pedido. */}
+      {(s.folio || (s.cuotasPreferidas ?? 0) > 0) && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {s.folio && (
+            <span className="rounded-full bg-[#EEF3FF] px-2 py-0.5 text-[10.5px] font-black tracking-wide text-[#1E47C8]" title="Folio del comprobante del cliente">
+              {s.folio}
+            </span>
+          )}
+          {(s.cuotasPreferidas ?? 0) > 0 && (
+            <span className="rounded-full bg-[#F4FBF7] px-2 py-0.5 text-[10.5px] font-bold text-[#157A50]" title="El plan que eligió en la ficha">
+              pidió {s.cuotasPreferidas}×
+            </span>
+          )}
+        </div>
+      )}
       <span className="text-[11px] font-medium text-tenue">
         {new Date(s.creadoEn).toLocaleString("es-UY", { timeZone: "America/Montevideo" })}
         {s.resueltoPorNombre && ` · resuelto por ${s.resueltoPorNombre}`}
@@ -893,6 +916,18 @@ function LeadCard({ s, producto, esAdmin }: { s: SolicitudProducto; producto?: P
           ) : (
             <div className="flex flex-col gap-2 rounded-[12px] border border-[#C7D2EC] bg-azul-suave p-3">
               <span className="text-[12.5px] font-extrabold text-[#13308C]">Crear el crédito de venta · {s.productoNombre}</span>
+              {/* El pedido trae ×N unidades pero la venta sale por UNA (el precio
+                  resuelto es unitario): decirlo ANTES de crear el crédito, no
+                  después — la conversión ignoraba la cantidad (acta pre-lunes). */}
+              {(s.cantidad ?? 1) > 1 && (
+                <span className="rounded-[8px] bg-[#FDF3E2] px-2.5 py-1.5 text-[11.5px] font-bold text-[#B9770E]">
+                  ⚠️ El cliente pidió ×{s.cantidad} unidades. Esta venta sale por UNA — coordiná el resto
+                  aparte o creá {s.cantidad} ventas.
+                </span>
+              )}
+              {(s.cuotasPreferidas ?? 0) > 0 && (
+                <span className="text-[11px] font-semibold text-[#157A50]">El cliente eligió {s.cuotasPreferidas} cuotas en la ficha (precargado abajo).</span>
+              )}
               <div className="flex flex-wrap items-end gap-2">
                 <label className="flex flex-col gap-0.5">
                   <span className="text-[10.5px] font-bold text-gris">Cuotas</span>

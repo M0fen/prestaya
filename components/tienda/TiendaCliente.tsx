@@ -98,11 +98,21 @@ export function TiendaCliente({
   //  cierra la ficha en vez de expulsar al comprador de la tienda entera, y la
   //  URL del producto se puede compartir tal cual desde la barra del navegador.
   const abrirProducto = (p: ProductoParaCliente) => {
+    // ¿Ya hay una ficha abierta? (saltos entre "también te puede interesar")
+    const yaAbierta = abierto != null;
     setAbierto(p);
     try {
       const u = new URL(window.location.href);
       u.searchParams.set("producto", p.id);
-      window.history.pushState({ __detalleTienda: p.id }, "", u);
+      // UNA sola entrada de historial por sesión de ficha (acta pre-lunes): con
+      // push por cada relacionado, cerrar hacía back() de UN paso y el popstate
+      // aterrizaba en la ficha ANTERIOR → el sheet se reabría solo. Con replace,
+      // atrás/cerrar siempre cae en el catálogo.
+      if (yaAbierta && window.history.state?.__detalleTienda) {
+        window.history.replaceState({ __detalleTienda: p.id }, "", u);
+      } else {
+        window.history.pushState({ __detalleTienda: p.id }, "", u);
+      }
     } catch { /* la URL es mejora progresiva: la ficha abre igual */ }
   };
   const cerrarProducto = () => {

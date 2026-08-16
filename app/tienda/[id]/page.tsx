@@ -3,6 +3,7 @@
 // Mercado Libre: cada producto es compartible y muestra su tarjeta al pegar el link.
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { esUuid } from "@/lib/idempotencia";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getProductosPublicos, getProductoPublicoPorId } from "@/lib/data/tienda";
 import { getUsuarioActual, rutaHome } from "@/lib/auth";
@@ -30,6 +31,9 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function ProductoPublicoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  // Un id que ni siquiera es uuid es un 404, no un error de servidor (antes el
+  // 22P02 de Postgres subía al error.tsx — "no pudimos cargar" por una URL rota).
+  if (!esUuid(id)) notFound();
   const db = createSupabaseAdmin();
   // El catch fino quedó en la capa de datos (tabla ausente → null); cualquier
   // blip real sube al error.tsx — un timeout YA NO se disfraza de 404.
@@ -61,7 +65,9 @@ export default async function ProductoPublicoPage({ params }: { params: Promise<
     // overflow-x-clip: la banda 100vw de la cabecera generaba un bamboleo
     // horizontal de un par de píxeles en esta ruta (las otras dos ya lo tenían).
     <div className="flex min-h-screen justify-center overflow-x-clip bg-fondo text-tinta">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      {/* `<` escapado (acta pre-lunes): la descripción es texto libre del admin y
+          un "</script>" literal cortaría el tag en una página PÚBLICA. */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <div className="flex w-full max-w-[480px] flex-col gap-3 bg-[#EBEEF5] px-[18px] pt-4 pb-12 shadow-[0_0_60px_rgba(15,27,61,0.08)] md:max-w-[1120px] md:px-8 md:pt-6">
         <div className="flex items-center justify-between">
           <Link href="/tienda" className="flex items-center gap-2">

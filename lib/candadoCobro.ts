@@ -56,8 +56,15 @@ export interface OpParaPares {
   clienteId: string;
   prestamoId?: string | null;
   monto?: number | null;
+  /** Monto de referencia cuando monto=null ("cuota completa" — la pantalla lo
+   *  conocía al encolar). Sin él, cuota-null y el MISMO valor tipeado no
+   *  matcheaban y el par mixto perdía el bypass (acta pre-lunes). */
+  montoRef?: number | null;
   deviceTs: number;
 }
+
+/** El monto con el que se COMPARA un par (el que la pantalla conocía). */
+const montoDePar = (o: OpParaPares) => o.monto ?? o.montoRef ?? null;
 
 /**
  * ¿Esta op es parte de un PAR LEGÍTIMO — dos cobros reales del mismo monto al
@@ -88,7 +95,7 @@ export function esParteDeParSeparado(
     op.tipo === "pago" &&
     o.clienteId === op.clienteId &&
     (o.prestamoId ?? null) === (op.prestamoId ?? null) &&
-    (o.monto ?? null) === (op.monto ?? null);
+    montoDePar(o) === montoDePar(op);
   const pares = todas.filter(mismoCobro);
   const tieneLejano = pares.some((o) => Math.abs(o.deviceTs - op.deviceTs) > ventanaMs);
   const tieneCercano = pares.some((o) => Math.abs(o.deviceTs - op.deviceTs) <= ventanaMs);

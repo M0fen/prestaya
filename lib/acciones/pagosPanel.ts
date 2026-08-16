@@ -21,7 +21,7 @@ import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { alcanceDelActor } from "@/lib/data/alcance";
 import { getClientePorId } from "@/lib/data/clientes";
 import { getPrestamoActivoPorCliente, getPrestamosActivosPorCliente } from "@/lib/data/prestamos";
-import { getPagosDePrestamo, registrarPago, esSobrePago } from "@/lib/data/pagos";
+import { getPagosDePrestamo, registrarPago, esSobrePago, esGemelo } from "@/lib/data/pagos";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { calcularEstadosCarton } from "@/lib/cartones";
 import { hoyUY } from "@/lib/fecha";
@@ -36,7 +36,7 @@ export const CANALES_PAGO: Record<string, string> = {
 
 export type ResultadoPagoPanel =
   | { ok: true; dia: number; monto: number }
-  | { ok: false; error: string };
+  | { ok: false; error: string; gemelo?: boolean };
 
 // op_id DETERMINISTA (uuid v5-like) para idempotencia del pago de panel: dos
 // registros del MISMO pago (préstamo+día+monto+canal) dentro del mismo MINUTO
@@ -53,6 +53,9 @@ export async function registrarPagoPanel(input: {
   /** Nonce de idempotencia generado por el cliente (uuid, estable por-envío):
    *  deduplica reintentos del MISMO submit sin descartar un 2º pago legítimo. */
   idempotencyKey?: string | null;
+  /** El gestor CONFIRMÓ que el pago idéntico a minutos del anterior es real
+   *  (espejo del "adelanto" del cobrador): salta el candado atómico 0147. */
+  confirmarGemelo?: boolean;
 }): Promise<ResultadoPagoPanel> {
   // Puerta por rol (redirige si no es gestor). Va FUERA del try para no tragarse
   // el redirect como "error genérico".
@@ -132,11 +135,24 @@ export async function registrarPagoPanel(input: {
         gps_lng: null,
         registrado_en: null,
         op_id: opId,
+        permitir_gemelo: !!input.confirmarGemelo,
       });
     } catch (e) {
       // El índice único frenó un duplicado (doble-submit/retry/dos gestores):
       // el pago ya quedó registrado → éxito idempotente, sin re-auditar.
       if ((e as { code?: string } | null)?.code === "23505") return { ok: true, dia, monto };
+      // Candado atómico de gemelos (0147): el MISMO monto entró a este crédito
+      // hace minutos. Puede ser doble-submit… o un 2º pago idéntico LEGÍTIMO
+      // (transferencia + efectivo, dos cuotas juntas). Antes esto caía al catch
+      // genérico "Probá de nuevo" — un reintento FÚTIL: rebota igual 10 minutos.
+      // Ahora la oficina decide con un botón de confirmación (acta pre-lunes).
+      if (esGemelo(e)) {
+        return {
+          ok: false,
+          gemelo: true,
+          error: `Hace unos minutos ya entró un pago de $${monto.toLocaleString("es-UY")} a este crédito. Si es OTRO pago real (transferencia + efectivo, dos cuotas), confirmalo; si fue el mismo, ya está registrado.`,
+        };
+      }
       // Sobre-pago rechazado bajo el candado (RPC 0079): otro pago concurrente saldó
       // el crédito primero → NO se registra (evita el sobre-cobro). Se avisa claro.
       if (esSobrePago(e)) {
@@ -152,7 +168,8 @@ export async function registrarPagoPanel(input: {
       accion: `Registró un pago desde el panel (${canalLabel})`,
       entidad: "pago",
       entidadId: prestamo.id,
-      detalle: `${cliente.nombre} · $${monto.toLocaleString("es-UY")} · día ${dia}`,
+      // El bypass del candado deja rastro: quién confirmó que el gemelo era real.
+      detalle: `${cliente.nombre} · $${monto.toLocaleString("es-UY")} · día ${dia}${input.confirmarGemelo ? " · 2º pago idéntico CONFIRMADO por el gestor" : ""}`,
     });
 
     revalidatePath(`/admin/clientes/${clienteId}`);

@@ -40,14 +40,15 @@ export type AlcanceZonas =
   | { tipo: "ninguna" };
 
 /**
- * Regla de transición segura: un supervisor SIN zonas asignadas ve TODO.
- * Antes de configurar zonas, todos los clientes/cobradores tienen zona = null;
- * si restringiéramos de una, el supervisor quedaría ciego. Al asignarle su
- * primera zona, la restricción se activa. Este mismo criterio se replica en
- * la RLS (0031). Es un default de compatibilidad, no una laguna: apenas el
- * admin le pone una zona, deja de ver el resto.
+ * REGLA DE CARLOS (15-08): "no puede existir supervisor sin zona". La 0148
+ * cerró la rama de transición en la RLS; esta constante es su ESPEJO en la
+ * capa app (el panel resuelve con service_role acotado por alcanceDelActor —
+ * 38 archivos, lectura Y escritura). Con `false`, un supervisor a medio dar
+ * de alta no ve NADA hasta que el admin le asigne su zona — la asignación es
+ * parte del alta, y el tablero-qa vigila el contador "Supervisores sin zona".
+ * (La transición original ya cumplió: los 3 supervisores activos tienen zona.)
  */
-export const SUPERVISOR_SIN_ZONAS_VE_TODO = true;
+export const SUPERVISOR_SIN_ZONAS_VE_TODO = false;
 
 const zonasDe = (actor: Actor): string[] =>
   (actor.zonasSupervisadas ?? []).filter((z): z is string => !!z);

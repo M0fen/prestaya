@@ -33,12 +33,14 @@ function deps(respuestas: Record<string, ResultadoAccion | Error>): DepsDrenaje 
   confirmadas: string[];
   atascadas: { id: string; motivo: string | null }[];
   intentos: string[];
+  adelantos: string[];
   enviadas: { id: string; adelanto?: boolean }[];
 } {
   const d = {
     confirmadas: [] as string[],
     atascadas: [] as { id: string; motivo: string | null }[],
     intentos: [] as string[],
+    adelantos: [] as string[],
     enviadas: [] as { id: string; adelanto?: boolean }[],
     registrarPago: vi.fn(async (input: { opId: string; adelanto: boolean }) => {
       d.enviadas.push({ id: input.opId, adelanto: input.adelanto });
@@ -56,6 +58,7 @@ function deps(respuestas: Record<string, ResultadoAccion | Error>): DepsDrenaje 
     marcarAtascada: (id: string, motivo: string | null) => d.atascadas.push({ id, motivo }),
     marcarIntento: (id: string) => d.intentos.push(id),
     opAtascada: (o: OpCobro) => (o.intentos ?? 0) >= MAX_INTENTOS_SYNC,
+    persistirAdelanto: (id: string) => d.adelantos.push(id),
     ahora: () => AHORA,
   };
   return d;
@@ -168,6 +171,44 @@ describe("drenarCola · pares legítimos (las horas del dispositivo mandan)", ()
     expect(d.enviadas).toEqual([
       { id: "a", adelanto: false },
       { id: "b", adelanto: false },
+    ]);
+  });
+
+  it("PASADA PARTIDA (acta pre-lunes): la decisión del par se PERSISTE antes de enviar — el 2º que falla transitorio no pierde el bypass al reintentar SOLO", async () => {
+    // Pasada 1: par a 4 h, el 1º entra, el 2º cae ambiguo (timeout de DB).
+    const d1 = deps({ a: { ok: true }, b: { ok: false, retryable: true } });
+    const parA = op("a", { deviceTs: AHORA - 5 * 3600_000 });
+    const parB = op("b", { deviceTs: AHORA - 3600_000 });
+    await drenarCola([parA, parB], d1);
+    // La estampa se escribió PARA LOS DOS antes de enviar: sobrevive a la pasada.
+    expect(d1.adelantos).toEqual(["a", "b"]);
+    // Pasada 2 (25 s después): "b" está SOLO en la cola, pero llega con el
+    // adelanto persistido → el bypass viaja igual. Sin la estampa, acá moría
+    // como "duplicado" contra el 1º recién sellado — plata real perdida.
+    const d2 = deps({ b: { ok: true } });
+    await drenarCola([{ ...parB, adelanto: true }], d2);
+    expect(d2.enviadas).toEqual([{ id: "b", adelanto: true }]);
+  });
+
+  it("una op RETENIDA por hold también cuenta como par (la decisión mira TODA la cola)", async () => {
+    const d = deps({});
+    const enHold = op("b", { deviceTs: AHORA - 3600_000, holdHasta: AHORA + 5_000 });
+    await drenarCola([op("a", { deviceTs: AHORA - 5 * 3600_000 }), enHold], d);
+    // Solo "a" se envía (b retenida), pero el par SE VIO y los dos quedan estampados.
+    expect(d.enviadas).toEqual([{ id: "a", adelanto: true }]);
+    expect(d.adelantos).toContain("a");
+  });
+
+  it("PAR MIXTO (acta pre-lunes): 'cuota completa' (null + montoRef) y el mismo valor TIPEADO matchean", async () => {
+    const d = deps({});
+    const cola = [
+      op("a", { deviceTs: AHORA - 5 * 3600_000, monto: null, montoRef: 600 }),
+      op("b", { deviceTs: AHORA - 3600_000, monto: 600 }),
+    ];
+    await drenarCola(cola, d);
+    expect(d.enviadas).toEqual([
+      { id: "a", adelanto: true },
+      { id: "b", adelanto: true },
     ]);
   });
 });

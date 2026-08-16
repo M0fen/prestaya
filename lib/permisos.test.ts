@@ -48,8 +48,11 @@ describe("alcanceZonas", () => {
     }
   });
 
-  it("supervisor SIN zonas ve todo (fallback de transición)", () => {
-    expect(alcanceZonas(supervisorSinZonas)).toEqual({ tipo: "todas" });
+  it("supervisor SIN zonas no ve NADA (regla de Carlos 15-08, espejo de la 0148)", () => {
+    // La transición terminó: la asignación de zona es parte del alta. Antes el
+    // fallback le abría TODO el panel (lectura y escritura) al supervisor a
+    // medio dar de alta — la escotilla que la 0148 cerró en la base.
+    expect(alcanceZonas(supervisorSinZonas)).toEqual({ tipo: "ninguna" });
   });
 
   it("cobrador alcanza su propia zona", () => {
@@ -180,9 +183,9 @@ describe("aislamiento de ESCRITURA por zona (espejo RLS 0035)", () => {
     expect(puedeEscribirEnZona(supervisorA, null)).toBe(true);
   });
 
-  it("supervisor sin zonas escribe en todas (transición), supervisor AB en A y B", () => {
-    expect(puedeEscribirEnZona(supervisorSinZonas, ZA)).toBe(true);
-    expect(puedeEscribirEnZona(supervisorSinZonas, ZB)).toBe(true);
+  it("supervisor sin zonas NO escribe en ninguna (0148); supervisor AB en A y B", () => {
+    expect(puedeEscribirEnZona(supervisorSinZonas, ZA)).toBe(false);
+    expect(puedeEscribirEnZona(supervisorSinZonas, ZB)).toBe(false);
     expect(puedeEscribirEnZona(supervisorAB, ZA)).toBe(true);
     expect(puedeEscribirEnZona(supervisorAB, ZB)).toBe(true);
   });

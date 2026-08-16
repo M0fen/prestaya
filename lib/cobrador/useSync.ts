@@ -12,6 +12,7 @@ import {
   marcarIntento,
   opAtascada,
   pendientes,
+  persistirAdelanto,
   suscribir,
 } from "@/lib/cobrador/colaOffline";
 import {
@@ -70,6 +71,7 @@ export function useSync(usuarioId: string | null, onSynced?: () => void) {
         marcarAtascada,
         marcarIntento,
         opAtascada,
+        persistirAdelanto,
         ahora: Date.now,
       });
     } finally {

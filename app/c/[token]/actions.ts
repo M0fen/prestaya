@@ -195,9 +195,11 @@ export async function pedirCarritoCliente(input: {
         cantidad: cantidadSaneada(it.cantidad),
         cuotasPreferidas: cuotasPreferidasSaneadas(it.cuotasPreferidas),
         folio,
-        // Determinista por (nonce, ítem): el reintento del MISMO pedido rebota
-        // en el índice único y no duplica ni una fila.
-        opId: opIdDeterminista("tienda-carrito", `${input.nonce}:${i}`),
+        // Determinista por (nonce, PRODUCTO) — no por índice: si el ítem 2 falla
+        // y el reintento llega con menos ítems, los índices se corren y el op_id
+        // del producto B tomaba el del producto A ya insertado → 23505 → el
+        // pedido de B se perdía con "¡enviado!" en pantalla (acta pre-lunes).
+        opId: opIdDeterminista("tienda-carrito", `${input.nonce}:${prod.id}`),
       });
       resultados.push({ productoId: it.productoId, ok: true });
     }

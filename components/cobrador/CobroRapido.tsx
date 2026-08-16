@@ -162,6 +162,9 @@ export function CobroRapido({
         // lo que sea menor): así un crédito al que le quedan $200 no recibe una
         // cuota de $750, y el dinero nunca se calcula en el teléfono.
         monto: null,
+        // Referencia del par legitimo (acta pre-lunes): la cuota que la pantalla
+        // conoce, para que 'cuota completa' y el mismo valor TIPEADO matcheen.
+        montoRef: cuota > 0 ? Math.round(cuota) : null,
         motivo: null,
         adelanto: false,
         gpsLat: null,

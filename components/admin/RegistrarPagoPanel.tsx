@@ -41,15 +41,19 @@ export function RegistrarPagoPanel({
   const [canal, setCanal] = useState("efectivo");
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
+  // Candado 0147: el server detectó un pago IDÉNTICO hace minutos y pide
+  // confirmación explícita ("¿es OTRO pago real?") en vez de rebotar sin salida.
+  const [gemelo, setGemelo] = useState(false);
   const [pending, startTransition] = useTransition();
   // Nonce de idempotencia: MISMO valor mientras el envío no tenga éxito (un retry
   // tras timeout deduplica en el servidor); se RENUEVA al confirmar (un pago nuevo
   // es una operación nueva y no se descarta aunque sea idéntico).
   const nonceRef = useRef<string>("");
 
-  function enviar() {
+  function enviar(confirmarGemelo = false) {
     setError(null);
     setOk(null);
+    if (!confirmarGemelo) setGemelo(false);
     const bruto = monto.trim();
     const m = bruto === "" ? null : Math.round(Number(bruto));
     if (m !== null && (!Number.isFinite(m) || m <= 0)) {
@@ -58,10 +62,13 @@ export function RegistrarPagoPanel({
     }
     if (!nonceRef.current) nonceRef.current = nuevoNonce();
     startTransition(async () => {
-      const r = await registrarPagoPanel({ clienteId, prestamoId, monto: m, canal, idempotencyKey: nonceRef.current });
-      if (!r.ok) setError(r.error); // se mantiene el nonce → un reintento deduplica
-      else {
+      const r = await registrarPagoPanel({ clienteId, prestamoId, monto: m, canal, idempotencyKey: nonceRef.current, confirmarGemelo });
+      if (!r.ok) {
+        setError(r.error); // se mantiene el nonce → un reintento deduplica
+        setGemelo(!!r.gemelo); // pago idéntico a minutos: ofrecer la confirmación
+      } else {
         nonceRef.current = nuevoNonce(); // próximo pago = nueva operación
+        setGemelo(false);
         setOk(`✓ Pago de $${r.monto.toLocaleString("es-UY")} registrado (día ${r.dia}).`);
         setMonto("");
         router.refresh();
@@ -127,7 +134,7 @@ export function RegistrarPagoPanel({
         <button
           type="button"
           disabled={pending}
-          onClick={enviar}
+          onClick={() => enviar()}
           className="rounded-[12px] bg-[#1FA971] px-4 py-2 text-[13px] font-bold text-white disabled:opacity-40"
         >
           {pending ? "Registrando…" : "Confirmar"}
@@ -137,6 +144,12 @@ export function RegistrarPagoPanel({
         Se imputa al primer día pendiente. Queda en auditoría. Vacío = una cuota.
       </p>
       {error && <span className="text-[11px] font-bold text-[#C0392B]">{error}</span>}
+      {gemelo && (
+        <button type="button" disabled={pending} onClick={() => enviar(true)}
+          className="w-fit rounded-full bg-[#B9770E] px-4 py-2 text-[12px] font-extrabold text-white active:scale-95 disabled:opacity-60">
+          Sí, es OTRO pago real — registrarlo
+        </button>
+      )}
       {ok && <span className="text-[11px] font-bold text-[#157A50]">{ok}</span>}
     </div>
   );

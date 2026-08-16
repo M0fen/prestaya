@@ -103,8 +103,9 @@ export async function pedirCarritoPublico(input: {
     const filas: NuevoLeadPublico[] = items.map((it, i) => {
       const cant = Math.max(1, Math.min(50, Math.round(Number(it.cantidad) || 1)));
       const cuotasPref = Math.round(Number(it.cuotasPreferidas));
+      const pid = it.productoId && esUuid(it.productoId) ? it.productoId : null;
       return {
-        productoId: it.productoId && esUuid(it.productoId) ? it.productoId : null,
+        productoId: pid,
         productoNombre: (it.productoNombre ?? "").toString().trim().slice(0, 120) || null,
         nombre,
         telefono: tel,
@@ -112,8 +113,10 @@ export async function pedirCarritoPublico(input: {
         cantidad: cant,
         cuotasPreferidas: Number.isFinite(cuotasPref) && cuotasPref >= 1 && cuotasPref <= 1000 ? cuotasPref : null,
         folio,
-        // Determinista por (nonce, ítem): el reintento del MISMO pedido rebota.
-        opId: nonce ? opIdDeterminista("lead-publico", `${nonce}:${i}`) : null,
+        // Determinista por (nonce, PRODUCTO): el reintento con menos ítems no
+        // corre los índices ni cruza op_ids entre productos. El ítem sin uuid
+        // cae al índice (dos sin-uuid no deben compartir op dentro del lote).
+        opId: nonce ? opIdDeterminista("lead-publico", `${nonce}:${pid ?? i}`) : null,
       };
     });
     await crearLeadsPublicosDb(db, filas);
