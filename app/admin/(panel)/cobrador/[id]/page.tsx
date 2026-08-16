@@ -347,7 +347,7 @@ function Parada({ x, n }: { x: ParadaRuta; n: number }) {
     <li className={`flex items-center gap-3 px-3.5 py-2.5 ${pendiente ? "bg-[#FCFDFF]" : ""}`}>
       <span className="w-6 flex-shrink-0 text-right text-[11.5px] font-bold text-tenue-2 tabular-nums">{n}</span>
       <div className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-[13.5px] font-bold text-tinta">{x.nombre}</span>
+        <span className="line-clamp-2 break-words leading-[1.2] text-[13.5px] font-bold text-tinta">{x.nombre}</span>
         <span className="flex flex-wrap items-center gap-x-2 text-[11.5px] font-medium text-tenue tabular-nums">
           {x.cuota > 0 && <span>cuota {UYU(x.cuota)}</span>}
           {/* ⚠️ EL ATRASO. El cliente que SOLO debe deuda vieja tiene cuota $0, así

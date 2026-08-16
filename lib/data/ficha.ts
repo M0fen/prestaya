@@ -84,6 +84,8 @@ export interface CreditoActivoFicha {
   productoNombre: string | null;
   /** Crédito anterior que este renovó (linaje, 0116). null = no vino de renovación. */
   renovadoDe: string | null;
+  /** Capital prestado (para el botón "Cancelar esta venta" del panel). */
+  monto: number;
 }
 export interface FichaCliente {
   cliente: Cliente;
@@ -143,6 +145,7 @@ export async function getFichaCliente(
       origen: pr.origen,
       productoNombre: pr.producto_nombre,
       renovadoDe: (pr.renovado_de as string | null | undefined) ?? null,
+      monto: Math.round(Number(pr.monto_prestado) || 0),
     };
   });
 

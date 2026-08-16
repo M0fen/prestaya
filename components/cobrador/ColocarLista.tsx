@@ -549,7 +549,7 @@ function Tarjeta({
     <div className="flex flex-col gap-2.5 rounded-[16px] border border-borde bg-tarjeta p-4">
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 flex-col">
-          <span className="truncate text-[15px] font-extrabold text-tinta">{c.nombre}</span>
+          <span className="line-clamp-2 break-words leading-[1.2] text-[15px] font-extrabold text-tinta">{c.nombre}</span>
           <span className="text-[11.5px] font-semibold text-gris tabular-nums">
             {modo === "renovar"
               ? `Terminó de pagar ✓ · ${UYU(sugeridoRenov)}${c.desde ? ` · desde ${diaMes(c.desde)}` : ""}`

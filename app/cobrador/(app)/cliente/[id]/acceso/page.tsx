@@ -58,7 +58,7 @@ export default async function AccesoClientePage({
           {inicial}
         </div>
         <div className="flex min-w-0 flex-col">
-          <span className="truncate text-[15px] font-extrabold text-tinta">{cliente.nombre}</span>
+          <span className="line-clamp-2 break-words leading-[1.2] text-[15px] font-extrabold text-tinta">{cliente.nombre}</span>
           <span className="text-[11.5px] font-semibold text-gris tabular-nums">
             {cliente.numero_registro != null ? `Registro N.º ${cliente.numero_registro}` : "Sin nº de registro"}
             {cliente.telefono ? ` · ${cliente.telefono}` : " · sin teléfono"}

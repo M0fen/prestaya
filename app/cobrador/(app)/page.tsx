@@ -300,7 +300,7 @@ export default async function RutaPage() {
             )}
           </div>
           <div className={jornada.colocado > 0 ? "grid grid-cols-4 gap-1.5" : "grid grid-cols-3 gap-2"}>
-            <CajaDato label="Base recibida" valor={UYU(jornada.base)} />
+            <CajaDato label={jornada.baseOrigen === "arrastre" ? "Base (tu caja de ayer)" : "Base recibida"} valor={UYU(jornada.base)} />
             <CajaDato label="Cobrado" valor={UYU(jornada.recaudado)} tono="var(--color-verde-osc)" />
             {jornada.colocado > 0 && (
               <CajaDato label="Colocaste" valor={`−${UYU(jornada.colocado)}`} tono="var(--color-violeta-osc)" />
@@ -309,8 +309,8 @@ export default async function RutaPage() {
           </div>
           {!jornada.yaRendida && (
             <p className="mt-2 text-[11px] leading-[1.45] font-medium text-tenue">
-              Es lo que deberías tener encima ahora — y lo que el cierre te va a pedir entregar
-              {jornada.base > 0 ? " (la base se devuelve)" : ""}.
+              Es lo que deberías tener encima ahora. Al cerrar, lo que te quedes queda como tu
+              caja de mañana; el resto lo entregás.
               {jornada.colocado > 0 &&
                 ` Los ${UYU(jornada.colocado)} que pusiste en la calle (${jornada.creditosColocados} ${jornada.creditosColocados === 1 ? "crédito" : "créditos"}) ya están descontados: no te los van a pedir.`}
               {/* Base $0 a la mañana: puede ser real o que el supervisor no la cargó
@@ -431,6 +431,7 @@ export default async function RutaPage() {
           gastosHoy={jornada.gastosHoy}
           gastosPendientes={gastosPendientes}
           base={jornada.base}
+          baseOrigen={jornada.baseOrigen}
           colocado={jornada.colocado}
           creditosColocados={jornada.creditosColocados}
           yaRendida={jornada.yaRendida}

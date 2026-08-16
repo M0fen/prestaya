@@ -144,7 +144,8 @@ export async function getActividad(
     db
       .from("prestamos")
       .select("id, monto_prestado, creado_por, creado_en, producto_nombre, frecuencia, clientes(nombre)")
-      .is("disapp_credit_id", null),
+      .is("disapp_credit_id", null)
+      .neq("estado", "cancelado"), // una venta deshecha no es "Colocó un crédito"
     "creado_en",
   )
     .order("creado_en", { ascending: false })
@@ -364,6 +365,7 @@ export async function getResumenHoy(db: SupabaseClient): Promise<ResumenHoy> {
         .from("prestamos")
         .select("id", { count: "exact", head: true })
         .is("disapp_credit_id", null)
+        .neq("estado", "cancelado")
         .gte("creado_en", hoy)
         .then((r) => r.count ?? 0),
       0,

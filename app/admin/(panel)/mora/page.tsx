@@ -136,7 +136,7 @@ export default async function MoraPage({
                 <div className="flex min-w-0 flex-1 flex-col">
                   <Link
                     href={`/admin/clientes/${m.clienteId}`}
-                    className="truncate text-[14px] font-bold text-tinta hover:text-azul"
+                    className="line-clamp-2 break-words leading-[1.2] text-[14px] font-bold text-tinta hover:text-azul"
                   >
                     {m.nombre}
                   </Link>
@@ -239,7 +239,7 @@ export default async function MoraPage({
                 <div className="flex min-w-0 flex-1 flex-col">
                   <Link
                     href={`/admin/clientes/${c.clienteId}`}
-                    className="truncate text-[15px] font-extrabold text-tinta hover:text-azul"
+                    className="line-clamp-2 break-words leading-[1.2] text-[15px] font-extrabold text-tinta hover:text-azul"
                   >
                     {c.nombre}
                   </Link>

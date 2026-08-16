@@ -12,6 +12,7 @@ import { alcanceDelActor } from "@/lib/data/alcance";
 import { puedeReasignarCliente } from "@/lib/permisos";
 import { AnularPago } from "@/components/admin/AnularPago";
 import { RegistrarPagoPanel } from "@/components/admin/RegistrarPagoPanel";
+import { CancelarVentaPanel } from "@/components/admin/CancelarVentaPanel";
 import { ReasignarCliente, type CobradorOpcion } from "@/components/admin/ReasignarCliente";
 import { FormCreditoNuevo } from "@/components/admin/FormCreditoNuevo";
 import { getUltimoCreditoDe } from "@/lib/data/creditoNuevo";
@@ -104,15 +105,18 @@ export default async function FichaClientePage({
   // zona), no los de `candidatos`: ese filtro se ancla en la zona del cobrador
   // ACTUAL, que para un cliente sin ruta es null → le habría dado una lista
   // vacía al supervisor justo en el caso que este formulario existe para cubrir.
-  const alcanceAlta = activos.length === 0 ? await alcanceDelActor(actor) : null;
-  const cobradoresAlta: CobradorOpcion[] =
-    alcanceAlta == null
-      ? []
-      : (alcanceAlta.global
-          ? cobradores
-          : cobradores.filter((c) => alcanceAlta.cobradorIds.includes(c.id))
-        ).map((c) => ({ id: c.id, nombre: c.nombre }));
-  const ultimoCredito = activos.length === 0 ? await getUltimoCreditoDe(db, id) : null;
+  // ⚠️ SIEMPRE, no solo sin activos (queja del admin 16-08: "no deja hacer
+  // créditos"): el form de "OTRO crédito" del cliente CON crédito activo (la
+  // mayoría de la cartera, ~2.800) usa estos mismos datos, y con el `activos.length
+  // === 0` recibía cobradores=[] y base=null → moría en "hace falta al menos un
+  // cobrador disponible" sin botón. Justo el caso "sigue pagando y quiere más
+  // plata", que Renovaciones tampoco lista (<75%): callejón sin salida.
+  const alcanceAlta = await alcanceDelActor(actor);
+  const cobradoresAlta: CobradorOpcion[] = (alcanceAlta.global
+    ? cobradores
+    : cobradores.filter((c) => alcanceAlta.cobradorIds.includes(c.id))
+  ).map((c) => ({ id: c.id, nombre: c.nombre }));
+  const ultimoCredito = await getUltimoCreditoDe(db, id);
 
   // Saldo de estrellas del cliente (respeta el ciclo definido por el admin).
   // Con varios créditos activos, el ciclo "por crédito" se ancla en el principal.
@@ -332,6 +336,8 @@ export default async function FichaClientePage({
                   </div>
                   <RegistrarPagoPanel clienteId={id} prestamoId={activo.id} cuota={activo.cuota} />
                 </div>
+                {/* Cancelar la venta (queja del admin 16-08): la regla es la del servidor. */}
+                <CancelarVentaPanel prestamoId={activo.id} monto={activo.monto} />
                 <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
                   <Kpi label="Cuota diaria" valor={UYU(activo.cuota)} />
                   <Kpi label="Saldo" valor={UYU(activo.saldo)} />

@@ -49,18 +49,27 @@ export interface ResultadoRendicion {
   aFavor: number;
 }
 
+/**
+ * `retenido` (16-08, regla de Carlos: "la caja final debe aparecer TAL CUAL como
+ * caja inicial del otro día"): la plata que el cobrador DECLARA que se guarda
+ * para arrancar mañana. NO es faltante: es su caja de mañana. Cuadra cuando
+ * entregado + retenido = esperado. Sin declararlo (retenido=0), todo lo no
+ * entregado sigue siendo faltante — la señal anti-fuga no se afloja: la
+ * diferencia es que ahora existe la palabra para decir "esto me lo quedo".
+ */
 export function calcularRendicion(
   recaudado: number,
   gastos: number,
   entregado: number,
   base = 0,
   colocado = 0,
+  retenido = 0,
 ): ResultadoRendicion {
   const esperado = Math.max(
     0,
     Math.round(base) + Math.round(recaudado) - Math.round(gastos) - Math.round(colocado),
   );
-  const diferencia = Math.round(entregado) - esperado;
+  const diferencia = Math.round(entregado) + Math.max(0, Math.round(retenido)) - esperado;
   const estado: EstadoRendicion =
     diferencia === 0 ? "cuadra" : diferencia < 0 ? "faltante" : "sobrante";
   return { esperado, diferencia, estado, aFavor: aFavorDelCobrador(recaudado, gastos, base, colocado) };

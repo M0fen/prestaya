@@ -13,10 +13,10 @@ import { redirect } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { requireUsuario } from "@/lib/auth";
 import { getEstadoJornada } from "@/lib/data/rendicion";
-import { getInformeDia } from "@/lib/data/informeDia";
+import { getInformeDia, getInformeRango } from "@/lib/data/informeDia";
 import { aFavorDelCobrador, cajaFinal } from "@/lib/rendicion";
 import { conTimeout } from "@/lib/timeout";
-import { hoyUY } from "@/lib/fecha";
+import { hoyUY, fechaISOUY } from "@/lib/fecha";
 import { UYU, horaDe, diasSemana, meses } from "@/lib/format";
 import { EstadoVacio } from "@/components/EstadoVacio";
 import { DeshacerVenta } from "@/components/cobrador/DeshacerVenta";
@@ -24,20 +24,50 @@ import { DeshacerVenta } from "@/components/cobrador/DeshacerVenta";
 export const dynamic = "force-dynamic";
 const TOPE_MS = 22_000;
 
-export default async function InformesPage() {
+const esYmd = (v: string | undefined): string | null => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
+const sumarDias = (ymd: string, n: number) => new Date(Date.parse(ymd) + n * 86_400_000).toISOString().slice(0, 10);
+function rotuloDe(ymd: string): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d, 12));
+  return `${diasSemana[dt.getUTCDay()]} ${d} de ${meses[m - 1]}`;
+}
+
+export default async function InformesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ dia?: string }>;
+}) {
   const usuario = await requireUsuario();
   // Solo COBRADOR: la jornada y el informe son SUYOS (custodia/colocado por su
   // id). Un gestor acá vería ceros que parecen un bug; su tablero es el panel.
   if (usuario.rol !== "cobrador") redirect("/admin");
   const db = await createSupabaseServer();
+
+  // DÍAS ANTERIORES (queja del admin 16-08, y "los trabajadores también, ágil"):
+  // ?dia=YYYY-MM-DD navega hacia atrás con un toque. Hoy = el día vivo, con la
+  // cuenta de caja completa; un día pasado = sus pagos y ventas uno por uno.
+  const { dia } = await searchParams;
+  const hoyYmd = fechaISOUY();
+  const diaYmd = esYmd(dia) && dia! < hoyYmd ? dia! : hoyYmd;
+  const esHoy = diaYmd === hoyYmd;
+
   const [jornada, informe] = await conTimeout(
-    Promise.all([getEstadoJornada(db, usuario.id), getInformeDia(usuario.id)]),
+    Promise.all([
+      getEstadoJornada(db, usuario.id),
+      esHoy
+        ? getInformeDia(usuario.id)
+        : getInformeRango({ desdeYmd: diaYmd, hastaYmd: diaYmd, cobradorIds: [usuario.id], cobradorId: usuario.id }),
+    ]),
     TOPE_MS,
     "cobrador.informes",
   );
 
   const hoy = hoyUY();
-  const fechaLarga = `${diasSemana[hoy.getDay()]} ${hoy.getDate()} de ${meses[hoy.getMonth()]}`;
+  const fechaLarga = esHoy
+    ? `${diasSemana[hoy.getDay()]} ${hoy.getDate()} de ${meses[hoy.getMonth()]}`
+    : rotuloDe(diaYmd);
+  // Un día pasado no tiene "jornada viva": sus totales salen de sus propios movimientos.
+  const recaudadoDia = esHoy ? jornada.recaudado : informe.pagos.reduce((s, p) => s + p.monto, 0);
   // LAS MISMAS funciones puras que el cierre (lib/rendicion) — un solo cálculo en
   // todo el sistema. Dos cosas que un `max(0, …)` inline escondía (auditoría
   // 08-14, el mismo bug del aFavor que ya costó un arreglo el 10-08):
@@ -57,16 +87,50 @@ export default async function InformesPage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-0.5">
-        <h1 className="text-[19px] font-extrabold text-tinta">Informe del día</h1>
+        <h1 className="text-[19px] font-extrabold text-tinta">{esHoy ? "Informe del día" : "Informe de otro día"}</h1>
         <span className="text-[12.5px] font-medium text-gris">{fechaLarga}</span>
       </div>
 
-      {/* ── RESUMEN DE CAJA: la cuenta entera, en el orden en que se piensa ── */}
+      {/* Navegar por DÍAS de un toque (chips de ≥44 px para el pulgar). */}
+      <div className="flex items-center gap-2">
+        <Link href={`/cobrador/informes?dia=${sumarDias(diaYmd, -1)}`}
+          className="flex min-h-[44px] flex-1 items-center justify-center rounded-full border border-campo bg-tarjeta px-3 text-[13px] font-bold text-tinta active:scale-95">
+          ← Día anterior
+        </Link>
+        {!esHoy && (
+          <>
+            {sumarDias(diaYmd, 1) < hoyYmd && (
+              <Link href={`/cobrador/informes?dia=${sumarDias(diaYmd, 1)}`}
+                className="flex min-h-[44px] flex-1 items-center justify-center rounded-full border border-campo bg-tarjeta px-3 text-[13px] font-bold text-tinta active:scale-95">
+                Día siguiente →
+              </Link>
+            )}
+            <Link href="/cobrador/informes"
+              className="flex min-h-[44px] flex-1 items-center justify-center rounded-full bg-azul px-3 text-[13px] font-extrabold text-white active:scale-95">
+              Hoy
+            </Link>
+          </>
+        )}
+      </div>
+
+      {/* ── RESUMEN DE CAJA: la cuenta entera, en el orden en que se piensa ──
+          Solo HOY: es la caja VIVA. Un día pasado ya se rindió (o no) y su cuenta
+          está en el acta; acá van sus movimientos. */}
+      {esHoy && (
       <section className="flex flex-col rounded-[16px] bg-tarjeta p-4 shadow-sm">
         <span className="mb-2 text-[12px] font-bold tracking-[0.03em] text-gris uppercase">
           Resumen de caja
         </span>
-        <Fila k="Base del día" v={UYU(jornada.base)} />
+        <Fila
+          k={
+            jornada.baseOrigen === "arrastre"
+              ? "Base del día (= tu caja final de ayer)"
+              : jornada.baseOrigen === "cargada"
+                ? "Base del día (cargada por la oficina)"
+                : "Base del día"
+          }
+          v={UYU(jornada.base)}
+        />
         <Fila
           k={`Pagos cobrados (${jornada.cobrosCantidad})`}
           v={`+${UYU(jornada.recaudado)}`}
@@ -109,6 +173,7 @@ export default async function InformesPage() {
           </span>
         )}
       </section>
+      )}
 
       {/* ── VENTAS DEL DÍA: créditos nuevos y renovaciones, uno por uno ── */}
       <section className="flex flex-col gap-2">
@@ -118,14 +183,14 @@ export default async function InformesPage() {
         {informe.colocaciones.length === 0 ? (
           <EstadoVacio
             icono="cash"
-            titulo="Sin ventas todavía"
-            texto="Cada crédito que coloques hoy (renovación o venta) aparece acá con su cuota."
+            titulo={esHoy ? "Sin ventas todavía" : "Sin ventas ese día"}
+            texto={esHoy ? "Cada crédito que coloques hoy (renovación o venta) aparece acá con su cuota." : "Ese día no colocaste créditos."}
           />
         ) : (
           informe.colocaciones.map((c) => (
             <div
               key={c.prestamoId}
-              className="flex flex-col gap-2 rounded-[14px] bg-tarjeta px-3.5 py-3 shadow-sm"
+              className={`flex flex-col gap-2 rounded-[14px] bg-tarjeta px-3.5 py-3 shadow-sm ${c.cancelada ? "opacity-55" : ""}`}
             >
               <Link
                 href={`/cobrador/cliente/${c.clienteId}`}
@@ -136,23 +201,25 @@ export default async function InformesPage() {
                     {c.clienteNombre}
                   </span>
                   <span className="text-[11px] font-semibold text-gris tabular-nums">
-                    {c.esRenovacion ? "🔁 Renovación" : "💵 Venta"} · cuota {UYU(c.cuota)} ×{" "}
+                    {c.cancelada ? "✕ DESHECHA · " : ""}{c.esRenovacion ? "🔁 Renovación" : "💵 Venta"} · cuota {UYU(c.cuota)} ×{" "}
                     {c.totalDias} · {horaDe(c.creadoEn)}
                   </span>
                 </div>
-                <span className="flex-shrink-0 text-[15px] font-extrabold tabular-nums text-azul">
+                <span className={`flex-shrink-0 text-[15px] font-extrabold tabular-nums ${c.cancelada ? "text-gris line-through" : "text-azul"}`}>
                   {UYU(c.monto)}
                 </span>
               </Link>
               {/* ↩ Deshacer (08-14): solo ventas, dentro de la hora. El botón se
                   esconde solo cuando vence; el servidor revalida TODO igual
                   (pagos, dueño, estado) con la misma función pura. */}
-              <DeshacerVenta
-                prestamoId={c.prestamoId}
-                monto={c.monto}
-                creadoEn={c.creadoEn}
-                esRenovacion={c.esRenovacion}
-              />
+              {esHoy && !c.cancelada && (
+                <DeshacerVenta
+                  prestamoId={c.prestamoId}
+                  monto={c.monto}
+                  creadoEn={c.creadoEn}
+                  esRenovacion={c.esRenovacion}
+                />
+              )}
             </div>
           ))
         )}
@@ -161,13 +228,13 @@ export default async function InformesPage() {
       {/* ── PAGOS DEL DÍA: el repaso cobro a cobro ── */}
       <section className="flex flex-col gap-2">
         <span className="text-[12px] font-bold tracking-[0.03em] text-gris uppercase">
-          Pagos del día ({informe.pagos.length} · {UYU(jornada.recaudado)})
+          Pagos del día ({informe.pagos.length} · {UYU(recaudadoDia)})
         </span>
         {informe.pagos.length === 0 ? (
           <EstadoVacio
             icono="clock"
-            titulo="Sin pagos todavía"
-            texto="Cada cobro que registres aparece acá, con el cliente y la hora."
+            titulo={esHoy ? "Sin pagos todavía" : "Sin pagos ese día"}
+            texto={esHoy ? "Cada cobro que registres aparece acá, con el cliente y la hora." : "Ese día no registraste cobros en la app."}
           />
         ) : (
           <div className="flex flex-col overflow-hidden rounded-[14px] bg-tarjeta shadow-sm">

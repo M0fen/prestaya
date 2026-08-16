@@ -241,21 +241,45 @@ export function requiereAprobacionAdmin(montoAnterior: number): boolean {
 }
 
 /**
- * TECHO ABSOLUTO de una renovación: ni el admin aprobando puede pasarlo.
+ * TECHO ABSOLUTO de una renovación — lo que un GESTOR (admin/supervisor) puede
+ * autorizar como máximo. Es el candado contra el CERO DE MÁS: al abrir "lo que
+ * no se aprueba solo va a la oficina", el sobre-CAP dejó de ser rechazo duro y
+ * el monto lo escribe una persona a mano; si nadie mira el número, $20.000
+ * tipeado como $200.000 se vuelve un crédito.
  *
- * Es el candado que impide que un cero de más se convierta en un crédito. Al
- * abrir el camino de "lo que no se aprueba solo va al admin", el sobre-CAP dejó
- * de ser un rechazo duro y pasó a generar una solicitud cuyo monto lo escribe una
- * persona a mano; si además la aprobación apaga el tope de la base, no queda
- * NADIE mirando el número. La regla que lo cierra: **el CAP solo se puede pasar
- * si el crédito ANTERIOR ya lo pasaba, y nunca por encima de él** — renovar no
- * sube un crédito que ya está sobre el tope (su tramo da 0% de aumento igual).
+ * ⚠️ REGLA DE CARLOS (16-08, queja del admin "todavía no deja hacer créditos con
+ * más del 20%"): **más del +20% SE PUEDE, con aprobación de supervisor o
+ * admin**. La versión anterior de esta función decía "el CAP solo se pasa si el
+ * anterior ya lo pasaba, y NUNCA por encima de él" — o sea que un heredado de
+ * $120.000 no se podía subir ni un peso, y un cliente de $90.000 no podía pasar
+ * de $100.000 ni con la firma del dueño. Eso contradecía la regla: en la base
+ * viva hay 135 activos > $100k y 89 entre $60-100k que chocaban con ese muro
+ * cada vez que la oficina intentaba subirles el crédito.
  *
- * Para un crédito normal el techo sigue siendo $100.000, así que la solicitud
- * sobre-tramo —que es su razón de ser— funciona igual que siempre. Puro.
+ * El techo del GESTOR es entonces **el +20% sobre el anterior** (la misma
+ * regla que para el cobrador, pero el gestor la AUTORIZA en vez de pedirla),
+ * con un piso en el CAP para que un crédito chico pueda crecer hasta ahí:
+ *   · anterior $30.000  → gestor autoriza hasta $100.000 (el CAP)
+ *   · anterior $90.000  → hasta $108.000 (+20%; ya no lo frena el CAP)
+ *   · anterior $120.000 → hasta $144.000 (heredado: también sube +20%)
+ * Más de +20% en UNA renovación no lo autoriza nadie: ese es el candado que
+ * queda contra el dedazo (subir 5× de un toque no es una renovación). Puro.
  */
 export function techoRenovacion(montoAnterior: number): number {
-  return Math.max(RENOVACION_CAP_TOTAL, montoRenovacionPedido(montoAnterior));
+  const base = Math.max(0, Math.round(Number(montoAnterior) || 0));
+  return Math.max(RENOVACION_CAP_TOTAL, Math.floor(base * (1 + RENOVACION_AUMENTO_PCT / 100)));
+}
+
+/**
+ * TECHO ABSOLUTO de una VENTA NUEVA con historial — lo que el GESTOR puede
+ * autorizar (la solicitud tipo 'venta' que el cobrador manda por sobre su techo).
+ * Misma regla que `techoRenovacion`: hasta +20% del último crédito, con piso en
+ * el CAP. Sin esto, la solicitud de venta > $100.000 se rechazaba con "no lo
+ * puede aprobar nadie" — el muro que el admin reportó (16-08). Puro.
+ */
+export function techoVentaGestor(montoAnterior: number | null | undefined): number {
+  const base = Math.max(0, Math.round(Number(montoAnterior) || 0));
+  return Math.max(RENOVACION_CAP_TOTAL, Math.floor(base * (1 + RENOVACION_AUMENTO_PCT / 100)));
 }
 
 /**

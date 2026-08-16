@@ -9,7 +9,7 @@ import { inicioDiaUYIso, hoyUY, sumarDiasYmd, diaUYInicioIso, fechaISOUY } from 
 import { toIso } from "@/lib/format";
 import type { EstadoRendicion } from "@/lib/rendicion";
 import { getSolicitudesGastoCobrador } from "./solicitudesGasto";
-import { getAperturaDia } from "./aperturas";
+import { getAperturaDia, getBaseDelDia } from "./aperturas";
 import { colocadoPorCobrador, colocadoEnDias, claveColocado } from "./colocado";
 import { tablaFaltante, columnaFaltante } from "./errores";
 import { traerTodo } from "./paginado";
@@ -57,9 +57,13 @@ export interface EstadoJornada {
    *  por eso baja lo que tiene que rendir. */
   colocado: number;
   creditosColocados: number;
-  /** Base de arranque que el supervisor le dio al cobrador HOY (0105). Debe
-   *  entregarla junto con lo cobrado. 0 si no tiene / falta migración. */
+  /** Base de arranque de HOY (0105): cargada por el supervisor o ARRASTRADA de
+   *  la caja final de su última jornada rendida. 0 si no tiene / falta migración. */
   base: number;
+  /** De dónde salió la base — para que el cobrador lo VEA ("= tu caja final de
+   *  ayer"), regla de Carlos 16-08. `desdeFecha` solo en arrastre. */
+  baseOrigen: "cargada" | "arrastre" | "sin_base";
+  baseDesdeFecha?: string;
   /** false si falta la migración 0013 (la tabla no existe). */
   disponible: boolean;
 }
@@ -133,8 +137,10 @@ export async function getEstadoJornada(
   const gastosPendientesHoy = sol.items
     .filter((s) => s.estado === "pendiente")
     .reduce((acc, s) => acc + s.monto, 0);
-  // Base de arranque del cobrador HOY (0105). La debe entregar junto con lo cobrado.
-  const base = await getAperturaDia(db, cobradorId, hoy);
+  // Base de arranque del cobrador HOY (0105): cargada o arrastrada de su última
+  // caja final (con el origen, para decirlo en pantalla).
+  const baseInfo = await getBaseDelDia(db, cobradorId, hoy);
+  const base = baseInfo.base;
   // Capital que colocó HOY en la calle (renovaciones + ventas): ya no lo tiene.
   const { colocado, creditos: creditosColocados } = await colocadoPorCobrador(
     cobradorId,
@@ -164,6 +170,8 @@ export async function getEstadoJornada(
     gastosRespaldadosHoy: gastosHoy + gastosPendientesHoy,
     yaRendida,
     base,
+    baseOrigen: baseInfo.origen,
+    baseDesdeFecha: baseInfo.desdeFecha,
     colocado,
     creditosColocados,
     disponible,

@@ -51,6 +51,9 @@ export const NAV_ITEMS: NavItem[] = [
   // Flujo guiado del día (sobre todo para el supervisor): Apertura/En vivo/Cierre.
   { href: "/admin/jornada", label: "Mi jornada", icon: "🧭", roles: ["admin", "supervisor"], alias: ["jornada", "mi dia", "flujo", "guia del dia", "apertura", "en vivo", "cierre", "supervisor"] },
   // ── Operación diaria (el control del dinero, de un vistazo) ──
+  // Lo PRIMERO del grupo (queja del admin 16-08: "ver los pagos y las ventas de
+  // días anteriores"): un día o rango, rotulado, pagos Y ventas uno por uno.
+  { href: "/admin/movimientos", label: "Movimientos del día", icon: "📆", grupo: "Operación diaria", roles: ["admin", "supervisor"], alias: ["movimientos", "pagos de ayer", "ventas del dia", "ventas de ayer", "dias anteriores", "informe del dia", "historial", "ayer"] },
   { href: "/admin/cierre", label: "Cierre del día", icon: "🌅", grupo: "Operación diaria", roles: ["admin"], alias: ["cierre", "jornada", "operacion", "en vivo", "meta", "proyeccion", "hoy"] },
   { href: "/admin/cobranza", label: "Cobranza", icon: "🛡️", grupo: "Operación diaria", roles: ["admin", "supervisor"], alias: ["mapa", "geo", "cobros"] },
   { href: "/admin/recaudos", label: "Recaudos", icon: "💵", grupo: "Operación diaria", roles: ["admin", "supervisor"], alias: ["pagos", "cobros", "recaudo diario"] },

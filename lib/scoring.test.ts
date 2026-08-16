@@ -179,3 +179,17 @@ describe("calcularScore", () => {
     expect(ab.puntaje).toBe(ba.puntaje);
   });
 });
+
+describe("una venta DESHECHA (cancelado sin pagos) no castiga al cliente (queja del admin 16-08)", () => {
+  it("el score con un cancelado-sin-pagos es IGUAL al score sin ese crédito", () => {
+    const a = prestamo({ id: "a", estado: "finalizado", fecha_inicio: "2026-01-01", monto_prestado: 15000 });
+    const c = prestamo({ id: "c", estado: "activo", fecha_inicio: "2026-06-07", monto_prestado: 20000 });
+    // La venta mala: creada por dedazo, cancelada por la oficina, cero pagos.
+    const mala = prestamo({ id: "mala", estado: "cancelado", fecha_inicio: "2026-06-01", monto_prestado: 50000 });
+    const pagos = { a: pagosDias("a", rango(30)), c: pagosDias("c", rango(10)) };
+    const sin = correr([a, c], pagos);
+    const con = correr([a, c, mala], { ...pagos, mala: [] });
+    expect(con.puntaje).toBe(sin.puntaje);
+    expect(con.banda).toBe(sin.banda);
+  });
+});

@@ -136,7 +136,7 @@ function Grupo({
               }`}
             >
               <div className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate text-[14px] font-bold text-tinta">{c.nombre}</span>
+                <span className="line-clamp-2 break-words leading-[1.2] text-[14px] font-bold text-tinta">{c.nombre}</span>
                 <span className="truncate text-[11.5px] font-medium text-gris tabular-nums">
                   {pie ? pie(c) : c.telefono ? c.telefono : "Sin teléfono"}
                 </span>

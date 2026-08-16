@@ -77,7 +77,7 @@ export function FichaRapidaBoton({ clienteId }: { clienteId: string }) {
                   </div>
                 )}
                 <div className="flex min-w-0 flex-col">
-                  <span className="truncate text-[16px] font-extrabold text-tinta">
+                  <span className="line-clamp-2 break-words leading-[1.2] text-[16px] font-extrabold text-tinta">
                     {ficha?.nombre ?? (pending ? "Cargando…" : "Cliente")}
                   </span>
                   {banda && (

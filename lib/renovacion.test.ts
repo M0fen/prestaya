@@ -249,15 +249,22 @@ describe("lo que no se puede aprobar solo va al admin (no es callejón sin salid
 //  aprobación apagaba el de la base. Un supervisor que escribía 2000000 —o al que
 //  se le iba un cero— quedaba sin NADIE mirando el número.
 // ─────────────────────────────────────────────────────────────────────────
-describe("techoRenovacion — ni el admin aprobando puede pasarlo", () => {
-  it("crédito chico: el techo es el CAP de $100.000", () => {
+describe("techoRenovacion — lo MÁXIMO que un gestor autoriza (regla de Carlos 16-08: >+20% se puede, con aprobación)", () => {
+  it("crédito chico: el gestor puede llevarlo hasta el CAP de $100.000", () => {
     for (const m of [500, 10_000, 30_000, 60_000, 83_333])
       expect(techoRenovacion(m)).toBe(RENOVACION_CAP_TOTAL);
   });
 
-  it("crédito heredado sobre el tope: el techo es su propio monto, nunca menos", () => {
-    expect(techoRenovacion(120_000)).toBe(120_000);
-    expect(techoRenovacion(1_750_000)).toBe(1_750_000);
+  it("LA QUEJA DEL ADMIN: un cliente de $90.000 SÍ puede pasar de $100.000 con aprobación (+20% = $108.000)", () => {
+    // Antes el techo era el CAP a secas → "no deja hacer créditos con más del 20%"
+    // aunque firmara el dueño. Ahora el +20% manda también arriba del CAP.
+    expect(techoRenovacion(90_000)).toBe(108_000);
+    expect(techoRenovacion(100_000)).toBe(120_000);
+  });
+
+  it("crédito heredado sobre el tope: también SUBE +20% (antes: 'nunca por encima de él')", () => {
+    expect(techoRenovacion(120_000)).toBe(144_000);
+    expect(techoRenovacion(1_750_000)).toBe(2_100_000);
     // Nunca por debajo del propio monto: renovar no recorta el capital.
     for (const m of [110_000, 250_000, 1_750_000])
       expect(techoRenovacion(m)).toBeGreaterThanOrEqual(m);
@@ -279,10 +286,13 @@ describe("techoRenovacion — ni el admin aprobando puede pasarlo", () => {
     expect(80_000 <= techoRenovacion(50_000)).toBe(true);
   });
 
-  it("INVARIANTE: el techo nunca baja del monto anterior ni del CAP", () => {
+  it("INVARIANTE: el techo nunca baja del monto anterior ni del CAP, y nunca pasa del +20% (salvo el piso del CAP)", () => {
     for (let m = 500; m <= 2_000_000; m += 2_500) {
-      expect(techoRenovacion(m)).toBeGreaterThanOrEqual(RENOVACION_CAP_TOTAL);
-      if (m > RENOVACION_CAP_TOTAL) expect(techoRenovacion(m)).toBeGreaterThanOrEqual(m);
+      const t = techoRenovacion(m);
+      expect(t).toBeGreaterThanOrEqual(RENOVACION_CAP_TOTAL);
+      if (m > RENOVACION_CAP_TOTAL) expect(t).toBeGreaterThanOrEqual(m);
+      // El candado contra el dedazo: más de +20% en UNA renovación no lo autoriza nadie.
+      expect(t).toBeLessThanOrEqual(Math.max(RENOVACION_CAP_TOTAL, Math.floor(m * 1.2)));
     }
   });
 });
@@ -398,7 +408,7 @@ describe("renovar por un monto DISTINTO: qué se aprueba solo, qué va a la ofic
     // que crearse en el acto. Antes la rama se elegía por el monto ANTERIOR y el
     // cliente esperaba en la cola del admin sin razón.
     const heredado = 120_000;
-    expect(techoRenovacion(heredado)).toBe(120_000); // el máximo es su propio monto
+    expect(techoRenovacion(heredado)).toBe(144_000); // el máximo del gestor: +20% (regla 16-08)
     expect(50_000).toBeLessThanOrEqual(montoRenovacionAutoAprobable(heredado));
   });
 

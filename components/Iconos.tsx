@@ -323,6 +323,7 @@ export const ICONO_NAV: Record<string, NombreIcono> = {
   "/admin/alertas": "bell",
   "/admin/cierre": "apertura",
   "/admin/cobranza": "cobranza",
+  "/admin/movimientos": "clock",
   "/admin/recaudos": "cash",
   "/admin/caja": "caja",
   "/admin/mora": "clock",

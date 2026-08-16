@@ -25,6 +25,7 @@ export function CerrarJornada({
   gastosHoy = 0,
   gastosPendientes = 0,
   base = 0,
+  baseOrigen = "sin_base",
   colocado = 0,
   creditosColocados = 0,
   yaRendida,
@@ -39,6 +40,8 @@ export function CerrarJornada({
   /** Base de arranque que recibió del supervisor (0105): la devuelve junto con lo
    *  cobrado → esperado = base + recaudado − gastos − colocado. 0 si no tiene. */
   base?: number;
+  /** De dónde salió la base: arrastre de su caja de ayer, cargada, o nada. */
+  baseOrigen?: "cargada" | "arrastre" | "sin_base";
   /** Capital que ENTREGÓ hoy al renovar/vender: ya no lo tiene, así que baja lo
    *  que se le pide rendir. Sin esto la app le marcaba un faltante inventado. */
   colocado?: number;
@@ -49,8 +52,17 @@ export function CerrarJornada({
   const router = useRouter();
   // Prellena los gastos con lo que el cobrador ya cargó hoy (puede ajustarlo).
   const [gastos, setGastos] = useState(gastosHoy > 0 ? String(gastosHoy) : "");
-  // Prellena el efectivo a entregar = base + recaudado − gastos (devuelve la base).
-  const [entregado, setEntregado] = useState(String(Math.max(0, base + recaudado - gastosHoy - colocado)));
+  // ⚠️ MODELO NUEVO (regla de Carlos 16-08: "la caja final aparece TAL CUAL como
+  // caja inicial del otro día"). Antes el prefill era "entrego TODO" (caja final
+  // = 0) y si el cobrador se guardaba plata el acta lo marcaba FALTANTE — el
+  // arrastre existía en código pero nacía muerto. Ahora hay dos números:
+  //   · "Me quedo para mañana" (retenido): por defecto la BASE de hoy — mañana
+  //     amanece como su caja inicial, sin que nadie la cargue a mano;
+  //   · "Efectivo que entrego": lo demás (cobrado − gastos − colocado).
+  // Cuadra cuando entregado + retenido = esperado. Los dos son editables.
+  const esperadoInicial = Math.max(0, base + recaudado - gastosHoy - colocado);
+  const [retenido, setRetenido] = useState(String(Math.min(base, esperadoInicial)));
+  const [entregado, setEntregado] = useState(String(Math.max(0, esperadoInicial - Math.min(base, esperadoInicial))));
   // ¿El cobrador tocó los campos a mano? Si NO, el prefijado se re-sincroniza cuando
   // sube el `recaudado` del servidor (al drenar la cola, `router.refresh` sube el
   // prop SIN desmontar este componente). Sin esto, `entregado` quedaba en el valor
@@ -81,7 +93,10 @@ export function CerrarJornada({
   useEffect(() => {
     if (editado) return;
     setGastos(gastosHoy > 0 ? String(gastosHoy) : "");
-    setEntregado(String(Math.max(0, base + recaudado - gastosHoy - colocado)));
+    const esp = Math.max(0, base + recaudado - gastosHoy - colocado);
+    const ret = Math.min(base, esp);
+    setRetenido(String(ret));
+    setEntregado(String(Math.max(0, esp - ret)));
   }, [recaudado, gastosHoy, editado, base, colocado]);
 
   if (!disponible) return null; // se habilita al correr 0013
@@ -151,7 +166,8 @@ export function CerrarJornada({
 
   const gastosN = Math.max(0, Math.round(Number(gastos) || 0));
   const entregadoN = Math.max(0, Math.round(Number(entregado) || 0));
-  const { esperado, diferencia, estado, aFavor } = calcularRendicion(recaudado, gastosN, entregadoN, base, colocado);
+  const retenidoN = Math.max(0, Math.round(Number(retenido) || 0));
+  const { esperado, diferencia, estado, aFavor } = calcularRendicion(recaudado, gastosN, entregadoN, base, colocado, retenidoN);
   const t = TONO[estado];
 
   // La regla del bloqueo vive en lib/cobrador/bloqueoCierre (pura y testeada):
@@ -169,7 +185,7 @@ export function CerrarJornada({
     setError(null);
     startTransition(async () => {
       try {
-        const res = await cerrarJornada({ gastos: gastosN, entregado: entregadoN, notas });
+        const res = await cerrarJornada({ gastos: gastosN, entregado: entregadoN, retenido: retenidoN, notas });
         if (res.ok) {
           setConfirmar(false);
           router.refresh();
@@ -198,7 +214,9 @@ export function CerrarJornada({
           es el primer día que se usa esta pantalla: `aperturas_caja` está vacía. */}
       {base > 0 ? (
         <div className="mt-2 flex items-end justify-between rounded-[12px] bg-azul-suave px-3 py-2.5">
-          <span className="text-[12px] font-semibold text-azul">Base recibida (la devolvés)</span>
+          <span className="text-[12px] font-semibold text-azul">
+            {baseOrigen === "arrastre" ? "Base del día · tu caja final de ayer" : "Base del día (tu caja de arranque)"}
+          </span>
           <span className="text-[16px] font-black tabular-nums text-azul">{UYU(base)}</span>
         </div>
       ) : (
@@ -253,6 +271,23 @@ export function CerrarJornada({
           />
         </Campo>
       </div>
+      {/* Lo que se QUEDA para mañana = su caja inicial de mañana (regla 16-08).
+          Editable: si entrega todo, pone 0 y mañana arranca de cero. */}
+      <div className="mt-2 flex flex-col gap-1 rounded-[12px] bg-verde-suave px-3 py-2.5">
+        <label className="flex items-center justify-between gap-3">
+          <span className="text-[12.5px] font-bold text-verde-osc">Me quedo para mañana (mi caja inicial)</span>
+          <input
+            inputMode="numeric"
+            value={retenido}
+            onChange={(e) => { setEditado(true); setRetenido(e.target.value.replace(/[^\d]/g, "")); }}
+            placeholder="0"
+            className="min-h-11 w-[120px] rounded-[12px] border border-campo bg-tarjeta px-3 py-2 text-right text-[16px] font-extrabold tabular-nums outline-none focus:border-azul"
+          />
+        </label>
+        <span className="text-[11px] leading-[1.45] font-medium text-verde-osc">
+          Mañana amanece como tu base, sin que nadie la cargue. Entregá el resto.
+        </span>
+      </div>
       {gastosHoy > 0 && (
         <p className="mt-1.5 px-1 text-[11px] font-medium text-tenue">
           Incluye {UYU(gastosHoy)} de gastos que cargaste hoy. Podés ajustarlo.
@@ -282,7 +317,12 @@ export function CerrarJornada({
               // quede un sobrante fantasma con un entregado sobre-declarado. Si ya
               // escribió su efectivo real, NO lo pisamos (respeta su conteo físico;
               // el campo sigue editable y la diferencia se ve en vivo).
-              if (!editado) setEntregado(String(Math.max(0, base + recaudado - nuevoGastos - colocado)));
+              if (!editado) {
+                const esp = Math.max(0, base + recaudado - nuevoGastos - colocado);
+                const ret = Math.min(base, esp);
+                setRetenido(String(ret));
+                setEntregado(String(Math.max(0, esp - ret)));
+              }
               setEditado(true);
               setGastos(String(nuevoGastos));
             }}
@@ -415,7 +455,7 @@ export function CerrarJornada({
           {cobrosAtascados.map((o) => (
             <div key={o.id} className="flex flex-col gap-1.5 border-t border-rojo-suave pt-1.5">
               <div className="flex items-center justify-between gap-2">
-                <span className="min-w-0 truncate text-[12px] font-semibold text-tinta">
+                <span className="min-w-0 line-clamp-2 break-words leading-[1.2] text-[12px] font-semibold text-tinta">
                   {o.clienteNombre} ·{" "}
                   {o.tipo === "no_pago" ? "no pagó" : o.monto != null ? UYU(o.monto) : "cuota"}
                 </span>

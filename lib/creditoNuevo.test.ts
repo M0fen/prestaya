@@ -3,9 +3,11 @@ import {
   calcularCuotaCreditoNuevo,
   interesDeBase,
   puedeDeshacerVenta,
+  puedeCancelarVentaPanel,
   DESHACER_VENTA_MS,
   INTERES_DEFECTO_PCT,
   type VentaParaDeshacer,
+  type VentaParaCancelar,
 } from "./creditoNuevo";
 import { calcularCuotaRenovacion } from "./renovacion";
 
@@ -208,5 +210,59 @@ describe("puedeDeshacerVenta: solo cuando no pasó nada todavía", () => {
       expect(v.ok).toBe(false);
       if (!v.ok) expect(v.motivo.length).toBeGreaterThan(20);
     }
+  });
+});
+
+describe("puedeCancelarVentaPanel — la regla del GESTOR (queja del admin 16-08)", () => {
+  const venta = (over: Partial<VentaParaCancelar> = {}): VentaParaCancelar => ({
+    estado: "activo", origen: "credito", renovadoDe: null, pagosVigentes: 0, pagadoVigente: 0, ...over,
+  });
+  const admin = { rol: "admin", enAlcance: true };
+  const sup = { rol: "supervisor", enAlcance: true };
+
+  it("el admin cancela una venta mala SIN ventana de tiempo ni ser el creador", () => {
+    const r = puedeCancelarVentaPanel(venta(), admin);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.reabreAnterior).toBe(false);
+  });
+
+  it("una RENOVACIÓN se puede cancelar, y avisa que reabre el crédito anterior", () => {
+    const r = puedeCancelarVentaPanel(venta({ renovadoDe: "cred-viejo" }), admin);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.reabreAnterior).toBe(true);
+  });
+
+  it("CON pagos vigentes rebota y dice la salida: anular primero", () => {
+    const r = puedeCancelarVentaPanel(venta({ pagosVigentes: 3, pagadoVigente: 1500 }), admin);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.motivo).toMatch(/3 pagos.*1.500.*Anulalos primero/);
+  });
+
+  it("cartera importada de Disapp: nunca desde acá", () => {
+    const r = puedeCancelarVentaPanel(venta({ origen: "disapp_import" }), admin);
+    expect(r.ok).toBe(false);
+  });
+
+  it("tienda: solo el admin (devuelve stock y cierra el pedido)", () => {
+    expect(puedeCancelarVentaPanel(venta({ origen: "tienda" }), sup).ok).toBe(false);
+    expect(puedeCancelarVentaPanel(venta({ origen: "tienda" }), admin).ok).toBe(true);
+  });
+
+  it("supervisor fuera de su zona: no", () => {
+    expect(puedeCancelarVentaPanel(venta(), { rol: "supervisor", enAlcance: false }).ok).toBe(false);
+  });
+
+  it("cobrador: no es su puerta (la suya es Deshacer, 1 h)", () => {
+    expect(puedeCancelarVentaPanel(venta(), { rol: "cobrador", enAlcance: true }).ok).toBe(false);
+  });
+
+  it("ya cancelado → idempotente (ok, yaEstaba)", () => {
+    const r = puedeCancelarVentaPanel(venta({ estado: "cancelado" }), admin);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.yaEstaba).toBe(true);
+  });
+
+  it("finalizado → no hay nada que cancelar", () => {
+    expect(puedeCancelarVentaPanel(venta({ estado: "finalizado" }), admin).ok).toBe(false);
   });
 });

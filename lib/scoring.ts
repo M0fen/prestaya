@@ -124,11 +124,19 @@ export function calcularScore(
   let cancelados = 0;
 
   for (const p of prestamos) {
+    const pagos = pagosPorPrestamo[p.id] ?? [];
+    // Un crédito CANCELADO sin pagos vigentes es una venta DESHECHA (dedazo,
+    // era para otro cliente, la oficina la canceló): nunca existió para el
+    // cliente. Contarlo lo castigaba con −60 y todos sus días "exigibles"
+    // impagos — le hundía el score por un error ajeno (queja del admin 16-08,
+    // casos JORGE y ROSMARIE). Se salta entero. Un cancelado CON pagos (raro:
+    // pagos anulados después) sí se cuenta como señal.
+    if (p.estado === "cancelado" && pagos.length === 0) continue; // pagosPorPrestamo ya viene sin anulados
+
     if (p.estado === "finalizado") finalizados++;
     else if (p.estado === "incobrable") incobrables++;
     else if (p.estado === "cancelado") cancelados++;
 
-    const pagos = pagosPorPrestamo[p.id] ?? [];
     const r = calcularEstadosCarton(p, pagos, referenciaDe(p, hoy));
 
     const diasNoFuturo = r.dias.filter((d) => d.estado !== "futuro");

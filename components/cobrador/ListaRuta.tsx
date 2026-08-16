@@ -314,7 +314,7 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
                   {idx + 1}
                 </span>
                 <div className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-[13.5px] font-bold text-tinta">{it.nombre}</span>
+                  <span className="line-clamp-2 break-words leading-[1.2] text-[13.5px] font-bold text-tinta">{it.nombre}</span>
                   <span className="truncate text-[11px] font-medium text-tenue">
                     {it.direccion ?? "Sin dirección"}
                   </span>

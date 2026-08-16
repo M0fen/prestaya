@@ -92,7 +92,7 @@ export default async function RenovacionesPage({
                 }}
               >
                 <div className="flex items-baseline justify-between gap-3">
-                  <span className="truncate text-[14px] font-bold text-tinta">{a.clienteNombre}</span>
+                  <span className="line-clamp-2 break-words leading-[1.2] text-[14px] font-bold text-tinta">{a.clienteNombre}</span>
                   <span
                     className="flex-shrink-0 text-[11.5px] font-bold tabular-nums"
                     style={{ color: viejo ? "#B03A2E" : "#6B7494" }}
@@ -176,7 +176,7 @@ export default async function RenovacionesPage({
                 <div className="flex min-w-0 flex-1 flex-col">
                   <Link
                     href={`/admin/clientes/${cliente.id}`}
-                    className="truncate text-[15px] font-extrabold text-tinta hover:text-azul"
+                    className="line-clamp-2 break-words leading-[1.2] text-[15px] font-extrabold text-tinta hover:text-azul"
                   >
                     {cliente.nombre}
                   </Link>

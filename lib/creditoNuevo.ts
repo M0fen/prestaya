@@ -129,3 +129,52 @@ export function puedeDeshacerVenta(
     };
   return { ok: true, quedanMs: DESHACER_VENTA_MS - edad };
 }
+
+// ── CANCELAR una venta desde el PANEL (queja del admin 16-08: "poder eliminar
+//    ventas que se hagan malas") ─────────────────────────────────────────────
+//  Los créditos NUNCA se borran (P0403): una venta mala se CANCELA (estado
+//  "cancelado" — el colocado, el arrastre de caja y el informe ya lo excluyen).
+//  La regla del cobrador (1 h, propio, sin pagos) es la de la calle; la del
+//  GESTOR es más ancha (cualquier crédito de su alcance, sin ventana de tiempo)
+//  y con las mismas dos verdades de fondo: sin pagos vigentes (si hay, se
+//  ANULAN primero, uno por uno con motivo — el libro no se toca en silencio) y
+//  nunca la cartera importada (esa se corrige por empalme). Puro: pantalla y
+//  servidor usan ESTA función.
+
+export interface VentaParaCancelar {
+  estado: string;
+  origen: string | null;
+  renovadoDe: string | null;
+  /** Pagos NO anulados que apuntan a este crédito. */
+  pagosVigentes: number;
+  /** Suma de esos pagos (para decir la salida en pesos). */
+  pagadoVigente: number;
+}
+
+export type VeredictoCancelar =
+  | { ok: true; reabreAnterior: boolean; yaEstaba: boolean }
+  | { ok: false; motivo: string };
+
+export function puedeCancelarVentaPanel(
+  v: VentaParaCancelar,
+  actor: { rol: string; enAlcance: boolean },
+): VeredictoCancelar {
+  if (actor.rol !== "admin" && actor.rol !== "supervisor")
+    return { ok: false, motivo: "Cancelar una venta lo hace la oficina (supervisor o administrador)." };
+  if (!actor.enAlcance)
+    return { ok: false, motivo: "Ese cliente no es de tu zona." };
+  if (v.origen === "disapp_import")
+    return { ok: false, motivo: "Es cartera importada de Disapp: se corrige por el empalme, no se cancela desde acá." };
+  if (v.origen === "tienda" && actor.rol !== "admin")
+    return { ok: false, motivo: "Las ventas de la tienda las cancela el administrador (devuelve el stock y cierra el pedido)." };
+  if (v.estado === "cancelado")
+    return { ok: true, reabreAnterior: false, yaEstaba: true };
+  if (v.estado !== "activo")
+    return { ok: false, motivo: `Este crédito ya no está activo (está ${v.estado}): no hay nada que cancelar.` };
+  if (v.pagosVigentes > 0)
+    return {
+      ok: false,
+      motivo: `Este crédito tiene ${v.pagosVigentes} pago${v.pagosVigentes === 1 ? "" : "s"} vigente${v.pagosVigentes === 1 ? "" : "s"} por $${v.pagadoVigente.toLocaleString("es-UY")}. Anulalos primero desde el historial (cada uno con su motivo) y volvé a cancelar.`,
+    };
+  return { ok: true, reabreAnterior: v.renovadoDe != null, yaEstaba: false };
+}

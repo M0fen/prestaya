@@ -66,7 +66,7 @@ function Item({ s }: { s: SolicitudRenovacion }) {
     <div className="flex flex-col gap-2 rounded-[14px] border border-[#DCE7FB] bg-[#F7F9FF] p-3.5">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 flex-col">
-          <span className="truncate text-[14px] font-bold text-tinta">
+          <span className="line-clamp-2 break-words leading-[1.2] text-[14px] font-bold text-tinta">
             {s.clienteNombre}
             {/* El tipo cambia QUÉ crea el botón verde: la renovación FINALIZA el
                 crédito anterior; la venta nueva solo agrega otro (0139). */}

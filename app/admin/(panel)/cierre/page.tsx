@@ -194,7 +194,7 @@ export default async function CierrePage() {
                     {c.nombre.charAt(0).toUpperCase()}
                   </div>
                   <div className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate text-[14px] font-bold text-tinta">{c.nombre}</span>
+                    <span className="line-clamp-2 break-words leading-[1.2] text-[14px] font-bold text-tinta">{c.nombre}</span>
                     <span className="text-[11.5px] font-medium text-gris tabular-nums">
                       {UYU(c.recaudado)} · {c.cobros} cobros
                     </span>
@@ -313,7 +313,7 @@ function ListaAlerta({
     <div className="mt-1 flex flex-col gap-0.5">
       {visibles.map((it, i) => (
         <div key={i} className="flex items-center justify-between gap-3 border-t border-black/5 py-1 first:border-t-0">
-          <span className="min-w-0 flex-1 truncate text-[12px] font-semibold text-tinta">{it.nombre}</span>
+          <span className="min-w-0 flex-1 line-clamp-2 break-words leading-[1.2] text-[12px] font-semibold text-tinta">{it.nombre}</span>
           <span className="flex-shrink-0 text-[12px] font-extrabold tabular-nums" style={{ color: it.tono ?? "#6B7494" }}>
             {it.valor}
           </span>

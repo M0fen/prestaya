@@ -37,6 +37,10 @@ function esDuplicado(e: unknown): boolean {
 export async function cerrarJornada(input: {
   gastos: number;
   entregado: number;
+  /** Plata que el cobrador DECLARA que se guarda para arrancar mañana (regla de
+   *  Carlos 16-08: "la caja final aparece tal cual como caja inicial"). NO es
+   *  faltante: mañana amanece como su base (el arrastre la deriva del acta). */
+  retenido?: number;
   notas?: string | null;
 }): Promise<Resultado> {
   const usuario = await getUsuarioActual();
@@ -58,6 +62,7 @@ export async function cerrarJornada(input: {
 
   const gastosDeclarados = Math.max(0, Math.round(Number(input.gastos) || 0));
   const entregado = Math.max(0, Math.round(Number(input.entregado) || 0));
+  const retenido = Math.max(0, Math.round(Number(input.retenido) || 0));
   let notas = (input.notas ?? "").toString().trim().slice(0, 300) || null;
 
   // ANTI-FUGA (server-side): los gastos que reducen el "esperado" NO pueden superar
@@ -76,13 +81,26 @@ export async function cerrarJornada(input: {
 
   // esperado = base + cobros − gastos − COLOCADO. El capital que puso en la calle
   // hoy (renovaciones/ventas) ya no lo tiene: pedírselo le inventa un faltante.
+  // Lo retenido se ACOTA a lo que de verdad podía quedarse (esperado − entregado):
+  // declarar de más no fabrica un "sobrante" ni una base — el anti-fuga no se afloja.
+  const esperadoBruto = Math.max(0, estado.base + estado.recaudado - gastos - estado.colocado);
+  const retenidoReal = Math.min(retenido, Math.max(0, esperadoBruto - entregado));
   const { esperado, diferencia, estado: est, aFavor } = calcularRendicion(
     estado.recaudado,
     gastos,
     entregado,
     estado.base,
     estado.colocado,
+    retenidoReal,
   );
+  // Lo retenido queda ESCRITO en el acta (la tabla no tiene columna; la nota es
+  // parte del acta inmutable): mañana el arrastre lo deriva de estos números
+  // (base+recaudado−gastos−colocado−entregado) y el supervisor lee de dónde
+  // salió la base.
+  if (retenidoReal > 0) {
+    const aviso = `Se queda ${UYU(retenidoReal)} en caja para arrancar mañana (será su base).`;
+    notas = notas ? `${aviso} · ${notas}`.slice(0, 300) : aviso.slice(0, 300);
+  }
 
   // ⚠️ EL COBRADOR PUSO PLATA DE SU BOLSILLO. Cuando el capital colocado se pasa de
   // lo que tenía encima, el "a entregar" se topa en $0 y el acta salía "Cuadra ✓"

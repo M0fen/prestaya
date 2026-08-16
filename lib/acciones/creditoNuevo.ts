@@ -28,7 +28,7 @@ import {
 } from "@/lib/data/creditoNuevo";
 import { cerrarSolicitudPendienteDeAnterior } from "@/lib/data/solicitudesRenovacion";
 import { calcularCuotaCreditoNuevo, INTERES_DEFECTO_PCT, interesDeBase } from "@/lib/creditoNuevo";
-import { cuotasValidas, RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
+import { cuotasValidas, techoVentaGestor, RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
 import { esUuid, opIdDeterminista } from "@/lib/idempotencia";
@@ -70,9 +70,10 @@ export async function crearCreditoNuevo(input: {
   if (!cuotasValidas(totalDias, true))
     return { ok: false, error: "La cantidad de cuotas debe ser un entero entre 1 y 366." };
   if (!FRECUENCIAS.includes(input.frecuencia)) return { ok: false, error: "Frecuencia inválida." };
-  // CAP total DURO (money-critical), idéntico al de la renovación.
-  if (monto > RENOVACION_CAP_TOTAL)
-    return { ok: false, error: `El crédito no puede superar ${UYU(RENOVACION_CAP_TOTAL)} (tope máximo).` };
+  // El tope se decide MÁS ABAJO contra el último crédito del cliente (regla de
+  // Carlos 16-08: el gestor autoriza hasta +20% del anterior, con piso en el CAP;
+  // el CAP a secas solo rige el PRIMER crédito). Antes acá cortaba en $100.000
+  // para todos — la queja del admin "no deja hacer créditos con más del 20%".
 
   const db = await createSupabaseServer();
 
@@ -119,7 +120,18 @@ export async function crearCreditoNuevo(input: {
   // crédito de un cliente y autorizar por encima del tramo, igual que el admin.
   // Si hasta el COBRADOR coloca el primer crédito directo desde la calle
   // (cobradorCredito.ts), bloquearle esto al supervisor era un contrasentido.
-  // El CAP de $100.000 (arriba) sigue siendo duro para todos.
+  //
+  // TECHO del gestor: con historial, +20% sobre el último crédito (piso CAP);
+  // sin historial (primer crédito), el CAP. Más de eso en un alta no lo autoriza
+  // nadie — candado contra el dedazo (misma regla que techoRenovacion).
+  const techoGestor = conHistorial ? techoVentaGestor(baseTasa!.monto) : RENOVACION_CAP_TOTAL;
+  if (monto > techoGestor)
+    return {
+      ok: false,
+      error: conHistorial
+        ? `Hasta ${UYU(techoGestor)} (+20% sobre su último crédito de ${UYU(baseTasa!.monto)}). Más que eso no se autoriza en una sola venta.`
+        : `El primer crédito no puede superar ${UYU(RENOVACION_CAP_TOTAL)}.`,
+    };
 
   // El interés solo se acepta del formulario cuando NO hay historial; si lo hay,
   // manda la tasa del crédito anterior (el gestor no puede re-tarifar por acá).

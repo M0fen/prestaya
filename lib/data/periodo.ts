@@ -203,6 +203,9 @@ export async function getResumenPeriodo(
       db
         .from("prestamos")
         .select("monto_prestado, creado_por")
+        // Una venta DESHECHA (estado cancelado) no es capital colocado: contarla
+        // inflaba "Colocado hoy" del Cierre/Dashboard (queja del admin 16-08).
+        .neq("estado", "cancelado")
         .gte("creado_en", isoUY(inicio))
         .lte("creado_en", new Date(ahoraMs).toISOString())
         .order("id", { ascending: true }) // estable: evita overlap entre páginas

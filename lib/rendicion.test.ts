@@ -189,3 +189,40 @@ describe("puedeEntregaDiferida: hoy no, ayer sí, 30 días sí, 31 no", () => {
     expect(ENTREGA_DIFERIDA_VENTANA_DIAS).toBe(30);
   });
 });
+
+describe("retenido — 'me quedo para mañana' NO es faltante (regla de Carlos 16-08)", () => {
+  // Antes el cierre prellenaba "entrego TODO" y si el cobrador se guardaba plata el
+  // acta lo marcaba FALTANTE — el arrastre existía pero nacía muerto. Ahora hay
+  // palabra para "esto me lo quedo": cuadra con entregado + retenido = esperado.
+  it("base 5.000 + cobró 20.000: entrega 20.000 y se queda 5.000 → CUADRA", () => {
+    const r = calcularRendicion(20_000, 0, 20_000, 5_000, 0, 5_000);
+    expect(r.esperado).toBe(25_000);
+    expect(r.diferencia).toBe(0);
+    expect(r.estado).toBe("cuadra");
+    // …y la caja final (= base de mañana) es exactamente lo retenido.
+    expect(cajaFinal(5_000, 20_000, 0, 20_000, 0)).toBe(5_000);
+  });
+
+  it("sin declarar retenido, lo no entregado sigue siendo FALTANTE (el anti-fuga no se afloja)", () => {
+    const r = calcularRendicion(20_000, 0, 20_000, 5_000, 0);
+    expect(r.estado).toBe("faltante");
+    expect(r.diferencia).toBe(-5_000);
+  });
+
+  it("puede quedarse con MÁS que la base (guarda parte de lo cobrado para colocar mañana): cuadra si lo declara", () => {
+    const r = calcularRendicion(20_000, 0, 10_000, 5_000, 0, 15_000);
+    expect(r.estado).toBe("cuadra");
+    expect(cajaFinal(5_000, 20_000, 0, 10_000, 0)).toBe(15_000);
+  });
+
+  it("un retenido NEGATIVO se ignora (no descuenta)", () => {
+    const r = calcularRendicion(10_000, 0, 10_000, 0, 0, -3_000);
+    expect(r.estado).toBe("cuadra");
+  });
+
+  it("entregar de más con retenido: sobrante, como siempre", () => {
+    const r = calcularRendicion(10_000, 0, 12_000, 0, 0, 0);
+    expect(r.estado).toBe("sobrante");
+    expect(r.diferencia).toBe(2_000);
+  });
+});

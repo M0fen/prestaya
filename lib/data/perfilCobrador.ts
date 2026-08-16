@@ -418,6 +418,7 @@ export async function getPerfilCobrador(
         gastosRespaldadosHoy: 0,
         yaRendida: null,
         base: 0,
+        baseOrigen: "sin_base",
         colocado: 0,
         creditosColocados: 0,
         disponible: false,

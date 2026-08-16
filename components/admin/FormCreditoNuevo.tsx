@@ -7,7 +7,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { UYU } from "@/lib/format";
 import { calcularCuotaCreditoNuevo, INTERES_DEFECTO_PCT, interesDeBase } from "@/lib/creditoNuevo";
-import { evaluarRenovacion } from "@/lib/renovacion";
+import { evaluarRenovacion, techoVentaGestor, RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
 import { crearCreditoNuevo } from "@/lib/acciones/creditoNuevo";
 import type { FrecuenciaPrestamo } from "@/types/db";
 
@@ -102,10 +102,14 @@ export function FormCreditoNuevo({
 
   // Preview de los MISMOS topes que aplica el servidor. Desde el 08-13 el
   // SUPERVISOR también es aprobador (regla de Carlos): puede dar el primer
-  // crédito y autorizar sobre el tramo, igual que el admin. El único freno duro
-  // para todos sigue siendo el CAP de $100.000.
+  // crédito y autorizar sobre el tramo, igual que el admin.
+  // TECHO del gestor (regla 16-08): con historial, +20% del último crédito con
+  // piso en el CAP; sin historial, el CAP. La MISMA función que el servidor —
+  // antes acá se bloqueaba en $100.000 a secas y el mensaje decía "no se puede
+  // dar de alta", que era mentira para media cartera.
   const evalu = valido && conHistorial ? evaluarRenovacion(baseTasa!.monto, montoNum) : null;
-  const superaCap = valido ? montoNum > 100_000 : false;
+  const techoGestor = conHistorial ? techoVentaGestor(baseTasa!.monto) : RENOVACION_CAP_TOTAL;
+  const superaCap = valido ? montoNum > techoGestor : false;
   const bloqueado = superaCap;
 
   const enviar = async () => {
@@ -318,7 +322,9 @@ export function FormCreditoNuevo({
           }`}
         >
           {superaCap
-            ? "El crédito no puede superar $100.000 (tope máximo). No se puede dar de alta."
+            ? conHistorial
+              ? `Hasta ${UYU(techoGestor)} (+20% sobre su último crédito de ${UYU(baseTasa!.monto)}). Más que eso no se autoriza en una sola venta.`
+              : `El primer crédito no puede superar ${UYU(RENOVACION_CAP_TOTAL)}.`
             : `${evalu?.motivo} Como gestor, lo autorizás directo.`}
         </p>
       )}

@@ -653,7 +653,10 @@ function AccesoRapido({ admin }: { admin: boolean }) {
   // Íconos SVG del set propio (vía ICONO_NAV): los tiles eran el último bloque
   // del dashboard con emojis multicolor al lado de la nav monocroma.
   const items: { href: string; label: string; soloAdmin?: boolean }[] = [
-    { href: "/admin/informe-cartera", label: "Ventas Crédito", soloAdmin: true },
+    // "Ventas Crédito" era la CARTERA activa (sin fecha): el nombre engañaba al
+    // admin buscando "las ventas del día". El tile va a Movimientos, y la cartera
+    // conserva su entrada en el menú con su nombre real.
+    { href: "/admin/movimientos", label: "Ventas y pagos del día" },
     { href: "/admin/cobranza", label: "Cobros del día" },
     { href: "/admin/caja", label: "Caja diaria" },
     { href: "/admin/recaudos", label: "Recaudos" },

@@ -55,6 +55,7 @@ import {
   montoRenovacionSugerido,
   techoRenovacion,
   techoVentaNueva,
+  techoVentaGestor,
   RENOVACION_CAP_TOTAL,
 } from "@/lib/renovacion";
 import { crearSolicitudDb, cerrarSolicitudPendienteDeAnterior } from "@/lib/data/solicitudesRenovacion";
@@ -617,8 +618,11 @@ export async function nuevaVentaDesdeCalle(input: {
   if (!cuotasValidas(totalDias, true))
     return { ok: false, error: "Revisá la cantidad de cuotas (máximo 366)." };
   if (!FRECUENCIAS.includes(input.frecuencia)) return { ok: false, error: "Frecuencia inválida." };
-  if (monto > RENOVACION_CAP_TOTAL)
-    return { ok: false, error: `El crédito no puede superar ${UYU(RENOVACION_CAP_TOTAL)}.` };
+  // ⚠️ El CAP a secas YA NO corta acá (queja del admin 16-08: "no deja hacer
+  // créditos con más del 20%"). Con historial, lo que pasa del techo del cobrador
+  // va a SOLICITUD (más abajo) y el gestor puede autorizar hasta
+  // techoVentaGestor (+20% del anterior, piso CAP). El CAP duro queda SOLO para el
+  // primer crédito (sin anterior contra qué medir): se valida más abajo.
 
   // CANDADO ANTI DOBLE-COLOCACIÓN: el mismo monto al mismo cliente hace minutos
   // (propio O de un compañero — cliente compartido). Solo se salta si el cobrador
@@ -682,6 +686,15 @@ export async function nuevaVentaDesdeCalle(input: {
     // el mismo agujero que la auditoría del 10-08 marcó en la cola de gastos.
     const techo = techoVentaNueva(baseTasa!.monto);
     if (monto > techo) {
+      // Lo que NI el gestor puede autorizar (más de +20% del anterior y sobre el
+      // CAP) se rebota acá con la salida clara — no se manda a una cola que
+      // igual lo va a rechazar.
+      const maximo = techoVentaGestor(baseTasa!.monto);
+      if (monto > maximo)
+        return {
+          ok: false,
+          error: `Hasta ${UYU(maximo)} lo puede aprobar la oficina (+20% sobre su último crédito de ${UYU(baseTasa!.monto)}). Más que eso no se autoriza en una sola venta.`,
+        };
       return pedirAprobacion(db, u, {
         clienteId: input.clienteId,
         prestamoAnteriorId: base!.prestamoId,
@@ -691,6 +704,9 @@ export async function nuevaVentaDesdeCalle(input: {
         tipo: "venta",
       });
     }
+  } else if (monto > RENOVACION_CAP_TOTAL) {
+    // PRIMER crédito: sin anterior contra qué medir un +20%, el CAP es el tope.
+    return { ok: false, error: `El primer crédito no puede superar ${UYU(RENOVACION_CAP_TOTAL)}.` };
   }
 
   const interesPct = interesDeBase(baseTasa);

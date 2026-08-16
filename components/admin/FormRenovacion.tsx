@@ -13,6 +13,7 @@ import {
   montoRenovacionPedido,
   montoRenovacionSugerido,
   requiereAprobacionAdmin,
+  techoRenovacion,
   RENOVACION_AUMENTO_PCT,
   RENOVACION_CAP_TOTAL,
 } from "@/lib/renovacion";
@@ -169,13 +170,14 @@ export function FormRenovacion({
           REDUCIRÍA al tope en silencio (de $1.750.000 a $100.000), así que el
           monto arranca en el del crédito anterior. No se bloquea: lo autoriza el
           admin, y el supervisor lo pide (decisión de Carlos, 06-08). */}
-      {superaTope && (
-        <p className="rounded-[12px] bg-[#FDF3E2] px-3 py-2 text-[12px] font-bold text-[#8A6D1E]">
-          Este crédito es de {UYU(anterior.monto)}, por encima del tope de{" "}
-          {UYU(RENOVACION_CAP_TOTAL)}. Lo autorizás vos como gestor. Ojo con bajarle el monto:
-          sería recortarle el capital al cliente.
-        </p>
-      )}
+      {/* Techo del GESTOR (regla de Carlos 16-08): hasta +20% sobre el anterior,
+          piso en el CAP. Se dice ANTES de tipear — el "no deja" del admin era en
+          buena parte no saber hasta dónde podía. */}
+      <p className="rounded-[12px] bg-[#EEF3FF] px-3 py-2 text-[12px] font-medium text-[#13308C]">
+        Podés autorizar hasta <b className="tabular-nums">{UYU(techoRenovacion(anterior.monto))}</b>{" "}
+        (+20% sobre el anterior{anterior.monto < RENOVACION_CAP_TOTAL ? ", o el tope de " + UYU(RENOVACION_CAP_TOTAL) : ""}).
+        {superaTope && " Ojo con bajarle el monto: sería recortarle el capital al cliente."}
+      </p>
 
       <div className="grid grid-cols-2 gap-2.5">
         <label className="flex flex-col gap-1">

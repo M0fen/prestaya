@@ -76,7 +76,7 @@ export function OjitoCliente({ clienteId, nombre }: { clienteId: string; nombre:
             {/* Encabezado */}
             <div className="flex items-start justify-between gap-2">
               <div className="flex min-w-0 flex-col">
-                <span className="truncate text-[17px] font-extrabold text-tinta">{nombre}</span>
+                <span className="line-clamp-2 break-words leading-[1.2] text-[17px] font-extrabold text-tinta">{nombre}</span>
                 {ficha?.direccion && (
                   <span className="truncate text-[12px] font-medium text-tenue">{ficha.direccion}</span>
                 )}

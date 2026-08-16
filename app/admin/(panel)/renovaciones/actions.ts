@@ -19,7 +19,7 @@ import { getClientePorId } from "@/lib/data/clientes";
 import { getPrestamoPorId } from "@/lib/data/prestamos";
 import { crearCreditoNuevoDb } from "@/lib/data/creditoNuevo";
 import { calcularCuotaCreditoNuevo, interesDeBase, INTERES_DEFECTO_PCT } from "@/lib/creditoNuevo";
-import { evaluarRenovacion, techoRenovacion, RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
+import { evaluarRenovacion, techoRenovacion, techoVentaGestor, RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
 import { reportarError } from "@/lib/observabilidad";
@@ -84,14 +84,14 @@ export async function renovarCredito(input: {
   // ANTERIOR ya lo pasaba, y nunca por encima de él. Para un crédito normal el
   // techo sigue siendo $100.000 (la solicitud sobre-tramo, que es su razón de ser,
   // no cambia); para un heredado de $1.750.000, su propio monto.
+  // Techo del GESTOR (regla de Carlos 16-08): hasta +20% sobre el anterior, con
+  // piso en el CAP. Más que eso en UNA renovación no lo autoriza nadie — es el
+  // candado contra el dedazo ($20.000 tipeado como $200.000).
   const techoAbsoluto = techoRenovacion(ant.monto_prestado);
   if (monto > techoAbsoluto) {
     return {
       ok: false,
-      error:
-        ant.monto_prestado > RENOVACION_CAP_TOTAL
-          ? `Este crédito se puede renovar hasta ${UYU(techoAbsoluto)} (lo que ya tenía). Renovar no sube un crédito que está por encima del tope.`
-          : `El crédito no puede superar ${UYU(RENOVACION_CAP_TOTAL)}. Revisá el monto.`,
+      error: `Este crédito se puede renovar hasta ${UYU(techoAbsoluto)} (+20% sobre los ${UYU(ant.monto_prestado)} anteriores). Más que eso en una sola renovación no se autoriza — si hace falta, renovalo por el máximo ahora y subilo en la próxima.`,
     };
   }
 
@@ -183,13 +183,16 @@ export async function aprobarSolicitud(id: string): Promise<ResultadoAlta> {
       // cliente al momento del pedido), NO un crédito a finalizar: puede seguir
       // vivo (multi-crédito legítimo) o estar saldado hace meses. Por eso este
       // camino NO pasa por crearRenovacion — finalizaría un crédito que nadie
-      // quiso cerrar. El único tope revalidado es el CAP, duro para todos.
+      // quiso cerrar. El tope revalidado es el del GESTOR: +20% del anterior con
+      // piso en el CAP (regla de Carlos 16-08: más del 20% SE PUEDE, con
+      // aprobación — antes acá decía "no lo puede aprobar nadie" sobre $100.000).
       if (!ant || ant.cliente_id !== s.clienteId)
         return { ok: false, error: "El crédito de referencia del pedido ya no existe. Rechazá la solicitud." };
-      if (s.monto > RENOVACION_CAP_TOTAL)
+      const techoGestor = techoVentaGestor(ant.monto_prestado);
+      if (s.monto > techoGestor)
         return {
           ok: false,
-          error: `El monto pedido (${UYU(s.monto)}) supera el tope de ${UYU(RENOVACION_CAP_TOTAL)} — no lo puede aprobar nadie. Rechazá la solicitud.`,
+          error: `El monto pedido (${UYU(s.monto)}) supera lo que se puede autorizar en una venta (${UYU(techoGestor)} = +20% sobre su último crédito). Rechazá la solicitud y que la pidan bien.`,
         };
       // El cliente puede haber caído de baja MIENTRAS el pedido esperaba: todos
       // los demás caminos lo frenan (puerta() en la calle, el chequeo del panel)

@@ -49,7 +49,7 @@ export function VentasClientes({ ventas, resumen }: { ventas: VentaCliente[]; re
               <li key={v.id} className="flex flex-col gap-2.5 rounded-[14px] border border-borde bg-tarjeta p-3.5">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex min-w-0 flex-col">
-                    <Link href={`/admin/clientes/${v.clienteId}`} className="truncate text-[14px] font-bold text-azul hover:underline">
+                    <Link href={`/admin/clientes/${v.clienteId}`} className="line-clamp-2 break-words leading-[1.2] text-[14px] font-bold text-azul hover:underline">
                       {v.clienteNombre ?? "Cliente"}
                     </Link>
                     <span className="truncate text-[12.5px] font-semibold text-cuerpo">{v.proveedor === "curbe" ? "💎 " : "🛒 "}{v.productoNombre}</span>
