@@ -17,9 +17,19 @@ import { NEGOCIO } from "@/lib/negocio";
 export const dynamic = "force-dynamic";
 const TOPE_MS = 22_000;
 
+// Banner OG generado (Higgsfield 16-08, bucket tienda/og): compartir /tienda
+// por WhatsApp ahora muestra tarjeta con imagen, como cualquier e-commerce.
+const OG_TIENDA = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/render/image/public/tienda/og/og-tienda.png?width=1200&quality=80`;
 export const metadata = {
   title: "Tienda Presta Ya — comprá en cuotas cómodas",
   description: "Electrodomésticos, tecnología y más, financiados en cuotas. Elegí lo que necesitás y te contactamos con tu plan de pago.",
+  openGraph: {
+    title: "Tienda Presta Ya",
+    description: "Electrodomésticos, tecnología, fragancias y más — en cuotas cómodas, con entrega a domicilio.",
+    images: [{ url: OG_TIENDA, width: 1200, height: 670 }],
+    type: "website",
+  },
+  twitter: { card: "summary_large_image", images: [OG_TIENDA] },
 };
 
 export default async function TiendaPublicaPage({

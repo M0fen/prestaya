@@ -216,6 +216,21 @@ function EditorProducto({
     setSubiendo(true); setError(null);
     const nuevas: string[] = [];
     for (const file of Array.from(files).slice(0, 10)) {
+      // Las fotos del teléfono suelen pesar 3-8 MB y la Server Action las rebota
+      // (límite de body): esas van por la URL FIRMADA directa al bucket — el
+      // mismo camino que ya usa el video. Las livianas siguen por la action.
+      if (file.size > 2 * 1024 * 1024) {
+        if (!file.type.startsWith("image/")) { setError("Eso no parece una imagen."); continue; }
+        if (file.size > 25 * 1024 * 1024) { setError(`${file.name}: muy pesada (máx. 25 MB).`); continue; }
+        const pre = await crearUrlSubidaTienda({ nombreArchivo: file.name, contentType: file.type });
+        if (!pre.ok) { setError(pre.error); continue; }
+        try {
+          const put = await fetch(pre.signedUrl, { method: "PUT", headers: { "content-type": file.type }, body: file });
+          if (!put.ok) throw new Error();
+          nuevas.push(pre.publicUrl);
+        } catch { setError(`No se pudo subir ${file.name}. Probá de nuevo.`); }
+        continue;
+      }
       const fd = new FormData(); fd.set("file", file);
       const r = await subirImagenTienda(fd);
       if (r.ok) nuevas.push(r.url); else setError(r.error);
