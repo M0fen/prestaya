@@ -163,3 +163,32 @@ describe("consolidarPorZona — cobro post-rendición", () => {
     expect(zonas[0].cobradores[0].cobroPostCierre).toBe(0);
   });
 });
+
+describe("RETENIDO ('me quedo para mañana') en el cierre por zona (auditoría 16-08)", () => {
+  const cobradorZona = new Map<string, string | null>([["c1", "zA"], ["c2", "zA"]]);
+  const zonaNombre = new Map([["zA", "Zona A"]]);
+
+  it("un cobrador que retuvo su base y CUADRÓ no le agrega faltante al sello de la zona", () => {
+    // base 5.000 + cobró 20.000 = esperado 25.000. Entregó 20.000 y se quedó 5.000
+    // (declarados): su acta dice diferencia 0. El supervisor recibe 20.000, no 25.000.
+    const rendidas: RendidaLite[] = [
+      rend({ cobradorId: "c1", base: 5000, recaudado: 20000, gastos: 0, entregado: 20000, diferencia: 0, estado: "cuadra" }),
+    ];
+    const { zonas, totalFaltante } = consolidarPorZona(rendidas, [], cobradorZona, zonaNombre);
+    const z = zonas[0];
+    expect(z.cobradores[0].retenido).toBe(5000);
+    expect(z.totalEsperado).toBe(20000); // lo que de verdad va al supervisor
+    expect(z.totalEntregado).toBe(20000);
+    expect(totalFaltante).toBe(0); // antes: −5.000 en un sello inmutable
+  });
+
+  it("un FALTANTE real sigue siendo faltante (retenido derivado = 0)", () => {
+    const rendidas: RendidaLite[] = [
+      rend({ cobradorId: "c2", base: 5000, recaudado: 20000, gastos: 0, entregado: 20000, diferencia: -5000, estado: "faltante" }),
+    ];
+    const { zonas, totalFaltante } = consolidarPorZona(rendidas, [], cobradorZona, zonaNombre);
+    expect(zonas[0].cobradores[0].retenido).toBe(0);
+    expect(zonas[0].totalEsperado).toBe(25000);
+    expect(totalFaltante).toBe(5000);
+  });
+});

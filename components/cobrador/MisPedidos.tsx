@@ -20,7 +20,7 @@ const TONO = {
   rechazado: { borde: "var(--color-borde)", fondo: "var(--color-tarjeta)", texto: "var(--color-gris)", chip: "No se aprobó" },
 } as const;
 
-const ICONO = { renovacion: "🔁", gasto: "🧾", correccion: "✏️", aviso: "📣" } as const;
+const ICONO = { renovacion: "🔁", gasto: "🧾", correccion: "✏️", aviso: "📣", cancelacion: "⛔" } as const;
 
 /** "hace 20 min" · "hace 3 h" · "hace 2 días". Vago a propósito arriba de un día:
  *  lo que importa es la sensación de que se está haciendo viejo. */

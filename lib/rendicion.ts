@@ -109,6 +109,29 @@ export function cajaFinal(
 }
 
 /**
+ * RETENIDO derivado del ACTA (la tabla no tiene columna; la nota lo cuenta en
+ * criollo, este número lo reconstruye para la máquina): con esperado =
+ * base+recaudado−gastos−colocado y diferencia = entregado + retenido − esperado,
+ * entonces retenido = diferencia + esperado − entregado. Nunca negativo. Un
+ * acta ANTERIOR al modelo (sin retenido) da 0 cuando cuadraba o −faltante,
+ * que se clampa a 0 — coherente. Puro.
+ */
+export function retenidoDesdeActa(acta: {
+  base: number;
+  recaudado: number;
+  gastos: number;
+  entregado: number;
+  colocado: number;
+  diferencia: number;
+}): number {
+  const esperado = Math.max(
+    0,
+    Math.round(acta.base) + Math.round(acta.recaudado) - Math.round(acta.gastos) - Math.round(acta.colocado),
+  );
+  return Math.max(0, Math.round(acta.diferencia) + esperado - Math.round(acta.entregado));
+}
+
+/**
  * BASE DE MAÑANA a partir del ACTA de hoy = lo DECLARADO, no "lo que no
  * entregó" (auditoría 16-08). `cajaFinal` incluye tanto lo retenido a
  * conciencia ("me quedo para mañana", diferencia = 0) como un FALTANTE

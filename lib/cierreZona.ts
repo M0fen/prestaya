@@ -14,6 +14,7 @@
 //  en la calle): NO cuenta como faltante, cuenta como "por rendir".
 // ─────────────────────────────────────────────────────────────────────────
 import type { EstadoRendicion } from "./rendicion";
+import { retenidoDesdeActa } from "@/lib/rendicion";
 
 /** Estado de un cobrador en el cierre: rindió (cuadra/faltante/sobrante) o no. */
 export type EstadoCobradorCierre = EstadoRendicion | "pendiente";
@@ -63,8 +64,11 @@ export interface CobradorCierre {
   esperado: number;
   /** Efectivo entregado (0 si aún no rindió). */
   entregado: number;
-  /** entregado − esperado (0 si aún no rindió → pendiente, no faltante). */
+  /** entregado + retenido − esperado (0 si aún no rindió → pendiente, no faltante). */
   diferencia: number;
+  /** Lo que se QUEDÓ para mañana (su caja inicial de mañana), derivado del acta.
+   *  NO se le entrega al supervisor: no cuenta en el esperado de la zona. */
+  retenido?: number;
   /** Cobró DESPUÉS de rendir (recaudoVivo − recaudado congelado). Esa plata NO
    *  entró a esta rendición → se avisa (si no, se ve "Cuadra" y queda fuera del libro). */
   cobroPostCierre?: number;
@@ -169,10 +173,19 @@ export function consolidarPorZona(
     // "Cuadra ✓" —los dos números de la MISMA fila contradiciéndose— y el total
     // de la zona pedía $40.000 que no existen, en un sello que es inmutable.
     const colocado = Math.round(r.colocado ?? 0);
-    const esperado = Math.max(
+    const esperadoBruto = Math.max(
       0,
       base + Math.round(r.recaudado) - Math.round(r.gastos) - colocado,
     );
+    // ⚠️ RETENIDO (auditoría 16-08): lo que el cobrador DECLARÓ quedarse para
+    // mañana (su caja inicial) NO se le entrega al supervisor. Vive en el acta
+    // como diferencia = entregado + retenido − esperado; se deriva y se resta del
+    // esperado de la ZONA — sin esto el sello del cierre (inmutable) nacía con
+    // diferencia = −Σretenido: "faltante" para cobradores que cuadraron.
+    const retenido = retenidoDesdeActa({
+      base, recaudado: r.recaudado, gastos: r.gastos, entregado: r.entregado, colocado, diferencia: r.diferencia,
+    });
+    const esperado = Math.max(0, esperadoBruto - retenido);
     // Cobró después de rendir: el recaudo vivo supera el congelado al cerrar.
     const cobroPostCierre = Math.max(0, Math.round(r.recaudadoVivo ?? r.recaudado) - Math.round(r.recaudado));
     z.cobradores.push({
@@ -186,6 +199,7 @@ export function consolidarPorZona(
       esperado,
       entregado: r.entregado,
       diferencia: r.diferencia,
+      retenido,
       cobroPostCierre,
     });
     // Redondeo defensivo por simetría con `esperado` (hoy los valores ya son enteros

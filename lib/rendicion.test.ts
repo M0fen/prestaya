@@ -6,6 +6,7 @@ import {
   cajaFinal,
   puedeEntregaDiferida,
   baseDeMananaDesdeActa,
+  retenidoDesdeActa,
   ENTREGA_DIFERIDA_VENTANA_DIAS,
 } from "./rendicion";
 
@@ -251,5 +252,24 @@ describe("baseDeMananaDesdeActa — el arrastre es lo DECLARADO, nunca un faltan
   });
   it("sobrante (entregó de más): no hay base negativa", () => {
     expect(baseDeMananaDesdeActa(acta({ entregado: 27000, diferencia: 2000 }))).toBe(0);
+  });
+});
+
+describe("retenidoDesdeActa — reconstruye 'me quedo' desde las columnas del acta (sin DDL)", () => {
+  const acta = (over: Partial<Parameters<typeof retenidoDesdeActa>[0]>) => ({
+    base: 5000, recaudado: 20000, gastos: 0, entregado: 20000, colocado: 0, diferencia: 0, ...over,
+  });
+  it("cuadró entregando 20.000 sobre 25.000 → retuvo 5.000", () => {
+    expect(retenidoDesdeActa(acta({}))).toBe(5000);
+  });
+  it("faltante de 5.000 (diferencia −5.000) → retenido 0: no se confunde con quedarse", () => {
+    expect(retenidoDesdeActa(acta({ diferencia: -5000 }))).toBe(0);
+  });
+  it("acta VIEJA (entregó todo, dif 0) → 0", () => {
+    expect(retenidoDesdeActa(acta({ entregado: 25000 }))).toBe(0);
+  });
+  it("es la INVERSA de calcularRendicion: retenido → diferencia → retenido", () => {
+    const r = calcularRendicion(20000, 0, 18000, 5000, 0, 7000);
+    expect(retenidoDesdeActa({ base: 5000, recaudado: 20000, gastos: 0, entregado: 18000, colocado: 0, diferencia: r.diferencia })).toBe(7000);
   });
 });

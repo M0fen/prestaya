@@ -23,11 +23,12 @@
 //  solicitudes tienen RLS de gestor, así que con la sesión del cobrador vería cero
 //  filas — justo las suyas. Misma justificación que `recaudadoHoyDe` y `colocado`.
 // ─────────────────────────────────────────────────────────────────────────
+import { UYU } from "@/lib/format";
 import "server-only";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { tablaFaltante } from "./errores";
 
-export type TipoPedido = "renovacion" | "gasto" | "correccion" | "aviso";
+export type TipoPedido = "renovacion" | "gasto" | "correccion" | "aviso" | "cancelacion";
 export type EstadoPedido = "pendiente" | "aprobado" | "rechazado";
 
 export interface Pedido {
@@ -69,18 +70,81 @@ const horasDesde = (iso: string | null, ahora: number): number =>
 export async function getMisPedidos(cobradorId: string, ahora: Date = new Date()): Promise<Pedido[]> {
   const t = ahora.getTime();
   const desde = new Date(t - DIAS_RESUELTOS * 24 * 3_600_000).toISOString();
-  const [renov, gastos, corr, avisos] = await Promise.all([
+  const [renov, gastos, corr, avisos, cancel] = await Promise.all([
     pedidosRenovacion(cobradorId, desde, t),
     pedidosGasto(cobradorId, desde, t),
     pedidosCorreccion(cobradorId, desde, t),
     avisosALaOficina(cobradorId, desde, t),
+    ventasCanceladasPorLaOficina(cobradorId, desde, t),
   ]);
 
+  // Una venta CANCELADA por la oficina va PRIMERO de todo: su caja ya no cuenta
+  // esa plata y él puede tenerla entregada al cliente — hay que actuar ya.
   const peso = (p: Pedido) =>
-    p.estado === "aprobado" && p.tipo === "renovacion" ? 0 : p.estado === "pendiente" ? 1 : 2;
-  return [...renov, ...gastos, ...corr, ...avisos].sort(
+    p.tipo === "cancelacion" ? -1 : p.estado === "aprobado" && p.tipo === "renovacion" ? 0 : p.estado === "pendiente" ? 1 : 2;
+  return [...cancel, ...renov, ...gastos, ...corr, ...avisos].sort(
     (a, b) => peso(a) - peso(b) || b.horasEsperando - a.horasEsperando,
   );
+}
+
+/**
+ * VENTAS que ESTE cobrador colocó y la OFICINA CANCELÓ (auditoría 16-08): antes
+ * nadie le avisaba — su caja del día dejaba de contar esa plata (colocado
+ * excluye cancelado) y el cierre le pedía el monto como si nunca lo hubiera
+ * entregado, mientras el cliente ya lo tenía en la mano. Se lee del libro
+ * (prestamos.estado='cancelado' + creado_por=yo) cruzado con la auditoría de la
+ * cancelación para traer el MOTIVO. Solo las que él creó: el "deshacer" propio
+ * ya lo vio en pantalla. Ventana: los mismos días que el resto de los pedidos.
+ */
+async function ventasCanceladasPorLaOficina(cobradorId: string, desde: string, t: number): Promise<Pedido[]> {
+  try {
+    const admin = createSupabaseAdmin();
+    const { data: canceladas, error } = await admin
+      .from("prestamos")
+      .select("id, cliente_id, monto_prestado, creado_en, actualizado_en, clientes(nombre)")
+      .eq("creado_por", cobradorId)
+      .eq("estado", "cancelado")
+      .gte("creado_en", desde)
+      .order("creado_en", { ascending: false })
+      .limit(20);
+    if (error || !canceladas || canceladas.length === 0) return [];
+    // Motivo y autor desde la auditoría de la cancelación (si la hizo la oficina).
+    const ids = canceladas.map((c) => c.id as string);
+    const { data: aud } = await admin
+      .from("auditoria")
+      .select("entidad_id, actor_nombre, detalle, creado_en, accion")
+      .in("entidad_id", ids)
+      .in("accion", ["Canceló una venta desde el panel", "Canceló una renovación y reabrió el crédito anterior"])
+      .order("creado_en", { ascending: false });
+    const porCredito = new Map<string, { actor: string; detalle: string; cuando: string }>();
+    for (const a of aud ?? []) {
+      const k = a.entidad_id as string;
+      if (!porCredito.has(k)) porCredito.set(k, { actor: (a.actor_nombre as string) ?? "la oficina", detalle: (a.detalle as string) ?? "", cuando: a.creado_en as string });
+    }
+    return canceladas
+      .filter((c) => porCredito.has(c.id as string)) // solo las que canceló la OFICINA (el "deshacer" propio no)
+      .map((c) => {
+        const a = porCredito.get(c.id as string)!;
+        const monto = Math.round(Number(c.monto_prestado) || 0);
+        const nombre = (c.clientes as { nombre?: string } | null)?.nombre ?? "el cliente";
+        const motivo = a.detalle.replace(/^.*?motivo:\s*/i, "").split(" · ")[0].trim() || null;
+        return {
+          id: `cancel-${c.id}`,
+          tipo: "cancelacion" as const,
+          estado: "rechazado" as const,
+          titulo: `La oficina CANCELÓ tu venta de ${UYU(monto)} a ${nombre}`,
+          monto,
+          queHacer: `Esa plata vuelve a contarse en tu caja de hoy. Si ya se la entregaste a ${nombre}, avisá YA a tu supervisor y recuperala; si no la entregaste, no la entregues.`,
+          motivo: motivo ? `${a.actor}: ${motivo}` : a.actor,
+          href: `/cobrador/cliente/${c.cliente_id as string}`,
+          pedidoIso: c.creado_en as string,
+          resueltoIso: a.cuando,
+          horasEsperando: horasDesde(a.cuando, t),
+        };
+      });
+  } catch {
+    return [];
+  }
 }
 
 /** Cuántos piden atención AHORA (para el contador del encabezado). */

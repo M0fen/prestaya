@@ -332,8 +332,9 @@ describe("consolidarPorZona — la zona tiene que cuadrar peso a peso", () => {
       zonaDe,
       nombreZona,
     );
+    // Con base 5.000 y ENTREGANDO los 25.000: la base se devuelve → esperado 25.000.
     const conBase = consolidarPorZona(
-      [rend({ cobradorId: "ana", base: 5000, recaudado: 20000, entregado: 20000 })],
+      [rend({ cobradorId: "ana", base: 5000, recaudado: 20000, entregado: 25000 })],
       [],
       zonaDe,
       nombreZona,
@@ -341,6 +342,25 @@ describe("consolidarPorZona — la zona tiene que cuadrar peso a peso", () => {
     expect(sinBase.zonas[0].totalEsperado).toBe(20000);
     expect(conBase.zonas[0].totalEsperado).toBe(25000); // los $5.000 se devuelven
     expect(conBase.zonas[0].cobradores[0].base).toBe(5000);
+    // Con base 5.000, entregando 20.000 y diferencia 0 = SE QUEDÓ la base
+    // declarada ("me quedo para mañana", 16-08): al supervisor le van 20.000.
+    const seQuedo = consolidarPorZona(
+      [rend({ cobradorId: "ana", base: 5000, recaudado: 20000, entregado: 20000, diferencia: 0 })],
+      [],
+      zonaDe,
+      nombreZona,
+    );
+    expect(seQuedo.zonas[0].totalEsperado).toBe(20000);
+    expect(seQuedo.zonas[0].cobradores[0].retenido).toBe(5000);
+    // Y si NO lo declaró (diferencia −5.000): faltante, el esperado sigue en 25.000.
+    const faltante = consolidarPorZona(
+      [rend({ cobradorId: "ana", base: 5000, recaudado: 20000, entregado: 20000, diferencia: -5000, estado: "faltante" })],
+      [],
+      zonaDe,
+      nombreZona,
+    );
+    expect(faltante.zonas[0].totalEsperado).toBe(25000);
+    expect(faltante.totalFaltante).toBe(5000);
   });
 
   it("la plata del que todavía NO rindió no se cuenta como recibida: va a 'por rendir'", () => {

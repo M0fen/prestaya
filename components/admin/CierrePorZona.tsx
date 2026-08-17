@@ -117,6 +117,9 @@ export function CierrePorZona({
                         {/* El capital que puso en la calle NO vuelve: sin decirlo,
                             el supervisor lee un "esperado" bajo y sospecha. */}
                         {c.colocado > 0 && ` · colocó ${UYU(c.colocado)} en la calle`}
+                        {/* Lo que se quedó para MAÑANA no se entrega: decirlo, o el
+                            supervisor lee "entregó 20.000" y espera 25.000. */}
+                        {(c.retenido ?? 0) > 0 && ` · se quedó ${UYU(c.retenido ?? 0)} para mañana`}
                       </span>
                     </div>
                     <span
