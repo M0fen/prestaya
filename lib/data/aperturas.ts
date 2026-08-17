@@ -7,7 +7,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { hoyUY } from "@/lib/fecha";
 import { toIso } from "@/lib/format";
-import { cajaFinal } from "@/lib/rendicion";
+import { cajaFinal, baseDeMananaDesdeActa } from "@/lib/rendicion";
 import { tablaFaltante } from "./errores";
 import { traerTodo } from "./paginado";
 import { colocadoEnDias, claveColocado } from "./colocado";
@@ -76,7 +76,7 @@ export async function getBaseDelDia(
     desde.setDate(desde.getDate() - diasAtras);
     const { data, error } = await db
       .from("rendiciones")
-      .select("fecha, base, recaudado, gastos, entregado")
+      .select("fecha, base, recaudado, gastos, entregado, colocado, diferencia")
       .eq("cobrador_id", cobradorId)
       .gte("fecha", toIso(desde))
       .lt("fecha", ymd)
@@ -85,15 +85,15 @@ export async function getBaseDelDia(
     if (error) throw error;
     const r = data?.[0];
     if (!r) return { base: 0, origen: "sin_base" };
-    // ⚠️ El COLOCADO de ese día se DERIVA: `rendiciones` no lo guarda. Sin restarlo,
-    // el capital que el cobrador puso en la calle volvía como base del día siguiente
-    // —plata que no tiene— y encima se auto-perpetuaba: al día siguiente entregaba
-    // todo, la cuadra volvía a dar el mismo número y el fantasma reaparecía para
-    // siempre, hasta que un supervisor cargara una base a mano.
+    // El COLOCADO de ese día: el CONGELADO en el acta (0136) — si la migración no
+    // corrió, se DERIVA de prestamos. Sin restarlo, el capital que el cobrador puso
+    // en la calle volvía como base del día siguiente —plata que no tiene— y se
+    // auto-perpetuaba (el fantasma que 0136 vino a matar).
     const fecha = String(r.fecha);
     const colocado =
-      (await colocadoEnDias([{ cobradorId, ymd: fecha }])).get(claveColocado(cobradorId, fecha)) ??
-      0;
+      r.colocado != null
+        ? Math.round(Number(r.colocado))
+        : ((await colocadoEnDias([{ cobradorId, ymd: fecha }])).get(claveColocado(cobradorId, fecha)) ?? 0);
     const detalle = {
       base: Math.round(Number(r.base ?? 0)),
       recaudado: Math.round(Number(r.recaudado ?? 0)),
@@ -101,13 +101,15 @@ export async function getBaseDelDia(
       entregado: Math.round(Number(r.entregado ?? 0)),
       colocado,
     };
-    const queda = cajaFinal(
-      detalle.base,
-      detalle.recaudado,
-      detalle.gastos,
-      detalle.entregado,
-      colocado,
-    );
+    // ⚠️ El arrastre es lo DECLARADO, no "lo que no entregó" (auditoría 16-08).
+    // cajaFinal = base+recaudado−gastos−colocado−entregado incluye TANTO lo que
+    // el cobrador se quedó declarándolo ("me quedo para mañana", diferencia=0)
+    // COMO un FALTANTE (diferencia<0). Si el faltante volviera como base, al día
+    // siguiente el cierre lo prellenaría en "Me quedo" y el cobrador que se
+    // guardó plata sin declararla cuadraría para siempre — la fuga anti-fraude
+    // exacta. Restar min(0, diferencia) deja SOLO lo declarado: el faltante
+    // sigue siendo faltante (alerta viva, deuda del cobrador), no base.
+    const queda = baseDeMananaDesdeActa({ ...detalle, diferencia: Math.round(Number(r.diferencia ?? 0)) });
     if (queda <= 0) return { base: 0, origen: "sin_base" };
     return { base: queda, origen: "arrastre", desdeFecha: fecha, detalle };
   } catch (e) {
@@ -166,10 +168,12 @@ export async function getBasesDelDia(
       recaudado: number;
       gastos: number;
       entregado: number;
+      colocado: number | null;
+      diferencia: number | null;
     }>((d, h) => {
       let q = db
         .from("rendiciones")
-        .select("cobrador_id, fecha, base, recaudado, gastos, entregado")
+        .select("cobrador_id, fecha, base, recaudado, gastos, entregado, colocado, diferencia")
         .gte("fecha", toIso(desde))
         .lt("fecha", ymd)
         .order("fecha", { ascending: true })
@@ -178,7 +182,10 @@ export async function getBasesDelDia(
       return q.range(d, h);
     });
     // Orden ascendente → la última asignación por cobrador es la más reciente.
-    const ultima = new Map<string, { fecha: string; detalle: NonNullable<BaseDelDia["detalle"]> }>();
+    const ultima = new Map<
+      string,
+      { fecha: string; detalle: NonNullable<BaseDelDia["detalle"]>; colocadoSellado: number | null; diferencia: number }
+    >();
     for (const r of data) {
       const id = r.cobrador_id;
       if (m.has(id)) continue; // ya tiene base cargada: manda esa
@@ -189,24 +196,23 @@ export async function getBasesDelDia(
           recaudado: Math.round(Number(r.recaudado ?? 0)),
           gastos: Math.round(Number(r.gastos ?? 0)),
           entregado: Math.round(Number(r.entregado ?? 0)),
-          colocado: 0, // se completa abajo (una sola consulta para todos)
+          colocado: 0, // se completa abajo
         },
+        colocadoSellado: r.colocado == null ? null : Math.round(Number(r.colocado)),
+        diferencia: Math.round(Number(r.diferencia ?? 0)),
       });
     }
-    // El COLOCADO de cada día se DERIVA (`rendiciones` no lo guarda): el capital
-    // que el cobrador puso en la calle NO le queda en la mano y no puede arrastrar.
-    const colocados = await colocadoEnDias(
-      [...ultima].map(([id, u]) => ({ cobradorId: id, ymd: u.fecha })),
-    );
+    // El COLOCADO de cada día: el CONGELADO en el acta (0136); si falta, se DERIVA
+    // en una sola consulta para todos. El capital que el cobrador puso en la calle
+    // NO le queda en la mano y no puede arrastrar.
+    const sinSello = [...ultima].filter(([, u]) => u.colocadoSellado == null);
+    const colocados = sinSello.length
+      ? await colocadoEnDias(sinSello.map(([id, u]) => ({ cobradorId: id, ymd: u.fecha })))
+      : new Map<string, number>();
     for (const [id, u] of ultima) {
-      u.detalle.colocado = colocados.get(claveColocado(id, u.fecha)) ?? 0;
-      const queda = cajaFinal(
-        u.detalle.base,
-        u.detalle.recaudado,
-        u.detalle.gastos,
-        u.detalle.entregado,
-        u.detalle.colocado,
-      );
+      u.detalle.colocado = u.colocadoSellado ?? colocados.get(claveColocado(id, u.fecha)) ?? 0;
+      // MISMA regla que getBaseDelDia: solo lo DECLARADO arrastra (el faltante no).
+      const queda = baseDeMananaDesdeActa({ ...u.detalle, diferencia: u.diferencia });
       if (queda > 0)
         m.set(id, { base: queda, origen: "arrastre", desdeFecha: u.fecha, detalle: u.detalle });
     }

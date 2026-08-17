@@ -12,8 +12,12 @@
 --  sobre-CAP sin decisión de admin y sin que ningún test lo vigilara.
 --
 --  LA REGLA: el flag solo se honra desde una vía de CONFIANZA:
---    · service_role — las Server Actions (calle y aprobación) escriben con él
---      DESPUÉS de sus gates de rol/techo/auditoría; nada cambia para la app.
+--    · service_role — las Server Actions escriben con él DESPUÉS de sus gates
+--      de rol/techo/auditoría. ⚠️ Corrección (auditoría 16-08): la CALLE
+--      (renovarDesdeCalle) siempre lo hizo; el PANEL (renovarCredito /
+--      aprobarSolicitud) escribía con la sesión del gestor → un SUPERVISOR
+--      legítimo moría en P0414. Desde e491d7f+ el panel usa service_role para
+--      el sobre-CAP cuando el actor NO es admin (bajo el CAP: sesión, cinturón).
 --    · un ADMIN logueado (app_rol()='admin') — puede lo mismo por API que por
 --      pantalla; era la promesa original de 0135.
 --  Cualquier otro caller autenticado con el flag → P0414 con mensaje claro.

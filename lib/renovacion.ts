@@ -331,7 +331,14 @@ export function evaluarRenovacion(
 
   const pes = (n: number) => `$${Math.round(n).toLocaleString("es-UY")}`;
   let motivo: string | null = null;
-  if (superaCap) motivo = `El crédito no puede superar ${pes(RENOVACION_CAP_TOTAL)} (tope máximo).`;
+  // El CAP acota lo que se aprueba SOLO; el gestor autoriza hasta techoRenovacion
+  // (+20% con piso en el CAP — regla de Carlos 16-08). El motivo lo dice así: el
+  // texto viejo "no puede superar $100.000 (tope máximo)" era falso para el gestor
+  // y aparecía debajo de "podés autorizar hasta $108.000" (auditoría 16-08).
+  if (superaCap && montoNuevo > techoRenovacion(montoAnterior))
+    motivo = `Supera lo que se puede autorizar en una renovación (${pes(techoRenovacion(montoAnterior))} = +${topePct}% sobre ${pes(montoAnterior)}).`;
+  else if (superaCap)
+    motivo = `Pasa el tope de ${pes(RENOVACION_CAP_TOTAL)} que se aprueba solo: hasta ${pes(techoRenovacion(montoAnterior))} lo autoriza un gestor.`;
   else if (excedePct)
     motivo =
       topePct > 0

@@ -68,6 +68,8 @@ export function CerrarJornada({
   // prop SIN desmontar este componente). Sin esto, `entregado` quedaba en el valor
   // viejo y el cierre marcaba un FALTANTE FANTASMA justo al terminar de sincronizar.
   const [editado, setEditado] = useState(false);
+  /** "Efectivo que entrego" tocado A MANO: entonces mover "Me quedo" no lo re-deriva. */
+  const [entregadoAMano, setEntregadoAMano] = useState(false);
   const [notas, setNotas] = useState("");
   const [reintentando, setReintentando] = useState(false);
   /** Cómo salió el último empujón manual de la cola. Sin esto el botón decía
@@ -166,7 +168,11 @@ export function CerrarJornada({
 
   const gastosN = Math.max(0, Math.round(Number(gastos) || 0));
   const entregadoN = Math.max(0, Math.round(Number(entregado) || 0));
-  const retenidoN = Math.max(0, Math.round(Number(retenido) || 0));
+  // El MISMO clamp que aplica el servidor (declarar de más no fabrica sobrante ni
+  // base): el preview dice lo que el acta va a decir, no otra cosa (auditoría 16-08).
+  const esperadoBruto = Math.max(0, base + recaudado - gastosN - colocado);
+  const retenidoN = Math.min(Math.max(0, Math.round(Number(retenido) || 0)), Math.max(0, esperadoBruto - entregadoN));
+  const retenidoDeMas = Math.max(0, Math.round(Number(retenido) || 0)) > retenidoN;
   const { esperado, diferencia, estado, aFavor } = calcularRendicion(recaudado, gastosN, entregadoN, base, colocado, retenidoN);
   const t = TONO[estado];
 
@@ -265,7 +271,7 @@ export function CerrarJornada({
           <input
             inputMode="numeric"
             value={entregado}
-            onChange={(e) => { setEditado(true); setEntregado(e.target.value.replace(/[^\d]/g, "")); }}
+            onChange={(e) => { setEditado(true); setEntregadoAMano(true); setEntregado(e.target.value.replace(/[^\d]/g, "")); }}
             placeholder="0"
             className="min-h-11 w-full rounded-[12px] border border-campo px-3 py-3 text-[16px] tabular-nums outline-none focus:border-azul"
           />
@@ -279,7 +285,15 @@ export function CerrarJornada({
           <input
             inputMode="numeric"
             value={retenido}
-            onChange={(e) => { setEditado(true); setRetenido(e.target.value.replace(/[^\d]/g, "")); }}
+            onChange={(e) => {
+              const v = e.target.value.replace(/[^\d]/g, "");
+              setEditado(true);
+              setRetenido(v);
+              // "Me quedo" y "entrego" son las dos mitades del mismo esperado: al
+              // mover una, la otra se re-deriva (si no la tocó a mano) — así los
+              // dos números siempre suman lo que el preview muestra.
+              if (!entregadoAMano) setEntregado(String(Math.max(0, esperadoBruto - (Math.round(Number(v)) || 0))));
+            }}
             placeholder="0"
             className="min-h-11 w-[120px] rounded-[12px] border border-campo bg-tarjeta px-3 py-2 text-right text-[16px] font-extrabold tabular-nums outline-none focus:border-azul"
           />
@@ -287,6 +301,11 @@ export function CerrarJornada({
         <span className="text-[11px] leading-[1.45] font-medium text-verde-osc">
           Mañana amanece como tu base, sin que nadie la cargue. Entregá el resto.
         </span>
+        {retenidoDeMas && (
+          <span className="text-[11px] leading-[1.45] font-bold text-ambar-osc">
+            Solo podés quedarte hasta {UYU(retenidoN)} (lo que tenés después de entregar {UYU(entregadoN)}): el acta va a tomar ese número.
+          </span>
+        )}
       </div>
       {gastosHoy > 0 && (
         <p className="mt-1.5 px-1 text-[11px] font-medium text-tenue">

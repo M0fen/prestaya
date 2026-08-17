@@ -276,6 +276,11 @@ function mensajeRpc(code: string | undefined): string {
       return "La oficina todavía ve saldo pendiente en ese crédito. NO le entregues la plata: avisá a tu supervisor para que lo revise.";
     case "P0411":
       return "Ese monto pasa el tope del sistema. Pedilo a la oficina desde la pantalla de renovar.";
+    case "P0414":
+      // El flag sobre-CAP llegó sin autoridad (0146). Desde la app no debería
+      // pasar (las acciones escriben con service_role tras sus gates); si pasa,
+      // que diga la salida en vez de un rojo mudo (auditoría 16-08).
+      return "Este monto lo tiene que autorizar la oficina desde su cuenta (supera el tope que se aprueba solo).";
     case "P0410":
       return "Ese crédito ya fue renovado. Revisá la ficha del cliente antes de entregar nada.";
     case "P0002":

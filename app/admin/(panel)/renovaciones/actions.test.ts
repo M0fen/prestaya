@@ -38,6 +38,9 @@ const dbFalsa = {
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServer: vi.fn(async () => dbFalsa) }));
+/** Cliente ELEVADO (service_role) con marca, para saber con cuál se escribió. */
+const adminFalso = { __admin: true, ...dbFalsa } as unknown as SupabaseClient;
+vi.mock("@/lib/supabase/admin", () => ({ createSupabaseAdmin: vi.fn(() => adminFalso) }));
 vi.mock("@/lib/auth", async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()), // esGestor real
   getUsuarioActual: (...a: unknown[]) => getUsuarioActual(...a),
@@ -58,7 +61,7 @@ vi.mock("@/lib/data/renovaciones", () => ({ crearRenovacion: (...a: unknown[]) =
 vi.mock("@/lib/data/auditoria", () => ({ registrarAuditoria: (...a: unknown[]) => registrarAuditoria(...a) }));
 vi.mock("@/lib/observabilidad", () => ({ reportarError: (...a: unknown[]) => reportarError(...a) }));
 
-import { aprobarSolicitud, rechazarSolicitud } from "./actions";
+import { aprobarSolicitud, rechazarSolicitud, renovarCredito } from "./actions";
 
 const GESTOR = { id: "u-gestor", nombre: "Mauricio", rol: "supervisor", activo: true };
 const SOL_ID = "sol-1";
@@ -184,5 +187,54 @@ describe("aprobar REVALIDA el monto (es texto que escribió otra persona)", () =
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toMatch(/dado de baja/i);
     expect(crearCreditoNuevoDb).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("sobre-CAP desde el panel: el SUPERVISOR escribe con service_role (auditoría 16-08, RPC 0146)", () => {
+  // La 0146 solo honra p_permitir_sobre_cap desde service_role o un admin logueado.
+  // El supervisor es aprobador legítimo (08-13) y pasó los gates → para él el
+  // sobre-CAP va con el cliente ELEVADO; bajo el CAP, la sesión (cinturón RLS).
+  const ANT = { id: "cred-viejo", cliente_id: "cli-1", estado: "activo", monto_prestado: 90000 };
+  const base = { clienteId: "cli-1", prestamoAnteriorId: "cred-viejo", totalDias: 24, frecuencia: "diario" as const };
+
+  it("supervisor + $105.000 sobre $90.000 (dentro del +20%) → crearRenovacion recibe el cliente ADMIN y el flag", async () => {
+    getUsuarioActual.mockResolvedValue({ ...GESTOR, rol: "supervisor" });
+    getPrestamoPorId.mockResolvedValue(ANT);
+    crearRenovacion.mockResolvedValue({ ok: true, prestamoId: "cred-nuevo", cuota: 5000 });
+    const r = await renovarCredito({ ...base, monto: 105000 });
+    expect(r.ok).toBe(true);
+    const [dbUsado, input] = crearRenovacion.mock.calls.at(-1)!;
+    expect((dbUsado as { __admin?: boolean }).__admin).toBe(true);
+    expect((input as { permitirSobreCap: boolean }).permitirSobreCap).toBe(true);
+  });
+
+  it("supervisor + $80.000 (bajo el CAP) → sesión del gestor, sin flag", async () => {
+    getUsuarioActual.mockResolvedValue({ ...GESTOR, rol: "supervisor" });
+    getPrestamoPorId.mockResolvedValue(ANT);
+    crearRenovacion.mockResolvedValue({ ok: true, prestamoId: "cred-nuevo", cuota: 4000 });
+    await renovarCredito({ ...base, monto: 80000 });
+    const [dbUsado, input] = crearRenovacion.mock.calls.at(-1)!;
+    expect((dbUsado as { __admin?: boolean }).__admin).toBeUndefined();
+    expect((input as { permitirSobreCap: boolean }).permitirSobreCap).toBe(false);
+  });
+
+  it("admin + $105.000 → su propia sesión alcanza (0146 lo honra como admin logueado)", async () => {
+    getUsuarioActual.mockResolvedValue({ ...GESTOR, rol: "admin" });
+    getPrestamoPorId.mockResolvedValue(ANT);
+    crearRenovacion.mockResolvedValue({ ok: true, prestamoId: "cred-nuevo", cuota: 5000 });
+    await renovarCredito({ ...base, monto: 105000 });
+    const [dbUsado] = crearRenovacion.mock.calls.at(-1)!;
+    expect((dbUsado as { __admin?: boolean }).__admin).toBeUndefined();
+  });
+
+  it("$109.000 sobre $90.000 (> +20%) → rebota con la salida, sin tocar la base", async () => {
+    getUsuarioActual.mockResolvedValue({ ...GESTOR, rol: "admin" });
+    getPrestamoPorId.mockResolvedValue(ANT);
+    crearRenovacion.mockClear();
+    const r = await renovarCredito({ ...base, monto: 109000 });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/108.000/);
+    expect(crearRenovacion).not.toHaveBeenCalled();
   });
 });

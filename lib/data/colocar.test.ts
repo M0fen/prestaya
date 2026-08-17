@@ -21,6 +21,7 @@ import {
   montoRenovacionAutoAprobable,
   techoRenovacion,
   techoVentaNueva,
+  techoVentaGestor,
   RENOVACION_CAP_TOTAL,
 } from "@/lib/renovacion";
 
@@ -194,11 +195,11 @@ describe("RENOVAR: los topes que dibuja la tarjeta son los que aplica el servido
     expect(c.montoNuevo).toBe(20_000); // se repite TAL CUAL
     expect(c.cuotaNueva).toBe(800); // misma tasa, misma cuota
     expect(c.techo).toBe(24_000); // +20% sin pedir permiso
-    expect(c.maximo).toBe(100_000); // el tope duro, ni la oficina lo pasa
+    expect(c.maximo).toBe(100_000); // el máximo del gestor: piso en el CAP (+20% de 20k queda debajo)
     expect(c.requiereAprobacion).toBe(false); // repetir NUNCA pide permiso
   });
 
-  it("un HEREDADO por encima del tope se repite solo, y su máximo es su propio monto", async () => {
+  it("un HEREDADO por encima del tope se repite solo, y su máximo es +20% (regla 16-08: los heredados también suben)", async () => {
     // GERARDO VARELA, $120.000. Recortarlo al CAP sería rebajarle el capital.
     const { db } = crearDb({
       asignaciones: [asignado("c-ger")],
@@ -210,7 +211,7 @@ describe("RENOVAR: los topes que dibuja la tarjeta son los que aplica el servido
     const [c] = await getCandidatosRenovar(db, YULI);
     expect(c.montoNuevo).toBe(120_000);
     expect(c.techo).toBe(montoRenovacionAutoAprobable(120_000)); // = 120.000
-    expect(c.maximo).toBe(techoRenovacion(120_000)); // = 120.000: renovar no sube
+    expect(c.maximo).toBe(techoRenovacion(120_000)); // = 144.000: +20% con aprobación
     expect(c.requiereAprobacion).toBe(false);
   });
 });
@@ -239,6 +240,22 @@ describe("NUEVA VENTA: la lista del operador que 'no encontraba a nadie'", () =>
     });
     const [c] = await getCandidatosVenta(db);
     expect(c.techo).toBe(techoVentaNueva(7_000)); // 8.400
+    // Y el MÁXIMO también: lo que la lista dice "hasta acá lo aprueba la oficina"
+    // es exactamente lo que nuevaVentaDesdeCalle/aprobarSolicitud aceptan (auditoría
+    // 16-08: en PROD quedó el CAP a secas y la calle ofrecía de menos).
+    expect(c.maximo).toBe(techoVentaGestor(7_000)); // 100.000 (piso CAP)
+  });
+
+  it("venta: para un anterior de $90.000 la lista promete el máximo del gestor ($108.000), no el CAP", async () => {
+    const { db } = crearDb({
+      asignaciones: [asignado("c-big")],
+      clientes: [cliente("c-big", "BIG")],
+      prestamos: [credito({ id: "p1", cliente: "c-big", monto: 90_000, cuota: 4_500, dias: 24 })],
+      pagos: [],
+    });
+    const [c] = await getCandidatosVenta(db);
+    expect(c.techo).toBe(techoVentaNueva(90_000)); // 100.000 (el cobrador solo)
+    expect(c.maximo).toBe(108_000); // techoVentaGestor: la oficina hasta acá
   });
 
   it("con dos créditos de la MISMA fecha, el 'último' es el creado más tarde", async () => {

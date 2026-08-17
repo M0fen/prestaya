@@ -169,14 +169,28 @@ export function BaseCajaManager({
     const txt = (forzado ?? montoTodos).trim();
     if (txt === "") return; // vacío ≠ cero: sin número no se hace nada
     const m = Math.max(0, Math.round(Number(txt) || 0));
+    // ⚠️ El ARRASTRE se RESPETA (auditoría 16-08): desde que el cierre deja "me
+    // quedo para mañana", muchos cobradores amanecen con su caja de ayer como
+    // base. "A todos $0" / "A los N" los PISABAN en silencio → el esperado del
+    // día perdía esa plata y el cierre les marcaba sobrante fantasma. Ahora los
+    // que traen arrastre no se tocan en masa (se editan uno por uno, a
+    // conciencia) y el aviso dice cuántos quedaron afuera.
+    const conArrastre = editables.filter((c) => c.origen === "arrastre" && (Number(c.base) || 0) > 0);
     conDeshacer((v) => {
       const n = { ...v };
       for (const c of editables) {
         if (soloVacios && (Number(n[c.id]) || 0) > 0) continue;
+        if (c.origen === "arrastre" && (Number(c.base) || 0) > 0) continue;
         n[c.id] = String(m);
       }
       return n;
     });
+    if (conArrastre.length > 0) {
+      setMsg({
+        ok: true,
+        texto: `Se dejaron afuera ${conArrastre.length} cobrador${conArrastre.length === 1 ? "" : "es"} que amanece${conArrastre.length === 1 ? "" : "n"} con su caja de ayer (arrastre): esa base es plata que YA tienen. Si querés cambiarla, editala en su fila.`,
+      });
+    }
     // Un cero aplicado en masa es una DECLARACIÓN ("hoy salen sin base"), igual que
     // el botón por fila: se marcan todos los alcanzados para que el guardado los
     // mande y no los confunda con "el campo quedó vacío".
@@ -185,6 +199,7 @@ export function BaseCajaManager({
         const n = new Set(s);
         for (const c of editables) {
           if (soloVacios && parsed(c.id) > 0) continue;
+          if (c.origen === "arrastre" && (Number(c.base) || 0) > 0) continue; // el arrastre no se declara en cero en masa
           n.add(c.id);
         }
         return n;

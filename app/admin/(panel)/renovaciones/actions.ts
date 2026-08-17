@@ -7,7 +7,8 @@
 // ─────────────────────────────────────────────────────────────────────────
 import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { getUsuarioActual, esGestor } from "@/lib/auth";
+import { createSupabaseAdmin } from "@/lib/supabase/admin";
+import { getUsuarioActual, esGestor, esAdmin } from "@/lib/auth";
 import { crearRenovacion, type ResultadoAlta } from "@/lib/data/renovaciones";
 import {
   getSolicitudPorId,
@@ -101,16 +102,23 @@ export async function renovarCredito(input: {
   // supervisor genera una solicitud y espera al admin" ahora es autorización
   // directa, con el techo absoluto de arriba como único freno duro. La cola de
   // solicitudes queda para los pedidos de la CALLE (cobrador sobre su techo).
-  const res = await crearRenovacion(db, {
+  // ⚠️ SOBRE-CAP desde el panel (auditoría 16-08): la RPC 0146 solo honra el
+  // flag desde una vía de CONFIANZA (service_role o admin logueado). El
+  // SUPERVISOR es aprobador legítimo desde el 08-13 y ya pasó los gates de
+  // arriba (rol, alcance por RLS al leer `ant`, techo del gestor): para él el
+  // sobre-CAP se escribe con service_role — el MISMO patrón que la calle
+  // (renovarDesdeCalle) — o el form prometía "hasta $108.000" y la base
+  // rebotaba P0414 con un mensaje de cobrador. Bajo el CAP nada cambia: la
+  // sesión del gestor sigue siendo el cinturón (RLS + trigger 0126).
+  const sobreCap = monto > RENOVACION_CAP_TOTAL;
+  const res = await crearRenovacion(sobreCap && !esAdmin(usuario.rol) ? createSupabaseAdmin() : db, {
     clienteId: input.clienteId,
     prestamoAnteriorId: input.prestamoAnteriorId,
     monto,
     totalDias,
     frecuencia: input.frecuencia,
     creadoPor: usuario.id,
-    // Solo cuando de verdad hace falta: con el techo absoluto de arriba ya
-    // validado, esto no puede pasar del monto anterior (continuidad heredada).
-    permitirSobreCap: monto > RENOVACION_CAP_TOTAL,
+    permitirSobreCap: sobreCap,
   });
   if (!res.ok) return res;
   // Si este crédito tenía una SOLICITUD pendiente y se renovó por alta directa, se
@@ -287,7 +295,10 @@ export async function aprobarSolicitud(id: string): Promise<ResultadoAlta> {
         error: `El monto pedido (${UYU(s.monto)}) no corresponde a este crédito: el máximo es ${UYU(techoAbsoluto)}. Rechazá la solicitud y que la vuelvan a pedir bien.`,
       };
 
-    const res = await crearRenovacion(db, {
+    // Sobre-CAP aprobado por un SUPERVISOR: service_role (vía de confianza de la
+    // 0146) tras los gates de arriba — igual que renovarCredito.
+    const sobreCapSol = s.monto > RENOVACION_CAP_TOTAL;
+    const res = await crearRenovacion(sobreCapSol && !esAdmin(u.rol) ? createSupabaseAdmin() : db, {
       clienteId: s.clienteId,
       prestamoAnteriorId: s.prestamoAnteriorId,
       monto: s.monto,

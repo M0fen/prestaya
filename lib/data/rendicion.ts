@@ -10,6 +10,7 @@ import { toIso } from "@/lib/format";
 import type { EstadoRendicion } from "@/lib/rendicion";
 import { getSolicitudesGastoCobrador } from "./solicitudesGasto";
 import { getAperturaDia, getBaseDelDia } from "./aperturas";
+import { baseDeMananaDesdeActa } from "@/lib/rendicion";
 import { colocadoPorCobrador, colocadoEnDias, claveColocado } from "./colocado";
 import { tablaFaltante, columnaFaltante } from "./errores";
 import { traerTodo } from "./paginado";
@@ -303,6 +304,7 @@ export async function getJornadasSinRendir(
     );
 
     const clave = (c: string, f: string) => `${c}|${f}`;
+    const dia = (ymd: string) => new Date(`${ymd}T00:00:00Z`).getTime();
     const acc = new Map<string, { cobradorId: string; fecha: string; recaudado: number; cobros: number }>();
     for (const p of pagos) {
       const cid = p.registrado_por;
@@ -359,6 +361,54 @@ export async function getJornadasSinRendir(
     const abiertas = [...acc.values()].filter((a) => !cerradas.has(clave(a.cobradorId, a.fecha)));
     if (abiertas.length === 0) return [];
 
+    // 2b. BASE ARRASTRADA de las jornadas abiertas SIN apertura cargada (auditoría
+    //     16-08): la base de un día es la cargada, o si no, LO DECLARADO en la
+    //     última acta anterior a ESE día — la MISMA regla que getBaseDelDia
+    //     (baseDeMananaDesdeActa). Sin esto, un cobrador que se quedó $5.000
+    //     declarados el lunes y no cerró el martes tenía la jornada del martes
+    //     con base $0: el esperado y el acta de entrega diferida perdían la
+    //     plata que sí tenía en la mano.
+    const actasPrevias = await traerTodo<{
+      cobrador_id: string; fecha: string; base: number; recaudado: number; gastos: number;
+      entregado: number; colocado: number | null; diferencia: number | null;
+    }>((d, h) => {
+      const desdePrev = sumarDiasYmd(desdeYmd, -7);
+      let q = admin
+        .from("rendiciones")
+        .select("cobrador_id, fecha, base, recaudado, gastos, entregado, colocado, diferencia")
+        .in("cobrador_id", ids)
+        .gte("fecha", desdePrev)
+        .lt("fecha", fechaHoy)
+        .order("fecha", { ascending: true })
+        .order("id", { ascending: true });
+      return q.range(d, h);
+    });
+    const actasPorCobrador = new Map<string, typeof actasPrevias>();
+    for (const r of actasPrevias) {
+      const arr = actasPorCobrador.get(r.cobrador_id) ?? [];
+      arr.push(r);
+      actasPorCobrador.set(r.cobrador_id, arr);
+    }
+    // Colocado sellado en el acta o derivado (una sola consulta para los que falten).
+    const sinSello = actasPrevias.filter((r) => r.colocado == null).map((r) => ({ cobradorId: r.cobrador_id, ymd: String(r.fecha) }));
+    const colocadosPrev = sinSello.length ? await colocadoEnDias(sinSello) : new Map<string, number>();
+    const baseArrastradaDe = (cobradorId: string, ymd: string): number => {
+      const arr = actasPorCobrador.get(cobradorId) ?? [];
+      // La última acta ANTERIOR a ese día, dentro de 7 días (misma ventana que getBaseDelDia).
+      let ult: (typeof actasPrevias)[number] | null = null;
+      for (const r of arr) if (String(r.fecha) < ymd && dia(ymd) - dia(String(r.fecha)) <= 7 * 86_400_000) ult = r;
+      if (!ult) return 0;
+      const col = ult.colocado != null ? Math.round(Number(ult.colocado)) : (colocadosPrev.get(claveColocado(cobradorId, String(ult.fecha))) ?? 0);
+      return baseDeMananaDesdeActa({
+        base: Math.round(Number(ult.base ?? 0)),
+        recaudado: Math.round(Number(ult.recaudado ?? 0)),
+        gastos: Math.round(Number(ult.gastos ?? 0)),
+        entregado: Math.round(Number(ult.entregado ?? 0)),
+        colocado: col,
+        diferencia: Math.round(Number(ult.diferencia ?? 0)),
+      });
+    };
+
     // 3. Capital colocado, gastos y nombres (los dos primeros bajan el esperado).
     // ⚠️ SE MIRA EL ERROR de cada consulta (o pagina con traerTodo, que lanza solo):
     // acá se sella plata en un acta inmutable, y es preferible que la pantalla no
@@ -386,12 +436,12 @@ export async function getJornadasSinRendir(
       gastoDe.set(k, (gastoDe.get(k) ?? 0) + Math.round(Number(g.monto) || 0));
     }
     const nombreDe = new Map((usrs ?? []).map((u) => [u.id as string, u.nombre as string]));
-    const dia = (ymd: string) => new Date(`${ymd}T00:00:00Z`).getTime();
 
     return abiertas
       .map((a) => {
         const k = clave(a.cobradorId, a.fecha);
-        const base = baseDe.get(k) ?? 0;
+        // Cargada gana; si no, lo DECLARADO en la última acta anterior (arrastre).
+        const base = baseDe.has(k) ? (baseDe.get(k) ?? 0) : baseArrastradaDe(a.cobradorId, a.fecha);
         const col = colocado.get(claveColocado(a.cobradorId, a.fecha)) ?? 0;
         const gastos = gastoDe.get(k) ?? 0;
         return {

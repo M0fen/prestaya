@@ -196,6 +196,31 @@ describe("registrar_pago_seguro (integración PG)", () => {
     });
   });
 
+  it("0150: un pago sobre un crédito CANCELADO rebota P0402 (no hay pagos huérfanos sobre ventas deshechas)", async () => {
+    await withRollback(async (c) => {
+      const { cob, prestamoId } = await escenario(c, 500, 20);
+      await c.query("update prestamos set estado='cancelado' where id=$1", [prestamoId]);
+      await esperaErrorPg(c, "P0402", () =>
+        c.query(SQL, [prestamoId, 1, 500, cob.id, null, null, null, randomUUID()]),
+      );
+      expect(await totalPagado(c, prestamoId)).toBe(0);
+    });
+  });
+
+  it("0150: cancelar_prestamo_seguro rebota P0415 si hay pagos vigentes, y cancela limpio si no", async () => {
+    await withRollback(async (c) => {
+      const { cob, prestamoId } = await escenario(c, 500, 20);
+      // Con un pago vigente → no se cancela (anular primero).
+      await c.query(SQL, [prestamoId, 1, 500, cob.id, null, null, null, randomUUID()]);
+      await esperaErrorPg(c, "P0415", () => c.query("select cancelar_prestamo_seguro($1)", [prestamoId]));
+      // Sin pagos → cancela; y ya cancelado, un 2º intento → P0402 (idempotencia la maneja la app).
+      const { prestamoId: limpio } = await escenario(c, 500, 20);
+      const r = await c.query("select (cancelar_prestamo_seguro($1)).estado as estado", [limpio]);
+      expect(r.rows[0].estado).toBe("cancelado");
+      await esperaErrorPg(c, "P0402", () => c.query("select cancelar_prestamo_seguro($1)", [limpio]));
+    });
+  });
+
   it("anular un pago baja pagado_acum (consistencia con el libro)", async () => {
     await withRollback(async (c) => {
       const gestor = await mkCobradorConAuth(c);

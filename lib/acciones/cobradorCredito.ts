@@ -25,9 +25,12 @@
 //     negocio, con el CAP como único tope.
 //
 //  Lo que NO puede (y por qué):
-//   · Superar el CAP de $100.000 — duro para todos, incluido el admin.
 //   · Exceder el +20% sobre el último crédito — eso NO lo rechaza: genera una
-//     solicitud que aprueba el supervisor de la zona o el admin (0139).
+//     solicitud que aprueba el supervisor de la zona o el admin (0139), que a su
+//     vez puede autorizar hasta +20% del anterior con piso en el CAP de $100.000
+//     (techoVentaGestor / techoRenovacion, regla de Carlos 16-08). Más que eso
+//     en UNA operación no lo autoriza nadie. Un PRIMER crédito (sin anterior)
+//     tiene el CAP como tope duro.
 //   · Tocar un cliente que no está en SU ruta — lo garantiza el RLS.
 // ─────────────────────────────────────────────────────────────────────────
 import { revalidatePath } from "next/cache";
@@ -661,8 +664,8 @@ export async function nuevaVentaDesdeCalle(input: {
   // que TODO cliente recién censado necesitara autorización — justo lo contrario
   // de la regla: "solo pide autorización cuando exige más del 20% de aumento". Un
   // primer crédito no tiene crédito anterior contra qué medir un aumento, así que
-  // sale DIRECTO: al 20% del negocio, con el CAP de $100.000 como único tope (ya
-  // validado arriba) y el candado anti-doble-colocación de siempre.
+  // sale DIRECTO: al 20% del negocio, con el CAP de $100.000 como único tope (se
+  // valida más abajo, en la rama sin historial) y el candado anti-doble-colocación.
   const base = await getUltimoCreditoDe(db, input.clienteId);
   const baseTasa = base ? { monto: base.monto, cuota: base.cuota, totalDias: base.totalDias } : null;
   const conHistorial = !!(

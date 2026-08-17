@@ -125,21 +125,29 @@ export async function cancelarVentaPanel(input: {
     const avisos: string[] = [];
     const monto = Math.round(Number(p.monto_prestado) || 0);
 
-    // 1) El crédito → cancelado. Con la sesión del GESTOR (RLS + trigger 0126
-    //    valen como cinturón: activo→cancelado está permitido al gestor). El
-    //    .eq("estado","activo") es el candado de carrera: si otro lo canceló o
-    //    finalizó entre la lectura y acá, 0 filas → se relee y se decide.
-    const { data: upd, error: e3 } = await db
-      .from("prestamos")
-      .update({ estado: "cancelado" })
-      .eq("id", p.id)
-      .eq("estado", "activo")
-      .select("id");
-    if (e3) throw e3;
-    if (!upd || upd.length === 0) {
-      const { data: re } = await admin.from("prestamos").select("estado").eq("id", p.id).maybeSingle();
-      if (re?.estado === "cancelado") return { ok: true, yaEstaba: true, reabrio: false, avisos: [] };
-      return { ok: false, error: `El crédito cambió de estado mientras tanto (${re?.estado ?? "?"}). Recargá la ficha.` };
+    // 1) El crédito → cancelado, por la RPC 0150 (SECURITY INVOKER: corre con la
+    //    sesión del GESTOR → RLS + trigger 0126 valen como cinturón; activo→
+    //    cancelado está permitido al gestor). La RPC toma el MISMO advisory lock
+    //    que registrar_pago_seguro y re-cuenta los pagos ADENTRO: la cola offline
+    //    de un cobrador no puede colar un pago entre "conté 0" y "cancelé".
+    const rpc = await db.rpc("cancelar_prestamo_seguro", { p_prestamo_id: p.id });
+    if (rpc.error) {
+      const code = (rpc.error as { code?: string }).code;
+      if (code === "P0415")
+        return { ok: false, error: "Entró un pago a este crédito hace un instante. Recargá la ficha: hay que anularlo primero." };
+      if (code === "P0402") {
+        const { data: re } = await admin.from("prestamos").select("estado").eq("id", p.id).maybeSingle();
+        if (re?.estado === "cancelado") return { ok: true, yaEstaba: true, reabrio: false, avisos: [] };
+        return { ok: false, error: `El crédito cambió de estado mientras tanto (${re?.estado ?? "?"}). Recargá la ficha.` };
+      }
+      if (code === "42883" || code === "PGRST202") {
+        // 0150 sin correr: camino anterior (update directo con candado de estado).
+        const { data: upd, error: e3 } = await db.from("prestamos").update({ estado: "cancelado" }).eq("id", p.id).eq("estado", "activo").select("id");
+        if (e3) throw e3;
+        if (!upd || upd.length === 0) return { ok: false, error: "El crédito cambió de estado mientras tanto. Recargá la ficha." };
+      } else {
+        throw rpc.error;
+      }
     }
 
     // 2) RENOVACIÓN: reabrir el anterior SOLO si lo finalizó esta renovación
@@ -180,6 +188,24 @@ export async function cancelarVentaPanel(input: {
       if (sol && sol.length > 0) avisos.push("El pedido aprobado del cobrador quedó rechazado con el aviso de NO entregar la plata.");
     } catch (e) {
       reportarError("cancelarVentaPanel.solicitud", e, { prestamoId: p.id });
+    }
+
+    // 3b) Solicitudes PENDIENTES que usaban este crédito como REFERENCIA
+    //     (prestamo_anterior_id) — p. ej. una venta pedida "sobre" este crédito
+    //     como base de tasa/techo. Cancelado el crédito, esa referencia miente:
+    //     aprobarSolicitud revalidaría el techo contra un crédito que ya no
+    //     existe (auditoría 16-08). Se rechazan con el motivo, y que lo pidan
+    //     de nuevo con la base real.
+    try {
+      const { data: refs } = await admin
+        .from("solicitudes_renovacion")
+        .update({ estado: "rechazada", motivo_rechazo: `El crédito de referencia (${UYU(monto)}) fue cancelado por la oficina: pedilo de nuevo. ${motivo}`.slice(0, 300), resuelto_por: u.id, resuelto_en: new Date().toISOString() })
+        .eq("prestamo_anterior_id", p.id)
+        .eq("estado", "pendiente")
+        .select("id");
+      if (refs && refs.length > 0) avisos.push(`${refs.length} pedido${refs.length === 1 ? "" : "s"} pendiente${refs.length === 1 ? "" : "s"} que tomaba${refs.length === 1 ? "" : "n"} este crédito como referencia quedó rechazado (que lo pidan de nuevo).`);
+    } catch (e) {
+      reportarError("cancelarVentaPanel.refs", e, { prestamoId: p.id });
     }
 
     // 4) TIENDA: stock +1 si se controla, y el lead convertido → descartado.

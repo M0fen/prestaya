@@ -108,6 +108,31 @@ export function cajaFinal(
   );
 }
 
+/**
+ * BASE DE MAÑANA a partir del ACTA de hoy = lo DECLARADO, no "lo que no
+ * entregó" (auditoría 16-08). `cajaFinal` incluye tanto lo retenido a
+ * conciencia ("me quedo para mañana", diferencia = 0) como un FALTANTE
+ * (diferencia < 0). Si el faltante volviera como base, al día siguiente el
+ * cierre lo prellenaría en "Me quedo" y quien se guardó plata sin declararla
+ * cuadraría para siempre — la fuga anti-fraude exacta. Restar min(0, dif) deja
+ * SOLO lo declarado: el faltante sigue siendo faltante (alerta viva), no base.
+ * Puro y sin float.
+ */
+export function baseDeMananaDesdeActa(acta: {
+  base: number;
+  recaudado: number;
+  gastos: number;
+  entregado: number;
+  colocado: number;
+  diferencia: number;
+}): number {
+  return Math.max(
+    0,
+    cajaFinal(acta.base, acta.recaudado, acta.gastos, acta.entregado, acta.colocado) +
+      Math.min(0, Math.round(acta.diferencia)),
+  );
+}
+
 // ── ENTREGA DIFERIDA: qué días puede sellar la oficina ──────────────────────
 //  El supervisor cierra jornadas que quedaron abiertas de días ANTERIORES.
 //  Extraída a función pura (Fase 2 QA, 08-14) para que la pantalla y la Server

@@ -5,6 +5,7 @@ import {
   calcularRendicion,
   cajaFinal,
   puedeEntregaDiferida,
+  baseDeMananaDesdeActa,
   ENTREGA_DIFERIDA_VENTANA_DIAS,
 } from "./rendicion";
 
@@ -224,5 +225,31 @@ describe("retenido — 'me quedo para mañana' NO es faltante (regla de Carlos 1
     const r = calcularRendicion(10_000, 0, 12_000, 0, 0, 0);
     expect(r.estado).toBe("sobrante");
     expect(r.diferencia).toBe(2_000);
+  });
+});
+
+describe("baseDeMananaDesdeActa — el arrastre es lo DECLARADO, nunca un faltante (auditoría 16-08)", () => {
+  const acta = (over: Partial<Parameters<typeof baseDeMananaDesdeActa>[0]>) => ({
+    base: 5000, recaudado: 20000, gastos: 0, entregado: 25000, colocado: 0, diferencia: 0, ...over,
+  });
+  it("entrega TODO → mañana arranca de 0", () => {
+    expect(baseDeMananaDesdeActa(acta({}))).toBe(0);
+  });
+  it("retiene la base DECLARADA (diferencia 0) → mañana 5.000", () => {
+    expect(baseDeMananaDesdeActa(acta({ entregado: 20000, diferencia: 0 }))).toBe(5000);
+  });
+  it("FALTANTE sin declarar (entregó 20.000, esperado 25.000, dif −5.000) → mañana 0: el faltante NO se lava en la base", () => {
+    // Antes: cajaFinal daba 5.000 y el cierre siguiente lo prellenaba en "Me quedo" →
+    // el que se guardó plata sin declararla cuadraba para siempre.
+    expect(baseDeMananaDesdeActa(acta({ entregado: 20000, diferencia: -5000 }))).toBe(0);
+  });
+  it("mixto: retuvo 5.000 declarados y le faltan 2.000 (dif −2.000) → arrastra SOLO los 5.000", () => {
+    expect(baseDeMananaDesdeActa(acta({ entregado: 18000, diferencia: -2000 }))).toBe(5000);
+  });
+  it("colocó 10.000 y retuvo la base: el colocado no arrastra", () => {
+    expect(baseDeMananaDesdeActa(acta({ colocado: 10000, entregado: 10000, diferencia: 0 }))).toBe(5000);
+  });
+  it("sobrante (entregó de más): no hay base negativa", () => {
+    expect(baseDeMananaDesdeActa(acta({ entregado: 27000, diferencia: 2000 }))).toBe(0);
   });
 });
