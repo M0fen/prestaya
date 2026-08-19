@@ -287,12 +287,12 @@ const SUPERVISOR: GuiaTutorial[] = [
       {
         titulo: "Aprobá los pedidos de la calle (tab «Pedidos», abajo)",
         cuerpo:
-          "Cuando un cobrador quiere renovar o vender por más del +20% de lo que el cliente tenía, la app le genera un pedido y te lo manda a vos. Lo ves en el tab «Pedidos» con el contador (y te llega un aviso al celular si activaste los avisos). Revisás anterior → pedido y el %, y tocás Aprobar o Rechazar. Hasta que respondas, el cobrador NO puede entregar la plata.",
+          "Cuando un cobrador quiere renovar o vender por más del +20% del último crédito del cliente, la app le genera un pedido y te lo manda a vos. Lo ves sin activar nada: el tab «Pedidos» abajo marca cuántos hay, y cuando entra uno nuevo aparece una franja arriba en cualquier pantalla del panel. Revisás anterior → pedido y el %, y tocás Aprobar o Rechazar. Hasta que respondas, el cobrador NO puede entregar la plata.",
       },
       {
         titulo: "Hasta dónde podés autorizar",
         cuerpo:
-          "Hasta +20% sobre el crédito más grande que el cliente tuvo (actual o pasado), con piso en $100.000. Más que eso en una sola operación no lo autoriza nadie: es el candado contra el dedazo.",
+          "Hasta +20% sobre el último crédito registrado del cliente, con piso en $100.000. Más que eso en una sola operación no lo autoriza nadie: es el candado contra el dedazo.",
       },
       {
         titulo: "Renovar desde el panel",

@@ -75,6 +75,9 @@
   --color-verde-osc: #5fd0a0;
   --color-rojo-osc: #f4a79b;
   --color-ambar-osc: #e6c06a;
+  /* El cartel azul "pedido al supervisor" usa texto azul-osc sobre azul-suave:
+     sin flipearlo quedaba #13308c sobre #222c44 (ilegible en oscuro). */
+  --color-azul-osc: #9db8ff;
   --color-azul-suave: #222c44;
   --color-campo: #333e5c;
   --color-tenue-2: #6b7593;
@@ -115,6 +118,24 @@ html[data-contraste="1"] [data-tema="oscuro"] {
 [data-tema="oscuro"] .panel-ambar {
   background: #221d12;
   border-color: #47391d;
+}
+/* Franja "pedidos de la calle" (AvisoPedidosVivo): azul suave que se lee en
+   los dos temas; el título usa su propio token para no quedar blanco en claro. */
+.panel-azul-vivo {
+  background: #eaf0ff;
+  border-color: #c9d6ff;
+  --franja-titulo: #13308c;
+}
+.panel-azul-vivo:hover {
+  background: #dfe8ff;
+}
+[data-tema="oscuro"] .panel-azul-vivo {
+  background: #16245a;
+  border-color: #2a3f86;
+  --franja-titulo: #c9d6ff;
+}
+[data-tema="oscuro"] .panel-azul-vivo:hover {
+  background: #1b2c6b;
 }
 /* Acto "activo" del stepper: azul suave en claro, azul translúcido en oscuro. */
 .acto-activo {
@@ -264,6 +285,27 @@ html[data-contraste="1"] {
 }
 @media (prefers-reduced-motion: reduce) {
   .toast-in {
+    animation: none;
+  }
+}
+
+/* ── Franja "pedidos de la calle" del panel: la campana se sacude cada tanto
+   (no en loop continuo: llama la atención sin cansar). ─────────────────── */
+.campana-viva {
+  display: inline-block;
+  transform-origin: 50% 0;
+  animation: py-campana 4s ease-in-out infinite;
+}
+@keyframes py-campana {
+  0%, 82%, 100% { transform: rotate(0); }
+  85% { transform: rotate(14deg); }
+  88% { transform: rotate(-12deg); }
+  91% { transform: rotate(9deg); }
+  94% { transform: rotate(-6deg); }
+  97% { transform: rotate(3deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .campana-viva {
     animation: none;
   }
 }

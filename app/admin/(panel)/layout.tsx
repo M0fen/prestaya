@@ -25,6 +25,8 @@ import { AsesorFlotante } from "@/components/asesor/AsesorFlotante";
 import { CommandPalette } from "@/components/admin/CommandPalette";
 import { Toaster } from "@/components/ui/Toaster";
 import { NotificacionesRealtime } from "@/components/admin/NotificacionesRealtime";
+import { AvisoPedidosVivo } from "@/components/admin/AvisoPedidosVivo";
+import { aResumen } from "@/lib/avisosPedidos";
 import { RegistroUso } from "@/components/RegistroUso";
 
 // El panel siempre con datos frescos (nada de prerender estático).
@@ -59,12 +61,14 @@ export default async function PanelLayout({
   // Anulaciones (dinero) y renovaciones pendientes también burbujean al nav (antes
   // solo gastos tenía badge → quedaban invisibles). Acotadas por zona: anulaciones
   // por `alcance` (su RLS es ancha); renovaciones por la RLS 0096 bajo la sesión.
-  const [noLeidos, gastosPendientes, anulacionesPendientes, renovacionesPendientes, leadsNuevos, incidenciasAbiertas] =
+  const [noLeidos, gastosPendientes, anulacionesPendientes, pedidosCalle, leadsNuevos, incidenciasAbiertas] =
     await Promise.all([
       getTotalNoLeidos(db, usuario),
       esGestor(usuario.rol) ? contarSolicitudesGastoPendientes(db, cobIdsGasto) : Promise.resolve(0),
       esGestor(usuario.rol) ? getAnulacionesPendientes(db, alcance).then((a) => a.length) : Promise.resolve(0),
-      esGestor(usuario.rol) ? getRenovacionesPendientes(db).then((r) => r.length) : Promise.resolve(0),
+      // La cola COMPLETA (no solo el conteo): alimenta el contador del tab y la
+      // franja en vivo "🔔 N pedidos esperan tu aprobación" (quejas 19-08).
+      esGestor(usuario.rol) ? getRenovacionesPendientes(db) : Promise.resolve([]),
       // Badge de Tienda = leads del cartón + prospectos de la tienda pública +
       // pedidos a Curbe por despachar (todo se atiende en /admin/tienda).
       esAdmin(usuario.rol)
@@ -72,6 +76,8 @@ export default async function PanelLayout({
         : Promise.resolve(0),
       esAdmin(usuario.rol) ? contarIncidenciasAbiertas(db) : Promise.resolve(0),
     ]);
+  const renovacionesPendientes = pedidosCalle.length;
+  const resumenPedidos = aResumen(pedidosCalle);
   const tema = (await cookies()).get("tema")?.value === "oscuro" ? "oscuro" : "claro";
   const iniciales = usuario.nombre
     .split(" ")
@@ -102,7 +108,11 @@ export default async function PanelLayout({
 
       {/* Contenido */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="header-safe print:hidden sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-borde bg-tarjeta px-5 py-3">
+        {/* Header + franja de pedidos en vivo: los dos pegados arriba (sticky),
+            en cualquier pantalla del panel. La franja solo existe si hay
+            pedidos de la calle esperando; se actualiza sola (Realtime/poll). */}
+        <div className="print:hidden sticky top-0 z-20 flex flex-col">
+        <header className="header-safe flex items-center justify-between gap-3 border-b border-borde bg-tarjeta px-5 py-3">
           <div className="flex flex-col">
             <span className="text-[11px] font-semibold tracking-wide text-gris uppercase">
               {etiquetaRol[usuario.rol]}
@@ -127,6 +137,10 @@ export default async function PanelLayout({
             </form>
           </div>
         </header>
+        {/* 🔔 Pedidos de la calle (renovar/vender sobre el +20%) esperando al
+            gestor. Sin activar nada: se entera acá, en vivo. */}
+        <AvisoPedidosVivo inicial={resumenPedidos} />
+        </div>
 
         {falta2fa && (
           <Link

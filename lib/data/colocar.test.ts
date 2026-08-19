@@ -414,8 +414,8 @@ describe("La pantalla tiene que ABRIR en la calle (no era un detalle de estilo)"
   });
 });
 
-describe("el techo mide contra el MAYOR crédito de su historia — 'actual o pasado' (regla de Carlos 19-08)", () => {
-  it("bajó de $14.000 a $5.000: su techo sigue saliendo de los $14.000 (no pierde lo ganado)", async () => {
+describe("el techo mide contra el ÚLTIMO crédito REGISTRADO — no el más grande (regla de Carlos, 19-08 segunda vuelta)", () => {
+  it("bajó de $14.000 a $5.000: el techo sale de los $5.000 (el último), no de los $14.000", async () => {
     const { db } = crearDb({
       asignaciones: [asignado("c-lu")],
       clientes: [cliente("c-lu", "LU")],
@@ -426,10 +426,25 @@ describe("el techo mide contra el MAYOR crédito de su historia — 'actual o pa
       pagos: [],
     });
     const [c] = await getCandidatosVenta(db);
-    // La TASA sale del último ($5.000), pero el TECHO del mayor ($14.000).
+    // Tasa Y techo salen del MISMO crédito: el último registrado ($5.000).
     expect(c.monto).toBe(5_000);
-    expect(c.techo).toBe(techoVentaNueva(14_000)); // 16.800, no 6.000
-    expect(c.maximo).toBe(techoVentaGestor(14_000)); // 100.000 (piso CAP)
+    expect(c.techo).toBe(techoVentaNueva(5_000)); // 6.000, no 16.800
+    expect(c.maximo).toBe(techoVentaGestor(5_000)); // 100.000 (piso CAP)
+  });
+
+  it("el último es el ACTIVO aunque el anterior terminado fuera más grande", async () => {
+    const { db } = crearDb({
+      asignaciones: [asignado("c-mp")],
+      clientes: [cliente("c-mp", "MARIA PEREIRA")],
+      prestamos: [
+        credito({ id: "pasado", cliente: "c-mp", monto: 4_800, cuota: 240, dias: 24, estado: "finalizado", inicio: "2026-05-01" }),
+        credito({ id: "actual", cliente: "c-mp", monto: 4_000, cuota: 200, dias: 24, estado: "activo", inicio: "2026-08-01" }),
+      ],
+      pagos: [],
+    });
+    const [c] = await getCandidatosVenta(db);
+    expect(c.monto).toBe(4_000);
+    expect(c.techo).toBe(techoVentaNueva(4_000)); // 4.800: pedir $5.000 va al supervisor
   });
 
   it("una venta CANCELADA grande no infla el techo (nunca existió)", async () => {

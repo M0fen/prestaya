@@ -273,17 +273,14 @@ export async function getCandidatosVenta(db: SupabaseClient): Promise<CandidatoC
     if (fa !== fb) return fa > fb;
     return String(a.creado_en ?? "") > String(b.creado_en ?? "");
   };
-  // Y el MAYOR capital de su historia: base del techo +20% (regla de Carlos
-  // 19-08, "actual o pasado") — misma cuenta que getUltimoCreditoDe.montoReferenciaTecho.
-  const mayorDe = new Map<string, number>();
+  // ⚠️ El techo +20% se mide sobre ESTE último crédito registrado (regla de
+  // Carlos, 19-08 segunda vuelta) — no sobre el más grande de su historia.
   for (const p of todos) {
     // La venta DESHECHA (cancelado) no es historial: misma regla que
     // getUltimoCreditoDe — pantalla y servidor eligen el MISMO "último".
     if (p.estado === "cancelado") continue;
     const prev = ultimo.get(p.cliente_id);
     if (!prev || masNuevo(p, prev)) ultimo.set(p.cliente_id, p);
-    const m = Math.round(Number(p.monto_prestado) || 0);
-    if (m > (mayorDe.get(p.cliente_id) ?? 0)) mayorDe.set(p.cliente_id, m);
   }
   // Deuda VIVA de los créditos que siguen abiertos, por cliente: es lo que el
   // cobrador tiene que ver antes de darle un segundo crédito a alguien.
@@ -351,9 +348,9 @@ export async function getCandidatosVenta(db: SupabaseClient): Promise<CandidatoC
       cuota,
       totalDias,
       frecuencia: (p.frecuencia as string) ?? "diario",
-      // Techo y máximo contra el MAYOR crédito de su historia (actual o pasado),
-      // la misma referencia que usa nuevaVentaDesdeCalle (refTecho).
-      techo: techoVentaNueva(Math.max(monto, mayorDe.get(cid) ?? 0)),
+      // Techo y máximo contra el ÚLTIMO crédito registrado (`monto`), la misma
+      // referencia que usa nuevaVentaDesdeCalle (refTecho = baseTasa.monto).
+      techo: techoVentaNueva(monto),
       // ⚠️ El tope DURO de una venta nueva es lo que el GESTOR puede autorizar
       // (techoVentaGestor: +20% del anterior con piso en el CAP — regla de Carlos
       // 16-08), LA MISMA función que valida nuevaVentaDesdeCalle y aprobarSolicitud.
@@ -361,7 +358,7 @@ export async function getCandidatosVenta(db: SupabaseClient): Promise<CandidatoC
       // puede NADIE" y siempre elegía el mensaje más duro; y con el CAP a secas
       // acá, ofrecía "pedir hasta $100.000" cuando el server ya acepta $108.000
       // para un anterior de $90.000 — la queja del admin otra vez desde la calle.
-      maximo: techoVentaGestor(Math.max(monto, mayorDe.get(cid) ?? 0)),
+      maximo: techoVentaGestor(monto),
       deudaHermano: Math.round(deudaViva.get(cid) ?? 0),
     });
   }

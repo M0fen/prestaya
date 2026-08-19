@@ -600,7 +600,7 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
             </span>
           )}
           <div
-            className="relative flex items-center gap-2 overflow-hidden rounded-[16px] bg-tarjeta py-2.5 pr-2 pl-4 shadow-sm"
+            className="relative flex flex-col overflow-hidden rounded-[16px] bg-tarjeta py-2.5 pr-2 pl-4 shadow-sm"
             style={{ opacity: esCerrado ? 0.72 : 1 }}
           >
             {/* Franja de estado a la izquierda: se lee la ruta de un vistazo. */}
@@ -609,6 +609,7 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
               className="absolute top-0 bottom-0 left-0 w-1.5"
               style={{ background: chip.barra }}
             />
+            <div className="flex items-center gap-2">
             {/* Área principal → detalle del cliente. */}
             <Link
               href={`/cobrador/cliente/${it.id}`}
@@ -634,11 +635,15 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
                 )}
               </div>
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                {/* ⚠️ NOMBRE COMPLETO, hasta DOS líneas (pedido de Carlos, 08-13:
-                    "los nombres se cortan… debe aparecer nombre y apellido").
-                    `truncate` dejaba "MARÍA FERNANDA RODRÍG…" y en la calle dos
-                    clientas de la misma cuadra se confundían por el apellido. */}
-                <span className="line-clamp-2 text-[15px] leading-[1.22] font-bold break-words text-tinta">
+                {/* ⚠️ NOMBRE COMPLETO, hasta TRES líneas (pedido de Carlos, 08-13
+                    y 19-08: "los nombres se cortan… debe aparecer nombre y
+                    apellido"). `truncate` dejaba "MARÍA FERNANDA RODRÍG…" y en la
+                    calle dos clientas de la misma cuadra se confundían por el
+                    apellido. Y el botón "Cobrar $X" en ESTA fila aplastaba la
+                    columna a cero: se veía la inicial del avatar y NINGÚN nombre
+                    (queja del 19-08) — por eso el botón vive ahora en su propia
+                    línea, abajo. */}
+                <span className="line-clamp-3 text-[15px] leading-[1.22] font-bold break-words text-tinta">
                   {it.nombre}
                 </span>
                 {it.plazoVencido ? (
@@ -680,11 +685,17 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
                 )}
               </div>
             </Link>
+            {/* Ojito: vistazo rápido sin salir de la ruta. */}
+            <OjitoCliente clienteId={it.id} nombre={it.nombre} />
+            </div>
             {/* ⚠️ COBRAR DE UN TOQUE, sin abrir la ficha. Solo cuando no hay NADA
                 que decidir: un solo crédito propio, cuota que vence hoy, parada sin
                 resolver y no es cartera vencida. En cualquier otro caso se entra a
                 la ficha, como siempre — la ficha no se reemplaza, se saltea cuando
-                no aporta. Es lo que convierte dos horas de tipeo en veinte minutos. */}
+                no aporta. Es lo que convierte dos horas de tipeo en veinte minutos.
+                ⚠️ En su PROPIA fila (19-08): compartiendo renglón con el nombre,
+                en 360px lo dejaba en cero ancho — la fila mostraba solo la
+                inicial. A la derecha, lejos del área que abre la ficha. */}
             {cobradorId &&
               it.prestamoId &&
               it.creditosPropios === 1 &&
@@ -705,16 +716,16 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
               // abre el doble cobro entre los dos caminos. Se esconde el atajo y ese
               // resto se cobra desde la ficha, que ya tiene "Para ponerse al día".
               Math.abs(it.cuota - (it.cuotaCredito ?? it.cuota)) < 1 && (
-                <CobroRapido
-                  clienteId={it.id}
-                  clienteNombre={it.nombre}
-                  prestamoId={it.prestamoId}
-                  cobradorId={cobradorId}
-                  cuota={it.cuota}
-                />
+                <div className="mt-1.5 flex justify-end border-t border-linea pt-1.5">
+                  <CobroRapido
+                    clienteId={it.id}
+                    clienteNombre={it.nombre}
+                    prestamoId={it.prestamoId}
+                    cobradorId={cobradorId}
+                    cuota={it.cuota}
+                  />
+                </div>
               )}
-            {/* Ojito: vistazo rápido sin salir de la ruta. */}
-            <OjitoCliente clienteId={it.id} nombre={it.nombre} />
           </div>
           </Fragment>
         );

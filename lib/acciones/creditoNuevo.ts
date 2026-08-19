@@ -28,7 +28,7 @@ import {
 } from "@/lib/data/creditoNuevo";
 import { cerrarSolicitudPendienteDeAnterior } from "@/lib/data/solicitudesRenovacion";
 import { calcularCuotaCreditoNuevo, INTERES_DEFECTO_PCT, interesDeBase } from "@/lib/creditoNuevo";
-import { cuotasValidas, techoVentaGestor, RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
+import { cuotasValidas, explicaTecho, techoVentaGestor, RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
 import { esUuid, opIdDeterminista } from "@/lib/idempotencia";
@@ -124,15 +124,16 @@ export async function crearCreditoNuevo(input: {
   // TECHO del gestor: con historial, +20% sobre el último crédito (piso CAP);
   // sin historial (primer crédito), el CAP. Más de eso en un alta no lo autoriza
   // nadie — candado contra el dedazo (misma regla que techoRenovacion).
-  // Base del techo = el MAYOR crédito de su historia (regla de Carlos 19-08:
-  // "actual o pasado"); la TASA sigue saliendo del último.
-  const refTecho = conHistorial ? (base!.montoReferenciaTecho || baseTasa!.monto) : 0;
+  // Base del techo = el ÚLTIMO crédito REGISTRADO del cliente (regla de Carlos,
+  // 19-08 segunda vuelta: no el más grande de su historia) — el mismo del que
+  // sale la tasa.
+  const refTecho = conHistorial ? baseTasa!.monto : 0;
   const techoGestor = conHistorial ? techoVentaGestor(refTecho) : RENOVACION_CAP_TOTAL;
   if (monto > techoGestor)
     return {
       ok: false,
       error: conHistorial
-        ? `Hasta ${UYU(techoGestor)} (+20% sobre su crédito más grande, ${UYU(refTecho)}). Más que eso no se autoriza en una sola venta.`
+        ? `Hasta ${UYU(techoGestor)} ${explicaTecho(refTecho, techoGestor)}. Más que eso no se autoriza en una sola venta.`
         : `El primer crédito no puede superar ${UYU(RENOVACION_CAP_TOTAL)}.`,
     };
 

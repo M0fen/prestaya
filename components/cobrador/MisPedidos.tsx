@@ -39,7 +39,8 @@ export function MisPedidos({ pedidos }: { pedidos: Pedido[] }) {
   const listos = pedidos.filter((p) => p.estado === "aprobado").length;
 
   return (
-    <section className="flex flex-col gap-2 rounded-[16px] border border-campo bg-tarjeta p-4">
+    // `id`: destino del "Ver tus pedidos" del cartel de ColocarLista (#pedidos).
+    <section id="pedidos" className="flex scroll-mt-20 flex-col gap-2 rounded-[16px] border border-campo bg-tarjeta p-4">
       <div className="flex items-baseline justify-between gap-2">
         <span className="text-[13.5px] font-extrabold text-tinta">📬 Tus pedidos</span>
         <span className="text-[11.5px] font-semibold text-gris tabular-nums">

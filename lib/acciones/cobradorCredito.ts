@@ -54,6 +54,7 @@ import {
 } from "@/lib/creditoNuevo";
 import {
   cuotasValidas,
+  explicaTecho,
   montoRenovacionAutoAprobable,
   montoRenovacionSugerido,
   techoRenovacion,
@@ -147,7 +148,11 @@ async function pedirAprobacion(
   } catch (e) {
     // Una solicitud pendiente por crédito (unique): el segundo toque no duplica.
     if ((e as { code?: string } | null)?.code === "23505")
-      return { ok: true, solicitado: true, mensaje: "Ya estaba pedido a la oficina. Sigue esperando el OK." };
+      return {
+        ok: true,
+        solicitado: true,
+        mensaje: "Este pedido ya estaba en la pantalla de tu supervisor — sigue esperando su OK. Lo ves en «Tus pedidos», en tu inicio.",
+      };
     return { ok: false, error: "No se pudo pedir la aprobación. Probá de nuevo." };
   }
   await registrarAuditoria(db, {
@@ -162,8 +167,12 @@ async function pedirAprobacion(
     detalle: `${UYU(s.monto)} × ${s.totalDias} (${s.frecuencia}) — espera a la oficina`,
   });
   // ⚠️ AVISO AL SUPERVISOR (quejas del piloto 19-08): la solicitud nacía MUDA y
-  // 2 pedidos llevaban días esperando sin que nadie los viera. Push a los
-  // supervisores de la zona + admins, con link directo a la cola. Best-effort.
+  // 2 pedidos llevaban días esperando sin que nadie los viera. Tres caminos:
+  //  · el panel del supervisor la ve SOLO, sin activar nada (franja en vivo por
+  //    Realtime sobre solicitudes_renovacion, 0151 + poll) — es la vía principal;
+  //  · push a los supervisores de la zona + admins, si tienen avisos activos;
+  //  · el cobrador tiene "Recordarle a mi supervisor" en Mis pedidos.
+  // Best-effort: el pedido YA está guardado aunque el aviso falle.
   const cliente = await getClientePorId(db, s.clienteId).catch(() => null);
   void avisarGestoresDeCobrador(u.id, {
     titulo: s.tipo === "venta" ? "Pedido de venta para aprobar" : "Pedido de renovación para aprobar",
@@ -172,12 +181,18 @@ async function pedirAprobacion(
     tag: `solicitud-${s.prestamoAnteriorId}`,
   });
   revalidatePath("/cobrador/colocar");
+  revalidatePath("/cobrador");
   revalidatePath("/admin/renovaciones");
   revalidatePath("/admin");
+  // Tono amable (Carlos, 19-08): es una buena noticia con un "todavía no", no
+  // un rechazo. Se dice qué pasó, qué sigue y cuándo queda en firme.
+  const quien = cliente?.nombre ? ` para ${cliente.nombre}` : "";
   return {
     ok: true,
     solicitado: true,
-    mensaje: "PEDIDO a la oficina. Le avisamos a tu supervisor — todavía no está aprobado.",
+    // ⚠️ SIN "¡Listo!": en «Tus pedidos» "listo" significa APROBADO (los estados
+    // dicen "N listos"), y de reojo una palabra de éxito hace entregar plata.
+    mensaje: `¡Pedido enviado! ${UYU(s.monto)}${quien} ya está en la pantalla de tu supervisor. Queda en firme apenas lo apruebe — seguilo en «Tus pedidos», en tu inicio.`,
   };
 }
 
@@ -417,7 +432,7 @@ export async function renovarDesdeCalle(input: {
     // más que eso en UNA renovación no lo autoriza nadie — se dice el número.
     return {
       ok: false,
-      error: `Para este cliente la oficina puede aprobar hasta ${UYU(maximo)} (+20% sobre ${UYU(montoAnterior)}). Más que eso no se autoriza en una sola renovación: revisá el monto.`,
+      error: `Para este cliente tu supervisor puede aprobar hasta ${UYU(maximo)} ${explicaTecho(montoAnterior, maximo)}. Más que eso no se autoriza en una sola renovación: revisá el monto.`,
     };
   }
   if (pedido > techoSolo) {
@@ -710,9 +725,10 @@ export async function nuevaVentaDesdeCalle(input: {
     // que aprueba el supervisor de la zona o el admin (0139). Antes el mensaje
     // decía "pedíselo a tu supervisor" y el pedido viajaba por fuera de la app —
     // el mismo agujero que la auditoría del 10-08 marcó en la cola de gastos.
-    // Base del techo = el MAYOR crédito de su historia (activo o pasado — regla
-    // de Carlos 19-08), no solo el último: el que bajó no pierde su techo.
-    const refTecho = base!.montoReferenciaTecho || baseTasa!.monto;
+    // Base del techo = el ÚLTIMO crédito REGISTRADO del cliente (activo o
+    // terminado) — regla de Carlos, 19-08 (segunda vuelta): NO el más grande de
+    // su historia. Es el mismo crédito del que se arrastra la tasa.
+    const refTecho = baseTasa!.monto;
     const techo = techoVentaNueva(refTecho);
     if (monto > techo) {
       // Lo que NI el gestor puede autorizar (más de +20% de la referencia y sobre
@@ -722,7 +738,7 @@ export async function nuevaVentaDesdeCalle(input: {
       if (monto > maximo)
         return {
           ok: false,
-          error: `Hasta ${UYU(maximo)} lo puede aprobar la oficina (+20% sobre su crédito más grande, ${UYU(refTecho)}). Más que eso no se autoriza en una sola venta.`,
+          error: `Hasta ${UYU(maximo)} lo puede aprobar tu supervisor ${explicaTecho(refTecho, maximo)}. Más que eso no se autoriza en una sola venta.`,
         };
       return pedirAprobacion(db, u, {
         clienteId: input.clienteId,

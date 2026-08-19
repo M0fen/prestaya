@@ -283,6 +283,22 @@ export function techoVentaGestor(montoAnterior: number | null | undefined): numb
 }
 
 /**
+ * POR QUÉ ese máximo, dicho sin mentir. Los mensajes explicaban el techo del
+ * gestor siempre como "(+20% sobre $X)", pero para TODO anterior < $83.334 (la
+ * enorme mayoría de la cartera) el máximo es el PISO del CAP: "hasta $100.000
+ * (+20% sobre $10.000)" era una cuenta que no cierra y enseñaba mal la regla.
+ * Cuando gana el ×1,2 se dice el +20%; cuando gana el piso, "el tope general".
+ * Puro y compartido: el servidor y las pantallas arman el rótulo con ESTA
+ * función, nunca a mano.
+ */
+export function explicaTecho(montoAnterior: number, maximo: number): string {
+  const pes = (n: number) => "$" + Math.round(n).toLocaleString("es-UY");
+  return maximo > RENOVACION_CAP_TOTAL
+    ? `(+20% sobre ${pes(montoAnterior)})`
+    : `(el tope general de ${pes(RENOVACION_CAP_TOTAL)})`;
+}
+
+/**
  * Tope de aumento (%) al renovar: **20% para todos**.
  *
  * ⚠️ Antes esto era un escalonado por monto (20/15/10/0%) que CONTRADECÍA la regla

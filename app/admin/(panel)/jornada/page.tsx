@@ -461,7 +461,7 @@ export default async function JornadaPage({
         <ActivarAvisos
           vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null}
           protagonista
-          motivo={`Tenés ${pedidosCalle.length + correccionesPend + gastosPend} cosa${pedidosCalle.length + correccionesPend + gastosPend === 1 ? "" : "s"} esperando tu respuesta. Con los avisos activos te llega cada pedido al instante, sin tener que entrar a mirar.`}
+          motivo={`Opcional: dentro del panel ya ves cada pedido apenas entra, sin activar nada. Con los avisos activos te llega también con el panel CERRADO (tenés ${pedidosCalle.length + correccionesPend + gastosPend} esperando ahora).`}
         />
       )}
 

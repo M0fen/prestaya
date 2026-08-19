@@ -34,7 +34,7 @@ import {
   interesDeBase,
   INTERES_DEFECTO_PCT,
 } from "@/lib/creditoNuevo";
-import { interesEfectivo, cuotasQueDanJusto, cuotasValidas } from "@/lib/renovacion";
+import { interesEfectivo, cuotasQueDanJusto, cuotasValidas, explicaTecho } from "@/lib/renovacion";
 
 interface Candidato {
   clienteId: string;
@@ -221,7 +221,7 @@ export function ColocarLista({
             </p>
             <PedirAyuda
               clienteId={clienteFoco}
-              etiqueta="Pedirlo a la oficina"
+              etiqueta="Pedírselo a mi supervisor"
               textoSugerido="Pido crédito para este cliente. Está en mi ruta y quiere tomar uno."
             />
           </div>
@@ -332,14 +332,18 @@ function TarjetaBloqueada({ c }: { c: NoElegibleVista }) {
  *  al refresco que borra al cliente de los candidatos.
  *
  *  TRES resultados, TRES colores. Verde = el capital salió. Ámbar = ya estaba hecho
- *  (reintento tras un corte de señal). ROJO = se PIDIÓ a la oficina y NO se creó
- *  nada. El "pedido" se pintaba verde con ✓ igual que el éxito: en la calle, de
- *  reojo, verde + ✓ = hecho, y el cobrador entregaba el efectivo por un crédito
- *  que no existe. */
+ *  (reintento tras un corte de señal). AZUL = se PIDIÓ al supervisor y todavía no
+ *  se creó nada. El "pedido" se pintaba verde con ✓ igual que el éxito: en la
+ *  calle, de reojo, verde + ✓ = hecho, y el cobrador entregaba el efectivo por
+ *  un crédito que no existe. Hoy (Carlos, 19-08) va en tono AMABLE — es una
+ *  buena noticia con un "todavía no" — pero distinto del verde y con la regla
+ *  de la plata escrita clara. */
 function Confirmacion({ h }: { h: Hecho }) {
   const tono =
     h.como === "pedido"
-      ? { borde: "var(--color-rojo-suave)", fondo: "var(--color-rojo-suave)", texto: "var(--color-rojo-osc)" }
+      ? // Tokens que FLIPEAN en modo oscuro (el cobrador lo tiene en Menú): el
+        // azul-osc fijo quedaba ilegible sobre el azul-suave oscuro.
+        { borde: "var(--color-campo)", fondo: "var(--color-azul-suave)", texto: "var(--color-azul-osc)" }
       : h.como === "repetido"
         ? { borde: "var(--color-ambar-suave)", fondo: "var(--color-ambar-suave)", texto: "var(--color-ambar-osc)" }
         : { borde: "var(--color-verde-suave)", fondo: "var(--color-verde-suave)", texto: "var(--color-verde-osc)" };
@@ -349,6 +353,7 @@ function Confirmacion({ h }: { h: Hecho }) {
       style={{ borderColor: tono.borde, background: tono.fondo }}
     >
       <span className="text-[14px] font-extrabold" style={{ color: tono.texto }}>
+        {h.como === "pedido" ? "⏳ " : ""}
         {h.nombre}
       </span>
       <p className="text-[12.5px] leading-[1.45] font-bold" style={{ color: tono.texto }}>
@@ -356,13 +361,24 @@ function Confirmacion({ h }: { h: Hecho }) {
       </p>
       {h.como === "pedido" && (
         <p
-          className="mt-1 rounded-[12px] bg-tarjeta/70 px-2.5 py-2 text-[13px] leading-[1.4] font-extrabold"
+          className="mt-1 rounded-[12px] bg-tarjeta/80 px-2.5 py-2 text-[12.5px] leading-[1.45] font-bold"
           style={{ color: tono.texto }}
         >
-          ⛔ NO le entregues la plata todavía. El crédito NO existe hasta que la oficina apruebe.
+          💵 Todavía NO le entregues la plata: se entrega cuando llegue el OK — ahí el crédito
+          nace solo y te aparece en verde en «Tus pedidos». Si demora, desde ahí le podés
+          recordar a tu supervisor.
         </p>
       )}
       <div className="mt-1.5 flex flex-wrap items-center gap-2">
+        {h.como === "pedido" && (
+          <a
+            href="/cobrador#pedidos"
+            className="min-h-11 self-start rounded-full px-4 text-[12.5px] font-extrabold leading-[44px] text-white active:scale-95"
+            style={{ background: "#1E47C8" }}
+          >
+            Ver tus pedidos
+          </a>
+        )}
         <a
           href={`/cobrador/cliente/${h.clienteId}`}
           className="min-h-11 self-start rounded-full bg-tarjeta px-4 text-[12.5px] font-bold leading-[44px] active:scale-95"
@@ -570,7 +586,7 @@ function Tarjeta({
     <div className="flex flex-col gap-2.5 rounded-[16px] border border-borde bg-tarjeta p-4">
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 flex-col">
-          <span className="line-clamp-2 break-words leading-[1.2] text-[15px] font-extrabold text-tinta">{c.nombre}</span>
+          <span className="line-clamp-3 break-words leading-[1.2] text-[15px] font-extrabold text-tinta">{c.nombre}</span>
           <span className="text-[11.5px] font-semibold text-gris tabular-nums">
             {modo === "renovar"
               ? `Terminó de pagar ✓ · ${UYU(sugeridoRenov)}${c.desde ? ` · desde ${diaMes(c.desde)}` : ""}`
@@ -642,7 +658,7 @@ function Tarjeta({
               </span>
               {!ajustar && c.requiereAprobacion && (
                 <span className="rounded-[12px] bg-ambar-suave px-2.5 py-2 text-[11.5px] leading-[1.45] font-bold text-ambar-osc">
-                  Este monto lo tiene que aprobar la oficina. Al confirmar se manda el pedido.
+                  Este monto lo aprueba tu supervisor. Al confirmar, el pedido le llega a su pantalla.
                   <br />
                   <strong>Todavía NO le entregues la plata.</strong>
                 </span>
@@ -702,11 +718,22 @@ function Tarjeta({
                       />
                     </label>
                   </div>
-                  {/* Hasta dónde puede SOLO y hasta dónde la oficina — dicho antes. */}
+                  {/* Hasta dónde puede SOLO y hasta dónde su supervisor — dicho
+                      antes. El rótulo del "por qué" NO es siempre "+20%": para un
+                      anterior de $90.000 el techo propio es el CAP (+11%), y un
+                      heredado de $120.000 no tiene margen propio — decir "(+20%)"
+                      ahí enseñaba mal la regla (auditoría 19-08). */}
                   <span className="text-[11.5px] leading-[1.4] font-semibold text-gris">
-                    Solo podés hasta <b className="text-tinta">{UYU(techo)}</b> (+20%).
+                    {techo > c.monto ? (
+                      <>
+                        Solo podés hasta <b className="text-tinta">{UYU(techo)}</b>
+                        {techo === Math.floor(c.monto * 1.2) ? " (+20%)" : " (tope de la casa)"}.
+                      </>
+                    ) : (
+                      <>Repetir {UYU(c.monto)} podés vos; cualquier suba la aprueba tu supervisor.</>
+                    )}
                     {c.maximo != null && c.maximo > techo && (
-                      <> La oficina puede aprobar hasta <b className="text-tinta">{UYU(c.maximo)}</b>.</>
+                      <> Tu supervisor puede aprobar hasta <b className="text-tinta">{UYU(c.maximo)}</b>.</>
                     )}
                   </span>
                   {/* Formato del crédito nuevo. */}
@@ -759,9 +786,9 @@ function Tarjeta({
                     {cuotasN > 0 && cuotasPasan
                       ? "El máximo son 366 cuotas. Revisá la cantidad."
                       : pasaMaximo
-                        ? `${UYU(montoN)} no se puede: la oficina puede aprobar hasta ${UYU(c.maximo ?? techo)} (+20% sobre ${UYU(c.monto)}). Revisá el monto.`
+                        ? `${UYU(montoN)} no se puede: tu supervisor puede aprobar hasta ${UYU(c.maximo ?? techo)} ${explicaTecho(c.monto, c.maximo ?? techo)}. Revisá el monto.`
                         : excede
-                          ? `${UYU(montoN)} pasa los ${UYU(techo)} que podés dar solo. Al confirmar se manda el pedido a tu supervisor (le llega un aviso) — todavía NO le entregues la plata.`
+                          ? `${UYU(montoN)} pasa los ${UYU(techo)} que podés dar vos solo, pero sí lo puede aprobar tu supervisor. Al confirmar le llega el pedido a su pantalla y queda en firme apenas lo apruebe — la plata se entrega después del OK.`
                           : "Dentro de lo que podés dar solo: se crea al instante."}
                   </span>
                 </div>
@@ -831,9 +858,9 @@ function Tarjeta({
                 {cuotasN > 0 && cuotasPasan
                   ? "El máximo son 366 cuotas. Revisá la cantidad."
                   : pasaMaximo
-                    ? `${UYU(montoN)} no se puede: para este cliente el máximo es ${UYU(c.maximo ?? techo)}, ni la oficina puede subirlo. Revisá el monto.`
+                    ? `${UYU(montoN)} no se puede: para este cliente el máximo es ${UYU(c.maximo ?? techo)} ${explicaTecho(c.monto, c.maximo ?? techo)} — más no lo aprueba ni tu supervisor. Revisá el monto.`
                     : excede
-                      ? `${UYU(montoN)} pasa los ${UYU(techo)} que podés dar solo. Al confirmar se manda el pedido a la oficina — todavía NO le entregues la plata.`
+                      ? `${UYU(montoN)} pasa los ${UYU(techo)} que podés dar vos solo, pero sí lo puede aprobar tu supervisor. Al confirmar le llega el pedido a su pantalla y queda en firme apenas lo apruebe — la plata se entrega después del OK.`
                       : c.primerCredito
                         ? `Podés darle hasta ${UYU(techo)} vos solo (tope del sistema).`
                         : `Podés darle hasta ${UYU(techo)} vos solo.`}
@@ -875,8 +902,8 @@ function Tarjeta({
                     const n = modo === "renovar" ? sugeridoRenov : montoN;
                     if (aOficina)
                       return confirmar
-                        ? `Sí, pedir ${UYU(n)} a la oficina`
-                        : `Pedir ${UYU(n)} a la oficina`;
+                        ? `Sí, pedir ${UYU(n)} a mi supervisor`
+                        : `Pedir ${UYU(n)} a mi supervisor`;
                     return confirmar ? `Sí, entregarle ${UYU(n)}` : `Entregarle ${UYU(n)}`;
                   })()}
             </button>
