@@ -280,19 +280,49 @@ const SUPERVISOR: GuiaTutorial[] = [
     id: "sup-renovar",
     rol: "supervisor",
     icono: "🔄",
-    titulo: "Renovaciones",
-    resumen: "Vos proponés renovar un crédito; el admin lo aprueba.",
-    enlace: { href: "/admin/renovaciones", texto: "Abrir Renovaciones" },
+    titulo: "Pedidos de la calle y renovaciones",
+    resumen: "Los pedidos que los cobradores mandan por sobre su tope los aprobás VOS. Y renovás desde el panel cuando hace falta.",
+    enlace: { href: "/admin/renovaciones", texto: "Abrir Pedidos" },
     pasos: [
       {
-        titulo: "Elegí al cliente y proponé el nuevo crédito",
+        titulo: "Aprobá los pedidos de la calle (tab «Pedidos», abajo)",
         cuerpo:
-          "En 'Renovaciones' aparecen los que terminaron bien. Elegís uno, ponés monto y cuotas y solicitás. Si está dentro del tope (≤20% y ≤$100.000) se aprueba solo; si no, va al admin.",
+          "Cuando un cobrador quiere renovar o vender por más del +20% de lo que el cliente tenía, la app le genera un pedido y te lo manda a vos. Lo ves en el tab «Pedidos» con el contador (y te llega un aviso al celular si activaste los avisos). Revisás anterior → pedido y el %, y tocás Aprobar o Rechazar. Hasta que respondas, el cobrador NO puede entregar la plata.",
+      },
+      {
+        titulo: "Hasta dónde podés autorizar",
+        cuerpo:
+          "Hasta +20% sobre el crédito más grande que el cliente tuvo (actual o pasado), con piso en $100.000. Más que eso en una sola operación no lo autoriza nadie: es el candado contra el dedazo.",
+      },
+      {
+        titulo: "Renovar desde el panel",
+        cuerpo:
+          "En la misma pantalla, «Candidatos» lista los que terminaron bien. Elegís uno, ajustás monto, cuotas y formato (diario/semanal) si hace falta, y das de alta directo.",
       },
       {
         titulo: "Ojo con el aviso de moroso",
         cuerpo:
-          "Si el cliente está marcado como moroso, te aparece el aviso para que lo tengas en cuenta antes de proponer.",
+          "Si el cliente está marcado como moroso, te aparece el aviso para que lo tengas en cuenta antes de aprobar.",
+      },
+    ],
+  },
+  {
+    id: "sup-movimientos",
+    rol: "supervisor",
+    icono: "📆",
+    titulo: "Ventas y pagos de cualquier día",
+    resumen: "Uno por uno, a quién y por quién — de hoy o de cualquier día anterior. Y cancelar una venta mal hecha.",
+    enlace: { href: "/admin/movimientos", texto: "Abrir Movimientos del día" },
+    pasos: [
+      {
+        titulo: "Movimientos del día",
+        cuerpo:
+          "Menú → Operación diaria → «Movimientos del día» (o desde la tarjeta «Ventas de hoy» en Mi jornada). Elegís el día o rango arriba: te lista cada venta (cliente, cobrador, monto, plan) y cada pago. «← Día anterior» para ir para atrás.",
+      },
+      {
+        titulo: "Cancelar una venta mal hecha",
+        cuerpo:
+          "En cada venta de la lista hay «Cancelar…» (también en la ficha del cliente). Dos toques + motivo. Si el crédito ya tiene pagos, primero se anulan esos pagos (te lo dice ahí mismo). Una renovación cancelada reabre el crédito anterior.",
       },
     ],
   },

@@ -23,6 +23,7 @@ import { conTimeout } from "@/lib/timeout";
 import { BotonImprimir } from "@/components/admin/BotonImprimir";
 import { UYU, horaDe, meses } from "@/lib/format";
 import { esUuid } from "@/lib/idempotencia";
+import { CancelarVentaPanel } from "@/components/admin/CancelarVentaPanel";
 
 export const dynamic = "force-dynamic";
 const TOPE_MS = 22_000;
@@ -51,7 +52,7 @@ export default async function MovimientosPage({
   searchParams: Promise<{ desde?: string; hasta?: string; vendedor?: string }>;
 }) {
   const sp = await searchParams;
-  await requireGestor();
+  const usuario = await requireGestor();
   const db = await createSupabaseServer();
 
   const hoyYmd = fechaISOUY();
@@ -74,6 +75,8 @@ export default async function MovimientosPage({
         hastaYmd: hasta,
         cobradorIds: vendedorId && !vendedorValido ? [] : cobradorIds,
         cobradorId: vendedorValido,
+        // El supervisor también ve lo que ÉL hizo desde el panel en su zona.
+        gestorIds: cobradorIds ? [usuario.id] : null,
       }),
       getVendedores(db, cobradorIds),
     ]),
@@ -149,7 +152,7 @@ export default async function MovimientosPage({
           <p className="py-4 text-center text-[13px] font-medium text-gris">Sin ventas {unDia ? "ese día" : "en el rango"}.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] border-collapse text-[12.5px]">
+            <table className="w-full min-w-[720px] border-collapse text-[12.5px]">
               <thead>
                 <tr className="border-b border-linea text-[11px] font-bold tracking-wide text-gris uppercase">
                   <th className="px-3 py-2 text-left">Cuándo</th>
@@ -158,6 +161,7 @@ export default async function MovimientosPage({
                   <th className="px-3 py-2 text-left">Cobrador</th>
                   <th className="px-3 py-2 text-right">Monto</th>
                   <th className="px-3 py-2 text-right">Plan</th>
+                  <th className="px-3 py-2 text-right"></th>
                 </tr>
               </thead>
               <tbody>
@@ -175,6 +179,12 @@ export default async function MovimientosPage({
                     <td className="px-3 py-2 text-cuerpo">{c.cobradorNombre}</td>
                     <td className="px-3 py-2 text-right font-extrabold tabular-nums text-tinta">{UYU(c.monto)}</td>
                     <td className="px-3 py-2 text-right tabular-nums text-gris">{c.totalDias}× {UYU(c.cuota)}</td>
+                    {/* Cancelar DESDE la lista donde se VE la venta (queja del piloto
+                        19-08: el botón vivía solo al fondo de la ficha del cliente y
+                        "las ventas no se pueden eliminar"). Misma regla del servidor. */}
+                    <td className="px-3 py-2 text-right">
+                      {!c.cancelada && <CancelarVentaPanel prestamoId={c.prestamoId} monto={c.monto} compacto />}
+                    </td>
                   </tr>
                 ))}
               </tbody>

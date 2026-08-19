@@ -23,6 +23,8 @@ import { JornadasSinRendir } from "@/components/admin/JornadasSinRendir";
 import { getDesempenoRango, type DesempenoRango } from "@/lib/data/desempeno";
 import { contarSolicitudesGastoPendientes } from "@/lib/data/solicitudesGasto";
 import { getSolicitudesPendientes as getSolicitudesAnulacionPendientes } from "@/lib/data/anulaciones";
+import { getSolicitudesPendientes as getPedidosCallePendientes } from "@/lib/data/solicitudesRenovacion";
+import { getInformeRango } from "@/lib/data/informeDia";
 import { getBitacoraGestorDia, type RegistroAuditoria } from "@/lib/data/auditoria";
 import { alcanceDelActor } from "@/lib/data/alcance";
 import { getAperturasDia, getBasesDelDia } from "@/lib/data/aperturas";
@@ -38,6 +40,7 @@ import { fechaISOUY, sumarDiasYmd } from "@/lib/fecha";
 import { CierrePorZona } from "@/components/admin/CierrePorZona";
 import { AvisarCobrador } from "@/components/admin/AvisarCobrador";
 import { BienvenidaCard } from "@/components/BienvenidaCard";
+import { NovedadesCard } from "@/components/NovedadesCard";
 import { AutoRefresco } from "@/components/admin/AutoRefresco";
 import { Icono, ICONO_NAV, type NombreIcono } from "@/components/Iconos";
 import type { ReactNode } from "react";
@@ -305,7 +308,7 @@ export default async function JornadaPage({
   // los aprueba el admin. Y las CORRECCIONES de cobro (solicitudes de anulación,
   // incluidas las que ahora piden los cobradores, 08-05): acá el supervisor SÍ es
   // el aprobador (doble registro) → tarjeta protagonista, no solo el badge del menú.
-  const [gastosPend, correccionesPend] = await conTimeout(
+  const [gastosPend, correccionesPend, pedidosCalle, movHoy] = await conTimeout(
     Promise.all([
       contarSolicitudesGastoPendientes(db, alcance.global ? null : alcance.cobradorIds),
       getSolicitudesAnulacionPendientes(db, alcance)
@@ -317,10 +320,33 @@ export default async function JornadaPage({
           reportarError("jornada.correccionesPendientes", e);
           return 0;
         }),
+      // PEDIDOS DE LA CALLE (renovación/venta sobre el techo) — quejas del
+      // piloto 19-08: el supervisor es el APROBADOR y no tenía NINGUNA tarjeta
+      // acá; dos pedidos llevaban 1-2 días sin que nadie los viera. La RLS
+      // 0096 ya los acota a su zona.
+      getPedidosCallePendientes(db).catch((e) => {
+        reportarError("jornada.pedidosCalle", e);
+        return [];
+      }),
+      // Ventas y pagos de HOY, uno por uno (la queja "solo se ve el valor, no a
+      // quién"): el hub muestra los totales y manda a Movimientos para el detalle
+      // y los días anteriores.
+      esHoy
+        ? getInformeRango({ desdeYmd: hoyYmd, hastaYmd: hoyYmd, cobradorIds: alcance.global ? null : alcance.cobradorIds, gestorIds: alcance.global ? null : [usuario.id] }).catch((e) => {
+            reportarError("jornada.movHoy", e);
+            return null;
+          })
+        : Promise.resolve(null),
     ]),
     TOPE_MS,
     "jornada.pendientes",
   );
+  const pedidoMasViejo = pedidosCalle.length
+    ? pedidosCalle.reduce((a, b) => (a.solicitadoEn < b.solicitadoEn ? a : b))
+    : null;
+  const horasEsperando = pedidoMasViejo
+    ? Math.max(0, Math.round((Date.now() - new Date(pedidoMasViejo.solicitadoEn).getTime()) / 3_600_000))
+    : 0;
 
   // ── Estado del cierre (para el peak-end): ¿todas las zonas que puedo sellar ya
   //    están cerradas? + resumen del día para el Acto 3. ──
@@ -372,6 +398,8 @@ export default async function JornadaPage({
       <OnboardingDia1 claveCambiada={usuario.clave_cambiada_en != null} />
 
       {/* Bienvenida cálida (solo la 1ª vez, se puede cerrar). */}
+      {/* Qué hay de NUEVO por versión (piloto 19-08: lo deployado no se encontraba). */}
+      <NovedadesCard rol={usuario.rol} />
       <BienvenidaCard
         id="supervisor"
         saludo={`¡A darle al día, ${primerNombre}! 👋`}
@@ -395,6 +423,71 @@ export default async function JornadaPage({
         esperadoDia={esperadoTotal}
         avancePct={avanceDiaPct}
       />
+
+      {/* PEDIDOS DE LA CALLE esperando TU aprobación — la tarjeta protagonista
+          (quejas del piloto 19-08: "el 20% no se deja" = nadie aprobaba porque
+          nada lo mostraba acá). Con la hora del más viejo, para que duela. */}
+      {pedidosCalle.length > 0 && (
+        <Link
+          href="/admin/renovaciones"
+          className="flex items-center justify-between gap-2 rounded-[14px] border-2 border-[#6B8FF7] bg-[#EEF3FF] px-4 py-3.5 hover:brightness-[0.98]"
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="text-[20px]">🔔</span>
+            <div className="flex flex-col">
+              <span className="text-[14px] font-extrabold text-[#13308C]">
+                {pedidosCalle.length === 1
+                  ? "1 pedido de la calle espera tu aprobación"
+                  : `${pedidosCalle.length} pedidos de la calle esperan tu aprobación`}
+              </span>
+              <span className="text-[12px] font-semibold text-[#1E47C8]">
+                {pedidoMasViejo
+                  ? `${pedidoMasViejo.solicitadoPorNombre ?? "Un cobrador"} pide ${UYU(pedidoMasViejo.monto)} para ${pedidoMasViejo.clienteNombre} · hace ${horasEsperando < 1 ? "menos de 1 h" : horasEsperando < 48 ? `${horasEsperando} h` : `${Math.round(horasEsperando / 24)} días`}`
+                  : ""}
+                {" "}— el cobrador NO puede entregar la plata hasta que respondas.
+              </span>
+            </div>
+          </div>
+          <span className="flex-shrink-0 rounded-full bg-[#1E47C8] px-3.5 py-2 text-[12.5px] font-extrabold text-white">
+            Aprobar →
+          </span>
+        </Link>
+      )}
+
+      {/* Si hay pendientes de cualquier tipo y los avisos están apagados, el
+          nudge va ACÁ, grande (la píldora del header no la activó nadie: 0
+          suscripciones en la base, piloto 19-08). */}
+      {(pedidosCalle.length + correccionesPend + gastosPend) > 0 && (
+        <ActivarAvisos
+          vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null}
+          protagonista
+          motivo={`Tenés ${pedidosCalle.length + correccionesPend + gastosPend} cosa${pedidosCalle.length + correccionesPend + gastosPend === 1 ? "" : "s"} esperando tu respuesta. Con los avisos activos te llega cada pedido al instante, sin tener que entrar a mirar.`}
+        />
+      )}
+
+      {/* VENTAS Y PAGOS DE HOY, uno por uno — queja: "solo se ve el valor, no un
+          historial ni a quién". Totales acá; el detalle y los días anteriores en
+          Movimientos (que antes vivía solo en Menú, sin la palabra "ventas"). */}
+      {movHoy && (
+        <Link
+          href={`/admin/movimientos?desde=${hoyYmd}&hasta=${hoyYmd}`}
+          className="flex items-center justify-between gap-2 rounded-[14px] border border-borde bg-tarjeta px-4 py-3 hover:bg-suave"
+        >
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[13px] font-extrabold text-tinta">
+              Ventas de hoy: {movHoy.totales.ventas} · {UYU(movHoy.totales.colocado)}
+              <span className="font-semibold text-gris"> · Pagos: {movHoy.totales.pagos} · {UYU(movHoy.totales.recaudado)}</span>
+            </span>
+            <span className="text-[11.5px] font-medium text-gris">
+              {movHoy.colocaciones.length > 0
+                ? `Última: ${movHoy.colocaciones[0].clienteNombre} ${UYU(movHoy.colocaciones[0].monto)} (${movHoy.colocaciones[0].cobradorNombre})`
+                : "Todavía sin ventas hoy"}
+              {" "}· tocá para ver una por una, a quién y por quién — y los días anteriores.
+            </span>
+          </div>
+          <span className="flex-shrink-0 text-[12px] font-bold text-azul">Ver →</span>
+        </Link>
+      )}
 
       {/* Gastos de ruta esperando: el cobrador está parado esperando la aprobación. */}
       {gastosPend > 0 && (
@@ -1209,6 +1302,17 @@ function DateBar({ fechaYmd, hoyYmd }: { fechaYmd: string; hoyYmd: string }) {
           className="acto-activo flex h-9 items-center justify-center rounded-[12px] border border-azul px-3.5 text-[13px] font-bold text-azul"
         >
           Hoy
+        </Link>
+      )}
+      {/* Queja del piloto 19-08: "← día anterior" llevaba a un historial con
+          SOLO totales ("solo el valor, no a quién"). La lista pago a pago y
+          venta a venta de ESE día vive en Movimientos — se ofrece acá mismo. */}
+      {!esHoy && (
+        <Link
+          href={`/admin/movimientos?desde=${fechaYmd}&hasta=${fechaYmd}`}
+          className="flex h-9 items-center justify-center rounded-[12px] bg-azul px-3.5 text-[13px] font-extrabold text-white"
+        >
+          Ver pagos y ventas de este día, uno por uno →
         </Link>
       )}
     </section>

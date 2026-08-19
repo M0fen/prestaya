@@ -29,6 +29,12 @@ export interface BaseCreditoNuevo {
   cobradorId: string | null;
   fechaInicio: string;
   estado: string;
+  /** El MAYOR capital que este cliente tuvo (activo o pasado, no cancelado),
+   *  base del techo +20% — regla de Carlos (19-08): "cualquier aumento del 20%
+   *  en relación al crédito actual o pasado". Un cliente que bajó de $14.000 a
+   *  $5.000 no pierde el derecho a volver a $16.800. La TASA sigue arrastrando
+   *  del ÚLTIMO (`monto`/`cuota`/`totalDias`). */
+  montoReferenciaTecho: number;
 }
 
 /**
@@ -56,9 +62,21 @@ export async function getUltimoCreditoDe(
   if (error) throw error;
   const r = data?.[0];
   if (!r) return null;
+  // El mayor capital de su historia (no cancelado): base del techo +20%.
+  const { data: mx, error: eMx } = await db
+    .from("prestamos")
+    .select("monto_prestado")
+    .eq("cliente_id", clienteId)
+    .neq("estado", "cancelado")
+    .order("monto_prestado", { ascending: false })
+    .limit(1);
+  if (eMx) throw eMx;
+  const mayor = Math.round(Number(mx?.[0]?.monto_prestado) || 0);
+  const ultimo = Math.round(Number(r.monto_prestado) || 0);
   return {
     prestamoId: r.id as string,
-    monto: Math.round(Number(r.monto_prestado) || 0),
+    monto: ultimo,
+    montoReferenciaTecho: Math.max(ultimo, mayor),
     cuota: Math.round(Number(r.cuota_diaria) || 0),
     totalDias: Number(r.total_dias) || 0,
     frecuencia: (r.frecuencia as FrecuenciaPrestamo) ?? "diario",

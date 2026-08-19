@@ -13,6 +13,7 @@ import { calcularEstadosCarton } from "@/lib/cartones";
 import { formatearSuerte } from "@/lib/quiniela";
 import { hoyUY, fechaISOUY } from "@/lib/fecha";
 import type { Prestamo } from "@/types/db";
+import { montoRenovacionAutoAprobable } from "@/lib/renovacion";
 import { UYU } from "@/lib/format";
 import { RegistroCobro } from "@/components/cobrador/RegistroCobro";
 import { CartonCobrador } from "@/components/cobrador/CartonCobrador";
@@ -293,11 +294,17 @@ async function Detalle({
             >
               🔁 Renovar igual · {UYU(prestamo.monto_prestado)}
             </Link>
+            {/* El +20% a la VISTA (piloto 19-08: "no deja subir" = nadie sabía que
+                podía ni hasta cuánto). Mismo número que calcula el servidor. */}
+            <span className="text-center text-[12px] leading-[1.45] font-semibold text-gris">
+              O subilo hasta <b className="text-tinta">{UYU(montoRenovacionAutoAprobable(prestamo.monto_prestado))}</b> (+20%) vos solo
+              — más, lo aprueba tu supervisor. En Renovar → «Cambiar monto, cuotas o formato».
+            </span>
             <Link
               href={`/cobrador/colocar?modo=venta&cliente=${clienteId}`}
               className="min-h-11 rounded-[12px] border border-verde-suave bg-tarjeta text-center text-[13.5px] font-bold leading-[44px] text-verde-osc active:scale-[0.99]"
             >
-              💵 Nueva venta · otro monto o más cuotas
+              💵 Nueva venta · otro crédito aparte
             </Link>
           </div>
         </div>

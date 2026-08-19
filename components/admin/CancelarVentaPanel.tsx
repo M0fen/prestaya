@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 import { cancelarVentaPanel, estadoCancelable } from "@/lib/acciones/cancelarVenta";
 import { UYU } from "@/lib/format";
 
-export function CancelarVentaPanel({ prestamoId, monto }: { prestamoId: string; monto: number }) {
+export function CancelarVentaPanel({ prestamoId, monto, compacto = false }: { prestamoId: string; monto: number; compacto?: boolean }) {
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
   const [info, setInfo] = useState<Awaited<ReturnType<typeof estadoCancelable>> | null>(null);
@@ -37,8 +37,10 @@ export function CancelarVentaPanel({ prestamoId, monto }: { prestamoId: string; 
   if (!abierto) {
     return (
       <button type="button" onClick={() => setAbierto(true)}
-        className="mt-2 w-fit rounded-full border border-[#F0C9C4] bg-[#FBE4E2] px-3.5 py-1.5 text-[12px] font-bold text-[#C0392B] active:scale-95">
-        Cancelar esta venta…
+        className={compacto
+          ? "rounded-full border border-[#F0C9C4] bg-[#FBE4E2] px-2.5 py-1 text-[11px] font-bold text-[#C0392B] active:scale-95"
+          : "mt-2 w-fit rounded-full border border-[#F0C9C4] bg-[#FBE4E2] px-3.5 py-1.5 text-[12px] font-bold text-[#C0392B] active:scale-95"}>
+        {compacto ? "Cancelar…" : `Cancelar la venta de ${UYU(monto)}…`}
       </button>
     );
   }
@@ -57,7 +59,7 @@ export function CancelarVentaPanel({ prestamoId, monto }: { prestamoId: string; 
     });
 
   return (
-    <div className="mt-2 flex flex-col gap-2 rounded-[14px] border border-[#F0C9C4] bg-[#FFF7F6] p-3.5">
+    <div className={`${compacto ? "min-w-[260px] text-left" : "mt-2"} flex flex-col gap-2 rounded-[14px] border border-[#F0C9C4] bg-[#FFF7F6] p-3.5`}>
       <div className="flex items-center justify-between">
         <span className="text-[13px] font-extrabold text-[#C0392B]">Cancelar la venta de {UYU(monto)}</span>
         <button type="button" onClick={() => { setAbierto(false); setConfirmar(false); setMsg(null); }} className="text-[12px] font-bold text-gris">Cerrar</button>

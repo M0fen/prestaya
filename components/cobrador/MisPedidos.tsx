@@ -13,6 +13,7 @@
 import Link from "next/link";
 import { UYU } from "@/lib/format";
 import type { Pedido } from "@/lib/data/misPedidos";
+import { RecordarPedido } from "@/components/cobrador/RecordarPedido";
 
 const TONO = {
   aprobado: { borde: "var(--color-verde-suave)", fondo: "var(--color-verde-suave)", texto: "var(--color-verde-osc)", chip: "Aprobado ✓" },
@@ -89,6 +90,12 @@ export function MisPedidos({ pedidos }: { pedidos: Pedido[] }) {
               <span className="rounded-[12px] bg-app px-2.5 py-1.5 text-[11.5px] leading-[1.4] font-semibold text-cuerpo">
                 📝 {p.motivo}
               </span>
+            )}
+            {/* El empujón que faltaba (piloto 19-08): un pedido de renovación/venta
+                esperando horas sin que el supervisor lo vea → push + chat de zona
+                + WhatsApp, desde acá mismo. */}
+            {p.tipo === "renovacion" && p.estado === "pendiente" && (
+              <RecordarPedido solicitudId={p.id} horas={p.horasEsperando} />
             )}
           </>
         );

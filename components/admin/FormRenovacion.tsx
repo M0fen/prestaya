@@ -23,7 +23,23 @@ import type { PrestamoAnterior } from "@/lib/data/renovaciones";
 import type { FrecuenciaPrestamo } from "@/types/db";
 
 /** Plazos estándar del negocio (cantidad de cuotas). Cobro diario Lun–Sáb. */
-const PLAZOS = [20, 24, 30] as const;
+/** Plazos estándar del negocio POR frecuencia: 24 diarios ≈ 4 semanales ≈ 2
+ *  quincenales ≈ 1 mensual. Al cambiar de formato se re-sugiere el equivalente
+ *  (piloto 19-08: elegir Semanal dejando "24" fabricaba un crédito de 24 SEMANAS
+ *  en silencio). */
+const PLAZOS_POR_FREC: Record<FrecuenciaPrestamo, readonly number[]> = {
+  diario: [20, 24, 30],
+  semanal: [4, 6, 8],
+  quincenal: [2, 3, 4],
+  mensual: [1, 2, 3],
+};
+/** Cuotas equivalentes al cambiar de frecuencia, manteniendo el PLAZO en días. */
+function cuotasEquivalentes(cuotas: number, de: FrecuenciaPrestamo, a: FrecuenciaPrestamo): number {
+  const diasPor: Record<FrecuenciaPrestamo, number> = { diario: 1, semanal: 7, quincenal: 15, mensual: 30 };
+  if (de === a || !(cuotas > 0)) return cuotas;
+  const dias = cuotas * diasPor[de];
+  return Math.max(1, Math.round(dias / diasPor[a]));
+}
 
 const FRECUENCIAS: { id: FrecuenciaPrestamo; label: string }[] = [
   { id: "diario", label: "Diario" },
@@ -225,9 +241,9 @@ export function FormRenovacion({
             }}
             className="rounded-[12px] border border-borde bg-tarjeta px-3 py-2 text-[16px] font-semibold outline-none focus:border-azul"
           />
-          {/* Plazos estándar del negocio (cobro diario Lun–Sáb). */}
+          {/* Plazos estándar del negocio para la frecuencia elegida. */}
           <div className="mt-1 flex gap-2">
-            {PLAZOS.map((p) => (
+            {PLAZOS_POR_FREC[frecuencia].map((p) => (
               <button
                 key={p}
                 type="button"
@@ -254,6 +270,9 @@ export function FormRenovacion({
               key={f.id}
               type="button"
               onClick={() => {
+                // Re-sugerir las cuotas equivalentes (mismo plazo en días):
+                // 24 diarias → 4 semanales. El gestor puede cambiarlo después.
+                setDias(String(cuotasEquivalentes(diasNum, frecuencia, f.id)));
                 setFrecuencia(f.id);
                 setConfirmar(false);
               }}

@@ -169,15 +169,23 @@ export async function getInformeRango(input: {
   hastaYmd: string;
   cobradorIds: string[] | null;
   cobradorId?: string | null;
+  /** Gestores cuyo trabajo de panel también cuenta (el supervisor y los admins). */
+  gestorIds?: string[] | null;
 }): Promise<InformeRango> {
   const admin = createSupabaseAdmin();
   const desdeIso = diaUYInicioIso(input.desdeYmd);
   const hastaIso = diaUYFinIso(input.hastaYmd);
   // Rango absurdo o vacío → vacío (la página valida; esto es la red).
   if (!(desdeIso < hastaIso)) return { pagos: [], colocaciones: [], totales: { pagos: 0, recaudado: 0, ventas: 0, colocado: 0 } };
+  // `gestorIds` (opcional): lo que los GESTORES del alcance hacen desde el panel
+  // (renovar, aprobar, pagos de oficina) también es un movimiento del día de esa
+  // zona — sin esto, el supervisor NO veía sus propias ventas en Movimientos
+  // (bug cazado 19-08: filtraba solo por cobradores de la zona).
   const soloDe = input.cobradorId
     ? [input.cobradorId]
-    : input.cobradorIds; // null = todos
+    : input.cobradorIds
+      ? [...new Set([...input.cobradorIds, ...(input.gestorIds ?? [])])]
+      : null; // null = todos
   if (soloDe && soloDe.length === 0) return { pagos: [], colocaciones: [], totales: { pagos: 0, recaudado: 0, ventas: 0, colocado: 0 } };
 
   const [pagos, colocaciones] = await Promise.all([

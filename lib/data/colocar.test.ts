@@ -413,3 +413,36 @@ describe("La pantalla tiene que ABRIR en la calle (no era un detalle de estilo)"
     expect(consultas.pagos).toBe(2); // 1.200 filas = dos páginas
   });
 });
+
+describe("el techo mide contra el MAYOR crédito de su historia — 'actual o pasado' (regla de Carlos 19-08)", () => {
+  it("bajó de $14.000 a $5.000: su techo sigue saliendo de los $14.000 (no pierde lo ganado)", async () => {
+    const { db } = crearDb({
+      asignaciones: [asignado("c-lu")],
+      clientes: [cliente("c-lu", "LU")],
+      prestamos: [
+        credito({ id: "viejo", cliente: "c-lu", monto: 14_000, cuota: 700, dias: 24, estado: "finalizado", inicio: "2026-03-01" }),
+        credito({ id: "chico", cliente: "c-lu", monto: 5_000, cuota: 250, dias: 24, estado: "finalizado", inicio: "2026-07-01" }),
+      ],
+      pagos: [],
+    });
+    const [c] = await getCandidatosVenta(db);
+    // La TASA sale del último ($5.000), pero el TECHO del mayor ($14.000).
+    expect(c.monto).toBe(5_000);
+    expect(c.techo).toBe(techoVentaNueva(14_000)); // 16.800, no 6.000
+    expect(c.maximo).toBe(techoVentaGestor(14_000)); // 100.000 (piso CAP)
+  });
+
+  it("una venta CANCELADA grande no infla el techo (nunca existió)", async () => {
+    const { db } = crearDb({
+      asignaciones: [asignado("c-jo")],
+      clientes: [cliente("c-jo", "JO")],
+      prestamos: [
+        credito({ id: "dedazo", cliente: "c-jo", monto: 90_000, cuota: 4_500, dias: 24, estado: "cancelado", inicio: "2026-08-01" }),
+        credito({ id: "real", cliente: "c-jo", monto: 5_000, cuota: 250, dias: 24, estado: "finalizado", inicio: "2026-07-01" }),
+      ],
+      pagos: [],
+    });
+    const [c] = await getCandidatosVenta(db);
+    expect(c.techo).toBe(techoVentaNueva(5_000)); // 6.000
+  });
+});

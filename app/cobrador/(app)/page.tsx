@@ -21,6 +21,7 @@ import { PrecargarFichas } from "@/components/cobrador/PrecargarFichas";
 import { GastosRuta } from "@/components/cobrador/GastosRuta";
 import { CerrarJornada } from "@/components/cobrador/CerrarJornada";
 import { BienvenidaCard } from "@/components/BienvenidaCard";
+import { NovedadesCard } from "@/components/NovedadesCard";
 import { OnboardingDia1 } from "@/components/OnboardingDia1";
 import { MenuColocar } from "@/components/cobrador/MenuColocar";
 import { BannerMotivacion } from "@/components/cobrador/BannerMotivacion";
@@ -187,6 +188,8 @@ export default async function RutaPage() {
       <OnboardingDia1 claveCambiada={usuario?.clave_cambiada_en != null} />
 
       {/* Bienvenida cálida (solo la 1ª vez, se puede cerrar). */}
+      {/* Qué hay de NUEVO por versión (piloto 19-08: lo deployado no se encontraba). */}
+      <NovedadesCard rol={"cobrador"} />
       <BienvenidaCard
         id="cobrador"
         saludo={`¡Hola, ${primerNombre}! 👋`}

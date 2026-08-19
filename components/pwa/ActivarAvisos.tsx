@@ -58,9 +58,17 @@ export function ActivarAvisos({
   /** true = el que mira es admin: si falta la clave VAPID hay que DECÍRSELO
    *  (para el resto se oculta, no es su problema). */
   avisarSiFaltaConfig = false,
+  /** TARJETA protagonista (piloto 19-08: 0 suscripciones en toda la base — la
+   *  píldora de 11 px arriba a la derecha no la tocó nadie). Solo se pinta si
+   *  los avisos están apagados; con ellos activos devuelve null. `motivo` dice
+   *  por qué importa AHORA ("tenés 2 pedidos esperando"). */
+  protagonista = false,
+  motivo,
 }: {
   vapidPublicKey: string | null;
   avisarSiFaltaConfig?: boolean;
+  protagonista?: boolean;
+  motivo?: string;
 }) {
   const [estado, setEstado] = useState<Estado>("cargando");
   const [error, setError] = useState("");
@@ -165,6 +173,8 @@ export function ActivarAvisos({
   };
 
   if (estado === "cargando") return null;
+  // Protagonista: solo tiene sentido cuando hay algo que activar.
+  if (protagonista && (estado === "on" || !vapidPublicKey)) return null;
 
   // Falta la clave pública VAPID en el entorno. Antes esto se ocultaba en
   // silencio: el dueño entraba, no veía ningún botón y concluía que la función
@@ -205,6 +215,28 @@ export function ActivarAvisos({
       <span className="text-[11px] font-semibold text-gris">
         🔔 Este navegador no soporta avisos. Probá con Chrome.
       </span>
+    );
+  }
+
+  if (protagonista) {
+    return (
+      <div className="flex items-center justify-between gap-3 rounded-[14px] border-2 border-[#F0D9A8] bg-[#FFF8E8] px-4 py-3.5">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="text-[13.5px] font-extrabold text-tinta">🔔 Activá los avisos en este celular</span>
+          <span className="text-[12px] leading-[1.45] font-medium text-ambar-osc">
+            {motivo ?? "Te llega cada pedido de la calle, cada corrección y cada faltante al cierre — sin tener que entrar a mirar."}
+          </span>
+          {error && <span className="text-[11px] font-semibold text-[#C0392B]">{error}</span>}
+        </div>
+        <button
+          type="button"
+          onClick={activar}
+          disabled={estado === "activando"}
+          className="flex-shrink-0 rounded-full bg-[#2453DC] px-4 py-2.5 text-[13px] font-extrabold text-white disabled:opacity-60 active:scale-95"
+        >
+          {estado === "activando" ? "Activando…" : "Activar"}
+        </button>
+      </div>
     );
   }
 

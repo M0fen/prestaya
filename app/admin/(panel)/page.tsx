@@ -21,6 +21,7 @@ import { fechaISOUY } from "@/lib/fecha";
 import { UYU, diasSemana, meses } from "@/lib/format";
 import { saludoHora, primerNombre } from "@/lib/saludo";
 import { BienvenidaCard } from "@/components/BienvenidaCard";
+import { NovedadesCard } from "@/components/NovedadesCard";
 import { Sparkline } from "@/components/charts/Sparkline";
 import { Columnas } from "@/components/charts/Columnas";
 import { BarrasComparativas } from "@/components/charts/BarrasComparativas";
@@ -202,6 +203,8 @@ export default async function DashboardPage({
   return (
     <div className="flex flex-col gap-5 lg:gap-6">
       {/* Bienvenida cálida (solo la 1ª vez, se puede cerrar). */}
+      {/* Qué hay de NUEVO por versión (piloto 19-08: lo deployado no se encontraba). */}
+      <NovedadesCard rol={usuario.rol} />
       <BienvenidaCard
         id="admin"
         saludo={`¡Qué bueno verte, ${primerNombre(usuario.nombre)}! 👋`}

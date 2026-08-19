@@ -11,13 +11,23 @@ import { navVisible, navAgrupado, ordenSuelto } from "@/lib/admin/nav";
 import { Icono, ICONO_NAV, type NombreIcono } from "@/components/Iconos";
 
 /** Destinos del flujo diario en la barra inferior (orden = importancia). Se
- *  muestran solo los que el rol puede ver. El 5º slot es siempre "Menú". */
+ *  muestran solo los que el rol puede ver. El 5º slot es siempre "Menú".
+ *
+ *  ⚠️ "Pedidos" (quejas del piloto 19-08): las solicitudes de renovación/venta
+ *  que el cobrador manda desde la calle vivían SOLO en "Menú → Cartera →
+ *  Renovaciones" — dos pedidos llevaban 1-2 días sin que el supervisor los
+ *  viera ("el 20% no se deja" = nadie aprobaba). Ahora es un TAB con su
+ *  contador encima, al pulgar. Para el supervisor reemplaza a Cobranza (que
+ *  sigue en Menú); el admin también lo tiene (aprobador). */
 const TABS: { href: string; label: string; icon: NombreIcono }[] = [
   { href: "/admin", label: "Inicio", icon: "inicio" },
   { href: "/admin/jornada", label: "Jornada", icon: "jornada" },
+  { href: "/admin/renovaciones", label: "Pedidos", icon: "refresh" },
   { href: "/admin/cobranza", label: "Cobranza", icon: "cobranza" },
   { href: "/admin/caja", label: "Caja", icon: "caja" },
 ];
+/** Cuántos tabs entran antes de "Menú" (5 slots en total). */
+const MAX_TABS = 4;
 
 export function PanelBottomNav({
   rol,
@@ -61,9 +71,18 @@ export function PanelBottomNav({
     const k = orden.indexOf(href);
     return k === -1 ? orden.length : k;
   };
-  const tabs = TABS.filter((t) => visibles.has(t.href)).sort(
-    (a, b) => rank(a.href) - rank(b.href),
-  );
+  // Para el supervisor, "Pedidos" desplaza a "Cobranza" (que queda en Menú): su
+  // jornada es aprobar/rendir, no el mapa. El admin conserva Cobranza y pierde
+  // Caja del tab (está en Menú y en Jornada).
+  const prioridad = rol === "supervisor"
+    ? ["/admin/jornada", "/admin", "/admin/renovaciones", "/admin/caja"]
+    : ["/admin", "/admin/jornada", "/admin/renovaciones", "/admin/cobranza"];
+  const tabs = TABS.filter((t) => visibles.has(t.href))
+    .sort((a, b) => {
+      const ra = prioridad.indexOf(a.href), rb = prioridad.indexOf(b.href);
+      return (ra === -1 ? 99 : ra) - (rb === -1 ? 99 : rb) || rank(a.href) - rank(b.href);
+    })
+    .slice(0, MAX_TABS);
   const { suelto, grupos } = navAgrupado(rol, esDev);
   const activo = (href: string) =>
     href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
@@ -81,7 +100,18 @@ export function PanelBottomNav({
               className={`relative flex flex-1 flex-col items-center gap-0.5 pt-2.5 pb-1.5 text-[11px] font-bold ${on ? "text-white" : "text-white/55"}`}
             >
               {on && <span aria-hidden="true" className="absolute top-0 h-[3px] w-9 rounded-full bg-[#6B8FF7]" />}
-              <Icono name={t.icon} className="h-[22px] w-[22px]" />
+              <span className="relative leading-none">
+                <Icono name={t.icon} className="h-[22px] w-[22px]" />
+                {/* Contador VISIBLE en el tab (no solo un punto en Menú). */}
+                {badgeDe(t.href).n > 0 && (
+                  <span
+                    className="absolute -top-1.5 -right-2.5 flex h-[17px] min-w-[17px] items-center justify-center rounded-full px-1 text-[10px] font-black leading-none"
+                    style={{ background: badgeDe(t.href).bg, color: badgeDe(t.href).fg }}
+                  >
+                    {badgeDe(t.href).n > 9 ? "9+" : badgeDe(t.href).n}
+                  </span>
+                )}
+              </span>
               {t.label}
             </Link>
           );

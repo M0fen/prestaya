@@ -67,6 +67,7 @@ import { registrarAuditoria } from "@/lib/data/auditoria";
 import { esUuid, opIdDeterminista } from "@/lib/idempotencia";
 import { hoyUY } from "@/lib/fecha";
 import { toIso, UYU } from "@/lib/format";
+import { avisarGestoresDeCobrador } from "@/lib/push/avisarGestores";
 import type { FrecuenciaPrestamo } from "@/types/db";
 
 export type ResultadoColocar =
@@ -160,11 +161,23 @@ async function pedirAprobacion(
     entidadId: s.clienteId,
     detalle: `${UYU(s.monto)} × ${s.totalDias} (${s.frecuencia}) — espera a la oficina`,
   });
+  // ⚠️ AVISO AL SUPERVISOR (quejas del piloto 19-08): la solicitud nacía MUDA y
+  // 2 pedidos llevaban días esperando sin que nadie los viera. Push a los
+  // supervisores de la zona + admins, con link directo a la cola. Best-effort.
+  const cliente = await getClientePorId(db, s.clienteId).catch(() => null);
+  void avisarGestoresDeCobrador(u.id, {
+    titulo: s.tipo === "venta" ? "Pedido de venta para aprobar" : "Pedido de renovación para aprobar",
+    cuerpo: `${u.nombre} pide ${UYU(s.monto)} para ${cliente?.nombre ?? "un cliente"} (supera su tope). Tocá para aprobar o rechazar.`,
+    url: "/admin/renovaciones",
+    tag: `solicitud-${s.prestamoAnteriorId}`,
+  });
   revalidatePath("/cobrador/colocar");
+  revalidatePath("/admin/renovaciones");
+  revalidatePath("/admin");
   return {
     ok: true,
     solicitado: true,
-    mensaje: "PEDIDO a la oficina. Todavía no está aprobado.",
+    mensaje: "PEDIDO a la oficina. Le avisamos a tu supervisor — todavía no está aprobado.",
   };
 }
 
@@ -274,6 +287,11 @@ export async function renovarDesdeCalle(input: {
    *  Cambiarla NO cambia lo que el cliente paga en total (monto × su tasa): reparte
    *  ese total en más o menos cuotas, o sea que sube o baja la cuota diaria. */
   cuotas?: number;
+  /** Frecuencia del crédito NUEVO (diario/semanal/quincenal/mensual). Si no
+   *  viene, se hereda del anterior. Pedido del piloto (19-08): "al renovar se
+   *  tiene que poder cambiar el formato: diario o semanal". La cuota se
+   *  recalcula con la MISMA tasa del anterior repartida en las cuotas nuevas. */
+  frecuencia?: FrecuenciaPrestamo;
   /** El cobrador CONFIRMÓ que de verdad quiere colocar OTRO crédito por el mismo
    *  monto, sabiendo que hace minutos ya le colocó uno igual a este cliente. */
   repetirIgual?: boolean;
@@ -282,6 +300,8 @@ export async function renovarDesdeCalle(input: {
   const p = await puerta(input.clienteId);
   if (!p.ok) return p;
   const { u, db } = p;
+  if (input.frecuencia != null && !FRECUENCIAS.includes(input.frecuencia))
+    return { ok: false, error: "Frecuencia inválida." };
 
   const activos = await getPrestamosActivosPorCliente(db, input.clienteId);
   const ant = activos.find((x) => x.id === input.prestamoId);
@@ -388,13 +408,16 @@ export async function renovarDesdeCalle(input: {
   if (!Number.isFinite(pedido) || pedido <= 0) {
     return { ok: false, error: "Revisá el monto de la renovación." };
   }
+  // La frecuencia del crédito NUEVO: la que eligió el cobrador, o la heredada.
+  const frecuenciaNueva: FrecuenciaPrestamo =
+    input.frecuencia ?? ((ant.frecuencia as FrecuenciaPrestamo) ?? "diario");
   if (pedido > maximo) {
     // No se recorta en silencio (un cero de más se volvía un crédito 5× más
-    // grande) ni se manda a una puerta que no existe: el máximo es duro también
-    // para la oficina, así que decirle "pedíselo a la oficina" era mentira.
+    // grande). El máximo es +20% del anterior con piso en el CAP (regla 16-08):
+    // más que eso en UNA renovación no lo autoriza nadie — se dice el número.
     return {
       ok: false,
-      error: `Para este cliente el máximo posible es ${UYU(maximo)} — ni la oficina puede subirlo. Revisá el monto.`,
+      error: `Para este cliente la oficina puede aprobar hasta ${UYU(maximo)} (+20% sobre ${UYU(montoAnterior)}). Más que eso no se autoriza en una sola renovación: revisá el monto.`,
     };
   }
   if (pedido > techoSolo) {
@@ -403,7 +426,7 @@ export async function renovarDesdeCalle(input: {
       prestamoAnteriorId: ant.id,
       monto: pedido,
       totalDias,
-      frecuencia: (ant.frecuencia as FrecuenciaPrestamo) ?? "diario",
+      frecuencia: frecuenciaNueva,
       tipo: "renovacion",
     });
   }
@@ -449,7 +472,7 @@ export async function renovarDesdeCalle(input: {
       prestamoAnteriorId: ant.id,
       monto,
       totalDias,
-      frecuencia: (ant.frecuencia as FrecuenciaPrestamo) ?? "diario",
+      frecuencia: frecuenciaNueva,
       creadoPor: u.id,
       // Un crédito HEREDADO por encima del CAP se repite tal cual: la RPC tiene su
       // propio tope duro (P0411) que no sabe que esto es continuidad, no capital
@@ -687,16 +710,19 @@ export async function nuevaVentaDesdeCalle(input: {
     // que aprueba el supervisor de la zona o el admin (0139). Antes el mensaje
     // decía "pedíselo a tu supervisor" y el pedido viajaba por fuera de la app —
     // el mismo agujero que la auditoría del 10-08 marcó en la cola de gastos.
-    const techo = techoVentaNueva(baseTasa!.monto);
+    // Base del techo = el MAYOR crédito de su historia (activo o pasado — regla
+    // de Carlos 19-08), no solo el último: el que bajó no pierde su techo.
+    const refTecho = base!.montoReferenciaTecho || baseTasa!.monto;
+    const techo = techoVentaNueva(refTecho);
     if (monto > techo) {
-      // Lo que NI el gestor puede autorizar (más de +20% del anterior y sobre el
-      // CAP) se rebota acá con la salida clara — no se manda a una cola que
+      // Lo que NI el gestor puede autorizar (más de +20% de la referencia y sobre
+      // el CAP) se rebota acá con la salida clara — no se manda a una cola que
       // igual lo va a rechazar.
-      const maximo = techoVentaGestor(baseTasa!.monto);
+      const maximo = techoVentaGestor(refTecho);
       if (monto > maximo)
         return {
           ok: false,
-          error: `Hasta ${UYU(maximo)} lo puede aprobar la oficina (+20% sobre su último crédito de ${UYU(baseTasa!.monto)}). Más que eso no se autoriza en una sola venta.`,
+          error: `Hasta ${UYU(maximo)} lo puede aprobar la oficina (+20% sobre su crédito más grande, ${UYU(refTecho)}). Más que eso no se autoriza en una sola venta.`,
         };
       return pedirAprobacion(db, u, {
         clienteId: input.clienteId,
