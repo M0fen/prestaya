@@ -69,6 +69,7 @@ import { esUuid, opIdDeterminista } from "@/lib/idempotencia";
 import { hoyUY } from "@/lib/fecha";
 import { toIso, UYU } from "@/lib/format";
 import { avisarGestoresDeCobrador } from "@/lib/push/avisarGestores";
+import { reportarError } from "@/lib/observabilidad";
 import type { FrecuenciaPrestamo } from "@/types/db";
 
 export type ResultadoColocar =
@@ -146,13 +147,28 @@ async function pedirAprobacion(
       tipo: s.tipo,
     });
   } catch (e) {
-    // Una solicitud pendiente por crédito (unique): el segundo toque no duplica.
-    if ((e as { code?: string } | null)?.code === "23505")
+    // Una solicitud pendiente por crédito (unique 0141): el segundo toque no
+    // duplica. ⚠️ PERO si el nuevo pedido trae OTRO monto, decir "ya estaba" a
+    // secas escondía que lo que espera el supervisor es el monto VIEJO
+    // (auditoría 21-08): se lee la pendiente y se dice el número.
+    if ((e as { code?: string } | null)?.code === "23505") {
+      const { data: pend } = await createSupabaseAdmin()
+        .from("solicitudes_renovacion")
+        .select("monto")
+        .eq("prestamo_anterior_id", s.prestamoAnteriorId)
+        .eq("tipo", s.tipo)
+        .eq("estado", "pendiente")
+        .maybeSingle();
+      const montoPend = Math.round(Number(pend?.monto) || 0);
+      const distinto = montoPend > 0 && montoPend !== s.monto;
       return {
         ok: true,
         solicitado: true,
-        mensaje: "Este pedido ya estaba en la pantalla de tu supervisor — sigue esperando su OK. Lo ves en «Tus pedidos», en tu inicio.",
+        mensaje: distinto
+          ? `Ya había un pedido de ${UYU(montoPend)} esperando por este crédito — ESE es el que le llega a tu supervisor (no los ${UYU(s.monto)} de ahora). Si el monto cambió, esperá la respuesta o avisale por «Recordarle a mi supervisor».`
+          : "Este pedido ya estaba en la pantalla de tu supervisor — sigue esperando su OK. Lo ves en «Tus pedidos», en tu inicio.",
       };
+    }
     return { ok: false, error: "No se pudo pedir la aprobación. Probá de nuevo." };
   }
   await registrarAuditoria(db, {
@@ -171,10 +187,13 @@ async function pedirAprobacion(
   //  · el panel del supervisor la ve SOLO, sin activar nada (franja en vivo por
   //    Realtime sobre solicitudes_renovacion, 0151 + poll) — es la vía principal;
   //  · push a los supervisores de la zona + admins, si tienen avisos activos;
-  //  · el cobrador tiene "Recordarle a mi supervisor" en Mis pedidos.
+  //  · el cobrador tiene "Recordarle a mi supervisor" en «Tus pedidos» (su inicio).
   // Best-effort: el pedido YA está guardado aunque el aviso falle.
+  // ⚠️ AWAITED (auditoría 21-08): en serverless, un `void` queda congelado en
+  // cuanto la respuesta sale — el push podía no enviarse NUNCA. La función ya
+  // atrapa sus errores adentro (devuelve 0), así que esperar no puede romper.
   const cliente = await getClientePorId(db, s.clienteId).catch(() => null);
-  void avisarGestoresDeCobrador(u.id, {
+  await avisarGestoresDeCobrador(u.id, {
     titulo: s.tipo === "venta" ? "Pedido de venta para aprobar" : "Pedido de renovación para aprobar",
     cuerpo: `${u.nombre} pide ${UYU(s.monto)} para ${cliente?.nombre ?? "un cliente"} (supera su tope). Tocá para aprobar o rechazar.`,
     url: "/admin/renovaciones",
@@ -615,6 +634,26 @@ export async function deshacerVentaDesdeCalle(input: {
     const { data: re } = await admin.from("prestamos").select("estado").eq("id", p.id).maybeSingle();
     if (re?.estado === "cancelado") return { ok: true, yaEstaba: true };
     return { ok: false, error: "El crédito cambió de estado mientras tanto. Mirá su cartón." };
+  }
+
+  // Solicitudes PENDIENTES que usaban ESTE crédito como referencia de tasa/techo:
+  // cancelado, esa referencia "financieramente nunca existió" y aprobarlas mediría
+  // el techo contra un fantasma (auditoría 21-08 — el cancelar del PANEL ya hacía
+  // esto, bloque 3b de cancelarVentaPanel; el deshacer de la calle lo omitía).
+  // Best-effort: el deshacer ya está hecho; las solicitudes se rechazan, no se borran.
+  try {
+    await admin
+      .from("solicitudes_renovacion")
+      .update({
+        estado: "rechazada",
+        motivo_rechazo: `Se deshizo la venta de ${UYU(Math.round(Number(p.monto_prestado) || 0))} que era la referencia de este pedido: pedilo de nuevo con la base real.`,
+        resuelto_por: u.id,
+        resuelto_en: new Date().toISOString(),
+      })
+      .eq("prestamo_anterior_id", p.id)
+      .eq("estado", "pendiente");
+  } catch (e) {
+    reportarError("deshacerVentaDesdeCalle.refs", e, { prestamoId: p.id });
   }
 
   await registrarAuditoria(await createSupabaseServer(), {

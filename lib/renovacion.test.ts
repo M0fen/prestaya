@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 import {
   calcularCuotaRenovacion,
   cuotasValidas,
+  explicaTecho,
+  rotuloTechoPropio,
   tasaImplicita,
   evaluarRenovacion,
   montoRenovacionAutoAprobable,
@@ -11,6 +13,7 @@ import {
   montoRenovacionSugerido,
   requiereAprobacionAdmin,
   techoRenovacion,
+  techoVentaGestor,
   techoVentaNueva,
   topeAumentoPct,
   RENOVACION_AUMENTO_PCT,
@@ -294,6 +297,49 @@ describe("techoRenovacion — lo MÁXIMO que un gestor autoriza (regla de Carlos
       // El candado contra el dedazo: más de +20% en UNA renovación no lo autoriza nadie.
       expect(t).toBeLessThanOrEqual(Math.max(RENOVACION_CAP_TOTAL, Math.floor(m * 1.2)));
     }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+//  LOS RÓTULOS DEL TECHO — que la explicación no mienta (auditoría 19-08: los
+//  mensajes decían "(+20% sobre $10.000)" para un máximo de $100.000 que en
+//  realidad es el piso del CAP, y "subilo hasta $120.000 (+20%)" sobre un
+//  heredado de $120.000 que no tiene margen propio).
+// ─────────────────────────────────────────────────────────────────────────
+describe("explicaTecho — por qué ESE máximo del gestor", () => {
+  it("cartera común (< $83.334): manda el piso → '(el tope general de $100.000)'", () => {
+    expect(explicaTecho(10_000, techoVentaGestor(10_000))).toBe("(el tope general de $100.000)");
+    expect(explicaTecho(50_000, techoRenovacion(50_000))).toBe("(el tope general de $100.000)");
+  });
+  it("anterior grande: gana el ×1,2 → '(+20% sobre $X)'", () => {
+    expect(explicaTecho(90_000, techoRenovacion(90_000))).toBe("(+20% sobre $90.000)");
+    expect(explicaTecho(120_000, techoVentaGestor(120_000))).toBe("(+20% sobre $120.000)");
+  });
+
+  it("evaluarRenovacion usa el MISMO rótulo (antes imprimía '+20% sobre $50.000' para un techo que es el piso)", () => {
+    const piso = evaluarRenovacion(50_000, 120_000);
+    expect(piso.motivo).toContain("el tope general de $100.000");
+    expect(piso.motivo).not.toContain("sobre $50.000");
+    const real = evaluarRenovacion(90_000, 120_000);
+    expect(real.motivo).toContain("(+20% sobre $90.000)");
+  });
+});
+
+describe("rotuloTechoPropio — por qué ESE techo del cobrador (o ninguno)", () => {
+  it("crédito común: el techo es el +20% redondeado → '(+20%)'", () => {
+    expect(rotuloTechoPropio(10_000, montoRenovacionAutoAprobable(10_000))).toBe("(+20%)");
+    // ⚠️ base×1,2 con ,5: montoRenovacionAutoAprobable REDONDEA (no floor). Si
+    // el rótulo usara floor diría "(tope general)" para un techo que sí es +20%.
+    expect(rotuloTechoPropio(5_375, montoRenovacionAutoAprobable(5_375))).toBe("(+20%)");
+  });
+  it("anterior $90.000: el techo propio es el CAP (+11% real) → '(tope general)', no '(+20%)'", () => {
+    expect(montoRenovacionAutoAprobable(90_000)).toBe(RENOVACION_CAP_TOTAL);
+    expect(rotuloTechoPropio(90_000, montoRenovacionAutoAprobable(90_000))).toBe("(tope general)");
+  });
+  it("heredado ≥ CAP: sin margen propio → null (la pantalla no ofrece 'subir' al mismo número)", () => {
+    expect(montoRenovacionAutoAprobable(120_000)).toBe(120_000);
+    expect(rotuloTechoPropio(120_000, montoRenovacionAutoAprobable(120_000))).toBeNull();
+    expect(rotuloTechoPropio(0, 0)).toBeNull();
   });
 });
 

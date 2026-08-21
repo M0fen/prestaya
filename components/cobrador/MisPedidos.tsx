@@ -40,7 +40,9 @@ export function MisPedidos({ pedidos }: { pedidos: Pedido[] }) {
 
   return (
     // `id`: destino del "Ver tus pedidos" del cartel de ColocarLista (#pedidos).
-    <section id="pedidos" className="flex scroll-mt-20 flex-col gap-2 rounded-[16px] border border-campo bg-tarjeta p-4">
+    // scroll-mt con el inset del notch: con 80px fijos, en iPhone instalado el
+    // header sticky (padding-top = safe-area) tapaba el título al llegar del ancla.
+    <section id="pedidos" className="flex scroll-mt-[calc(5rem+env(safe-area-inset-top))] flex-col gap-2 rounded-[16px] border border-campo bg-tarjeta p-4">
       <div className="flex items-baseline justify-between gap-2">
         <span className="text-[13.5px] font-extrabold text-tinta">📬 Tus pedidos</span>
         <span className="text-[11.5px] font-semibold text-gris tabular-nums">

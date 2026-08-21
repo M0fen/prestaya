@@ -17,6 +17,7 @@ import { describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { getCandidatosRenovar, getCandidatosVenta, getNoElegibles } from "./colocar";
+import { getUltimoCreditoDe } from "./creditoNuevo";
 import {
   montoRenovacionAutoAprobable,
   techoRenovacion,
@@ -47,8 +48,13 @@ function crearDb(tablas: Record<string, Fila[]>, maxFilas = 1000) {
       consultas[tabla] = (consultas[tabla] ?? 0) + 1;
       const filas = tablas[tabla] ?? [];
       const filtros: Filtro[] = [];
-      let orden: { col: string; asc: boolean } | null = null;
+      // ⚠️ Los `.order()` se ACUMULAN, como en PostgREST (order A, order B =
+      // ordena por A y desempata por B). Con una sola variable, el segundo
+      // order PISABA al primero y getUltimoCreditoDe —que desempata por
+      // creado_en— era inejecutable con este doble (auditoría 19-08).
+      const ordenes: { col: string; asc: boolean }[] = [];
       let rango: { d: number; h: number } | null = null;
+      let limite: number | null = null;
 
       const coincide = (f: Fila) =>
         filtros.every((x) =>
@@ -61,10 +67,18 @@ function crearDb(tablas: Record<string, Fila[]>, maxFilas = 1000) {
 
       const ejecutar = () => {
         const todas = filas.filter(coincide);
-        let out = orden
-          ? [...todas].sort((a, b) => comparar(a[orden!.col], b[orden!.col]) * (orden!.asc ? 1 : -1))
-          : todas;
+        let out =
+          ordenes.length > 0
+            ? [...todas].sort((a, b) => {
+                for (const o of ordenes) {
+                  const c = comparar(a[o.col], b[o.col]) * (o.asc ? 1 : -1);
+                  if (c !== 0) return c;
+                }
+                return 0;
+              })
+            : todas;
         if (rango) out = out.slice(rango.d, rango.h + 1);
+        if (limite != null) out = out.slice(0, limite);
         if (out.length > maxFilas) out = out.slice(0, maxFilas); // corte SILENCIOSO
         return { data: out, error: null };
       };
@@ -74,8 +88,9 @@ function crearDb(tablas: Record<string, Fila[]>, maxFilas = 1000) {
         eq: (col: string, val: unknown) => (filtros.push({ col, tipo: "eq", val }), b),
         neq: (col: string, val: unknown) => (filtros.push({ col, tipo: "neq", val }), b),
         in: (col: string, val: unknown[]) => (filtros.push({ col, tipo: "in", val }), b),
-        order: (col: string, o?: { ascending?: boolean }) => ((orden = { col, asc: o?.ascending !== false }), b),
+        order: (col: string, o?: { ascending?: boolean }) => (ordenes.push({ col, asc: o?.ascending !== false }), b),
         range: (d: number, h: number) => ((rango = { d, h }), b),
+        limit: (n: number) => ((limite = n), b),
         then: (ok: (v: unknown) => unknown, fail?: (e: unknown) => unknown) =>
           Promise.resolve(ejecutar()).then(ok, fail),
       };
@@ -445,6 +460,68 @@ describe("el techo mide contra el ÚLTIMO crédito REGISTRADO — no el más gra
     const [c] = await getCandidatosVenta(db);
     expect(c.monto).toBe(4_000);
     expect(c.techo).toBe(techoVentaNueva(4_000)); // 4.800: pedir $5.000 va al supervisor
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  PANTALLA Y SERVIDOR ELIGEN EL MISMO "ÚLTIMO". El predicado vive dos veces
+//  (fold en memoria de getCandidatosVenta vs query de getUltimoCreditoDe, la
+//  que usan nuevaVentaDesdeCalle y el alta del panel): estos tests son la
+//  soldadura — si alguien toca el .order/.neq de un lado, el techo que dibuja
+//  la pantalla y el que valida el servidor dejarían de salir del mismo crédito
+//  y esto se pone rojo (auditoría 19-08: solo la copia de pantalla tenía tests).
+// ═══════════════════════════════════════════════════════════════════════════
+describe("getUltimoCreditoDe (servidor) coincide con getCandidatosVenta (pantalla)", () => {
+  it("caso MARIA PEREIRA: los dos eligen el ACTIVO de $4.000, no el pasado de $4.800", async () => {
+    const { db } = crearDb({
+      asignaciones: [asignado("c-mp")],
+      clientes: [cliente("c-mp", "MARIA PEREIRA")],
+      prestamos: [
+        credito({ id: "pasado", cliente: "c-mp", monto: 4_800, cuota: 240, dias: 24, estado: "finalizado", inicio: "2026-05-01", creado: "2026-05-01T12:00:00Z" }),
+        credito({ id: "actual", cliente: "c-mp", monto: 4_000, cuota: 200, dias: 24, estado: "activo", inicio: "2026-08-01", creado: "2026-08-01T12:00:00Z" }),
+      ],
+      pagos: [],
+    });
+    const servidor = await getUltimoCreditoDe(db, "c-mp");
+    const [pantalla] = await getCandidatosVenta(db);
+    expect(servidor?.prestamoId).toBe("actual");
+    expect(servidor?.monto).toBe(pantalla.monto); // misma base de tasa…
+    expect(techoVentaNueva(servidor!.monto)).toBe(pantalla.techo); // …y mismo techo
+  });
+
+  it("empate de fecha_inicio (lotes del empalme): los dos desempatan por creado_en", async () => {
+    const { db } = crearDb({
+      asignaciones: [asignado("c-em")],
+      clientes: [cliente("c-em", "EMPATE")],
+      prestamos: [
+        credito({ id: "lote-a", cliente: "c-em", monto: 6_000, cuota: 300, dias: 24, estado: "finalizado", inicio: "2026-07-01", creado: "2026-07-01T10:00:00Z" }),
+        credito({ id: "lote-b", cliente: "c-em", monto: 9_000, cuota: 450, dias: 24, estado: "finalizado", inicio: "2026-07-01", creado: "2026-07-01T11:30:00Z" }),
+      ],
+      pagos: [],
+    });
+    const servidor = await getUltimoCreditoDe(db, "c-em");
+    const [pantalla] = await getCandidatosVenta(db);
+    expect(servidor?.prestamoId).toBe("lote-b"); // el creado más tarde
+    expect(servidor?.monto).toBe(9_000);
+    expect(pantalla.monto).toBe(9_000);
+    expect(pantalla.techo).toBe(techoVentaNueva(servidor!.monto));
+  });
+
+  it("una venta CANCELADA no es historial para NINGUNO de los dos", async () => {
+    const { db } = crearDb({
+      asignaciones: [asignado("c-jo")],
+      clientes: [cliente("c-jo", "JO")],
+      prestamos: [
+        credito({ id: "dedazo", cliente: "c-jo", monto: 90_000, cuota: 4_500, dias: 24, estado: "cancelado", inicio: "2026-08-01", creado: "2026-08-01T12:00:00Z" }),
+        credito({ id: "real", cliente: "c-jo", monto: 5_000, cuota: 250, dias: 24, estado: "finalizado", inicio: "2026-07-01", creado: "2026-07-01T12:00:00Z" }),
+      ],
+      pagos: [],
+    });
+    const servidor = await getUltimoCreditoDe(db, "c-jo");
+    const [pantalla] = await getCandidatosVenta(db);
+    expect(servidor?.prestamoId).toBe("real");
+    expect(servidor?.monto).toBe(5_000);
+    expect(pantalla.techo).toBe(techoVentaNueva(servidor!.monto));
   });
 
   it("una venta CANCELADA grande no infla el techo (nunca existió)", async () => {

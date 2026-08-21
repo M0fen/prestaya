@@ -193,6 +193,26 @@ console.log("═══ TABLERO DE QA · " + new Date().toISOString().slice(0, 16
   );
 }
 
+//  Espejo para COBRADORES: un cobrador activo sin zona_id genera pedidos que
+//  NINGÚN supervisor ve (la RLS 0140 deriva la zona del cliente desde la del
+//  cobrador → NULL → solo el admin los ve) y "Recordarle a mi supervisor" no
+//  tiene canal de zona (auditoría 21-08).
+{
+  const [r] = await q(`
+    select count(*)::int as sin_zona,
+           (select count(*)::int from usuarios where rol='cobrador' and activo) as total
+    from usuarios u
+    where u.rol='cobrador' and u.activo and u.zona_id is null
+  `);
+  linea(
+    "Cobradores sin zona / total",
+    `${r.sin_zona} / ${r.total}`,
+    r.sin_zona > 0
+      ? `${r.sin_zona} cobrador(es) activos sin zona: sus pedidos de la calle solo los ve el admin — asignarles zona`
+      : null,
+  );
+}
+
 // ── 7 · VIGILANTE DE POLICIES: la base viva vs el snapshot esperado ─────────
 //  El incidente 0029-vs-0096 (08-14): el repo decía una policy y la base viva
 //  tenía otra — un supervisor podía resolver pedidos de zonas ajenas y ningún

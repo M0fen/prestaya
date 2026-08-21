@@ -64,3 +64,33 @@ export async function avisarGestoresDeCobrador(
     return 0;
   }
 }
+
+/**
+ * Push a UN usuario concreto (la vuelta del circuito: cuando el gestor aprueba
+ * o rechaza, el COBRADOR que pidió se entera — hasta ahora la respuesta solo le
+ * llegaba si recargaba su inicio a mano, la receta exacta del duplicado de
+ * JORGE). Best-effort: la resolución ya está escrita cuando esto corre.
+ */
+export async function avisarUsuario(usuarioId: string, payload: PushPayload): Promise<number> {
+  try {
+    const db = createSupabaseAdmin();
+    const { data: subs, error } = await db
+      .from("push_suscripciones")
+      .select("endpoint, p256dh, auth")
+      .eq("usuario_id", usuarioId);
+    if (error) throw error;
+    let ok = 0;
+    for (const s of subs ?? []) {
+      const r = await enviarPush(
+        { endpoint: s.endpoint as string, p256dh: s.p256dh as string, auth: s.auth as string },
+        payload,
+      );
+      if (r === "ok") ok++;
+      else if (r === "gone") await borrarSuscripcionDb(db, s.endpoint as string).catch(() => {});
+    }
+    return ok;
+  } catch (e) {
+    reportarError("avisarUsuario", e, { usuarioId });
+    return 0;
+  }
+}

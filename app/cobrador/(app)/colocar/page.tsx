@@ -88,7 +88,7 @@ export default async function ColocarPage({
         </h1>
         <p className="text-[13px] leading-[1.5] font-medium text-gris">
           {modo === "renovar"
-            ? "Repite el crédito tal cual lo tenía: mismo monto, misma cuota, mismas cuotas. Un toque y listo."
+            ? "Repite el crédito tal cual lo tenía: un toque y listo. ¿Quiere más monto, otras cuotas o pasar a semanal? Tocá Renovar y abrí «Cambiar monto, cuotas o formato»."
             : "El mismo cliente, pero elegís vos el monto y las cuotas."}
           {" "}
           <strong className="font-bold">

@@ -20,7 +20,6 @@ import { getUsuarioActual } from "@/lib/auth";
 import { esUuid } from "@/lib/idempotencia";
 import { enviarMensajeDb } from "@/lib/data/chat";
 import { avisarGestoresDeCobrador } from "@/lib/push/avisarGestores";
-import { registrarAuditoria } from "@/lib/data/auditoria";
 import { reportarError } from "@/lib/observabilidad";
 import { UYU } from "@/lib/format";
 import { soloDigitos } from "@/lib/telefono";
@@ -66,6 +65,22 @@ export async function recordarPedido(input: { solicitudId: string }): Promise<Re
     const monto = Math.round(Number(s.monto) || 0);
     const horas = Math.max(1, Math.round((Date.now() - new Date(s.solicitado_en as string).getTime()) / 3_600_000));
     const texto = `⏳ Recordatorio: ${u.nombre} espera hace ${horas} h la aprobación de ${s.tipo === "venta" ? "una venta" : "una renovación"} de ${UYU(monto)} para ${clienteNombre}. El cliente está esperando la plata.`;
+
+    // ⚠️ EL SELLO ANTI-SPAM SE ESCRIBE ANTES DE ENVIAR y verificando el error
+    // (auditoría 21-08): escribirlo después dejaba una ventana de segundos en la
+    // que dos toques paralelos (dos pestañas) pasaban ambos el chequeo y
+    // duplicaban push + mensaje en el chat; y si el insert rebotaba en
+    // silencio, el freno de 2 h no se activaba NUNCA. La auditoría es inmutable:
+    // el detalle dice lo que se INTENTÓ; el resultado viaja en el retorno.
+    const { error: eSello } = await admin.from("auditoria").insert({
+      actor_id: u.id,
+      actor_nombre: u.nombre,
+      accion: "Recordó un pedido al supervisor",
+      entidad: "solicitud",
+      entidad_id: s.id,
+      detalle: `${UYU(monto)} para ${clienteNombre} · hace ${horas} h`,
+    });
+    if (eSello) throw eSello;
 
     // 1) Push (si hay suscripciones).
     const avisados = await avisarGestoresDeCobrador(u.id, {
@@ -119,14 +134,17 @@ export async function recordarPedido(input: { solicitudId: string }): Promise<Re
       reportarError("recordarPedido.wa", e, { solicitudId: s.id });
     }
 
-    await registrarAuditoria(admin, {
-      actorId: u.id,
-      actorNombre: u.nombre,
-      accion: "Recordó un pedido al supervisor",
-      entidad: "solicitud",
-      entidadId: s.id,
-      detalle: `${UYU(monto)} para ${clienteNombre} · hace ${horas} h · push ${avisados} · chat ${chat ? "sí" : "no"}`,
-    });
+    // ⚠️ HONESTIDAD ANTES QUE ✓: si NINGÚN canal salió (cobrador sin zona → sin
+    // chat de zona ni WhatsApp, y 0 suscripciones push), decir "le avisamos" es
+    // mentirle al que más lo necesita (auditoría 21-08). El pedido igual lo ve
+    // el administrador en su panel — se dice ESO, que es la verdad.
+    if (avisados === 0 && !chat && !whatsapp) {
+      return {
+        ok: false,
+        error:
+          "No pudimos avisarle por ningún canal (sin avisos activos, y tu usuario no tiene zona con chat o supervisor con teléfono). El pedido SÍ está en el panel de la oficina — si urge, avisale por afuera.",
+      };
+    }
     return { ok: true, avisados, chat, whatsapp, supervisorNombre };
   } catch (e) {
     reportarError("recordarPedido", e, { solicitudId: input.solicitudId });

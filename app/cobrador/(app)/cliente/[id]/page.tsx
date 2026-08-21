@@ -13,7 +13,7 @@ import { calcularEstadosCarton } from "@/lib/cartones";
 import { formatearSuerte } from "@/lib/quiniela";
 import { hoyUY, fechaISOUY } from "@/lib/fecha";
 import type { Prestamo } from "@/types/db";
-import { montoRenovacionAutoAprobable } from "@/lib/renovacion";
+import { montoRenovacionAutoAprobable, rotuloTechoPropio } from "@/lib/renovacion";
 import { UYU } from "@/lib/format";
 import { RegistroCobro } from "@/components/cobrador/RegistroCobro";
 import { CartonCobrador } from "@/components/cobrador/CartonCobrador";
@@ -295,10 +295,23 @@ async function Detalle({
               🔁 Renovar igual · {UYU(prestamo.monto_prestado)}
             </Link>
             {/* El +20% a la VISTA (piloto 19-08: "no deja subir" = nadie sabía que
-                podía ni hasta cuánto). Mismo número que calcula el servidor. */}
+                podía ni hasta cuánto). Mismo número y MISMO rótulo que calcula el
+                servidor (rotuloTechoPropio): un heredado de $120.000 no tiene
+                margen propio y decirle "subilo hasta $120.000 (+20%)" era ofrecer
+                el mismo número que ya tiene. */}
             <span className="text-center text-[12px] leading-[1.45] font-semibold text-gris">
-              O subilo hasta <b className="text-tinta">{UYU(montoRenovacionAutoAprobable(prestamo.monto_prestado))}</b> (+20%) vos solo
-              — más, lo aprueba tu supervisor. En Renovar → «Cambiar monto, cuotas o formato».
+              {rotuloTechoPropio(prestamo.monto_prestado, montoRenovacionAutoAprobable(prestamo.monto_prestado)) ? (
+                <>
+                  O subilo hasta <b className="text-tinta">{UYU(montoRenovacionAutoAprobable(prestamo.monto_prestado))}</b>{" "}
+                  {rotuloTechoPropio(prestamo.monto_prestado, montoRenovacionAutoAprobable(prestamo.monto_prestado))} vos solo
+                  — más, lo aprueba tu supervisor. En Renovar → «Cambiar monto, cuotas o formato».
+                </>
+              ) : (
+                <>
+                  ¿Quiere más plata? El aumento lo aprueba tu supervisor: en Renovar →
+                  «Cambiar monto, cuotas o formato» le llega el pedido al toque.
+                </>
+              )}
             </span>
             <Link
               href={`/cobrador/colocar?modo=venta&cliente=${clienteId}`}

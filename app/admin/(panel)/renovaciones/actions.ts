@@ -20,7 +20,8 @@ import { getClientePorId } from "@/lib/data/clientes";
 import { getPrestamoPorId } from "@/lib/data/prestamos";
 import { crearCreditoNuevoDb } from "@/lib/data/creditoNuevo";
 import { calcularCuotaCreditoNuevo, interesDeBase, INTERES_DEFECTO_PCT } from "@/lib/creditoNuevo";
-import { evaluarRenovacion, techoRenovacion, techoVentaGestor, RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
+import { evaluarRenovacion, explicaTecho, techoRenovacion, techoVentaGestor, RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
+import { avisarUsuario } from "@/lib/push/avisarGestores";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
 import { reportarError } from "@/lib/observabilidad";
@@ -31,6 +32,59 @@ import { toIso, UYU } from "@/lib/format";
 import type { FrecuenciaPrestamo } from "@/types/db";
 
 type ResultadoSimple = { ok: true } | { ok: false; error: string };
+
+/**
+ * Cierra (rechazada) una solicitud que quedó VIEJA — su crédito de referencia
+ * fue cancelado o ya no está activo. Sin esto, la tarjeta devolvía un error sin
+ * salida y el pedido inflaba la franja y el contador para siempre. Best-effort
+ * y con el guard de 'pendiente' (no pisa una resolución ajena).
+ */
+async function cerrarComoVieja(
+  db: Awaited<ReturnType<typeof createSupabaseServer>>,
+  u: { id: string; nombre: string },
+  solicitudId: string,
+  motivo: string,
+): Promise<void> {
+  try {
+    const resolvio = await resolverSolicitudDb(db, solicitudId, {
+      estado: "rechazada",
+      resueltoPor: u.id,
+      motivoRechazo: motivo,
+    });
+    if (resolvio) {
+      await registrarAuditoria(db, {
+        actorId: u.id,
+        actorNombre: u.nombre,
+        accion: "Solicitud cerrada por quedar vieja",
+        entidad: "solicitud",
+        entidadId: solicitudId,
+        detalle: motivo.slice(0, 120),
+      });
+    }
+    revalidatePath("/admin/renovaciones");
+    revalidatePath("/admin");
+  } catch (e) {
+    reportarError("cerrarComoVieja", e, { solicitudId });
+  }
+}
+
+/**
+ * LA VUELTA DEL CIRCUITO (auditoría 21-08): al aprobar o rechazar, el COBRADOR
+ * que pidió se entera por push — hasta ahora la respuesta solo aparecía si él
+ * recargaba su inicio a mano, que es la receta del crédito duplicado de JORGE.
+ * AWAITED a propósito: en serverless, un void queda congelado al responder.
+ */
+async function avisarAlCobrador(
+  solicitadoPor: string | null,
+  payload: { titulo: string; cuerpo: string },
+): Promise<void> {
+  if (!solicitadoPor) return;
+  try {
+    await avisarUsuario(solicitadoPor, { ...payload, url: "/cobrador#pedidos", tag: "respuesta-pedido" });
+  } catch {
+    /* best-effort: la resolución ya está escrita; «Tus pedidos» la muestra igual */
+  }
+}
 
 /** Resultado de renovar: `via` dice cómo se resolvió. */
 export type ResultadoRenovar =
@@ -92,7 +146,7 @@ export async function renovarCredito(input: {
   if (monto > techoAbsoluto) {
     return {
       ok: false,
-      error: `Este crédito se puede renovar hasta ${UYU(techoAbsoluto)} (+20% sobre los ${UYU(ant.monto_prestado)} anteriores). Más que eso en una sola renovación no se autoriza — si hace falta, renovalo por el máximo ahora y subilo en la próxima.`,
+      error: `Este crédito se puede renovar hasta ${UYU(techoAbsoluto)} ${explicaTecho(ant.monto_prestado, techoAbsoluto)}. Más que eso en una sola renovación no se autoriza — si hace falta, renovalo por el máximo ahora y subilo en la próxima.`,
     };
   }
 
@@ -196,11 +250,23 @@ export async function aprobarSolicitud(id: string): Promise<ResultadoAlta> {
       // aprobación — antes acá decía "no lo puede aprobar nadie" sobre $100.000).
       if (!ant || ant.cliente_id !== s.clienteId)
         return { ok: false, error: "El crédito de referencia del pedido ya no existe. Rechazá la solicitud." };
+      // ⚠️ Referencia CANCELADA = "financieramente nunca existió" (la regla de
+      // getUltimoCreditoDe): un dedazo de $90.000 deshecho DESDE LA CALLE dejaba
+      // la solicitud viva y aprobable con techo/tasa medidos contra ese fantasma
+      // (auditoría 21-08). El deshacer ahora cierra sus pendientes, y este gate
+      // es la defensa en profundidad para CUALQUIER productor de cancelaciones.
+      if (ant.estado === "cancelado") {
+        await cerrarComoVieja(db, u, id, "El crédito de referencia fue deshecho/cancelado: el pedido quedó sin base real.");
+        return {
+          ok: false,
+          error: "El crédito de referencia de este pedido fue deshecho. El pedido se cerró solo — que lo pidan de nuevo con la base real.",
+        };
+      }
       const techoGestor = techoVentaGestor(ant.monto_prestado);
       if (s.monto > techoGestor)
         return {
           ok: false,
-          error: `El monto pedido (${UYU(s.monto)}) supera lo que se puede autorizar en una venta (${UYU(techoGestor)} = +20% sobre su último crédito). Rechazá la solicitud y que la pidan bien.`,
+          error: `El monto pedido (${UYU(s.monto)}) supera lo que se puede autorizar en una venta: ${UYU(techoGestor)} ${explicaTecho(ant.monto_prestado, techoGestor)}. Rechazá la solicitud y que la pidan bien.`,
         };
       // El cliente puede haber caído de baja MIENTRAS el pedido esperaba: todos
       // los demás caminos lo frenan (puerta() en la calle, el chequeo del panel)
@@ -279,6 +345,10 @@ export async function aprobarSolicitud(id: string): Promise<ResultadoAlta> {
           detalle: `${UYU(s.monto)} × ${s.totalDias} (${s.frecuencia}) · cuota ${UYU(cuota)}`,
         });
       }
+      await avisarAlCobrador(s.solicitadoPor, {
+        titulo: "✅ Venta aprobada",
+        cuerpo: `Te aprobaron ${UYU(s.monto)} (cuota ${UYU(cuota)}). Ya podés entregar la plata — está en «Tus pedidos».`,
+      });
       revalidatePath("/admin/renovaciones");
       revalidatePath("/admin/mora");
       revalidatePath("/admin");
@@ -286,13 +356,40 @@ export async function aprobarSolicitud(id: string): Promise<ResultadoAlta> {
     }
 
     // ── RENOVACIÓN: finaliza el anterior (que debe seguir activo) y crea el nuevo ──
-    if (!ant || ant.estado !== "activo")
-      return { ok: false, error: "El crédito anterior ya no está activo." };
+    if (!ant || ant.estado !== "activo") {
+      // El crédito se renovó/cerró por otro camino mientras el pedido esperaba.
+      // Antes esto devolvía un error SIN salida y la solicitud quedaba inflando
+      // la franja y el contador para siempre: se cierra sola, con el motivo.
+      await cerrarComoVieja(db, u, id, "El crédito ya no está activo (se renovó o cerró por otro camino): el pedido quedó viejo.");
+      return {
+        ok: false,
+        error: "Ese crédito ya no está activo (se renovó o cerró por otro camino). El pedido se cerró solo — si el cliente quiere más, que lo pidan de nuevo.",
+      };
+    }
+    // Mismos gates que la rama VENTA (auditoría 21-08: acá faltaban): el cliente
+    // pudo caer de baja y el cobrador que pidió pudo dejar de estar activo
+    // mientras el pedido esperaba — aprobar resucitaba al archivado o fabricaba
+    // un crédito a nombre de alguien sin ruta (el "crédito fantasma").
+    const clienteRen = await getClientePorId(db, s.clienteId);
+    if (!clienteRen || !clienteRen.activo)
+      return { ok: false, error: "El cliente está dado de baja. Rechazá la solicitud." };
+    if (s.solicitadoPor) {
+      const { data: cobRen } = await db
+        .from("usuarios")
+        .select("id, rol, activo")
+        .eq("id", s.solicitadoPor)
+        .maybeSingle();
+      if (cobRen && (cobRen.rol !== "cobrador" || !cobRen.activo))
+        return {
+          ok: false,
+          error: "El cobrador que lo pidió ya no está activo. Rechazá la solicitud y reasigná al cliente.",
+        };
+    }
     const techoAbsoluto = techoRenovacion(ant.monto_prestado);
     if (s.monto > techoAbsoluto)
       return {
         ok: false,
-        error: `El monto pedido (${UYU(s.monto)}) no corresponde a este crédito: el máximo es ${UYU(techoAbsoluto)}. Rechazá la solicitud y que la vuelvan a pedir bien.`,
+        error: `El monto pedido (${UYU(s.monto)}) no corresponde a este crédito: el máximo es ${UYU(techoAbsoluto)} ${explicaTecho(ant.monto_prestado, techoAbsoluto)}. Rechazá la solicitud y que la vuelvan a pedir bien.`,
       };
 
     // Sobre-CAP aprobado por un SUPERVISOR: service_role (vía de confianza de la
@@ -336,6 +433,10 @@ export async function aprobarSolicitud(id: string): Promise<ResultadoAlta> {
       entidadId: s.clienteId,
       detalle: `${UYU(s.monto)} × ${s.totalDias} (${s.frecuencia})`,
     });
+    await avisarAlCobrador(s.solicitadoPor, {
+      titulo: "✅ Renovación aprobada",
+      cuerpo: `Te aprobaron ${UYU(s.monto)} × ${s.totalDias}. Ya podés entregar la plata — está en «Tus pedidos».`,
+    });
     revalidatePath("/admin/renovaciones");
     revalidatePath("/admin/mora");
     revalidatePath("/admin");
@@ -377,6 +478,10 @@ export async function rechazarSolicitud(id: string, motivo: string): Promise<Res
       entidad: "solicitud",
       entidadId: id,
       detalle: (motivo ?? "").slice(0, 120),
+    });
+    await avisarAlCobrador(s?.solicitadoPor ?? null, {
+      titulo: "Tu pedido no se aprobó",
+      cuerpo: `El pedido de ${UYU(s?.monto ?? 0)} no se aprobó${(motivo ?? "").trim() ? `: ${(motivo ?? "").trim().slice(0, 80)}` : ""}. NO entregues plata por este pedido — el detalle está en «Tus pedidos».`,
     });
     revalidatePath("/admin/renovaciones");
     return { ok: true };

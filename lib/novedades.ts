@@ -17,7 +17,7 @@ export interface Novedad {
   href: string;
 }
 
-export const NOVEDADES_VERSION = "2026-08-19b";
+export const NOVEDADES_VERSION = "2026-08-21";
 
 export const NOVEDADES: Partial<Record<Rol, Novedad[]>> = {
   supervisor: [
@@ -26,7 +26,8 @@ export const NOVEDADES: Partial<Record<Rol, Novedad[]>> = {
     { texto: "Cancelar una venta mal hecha: botón «Cancelar…» en cada venta de Movimientos y en la ficha del cliente.", href: "/admin/movimientos" },
   ],
   admin: [
-    { texto: "Pedidos de la calle en el tab «Pedidos» con contador y franja de aviso; Movimientos del día con ventas y pagos uno por uno; cancelar ventas desde la lista.", href: "/admin/movimientos" },
+    { texto: "Pedidos de la calle: en el celular, tab «Pedidos» con contador; en escritorio, «Pedidos y renovaciones» en el menú. Y una franja arriba que avisa sola cuando entra uno.", href: "/admin/renovaciones" },
+    { texto: "Movimientos del día: ventas y pagos uno por uno, de hoy o de cualquier día; cancelar ventas desde la lista.", href: "/admin/movimientos" },
     { texto: "El +20% se mide contra el ÚLTIMO crédito registrado del cliente; hasta ahí lo coloca el cobrador solo, más lo aprobás vos (o el supervisor) hasta +20% con piso en $100.000.", href: "/admin/renovaciones" },
   ],
   cobrador: [

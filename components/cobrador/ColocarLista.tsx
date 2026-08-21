@@ -21,7 +21,7 @@
 //  cuánto paga en total y cuándo empieza. Confirmación de dos toques antes de
 //  colocar capital, y el PRIMER toque ya dice el número.
 // ─────────────────────────────────────────────────────────────────────────
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { UYU } from "@/lib/format";
 import { EstadoVacio } from "@/components/EstadoVacio";
@@ -34,7 +34,7 @@ import {
   interesDeBase,
   INTERES_DEFECTO_PCT,
 } from "@/lib/creditoNuevo";
-import { interesEfectivo, cuotasQueDanJusto, cuotasValidas, explicaTecho } from "@/lib/renovacion";
+import { interesEfectivo, cuotasQueDanJusto, cuotasValidas, explicaTecho, rotuloTechoPropio } from "@/lib/renovacion";
 
 interface Candidato {
   clienteId: string;
@@ -418,6 +418,15 @@ function Tarjeta({
   const router = useRouter();
   const [abierto, setAbierto] = useState(abrirYa);
   const [confirmar, setConfirmar] = useState(false);
+  /** Momento en que se armó "confirmar": el freno anti-dedazo del botón. */
+  const armadoEn = useRef(0);
+  // La confirmación se DESARMA sola a los 6 s (mismo criterio que CobroRapido):
+  // armada para siempre, un toque distraído minutos después colocaba capital.
+  useEffect(() => {
+    if (!confirmar) return;
+    const t = setTimeout(() => setConfirmar(false), 6_000);
+    return () => clearTimeout(t);
+  }, [confirmar]);
   /** Monto y cuotas de la NUEVA VENTA. Arrancan en los del último crédito: lo más
    *  común es repetir, y así el que solo quiere cambiar UNA cosa toca UNA cosa.
    *  Para un PRIMER crédito no hay último: el monto arranca vacío (lo decide el
@@ -554,7 +563,8 @@ function Tarjeta({
               "solicitado" in r
                 ? r.mensaje
                 : r.repetido
-                  ? "Ya estaba renovado ✓ — no se creó otro. Si ya le entregaste la plata, no se la des de nuevo."
+                  ? // "renovado" mentía cuando lo repetido era una VENTA nueva.
+                    `Ya estaba ${modo === "renovar" ? "renovado" : "hecho"} ✓ — no se creó otro. Si ya le entregaste la plata, no se la des de nuevo.`
                   : `Le entregaste ${UYU(monto)}${r.cuota ? ` · cuota ${UYU(r.cuota)}` : ""} ✓`,
             deshacer: esVentaCreada
               ? { prestamoId: r.prestamoId!, monto, creadoEn: new Date().toISOString() }
@@ -628,13 +638,18 @@ function Tarjeta({
       {abierto && (
         <>
           {modo === "renovar" ? (
-            // Renovar viene con el +20% ya puesto, pero EDITABLE: el cobrador está
-            // ⚠️ RENOVAR = REPETIR TAL CUAL. Sin campos, sin decisiones (regla de
-            // Carlos, 07-08): el crédito vuelve a nacer con el mismo monto, la misma
-            // cuota y las mismas cuotas que el cliente ya venía pagando. Cambiar
-            // algo es "Nueva venta", que es la otra puerta. Menos decisiones en la
-            // vereda = menos dedazos, y acá el dedazo es plata.
+            // ⚠️ RENOVAR = REPETIR TAL CUAL de un toque (regla de Carlos, 07-08):
+            // el crédito vuelve a nacer con el mismo monto, cuota y cuotas que el
+            // cliente venía pagando. El que quiere OTRA cosa despliega "Cambiar
+            // monto, cuotas o formato" (19-08) sin irse de la tarjeta. Menos
+            // decisiones en la vereda = menos dedazos, y acá el dedazo es plata.
             <div className="flex flex-col gap-2.5 rounded-[12px] bg-suave p-3">
+              {/* El resumen "tal cual" SOLO cuando no está ajustando: con el
+                  bloque de cambios abierto mezclaba el monto tecleado con la
+                  cuota del tal-cual y el interés daba ⛔ falso (auditoría 21-08).
+                  El bloque de cambios tiene su propio resumen, con SU cuota. */}
+              {!ajustar && (
+                <>
               <span className="text-[12px] font-extrabold text-tinta">
                 Se repite el crédito tal cual lo tenía
               </span>
@@ -649,13 +664,15 @@ function Tarjeta({
                   tasa heredada de Disapp: 192 créditos activos por $72.113.554 están
                   en 0%, y renovarlos arrastraba ese 0% al crédito nuevo. */}
               <Interes
-                monto={sugeridoRenov}
+                monto={c.montoNuevo ?? c.monto}
                 cuota={c.cuotaNueva ?? c.cuota}
                 dias={c.totalDias}
               />
               <span className="text-[11.5px] leading-[1.4] font-semibold text-gris">
                 Empieza a pagar {primerCobro}. Hoy recibe la plata, mañana arranca.
               </span>
+                </>
+              )}
               {!ajustar && c.requiereAprobacion && (
                 <span className="rounded-[12px] bg-ambar-suave px-2.5 py-2 text-[11.5px] leading-[1.45] font-bold text-ambar-osc">
                   Este monto lo aprueba tu supervisor. Al confirmar, el pedido le llega a su pantalla.
@@ -724,10 +741,10 @@ function Tarjeta({
                       heredado de $120.000 no tiene margen propio — decir "(+20%)"
                       ahí enseñaba mal la regla (auditoría 19-08). */}
                   <span className="text-[11.5px] leading-[1.4] font-semibold text-gris">
-                    {techo > c.monto ? (
+                    {rotuloTechoPropio(c.monto, techo) ? (
                       <>
-                        Solo podés hasta <b className="text-tinta">{UYU(techo)}</b>
-                        {techo === Math.floor(c.monto * 1.2) ? " (+20%)" : " (tope de la casa)"}.
+                        Solo podés hasta <b className="text-tinta">{UYU(techo)}</b>{" "}
+                        {rotuloTechoPropio(c.monto, techo)}.
                       </>
                     ) : (
                       <>Repetir {UYU(c.monto)} podés vos; cualquier suba la aprueba tu supervisor.</>
@@ -736,10 +753,11 @@ function Tarjeta({
                       <> Tu supervisor puede aprobar hasta <b className="text-tinta">{UYU(c.maximo)}</b>.</>
                     )}
                   </span>
-                  {/* Formato del crédito nuevo. */}
+                  {/* Formato del crédito nuevo. En GRILLA 2×2: los 4 chips en una
+                      sola fila desbordaban la tarjeta a 360px (auditoría 21-08). */}
                   <div className="flex flex-col gap-1">
                     <span className="text-[12px] font-extrabold text-tinta">Formato</span>
-                    <div className="flex gap-1.5">
+                    <div className="grid grid-cols-2 gap-1.5">
                       {(["diario", "semanal", "quincenal", "mensual"] as FrecuenciaPrestamo[]).map((f) => (
                         <button
                           key={f}
@@ -753,7 +771,7 @@ function Tarjeta({
                             setFrecuencia(f);
                             setConfirmar(false);
                           }}
-                          className={`min-h-[44px] flex-1 rounded-[10px] border-2 px-1 text-[12.5px] font-bold capitalize ${
+                          className={`min-h-[44px] rounded-[10px] border-2 px-1 text-[12.5px] font-bold capitalize ${
                             frecuencia === f ? "border-azul bg-azul-suave text-azul" : "border-campo bg-suave text-cuerpo"
                           }`}
                         >
@@ -829,7 +847,11 @@ function Tarjeta({
 
               {/* Qué va a pagar el cliente: hasta ahora el cobrador tenía que
                   calcularlo de memoria para poder decírselo. */}
-              {montoN > 0 && cuotasN > 0 && !excede && !cuotasPasan && (
+              {/* También cuando EXCEDE (va a pedido): el supervisor aprueba ese
+                  monto y esas cuotas — esconder la cuota estimada acá dejaba al
+                  cobrador pidiendo a ciegas (auditoría 21-08). Solo se oculta lo
+                  imposible (pasaMaximo) o inválido. */}
+              {montoN > 0 && cuotasN > 0 && !pasaMaximo && !cuotasPasan && (
                 <>
                   <div className="grid grid-cols-3 gap-2 rounded-[12px] bg-tarjeta p-2.5">
                     <Dato k="Cuota" v={UYU(cuotaVenta)} />
@@ -888,7 +910,20 @@ function Tarjeta({
                 pendiente ||
                 ((modo === "venta" || renovarAjustado) && (pasaMaximo || cuotasPasan || montoN <= 0 || cuotasN <= 0))
               }
-              onClick={() => (confirmar ? colocar() : setConfirmar(true))}
+              onClick={() => {
+                // ⚠️ FRENO ANTI-DEDAZO (mismo criterio que CobroRapido y la ficha):
+                // un doble-tap del dedo (2 toques en <650 ms) contaba como armar +
+                // confirmar y COLOCABA capital de un solo gesto. Y la confirmación
+                // se desarma sola a los 6 s (ver el useEffect): armada para
+                // siempre, un toque distraído minutos después entregaba plata.
+                if (!confirmar) {
+                  armadoEn.current = Date.now();
+                  setConfirmar(true);
+                  return;
+                }
+                if (Date.now() - armadoEn.current < 650) return; // dedazo, no confirmación
+                colocar();
+              }}
               className="min-h-11 flex-1 rounded-[12px] bg-[#1FA971] text-[13px] font-extrabold text-white disabled:opacity-50"
             >
               {/* El primer toque YA dice qué va a pasar y con qué número: antes
@@ -962,8 +997,8 @@ function Interes({
       </span>
       {gana <= 0 && (
         <span className="text-[11.5px] leading-[1.4] font-bold" style={{ color: tono.fg }}>
-          Este crédito {gana < 0 ? "devuelve menos de lo que entregás" : "no gana nada"}. Avisá a
-          la oficina antes de darlo.
+          Este crédito {gana < 0 ? "devuelve menos de lo que entregás" : "no gana nada"}. Avisale
+          a tu supervisor antes de darlo.
         </span>
       )}
       {justo && (

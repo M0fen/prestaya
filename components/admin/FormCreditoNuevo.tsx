@@ -7,7 +7,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { UYU } from "@/lib/format";
 import { calcularCuotaCreditoNuevo, INTERES_DEFECTO_PCT, interesDeBase } from "@/lib/creditoNuevo";
-import { evaluarRenovacion, techoVentaGestor, RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
+import { evaluarRenovacion, explicaTecho, techoVentaGestor, RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
 import { crearCreditoNuevo } from "@/lib/acciones/creditoNuevo";
 import type { FrecuenciaPrestamo } from "@/types/db";
 
@@ -323,7 +323,9 @@ export function FormCreditoNuevo({
         >
           {superaCap
             ? conHistorial
-              ? `Hasta ${UYU(techoGestor)} (+20% sobre su último crédito de ${UYU(baseTasa!.monto)}). Más que eso no se autoriza en una sola venta.`
+              ? // El MISMO rótulo que arma el servidor (explicaTecho): "(+20%
+                // sobre $10.000)" era una cuenta falsa cuando manda el piso CAP.
+                `Hasta ${UYU(techoGestor)} ${explicaTecho(baseTasa!.monto, techoGestor)}. Más que eso no se autoriza en una sola venta.`
               : `El primer crédito no puede superar ${UYU(RENOVACION_CAP_TOTAL)}.`
             : `${evalu?.motivo} Como gestor, lo autorizás directo.`}
         </p>

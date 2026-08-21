@@ -106,12 +106,14 @@ export function FormRenovacion({
   const totalAPagar = cuota * diasNum;
 
   // Preview del tope (mismo cálculo que el servidor). Desde el 08-13 TODO GESTOR
-  // es aprobador (regla de Carlos: "que den aprobación o hagan esto manual ellos
-  // mismos"): el sobre-tope lo autoriza directo también el supervisor, y del
-  // panel ya no salen solicitudes — esas quedan para los cobradores en la calle.
-  // El techo absoluto (CAP, o el monto del heredado) lo valida el servidor.
+  // es aprobador (regla de Carlos): el sobre-tope lo autoriza directo también el
+  // supervisor, y del panel ya no salen solicitudes. ⚠️ Pero el TECHO DURO
+  // (+20% con piso CAP, regla 16-08) se ESPEJA acá con techoRenovacion — la
+  // MISMA función que valida renovarCredito. Con `bloqueado = false` fijo, el
+  // form dejaba confirmar $120.000 sobre $50.000 diciendo "lo autorizás
+  // directo" y el rojo llegaba del servidor (auditoría 21-08).
   const evalu = valido ? evaluarRenovacion(anterior.monto, montoNum) : null;
-  const bloqueado = false;
+  const bloqueado = valido && montoNum > techoRenovacion(anterior.monto);
 
   const enviar = async () => {
     setOcupado(true);
@@ -310,7 +312,9 @@ export function FormRenovacion({
         >
           {evalu.autoAprobable
             ? `✓ Dentro del tope (${evalu.topePct}% para créditos de este monto): se aprueba al instante.`
-            : `${evalu.motivo} Como gestor, lo autorizás directo.`}
+            : // La coletilla "lo autorizás directo" SOLO cuando de verdad puede:
+              // sobre el techo duro, las dos frases se negaban entre sí.
+              `${evalu.motivo}${bloqueado ? " Más que eso en una sola renovación no se autoriza." : " Como gestor, lo autorizás directo."}`}
         </p>
       )}
 

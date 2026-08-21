@@ -102,6 +102,37 @@ const COBRADOR: GuiaTutorial[] = [
     ],
   },
   {
+    id: "cob-colocar",
+    rol: "cobrador",
+    icono: "🔁",
+    titulo: "Renovar y vender (colocar plata)",
+    resumen: "Renovar de un toque, subir hasta +20% vos solo, o pedirle más a tu supervisor.",
+    enlace: { href: "/cobrador/colocar?modo=renovar", texto: "Abrir Renovar" },
+    pasos: [
+      {
+        titulo: "Renovar = repetir tal cual, un toque",
+        cuerpo:
+          "Cuando un cliente termina de pagar, aparece en Renovar (y en su ficha). Un toque y el crédito vuelve a nacer igual: mismo monto, misma cuota, mismas cuotas.",
+      },
+      {
+        titulo: "¿Quiere más plata u otro formato? «Cambiar monto, cuotas o formato»",
+        cuerpo:
+          "Dentro de la tarjeta de Renovar, abrí ese bloque: podés subir el monto hasta +20% de su último crédito VOS SOLO, cambiar las cuotas, y pasarlo a semanal o quincenal (la cuota se recalcula sola con la misma tasa).",
+        tip: "El techo (+20%) es sobre su ÚLTIMO crédito registrado, activo o terminado.",
+      },
+      {
+        titulo: "Más del +20%: el pedido le llega a tu supervisor",
+        cuerpo:
+          "El mismo botón manda el pedido a la pantalla de tu supervisor y te avisa. Queda en firme cuando lo apruebe: hasta entonces NO le entregues la plata. Lo seguís en «Tus pedidos», en tu inicio — y desde ahí le podés recordar.",
+      },
+      {
+        titulo: "Nueva venta = otro crédito aparte",
+        cuerpo:
+          "Para darle un crédito NUEVO (aunque todavía esté pagando otro): Nueva venta. Elegís monto y cuotas; la tasa sale de su historial.",
+      },
+    ],
+  },
+  {
     id: "cob-censo",
     rol: "cobrador",
     icono: "📍",
@@ -297,7 +328,7 @@ const SUPERVISOR: GuiaTutorial[] = [
       {
         titulo: "Renovar desde el panel",
         cuerpo:
-          "En la misma pantalla, «Candidatos» lista los que terminaron bien. Elegís uno, ajustás monto, cuotas y formato (diario/semanal) si hace falta, y das de alta directo.",
+          "En la misma pantalla, más abajo, están los que terminaron de pagar bien («por renovar»). Elegís uno, ajustás monto, cuotas y formato (diario/semanal) si hace falta, y das de alta directo.",
       },
       {
         titulo: "Ojo con el aviso de moroso",

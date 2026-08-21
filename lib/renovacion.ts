@@ -299,6 +299,24 @@ export function explicaTecho(montoAnterior: number, maximo: number): string {
 }
 
 /**
+ * Rótulo del TECHO PROPIO del cobrador (montoRenovacionAutoAprobable), dicho
+ * sin mentir — misma motivación que `explicaTecho` pero para el otro número:
+ *   · gana el ×1,2 → "(+20%)"
+ *   · lo frenó el CAP (anterior $90.000 → techo $100.000 = +11%) → "(tope general)"
+ *   · heredado ≥ CAP: el techo ES repetir el monto, no hay margen propio → null
+ *     (la pantalla no debe decir "subilo hasta $120.000" sobre $120.000).
+ * ⚠️ Usa el MISMO Math.round que `montoRenovacionAutoAprobable`: con floor, en
+ * montos donde base×1,2 cae en ,5+ el rótulo diría "(tope general)" para un
+ * techo que sí es el +20% redondeado. Puro.
+ */
+export function rotuloTechoPropio(montoAnterior: number, techo: number): string | null {
+  const base = Math.round(Number(montoAnterior) || 0);
+  if (!(base > 0) || techo <= base) return null;
+  const conAumento = Math.round(base * (1 + RENOVACION_AUMENTO_PCT / 100));
+  return techo >= conAumento ? "(+20%)" : "(tope general)";
+}
+
+/**
  * Tope de aumento (%) al renovar: **20% para todos**.
  *
  * ⚠️ Antes esto era un escalonado por monto (20/15/10/0%) que CONTRADECÍA la regla
@@ -351,8 +369,12 @@ export function evaluarRenovacion(
   // (+20% con piso en el CAP — regla de Carlos 16-08). El motivo lo dice así: el
   // texto viejo "no puede superar $100.000 (tope máximo)" era falso para el gestor
   // y aparecía debajo de "podés autorizar hasta $108.000" (auditoría 16-08).
-  if (superaCap && montoNuevo > techoRenovacion(montoAnterior))
-    motivo = `Supera lo que se puede autorizar en una renovación (${pes(techoRenovacion(montoAnterior))} = +${topePct}% sobre ${pes(montoAnterior)}).`;
+  if (superaCap && montoNuevo > techoRenovacion(montoAnterior)) {
+    // Con explicaTecho: "(techo) = +20% sobre X" era una cuenta FALSA cuando el
+    // techo es el piso del CAP (+20% de $50.000 es $60.000, no $100.000).
+    const techo = techoRenovacion(montoAnterior);
+    motivo = `Supera lo que se puede autorizar en una renovación: hasta ${pes(techo)} ${explicaTecho(montoAnterior, techo)}.`;
+  }
   else if (superaCap)
     motivo = `Pasa el tope de ${pes(RENOVACION_CAP_TOTAL)} que se aprueba solo: hasta ${pes(techoRenovacion(montoAnterior))} lo autoriza un gestor.`;
   else if (excedePct)

@@ -146,7 +146,7 @@ export function ListaClientes({ clientes }: { clientes: ClienteVista[] }) {
                 )}
               </div>
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                {/* El nombre COMPLETO: hasta dos líneas, nunca cortado a puntos. */}
+                {/* El nombre COMPLETO: hasta tres líneas, nunca cortado a puntos. */}
                 <span className="line-clamp-3 text-[14.5px] leading-[1.25] font-bold break-words text-tinta">
                   {c.nombre}
                 </span>

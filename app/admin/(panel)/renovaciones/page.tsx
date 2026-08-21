@@ -56,11 +56,11 @@ export default async function RenovacionesPage({
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-0.5">
         <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">
-          Renovaciones
+          Pedidos y renovaciones
         </h1>
         <span className="text-[13px] font-medium text-gris">
-          Buenos pagadores por completar su crédito — el mejor momento para
-          renovar.
+          Los pedidos de la calle que esperan tu aprobación, y los buenos
+          pagadores listos para renovar.
         </span>
       </div>
 
@@ -76,8 +76,13 @@ export default async function RenovacionesPage({
           días, y ordenados de MÁS VIEJO a más nuevo — que es el orden de la urgencia. */}
       {avisos.length > 0 && (
         <section className="flex flex-col gap-2">
+          {/* "AVISOS", no "Pedidos": el rótulo "Pedidos de la calle" es el de las
+              SOLICITUDES de arriba (a donde apuntan la franja y el tab). Estos son
+              mensajes de texto libre (PedirAyuda) que se resuelven mirando la
+              ficha, no con Aprobar/Rechazar — con el mismo nombre, el supervisor
+              creía haber atendido "los pedidos" leyendo esta lista. */}
           <span className="text-[12px] font-bold tracking-[0.03em] text-gris uppercase">
-            Pedidos de la calle · sin resolver ({avisos.length})
+            Avisos de la calle · sin resolver ({avisos.length})
           </span>
           {avisos.map((a) => {
             const viejo = a.horasEsperando >= 24;
@@ -253,9 +258,9 @@ export default async function RenovacionesPage({
 
       <p className="text-[11px] leading-[1.5] font-medium text-tenue-2">
         El puntaje sale del comportamiento de pago propio del cliente (interno, no se le
-        muestra). Supervisor y administrador dan de alta directo; las <b>solicitudes</b> de
-        arriba son de los cobradores que se pasaron de su techo, y las resuelve cualquiera de
-        los dos.
+        muestra). Supervisor y administrador dan de alta directo; los <b>pedidos de la
+        calle</b> de arriba son de los cobradores que se pasaron de su techo, y los resuelve
+        cualquiera de los dos.
       </p>
     </div>
   );

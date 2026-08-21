@@ -220,13 +220,15 @@ export function ActivarAvisos({
 
   if (protagonista) {
     return (
-      <div className="flex items-center justify-between gap-3 rounded-[14px] border-2 border-[#F0D9A8] bg-[#FFF8E8] px-4 py-3.5">
+      // `panel-ambar` (tema-aware) y no crema fija: con el fondo #FFF8E8 y el
+      // título en text-tinta, el modo oscuro lo dejaba claro-sobre-claro.
+      <div className="panel-ambar flex items-center justify-between gap-3 rounded-[14px] border-2 px-4 py-3.5">
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="text-[13.5px] font-extrabold text-tinta">🔔 Activá los avisos en este celular</span>
           <span className="text-[12px] leading-[1.45] font-medium text-ambar-osc">
             {motivo ?? "Te llega cada pedido de la calle, cada corrección y cada faltante al cierre — sin tener que entrar a mirar."}
           </span>
-          {error && <span className="text-[11px] font-semibold text-[#C0392B]">{error}</span>}
+          {error && <span className="text-[11px] font-semibold text-rojo-osc">{error}</span>}
         </div>
         <button
           type="button"

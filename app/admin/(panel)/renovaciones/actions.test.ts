@@ -60,6 +60,11 @@ vi.mock("@/lib/data/creditoNuevo", () => ({ crearCreditoNuevoDb: (...a: unknown[
 vi.mock("@/lib/data/renovaciones", () => ({ crearRenovacion: (...a: unknown[]) => crearRenovacion(...a) }));
 vi.mock("@/lib/data/auditoria", () => ({ registrarAuditoria: (...a: unknown[]) => registrarAuditoria(...a) }));
 vi.mock("@/lib/observabilidad", () => ({ reportarError: (...a: unknown[]) => reportarError(...a) }));
+const avisarUsuario = vi.fn(async () => 0);
+vi.mock("@/lib/push/avisarGestores", () => ({
+  avisarUsuario: (...a: unknown[]) => avisarUsuario(...a),
+  avisarGestoresDeCobrador: vi.fn(async () => 0),
+}));
 
 import { aprobarSolicitud, rechazarSolicitud, renovarCredito } from "./actions";
 
@@ -187,6 +192,76 @@ describe("aprobar REVALIDA el monto (es texto que escribió otra persona)", () =
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toMatch(/dado de baja/i);
     expect(crearCreditoNuevoDb).not.toHaveBeenCalled();
+  });
+
+  it("VENTA con referencia CANCELADA (deshecha desde la calle) → NO se crea nada y el pedido se cierra solo", async () => {
+    // El caso de la auditoría 21-08: un dedazo de $90.000 deshecho seguía siendo
+    // la base de techo/tasa de la solicitud pendiente — aprobar medía contra un
+    // crédito que "financieramente nunca existió".
+    getPrestamoPorId.mockResolvedValue({
+      id: "cred-viejo", cliente_id: "cli-1", estado: "cancelado",
+      monto_prestado: 90000, cuota_diaria: 4500, total_dias: 24,
+    });
+    const r = await aprobarSolicitud(SOL_ID);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/deshecho/i);
+    expect(crearCreditoNuevoDb).not.toHaveBeenCalled();
+    // Y no queda inflando la franja: se resuelve como rechazada con motivo.
+    expect(resolverSolicitudDb).toHaveBeenCalledWith(
+      expect.anything(), SOL_ID,
+      expect.objectContaining({ estado: "rechazada" }),
+    );
+  });
+
+  it("RENOVACIÓN cuyo anterior ya no está activo → error CON salida y el pedido se cierra solo (no infla la franja)", async () => {
+    getSolicitudPorId.mockResolvedValue(solicitud({ tipo: "renovacion" }));
+    getPrestamoPorId.mockResolvedValue({
+      id: "cred-viejo", cliente_id: "cli-1", estado: "finalizado",
+      monto_prestado: 50000, cuota_diaria: 2500, total_dias: 24,
+    });
+    const r = await aprobarSolicitud(SOL_ID);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/se cerró solo/i);
+    expect(crearRenovacion).not.toHaveBeenCalled();
+    expect(resolverSolicitudDb).toHaveBeenCalledWith(
+      expect.anything(), SOL_ID,
+      expect.objectContaining({ estado: "rechazada" }),
+    );
+  });
+
+  it("RENOVACIÓN con cliente dado de baja → mismo freno que la rama venta (antes faltaba)", async () => {
+    getSolicitudPorId.mockResolvedValue(solicitud({ tipo: "renovacion" }));
+    getClientePorId.mockResolvedValue({ id: "cli-1", activo: false });
+    const r = await aprobarSolicitud(SOL_ID);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/dado de baja/i);
+    expect(crearRenovacion).not.toHaveBeenCalled();
+  });
+});
+
+describe("la vuelta del circuito: el cobrador se entera de la resolución (push best-effort)", () => {
+  it("aprobar una venta avisa al cobrador que la pidió", async () => {
+    const r = await aprobarSolicitud(SOL_ID);
+    expect(r.ok).toBe(true);
+    expect(avisarUsuario).toHaveBeenCalledWith(
+      "u-cobrador",
+      expect.objectContaining({ titulo: expect.stringMatching(/aprobada/i) }),
+    );
+  });
+
+  it("rechazar avisa al cobrador con el motivo (y que NO entregue plata)", async () => {
+    const r = await rechazarSolicitud(SOL_ID, "monto equivocado");
+    expect(r.ok).toBe(true);
+    expect(avisarUsuario).toHaveBeenCalledWith(
+      "u-cobrador",
+      expect.objectContaining({ cuerpo: expect.stringMatching(/no se aprobó/i) }),
+    );
+  });
+
+  it("si el push explota, la aprobación NO se cae (el crédito ya existe)", async () => {
+    avisarUsuario.mockRejectedValueOnce(new Error("push caído"));
+    const r = await aprobarSolicitud(SOL_ID);
+    expect(r.ok).toBe(true);
   });
 });
 

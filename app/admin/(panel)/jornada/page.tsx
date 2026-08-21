@@ -461,7 +461,10 @@ export default async function JornadaPage({
         <ActivarAvisos
           vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null}
           protagonista
-          motivo={`Opcional: dentro del panel ya ves cada pedido apenas entra, sin activar nada. Con los avisos activos te llega también con el panel CERRADO (tenés ${pedidosCalle.length + correccionesPend + gastosPend} esperando ahora).`}
+          // ⚠️ La franja en vivo cubre SOLO los pedidos de la calle (renovar/
+          // vender): prometer "ves cada pedido apenas entra" con gastos o
+          // correcciones esperando era mentirle justo al que más los necesita.
+          motivo={`Opcional: los pedidos de la calle ya te aparecen solos acá adentro. Con los avisos activos te enterás también con el panel CERRADO — y de gastos y correcciones al instante (tenés ${pedidosCalle.length + correccionesPend + gastosPend} esperando ahora).`}
         />
       )}
 

@@ -27,8 +27,11 @@ export function SolicitudesRenovacion({
   if (solicitudes.length === 0) return null;
   return (
     <section className="flex flex-col gap-2">
+      {/* MISMO rótulo que la franja y el tab que traen acá ("N pedidos de la
+          calle esperan tu aprobación"): el que aterriza tiene que reconocer al
+          primer vistazo que ESTA es la lista prometida. */}
       <span className="text-[12px] font-bold tracking-[0.03em] text-gris uppercase">
-        Solicitudes de la calle · pendientes ({solicitudes.length})
+        Pedidos de la calle para aprobar ({solicitudes.length})
       </span>
       <div className="flex flex-col gap-2">
         {solicitudes.map((s) => (
@@ -63,7 +66,10 @@ function Item({ s }: { s: SolicitudRenovacion }) {
     });
 
   return (
-    <div className="flex flex-col gap-2 rounded-[14px] border border-[#DCE7FB] bg-[#F7F9FF] p-3.5">
+    // Tokens, no hex claros: con el fondo fijo #F7F9FF y el texto en text-tinta
+    // (que en oscuro pasa a claro), la tarjeta quedaba blanco-sobre-blanco en el
+    // modo oscuro del panel — justo en la lista a la que apunta la franja.
+    <div className="flex flex-col gap-2 rounded-[14px] border border-campo bg-tarjeta p-3.5">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 flex-col">
           <span className="line-clamp-2 break-words leading-[1.2] text-[14px] font-bold text-tinta">
@@ -74,8 +80,8 @@ function Item({ s }: { s: SolicitudRenovacion }) {
               className="ml-2 rounded-full px-2 py-0.5 align-middle text-[10px] font-bold"
               style={
                 s.tipo === "venta"
-                  ? { background: "#E7F5EE", color: "#157A50" }
-                  : { background: "#EEF3FF", color: "#1E47C8" }
+                  ? { background: "var(--color-verde-suave)", color: "var(--color-verde-osc)" }
+                  : { background: "var(--color-azul-suave)", color: "var(--color-azul)" }
               }
             >
               {s.tipo === "venta" ? "Venta nueva" : "Renovación"}
@@ -89,7 +95,7 @@ function Item({ s }: { s: SolicitudRenovacion }) {
               <>
                 Antes {UYU(s.montoAnterior!)} → pide <b className="text-tinta">{UYU(s.monto)}</b>
                 {s.monto !== s.montoAnterior && (
-                  <b className={s.monto > s.montoAnterior! ? "text-[#B9770E]" : "text-[#157A50]"}>
+                  <b className={s.monto > s.montoAnterior! ? "text-ambar-osc" : "text-verde-osc"}>
                     {" "}({s.monto > s.montoAnterior! ? "+" : "−"}
                     {Math.round((Math.abs(s.monto - s.montoAnterior!) / s.montoAnterior!) * 100)}%)
                   </b>

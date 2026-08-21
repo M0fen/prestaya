@@ -75,10 +75,20 @@ export function AvisoPedidosVivo({ inicial }: { inicial: ResumenPedidosVivos }) 
   // si no, al resolverse uno, el 6.º —un pedido viejo— entraba a la ventana y
   // sonaba como "🔔 Nuevo pedido" (auditoría 19-08).
   const conocidos = useRef<Set<string>>(new Set(inicial.ids ?? inicial.items.map((p) => p.id)));
-  const totalRef = useRef(inicial.total);
+  // Huella de la COLA (ids ordenados), no solo el total: si un pedido entra y
+  // otro se resuelve en la misma ventana, el total no cambia pero la lista de
+  // /admin/renovaciones SÍ — comparar totales dejaba esa pantalla vieja justo
+  // donde se aprueba (auditoría 21-08).
+  const huellaDe = (r: ResumenPedidosVivos) => (r.ids ?? r.items.map((p) => p.id)).join(",");
+  const huellaRef = useRef(huellaDe(inicial));
   const ultimoRefresh = useRef(0);
   const refreshPendiente = useRef<number | null>(null);
   const leyendo = useRef(false);
+  // Fallos de TRANSPORTE seguidos (offline o build viejo tras un deploy). Tras
+  // varios, si hay red y la pestaña está a la vista, la única cura real para el
+  // action ID muerto es recargar la página — una vez, no en loop.
+  const fallosSeguidos = useRef(0);
+  const yaRecargo = useRef(false);
 
   // Primer gesto del usuario: desbloquea el timbre (política de autoplay).
   useEffect(() => {
@@ -92,6 +102,11 @@ export function AvisoPedidosVivo({ inicial }: { inicial: ResumenPedidosVivos }) 
   }, []);
 
   const avisarNuevos = useCallback((r: ResumenPedidosVivos) => {
+    // ⚠️ En SEGUNDO PLANO no se "gasta" el aviso: el toast moriría invisible y
+    // el timbre no suena. NO se aprenden los ids — al volver a la pestaña, el
+    // refetch de visibilitychange los re-detecta como nuevos y AHÍ se avisa
+    // (auditoría 21-08: el caso normal del escritorio es el panel detrás).
+    if (document.visibilityState !== "visible") return;
     const nuevos = pedidosNuevos(conocidos.current, r);
     for (const id of r.ids ?? []) conocidos.current.add(id);
     for (const p of r.items) conocidos.current.add(p.id);
@@ -112,7 +127,7 @@ export function AvisoPedidosVivo({ inicial }: { inicial: ResumenPedidosVivos }) 
     } catch {
       /* sin vibración en este dispositivo */
     }
-    if (document.visibilityState === "visible") timbre();
+    timbre();
   }, []);
 
   const refrescar = useCallback(async () => {
@@ -124,27 +139,53 @@ export function AvisoPedidosVivo({ inicial }: { inicial: ResumenPedidosVivos }) 
         // El timeout evita además que `leyendo` quede tomado por un fetch colgado.
         r = await conTimeout(getResumenPedidosVivos(), 15_000, "pedidosVivos");
       } catch {
-        return; // transporte caído (offline / build viejo tras deploy): queda lo último bueno
+        // Transporte caído: sin red, o el panel quedó abierto A TRAVÉS de un
+        // deploy y el action ID viejo no existe más — ese caso no se cura solo.
+        // Tras ~4 fallos seguidos (≥3 min de franja muerta), con red y pestaña
+        // a la vista, se recarga UNA vez: build nuevo, action IDs nuevos.
+        fallosSeguidos.current++;
+        if (
+          fallosSeguidos.current >= 4 &&
+          !yaRecargo.current &&
+          navigator.onLine &&
+          document.visibilityState === "visible"
+        ) {
+          yaRecargo.current = true;
+          window.location.reload();
+        }
+        return; // queda lo último bueno
       }
+      fallosSeguidos.current = 0;
       if (!r) return; // sesión vencida: idem
       setResumen(r);
       setAhora(Date.now());
       avisarNuevos(r);
-      // Cambió la cola (entró o se resolvió uno): que el resto del panel
-      // (contador del tab, tarjeta de Mi jornada, lista de Pedidos) se entere.
-      // ⚠️ `totalRef` se actualiza SOLO cuando el refresh de verdad corre: si el
-      // throttle bloquea se PROGRAMA el sobrante — antes se descartaba y el tab
-      // quedaba diciendo otro número que la franja para siempre (auditoría 19-08).
-      if (r.total !== totalRef.current) {
+      // Cambió la COLA (por huella de ids, no solo el total: 1 entra + 1 sale
+      // deja el total igual): que el resto del panel (contador del tab, tarjeta
+      // de Mi jornada, lista de Pedidos) se entere. ⚠️ La huella se actualiza
+      // SOLO cuando el refresh de verdad corre: si el throttle bloquea se
+      // PROGRAMA el sobrante — descartarlo dejaba el tab con otro número que la
+      // franja para siempre (auditoría 19-08).
+      const huella = huellaDe(r);
+      if (huella !== huellaRef.current) {
         const t = Date.now();
         const resto = THROTTLE_REFRESH_MS - (t - ultimoRefresh.current);
         if (resto <= 0) {
-          totalRef.current = r.total;
+          huellaRef.current = huella;
           ultimoRefresh.current = t;
           router.refresh();
         } else if (refreshPendiente.current === null) {
           refreshPendiente.current = window.setTimeout(() => {
             refreshPendiente.current = null;
+            // Si justo hay una lectura en vuelo, se reintenta enseguida en vez
+            // de tragarse el turno (el refresh pendiente es la razón de ser).
+            if (leyendo.current) {
+              refreshPendiente.current = window.setTimeout(() => {
+                refreshPendiente.current = null;
+                void refrescar();
+              }, 400);
+              return;
+            }
             void refrescar();
           }, resto + 50);
         }
@@ -153,6 +194,18 @@ export function AvisoPedidosVivo({ inicial }: { inicial: ResumenPedidosVivos }) 
       leyendo.current = false;
     }
   }, [avisarNuevos, router]);
+
+  // La prop `inicial` fresca de cada server render NO pisa el estado (misma
+  // instancia), pero si su CONTENIDO cambió dispara una reconciliación contra
+  // el server: sin esto, la franja podía quedar más vieja que lo que el server
+  // acababa de renderizar. Se cuelga de la HUELLA (string), no del objeto: cada
+  // router.refresh crea un objeto nuevo con el mismo contenido y dispararía
+  // llamadas de más. No loopea: huella igual → refrescar() no refresca nada.
+  const huellaInicial = huellaDe(inicial);
+  useEffect(() => {
+    void refrescar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [huellaInicial]);
 
   // 1) Realtime: cualquier cambio en la tabla → relectura (debounce corto).
   useEffect(() => {
