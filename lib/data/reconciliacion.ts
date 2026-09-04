@@ -157,14 +157,26 @@ export async function getCriticosCorridaPrevia(
   db: SupabaseClient,
 ): Promise<number | null> {
   try {
+    // ⚠️ SOLO CORRIDAS QUE DE VERDAD MIDIERON. Cuando el RPC no está disponible
+    // se escribe una fila con `ok: false` y `criticos: 0` para distinguir "el
+    // cron no corrió" de "corrió y el RPC no estaba". Ese 0 no es un cero real:
+    // tomarlo como referencia hace que al día siguiente el mail anuncie "555
+    // casos NUEVOS", el vigía se ponga en rojo por una subida de 0 a 555 y el
+    // tablero muestre un salto inventado. Un día con el RPC caído envenenaba a
+    // los tres vigilantes a la vez.
+    // (`ok` no sirve de filtro: es false siempre que hay hallazgos, o sea casi
+    // todos los días. La marca de la corrida inválida está en `detalle`.)
     const { data, error } = await db
       .from("reconciliacion_log")
-      .select("criticos")
+      .select("criticos, detalle")
       .order("corrida_en", { ascending: false })
-      .limit(1);
+      .limit(5);
     if (error) throw error;
-    const n = data?.[0]?.criticos;
-    return typeof n === "number" ? n : null;
+    const medida = (data ?? []).find((f) => {
+      const d = f.detalle as { motivo?: string } | null;
+      return d?.motivo !== "rpc_0071_no_disponible" && typeof f.criticos === "number";
+    });
+    return medida ? (medida.criticos as number) : null;
   } catch (e) {
     if (!tablaFaltante(e)) reportarError("getCriticosCorridaPrevia", e);
     return null;

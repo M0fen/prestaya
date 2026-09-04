@@ -98,11 +98,19 @@ export async function GET(req: Request): Promise<Response> {
       /* req.url raro → usar el fallback */
     }
     const nuevos = criticosAntes == null ? r.criticos : r.criticos - criticosAntes;
+    // El desglose por invariante: sin él, "3 casos nuevos" no dice si son pagos
+    // contados dos veces o zombies de renovación, y el que lo lee no sabe si
+    // tiene que dejar lo que está haciendo.
+    const desglose = Object.entries(r.porInvariante ?? {})
+      .filter(([, v]) => typeof v === "number" && (v as number) > 0)
+      .map(([k, v]) => `  · ${k}: ${v}`)
+      .join("\n");
     await enviarEmailAlerta({
       asunto: `⚠️ Presta Ya — ${nuevos} caso${nuevos === 1 ? "" : "s"} NUEVO${nuevos === 1 ? "" : "S"} de plata para revisar`,
       cuerpo:
         `Aparecieron ${nuevos} hallazgo(s) crítico(s) NUEVOS desde ayer ` +
         `(total de hoy: ${r.criticos}${criticosAntes != null ? `, ayer: ${criticosAntes}` : ""}).\n\n` +
+        (desglose ? `Qué está contando el vigilante hoy:\n${desglose}\n\n` : "") +
         `Entrá al panel para ver el detalle (qué crédito y de cuánto):\n${origen}/admin/empalme\n\n` +
         `Este mail solo sale cuando el número SUBE: si no te llega, no apareció nada nuevo.`,
     });

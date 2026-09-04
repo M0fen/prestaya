@@ -21,6 +21,7 @@ import "server-only";
 //  se devuelve un texto corto por crédito, nada más.
 // ─────────────────────────────────────────────────────────────────────────
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
+import { reportarError } from "@/lib/observabilidad";
 
 /** Prefijo con el que los scripts de corrección firman en el libro. */
 export const ACCION_CORRECCION = "Corrección administrativa";
@@ -66,19 +67,39 @@ export async function getCorreccionesDeCreditos(
         cuando: String(fila.creado_en ?? "").slice(0, 10),
       });
     }
-  } catch {
+  } catch (e) {
     // ⚠️ Best-effort A PROPÓSITO: esto es un cartelito informativo. Si el libro
     // no responde, la ficha tiene que seguir abriendo — el cobrador está parado
     // frente al cliente y lo que necesita es cobrar. Se pierde el chip, no la
     // pantalla. (Distinto de las consultas de PLATA, que sí tienen que tronar.)
+    //
+    // Pero SE DEJA RASTRO. Un catch mudo acá esconde justo el fallo que importa:
+    // si se pierde la service_role key en un deploy, la ficha abre perfecta, los
+    // tests siguen en verde y el chip desaparece PARA SIEMPRE sin que nadie se
+    // entere — la marca de corrección se apaga en silencio, que es exactamente
+    // la clase de ceguera que este proyecto ya pagó cara.
+    reportarError("getCorreccionesDeCreditos", e, { creditos: ids.length });
   }
   return out;
 }
 
-/** "Corrección administrativa: formato de crédito" → "se corrigió el formato". */
+/**
+ * "Corrección administrativa: formato de crédito" → "corrigió el formato".
+ *
+ * ⚠️ El texto se lee DESPUÉS de "La oficina", así que tiene que ser un verbo en
+ * tercera persona: "La oficina corrigió el formato". Con el reflexivo salía
+ * "La oficina se corrigió el formato", que es lo que 24 fichas activas le
+ * mostraban al cobrador mientras le explicaba al cliente por qué le cambió el
+ * cartón.
+ *
+ * ⚠️ Y NUNCA hace eco del texto del libro. Los asientos tienen 400+ caracteres
+ * con montos, evidencia y responsable; volcarlos a un chip de la pantalla del
+ * cobrador —leídos con service_role— es filtrar el libro por la ventana. Lo que
+ * no se reconoce cae en una frase genérica.
+ */
 function resumirAccion(accion: string): string {
   const cola = accion.slice(ACCION_CORRECCION.length).replace(/^:\s*/, "").toLowerCase();
-  if (cola.includes("formato")) return "se corrigió el formato del crédito";
-  if (cola.includes("pago duplicado") || cola.includes("duplicado")) return "se anuló un pago duplicado";
-  return cola ? `se corrigió ${cola}` : "se corrigieron los términos";
+  if (cola.includes("formato")) return "corrigió el formato del crédito";
+  if (cola.includes("duplicado")) return "anuló un pago duplicado";
+  return "corrigió los términos de este crédito";
 }

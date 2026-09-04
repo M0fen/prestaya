@@ -308,6 +308,53 @@ describe("resolverCredito — cuotas heredadas vs tecleadas", () => {
     if (r.via === "rechazo") expect(r.error).toMatch(/366/);
   });
 
+  // ⚠️ REGRESIÓN REAL, cazada por la auditoría del 04-09. El tope se aplicaba
+  // cuando "venía un número", y los formularios PRELLENAN el campo con las
+  // cuotas del anterior: el panel mandaba 555 sin que nadie tocara nada y
+  // renovar a PAOLA VANESSA CASTRO ($1.110.000, saldada) rebotaba en rojo.
+  it("⚠️ EL FORM PRELLENA: mandar las MISMAS 555 cuotas del anterior es heredar, no teclear", () => {
+    const ref = {
+      prestamoId: "p-paola",
+      monto: 1_110_000,
+      cuota: 2_000,
+      totalDias: 555,
+      frecuencia: "diario" as const,
+    };
+    // Así llega desde FormRenovacion (campo prellenado) y desde aprobarSolicitud
+    // (la solicitud guardó el plazo heredado): un número, igual al de siempre.
+    for (const autoridad of ["cobrador", "gestor"] as const) {
+      const r = resolverCredito(pedido({
+        via: "renovacion",
+        autoridad,
+        monto: 1_110_000,
+        totalDias: 555,
+        frecuencia: null,
+        referencia: ref,
+      }));
+      expect(r.via, `${autoridad} no pudo renovar un heredado de 555 cuotas`).toBe("crear");
+      if (r.via === "crear") expect(r.terminos.totalDias).toBe(555);
+    }
+  });
+
+  it("pero si ELIGE otro plazo largo, el tope sí rige (es una decisión, no continuidad)", () => {
+    const ref = {
+      prestamoId: "p-paola",
+      monto: 1_110_000,
+      cuota: 2_000,
+      totalDias: 555,
+      frecuencia: "diario" as const,
+    };
+    const r = resolverCredito(pedido({
+      via: "renovacion",
+      monto: 1_110_000,
+      totalDias: 500, // distinto del anterior → lo eligió una persona
+      frecuencia: null,
+      referencia: ref,
+    }));
+    expect(r.via).toBe("rechazo");
+    if (r.via === "rechazo") expect(r.error).toMatch(/366/);
+  });
+
   it("⚠️ pero NO lo heredado: un Disapp de 555 cuotas se repite tal cual", () => {
     // PAOLA VANESSA CASTRO, $1.110.000 en 555 cuotas. Rebotarlo era un rojo sobre
     // algo que el cobrador no puede tocar en esa pantalla.

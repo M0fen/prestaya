@@ -339,8 +339,20 @@ export function resolverCredito(p: PedidoCredito): ResolucionCredito {
   // Un heredado de Disapp puede tener 555 cuotas (PAOLA VANESSA CASTRO,
   // $1.110.000): aplicarle el tope a lo que se REPITE lo rebotaba en rojo en una
   // pantalla que ni siquiera tiene campo de cuotas.
-  const tecleadas = p.totalDias != null;
-  const totalDias = tecleadas ? Math.round(Number(p.totalDias)) : (ref?.totalDias ?? 0);
+  const totalDias = p.totalDias != null ? Math.round(Number(p.totalDias)) : (ref?.totalDias ?? 0);
+  // ⚠️ QUÉ CUENTA COMO "TECLEADO". No alcanza con "vino un número": los
+  // formularios PRELLENAN el campo con las cuotas del crédito anterior, así que
+  // el panel manda 555 aunque el gestor no haya tocado nada. Con el proxy
+  // `!= null`, renovar a PAOLA VANESSA CASTRO (555 cuotas, $1.110.000, saldada)
+  // rebotaba con "máximo 366" en una pantalla donde la única salida ofrecida era
+  // recortarle el plazo y subirle la cuota de $2.000 a $3.639 (+82%).
+  //
+  // Lo que distingue continuidad de decisión no es que venga un número, sino que
+  // sea DISTINTO del que el crédito ya tenía. Repetir lo heredado es continuidad
+  // de una exposición que ya existe; elegir otro plazo es una decisión nueva, y
+  // solo esa lleva el tope.
+  const heredadas = ref != null && totalDias === ref.totalDias;
+  const tecleadas = !heredadas;
   if (!Number.isFinite(totalDias) || !cuotasValidas(totalDias, tecleadas)) {
     return {
       via: "rechazo",
@@ -403,12 +415,21 @@ export function resolverCredito(p: PedidoCredito): ResolucionCredito {
     ? { monto: ref!.monto, cuota: ref!.cuota, totalDias: ref!.totalDias }
     : null;
   const tasaHeredada = interesDeBase(baseTasa);
-  // El interés del formulario SOLO se acepta cuando no hay tasa que arrastrar:
-  // el gestor no puede re-tarifar a un cliente con historial por esta vía.
-  const interesPct =
-    tasaHeredada != null
-      ? tasaHeredada
-      : Math.max(0, Math.min(100, Math.round(Number(p.interesPct ?? INTERES_DEFECTO_PCT))));
+  // ⚠️ EL INTERÉS DEL FORMULARIO SOLO VALE PARA UN CLIENTE SIN HISTORIAL.
+  //
+  // La condición es HAY REFERENCIA, no HAY TASA BUENA. Son distintas y la
+  // diferencia es plata: 838 clientes tienen como último crédito uno de los
+  // heredados con la tasa rota del import (0%), $52,2M de referencia. Si el
+  // corte se hiciera por "tasa buena", para esos 838 el formulario podría
+  // imponer su propio interés —un POST con `interesPct: 3` sobre un cliente que
+  // el negocio tarifa al 20%— y el servidor lo aceptaría.
+  //
+  // Con referencia manda su tasa; y si esa tasa viene rota, se cae al 20% del
+  // negocio (nunca a lo que diga el formulario). Es lo que hacían las puertas
+  // antes de unificarlas y hay que conservarlo tal cual.
+  const interesPct = conReferencia
+    ? (tasaHeredada ?? INTERES_DEFECTO_PCT)
+    : Math.max(0, Math.min(100, Math.round(Number(p.interesPct ?? INTERES_DEFECTO_PCT))));
 
   const cuota = calcularCuotaCreditoNuevo(baseTasa, monto, totalDias, interesPct);
   if (!(cuota > 0)) {

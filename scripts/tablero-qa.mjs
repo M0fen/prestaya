@@ -54,8 +54,17 @@ const BASELINE = {
     // DESPUÉS de anular 41 pagos duplicados ($38.350). No es un permiso: es el
     // punto de partida contra el que se mide si APARECEN casos nuevos. Lo que
     // de verdad vigila este renglón es la plata (check 1b) y el crecimiento.
-    tope: 585,
-    nota: "581 medidos el 04-09 DESPUÉS de anular 41 duplicados ($1.175.375 de exceso vivo); la corrida de las 10:00Z todavía dice 608 porque es anterior — el resto se resuelve contra el export fresco de Disapp; si SUBE, es plata nueva mal contada",
+    // ⚠️ EL TOPE SE MIDE CON EL MISMO INSTRUMENTO QUE LO REPORTA. Este número
+    // sale del RPC 0071 vía `reconciliacion_log.detalle`, que aplica su propio
+    // predicado; calibrarlo con una consulta SQL escrita a mano da otro valor
+    // (581 vs 608) y deja el tope con margen negativo o falsamente holgado. 608
+    // es el último valor QUE ESTE VIGILANTE reportó.
+    //
+    // Se espera que BAJE en la próxima corrida (el 04-09 se anularon 41 pagos
+    // duplicados): si mañana no bajó, la anulación no impactó donde debía y hay
+    // que mirarlo. El resto se resuelve contra el export fresco de Disapp.
+    tope: 608,
+    nota: "608 es lo último que reportó el propio vigilante (04-09 10:00Z, antes de anular 41 duplicados); tiene que BAJAR en la próxima corrida — si no baja, mirarlo",
   },
   "importado-saldado-sin-finalizar": {
     // Tenía `tope: null` con la nota "~217", y por la expresión de abajo eso
@@ -145,19 +154,14 @@ console.log("═══ TABLERO DE QA · " + new Date().toISOString().slice(0, 16
       linea(`   ${inv}`, `${n}${tendencia}${base ? `  (baseline: ${base.nota})` : ""}`, alarma);
     }
 
-    // ⚠️ CLAVE AUSENTE ≠ CLAVE EN CERO. Las ventanas de 14 días del cron dejaron
-    // sin datos a dos invariantes y el tablero las daba por sanas: no aparecían
-    // en el detalle y por lo tanto nadie las miraba. Un vigilante que dejó de
-    // mirar no es un vigilante en verde.
-    for (const inv of Object.keys(BASELINE)) {
-      if (!(inv in porInv)) {
-        linea(
-          `   ${inv}`,
-          "SIN DATO",
-          `${inv} no vino en la última corrida — ¿la invariante se quedó sin datos que mirar?`,
-        );
-      }
-    }
+    // Las invariantes que NO vienen en el detalle son las que no tienen ninguna
+    // violación: el RPC solo devuelve las que encontraron algo. Se listan como
+    // limpias —para que se vea que existen y que hoy están en cero— pero NO
+    // alarman: hacerlo sonaba dos alarmas falsas todos los días sobre dos
+    // invariantes sanas, que es la forma más rápida de que se deje de leer el
+    // tablero entero.
+    const limpias = Object.keys(BASELINE).filter((inv) => !(inv in porInv));
+    if (limpias.length) linea("   sin violaciones hoy", limpias.join(", "));
   }
 }
 
@@ -175,15 +179,22 @@ console.log("═══ TABLERO DE QA · " + new Date().toISOString().slice(0, 16
       from prestamos
      where pagado_acum > cuota_diaria*total_dias + 1
   `);
-  // Medido el 04-09 tras anular los 41 duplicados del empalme. Baja sola a
-  // medida que se resuelve; si SUBE es plata nueva contada dos veces.
-  const TOPE_EXCESO = 1_175_375;
+  // ⚠️ SE VIGILA EL EXCESO DE LOS **ACTIVOS**, no el total. El total es un stock
+  // heredado que solo puede bajar a medida que se resuelve, y usarlo de tope
+  // reproduce el mismo error que este tablero acaba de corregir: se anulan los
+  // duplicados de los finalizados (−$805.103), aparece un doble cobro REAL de
+  // $600.000 en créditos vivos, la suma queda por debajo del tope viejo y el
+  // tablero se pone verde con plata cobrada dos veces a clientes que están
+  // pagando hoy. El exceso de los ACTIVOS, en cambio, es plata que alguien puede
+  // reclamar mañana: ese número no tiene por qué subir nunca.
+  const TOPE_EXCESO_ACTIVOS = 370_276; // medido el 04-09 tras anular los 41 duplicados
   const exceso = Number(x?.exceso ?? 0);
+  const excesoActivos = Number(x?.exceso_activos ?? 0);
   linea(
     "Sobre-cobro vivo (plata, no filas)",
-    `$${exceso.toLocaleString("es-UY")} en ${x?.n ?? 0} créditos · activos: $${Number(x?.exceso_activos ?? 0).toLocaleString("es-UY")} en ${x?.n_activos ?? 0}`,
-    exceso > TOPE_EXCESO
-      ? `el exceso SUBIÓ a $${exceso.toLocaleString("es-UY")} (tope $${TOPE_EXCESO.toLocaleString("es-UY")}): hay plata NUEVA contada dos veces`
+    `$${exceso.toLocaleString("es-UY")} en ${x?.n ?? 0} créditos · ACTIVOS: $${excesoActivos.toLocaleString("es-UY")} en ${x?.n_activos ?? 0}`,
+    excesoActivos > TOPE_EXCESO_ACTIVOS
+      ? `el sobre-cobro en créditos ACTIVOS subió a $${excesoActivos.toLocaleString("es-UY")} (era $${TOPE_EXCESO_ACTIVOS.toLocaleString("es-UY")}): hay plata NUEVA contada dos veces a clientes que están pagando`
       : null,
   );
 }
@@ -225,18 +236,31 @@ console.log("═══ TABLERO DE QA · " + new Date().toISOString().slice(0, 16
 
 // ── 4 · Jornadas sin rendir ─────────────────────────────────────────────────
 {
+  // ⚠️ CON PISO TEMPORAL Y CON TOPE PROPIO. Antes barría TODA la historia y se
+  // comparaba contra el tope de OTRA métrica (`base_sin_rendir`, que mide una
+  // ventana de 14 días del cron): imprimía "14 / 14" y gritaba "crecen las
+  // jornadas sin rendir" todos los días, sobre un acumulado congelado desde el
+  // 17-08 que es matemáticamente incapaz de moverse. Un contador histórico
+  // contra un tope fijo es una alarma con fecha de defunción: primero grita para
+  // siempre y después nadie la lee.
+  //
+  // Lo que se vigila es lo RECIENTE (30 días, que es donde todavía se puede
+  // actuar); el acumulado histórico va como cifra informativa al lado.
+  const TOPE_JORNADAS_SIN_ACTA_30D = 0;
   const [r] = await q(`
     select
-      count(*) filter (where a.fecha < (now() at time zone 'America/Montevideo')::date - 2)::int as viejas,
+      count(*) filter (where a.fecha >= (now() at time zone 'America/Montevideo')::date - 30)::int as recientes,
       count(*)::int as total
     from aperturas_caja a
     where a.fecha < (now() at time zone 'America/Montevideo')::date
       and not exists (select 1 from rendiciones r where r.cobrador_id = a.cobrador_id and r.fecha = a.fecha)
   `);
   linea(
-    "Jornadas con base y sin acta (>48 h / total)",
-    `${r.viejas} / ${r.total}`,
-    r.viejas > BASELINE.base_sin_rendir.tope ? "crecen las jornadas sin rendir: plata durmiendo en bolsillos" : null,
+    "Jornadas con base y sin acta (30 días / histórico)",
+    `${r.recientes} / ${r.total}`,
+    r.recientes > TOPE_JORNADAS_SIN_ACTA_30D
+      ? `${r.recientes} jornada(s) de los últimos 30 días con base cargada y sin acta: esa plata no arrastra`
+      : null,
   );
 }
 
@@ -292,7 +316,15 @@ console.log("═══ TABLERO DE QA · " + new Date().toISOString().slice(0, 16
     select
       (select count(*)::int from aperturas_caja where fecha = (now() at time zone 'America/Montevideo')::date) as hoy,
       (select count(*)::int from aperturas_caja where fecha = (now() at time zone 'America/Montevideo')::date - 1) as ayer,
-      (select count(*)::int from usuarios where rol='cobrador' and activo) as cobradores,
+      -- ⚠️ El denominador son los que REALMENTE cobran, no los 52 marcados
+      -- 'activo' en la tabla (muchos son altas viejas que nunca salieron a la
+      -- calle). Con 52 el renglón sale rojo para siempre: incluso el día que 15
+      -- de 18 carguen base, 15 < 26 y la alarma sigue sonando — justo cuando la
+      -- adopción sería una buena noticia.
+      (select count(distinct p.registrado_por)::int from pagos p
+        where p.anulado = false and p.origen is null
+          and p.registrado_en >= now() - interval '7 days'
+          and p.registrado_por is not null) as cobradores,
       (select count(*)::int from pagos
         where anulado = false and origen is null
           and registrado_en >= now() - interval '7 days') as pagos_7d
@@ -304,10 +336,10 @@ console.log("═══ TABLERO DE QA · " + new Date().toISOString().slice(0, 16
   // últimos 7 días, el piloto está vivo y la alarma se enciende sin excusa.
   const pilotoVivo = Number(r.pagos_7d) > 0;
   linea(
-    "Bases cargadas hoy / ayer / cobradores",
+    "Bases hoy / ayer / cobradores que COBRAN",
     `${r.hoy} / ${r.ayer} / ${r.cobradores}${pilotoVivo ? `  · ${r.pagos_7d} cobros en la app en 7 días` : "  · sin cobros en 7 días"}`,
-    pilotoVivo && r.ayer < Math.ceil(r.cobradores / 2)
-      ? `se está cobrando por la app (${r.pagos_7d} pagos en 7 días) pero solo ${r.ayer} de ${r.cobradores} cobradores cargaron base ayer: esa caja no arrastra`
+    pilotoVivo && r.cobradores > 0 && r.ayer < Math.ceil(r.cobradores / 2)
+      ? `se está cobrando por la app (${r.pagos_7d} pagos de ${r.cobradores} cobrador(es) en 7 días) pero solo ${r.ayer} cargaron base ayer: esa caja no arrastra`
       : null,
   );
   if (!pilotoVivo)

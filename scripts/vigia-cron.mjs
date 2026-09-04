@@ -36,7 +36,7 @@ const fallas = [];
 // es "hay 555 problemas". Ahora se mira también el CONTENIDO.
 {
   const { rows } = await db.query(
-    "select corrida_en, criticos from reconciliacion_log order by corrida_en desc limit 6",
+    "select corrida_en, criticos, detalle from reconciliacion_log order by corrida_en desc limit 6",
   );
   if (!rows.length) {
     fallas.push("reconciliacion_log está VACÍO: los vigilantes jamás corrieron.");
@@ -56,15 +56,31 @@ const fallas = [];
       );
     }
 
-    // (b) ¿La métrica está CONGELADA? Un número idéntico cinco corridas seguidas,
-    //     mientras entran pagos todos los días, no es una cartera estable: es un
-    //     sensor trabado. Es exactamente lo que pasó con 292 durante 11 días y
-    //     con 608 durante 19.
-    const ultimos = rows.slice(0, 5).map((r) => Number(r.criticos ?? 0));
-    if (ultimos.length === 5 && new Set(ultimos).size === 1 && ultimos[0] > 0) {
-      fallas.push(
-        `los críticos valen exactamente ${ultimos[0]} en las últimas 5 corridas: la métrica está congelada — ¿el RPC devuelve siempre lo mismo o el log se está reescribiendo?`,
-      );
+    // (b) ¿Alguna métrica está CONGELADA? Un número idéntico cinco corridas
+    //     seguidas, mientras entran pagos todos los días, no es una cartera
+    //     estable: es un sensor trabado. Es lo que pasó con `no-sobrecobro`
+    //     —292 durante 11 días, 608 durante 19— sin que nadie lo notara.
+    //
+    // ⚠️ SE MIRAN LAS INVARIANTES, NO EL TOTAL. `criticos` es una suma, y alcanza
+    // con que UNA de sus partes se mueva (el flujo diario de rendiciones, que
+    // baila entre 1 y 6) para que el total nunca se repita y el chequeo no vea
+    // nada — justo mientras la parte que importa lleva 19 días clavada.
+    const detalleDe = (r) => {
+      const d = typeof r.detalle === "string" ? JSON.parse(r.detalle) : (r.detalle ?? {});
+      return d && typeof d === "object" ? d : {};
+    };
+    const corridas = rows.slice(0, 5).map(detalleDe);
+    if (corridas.length === 5) {
+      const claves = new Set(corridas.flatMap((d) => Object.keys(d)));
+      for (const k of claves) {
+        const serie = corridas.map((d) => (typeof d[k] === "number" ? d[k] : null));
+        if (serie.some((v) => v == null)) continue;
+        if (new Set(serie).size === 1 && serie[0] > 0) {
+          fallas.push(
+            `«${k}» vale exactamente ${serie[0]} en las últimas 5 corridas: la métrica está congelada — ¿el RPC devuelve siempre lo mismo o nadie está resolviendo esos casos?`,
+          );
+        }
+      }
     }
   }
 }

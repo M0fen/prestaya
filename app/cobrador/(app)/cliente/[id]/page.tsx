@@ -246,18 +246,25 @@ async function Detalle({
   // su teléfono ("Semana 4/17"); acá se leía "4 días" (783 créditos activos, el
   // 62,7% del capital en la calle).
   const unidad = UNIDAD_FRECUENCIA[prestamo.frecuencia];
-  // ¿Se le tocaron los términos por administración? Se lee con service_role: la
-  // policy de `auditoria` es solo-gestores y con la sesión del cobrador esta
-  // consulta devuelve cero filas SIN error (el chip no se vería nunca).
-  const correccion = (await getCorreccionesDeCreditos([prestamo.id])).get(prestamo.id) ?? null;
-  // El plazo ya se cumplió: no quedan cuotas por vencer, lo que sigue es
-  // recuperación. 2.135 de los 3.133 activos están así y la ficha los mostraba
-  // como créditos corrientes, pidiendo un "ponerse al día" que ya no puede pasar.
-  const plazoCumplido = plazoVencido(prestamo, hoyUY());
+  // El plazo ya se cumplió Y todavía debe: lo que sigue es recuperación, no
+  // "ponerse al día". Si ya está saldado, el plazo cumplido no es noticia — son
+  // 394 créditos que mostraban "🎉 Terminó de pagar" y "⏳ es recuperación" a la
+  // vez (los zombies saldados sin finalizar).
+  const plazoCumplido = plazoVencido(prestamo, hoyUY()) && r.falta >= 1;
 
-  // Compromiso de pago abierto (mini-CRM) + la nota que dejó el cobrador/gestor,
-  // para confirmarlo desde el cartón. El más reciente con promesa gana.
-  const gestiones = await getGestionesCliente(db, clienteId);
+  // ⚠️ EN PARALELO, no encadenadas: esta pantalla ya tuvo el problema de las
+  // 250-370 consultas en serie, y ninguna de las dos depende de la otra.
+  //  · gestiones  → el compromiso de pago abierto (mini-CRM), el más reciente
+  //    con promesa gana.
+  //  · correcciones → ¿la oficina le tocó los términos a este crédito? Se lee
+  //    con service_role: la policy de `auditoria` es solo-gestores y con la
+  //    sesión del cobrador la consulta devuelve cero filas SIN error, así que el
+  //    chip no se vería nunca (y ningún test lo notaría).
+  const [gestiones, correcciones] = await Promise.all([
+    getGestionesCliente(db, clienteId),
+    getCorreccionesDeCreditos([prestamo.id]),
+  ]);
+  const correccion = correcciones.get(prestamo.id) ?? null;
   const compromiso =
     gestiones.find((g) => g.montoCompromiso != null && g.fechaCompromiso != null) ?? null;
 
@@ -403,26 +410,40 @@ async function Detalle({
       <div className="grid grid-cols-2 gap-2.5">
         <Resumen label={ROTULO_CUOTA[prestamo.frecuencia]} valor={UYU(prestamo.cuota_diaria)} />
         <Resumen label="Saldo" valor={UYU(r.falta)} />
-        {/* "Pagó 4 de 17 semanas" — la MISMA cuenta que el comprobante que el
-            cliente recibe por WhatsApp ("Cuotas: lleva 4 de 17"). */}
-        <Resumen
-          label={`${unidad.plural.charAt(0).toUpperCase()}${unidad.plural.slice(1)} pagadas`}
-          valor={`${cubiertos}/${prestamo.total_dias}`}
-        />
+        {/* "Cuotas pagadas 4/17" — la MISMA palabra que el comprobante que el
+            cliente recibe por WhatsApp ("Cuotas: lleva 4 de 17").
+            ⚠️ Dice CUOTAS, no la unidad de tiempo: "Días pagadas" y "Meses
+            pagadas" no concuerdan en género, y son el 75% de la cartera. La
+            unidad del formato ya la dice el chip de arriba y el rótulo de la
+            cuota; acá lo que se cuenta son cuotas y así se llama. */}
+        <Resumen label="Cuotas pagadas" valor={`${cubiertos}/${prestamo.total_dias}`} />
         <Resumen label="Total" valor={UYU(r.totalAPagar)} />
       </div>
 
       {/* El próximo vencimiento ya estaba calculado y se descartaba. En un
           diario es casi obvio (mañana); en los 783 no-diarios es EL dato: sin
           él el cobrador no sabe si hoy le toca a este cliente o no. */}
+      {/* ⚠️ `r.proxima` es la próxima cuota FUTURA: por definición nunca es la de
+          hoy (la de hoy ya está vencida o en curso). Rotularla "Próxima cuota" a
+          secas hacía que la ficha dijera "Próxima cuota jue 17/9" arriba y
+          "Cuota de hoy pendiente" tres centímetros abajo — el cobrador leía el
+          17 y se iba sin cobrar. Se dice cuál es la de HOY cuando hay, y la
+          siguiente se rotula como lo que es: la que viene DESPUÉS. */}
       {r.proxima ? (
         <div className="flex items-center justify-between rounded-[12px] bg-campo px-3.5 py-2">
-          <span className="text-[12px] font-bold text-gris">Próxima cuota</span>
+          <span className="text-[12px] font-bold text-gris">
+            {r.montoParaAlDia > 0 ? "Después de esta, vence" : "Próxima cuota"}
+          </span>
           <span className="text-[12.5px] font-extrabold text-tinta">
             {cuandoVence(r.proxima.diasRestantes, r.proxima.fecha)} · {UYU(prestamo.cuota_diaria)}
           </span>
         </div>
-      ) : null}
+      ) : plazoCumplido ? null : (
+        <div className="flex items-center justify-between rounded-[12px] bg-campo px-3.5 py-2">
+          <span className="text-[12px] font-bold text-gris">Próxima cuota</span>
+          <span className="text-[12.5px] font-extrabold text-tinta">No quedan cuotas por vencer</span>
+        </div>
+      )}
 
       {/* Cuánto para ponerse al día — el cobrador no lo tiene que deducir del cartón. */}
       {r.montoParaAlDia > 0 ? (

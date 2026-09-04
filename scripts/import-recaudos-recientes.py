@@ -155,9 +155,35 @@ if dias_import:
             nativo_cuota.setdefault((n["prestamo_id"], int(dc)), 0)
             nativo_cuota[(n["prestamo_id"], int(dc))] += float(n.get("monto") or 0)
 
+    # ⚠️ EL MONTO TAMBIÉN TIENE QUE COINCIDIR. Con la guardia comparando SOLO
+    # (crédito, cuota), cualquier recaudo cuya cuota ya tuviera algún pago nativo
+    # se descartaba —aunque fuera plata distinta—: medido sobre el lote del 17-08
+    # daba ~60% de falsos positivos, o sea cobros REALES tirados en silencio.
+    # El caso típico: la app registró un abono parcial de $200 en la cuota 12 y
+    # Disapp trae los $500 completos de esa misma cuota; no es el mismo apunte.
+    #
+    # Dos cobros son EL MISMO cuando coinciden crédito, cuota Y monto. La
+    # tolerancia cubre el redondeo del import (cuotas fraccionarias de Disapp),
+    # no una diferencia de plata de verdad.
     def choca_por_cuota(f):
         dc = f.get("dia_credito")
-        return dc is not None and (f["prestamo_id"], int(dc)) in nativo_cuota
+        if dc is None:
+            return False
+        nat = nativo_cuota.get((f["prestamo_id"], int(dc)))
+        if nat is None:
+            return False
+        imp = float(f.get("monto") or 0)
+        return abs(nat - imp) <= max(1.0, imp * 0.02)
+
+    # Lo que cae en una cuota que la app ya tocó pero con OTRO monto: no se
+    # descarta (entra), pero se lista para mirarlo a mano. Es la zona donde puede
+    # esconderse tanto un cobro legítimo como un duplicado parcial.
+    def dudoso_por_cuota(f):
+        dc = f.get("dia_credito")
+        if dc is None:
+            return False
+        nat = nativo_cuota.get((f["prestamo_id"], int(dc)))
+        return nat is not None and not choca_por_cuota(f)
 
     choques = [
         f for f in filas
@@ -183,6 +209,19 @@ if dias_import:
             filas = [f for f in filas if id(f) not in omitidas]
             print(f"   ✂ --omitir-choques: se DESCARTAN los {len(choques)} choques (${monto_choque:,}); "
                   f"entran {len(filas)} recaudos que la app NO tenía.")
+            # Los que caen en una cuota ya tocada por la app pero con OTRO monto:
+            # ENTRAN (no son el mismo apunte) y se listan para revisión. Con la
+            # guardia vieja —que solo miraba la cuota— estos se descartaban en
+            # silencio y era ~60% de lo frenado: plata real que se perdía.
+            dudosos = [f for f in filas if dudoso_por_cuota(f)]
+            if dudosos:
+                monto_dud = round(sum(x["monto"] for x in dudosos))
+                print(f"   ⚠ {len(dudosos)} recaudos (${monto_dud:,}) caen en una cuota que la app YA tocó")
+                print("     pero por OTRO monto: ENTRAN (no son el mismo apunte). Revisar a mano:")
+                for f in dudosos[:15]:
+                    nat = nativo_cuota.get((f["prestamo_id"], int(f["dia_credito"])), 0)
+                    print(f"       · {f['prestamo_id'][:8]}… cuota {f['dia_credito']}: "
+                          f"Disapp ${round(f['monto']):,} vs app ${round(nat):,}")
             # Transparencia del descarte: cuando Disapp trae MÁS plata que la app en
             # ese (crédito, día) — dos cuotas juntas vs una en la app —, el excedente
             # se pierde con el descarte. Se lista para revisarlo a mano (no se inventa
