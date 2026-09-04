@@ -184,7 +184,17 @@ export function puedeEntregaDiferida(
         "La jornada de hoy la cierra el cobrador desde su teléfono. Acá se registran las que quedaron abiertas de días anteriores.",
     };
   if (fecha < limiteYmd)
-    return { ok: false, motivo: "Esa jornada tiene más de 30 días. Resolvela con la oficina." };
+    // ⚠️ El mensaje decía "resolvela con la oficina" — y la oficina es justo quien
+    // está mirando esta pantalla: un callejón sin salida (auditoría 04-09). Ahora
+    // dice la salida REAL: esa plata se registra como un movimiento de caja, que
+    // es donde entra el efectivo sin acta de jornada. El tope de 30 días se
+    // mantiene a propósito: un acta fechada meses atrás mueve comisiones ya
+    // liquidadas, y eso es una decisión del dueño, no un botón.
+    return {
+      ok: false,
+      motivo:
+        "Esa jornada tiene más de 30 días: ya no se puede sellar como acta (movería comisiones ya liquidadas). Si recibiste ese efectivo, registralo en Caja como ingreso y dejá la nota con la fecha.",
+    };
   return { ok: true };
 }
 

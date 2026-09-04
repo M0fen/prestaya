@@ -7,6 +7,7 @@
 //
 //  ⚠️ MANEJA DINERO: la cuota del nuevo crédito arrastra la tasa del anterior.
 // ─────────────────────────────────────────────────────────────────────────
+import type { FrecuenciaPrestamo } from "@/types/db";
 
 /** Términos del crédito anterior necesarios para arrastrar la tasa. */
 export interface TerminosAnterior {
@@ -296,6 +297,97 @@ export function explicaTecho(montoAnterior: number, maximo: number): string {
   return maximo > RENOVACION_CAP_TOTAL
     ? `(+20% sobre ${pes(montoAnterior)})`
     : `(el tope general de ${pes(RENOVACION_CAP_TOTAL)})`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+//  CAMBIO DE FORMATO — cuántas cuotas equivalen al MISMO plazo.
+//
+//  Cuando el cobrador (o el gestor) pasa un crédito de diario a semanal, lo que
+//  tiene en la cabeza es el PLAZO: "esto se paga en un mes". 24 cuotas diarias
+//  ≈ 4 semanales. Sin esta conversión, elegir "Semanal" dejando el 24 fabricaba
+//  un crédito de 24 SEMANAS en silencio (piloto 19-08).
+//
+//  ⚠️ Vivía DUPLICADA: una copia en FormRenovacion (panel) y la fórmula suelta
+//  dentro de ColocarLista (calle). Daban lo mismo hoy, pero es exactamente la
+//  clase de copia que en este proyecto ya produjo desacuerdos pantalla/servidor.
+//  Una sola función, importada por los dos. Pura.
+// ─────────────────────────────────────────────────────────────────────────
+
+/** Días entre cuotas de cada formato, EN DÍAS DE COBRO (Lun–Sáb), no calendario.
+ *
+ *  ⚠️ Esta es la parte que hay que mirar dos veces. El cobro diario NO avanza 7
+ *  días por semana: avanza 6, porque el domingo no vence cuota (`fechaDeCuota`
+ *  en lib/cartones). Entonces **24 cuotas diarias son 4 semanas**, que es
+ *  exactamente lo que el negocio entiende por "un mes" y lo que dicen los
+ *  plazos sugeridos de abajo (diario 24 ↔ semanal 4).
+ *
+ *  Con el paso CALENDARIO (7) la cuenta daba 24/7 = 3,4 → 3 semanas: al pasar un
+ *  crédito de diario a semanal le recortaba el plazo un 25% y le subía la cuota
+ *  al cliente sin que nadie lo pidiera. Se cazó escribiendo el test de esta
+ *  función (04-09), y el comentario del código ya decía "24 diarias ≈ 4
+ *  semanales" mientras la fórmula decía otra cosa.
+ *
+ *  Quincenal y mensual van por la misma vara: 15 y 30 días CALENDARIO son ~13 y
+ *  ~26 días de cobro. */
+export const DIAS_POR_FRECUENCIA: Record<FrecuenciaPrestamo, number> = {
+  diario: 1,
+  semanal: 6,
+  quincenal: 13,
+  mensual: 26,
+};
+
+/** Plazos sugeridos por formato: los que el negocio usa de verdad. */
+export const PLAZOS_POR_FRECUENCIA: Record<FrecuenciaPrestamo, readonly number[]> = {
+  diario: [20, 24, 30],
+  semanal: [4, 6, 8],
+  quincenal: [2, 3, 4],
+  mensual: [1, 2, 3],
+};
+
+/** Cuotas equivalentes al cambiar de formato, conservando el plazo en días.
+ *  Nunca devuelve 0 (un crédito sin cuotas no existe) y respeta el tope de 366. */
+export function cuotasEquivalentes(
+  cuotas: number,
+  de: FrecuenciaPrestamo,
+  a: FrecuenciaPrestamo,
+): number {
+  const n = Math.round(Number(cuotas) || 0);
+  if (de === a || !(n > 0)) return n;
+  const dias = n * DIAS_POR_FRECUENCIA[de];
+  return Math.min(TOPE_CUOTAS, Math.max(1, Math.round(dias / DIAS_POR_FRECUENCIA[a])));
+}
+
+/** El plazo que el negocio usa por defecto en cada formato — todos son ≈ un mes.
+ *  Sirve para el crédito que TODAVÍA no tiene formato (el primero de un cliente):
+ *  ahí no hay plazo anterior que convertir, y dejar el "24" del diario mientras
+ *  se elige "semanal" fabrica un crédito de 24 SEMANAS (casi 6 meses). */
+export const PLAZO_TIPICO: Record<FrecuenciaPrestamo, number> = {
+  diario: 24,
+  semanal: 4,
+  quincenal: 2,
+  mensual: 1,
+};
+
+/**
+ * Qué cuotas proponer cuando se elige un formato en la pantalla.
+ *
+ *  · Sin formato previo (primer crédito) → el plazo típico del formato elegido.
+ *  · Con formato previo → la conversión que conserva el plazo… salvo que colapse
+ *    a menos de 2 cuotas: pasar "5 diarias" a semanal daría 1, y un crédito de
+ *    UNA cuota es otro producto (préstamo a un pago), no el mismo plazo en otra
+ *    forma. En ese caso NO se toca lo que el cobrador tecleó: decide él.
+ *  · `null` = no hay que tocar el campo de cuotas.
+ * Puro, compartido por la calle y el panel.
+ */
+export function cuotasAlCambiarFormato(
+  cuotasActuales: number,
+  de: FrecuenciaPrestamo | null,
+  a: FrecuenciaPrestamo,
+): number | null {
+  if (!de) return PLAZO_TIPICO[a];
+  if (de === a || !(cuotasActuales > 0)) return null;
+  const convertidas = cuotasEquivalentes(cuotasActuales, de, a);
+  return convertidas >= 2 ? convertidas : null;
 }
 
 /**

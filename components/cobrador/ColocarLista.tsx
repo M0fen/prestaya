@@ -35,7 +35,7 @@ import {
   interesDeBase,
   INTERES_DEFECTO_PCT,
 } from "@/lib/creditoNuevo";
-import { interesEfectivo, cuotasQueDanJusto, cuotasValidas, explicaTecho, rotuloTechoPropio } from "@/lib/renovacion";
+import { interesEfectivo, cuotasQueDanJusto, cuotasValidas, cuotasAlCambiarFormato, explicaTecho, rotuloTechoPropio } from "@/lib/renovacion";
 
 interface Candidato {
   clienteId: string;
@@ -93,14 +93,6 @@ function etiquetaFrec(f: string): string {
   return "días";
 }
 
-/** Días entre cuotas de cada formato: convierte el plazo al cambiar de formato. */
-const DIAS_POR_FRECUENCIA: Record<FrecuenciaPrestamo, number> = {
-  diario: 1,
-  semanal: 7,
-  quincenal: 15,
-  mensual: 30,
-};
-
 /**
  * EL FORMATO DEL CRÉDITO — cada cuánto vence una cuota. Uno solo para las dos
  * puertas (Renovar y Nueva venta): antes solo existía en Renovar, y por eso las
@@ -139,11 +131,11 @@ function SelectorFormato({
             key={f}
             type="button"
             onClick={() => {
-              // Mismo plazo en DÍAS: 24 diarias → 4 semanales (se puede cambiar).
-              const convertir =
-                valor && f !== valor && cuotas > 0
-                  ? Math.max(1, Math.round((cuotas * DIAS_POR_FRECUENCIA[valor]) / DIAS_POR_FRECUENCIA[f]))
-                  : null;
+              // Qué cuotas proponer (regla pura compartida con el panel):
+              // sin formato previo, el plazo típico del elegido — dejar el "24"
+              // del diario mientras se elige "semanal" fabricaba 24 SEMANAS;
+              // con formato previo, la conversión que conserva el plazo.
+              const convertir = cuotasAlCambiarFormato(cuotas, valor, f);
               onElegir(f, convertir);
             }}
             className={`min-h-[44px] rounded-[10px] border-2 px-1 text-[12.5px] font-bold capitalize ${
@@ -917,7 +909,10 @@ function Tarjeta({
                     <input
                       inputMode="numeric"
                       value={monto}
-                      onChange={(e) => setMonto(e.target.value.replace(/\D/g, ""))}
+                      // ⚠️ Cambiar el monto DESARMA la confirmación: con el botón
+                      // ya armado ("Sí, entregarle $5.000"), editar la cifra y
+                      // tocar una vez colocaba un monto distinto del confirmado.
+                      onChange={(e) => { setMonto(e.target.value.replace(/\D/g, "")); setConfirmar(false); }}
                       className="w-full min-h-[52px] bg-transparent text-[22px] font-black tabular-nums text-tinta outline-none"
                     />
                   </div>
@@ -927,7 +922,7 @@ function Tarjeta({
                   <input
                     inputMode="numeric"
                     value={cuotas}
-                    onChange={(e) => setCuotas(e.target.value.replace(/\D/g, ""))}
+                    onChange={(e) => { setCuotas(e.target.value.replace(/\D/g, "")); setConfirmar(false); }}
                     className="min-h-[52px] rounded-[12px] border-2 border-campo bg-tarjeta px-3 text-[22px] font-black tabular-nums text-tinta outline-none"
                   />
                 </label>
@@ -998,7 +993,11 @@ function Tarjeta({
               quedaron programados día por día— se dice la cuenta en criollo y se
               ofrece el formato que parece el correcto de un toque. El cobrador
               puede seguir igual: es un aviso, él tiene al cliente enfrente. */}
-          {avisoFormato && (
+          {/* ⚠️ Solo donde el formato elegido VIAJA al servidor: en venta, y en
+              renovar únicamente si desplegó "Cambiar monto, cuotas o formato".
+              En "renovar tal cual" el crédito se repite con el formato viejo, así
+              que el botón "Cambiar a X" no cambiaría nada: un aviso inerte. */}
+          {avisoFormato && (modo === "venta" || renovarAjustado) && (
             <div className="flex flex-col gap-2 rounded-[12px] bg-ambar-suave px-3 py-2.5">
               <span className="text-[12px] leading-[1.45] font-bold text-ambar-osc">
                 ⚠️ {avisoFormato.texto}

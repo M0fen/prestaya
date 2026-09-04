@@ -217,24 +217,44 @@ console.log("═══ TABLERO DE QA · " + new Date().toISOString().slice(0, 16
 //  (creado_por no nulo): los heredados de Disapp son otra historia, con su
 //  propio lote de revisión.
 {
-  const [r] = await q(`
-    select count(*)::int as n,
-           count(*) filter (where creado_en > now() - interval '7 days')::int as ultima_semana,
-           coalesce(min(fecha_inicio)::text, '—') as mas_viejo
-    from prestamos
-    where estado = 'activo' and frecuencia = 'diario' and total_dias <= 8
-      and creado_por is not null and origen <> 'disapp_import'
-      and cuota_diaria / nullif(monto_prestado, 0) >= 0.20
-  `);
-  // Baseline 3 (04-09): MARIA PICA, ANDREA JHOANA y ANA STEVES — casos
-  // ambiguos que se dejaron a propósito para consultar con su cobrador (sus
-  // clientes son 100% diarios). Lo que SUPERE ese número es del día.
-  const BASELINE = 3;
+  // ⚠️ Tres calibraciones que salieron de la auditoría del 04-09:
+  //  · `total_dias >= 2`: el PRÉSTAMO A UN PAGO (1 cuota) es un producto real
+  //    del negocio —7 activos, clientes que lo repiten— y no un formato mal
+  //    elegido. Contarlo hacía cantar al vigilante todos los meses.
+  //  · Se sacó `origen <> 'disapp_import'`: ese valor no existe en
+  //    `prestamos.origen` (su CHECK admite 'credito' y 'tienda'; el
+  //    'disapp_import' vive en `pagos.origen`). Era un filtro muerto que
+  //    aparentaba excluir algo. Lo que separa la app del empalme es
+  //    `creado_por is not null`, que sí funciona.
+  //  · El baseline es la LISTA de los conocidos, no un contador: con un número
+  //    fijo, resolver uno viejo y cargar uno nuevo se compensaban y el
+  //    vigilante quedaba ciego justo cuando había que mirar.
+  const CONOCIDOS = [
+    // Ambiguos del 04-09: clientes con historial 100% diario, dejados a
+    // propósito para consultarlos con su cobrador antes de tocarlos.
+    "MARIA PICA",
+    "ANDREA JHOANA GONZALEZ HERNANDEZ",
+    "ANA STEVES MARTíNEZ",
+  ];
+  const filas = await q(
+    `select c.nombre, p.total_dias, round(p.cuota_diaria / nullif(p.monto_prestado,0) * 100)::int as pct,
+            (p.creado_en > now() - interval '7 days') as reciente
+       from prestamos p join clientes c on c.id = p.cliente_id
+      where p.estado = 'activo' and p.frecuencia = 'diario'
+        and p.total_dias between 2 and 8
+        and p.creado_por is not null
+        and p.cuota_diaria / nullif(p.monto_prestado, 0) >= 0.20
+      order by p.creado_en desc`,
+  );
+  const nuevos = filas.filter((f) => !CONOCIDOS.includes(f.nombre));
   linea(
     "Créditos con formato incoherente (app)",
-    `${r.n}  (baseline ${BASELINE}${r.ultima_semana ? ` · ${r.ultima_semana} de esta semana` : ""})`,
-    r.n > BASELINE
-      ? `Hay ${r.n - BASELINE} crédito(s) nuevo(s) cargados como "diario" con cuota de días: correr scripts/formato-credito-diagnostico.ts`
+    `${filas.length}  (${CONOCIDOS.length} conocidos${nuevos.length ? ` · ${nuevos.length} NUEVOS` : ""})`,
+    nuevos.length > 0
+      ? `${nuevos.length} crédito(s) cargados como "diario" con cuota de días (${nuevos
+          .slice(0, 3)
+          .map((f) => `${f.nombre}: ${f.total_dias} cuotas al ${f.pct}%`)
+          .join("; ")}) — correr scripts/formato-credito-diagnostico.ts`
       : null,
   );
 }

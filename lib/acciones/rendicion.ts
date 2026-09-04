@@ -193,6 +193,9 @@ export async function registrarEntregaDiferida(input: {
   /** Efectivo que el supervisor recibió en mano. */
   entregado: number;
   notas?: string | null;
+  /** Lo que el cobrador se quedó ESE día para seguir trabajando. No es faltante:
+   *  queda declarado en el acta y es su base del día siguiente. */
+  retenido?: number;
 }): Promise<Resultado> {
   const u = await getUsuarioActual();
   if (!u || !u.activo || !esGestor(u.rol))
@@ -215,6 +218,14 @@ export async function registrarEntregaDiferida(input: {
 
   const entregado = Math.max(0, Math.round(Number(input.entregado) || 0));
   if (!Number.isFinite(entregado)) return { ok: false, error: "Revisá el monto entregado." };
+  // ⚠️ "SE QUEDÓ PARA MAÑANA" TAMBIÉN ACÁ (auditoría 04-09). El cierre del
+  // cobrador tiene el campo desde el 16-08, pero la entrega diferida —la única
+  // forma de vaciar el backlog de jornadas viejas— no lo tenía: sellar un día en
+  // el que el cobrador se quedó plata legítimamente para seguir trabajando lo
+  // marcaba como FALTANTE y, encima, esa base no arrastraba al día siguiente
+  // (baseDeMananaDesdeActa solo arrastra lo DECLARADO). Con el backlog real de
+  // jornadas, eso convertía el rescate en una montaña de faltantes falsos.
+  const retenidoPedido = Math.max(0, Math.round(Number(input.retenido) || 0));
 
   try {
     const db = await createSupabaseServer();
@@ -236,18 +247,25 @@ export async function registrarEntregaDiferida(input: {
         error: "Esa jornada ya está cerrada o no tiene cobros registrados. Recargá la pantalla.",
       };
 
+    // El retenido se ACOTA en el servidor a lo que de verdad quedaba sin
+    // entregar: nadie puede "quedarse" más de lo que había (mismo clamp que el
+    // cierre del cobrador). Sin esto, un número grande fabricaría un sobrante.
+    const esperadoBruto = Math.max(0, j.base + j.recaudado - j.gastos - j.colocado);
+    const retenido = Math.min(retenidoPedido, Math.max(0, esperadoBruto - entregado));
     const { esperado, diferencia, estado: est, aFavor } = calcularRendicion(
       j.recaudado,
       j.gastos,
       entregado,
       j.base,
       j.colocado,
+      retenido,
     );
     // La nota deja escrita la DOBLE FIRMA. Es lo que distingue un acta que el
     // cobrador confirmó en su teléfono de una que registró la oficina por él.
     const cabecera = `ENTREGA DIFERIDA: la registró ${u.nombre} el ${fechaHoy} por la jornada del ${fecha}.`;
     const extra = aFavor > 0 ? ` A favor del cobrador ${UYU(aFavor)} (colocó ${UYU(j.colocado)}).` : "";
-    const notas = `${cabecera}${extra}${input.notas ? ` · ${String(input.notas).trim()}` : ""}`.slice(0, 300);
+    const seQuedo = retenido > 0 ? ` Se quedó ${UYU(retenido)} para seguir trabajando (es su base del día siguiente).` : "";
+    const notas = `${cabecera}${extra}${seQuedo}${input.notas ? ` · ${String(input.notas).trim()}` : ""}`.slice(0, 300);
 
     await crearRendicionDb({
       cobradorId: input.cobradorId,
@@ -272,7 +290,7 @@ export async function registrarEntregaDiferida(input: {
       accion: "Registró la entrega de una jornada vieja",
       entidad: "rendicion",
       entidadId: input.cobradorId,
-      detalle: `${j.cobradorNombre} · jornada del ${fecha} (hace ${j.antiguedad} día${j.antiguedad === 1 ? "" : "s"}) · esperado ${UYU(esperado)} · recibió ${UYU(entregado)} · ${est}${diferencia !== 0 ? ` ${UYU(Math.abs(diferencia))}` : ""}`,
+      detalle: `${j.cobradorNombre} · jornada del ${fecha} (hace ${j.antiguedad} día${j.antiguedad === 1 ? "" : "s"}) · esperado ${UYU(esperado)} · recibió ${UYU(entregado)}${retenido > 0 ? ` · se quedó ${UYU(retenido)}` : ""} · ${est}${diferencia !== 0 ? ` ${UYU(Math.abs(diferencia))}` : ""}`,
     });
     revalidatePath("/admin/jornada");
     revalidatePath("/admin/alertas");

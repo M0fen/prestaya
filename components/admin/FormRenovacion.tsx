@@ -14,32 +14,24 @@ import {
   montoRenovacionSugerido,
   requiereAprobacionAdmin,
   techoRenovacion,
+  cuotasAlCambiarFormato,
+  PLAZOS_POR_FRECUENCIA,
   RENOVACION_AUMENTO_PCT,
   RENOVACION_CAP_TOTAL,
 } from "@/lib/renovacion";
-import { interesDeBase } from "@/lib/creditoNuevo";
+import { avisoCoherenciaFormato, interesDeBase } from "@/lib/creditoNuevo";
 import { renovarCredito } from "@/app/admin/(panel)/renovaciones/actions";
 import type { PrestamoAnterior } from "@/lib/data/renovaciones";
 import type { FrecuenciaPrestamo } from "@/types/db";
 
-/** Plazos estándar del negocio (cantidad de cuotas). Cobro diario Lun–Sáb. */
 /** Plazos estándar del negocio POR frecuencia: 24 diarios ≈ 4 semanales ≈ 2
  *  quincenales ≈ 1 mensual. Al cambiar de formato se re-sugiere el equivalente
  *  (piloto 19-08: elegir Semanal dejando "24" fabricaba un crédito de 24 SEMANAS
  *  en silencio). */
-const PLAZOS_POR_FREC: Record<FrecuenciaPrestamo, readonly number[]> = {
-  diario: [20, 24, 30],
-  semanal: [4, 6, 8],
-  quincenal: [2, 3, 4],
-  mensual: [1, 2, 3],
-};
-/** Cuotas equivalentes al cambiar de frecuencia, manteniendo el PLAZO en días. */
-function cuotasEquivalentes(cuotas: number, de: FrecuenciaPrestamo, a: FrecuenciaPrestamo): number {
-  const diasPor: Record<FrecuenciaPrestamo, number> = { diario: 1, semanal: 7, quincenal: 15, mensual: 30 };
-  if (de === a || !(cuotas > 0)) return cuotas;
-  const dias = cuotas * diasPor[de];
-  return Math.max(1, Math.round(dias / diasPor[a]));
-}
+// ⚠️ La conversión y los plazos viven en lib/renovacion (regla pura compartida):
+// acá había una COPIA, y la calle tenía la misma fórmula suelta adentro del
+// componente. Una sola función, importada por los dos.
+const PLAZOS_POR_FREC = PLAZOS_POR_FRECUENCIA;
 
 const FRECUENCIAS: { id: FrecuenciaPrestamo; label: string }[] = [
   { id: "diario", label: "Diario" },
@@ -114,6 +106,8 @@ export function FormRenovacion({
   // directo" y el rojo llegaba del servidor (auditoría 21-08).
   const evalu = valido ? evaluarRenovacion(anterior.monto, montoNum) : null;
   const bloqueado = valido && montoNum > techoRenovacion(anterior.monto);
+  /** ¿La cuota se condice con el formato? Misma regla pura que las otras puertas. */
+  const avisoFormato = avisoCoherenciaFormato(montoNum, cuota, diasNum, frecuencia);
 
   const enviar = async () => {
     setOcupado(true);
@@ -274,7 +268,8 @@ export function FormRenovacion({
               onClick={() => {
                 // Re-sugerir las cuotas equivalentes (mismo plazo en días):
                 // 24 diarias → 4 semanales. El gestor puede cambiarlo después.
-                setDias(String(cuotasEquivalentes(diasNum, frecuencia, f.id)));
+                const sug = cuotasAlCambiarFormato(diasNum, frecuencia, f.id);
+                if (sug != null) setDias(String(sug));
                 setFrecuencia(f.id);
                 setConfirmar(false);
               }}
@@ -316,6 +311,27 @@ export function FormRenovacion({
               // sobre el techo duro, las dos frases se negaban entre sí.
               `${evalu.motivo}${bloqueado ? " Más que eso en una sola renovación no se autoriza." : " Como gestor, lo autorizás directo."}`}
         </p>
+      )}
+
+      {/* ⚠️ El aviso de coherencia también acá: renovar desde el panel es la
+          cuarta puerta que crea créditos (calle-renovar, calle-venta, alta del
+          panel y esta), y era la única que quedó sin él. Misma regla pura. */}
+      {avisoFormato && (
+        <div className="flex flex-col gap-2 rounded-[12px] bg-[#FDF3E2] px-3 py-2.5">
+          <span className="text-[12px] leading-[1.45] font-bold text-[#8A6D1E]">⚠️ {avisoFormato.texto}</span>
+          <button
+            type="button"
+            onClick={() => {
+              const sug = cuotasAlCambiarFormato(diasNum, frecuencia, avisoFormato.sugerido);
+              if (sug != null) setDias(String(sug));
+              setFrecuencia(avisoFormato.sugerido);
+              setConfirmar(false);
+            }}
+            className="min-h-[44px] self-start rounded-full bg-tarjeta px-4 text-[12.5px] font-extrabold text-[#8A6D1E]"
+          >
+            Cambiar a {avisoFormato.sugerido}
+          </button>
+        </div>
       )}
 
       {error && (

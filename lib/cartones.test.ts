@@ -2,7 +2,7 @@
 // Cubren: estados de día, totales, próxima cuota, regla de oro de HOY,
 // suma de abonos y la normalización de "hoy" con hora.
 import { describe, expect, it } from "vitest";
-import { calcularEstadosCarton, fechaDeCuota, plazoVencido, totalCredito, saldoCredito } from "./cartones";
+import { calcularEstadosCarton, cuotasDebidasHasta, fechaDeCuota, plazoVencido, totalCredito, saldoCredito } from "./cartones";
 import { parseFecha, toIso } from "./format";
 import type { Pago, Prestamo } from "@/types/db";
 
@@ -364,5 +364,110 @@ describe("plazoVencido — cartera vencida vs crédito en término", () => {
   it("ignora la hora de 'hoy' (compara por día)", () => {
     const finConHora = new Date(2026, 6, 7, 23, 30); // 07-jul 23:30 = último día
     expect(plazoVencido(prestamoBase, finConHora)).toBe(false);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  cuotasDebidasHasta — CUÁNTO DEBERÍA ESTAR PAGO A HOY.
+//
+//  Es el número del que sale la MORA: lo usa la ruta para decidir si el cliente
+//  está atrasado y cuánto, sin recalcular el cartón entero. Estaba sin un solo
+//  test, y el 04-09 se volvió crítico: desde que el cobrador ELIGE el formato en
+//  la calle, esta función es la que traduce esa elección en "¿este cliente debe
+//  o no debe?". Un error acá marca morosos a clientes que están al día — que es
+//  exactamente lo que pasó con los 8 créditos semanales cargados como diarios.
+// ═══════════════════════════════════════════════════════════════════════════
+describe("cuotasDebidasHasta — el número del que sale la mora", () => {
+  // Mié 03-jun-2026. El calendario del negocio es Lun–Sáb: el domingo no vence.
+  const INICIO = "2026-06-03";
+
+  it("DIARIO: cuenta días hábiles y saltea el domingo", () => {
+    const p = { cuota_diaria: 500, total_dias: 24, fecha_inicio: INICIO };
+    expect(cuotasDebidasHasta(p, parseFecha("2026-06-03"))).toBe(1); // el día de arranque
+    expect(cuotasDebidasHasta(p, parseFecha("2026-06-05"))).toBe(3); // mié, jue, vie
+    expect(cuotasDebidasHasta(p, parseFecha("2026-06-06"))).toBe(4); // + sábado
+    // Domingo 07: NO vence cuota. Sigue debiendo las mismas 4 que el sábado.
+    expect(cuotasDebidasHasta(p, parseFecha("2026-06-07"))).toBe(4);
+    expect(cuotasDebidasHasta(p, parseFecha("2026-06-08"))).toBe(5); // lunes
+  });
+
+  it("SEMANAL: a los 7 días debe 2 cuotas, no 7", () => {
+    const p = { cuota_diaria: 2160, total_dias: 5, fecha_inicio: INICIO, frecuencia: "semanal" as const };
+    expect(cuotasDebidasHasta(p, parseFecha("2026-06-03"))).toBe(1);
+    expect(cuotasDebidasHasta(p, parseFecha("2026-06-09"))).toBe(1); // todavía no vence la 2ª
+    expect(cuotasDebidasHasta(p, parseFecha("2026-06-10"))).toBe(2);
+    expect(cuotasDebidasHasta(p, parseFecha("2026-06-17"))).toBe(3);
+  });
+
+  it("QUINCENAL y MENSUAL avanzan a su propio paso", () => {
+    const q = { cuota_diaria: 3000, total_dias: 6, fecha_inicio: INICIO, frecuencia: "quincenal" as const };
+    expect(cuotasDebidasHasta(q, parseFecha("2026-06-17"))).toBe(1);
+    expect(cuotasDebidasHasta(q, parseFecha("2026-06-18"))).toBe(2); // 03 + 15 días
+    const m = { cuota_diaria: 9000, total_dias: 6, fecha_inicio: INICIO, frecuencia: "mensual" as const };
+    expect(cuotasDebidasHasta(m, parseFecha("2026-07-02"))).toBe(1);
+    expect(cuotasDebidasHasta(m, parseFecha("2026-07-03"))).toBe(2);
+  });
+
+  it("nunca pasa del total de cuotas: un crédito viejo no acumula mora infinita", () => {
+    const p = { cuota_diaria: 500, total_dias: 24, fecha_inicio: INICIO };
+    // Dos años después sigue debiendo 24, no 700.
+    expect(cuotasDebidasHasta(p, parseFecha("2028-06-03"))).toBe(24);
+  });
+
+  it("antes de arrancar no se debe nada, y un crédito sin cuotas tampoco", () => {
+    const p = { cuota_diaria: 500, total_dias: 24, fecha_inicio: INICIO };
+    expect(cuotasDebidasHasta(p, parseFecha("2026-06-01"))).toBe(0);
+    expect(cuotasDebidasHasta({ ...p, total_dias: 0 }, parseFecha("2026-07-01"))).toBe(0);
+  });
+
+  it("sin frecuencia declarada se comporta como DIARIO (los heredados del import)", () => {
+    const conFrec = { cuota_diaria: 500, total_dias: 24, fecha_inicio: INICIO, frecuencia: "diario" as const };
+    const sinFrec = { cuota_diaria: 500, total_dias: 24, fecha_inicio: INICIO };
+    const hoy = parseFecha("2026-06-10");
+    expect(cuotasDebidasHasta(sinFrec, hoy)).toBe(cuotasDebidasHasta(conFrec, hoy));
+  });
+
+  // ⚠️ EL CASO REAL que motivó la corrección del 04-09 (Leo Fernández): $9.000 en
+  // 5 cuotas de $2.160. Cargado como DIARIO se liquidaba en 5 días y el cartón lo
+  // daba por vencido a la semana; el cliente pagaba cada 7 días y figuraba moroso.
+  // Como SEMANAL, el mismo crédito y los mismos pagos están al día.
+  it("EL CASO LEO FERNÁNDEZ: el mismo crédito, diario vs semanal, a 7 días del inicio", () => {
+    const base = { cuota_diaria: 2160, total_dias: 5, fecha_inicio: "2026-08-28" };
+    const alSeptimoDia = parseFecha("2026-09-04");
+
+    const comoDiario = { ...base, frecuencia: "diario" as const };
+    const comoSemanal = { ...base, frecuencia: "semanal" as const };
+
+    // Diario: le exigían las 5 cuotas ($10.800) y el plazo ya estaba vencido.
+    expect(cuotasDebidasHasta(comoDiario, alSeptimoDia)).toBe(5);
+    expect(plazoVencido(comoDiario, alSeptimoDia)).toBe(true);
+
+    // Semanal: debe 2 cuotas ($4.320) y le queda casi un mes de plazo.
+    expect(cuotasDebidasHasta(comoSemanal, alSeptimoDia)).toBe(2);
+    expect(plazoVencido(comoSemanal, alSeptimoDia)).toBe(false);
+  });
+});
+
+describe("plazoVencido — por frecuencia (no solo diario)", () => {
+  const base = { cuota_diaria: 2000, total_dias: 5, fecha_inicio: "2026-06-03" };
+
+  it("5 cuotas SEMANALES vencen un mes después, no en 5 días", () => {
+    const semanal = { ...base, frecuencia: "semanal" as const };
+    expect(plazoVencido(semanal, parseFecha("2026-06-10"))).toBe(false);
+    // Última cuota: 03-jun + 4×7 = 01-jul. Ese día todavía no está vencido.
+    expect(plazoVencido(semanal, parseFecha("2026-07-01"))).toBe(false);
+    expect(plazoVencido(semanal, parseFecha("2026-07-02"))).toBe(true);
+  });
+
+  it("el MISMO crédito como diario ya está vencido cuando el semanal recién arranca", () => {
+    expect(plazoVencido({ ...base, frecuencia: "diario" as const }, parseFecha("2026-06-10"))).toBe(true);
+    expect(plazoVencido({ ...base, frecuencia: "semanal" as const }, parseFecha("2026-06-10"))).toBe(false);
+  });
+
+  it("mensual: 3 cuotas no vencen hasta pasados los dos meses", () => {
+    const m = { cuota_diaria: 9000, total_dias: 3, fecha_inicio: "2026-06-03", frecuencia: "mensual" as const };
+    expect(plazoVencido(m, parseFecha("2026-07-15"))).toBe(false);
+    expect(plazoVencido(m, parseFecha("2026-08-03"))).toBe(false); // última cuota
+    expect(plazoVencido(m, parseFecha("2026-08-04"))).toBe(true);
   });
 });

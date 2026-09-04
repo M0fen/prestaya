@@ -64,9 +64,12 @@ export default async function RutaPage() {
             .then((r) => r.data?.nombre ?? null)
         : Promise.resolve<string | null>(null),
       // ¿Le quedaron jornadas sin rendir? La plata sigue en su bolsillo sin sello.
-      // Barre los últimos 7 días: mirando solo AYER, a partir del segundo día el
-      // cobrador dejaba de ver su propia deuda (12 personas, $1.559.559).
-      usuario ? getJornadasSinRendir(db, [usuario.id], new Date(), 7) : Promise.resolve([]),
+      // ⚠️ VENTANA DE 30 DÍAS, la MISMA que mira el supervisor en su panel. Estaba
+      // en 7: el cobrador con un atraso más viejo —justo el que hay que rescatar—
+      // no veía su propia deuda, ni el aviso, ni la barra de cierre, mientras la
+      // oficina sí la veía. Dos pantallas contando cosas distintas de la misma
+      // plata (auditoría 04-09).
+      usuario ? getJornadasSinRendir(db, [usuario.id], new Date(), 30) : Promise.resolve([]),
       // TODO lo que pidió (renovaciones, gastos, correcciones) con su estado, su
       // antigüedad y qué hacer con cada uno. Los tres circuitos eran mudos del lado
       // del que pide: así nació el crédito duplicado de JORGE, y así quedaron tres
@@ -217,11 +220,11 @@ export default async function RutaPage() {
           </span>
           <span className="text-[12px] leading-[1.45] font-semibold text-ambar-osc">
             Ese efectivo sigue sin sello de entrega, y por eso tu caja arranca en $0 cada
-            mañana. Cerrala acá abajo o entregásela a tu supervisor: él la registra desde
-            su pantalla y queda a tu nombre.
+            mañana. Entregásela a tu supervisor: él la registra desde su pantalla, queda a
+            tu nombre y podés declarar lo que te quedaste para seguir trabajando.
           </span>
           <span className="self-start rounded-full bg-tarjeta px-3.5 py-2 text-[12.5px] font-extrabold text-ambar-osc">
-            Ver el detalle y cerrar ↓
+            Ver el detalle ↓
           </span>
         </Link>
       )}

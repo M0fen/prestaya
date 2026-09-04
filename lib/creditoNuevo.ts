@@ -74,7 +74,6 @@ export function calcularCuotaCreditoNuevo(
 //  decidir si se muestra y cuánto tiempo queda) y la Server Action (la verdad).
 //  Pantalla y servidor con la MISMA función — la regla de hierro del proyecto.
 
-/** Ventana para deshacer: la misma HORA que tiene el "Deshacer" de un cobro. */
 // ─────────────────────────────────────────────────────────────────────────
 //  ¿EL FORMATO ELEGIDO SE BANCA ESA CUOTA? (aviso, no candado)
 //
@@ -123,7 +122,16 @@ export function avisoCoherenciaFormato(
 
   const pct = (c / capital) * 100;
 
-  // Caso 1 (el del bug): "diario" con una cuota que liquida el crédito en días.
+  // ⚠️ EL PRÉSTAMO A UN PAGO NO SE TOCA. Con UNA sola cuota el formato apenas
+  // decide qué día vence, y es un producto real del negocio: 7 créditos activos
+  // hoy, varios clientes lo toman repetido (SANDRA PULERI lleva 7, LEONARDO
+  // VOLPE 13). Avisarles sería acusar a la cartera sana.
+  if (n < 2) return null;
+
+  // El único caso que demostró ser un error: "diario" con una cuota que liquida
+  // el crédito en días. Es la huella exacta de los 8 planes semanales que
+  // quedaron programados día por día (medido: 11 créditos activos con este
+  // patrón, contra 126 que daría la regla inversa de abajo).
   if (frecuencia === "diario" && n <= CUOTAS_PLAN_CORTO && pct >= CUOTA_PESADA_PCT) {
     return {
       texto:
@@ -134,30 +142,18 @@ export function avisoCoherenciaFormato(
     };
   }
 
-  // Caso 2 (el inverso): un plan largo de cuotas chicas marcado semanal o más.
-  // 24 cuotas SEMANALES son casi 6 meses: para una cuota del 5% del capital,
-  // ese plan es el de 24-30 cuotas DIARIAS de toda la vida.
-  if (frecuencia !== "diario" && n >= 20 && pct <= 6) {
-    return {
-      texto:
-        `${n} cuotas ${etiqueta(frecuencia)} de ${pesos(c)} son ${plazoEnMeses(n, frecuencia)}. ` +
-        `Con una cuota tan chica, ¿no es diario?`,
-      sugerido: "diario",
-    };
-  }
-
+  // ⚠️ NO HAY CASO INVERSO. Lo hubo ("un plan largo de cuotas chicas marcado
+  // semanal, ¿no es diario?") y se sacó el 04-09: medido contra la cartera viva,
+  // disparaba en 126 créditos activos LEGÍTIMOS ($67,5 M) — los semanales largos
+  // de capital grande son un producto normal (35 cuotas de $40.000 sobre
+  // $1.400.000 = 2,9%). Un aviso que grita sobre cartera sana enseña a
+  // ignorarlo, y entonces tampoco se lee el que sí importa.
   return null;
 }
 
 const pesos = (n: number) => "$" + Math.round(n).toLocaleString("es-UY");
-const etiqueta = (f: FrecuenciaPrestamo) =>
-  f === "diario" ? "diarias" : f === "semanal" ? "semanales" : f === "quincenal" ? "quincenales" : "mensuales";
-const PASO: Record<FrecuenciaPrestamo, number> = { diario: 1, semanal: 7, quincenal: 15, mensual: 30 };
-function plazoEnMeses(cuotas: number, f: FrecuenciaPrestamo): string {
-  const meses = Math.round((cuotas * PASO[f]) / 30);
-  return meses >= 2 ? `casi ${meses} meses` : `${cuotas * PASO[f]} días`;
-}
 
+/** Ventana para deshacer: la misma HORA que tiene el "Deshacer" de un cobro. */
 export const DESHACER_VENTA_MS = 60 * 60 * 1000;
 
 export interface VentaParaDeshacer {

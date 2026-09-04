@@ -7,12 +7,21 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { UYU } from "@/lib/format";
 import { avisoCoherenciaFormato, calcularCuotaCreditoNuevo, INTERES_DEFECTO_PCT, interesDeBase } from "@/lib/creditoNuevo";
-import { evaluarRenovacion, explicaTecho, techoVentaGestor, RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
+import {
+  cuotasAlCambiarFormato,
+  evaluarRenovacion,
+  explicaTecho,
+  techoVentaGestor,
+  PLAZOS_POR_FRECUENCIA,
+  RENOVACION_CAP_TOTAL,
+} from "@/lib/renovacion";
 import { crearCreditoNuevo } from "@/lib/acciones/creditoNuevo";
 import type { FrecuenciaPrestamo } from "@/types/db";
 
-/** Plazos estándar del negocio (cantidad de cuotas). Cobro diario Lun–Sáb. */
-const PLAZOS = [20, 24, 30] as const;
+// ⚠️ Los plazos sugeridos y la conversión salen de lib/renovacion (regla pura
+// compartida con la calle y con FormRenovacion). Acá había un [20,24,30] fijo
+// —plazos DIARIOS— que se seguía ofreciendo aunque el gestor eligiera Semanal:
+// "24" con formato semanal es un crédito de 5 meses y medio (auditoría 04-09).
 
 const FRECUENCIAS: { id: FrecuenciaPrestamo; label: string }[] = [
   { id: "diario", label: "Diario" },
@@ -251,7 +260,7 @@ export function FormCreditoNuevo({
             className="rounded-[12px] border border-borde bg-tarjeta px-3 py-2.5 text-[16px] font-semibold outline-none focus:border-azul"
           />
           <div className="mt-1 flex gap-2">
-            {PLAZOS.map((p) => (
+            {PLAZOS_POR_FRECUENCIA[frecuencia ?? "diario"].map((p) => (
               <button
                 key={p}
                 type="button"
@@ -298,6 +307,10 @@ export function FormCreditoNuevo({
               key={f.id}
               type="button"
               onClick={() => {
+                // Mismo plazo real al cambiar de formato (24 diarias ≈ 4
+                // semanales); sin formato previo, el plazo típico del elegido.
+                const sugeridas = cuotasAlCambiarFormato(diasNum, frecuencia, f.id);
+                if (sugeridas != null) setDias(String(sugeridas));
                 setFrecuencia(f.id);
                 setConfirmar(false);
               }}

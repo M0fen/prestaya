@@ -56,6 +56,11 @@ function Fila({ j }: { j: JornadaAbierta }) {
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
   const [entregado, setEntregado] = useState(String(j.esperado));
+  /** Lo que el cobrador se QUEDÓ ese día para seguir trabajando. No es faltante:
+   *  queda declarado en el acta y vuelve como su base del día siguiente. Sin
+   *  este campo, vaciar el backlog convertía en faltante toda la plata que el
+   *  cobrador legítimamente tenía en la mano para salir a prestar (04-09). */
+  const [retenido, setRetenido] = useState("0");
   const [notas, setNotas] = useState("");
   const [confirmar, setConfirmar] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +68,10 @@ function Fila({ j }: { j: JornadaAbierta }) {
   const [pend, start] = useTransition();
 
   const n = Math.max(0, Math.round(Number(entregado) || 0));
-  const dif = n - j.esperado;
+  const ret = Math.max(0, Math.round(Number(retenido) || 0));
+  // Cuadra cuando entregado + lo que se quedó = lo esperado (misma cuenta que el
+  // cierre del cobrador, `calcularRendicion`).
+  const dif = n + ret - j.esperado;
   const viejo = j.antiguedad >= 3;
 
   const registrar = () =>
@@ -74,6 +82,7 @@ function Fila({ j }: { j: JornadaAbierta }) {
           cobradorId: j.cobradorId,
           fecha: j.fecha,
           entregado: n,
+          retenido: ret,
           notas: notas.trim() || null,
         });
         if (r.ok) {
@@ -160,6 +169,23 @@ function Fila({ j }: { j: JornadaAbierta }) {
                 />
               </div>
             </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] font-bold text-cuerpo">¿Se quedó algo?</span>
+              <div className="flex items-center gap-1 rounded-[12px] border border-borde bg-tarjeta px-2">
+                <span className="text-[13px] font-bold text-gris">$</span>
+                <input
+                  inputMode="numeric"
+                  value={retenido}
+                  onChange={(e) => {
+                    setError(null);
+                    setConfirmar(false);
+                    setRetenido(e.target.value.replace(/[^\d]/g, ""));
+                  }}
+                  onFocus={(e) => e.currentTarget.select()}
+                  className="w-24 bg-transparent py-1.5 text-right text-[16px] font-bold tabular-nums outline-none"
+                />
+              </div>
+            </label>
             {/* La diferencia, ANTES de sellar. El acta es inmutable: lo que se ve
                 acá es lo que va a quedar escrito para siempre. */}
             <span
@@ -172,6 +198,11 @@ function Fila({ j }: { j: JornadaAbierta }) {
               {dif === 0 ? "Cuadra ✓" : `${dif < 0 ? "Falta" : "Sobra"} ${UYU(Math.abs(dif))}`}
             </span>
           </div>
+          {ret > 0 && (
+            <span className="text-[11px] leading-[1.4] font-medium text-verde-osc">
+              Se quedó {UYU(ret)} para seguir trabajando: no es faltante y mañana amanece como su base.
+            </span>
+          )}
 
           <input
             value={notas}

@@ -290,10 +290,20 @@ describe("avisoCoherenciaFormato", () => {
     expect(avisoCoherenciaFormato(9_000, 2_160, 5, "semanal")).toBeNull();
   });
 
-  it("el inverso: 24 cuotas SEMANALES de cuota chica → sugiere diario", () => {
-    const a = avisoCoherenciaFormato(4_000, 200, 24, "semanal");
-    expect(a).not.toBeNull();
-    expect(a!.sugerido).toBe("diario");
+  // Medido el 04-09: la regla inversa ("plan largo de cuotas chicas, ¿no es
+  // diario?") disparaba en 126 créditos activos LEGÍTIMOS ($67,5 M). Un aviso
+  // que grita sobre cartera sana enseña a ignorarlo. Se sacó a propósito.
+  it("NO hay caso inverso: un plan semanal largo de cuota chica no molesta", () => {
+    expect(avisoCoherenciaFormato(4_000, 200, 24, "semanal")).toBeNull();
+    // El caso real que lo motivó: $1.400.000 en 35 semanales de $40.000.
+    expect(avisoCoherenciaFormato(1_400_000, 40_000, 35, "semanal")).toBeNull();
+  });
+
+  it("el PRÉSTAMO A UN PAGO es un producto real, no un formato mal elegido", () => {
+    // 7 créditos activos hoy; clientes que lo toman repetido. Acusarlos sería
+    // gritarle a la cartera sana.
+    expect(avisoCoherenciaFormato(3_000, 3_600, 1, "diario")).toBeNull();
+    expect(avisoCoherenciaFormato(40_000, 48_000, 1, "diario")).toBeNull();
   });
 
   it("un plan largo legítimo en semanal (cuota 10% del capital) no molesta", () => {
@@ -313,11 +323,9 @@ describe("avisoCoherenciaFormato", () => {
   });
 
   it("el % se muestra redondeado, sin decimales (en es-UY el punto es de los miles)", () => {
-    const a = avisoCoherenciaFormato(3_000, 3_600, 1, "diario");
-    expect(a!.texto).toContain("120%");
-    expect(a!.texto).toContain("1 día"); // singular, no "1 días"
-    // 2.160/9.000 = 24,0% exacto; 1.333/9.000 = 14,8% → se muestra "15%", nunca "14,8%"
+    // 1.100/5.000 = 22% exacto; nunca "22,0%" ni "21,99%".
     const b = avisoCoherenciaFormato(5_000, 1_100, 4, "diario");
     expect(b!.texto).toMatch(/\(22% del capital\)/);
+    expect(b!.texto).toContain("4 días");
   });
 });

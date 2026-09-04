@@ -49,7 +49,10 @@ const valor = (flag: string, def: string) => {
   const i = args.indexOf(flag);
   return i >= 0 && args[i + 1] ? args[i + 1] : def;
 };
-const RESPONSABLE = valor("--responsable", "Carlos (dueño)");
+// ⚠️ Sin --responsable NO se firma con el nombre del dueño: el libro es
+// inmutable y atribuirle a alguien una corrección que no hizo es peor que un
+// dato faltante. Se exige el nombre para aplicar (ver más abajo).
+const RESPONSABLE = valor("--responsable", "");
 const MOTIVO = valor("--motivo", "Crédito cargado con formato equivocado: 'Nueva venta' no dejaba elegirlo.");
 const APROBAR_CONFIANZA = valor("--aprobar-confianza", "").split(",").map((s) => s.trim()).filter(Boolean);
 
@@ -75,8 +78,14 @@ async function main() {
   console.log("\n══════════════════════════════════════════════════════════════════════════");
   console.log(`  CORRECCIÓN DE FORMATO — ${COMMIT ? "APLICANDO" : "ENSAYO (no escribe nada)"}`);
   console.log(`  Aprobados: ${aprobados.length} de ${candidatos.length} candidatos`);
-  console.log(`  Responsable: ${RESPONSABLE}`);
+  console.log(`  Responsable: ${RESPONSABLE || "(falta --responsable)"}`);
   console.log("══════════════════════════════════════════════════════════════════════════\n");
+
+  if (COMMIT && !RESPONSABLE.trim()) {
+    console.log("Falta --responsable \"Nombre de quien autoriza\": el libro es inmutable y la");
+    console.log("corrección tiene que quedar firmada por una persona, no por un default.\n");
+    return;
+  }
 
   if (aprobados.length === 0) {
     console.log("No hay créditos aprobados. Marcá \"aprobado\": true en el JSON,");
@@ -129,13 +138,22 @@ async function main() {
 
     if (COMMIT) {
       // 1) El cambio: SOLO la frecuencia. El libro de pagos no se toca.
-      const { error: eUpd } = await db
+      // ⚠️ `.select("id")` para saber CUÁNTAS filas tocó: un UPDATE que afecta 0
+      // filas NO es un error en PostgREST, y sin esto se escribía en el libro el
+      // rastro de una corrección que nunca ocurrió (el candado optimista pudo
+      // haber perdido la carrera contra una renovación).
+      const { data: tocadas, error: eUpd } = await db
         .from("prestamos")
         .update({ frecuencia: c.formatoInferido, actualizado_en: new Date().toISOString() })
         .eq("id", c.prestamoId)
         .eq("estado", "activo")
-        .eq("frecuencia", c.formatoActual); // candado optimista: nadie lo cambió en el medio
+        .eq("frecuencia", c.formatoActual) // candado optimista: nadie lo cambió en el medio
+        .select("id");
       if (eUpd) { console.log(`     ❌ no se pudo: ${eUpd.message}`); continue; }
+      if ((tocadas ?? []).length === 0) {
+        console.log("     ⚠️  no se tocó ninguna fila (cambió en el medio): sin cambio y SIN rastro.");
+        continue;
+      }
 
       // 2) El rastro, en el log inmutable. Si esto falla, se avisa fuerte: un
       //    cambio de datos sin su registro es exactamente lo que no puede pasar.
@@ -172,8 +190,11 @@ async function main() {
   console.log(`  El scoring y la mora se recalculan solos (se derivan, no se guardan).`);
   console.log("──────────────────────────────────────────────────────────────────────────\n");
 
+  // ⚠️ El ENSAYO escribe su propio archivo: pisar `_aplicado.json` borraba la
+  // REVERSA de las correcciones que sí se hicieron (el antes/después de cada
+  // crédito), y ese archivo es lo que permite volver atrás sin adivinar.
   writeFileSync(
-    new URL("./_formato-credito-aplicado.json", import.meta.url),
+    new URL(COMMIT ? "./_formato-credito-aplicado.json" : "./_formato-credito-ensayo.json", import.meta.url),
     JSON.stringify({ cuando: new Date().toISOString(), aplicado: COMMIT, responsable: RESPONSABLE, motivo: MOTIVO, hechos }, null, 2),
     "utf8",
   );

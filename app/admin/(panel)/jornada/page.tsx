@@ -223,20 +223,24 @@ export default async function JornadaPage({
     if (nombre) (supervisoresPorZona[sz.zona_id as string] ??= []).push(nombre);
   }
 
-  // Jornadas viejas sin acta: la plata que quedó en la calle sin papel. Solo se
-  // consultan en el acto de CIERRE (es donde se resuelven) para no cargarle a la
-  // apertura una consulta que ahí no se usa.
+  // Jornadas viejas sin acta: la plata que quedó en la calle sin papel.
+  //
+  // ⚠️ Se consultan en TODOS los actos, no solo en el de cierre. Antes se pedían
+  // únicamente ahí "para no cargarle una consulta a la apertura", y el efecto era
+  // que el aviso de cajas sin cerrar solo existía para quien ya había navegado
+  // hasta el final del día: el supervisor que abre a la mañana —el que todavía
+  // puede reclamar esa plata— no lo veía nunca. Es la misma trampa que las dos
+  // vueltas de quejas: la feature existía y el rol que la necesita no la
+  // encontraba. La consulta va con timeout y try/catch: nunca tumba la página.
   let jornadasAbiertas: JornadaAbierta[] = [];
-  if (acto === "cierre") {
-    try {
-      jornadasAbiertas = await conTimeout(
-        getJornadasSinRendir(db, alcance.global ? null : alcance.cobradorIds, hoy, 30),
-        TOPE_MS,
-        "jornada.sinRendir",
-      );
-    } catch (e) {
-      reportarError("jornada.sinRendir", e); // nunca tumba el cierre
-    }
+  try {
+    jornadasAbiertas = await conTimeout(
+      getJornadasSinRendir(db, alcance.global ? null : alcance.cobradorIds, hoy, 30),
+      TOPE_MS,
+      "jornada.sinRendir",
+    );
+  } catch (e) {
+    reportarError("jornada.sinRendir", e); // nunca tumba el cierre
   }
 
   let basesCobradores: CobradorBase[] = [];
@@ -467,7 +471,7 @@ export default async function JornadaPage({
           adivinarlo, y desde acá va directo a registrarlo. */}
       {jornadasAbiertas.length > 0 && (
         <Link
-          href="/admin/jornada?acto=cierre#cierre"
+          href="/admin/jornada?acto=cierre"
           className="flex items-center justify-between gap-2 rounded-[14px] border-2 border-[#F0C0BC] bg-[#FDEEEC] px-4 py-3.5 hover:brightness-[0.98]"
         >
           <div className="flex items-center gap-2.5">

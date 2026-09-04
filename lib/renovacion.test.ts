@@ -4,6 +4,10 @@ import { describe, expect, it } from "vitest";
 import {
   calcularCuotaRenovacion,
   cuotasValidas,
+  cuotasEquivalentes,
+  cuotasAlCambiarFormato,
+  PLAZO_TIPICO,
+  PLAZOS_POR_FRECUENCIA,
   explicaTecho,
   rotuloTechoPropio,
   tasaImplicita,
@@ -620,5 +624,125 @@ describe("cuotasValidas — el tope 366 vale para lo TECLEADO, no lo heredado", 
       expect(cuotasValidas(-24, tecleadas)).toBe(false);
       expect(cuotasValidas(30.5, tecleadas)).toBe(false);
     }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+//  CAMBIO DE FORMATO — la conversión de cuotas, ahora UNA sola.
+//
+//  Vivía DUPLICADA: una copia en FormRenovacion (panel) y la misma fórmula
+//  suelta dentro de ColocarLista (calle). Daban igual, pero es la clase de copia
+//  que en este proyecto ya produjo desacuerdos pantalla/servidor. El caso que la
+//  motivó (19-08): elegir "Semanal" dejando el 24 fabricaba, en silencio, un
+//  crédito de 24 SEMANAS — casi seis meses en vez de un mes.
+// ─────────────────────────────────────────────────────────────────────────
+describe("cuotasEquivalentes — el mismo plazo en otro formato", () => {
+  // ⚠️ El cobro diario avanza Lun–Sáb (6 por semana), NO 7: por eso 24 cuotas
+  // diarias son 4 SEMANAS. Con el paso calendario daba 3 y le recortaba al
+  // cliente un 25% del plazo (subiéndole la cuota) al cambiar de formato.
+  it("el caso del negocio: 24 diarias = 4 semanales (Lun–Sáb, el domingo no vence)", () => {
+    expect(cuotasEquivalentes(24, "diario", "semanal")).toBe(4);
+    expect(cuotasEquivalentes(30, "diario", "semanal")).toBe(5);
+    expect(cuotasEquivalentes(26, "diario", "mensual")).toBe(1);
+  });
+
+  it("y de vuelta: 4 semanales vuelven a ser 24 diarias (la ida y la vuelta cierran)", () => {
+    expect(cuotasEquivalentes(4, "semanal", "diario")).toBe(24);
+    expect(cuotasEquivalentes(2, "quincenal", "diario")).toBe(26);
+    expect(cuotasEquivalentes(1, "mensual", "semanal")).toBe(4); // 26 días de cobro ≈ 4 semanas
+  });
+
+  it("los plazos SUGERIDOS de cada formato son coherentes entre sí", () => {
+    // El plazo típico diario (24) y el típico semanal (4) tienen que ser el
+    // mismo plazo real: si no, los chips de la pantalla se contradicen solos.
+    expect(cuotasEquivalentes(24, "diario", "semanal")).toBe(PLAZOS_POR_FRECUENCIA.semanal[0]);
+  });
+
+  it("mismo formato: no toca el número (no hay conversión que hacer)", () => {
+    expect(cuotasEquivalentes(24, "diario", "diario")).toBe(24);
+    expect(cuotasEquivalentes(5, "semanal", "semanal")).toBe(5);
+  });
+
+  it("NUNCA devuelve 0: un crédito sin cuotas no existe", () => {
+    // 1 sola cuota diaria pasada a mensual daría 0,04 → se sostiene en 1.
+    expect(cuotasEquivalentes(1, "diario", "mensual")).toBe(1);
+    expect(cuotasEquivalentes(2, "diario", "semanal")).toBe(1);
+  });
+
+  it("respeta el tope de 366 cuotas (el candado contra el dedazo)", () => {
+    // 60 mensuales serían 1.560 días de cobro: se topea, no se fabrica un plazo absurdo.
+    expect(cuotasEquivalentes(60, "mensual", "diario")).toBe(TOPE_CUOTAS);
+    expect(cuotasValidas(cuotasEquivalentes(60, "mensual", "diario"), true)).toBe(true);
+  });
+
+  it("entradas basura no rompen: 0, negativo o decimal", () => {
+    expect(cuotasEquivalentes(0, "diario", "semanal")).toBe(0);
+    expect(cuotasEquivalentes(-5, "diario", "semanal")).toBe(-5);
+    expect(cuotasEquivalentes(24.6, "diario", "semanal")).toBe(4); // redondea a 25 → 25/6 = 4,2 → 4
+  });
+
+  it("los PLAZOS sugeridos por formato son los que el negocio usa de verdad", () => {
+    expect(PLAZOS_POR_FRECUENCIA.diario).toEqual([20, 24, 30]);
+    expect(PLAZOS_POR_FRECUENCIA.semanal).toEqual([4, 6, 8]);
+    // Y cada plazo sugerido es válido para tipear (no se ofrece lo que el server rechaza).
+    for (const f of ["diario", "semanal", "quincenal", "mensual"] as const)
+      for (const p of PLAZOS_POR_FRECUENCIA[f]) expect(cuotasValidas(p, true)).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+//  QUÉ CUOTAS PROPONER AL ELEGIR FORMATO — los dos agujeros que la auditoría
+//  del 04-09 encontró en el selector recién estrenado:
+//   · Primer crédito: el campo arranca en 24 (el plazo diario) y, como no había
+//     formato ANTERIOR, elegir "semanal" no re-sugería nada → 24 SEMANAS, casi
+//     seis meses, en silencio. Es el mismo bug del 19-08, reaparecido.
+//   · Conversión que colapsa: 5 cuotas diarias pasadas a semanal daban 1, y un
+//     crédito de UNA cuota es otro producto (préstamo a un pago), no el mismo
+//     plazo en otra forma.
+// ─────────────────────────────────────────────────────────────────────────
+describe("cuotasAlCambiarFormato — lo que se propone al tocar un chip", () => {
+  it("PRIMER crédito (sin formato previo): propone el plazo típico del formato elegido", () => {
+    expect(cuotasAlCambiarFormato(24, null, "semanal")).toBe(4);
+    expect(cuotasAlCambiarFormato(24, null, "diario")).toBe(24);
+    expect(cuotasAlCambiarFormato(24, null, "quincenal")).toBe(2);
+    expect(cuotasAlCambiarFormato(24, null, "mensual")).toBe(1);
+  });
+
+  it("el bug del 19-08 no vuelve: elegir semanal con el 24 tecleado NO deja 24 semanas", () => {
+    expect(cuotasAlCambiarFormato(24, null, "semanal")).not.toBe(24);
+  });
+
+  it("con formato previo: convierte conservando el plazo", () => {
+    expect(cuotasAlCambiarFormato(24, "diario", "semanal")).toBe(4);
+    expect(cuotasAlCambiarFormato(4, "semanal", "diario")).toBe(24);
+  });
+
+  it("NO toca las cuotas si la conversión colapsaría a menos de 2 (otro producto)", () => {
+    // 5 diarias → 1 semanal: el cobrador que teclea 5 y elige semanal quiere 5
+    // semanas, no un préstamo a un pago. Se respeta lo que escribió.
+    expect(cuotasAlCambiarFormato(5, "diario", "semanal")).toBeNull();
+    expect(cuotasAlCambiarFormato(3, "diario", "semanal")).toBeNull();
+    // 12 diarias → 2 semanales sí se convierte (sigue siendo un plazo).
+    expect(cuotasAlCambiarFormato(12, "diario", "semanal")).toBe(2);
+  });
+
+  it("mismo formato o cuotas vacías: no propone nada", () => {
+    expect(cuotasAlCambiarFormato(24, "diario", "diario")).toBeNull();
+    expect(cuotasAlCambiarFormato(0, "diario", "semanal")).toBeNull();
+  });
+
+  it("todo lo que propone es un plazo VÁLIDO para tipear", () => {
+    for (const de of [null, "diario", "semanal", "quincenal", "mensual"] as const)
+      for (const a of ["diario", "semanal", "quincenal", "mensual"] as const) {
+        const n = cuotasAlCambiarFormato(24, de, a);
+        if (n != null) expect(cuotasValidas(n, true)).toBe(true);
+      }
+  });
+
+  it("los plazos típicos son todos ≈ un mes: coherentes entre sí", () => {
+    // Es lo que hace que cambiar de formato no cambie el negocio del crédito.
+    expect(PLAZO_TIPICO.diario).toBe(24);
+    expect(cuotasEquivalentes(PLAZO_TIPICO.diario, "diario", "semanal")).toBe(PLAZO_TIPICO.semanal);
+    expect(cuotasEquivalentes(PLAZO_TIPICO.diario, "diario", "quincenal")).toBe(PLAZO_TIPICO.quincenal);
   });
 });
