@@ -325,6 +325,36 @@ describe("NUEVA VENTA: la lista del operador que 'no encontraba a nadie'", () =>
     expect(out[0].primerCredito).toBe(true);
     expect(out[0].techo).toBe(RENOVACION_CAP_TOTAL);
   });
+
+  // ⚠️ EL FORMATO NO SE INVENTA (03-09). El primer crédito traía
+  // `frecuencia: "diario"` como default, la pantalla lo mandaba sin mostrarlo y
+  // quedaba grabado: los planes SEMANALES de la cobradora que trabaja semanal
+  // se programaban día por día y el cartón los daba por vencidos a la semana.
+  // Vacío = "no hay formato que sugerir, preguntáselo al cobrador".
+  it("PRIMER crédito: NO trae formato sugerido — lo tiene que elegir el cobrador", async () => {
+    const { db } = crearDb({
+      asignaciones: [asignado("c-nuevo")],
+      clientes: [cliente("c-nuevo", "RECIÉN CENSADO")],
+      prestamos: [],
+      pagos: [],
+    });
+    const [c] = await getCandidatosVenta(db);
+    expect(c.primerCredito).toBe(true);
+    expect(c.frecuencia).toBe("");
+  });
+
+  it("con historial SÍ trae el formato del último crédito (sugerencia visible, no herencia muda)", async () => {
+    const { db } = crearDb({
+      asignaciones: [asignado("c-sem")],
+      clientes: [cliente("c-sem", "CLIENTA SEMANAL")],
+      prestamos: [
+        { ...credito({ id: "p1", cliente: "c-sem", monto: 9_000, cuota: 2_160, dias: 5, estado: "finalizado" }), frecuencia: "semanal" },
+      ],
+      pagos: [],
+    });
+    const [c] = await getCandidatosVenta(db);
+    expect(c.frecuencia).toBe("semanal");
+  });
 });
 
 describe("El duplicado de 'Nueva venta': el saldado sale en las DOS listas", () => {

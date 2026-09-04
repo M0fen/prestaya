@@ -1,0 +1,73 @@
+{
+  "cuando": "2026-09-04T04:17:28.016Z",
+  "aplicado": false,
+  "responsable": "Carlos (dueño)",
+  "motivo": "Crédito cargado con formato equivocado: 'Nueva venta' no dejaba elegirlo.",
+  "hechos": [
+    {
+      "prestamoId": "8665b4e5-849f-4d54-a35c-d13d7603ac0e",
+      "cliente": "JOSE MARíA PERFECTO ROMERO",
+      "cobrador": "Juan José Castro",
+      "de": "diario",
+      "a": "semanal",
+      "confianza": "alta",
+      "venceAntes": "2026-07-15",
+      "venceDespues": "2026-08-01",
+      "exigiblesAntes": 4,
+      "exigiblesDespues": 4,
+      "dejaDeEstarVencido": false
+    },
+    {
+      "prestamoId": "752e3804-6175-4e13-ac3d-c99fe0c642f9",
+      "cliente": "ALEXIS RIGOBERTO HORNOS",
+      "cobrador": "Edward Muñoz",
+      "de": "diario",
+      "a": "mensual",
+      "confianza": "media",
+      "venceAntes": "2026-06-18",
+      "venceDespues": "2026-08-17",
+      "exigiblesAntes": 3,
+      "exigiblesDespues": 3,
+      "dejaDeEstarVencido": false
+    },
+    {
+      "prestamoId": "b9e80b67-87a9-4eb8-a811-96e42535376b",
+      "cliente": "Leo Fernández",
+      "cobrador": "María Artunduaga",
+      "de": "diario",
+      "a": "semanal",
+      "confianza": "media",
+      "venceAntes": "2026-08-25",
+      "venceDespues": "2026-09-17",
+      "exigiblesAntes": 5,
+      "exigiblesDespues": 3,
+      "dejaDeEstarVencido": true
+    },
+    {
+      "prestamoId": "f77bd9d2-a688-4d91-b100-87e25894bd8f",
+      "cliente": "Natalia Izaguirre",
+      "cobrador": "María Artunduaga",
+      "de": "diario",
+      "a": "semanal",
+      "confianza": "media",
+      "venceAntes": "2026-08-25",
+      "venceDespues": "2026-09-17",
+      "exigiblesAntes": 5,
+      "exigiblesDespues": 3,
+      "dejaDeEstarVencido": true
+    },
+    {
+      "prestamoId": "dc1aa80f-80e5-4404-a013-82be79ce024e",
+      "cliente": "Lilia Martinez",
+      "cobrador": "María Artunduaga",
+      "de": "diario",
+      "a": "semanal",
+      "confianza": "media",
+      "venceAntes": "2026-08-25",
+      "venceDespues": "2026-09-17",
+      "exigiblesAntes": 5,
+      "exigiblesDespues": 3,
+      "dejaDeEstarVencido": true
+    }
+  ]
+}

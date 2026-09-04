@@ -75,6 +75,89 @@ export function calcularCuotaCreditoNuevo(
 //  Pantalla y servidor con la MISMA función — la regla de hierro del proyecto.
 
 /** Ventana para deshacer: la misma HORA que tiene el "Deshacer" de un cobro. */
+// ─────────────────────────────────────────────────────────────────────────
+//  ¿EL FORMATO ELEGIDO SE BANCA ESA CUOTA? (aviso, no candado)
+//
+//  El caso real: en "Nueva venta" no se podía elegir el formato y el crédito
+//  nacía "diario". Una cobradora que trabaja SEMANAL cargaba $9.000 en 5 cuotas
+//  de $2.160 y el sistema las programaba para 5 días seguidos: al sexto día el
+//  cartón daba todo por vencido y el cliente —que venía al día— figuraba moroso.
+//
+//  La señal es la CUOTA como porcentaje del capital. Con el 20% de interés del
+//  negocio, la cuota es ≈ 1,2 / cantidad de cuotas del capital: en 24-30 cuotas
+//  diarias da 4-5%. Una cuota del 20% o más significa que el crédito se liquida
+//  en 5 pagos o menos — eso no es cobro diario, es un plan semanal (o más largo).
+//
+//  ⚠️ AVISA, NO BLOQUEA. Hay créditos legítimos así (un préstamo a un solo pago),
+//  y el cobrador es el que tiene al cliente enfrente: se le muestra la cuenta y
+//  decide él. Puro y compartido pantalla=servidor.
+// ─────────────────────────────────────────────────────────────────────────
+import type { FrecuenciaPrestamo } from "@/types/db";
+
+/** Desde qué peso de la cuota (sobre el capital) se considera "no es diario". */
+export const CUOTA_PESADA_PCT = 20;
+/** Hasta cuántas cuotas tiene sentido mirar: más que eso ya es un plan largo. */
+export const CUOTAS_PLAN_CORTO = 8;
+
+export interface AvisoFormato {
+  /** Texto para el cobrador, en criollo. */
+  texto: string;
+  /** Qué formato parece el correcto (para ofrecerlo de un toque). */
+  sugerido: FrecuenciaPrestamo;
+}
+
+/**
+ * Devuelve un aviso si la cuota no se condice con el formato elegido, o null si
+ * está todo bien. `monto` y `cuota` en pesos enteros.
+ */
+export function avisoCoherenciaFormato(
+  monto: number,
+  cuota: number,
+  cuotas: number,
+  frecuencia: FrecuenciaPrestamo | null,
+): AvisoFormato | null {
+  const capital = Math.round(Number(monto) || 0);
+  const c = Math.round(Number(cuota) || 0);
+  const n = Math.round(Number(cuotas) || 0);
+  if (!(capital > 0) || !(c > 0) || !(n > 0) || !frecuencia) return null;
+
+  const pct = (c / capital) * 100;
+
+  // Caso 1 (el del bug): "diario" con una cuota que liquida el crédito en días.
+  if (frecuencia === "diario" && n <= CUOTAS_PLAN_CORTO && pct >= CUOTA_PESADA_PCT) {
+    return {
+      texto:
+        `Con cuota de ${pesos(c)} sobre ${pesos(capital)} (${Math.round(pct)}% del capital), ` +
+        `en DIARIO este crédito se termina de pagar en ${n} día${n === 1 ? "" : "s"}. ` +
+        `¿No es semanal?`,
+      sugerido: "semanal",
+    };
+  }
+
+  // Caso 2 (el inverso): un plan largo de cuotas chicas marcado semanal o más.
+  // 24 cuotas SEMANALES son casi 6 meses: para una cuota del 5% del capital,
+  // ese plan es el de 24-30 cuotas DIARIAS de toda la vida.
+  if (frecuencia !== "diario" && n >= 20 && pct <= 6) {
+    return {
+      texto:
+        `${n} cuotas ${etiqueta(frecuencia)} de ${pesos(c)} son ${plazoEnMeses(n, frecuencia)}. ` +
+        `Con una cuota tan chica, ¿no es diario?`,
+      sugerido: "diario",
+    };
+  }
+
+  return null;
+}
+
+const pesos = (n: number) => "$" + Math.round(n).toLocaleString("es-UY");
+const etiqueta = (f: FrecuenciaPrestamo) =>
+  f === "diario" ? "diarias" : f === "semanal" ? "semanales" : f === "quincenal" ? "quincenales" : "mensuales";
+const PASO: Record<FrecuenciaPrestamo, number> = { diario: 1, semanal: 7, quincenal: 15, mensual: 30 };
+function plazoEnMeses(cuotas: number, f: FrecuenciaPrestamo): string {
+  const meses = Math.round((cuotas * PASO[f]) / 30);
+  return meses >= 2 ? `casi ${meses} meses` : `${cuotas * PASO[f]} días`;
+}
+
 export const DESHACER_VENTA_MS = 60 * 60 * 1000;
 
 export interface VentaParaDeshacer {

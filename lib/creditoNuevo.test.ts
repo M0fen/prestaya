@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  avisoCoherenciaFormato,
   calcularCuotaCreditoNuevo,
   interesDeBase,
   puedeDeshacerVenta,
@@ -264,5 +265,59 @@ describe("puedeCancelarVentaPanel — la regla del GESTOR (queja del admin 16-08
 
   it("finalizado → no hay nada que cancelar", () => {
     expect(puedeCancelarVentaPanel(venta({ estado: "finalizado" }), admin).ok).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+//  EL AVISO DE FORMATO — el caso que ensució 12 créditos vivos: "Nueva venta"
+//  no dejaba elegir el formato, el crédito nacía diario y el cartón daba todo
+//  por vencido a los 5 días sobre un cliente que venía al día.
+// ─────────────────────────────────────────────────────────────────────────
+describe("avisoCoherenciaFormato", () => {
+  it("el caso REAL de Leo Fernández: $9.000 en 5 cuotas de $2.160 'diarias' → avisa y sugiere semanal", () => {
+    const a = avisoCoherenciaFormato(9_000, 2_160, 5, "diario");
+    expect(a).not.toBeNull();
+    expect(a!.sugerido).toBe("semanal");
+    expect(a!.texto).toContain("5 días");
+    expect(a!.texto).toContain("24%");
+  });
+
+  it("un crédito diario NORMAL (24 cuotas, cuota 5% del capital) no molesta", () => {
+    expect(avisoCoherenciaFormato(10_000, 500, 24, "diario")).toBeNull();
+  });
+
+  it("el MISMO plan marcado semanal está bien: no avisa", () => {
+    expect(avisoCoherenciaFormato(9_000, 2_160, 5, "semanal")).toBeNull();
+  });
+
+  it("el inverso: 24 cuotas SEMANALES de cuota chica → sugiere diario", () => {
+    const a = avisoCoherenciaFormato(4_000, 200, 24, "semanal");
+    expect(a).not.toBeNull();
+    expect(a!.sugerido).toBe("diario");
+  });
+
+  it("un plan largo legítimo en semanal (cuota 10% del capital) no molesta", () => {
+    expect(avisoCoherenciaFormato(100_000, 10_000, 12, "semanal")).toBeNull();
+  });
+
+  it("sin formato elegido, o con datos incompletos, no inventa avisos", () => {
+    expect(avisoCoherenciaFormato(9_000, 2_160, 5, null)).toBeNull();
+    expect(avisoCoherenciaFormato(0, 2_160, 5, "diario")).toBeNull();
+    expect(avisoCoherenciaFormato(9_000, 0, 5, "diario")).toBeNull();
+    expect(avisoCoherenciaFormato(9_000, 2_160, 0, "diario")).toBeNull();
+  });
+
+  it("el borde del 20%: justo en el umbral avisa, por debajo no", () => {
+    expect(avisoCoherenciaFormato(10_000, 2_000, 5, "diario")).not.toBeNull();
+    expect(avisoCoherenciaFormato(10_000, 1_999, 5, "diario")).toBeNull();
+  });
+
+  it("el % se muestra redondeado, sin decimales (en es-UY el punto es de los miles)", () => {
+    const a = avisoCoherenciaFormato(3_000, 3_600, 1, "diario");
+    expect(a!.texto).toContain("120%");
+    expect(a!.texto).toContain("1 día"); // singular, no "1 días"
+    // 2.160/9.000 = 24,0% exacto; 1.333/9.000 = 14,8% → se muestra "15%", nunca "14,8%"
+    const b = avisoCoherenciaFormato(5_000, 1_100, 4, "diario");
+    expect(b!.texto).toMatch(/\(22% del capital\)/);
   });
 });

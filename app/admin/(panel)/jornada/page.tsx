@@ -344,6 +344,11 @@ export default async function JornadaPage({
   const pedidoMasViejo = pedidosCalle.length
     ? pedidosCalle.reduce((a, b) => (a.solicitadoEn < b.solicitadoEn ? a : b))
     : null;
+  // Cajas sin cerrar: cuántos COBRADORES (no jornadas), cuánta plata sin sello y
+  // hace cuánto la más vieja. Alimenta la tarjeta visible en todos los actos.
+  const cobradoresSinCerrar = new Set(jornadasAbiertas.map((j) => j.cobradorId)).size;
+  const efectivoSinSello = jornadasAbiertas.reduce((s, j) => s + Math.round(j.esperado), 0);
+  const diasSinCerrar = jornadasAbiertas.reduce((m, j) => Math.max(m, j.antiguedad), 0);
   const horasEsperando = pedidoMasViejo
     ? Math.max(0, Math.round((Date.now() - new Date(pedidoMasViejo.solicitadoEn).getTime()) / 3_600_000))
     : 0;
@@ -450,6 +455,41 @@ export default async function JornadaPage({
           </div>
           <span className="flex-shrink-0 rounded-full bg-[#1E47C8] px-3.5 py-2 text-[12.5px] font-extrabold text-white">
             Aprobar →
+          </span>
+        </Link>
+      )}
+
+      {/* ⚠️ CAJAS SIN CERRAR — visible en TODOS los actos, no solo al llegar al
+          cierre. Medido el 03-09: 4 jornadas cerradas en todo el piloto y
+          $9.250.920 cobrados en 30 días sin acta. Cada jornada sin cerrar es
+          efectivo sin sello Y la razón de que la caja del cobrador amanezca en
+          $0 (el arrastre sale del acta). El supervisor tiene que verlo sin
+          adivinarlo, y desde acá va directo a registrarlo. */}
+      {jornadasAbiertas.length > 0 && (
+        <Link
+          href="/admin/jornada?acto=cierre#cierre"
+          className="flex items-center justify-between gap-2 rounded-[14px] border-2 border-[#F0C0BC] bg-[#FDEEEC] px-4 py-3.5 hover:brightness-[0.98]"
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="text-[20px]">🌙</span>
+            <div className="flex min-w-0 flex-col">
+              <span className="text-[14px] font-extrabold text-[#B03A2E]">
+                {cobradoresSinCerrar === 1
+                  ? "1 cobrador no cerró su caja"
+                  : `${cobradoresSinCerrar} cobradores no cerraron su caja`}
+                {jornadasAbiertas.length > cobradoresSinCerrar
+                  ? ` · ${jornadasAbiertas.length} jornadas`
+                  : ""}
+              </span>
+              <span className="text-[12px] font-semibold text-[#B03A2E]/85 tabular-nums">
+                {UYU(efectivoSinSello)} sin acta de entrega
+                {diasSinCerrar > 0 ? ` · la más vieja hace ${diasSinCerrar} día${diasSinCerrar === 1 ? "" : "s"}` : ""}
+                {" "}— mientras no se cierre, su caja arranca en $0 cada mañana.
+              </span>
+            </div>
+          </div>
+          <span className="flex-shrink-0 rounded-full bg-[#B03A2E] px-3.5 py-2 text-[12.5px] font-extrabold text-white">
+            Registrar →
           </span>
         </Link>
       )}

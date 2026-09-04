@@ -30,6 +30,7 @@ import { renovarDesdeCalle, nuevaVentaDesdeCalle } from "@/lib/acciones/cobrador
 import { PedirAyuda } from "@/components/cobrador/PedirAyuda";
 import type { FrecuenciaPrestamo } from "@/types/db";
 import {
+  avisoCoherenciaFormato,
   calcularCuotaCreditoNuevo,
   interesDeBase,
   INTERES_DEFECTO_PCT,
@@ -90,6 +91,86 @@ function etiquetaFrec(f: string): string {
   if (f === "quincenal") return "quincenas";
   if (f === "mensual") return "meses";
   return "días";
+}
+
+/** Días entre cuotas de cada formato: convierte el plazo al cambiar de formato. */
+const DIAS_POR_FRECUENCIA: Record<FrecuenciaPrestamo, number> = {
+  diario: 1,
+  semanal: 7,
+  quincenal: 15,
+  mensual: 30,
+};
+
+/**
+ * EL FORMATO DEL CRÉDITO — cada cuánto vence una cuota. Uno solo para las dos
+ * puertas (Renovar y Nueva venta): antes solo existía en Renovar, y por eso las
+ * ventas nuevas nacían con el formato del crédito anterior —o "diario" si era el
+ * primero— sin que nadie lo viera ni pudiera cambiarlo.
+ *
+ * · `valor` null = todavía no eligió. En venta, el botón de confirmar espera.
+ * · `anterior` = lo que usaba el cliente: se pre-selecciona como SUGERENCIA
+ *   visible (nunca heredada en silencio) y se puede cambiar de un toque.
+ * · Al cambiar de formato se re-sugieren las cuotas para conservar el MISMO
+ *   plazo en días (24 diarias ≈ 4 semanales), que es lo que el cobrador tiene
+ *   en la cabeza cuando dice "un mes".
+ */
+function SelectorFormato({
+  valor,
+  anterior,
+  cuotas,
+  onElegir,
+}: {
+  valor: FrecuenciaPrestamo | null;
+  anterior: FrecuenciaPrestamo | null;
+  cuotas: number;
+  /** `cuotasSugeridas` = null cuando no hay que tocar el campo de cuotas. */
+  onElegir: (f: FrecuenciaPrestamo, cuotasSugeridas: number | null) => void;
+}) {
+  const opciones: FrecuenciaPrestamo[] = ["diario", "semanal", "quincenal", "mensual"];
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-[12px] font-extrabold text-tinta">
+        ¿Cada cuánto paga? {!valor && <span className="text-rojo-osc">· elegí uno</span>}
+      </span>
+      {/* GRILLA 2×2: los 4 chips en una sola fila desbordaban a 360px. */}
+      <div className="grid grid-cols-2 gap-1.5">
+        {opciones.map((f) => (
+          <button
+            key={f}
+            type="button"
+            onClick={() => {
+              // Mismo plazo en DÍAS: 24 diarias → 4 semanales (se puede cambiar).
+              const convertir =
+                valor && f !== valor && cuotas > 0
+                  ? Math.max(1, Math.round((cuotas * DIAS_POR_FRECUENCIA[valor]) / DIAS_POR_FRECUENCIA[f]))
+                  : null;
+              onElegir(f, convertir);
+            }}
+            className={`min-h-[44px] rounded-[10px] border-2 px-1 text-[12.5px] font-bold capitalize ${
+              valor === f
+                ? "border-azul bg-azul-suave text-azul"
+                : !valor
+                  ? "border-campo bg-tarjeta text-tinta"
+                  : "border-campo bg-suave text-cuerpo"
+            }`}
+          >
+            {f}
+          </button>
+        ))}
+      </div>
+      {anterior && valor && valor !== anterior && (
+        <span className="text-[11px] leading-[1.4] font-medium text-gris">
+          Pasa de {anterior} a {valor}: la cuota se recalcula con la misma tasa repartida en{" "}
+          {cuotas || "las"} cuotas {etiquetaFrec(valor)}.
+        </span>
+      )}
+      {anterior && valor === anterior && (
+        <span className="text-[11px] leading-[1.4] font-medium text-gris">
+          Es como venía pagando. Si cambió, tocá otro.
+        </span>
+      )}
+    </div>
+  );
 }
 
 export interface NoElegibleVista {
@@ -439,7 +520,18 @@ function Tarjeta({
    *  otra pantalla. Antes la única salida era "→ Nueva venta", que ni siquiera
    *  lista al cliente que acaba de terminar si tiene otro crédito activo. */
   const [ajustar, setAjustar] = useState(false);
-  const [frecuencia, setFrecuencia] = useState<FrecuenciaPrestamo>((c.frecuencia as FrecuenciaPrestamo) || "diario");
+  /** FORMATO del crédito (diario/semanal/…). `null` = todavía no lo eligió.
+   *
+   *  ⚠️ En VENTA NUEVA esto no existía: el crédito heredaba el formato del
+   *  anterior en silencio y el PRIMER crédito nacía "diario" a la fuerza. Una
+   *  cobradora que trabaja semanal cargaba 5 cuotas y el sistema las programaba
+   *  para 5 días seguidos: al sexto día el cartón daba todo por vencido sobre un
+   *  cliente que venía al día. Ahora se elige SIEMPRE y a la vista: se
+   *  pre-selecciona el del crédito anterior como sugerencia (visible, cambiable),
+   *  y en un primer crédito arranca vacío — sin elegir no se puede confirmar. */
+  const [frecuencia, setFrecuencia] = useState<FrecuenciaPrestamo | null>(
+    c.primerCredito ? null : ((c.frecuencia as FrecuenciaPrestamo) || null),
+  );
   const [msg, setMsg] = useState<string | null>(null);
   /** El servidor frenó un posible duplicado: el próximo toque lo confirma. */
   const [repetirIgual, setRepetirIgual] = useState(false);
@@ -468,6 +560,9 @@ function Tarjeta({
   /** RENOVAR ajustado: el monto tecleado decide (mismas reglas que venta: hasta
    *  techo solo; entre techo y máximo → pedido a la oficina; más → no). */
   const renovarAjustado = modo === "renovar" && ajustar;
+  /** En VENTA el formato es OBLIGATORIO: sin elegirlo no se coloca capital.
+   *  Nunca más un "diario" por defecto que nadie vio. */
+  const faltaFormato = modo === "venta" && !frecuencia;
   const aOficina = renovarAjustado
     ? excede && !pasaMaximo
     : modo === "renovar"
@@ -494,6 +589,15 @@ function Tarjeta({
       : { monto: c.monto, cuota: c.cuotaExacta ?? c.cuota, totalDias: c.totalDias };
     return calcularCuotaCreditoNuevo(base, montoN, cuotasN, interesDeBase(base) ?? INTERES_DEFECTO_PCT);
   }, [montoN, cuotasN, c.monto, c.cuota, c.cuotaExacta, c.totalDias, c.primerCredito]);
+
+  /** ¿La cuota se condice con el formato elegido? Regla PURA compartida
+   *  (lib/creditoNuevo): avisa, no bloquea — el cobrador tiene al cliente
+   *  enfrente y puede haber un crédito legítimo así. Es el freno que faltaba
+   *  cuando "Nueva venta" grababa planes semanales como diarios. */
+  const avisoFormato = useMemo(
+    () => avisoCoherenciaFormato(montoN, cuotaVenta, cuotasN, frecuencia),
+    [montoN, cuotaVenta, cuotasN, frecuencia],
+  );
 
   // Cuándo empieza a pagar: los créditos nacen el PRÓXIMO día de cobro (no hoy),
   // y el cobrador se lo tiene que poder decir al cliente sin hacer la cuenta.
@@ -524,7 +628,9 @@ function Tarjeta({
                 prestamoId: c.prestamoId!,
                 repetirIgual,
                 // Solo si desplegó "cambiar": si no, el servidor repite tal cual.
-                ...(ajustar ? { monto: montoN, cuotas: cuotasN, frecuencia } : {}),
+                ...(ajustar
+                  ? { monto: montoN, cuotas: cuotasN, ...(frecuencia ? { frecuencia } : {}) }
+                  : {}),
               })
             : c.prestamoId
               ? await renovarDesdeCalle({
@@ -532,13 +638,18 @@ function Tarjeta({
                   prestamoId: c.prestamoId,
                   monto: montoN,
                   cuotas: cuotasN,
+                  // El formato ELEGIDO también por acá: este camino (cliente que
+                  // terminó de pagar y se le vende de nuevo) lo heredaba del
+                  // crédito anterior sin preguntar.
+                  ...(frecuencia ? { frecuencia } : {}),
                   repetirIgual,
                 })
               : await nuevaVentaDesdeCalle({
                   clienteId: c.clienteId,
                   monto: montoN,
                   totalDias: cuotasN,
-                  frecuencia: c.frecuencia as FrecuenciaPrestamo,
+                  // Lo que el cobrador eligió, no lo que heredó en silencio.
+                  frecuencia: frecuencia!,
                   repetirIgual,
                 });
         if (r.ok) {
@@ -753,44 +864,21 @@ function Tarjeta({
                       <> Tu supervisor puede aprobar hasta <b className="text-tinta">{UYU(c.maximo)}</b>.</>
                     )}
                   </span>
-                  {/* Formato del crédito nuevo. En GRILLA 2×2: los 4 chips en una
-                      sola fila desbordaban la tarjeta a 360px (auditoría 21-08). */}
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[12px] font-extrabold text-tinta">Formato</span>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {(["diario", "semanal", "quincenal", "mensual"] as FrecuenciaPrestamo[]).map((f) => (
-                        <button
-                          key={f}
-                          type="button"
-                          onClick={() => {
-                            // Mismo plazo en DÍAS: 24 diarias → 4 semanales (se puede cambiar).
-                            const diasPor: Record<string, number> = { diario: 1, semanal: 7, quincenal: 15, mensual: 30 };
-                            if (f !== frecuencia && cuotasN > 0) {
-                              setCuotas(String(Math.max(1, Math.round((cuotasN * (diasPor[frecuencia] ?? 1)) / (diasPor[f] ?? 1)))));
-                            }
-                            setFrecuencia(f);
-                            setConfirmar(false);
-                          }}
-                          className={`min-h-[44px] rounded-[10px] border-2 px-1 text-[12.5px] font-bold capitalize ${
-                            frecuencia === f ? "border-azul bg-azul-suave text-azul" : "border-campo bg-suave text-cuerpo"
-                          }`}
-                        >
-                          {f}
-                        </button>
-                      ))}
-                    </div>
-                    {frecuencia !== ((c.frecuencia as FrecuenciaPrestamo) || "diario") && (
-                      <span className="text-[11px] leading-[1.4] font-medium text-gris">
-                        Pasa de {c.frecuencia} a {frecuencia}: la cuota se recalcula con la misma tasa repartida en{" "}
-                        {cuotasN || "las"} cuotas {etiquetaFrec(frecuencia)}.
-                      </span>
-                    )}
-                  </div>
+                  <SelectorFormato
+                    valor={frecuencia}
+                    anterior={(c.frecuencia as FrecuenciaPrestamo) || null}
+                    cuotas={cuotasN}
+                    onElegir={(f, cuotasSugeridas) => {
+                      if (cuotasSugeridas != null) setCuotas(String(cuotasSugeridas));
+                      setFrecuencia(f);
+                      setConfirmar(false);
+                    }}
+                  />
                   {montoN > 0 && cuotasN > 0 && !pasaMaximo && !cuotasPasan && (
                     <>
                       <div className="grid grid-cols-3 gap-2 rounded-[12px] bg-suave p-2.5">
                         <Dato k="Cuota" v={UYU(cuotaVenta)} />
-                        <Dato k="Cuotas" v={`${cuotasN} ${etiquetaFrec(frecuencia)}`} />
+                        <Dato k="Cuotas" v={`${cuotasN} ${etiquetaFrec(frecuencia ?? c.frecuencia)}`} />
                         <Dato k="Paga en total" v={UYU(cuotaVenta * cuotasN)} />
                       </div>
                       <Interes monto={montoN} cuota={cuotaVenta} dias={cuotasN} />
@@ -845,6 +933,21 @@ function Tarjeta({
                 </label>
               </div>
 
+              {/* ⚠️ EL FORMATO, OBLIGATORIO Y A LA VISTA. Antes no estaba: el
+                  crédito heredaba el del anterior (o "diario" si era el primero)
+                  sin que nadie lo viera, y los planes semanales quedaban
+                  programados día por día. Mismo componente que usa Renovar. */}
+              <SelectorFormato
+                valor={frecuencia}
+                anterior={c.primerCredito ? null : ((c.frecuencia as FrecuenciaPrestamo) || null)}
+                cuotas={cuotasN}
+                onElegir={(f, cuotasSugeridas) => {
+                  if (cuotasSugeridas != null) setCuotas(String(cuotasSugeridas));
+                  setFrecuencia(f);
+                  setConfirmar(false);
+                }}
+              />
+
               {/* Qué va a pagar el cliente: hasta ahora el cobrador tenía que
                   calcularlo de memoria para poder decírselo. */}
               {/* También cuando EXCEDE (va a pedido): el supervisor aprueba ese
@@ -855,7 +958,7 @@ function Tarjeta({
                 <>
                   <div className="grid grid-cols-3 gap-2 rounded-[12px] bg-tarjeta p-2.5">
                     <Dato k="Cuota" v={UYU(cuotaVenta)} />
-                    <Dato k="Cuotas" v={`${cuotasN} ${etiquetaFrec(c.frecuencia)}`} />
+                    <Dato k="Cuotas" v={`${cuotasN} ${etiquetaFrec(frecuencia ?? c.frecuencia)}`} />
                     <Dato k="Paga en total" v={UYU(cuotaVenta * cuotasN)} />
                   </div>
                   {/* El interés REAL del crédito que se está por crear, con el
@@ -890,6 +993,29 @@ function Tarjeta({
             </div>
           )}
 
+          {/* ⚠️ AVISO DE COHERENCIA (no candado). Si la cuota no se condice con
+              el formato elegido —el patrón exacto de los créditos semanales que
+              quedaron programados día por día— se dice la cuenta en criollo y se
+              ofrece el formato que parece el correcto de un toque. El cobrador
+              puede seguir igual: es un aviso, él tiene al cliente enfrente. */}
+          {avisoFormato && (
+            <div className="flex flex-col gap-2 rounded-[12px] bg-ambar-suave px-3 py-2.5">
+              <span className="text-[12px] leading-[1.45] font-bold text-ambar-osc">
+                ⚠️ {avisoFormato.texto}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setFrecuencia(avisoFormato.sugerido);
+                  setConfirmar(false);
+                }}
+                className="min-h-11 self-start rounded-full bg-tarjeta px-4 text-[12.5px] font-extrabold leading-[44px] text-ambar-osc active:scale-95"
+              >
+                Cambiar a {avisoFormato.sugerido}
+              </button>
+            </div>
+          )}
+
           {msg && <span className="text-[11.5px] font-semibold text-rojo-osc">{msg}</span>}
 
           <div className="flex gap-2">
@@ -908,6 +1034,9 @@ function Tarjeta({
               type="button"
               disabled={
                 pendiente ||
+                // Sin FORMATO no se coloca capital: es el dato que decide cuándo
+                // vence cada cuota, y hasta hoy se elegía solo (auditoría 03-09).
+                faltaFormato ||
                 ((modo === "venta" || renovarAjustado) && (pasaMaximo || cuotasPasan || montoN <= 0 || cuotasN <= 0))
               }
               onClick={() => {
@@ -930,7 +1059,9 @@ function Tarjeta({
                   decía solo "Confirmar" y el cobrador confirmaba a ciegas. */}
               {pendiente
                 ? "Creando…"
-                : (() => {
+                : faltaFormato
+                  ? "Elegí el formato ↑"
+                  : (() => {
                     // RENOVAR va por el monto del crédito anterior (no hay campos);
                     // VENTA por lo que tipeó. Y "pedir a la oficina" solo cuando de
                     // verdad se pasa: el botón nunca promete lo que no va a pasar.

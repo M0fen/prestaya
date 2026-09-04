@@ -20,6 +20,7 @@ import { ListaRuta, type ItemRutaVista } from "@/components/cobrador/ListaRuta";
 import { PrecargarFichas } from "@/components/cobrador/PrecargarFichas";
 import { GastosRuta } from "@/components/cobrador/GastosRuta";
 import { CerrarJornada } from "@/components/cobrador/CerrarJornada";
+import { BarraCierreJornada } from "@/components/cobrador/BarraCierreJornada";
 import { BienvenidaCard } from "@/components/BienvenidaCard";
 import { NovedadesCard } from "@/components/NovedadesCard";
 import { OnboardingDia1 } from "@/components/OnboardingDia1";
@@ -197,6 +198,33 @@ export default async function RutaPage() {
         cuerpo="Abajo tenés tus clientes y cuánto llevás cobrado. Tocá un cliente para registrar su pago: funciona aunque te quedes sin señal, y podés deshacerlo si te equivocaste."
         cta={{ href: "/cobrador/tutorial", texto: "Ver cómo se usa" }}
       />
+
+      {/* ⚠️ PLATA SIN SELLO, ARRIBA DE TODO. Este aviso vivía después de la ruta
+          entera: el que arrastraba jornadas sin rendir tenía que scrollear cinco
+          pantallas para enterarse. Es lo primero que hay que resolver del día —
+          y es la razón por la que su caja amanece en $0 (sin acta no hay
+          arrastre). Va antes que cualquier otra cosa. */}
+      {abiertas.length > 0 && (
+        <Link
+          href="#cierre"
+          className="flex flex-col gap-2 rounded-[14px] border-2 border-ambar-suave bg-ambar-suave px-4 py-3 active:scale-[0.99]"
+        >
+          <span className="text-[13px] font-extrabold text-ambar-osc">
+            ⚠️ {abiertas.length === 1
+              ? "Te quedó una jornada sin cerrar"
+              : `Te quedaron ${abiertas.length} jornadas sin cerrar`}
+            {abiertas[0].antiguedad > 1 ? ` · la más vieja hace ${abiertas[0].antiguedad} días` : ""}
+          </span>
+          <span className="text-[12px] leading-[1.45] font-semibold text-ambar-osc">
+            Ese efectivo sigue sin sello de entrega, y por eso tu caja arranca en $0 cada
+            mañana. Cerrala acá abajo o entregásela a tu supervisor: él la registra desde
+            su pantalla y queda a tu nombre.
+          </span>
+          <span className="self-start rounded-full bg-tarjeta px-3.5 py-2 text-[12.5px] font-extrabold text-ambar-osc">
+            Ver el detalle y cerrar ↓
+          </span>
+        </Link>
+      )}
 
       {/* Banner del equipo (aviso del admin), si hay uno activo. */}
       {banner && <BannerEquipo banner={banner} />}
@@ -398,6 +426,7 @@ export default async function RutaPage() {
           a otras 12 que arrastran $1.559.559. Ahora barre los últimos días y lista
           cada jornada con su monto — y dice a dónde va esa plata, porque ya no es un
           callejón: el supervisor la puede registrar desde su pantalla. */}
+      {/* El DETALLE (el aviso corto va arriba de todo, al abrir la app). */}
       {abiertas.length > 0 && (
         <div className="flex flex-col gap-2 rounded-[14px] border border-ambar-suave bg-ambar-suave px-4 py-3">
           <span className="text-[13px] font-extrabold text-ambar-osc">
@@ -441,6 +470,20 @@ export default async function RutaPage() {
           disponible={jornada.disponible}
         />
         </div>
+      )}
+
+      {/* ⚠️ EL CIERRE, AL PULGAR. Barra fija sobre la nav mientras la jornada
+          esté abierta con movimientos: cerrar caja estaba al final de 4-6
+          pantallas de scroll y en todo el piloto se cerraron 4 jornadas (con
+          $9,25 M cobrados en 30 días). Sin acta no hay arrastre, y por eso la
+          caja amanece en $0. Se aparta sola al llegar al bloque de cierre. */}
+      {jornada && jornada.disponible && !jornada.yaRendida &&
+        (jornada.cobrosCantidad > 0 || jornada.recaudado > 0 || abiertas.length > 0) && (
+        <BarraCierreJornada
+          recaudado={jornada.recaudado}
+          cobros={jornada.cobrosCantidad}
+          atrasadas={abiertas.length}
+        />
       )}
     </div>
   );

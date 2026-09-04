@@ -60,7 +60,7 @@ vi.mock("@/lib/data/creditoNuevo", () => ({ crearCreditoNuevoDb: (...a: unknown[
 vi.mock("@/lib/data/renovaciones", () => ({ crearRenovacion: (...a: unknown[]) => crearRenovacion(...a) }));
 vi.mock("@/lib/data/auditoria", () => ({ registrarAuditoria: (...a: unknown[]) => registrarAuditoria(...a) }));
 vi.mock("@/lib/observabilidad", () => ({ reportarError: (...a: unknown[]) => reportarError(...a) }));
-const avisarUsuario = vi.fn(async () => 0);
+const avisarUsuario = vi.fn(async (..._a: unknown[]) => 0);
 vi.mock("@/lib/push/avisarGestores", () => ({
   avisarUsuario: (...a: unknown[]) => avisarUsuario(...a),
   avisarGestoresDeCobrador: vi.fn(async () => 0),

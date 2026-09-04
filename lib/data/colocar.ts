@@ -303,7 +303,14 @@ export async function getCandidatosVenta(db: SupabaseClient): Promise<CandidatoC
   );
   const cliDe = new Map(cls.map((c) => [c.id, c]));
 
-  /** Tarjeta de PRIMER crédito: sin términos que arrastrar, tope = CAP. */
+  /** Tarjeta de PRIMER crédito: sin términos que arrastrar, tope = CAP.
+   *
+   *  ⚠️ `frecuencia: ""` = NO HAY formato que sugerir, y la pantalla tiene que
+   *  preguntarlo. Antes acá decía "diario" y ese default silencioso terminaba
+   *  grabado en el crédito: una cobradora que trabaja semanal cargaba 5 cuotas y
+   *  el cartón las programaba para 5 días seguidos, dando el crédito por vencido
+   *  a la semana sobre un cliente que venía al día (12 créditos así, 03-09).
+   *  El formato ahora lo elige el cobrador en la tarjeta, siempre. */
   const primero = (cid: string, cli: Cliente, historialRoto: boolean): CandidatoColocar => ({
     clienteId: cid,
     nombre: cli.nombre,
@@ -311,7 +318,7 @@ export async function getCandidatosVenta(db: SupabaseClient): Promise<CandidatoC
     monto: 0,
     cuota: 0,
     totalDias: 0,
-    frecuencia: "diario",
+    frecuencia: "",
     techo: RENOVACION_CAP_TOTAL,
     maximo: RENOVACION_CAP_TOTAL,
     primerCredito: true,
