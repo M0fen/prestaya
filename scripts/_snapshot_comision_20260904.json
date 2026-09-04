@@ -1,0 +1,96 @@
+{
+ "tomado_en": "2026-09-04T18:55:11.845191",
+ "criterio": "comision_cobrador_id = prestamos.cobrador_id (pagos origen IS NULL)",
+ "formula": "VIEJA: group by prestamos.cobrador_id, pagos vigentes origen IS NULL",
+ "por_cobrador": {
+  "ef70117d-4b1f-42aa-a8d8-06569ee3fa43": {
+   "recaudado": 235738.0,
+   "cobros": 67
+  },
+  "855e3662-cadb-4a17-a7d7-596cf6c2ece6": {
+   "recaudado": 199089.0,
+   "cobros": 45
+  },
+  "609d1f06-0b00-4111-8abc-b4d1e45facf3": {
+   "recaudado": 286378.0,
+   "cobros": 116
+  },
+  "2119e15f-f822-45f4-a7da-9b346a886c39": {
+   "recaudado": 736963.0,
+   "cobros": 369
+  },
+  "facbe11d-0004-42e6-acb3-5d73ad0b5e14": {
+   "recaudado": 10050.0,
+   "cobros": 9
+  },
+  "6bc9f287-992c-46f1-a4e6-3c9c20a57a0a": {
+   "recaudado": 534421.0,
+   "cobros": 70
+  },
+  "19f8edaa-b257-44c6-9906-0e96ca9788c5": {
+   "recaudado": 1118048.0,
+   "cobros": 272
+  },
+  "d42b23e8-d66e-45c0-a9ba-f2bd7b5516ec": {
+   "recaudado": 811219.0,
+   "cobros": 545
+  },
+  "d24ef58e-8b03-4e8c-ad73-d51ef409662c": {
+   "recaudado": 500.0,
+   "cobros": 1
+  },
+  "fba7e7f9-d4f3-4cc8-91ac-886e06912b7b": {
+   "recaudado": 164220.0,
+   "cobros": 65
+  },
+  "9b5bd9b7-eb26-4159-a25d-02c44026d4fb": {
+   "recaudado": 138940.0,
+   "cobros": 88
+  },
+  "d5896914-336e-4dce-a144-f415d3c95736": {
+   "recaudado": 1243520.0,
+   "cobros": 754
+  },
+  "d7c5c4a9-d08e-4d62-839b-e8664c181759": {
+   "recaudado": 711781.0,
+   "cobros": 212
+  },
+  "9b6b5fed-bca0-4bdb-8cc6-5433cbe14a23": {
+   "recaudado": 568976.0,
+   "cobros": 154
+  },
+  "2ecbef1b-d76a-46f2-a1eb-8e1f6a0b2042": {
+   "recaudado": 274561.0,
+   "cobros": 188
+  },
+  "5dcda381-7964-4197-9be6-189f9f2ed8dc": {
+   "recaudado": 320690.0,
+   "cobros": 171
+  },
+  "9b92edd9-80f4-4e10-a62c-a9f7e8eb0530": {
+   "recaudado": 738169.0,
+   "cobros": 367
+  },
+  "328ef0ba-a393-4a87-aecb-3b690a598e40": {
+   "recaudado": 21450.0,
+   "cobros": 6
+  },
+  "798b45d1-e9e4-4c61-8d91-e2a3a4e5cc3f": {
+   "recaudado": 1856204.0,
+   "cobros": 1009
+  },
+  "1b3c2e8b-27a5-4715-90f5-4621d0309f8b": {
+   "recaudado": 51150.0,
+   "cobros": 11
+  }
+ },
+ "totales": {
+  "cobradores": 20,
+  "recaudado": 10022067.0,
+  "cobros": 4519
+ },
+ "a_tocar": {
+  "vigentes_sin_foto": 4519,
+  "universo_incluye_anulados": 4621
+ }
+}
