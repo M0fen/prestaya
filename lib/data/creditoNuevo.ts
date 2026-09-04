@@ -16,7 +16,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { FrecuenciaPrestamo } from "@/types/db";
-import { esViolacionUnica } from "@/lib/idempotencia";
+import { esViolacionUnica, opIdDeterminista } from "@/lib/idempotencia";
 
 /** Términos del último crédito del cliente: de ahí sale la TASA del nuevo. */
 export interface BaseCreditoNuevo {
@@ -213,17 +213,63 @@ export async function crearCreditoNuevoDb(
 
   // Colisión de op_id = este MISMO alta ya se había commiteado (doble submit o
   // reintento tras un 504). No es un error: se devuelve el crédito existente.
+  //
+  // ⚠️ SALVO QUE ESE CRÉDITO ESTÉ CANCELADO. El caso real: el cobrador coloca
+  // $5.000, se da cuenta del dedazo, toca "Deshacer" (el crédito queda
+  // 'cancelado') y vuelve a colocar el MISMO monto y plazo ese día. El op_id
+  // determinista —(cliente, monto, cuota, cuotas, fecha, cobrador)— vuelve a dar
+  // el mismo valor, así que la app le decía "Ya estaba hecho ✓, no le des la
+  // plata de nuevo" señalando un crédito DESHECHO: el cliente se quedaba sin su
+  // plata y sin crédito. Un crédito cancelado nunca existió financieramente
+  // (misma regla que el techo del +20%), así que el alta se REHACE con un op_id
+  // derivado — determinista también, para que dos toques de ESTE reintento
+  // sigan colisionando entre sí.
   if (esViolacionUnica(alta.error)) {
-    const ya = await db.from("prestamos").select("id").eq("op_id", input.opId).limit(1);
-    const id = ya.data?.[0]?.id as string | undefined;
-    if (id) return { ok: true, prestamoId: id, repetido: true };
+    const ya = await db.from("prestamos").select("id, estado").eq("op_id", input.opId).limit(1);
+    const fila = ya.data?.[0] as { id: string; estado: string } | undefined;
+    if (fila && fila.estado !== "cancelado") return { ok: true, prestamoId: fila.id, repetido: true };
+    if (fila) {
+      const reintento = await db
+        .from("prestamos")
+        .insert({
+          cliente_id: input.clienteId,
+          cobrador_id: input.cobradorId,
+          monto_prestado: input.monto,
+          cuota_diaria: input.cuota,
+          total_dias: input.totalDias,
+          frecuencia: input.frecuencia,
+          fecha_inicio: input.fechaInicio,
+          estado: "activo",
+          origen: "credito",
+          interes_pct: input.interesPct,
+          creado_por: input.creadoPor,
+          op_id: opIdDeterminista("recolocar-tras-deshacer", input.opId, fila.id),
+        })
+        .select("id")
+        .single();
+      if (!reintento.error && reintento.data) {
+        await consolidarRuta(db, input.clienteId, input.cobradorId);
+        return { ok: true, prestamoId: reintento.data.id as string, repetido: false };
+      }
+      // El reintento también chocó: es el doble toque de ESTA recolocación.
+      const yaRe = await db
+        .from("prestamos")
+        .select("id")
+        .eq("op_id", opIdDeterminista("recolocar-tras-deshacer", input.opId, fila.id))
+        .limit(1);
+      const idRe = yaRe.data?.[0]?.id as string | undefined;
+      if (idRe) return { ok: true, prestamoId: idRe, repetido: true };
+      return { ok: false, error: "No se pudo crear el crédito. Probá de nuevo." };
+    }
   }
 
   // Falló de verdad... o commiteó y se perdió la respuesta. Verificar por op_id
   // ANTES de reportar el fallo (si existe, el capital ya salió: decirlo bien).
-  const chequeo = await db.from("prestamos").select("id").eq("op_id", input.opId).limit(1);
-  const idExistente = chequeo.data?.[0]?.id as string | undefined;
-  if (idExistente) return { ok: true, prestamoId: idExistente, repetido: true };
+  // Un cancelado tampoco cuenta acá: ese capital NO está en la calle.
+  const chequeo = await db.from("prestamos").select("id, estado").eq("op_id", input.opId).limit(1);
+  const existente = chequeo.data?.[0] as { id: string; estado: string } | undefined;
+  if (existente && existente.estado !== "cancelado")
+    return { ok: true, prestamoId: existente.id, repetido: true };
 
   return { ok: false, error: "No se pudo crear el crédito. Probá de nuevo." };
 }
