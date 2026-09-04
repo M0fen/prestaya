@@ -465,6 +465,10 @@ export async function renovarDesdeCalle(input: {
       monto,
       totalDias,
       frecuencia: frecuenciaNueva,
+      // Los términos van RESUELTOS por el módulo: la capa de datos ya no vuelve a
+      // calcular la cuota ni la fecha por su cuenta.
+      cuota: tr.cuota,
+      fechaInicio: tr.fechaInicio,
       creadoPor: u.id,
       // Un crédito HEREDADO por encima del CAP se repite tal cual: la RPC tiene su
       // propio tope duro (P0411) que no sabe que esto es continuidad, no capital

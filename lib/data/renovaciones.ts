@@ -236,6 +236,18 @@ export interface AltaRenovacion {
   totalDias: number;
   /** Frecuencia de las cuotas del nuevo crédito. */
   frecuencia: import("@/types/db").FrecuenciaPrestamo;
+  /**
+   * Cuota YA RESUELTA por `lib/domain/credito` (UYU). Opcional por compatibilidad
+   * con los tests, pero las TRES puertas de renovación la mandan siempre: es lo
+   * que evita que esta capa sea una segunda fuente de verdad sobre el dinero.
+   *
+   * Cuando no viene se calcula acá con la MISMA función (`calcularCuotaRenovacion`)
+   * y los MISMOS datos del crédito anterior, así que el valor es idéntico — el
+   * fallback existe para no romper llamadores viejos, no para decidir plata.
+   */
+  cuota?: number;
+  /** Fecha de inicio YA RESUELTA ("YYYY-MM-DD"). Misma lógica que `cuota`. */
+  fechaInicio?: string;
   /** usuarios.id del gestor que da el alta (auditoría). */
   creadoPor: string | null;
   /** Deja pasar un monto POR ENCIMA del CAP de $100.000. Solo lo activa el camino
@@ -336,19 +348,24 @@ export async function crearRenovacion(
   if (r.falta >= 1)
     return { ok: false, error: "El crédito actual todavía no está saldado." };
 
-  // La cuota arrastra la tasa del crédito anterior (mismo cálculo que el form).
-  const cuota = calcularCuotaRenovacion(
-    { monto: ant.monto_prestado, cuota: ant.cuota_diaria, totalDias: ant.total_dias },
-    monto,
-    totalDias,
-  );
+  // La cuota y la fecha las decide `lib/domain/credito` y llegan resueltas desde
+  // la puerta. El cálculo de abajo es el MISMO (misma función, mismos datos del
+  // crédito anterior) y queda solo como red para un llamador que no las mande.
+  const cuota =
+    input.cuota != null && input.cuota > 0
+      ? Math.round(input.cuota)
+      : calcularCuotaRenovacion(
+          { monto: ant.monto_prestado, cuota: ant.cuota_diaria, totalDias: ant.total_dias },
+          monto,
+          totalDias,
+        );
   if (!(cuota > 0))
     return { ok: false, error: "La cuota calculada es inválida (revisar monto/días)." };
 
   // El crédito nuevo arranca el PRÓXIMO día de cobro: la plata se entrega hoy y
   // se empieza a pagar mañana. Con la fecha de hoy, la cuota 1 vencía el mismo día
   // en que el cliente recibía el dinero (reporte de campo del día 2).
-  const fechaInicio = toIso(proximoDiaCobro(hoyUY(hoy)));
+  const fechaInicio = input.fechaInicio ?? toIso(proximoDiaCobro(hoyUY(hoy)));
 
   // 2+3. Camino ATÓMICO (RPC 0087): finaliza el anterior + inserta el nuevo en UNA
   //      transacción → o commitean los dos o ninguno. Cierra la ventana donde el

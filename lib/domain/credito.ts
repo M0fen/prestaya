@@ -188,8 +188,19 @@ export function referenciaDe(
 ): ReferenciaCredito | null {
   if (!fila) return null;
   const prestamoId = (fila.prestamoId ?? fila.id) as string | undefined;
-  const monto = Math.round(Number(fila.monto ?? fila.monto_prestado ?? 0));
-  const cuota = Math.round(Number(fila.cuota ?? fila.cuota_diaria ?? 0));
+  // ⚠️ NO se redondea: estos valores son de LECTURA (de ellos sale la tasa que se
+  // arrastra y el techo), no el número que se guarda. La capa de datos calcula la
+  // cuota con los valores CRUDOS de la base, así que redondear acá hacía que el
+  // módulo y la persistencia dieran cuotas distintas por $1 en los 53 créditos
+  // activos con cuota fraccionaria heredada de Disapp (ANA BETANCOURT $507,53;
+  // ELIZABETH RAFFO $2.000,21). El monto nunca trae decimales, pero se trata
+  // igual por la misma razón.
+  //
+  // El redondeo se hace donde corresponde: sobre el monto que se COLOCA
+  // (`montoRenovacionSugerido`), sobre la cuota que se GUARDA
+  // (`calcularCuotaCreditoNuevo`) y dentro de las funciones de techo.
+  const monto = Number(fila.monto ?? fila.monto_prestado ?? 0);
+  const cuota = Number(fila.cuota ?? fila.cuota_diaria ?? 0);
   const totalDias = Number(fila.totalDias ?? fila.total_dias ?? 0);
   if (!prestamoId || !(monto > 0)) return null;
   return {

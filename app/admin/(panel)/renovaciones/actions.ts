@@ -181,6 +181,9 @@ export async function renovarCredito(input: {
     monto,
     totalDias,
     frecuencia: t.frecuencia,
+    // Resueltos por el módulo: la capa de datos no recalcula.
+    cuota: t.cuota,
+    fechaInicio: t.fechaInicio,
     creadoPor: usuario.id,
     permitirSobreCap: sobreCap,
   });
@@ -446,6 +449,9 @@ export async function aprobarSolicitud(id: string): Promise<ResultadoAlta> {
       monto: tr.monto,
       totalDias: tr.totalDias,
       frecuencia: tr.frecuencia,
+      // Resueltos por el módulo: la capa de datos no recalcula.
+      cuota: tr.cuota,
+      fechaInicio: tr.fechaInicio,
       // ⚠️ El crédito nace a nombre del COBRADOR QUE LO PIDIÓ, no del gestor que
       // aprueba: el efectivo lo saca él del bolsillo, parado al lado del cliente.
       // El capital colocado se cuenta por `creado_por`, así que ponerle el id del
