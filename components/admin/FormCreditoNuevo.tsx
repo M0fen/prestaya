@@ -6,7 +6,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { UYU } from "@/lib/format";
-import { calcularCuotaCreditoNuevo, INTERES_DEFECTO_PCT, interesDeBase } from "@/lib/creditoNuevo";
+import { avisoCoherenciaFormato, calcularCuotaCreditoNuevo, INTERES_DEFECTO_PCT, interesDeBase } from "@/lib/creditoNuevo";
 import { evaluarRenovacion, explicaTecho, techoVentaGestor, RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
 import { crearCreditoNuevo } from "@/lib/acciones/creditoNuevo";
 import type { FrecuenciaPrestamo } from "@/types/db";
@@ -56,7 +56,12 @@ export function FormCreditoNuevo({
   const [confirmar, setConfirmar] = useState(false);
   const [monto, setMonto] = useState(String(base?.monto ?? ""));
   const [dias, setDias] = useState(String(base?.totalDias ?? 24));
-  const [frecuencia, setFrecuencia] = useState<FrecuenciaPrestamo>(base?.frecuencia ?? "diario");
+  /** Formato del crédito. `null` = todavía no se eligió: en un PRIMER crédito no
+   *  hay cuál sugerir y no se puede dar de alta a ciegas. Con historial se
+   *  pre-selecciona el del cliente (sugerencia visible, como en la calle).
+   *  ⚠️ El default fijo "diario" fue lo que dejó 8 planes semanales programados
+   *  día por día desde la app del cobrador (corregidos el 04-09). */
+  const [frecuencia, setFrecuencia] = useState<FrecuenciaPrestamo | null>(base?.frecuencia ?? null);
   const [interes, setInteres] = useState(String(INTERES_DEFECTO_PCT));
   const [cobradorId, setCobradorId] = useState(cobradorSugerido ?? cobradores[0]?.id ?? "");
   const [ocupado, setOcupado] = useState(false);
@@ -111,8 +116,17 @@ export function FormCreditoNuevo({
   const techoGestor = conHistorial ? techoVentaGestor(baseTasa!.monto) : RENOVACION_CAP_TOTAL;
   const superaCap = valido ? montoNum > techoGestor : false;
   const bloqueado = superaCap;
+  /** Sin FORMATO no se da de alta: es el dato que decide cuándo vence cada cuota. */
+  const faltaFormato = !frecuencia;
+  /** ¿La cuota se condice con el formato elegido? Misma regla pura que la calle:
+   *  avisa (no bloquea) cuando el plan parece de otro formato. */
+  const avisoFormato = useMemo(
+    () => avisoCoherenciaFormato(montoNum, cuota, diasNum, frecuencia),
+    [montoNum, cuota, diasNum, frecuencia],
+  );
 
   const enviar = async () => {
+    if (!frecuencia) return; // el botón ya está apagado; defensa por las dudas
     setOcupado(true);
     setError(null);
     const res = await crearCreditoNuevo({
@@ -275,7 +289,9 @@ export function FormCreditoNuevo({
       )}
 
       <label className="flex flex-col gap-1">
-        <span className="text-[11px] font-semibold text-gris">Frecuencia de pago</span>
+        <span className="text-[11px] font-semibold text-gris">
+          Frecuencia de pago {!frecuencia && <span className="text-[#C0392B]">· elegí una</span>}
+        </span>
         <div className="flex flex-wrap gap-1.5">
           {FRECUENCIAS.map((f) => (
             <button
@@ -331,6 +347,25 @@ export function FormCreditoNuevo({
         </p>
       )}
 
+      {/* Aviso de coherencia (advierte, no bloquea): la MISMA regla pura que usa
+          la app del cobrador. Si la cuota no se condice con el formato, lo dice
+          con la cuenta hecha y ofrece cambiarlo de un toque. */}
+      {avisoFormato && (
+        <div className="flex flex-col gap-2 rounded-[12px] bg-[#FDF3E2] px-3 py-2.5">
+          <span className="text-[12px] leading-[1.45] font-bold text-[#8A6D1E]">⚠️ {avisoFormato.texto}</span>
+          <button
+            type="button"
+            onClick={() => {
+              setFrecuencia(avisoFormato.sugerido);
+              setConfirmar(false);
+            }}
+            className="min-h-[44px] self-start rounded-full bg-tarjeta px-4 text-[12.5px] font-extrabold text-[#8A6D1E]"
+          >
+            Cambiar a {avisoFormato.sugerido}
+          </button>
+        </div>
+      )}
+
       {error && (
         <p className="rounded-[12px] bg-[#FBE4E2] px-3 py-2 text-[12px] font-semibold text-[#C0392B]">{error}</p>
       )}
@@ -352,10 +387,10 @@ export function FormCreditoNuevo({
           <button
             type="button"
             onClick={() => setConfirmar(true)}
-            disabled={!valido || ocupado || bloqueado || cuota <= 0}
+            disabled={!valido || ocupado || bloqueado || faltaFormato || cuota <= 0}
             className="min-h-[44px] flex-1 btn-primario px-4 text-[13px] font-bold text-white disabled:opacity-40"
           >
-            {bloqueado ? "No permitido" : "Revisar y dar de alta"}
+            {bloqueado ? "No permitido" : faltaFormato ? "Elegí la frecuencia ↑" : "Revisar y dar de alta"}
           </button>
         ) : (
           <button

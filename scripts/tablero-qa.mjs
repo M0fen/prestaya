@@ -140,6 +140,36 @@ console.log("═══ TABLERO DE QA · " + new Date().toISOString().slice(0, 16
   );
 }
 
+// ── 4b · CAJAS SIN CERRAR: la métrica REAL del arrastre (04-09) ──────────────
+//  El chequeo de arriba mira jornadas CON BASE cargada, y como casi nadie carga
+//  base, no veía nada. Esto mira lo que de verdad importa: el que COBRÓ en la
+//  calle y no cerró su caja. Sin acta no hay arrastre, y por eso la caja
+//  amanece en $0 — que es la queja "la caja no queda de un día para otro".
+//  Medido el 03-09: 145 días-cobrador y $9.250.920 en 30 días. Con el piloto en
+//  pausa esto es esperable; al retomar, cualquier número sostenido es la señal.
+{
+  const [r] = await q(`
+    select count(*)::int as dias_cobrador, coalesce(sum(monto),0)::int as plata
+    from (
+      select (p.registrado_en - interval '3 hours')::date as dia, p.registrado_por as cid, sum(p.monto) as monto
+      from pagos p
+      where p.anulado = false and p.origen is null
+        and p.registrado_en > now() - interval '7 days'
+        and (p.registrado_en - interval '3 hours')::date < (now() at time zone 'America/Montevideo')::date
+      group by 1, 2
+    ) d
+    left join rendiciones r on r.cobrador_id = d.cid and r.fecha = d.dia
+    where r.id is null
+  `);
+  linea(
+    "Cobró y NO cerró caja (7 días / plata)",
+    `${r.dias_cobrador} días-cobrador / $${r.plata.toLocaleString("es-UY")}`,
+    r.dias_cobrador > 0
+      ? `${r.dias_cobrador} jornada(s) con cobros y sin acta: esa caja no arrastra y amanece en $0 (piloto en pausa = esperable)`
+      : null,
+  );
+}
+
 // ── 5 · Reportes desde la app ───────────────────────────────────────────────
 {
   const [r] = await q(`
@@ -170,6 +200,43 @@ console.log("═══ TABLERO DE QA · " + new Date().toISOString().slice(0, 16
   linea("Bases cargadas hoy / ayer / cobradores", `${r.hoy} / ${r.ayer} / ${r.cobradores}`);
   if (r.ayer < Math.ceil(r.cobradores / 2))
     console.log("     (piloto en pausa — al retomar, esto vuelve a ser señal de alarma)");
+}
+
+// ── 6a-bis · FORMATO DE CRÉDITO INCOHERENTE (vigilancia nueva, 04-09) ────────
+//  La queja: 8 planes SEMANALES quedaron programados día por día porque "Nueva
+//  venta" no dejaba elegir el formato y el primer crédito nacía "diario". El
+//  cartón los daba por vencidos a la semana y el scoring castigaba a clientes
+//  que venían al día. El hueco se cerró (formato obligatorio + aviso de
+//  coherencia), y esto es el detector para que NUNCA MÁS haga falta que alguien
+//  se queje: si vuelve a aparecer uno cargado DESDE LA APP, salta acá solo.
+//
+//  La señal es estructural: con el 20% de interés del negocio la cuota es
+//  ≈ 1,2 / cantidad de cuotas del capital; en 24-30 cuotas diarias da 4-5%. Una
+//  cuota ≥20% del capital en ≤8 cuotas "diarias" liquida el crédito en días:
+//  eso no es cobro diario. Se miran SOLO los creados por un usuario en la app
+//  (creado_por no nulo): los heredados de Disapp son otra historia, con su
+//  propio lote de revisión.
+{
+  const [r] = await q(`
+    select count(*)::int as n,
+           count(*) filter (where creado_en > now() - interval '7 days')::int as ultima_semana,
+           coalesce(min(fecha_inicio)::text, '—') as mas_viejo
+    from prestamos
+    where estado = 'activo' and frecuencia = 'diario' and total_dias <= 8
+      and creado_por is not null and origen <> 'disapp_import'
+      and cuota_diaria / nullif(monto_prestado, 0) >= 0.20
+  `);
+  // Baseline 3 (04-09): MARIA PICA, ANDREA JHOANA y ANA STEVES — casos
+  // ambiguos que se dejaron a propósito para consultar con su cobrador (sus
+  // clientes son 100% diarios). Lo que SUPERE ese número es del día.
+  const BASELINE = 3;
+  linea(
+    "Créditos con formato incoherente (app)",
+    `${r.n}  (baseline ${BASELINE}${r.ultima_semana ? ` · ${r.ultima_semana} de esta semana` : ""})`,
+    r.n > BASELINE
+      ? `Hay ${r.n - BASELINE} crédito(s) nuevo(s) cargados como "diario" con cuota de días: correr scripts/formato-credito-diagnostico.ts`
+      : null,
+  );
 }
 
 // ── 6b · Supervisores SIN zona (decisión de Carlos, 15-08: no pueden existir) ─
