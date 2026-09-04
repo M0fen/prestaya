@@ -35,7 +35,14 @@ function leerEnv(nombre) {
 // Lo que los vigilantes cantan HOY por herencia del empalme / operación
 // conocida. Ver memoria qa-fases-2-3-0815: no es plata nueva mal contada.
 const BASELINE = {
-  "no-sobrecobro": { tope: 300, nota: "herencia del empalme (292 el 15-08), plano" },
+  // ⚠️ 292 es lo heredado ACEPTADO (medido el 15-08). Desde el 2026-08-17 el
+  // vigilante canta 608 todas las noches: los +316 son pagos DUPLICADOS por el
+  // empalme de esa madrugada (la guardia anti doble-conteo comparaba por día
+  // calendario y no vio el mismo cobro anotado en Disapp un día y en la app al
+  // siguiente). NO se sube el tope a 608: eso sería aceptar plata mal contada y
+  // dejar de verla. El tope queda en lo aceptado y la nota dice la verdad, así
+  // el salto se lee como lo que es. Ver el informe del 04-09.
+  "no-sobrecobro": { tope: 292, nota: "heredado aceptado 292 (15-08); +316 del empalme 17-08 = pagos duplicados SIN resolver" },
   "importado-saldado-sin-finalizar": { tope: null, nota: "zombies de Renovar (~217): operación, no plata" },
   "gasto_sin_egreso": { tope: 1, nota: "Valentina $1.000 (04-08) hasta registrar el egreso" },
   "rendicion-existe": { tope: 15, nota: "jornadas sin rendir conocidas" },

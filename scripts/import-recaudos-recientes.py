@@ -117,7 +117,7 @@ if dias_import:
     # los NULL (SQL trivalente) → la guardia quedaba CIEGA a los pagos de la app,
     # exactamente los que debía proteger (hallazgo auditoría 08-04).
     nativos = E.get_rows(
-        db, "pagos", "id,prestamo_id,registrado_en,monto,origen",
+        db, "pagos", "id,prestamo_id,dia_credito,registrado_en,monto,origen",
         {"anulado": "eq.false", "registrado_en": f"gte.{dias_import[0]}"},
     )
     nativos = [n for n in nativos if n.get("origen") is None]
@@ -139,7 +139,30 @@ if dias_import:
         if ts:
             nativo_en.setdefault((n["prestamo_id"], ts), 0)
             nativo_en[(n["prestamo_id"], ts)] += float(n.get("monto") or 0)
-    choques = [f for f in filas if (f["prestamo_id"], dia_uy(f["registrado_en"])) in nativo_en]
+    # ⚠️ SEGUNDA GUARDIA, POR CUOTA (auditoría 04-09). La de arriba compara por
+    # (crédito, DÍA CALENDARIO) y en un cambio de sistema eso no alcanza: el
+    # cobrador cobró en la calle, lo anotó en Disapp con la fecha de ayer y lo
+    # registró en la app hoy. Mismo crédito, MISMA CUOTA, mismo monto, días
+    # distintos → la guardia no lo veía y `--omitir-choques` lo importaba igual.
+    # Medido: el empalme del 17-08 dejó 611 créditos sobre-cobrados ($1.213.730),
+    # con 222 pares EXACTOS (mismo crédito + misma cuota + mismo monto).
+    # La identidad de un cobro entre dos sistemas es la CUOTA que salda, no el
+    # día en que alguien lo tipeó.
+    nativo_cuota = {}
+    for n in nativos:
+        dc = n.get("dia_credito")
+        if dc is not None:
+            nativo_cuota.setdefault((n["prestamo_id"], int(dc)), 0)
+            nativo_cuota[(n["prestamo_id"], int(dc))] += float(n.get("monto") or 0)
+
+    def choca_por_cuota(f):
+        dc = f.get("dia_credito")
+        return dc is not None and (f["prestamo_id"], int(dc)) in nativo_cuota
+
+    choques = [
+        f for f in filas
+        if (f["prestamo_id"], dia_uy(f["registrado_en"])) in nativo_en or choca_por_cuota(f)
+    ]
     if choques:
         monto_choque = round(sum(x["monto"] for x in choques))
         print(f"\n🔴 ABORTA: {len(choques)} recaudos (${monto_choque:,}) caen en créditos+días que YA")
