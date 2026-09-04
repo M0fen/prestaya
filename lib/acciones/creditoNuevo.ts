@@ -27,17 +27,11 @@ import {
   crearCreditoNuevoDb,
 } from "@/lib/data/creditoNuevo";
 import { cerrarSolicitudPendienteDeAnterior } from "@/lib/data/solicitudesRenovacion";
-import { calcularCuotaCreditoNuevo, INTERES_DEFECTO_PCT, interesDeBase } from "@/lib/creditoNuevo";
-import { cuotasValidas, explicaTecho, techoVentaGestor, RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
-import { esUuid, opIdDeterminista } from "@/lib/idempotencia";
-import { hoyUY } from "@/lib/fecha";
-import { proximoDiaCobro } from "@/lib/cartones";
-import { toIso, UYU } from "@/lib/format";
+import { UYU } from "@/lib/format";
+import { referenciaDe, resolverCredito } from "@/lib/domain/credito";
 import type { FrecuenciaPrestamo } from "@/types/db";
-
-const FRECUENCIAS: FrecuenciaPrestamo[] = ["diario", "semanal", "quincenal", "mensual"];
 
 export type ResultadoCreditoNuevo =
   | { ok: true; prestamoId: string; cuota: number; repetido: boolean }
@@ -48,7 +42,10 @@ export async function crearCreditoNuevo(input: {
   cobradorId: string;
   monto: number;
   totalDias: number;
-  frecuencia: FrecuenciaPrestamo;
+  /** OBLIGATORIO. `null` = la pantalla no preguntó → se rechaza, no se asume
+   *  'diario': ese default silencioso es el que hizo nacer ocho planes semanales
+   *  programados día por día. */
+  frecuencia: FrecuenciaPrestamo | null;
   /** Solo se usa si el cliente NO tiene historial (si lo tiene, manda su tasa). */
   interesPct?: number;
   /** Nonce del navegador para la idempotencia; si falta se deriva uno estable. */
@@ -62,19 +59,11 @@ export async function crearCreditoNuevo(input: {
   const bloqueo = await bloqueoSoloLectura();
   if (bloqueo) return bloqueo;
 
-  const monto = Math.round(Number(input.monto));
-  const totalDias = Math.round(Number(input.totalDias));
-  if (!Number.isFinite(monto) || monto <= 0) return { ok: false, error: "Revisá el monto." };
-  // Tope superior compartido (lib/renovacion.cuotasValidas): un totalDias absurdo
-  // pulveriza la cuota (round → $1) y el total queda por debajo del capital.
-  if (!cuotasValidas(totalDias, true))
-    return { ok: false, error: "La cantidad de cuotas debe ser un entero entre 1 y 366." };
-  if (!FRECUENCIAS.includes(input.frecuencia)) return { ok: false, error: "Frecuencia inválida." };
-  // El tope se decide MÁS ABAJO contra el último crédito del cliente (regla de
-  // Carlos 16-08: el gestor autoriza hasta +20% del anterior, con piso en el CAP;
-  // el CAP a secas solo rige el PRIMER crédito). Antes acá cortaba en $100.000
-  // para todos — la queja del admin "no deja hacer créditos con más del 20%".
-
+  // ⚠️ El monto, las cuotas, el formato, el techo, la tasa, la cuota, la fecha de
+  // inicio y la clave de idempotencia NO se deciden acá: los resuelve
+  // `resolverCredito` (lib/domain/credito), el mismo módulo que usan la calle y
+  // el aprobador. Lo que queda en esta puerta es lo que le es propio: quién
+  // entra, a qué zona alcanza y qué se hace después de crear.
   const db = await createSupabaseServer();
 
   const cliente = await getClientePorId(db, input.clienteId);
@@ -110,65 +99,55 @@ export async function crearCreditoNuevo(input: {
     }
   }
 
-  // ── Tasa y tope, contra el ÚLTIMO crédito del cliente ──
-  const base = await getUltimoCreditoDe(db, input.clienteId);
-  const baseTasa = base ? { monto: base.monto, cuota: base.cuota, totalDias: base.totalDias } : null;
-  const conHistorial = !!(baseTasa && baseTasa.monto > 0 && baseTasa.cuota > 0 && baseTasa.totalDias > 0);
-
-  // ⚠️ Desde el 08-13 el SUPERVISOR también es aprobador (regla de Carlos: "que
-  // den aprobación o hagan esto manual ellos mismos"): puede dar el primer
-  // crédito de un cliente y autorizar por encima del tramo, igual que el admin.
-  // Si hasta el COBRADOR coloca el primer crédito directo desde la calle
-  // (cobradorCredito.ts), bloquearle esto al supervisor era un contrasentido.
+  // ── Los TÉRMINOS los decide el módulo de dominio ──────────────────────────
+  // La referencia es el ÚLTIMO crédito REGISTRADO del cliente (regla de Carlos,
+  // 19-08: no el más grande de su historia), y de ahí salen a la vez la tasa que
+  // se arrastra y el techo. `getUltimoCreditoDe` ya excluye los cancelados: una
+  // venta deshecha nunca existió financieramente.
   //
-  // TECHO del gestor: con historial, +20% sobre el último crédito (piso CAP);
-  // sin historial (primer crédito), el CAP. Más de eso en un alta no lo autoriza
-  // nadie — candado contra el dedazo (misma regla que techoRenovacion).
-  // Base del techo = el ÚLTIMO crédito REGISTRADO del cliente (regla de Carlos,
-  // 19-08 segunda vuelta: no el más grande de su historia) — el mismo del que
-  // sale la tasa.
-  const refTecho = conHistorial ? baseTasa!.monto : 0;
-  const techoGestor = conHistorial ? techoVentaGestor(refTecho) : RENOVACION_CAP_TOTAL;
-  if (monto > techoGestor)
-    return {
-      ok: false,
-      error: conHistorial
-        ? `Hasta ${UYU(techoGestor)} ${explicaTecho(refTecho, techoGestor)}. Más que eso no se autoriza en una sola venta.`
-        : `El primer crédito no puede superar ${UYU(RENOVACION_CAP_TOTAL)}.`,
-    };
-
-  // El interés solo se acepta del formulario cuando NO hay historial; si lo hay,
-  // manda la tasa del crédito anterior (el gestor no puede re-tarifar por acá).
-  const interesPct = conHistorial
-    ? interesDeBase(baseTasa)
-    : Math.max(0, Math.min(100, Math.round(Number(input.interesPct ?? INTERES_DEFECTO_PCT))));
-
-  const cuota = calcularCuotaCreditoNuevo(baseTasa, monto, totalDias, interesPct ?? INTERES_DEFECTO_PCT);
-  if (!(cuota > 0)) return { ok: false, error: "La cuota calculada es inválida (revisar monto/cuotas)." };
-
-  // La plata se entrega HOY y se empieza a pagar el PRÓXIMO día de cobro: con
-  // fecha_inicio = hoy, la cuota 1 vencía el mismo día en que el cliente recibía
-  // el dinero y a la medianoche el cartón la pintaba atrasada (reporte de campo
-  // del día 2). Si mañana es domingo, arranca el lunes.
-  const fechaInicio = toIso(proximoDiaCobro(hoyUY(new Date())));
-  // Idempotencia: el nonce del navegador sobrevive al reintento del MISMO submit;
-  // sin él, una clave determinista por (cliente, términos, día, gestor) igual evita
-  // que un doble clic coloque el capital dos veces.
-  const opId = esUuid(input.nonce)
-    ? input.nonce
-    : opIdDeterminista("credito-nuevo", input.clienteId, monto, cuota, totalDias, fechaInicio, u.id);
-
-  const res = await crearCreditoNuevoDb(db, {
+  // ⚠️ Desde el 08-13 el SUPERVISOR también es aprobador (regla de Carlos: "que
+  // den aprobación o hagan esto manual ellos mismos"), así que entra como
+  // `autoridad: "gestor"`: autoriza hasta el máximo del sistema y por encima se
+  // rechaza — no hay a quién pedirle.
+  const base = await getUltimoCreditoDe(db, input.clienteId);
+  const resol = resolverCredito({
+    via: "venta",
+    autoridad: "gestor",
     clienteId: input.clienteId,
     cobradorId: input.cobradorId,
-    monto,
-    cuota,
-    totalDias,
+    actorId: u.id,
+    monto: input.monto,
+    totalDias: input.totalDias,
     frecuencia: input.frecuencia,
-    fechaInicio,
-    interesPct,
+    interesPct: input.interesPct,
+    referencia: referenciaDe(base),
+    nonce: input.nonce,
+    hoy: new Date(),
+  });
+  if (resol.via === "rechazo") return { ok: false, error: resol.error };
+  if (resol.via === "solicitud") {
+    // No se alcanza con `autoridad: "gestor"` (su techo propio ES el máximo),
+    // pero el tipo lo contempla y un cambio futuro en la tabla de techos no
+    // puede caer en un `crear` silencioso con términos a medio resolver.
+    return {
+      ok: false,
+      error: `Ese monto supera lo que se puede autorizar acá (${UYU(resol.techo)}).`,
+    };
+  }
+  const t = resol.terminos;
+  const { monto, totalDias, cuota } = t;
+
+  const res = await crearCreditoNuevoDb(db, {
+    clienteId: t.clienteId,
+    cobradorId: t.cobradorId,
+    monto: t.monto,
+    cuota: t.cuota,
+    totalDias: t.totalDias,
+    frecuencia: t.frecuencia,
+    fechaInicio: t.fechaInicio,
+    interesPct: t.interesPct,
     creadoPor: u.id,
-    opId,
+    opId: t.opId,
   });
   if (!res.ok) return res;
 
@@ -178,11 +157,11 @@ export async function crearCreditoNuevo(input: {
   // aprueba y sale un SEGUNDO crédito (el patrón JORGE, 06→09-08 — el cartel
   // ámbar de colocadoDespues no alcanzó entonces y por eso los otros tres
   // caminos ya cierran automático). Best-effort: el crédito ya está creado.
-  if (conHistorial && base && res.prestamoId && !res.repetido) {
+  if (t.referenciaId && res.prestamoId && !res.repetido) {
     try {
       await cerrarSolicitudPendienteDeAnterior(
         db,
-        base.prestamoId,
+        t.referenciaId,
         res.prestamoId,
         u.id,
         "rechazada",
@@ -198,10 +177,14 @@ export async function crearCreditoNuevo(input: {
     await registrarAuditoria(db, {
       actorId: u.id,
       actorNombre: u.nombre,
-      accion: conHistorial ? "Dio de alta un crédito nuevo (cliente que volvió)" : "Dio de alta el primer crédito del cliente",
+      accion: t.referenciaId
+        ? "Dio de alta un crédito nuevo (cliente que volvió)"
+        : "Dio de alta el primer crédito del cliente",
       entidad: "cliente",
       entidadId: input.clienteId,
-      detalle: `${UYU(monto)} × ${totalDias} (${input.frecuencia}) · cuota ${UYU(cuota)} · ruta: ${(cob as { nombre?: string }).nombre ?? "—"}`,
+      // El formato queda escrito en el asiento: es el dato que faltaba cuando
+      // ocho planes semanales nacieron 'diario' sin que nadie pudiera verlo.
+      detalle: `${UYU(monto)} × ${totalDias} (${t.frecuencia}) · cuota ${UYU(cuota)} · ruta: ${(cob as { nombre?: string }).nombre ?? "—"}`,
     });
   }
 

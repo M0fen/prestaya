@@ -46,28 +46,15 @@ import {
   crearCreditoNuevoDb,
   getUltimoCreditoDe,
 } from "@/lib/data/creditoNuevo";
-import {
-  calcularCuotaCreditoNuevo,
-  interesDeBase,
-  puedeDeshacerVenta,
-  INTERES_DEFECTO_PCT,
-} from "@/lib/creditoNuevo";
-import {
-  cuotasValidas,
-  explicaTecho,
-  montoRenovacionAutoAprobable,
-  montoRenovacionSugerido,
-  techoRenovacion,
-  techoVentaNueva,
-  techoVentaGestor,
-  RENOVACION_CAP_TOTAL,
-} from "@/lib/renovacion";
+import { puedeDeshacerVenta } from "@/lib/creditoNuevo";
+import { RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
+import { referenciaDe, resolverCredito } from "@/lib/domain/credito";
 import { crearSolicitudDb, cerrarSolicitudPendienteDeAnterior } from "@/lib/data/solicitudesRenovacion";
-import { calcularEstadosCarton, proximoDiaCobro } from "@/lib/cartones";
+import { calcularEstadosCarton } from "@/lib/cartones";
 import { registrarAuditoria } from "@/lib/data/auditoria";
-import { esUuid, opIdDeterminista } from "@/lib/idempotencia";
+import { esUuid } from "@/lib/idempotencia";
 import { hoyUY } from "@/lib/fecha";
-import { toIso, UYU } from "@/lib/format";
+import { UYU } from "@/lib/format";
 import { avisarGestoresDeCobrador } from "@/lib/push/avisarGestores";
 import { reportarError } from "@/lib/observabilidad";
 import type { FrecuenciaPrestamo } from "@/types/db";
@@ -387,84 +374,55 @@ export async function renovarDesdeCalle(input: {
   }
 
   const montoAnterior = Math.round(Number(ant.monto_prestado) || 0);
-  const diasAnterior = Number(ant.total_dias) || 0;
-  if (!(montoAnterior > 0) || !(diasAnterior > 0)) {
-    return {
-      ok: false,
-      error: "Los términos del crédito anterior no son válidos. Avisá a la oficina.",
-    };
-  }
   // El crédito se pasa del tope del sistema (herencia de Disapp: 135 activos, hasta
   // $1.750.000). NO es un callejón sin salida: se le manda la solicitud al admin
   // para que la apruebe (decisión de Carlos, 06-08). Antes esto devolvía un error
   // y el cliente quedaba sin forma de renovar — encima el crédito ni siquiera
   // aparecía en la lista. El monto pedido NO se recorta al CAP: recortarlo sería
   // rebajarle el capital al cliente en silencio.
-  // ── UNA SOLA REGLA PARA EL MONTO DE LA RENOVACIÓN ────────────────────────
-  //  Por defecto se repite el MISMO monto que terminó (regla de Carlos, 06-08:
-  //  "si terminó 60k, se renueva en 60k"). El cobrador puede cambiarlo: está
-  //  frente al cliente. Y entonces hay tres tramos, en este orden:
+  // ── Los TÉRMINOS los decide el módulo de dominio ──────────────────────────
+  //  Por defecto se repite el MISMO crédito que terminó —monto, cuotas y
+  //  formato— (regla de Carlos, 06-08: "si terminó 60k, se renueva en 60k"). El
+  //  cobrador puede cambiar cualquiera de los tres: está frente al cliente. Los
+  //  `null` de abajo son eso: "no lo tocó, heredalo".
+  //
+  //  El techo tiene tres tramos, en este orden:
   //    · hasta su TECHO (+20%)        → lo aprueba él solo, se crea en el acto
   //    · entre el techo y el MÁXIMO   → va a la oficina (no rebota)
   //    · por encima del máximo        → se rechaza mostrando el número posible
   //
-  //  ⚠️ Antes había DOS ramas y la primera se elegía por el monto ANTERIOR, no
-  //  por el pedido: un crédito heredado de $120.000 que se quería renovar en
-  //  $50.000 —por debajo del tope y del propio techo del cobrador— igual se iba
-  //  a la cola del admin y el cliente esperaba sin razón.
-  // CUOTAS del crédito nuevo. Por defecto se heredan del anterior (renovar es
-  // repetir), pero el cobrador puede cambiarlas: el cliente a veces necesita la
-  // cuota más baja aunque tarde más. Cambiarlas NO cambia lo que paga en TOTAL
-  // (monto × su tasa) — reparte ese total en más o menos cuotas.
-  // Mismo tope que la venta de calle: sin él, un `totalDias` absurdo (1 o 5.000)
-  // produce una cuota disparatada y el cartón queda ilegible.
-  const totalDias = input.cuotas == null ? diasAnterior : Math.round(Number(input.cuotas));
-  // ⚠️ El tope de 366 vale para lo que se TECLEA, no para lo que se HEREDA. Hay 5
-  // créditos vivos con plazos de Disapp más largos (PAOLA VANESSA CASTRO: $1.110.000
-  // en 555 cuotas), y aplicarle el tope al valor heredado los rebotaba con "Revisá
-  // la cantidad de cuotas (máximo 366)" en una pantalla que NO tiene campo de
-  // cuotas: el cobrador leía un rojo sobre algo que no puede tocar. Repetir el
-  // crédito tal cual es continuidad de una exposición que ya existe.
-  const cuotasTecleadas = input.cuotas != null;
-  if (!cuotasValidas(totalDias, cuotasTecleadas)) {
-    return {
-      ok: false,
-      error: cuotasTecleadas
-        ? "Revisá la cantidad de cuotas (máximo 366)."
-        : "Los términos del crédito anterior no son válidos. Avisá a la oficina.",
-    };
-  }
-
-  const techoSolo = montoRenovacionAutoAprobable(montoAnterior);
-  const maximo = techoRenovacion(montoAnterior);
-  const pedido =
-    input.monto == null ? montoRenovacionSugerido(montoAnterior) : Math.round(Number(input.monto));
-  if (!Number.isFinite(pedido) || pedido <= 0) {
-    return { ok: false, error: "Revisá el monto de la renovación." };
-  }
-  // La frecuencia del crédito NUEVO: la que eligió el cobrador, o la heredada.
-  const frecuenciaNueva: FrecuenciaPrestamo =
-    input.frecuencia ?? ((ant.frecuencia as FrecuenciaPrestamo) ?? "diario");
-  if (pedido > maximo) {
-    // No se recorta en silencio (un cero de más se volvía un crédito 5× más
-    // grande). El máximo es +20% del anterior con piso en el CAP (regla 16-08):
-    // más que eso en UNA renovación no lo autoriza nadie — se dice el número.
-    return {
-      ok: false,
-      error: `Para este cliente tu supervisor puede aprobar hasta ${UYU(maximo)} ${explicaTecho(montoAnterior, maximo)}. Más que eso no se autoriza en una sola renovación: revisá el monto.`,
-    };
-  }
-  if (pedido > techoSolo) {
+  //  ⚠️ El tramo se elige por el monto PEDIDO, no por el anterior: un heredado de
+  //  $120.000 que se renueva en $50.000 —bajo el tope y bajo su propio techo— se
+  //  iba igual a la cola del admin y el cliente esperaba sin razón.
+  //  ⚠️ El tope de 366 cuotas rige lo TECLEADO, nunca lo heredado: hay 5 créditos
+  //  vivos de Disapp con plazos más largos (PAOLA VANESSA CASTRO, 555 cuotas) y
+  //  aplicárselo los rebotaba en rojo en una pantalla sin campo de cuotas.
+  //  Las dos reglas viven ahora en `resolverCredito`, probadas de una vez.
+  const resolRen = resolverCredito({
+    via: "renovacion",
+    autoridad: "cobrador",
+    clienteId: input.clienteId,
+    cobradorId: (ant.cobrador_id as string | null) ?? u.id,
+    actorId: u.id,
+    monto: input.monto ?? null,
+    totalDias: input.cuotas ?? null,
+    frecuencia: input.frecuencia ?? null,
+    referencia: referenciaDe(ant),
+    hoy: new Date(),
+  });
+  if (resolRen.via === "rechazo") return { ok: false, error: resolRen.error };
+  if (resolRen.via === "solicitud") {
     return pedirAprobacion(db, u, {
       clienteId: input.clienteId,
       prestamoAnteriorId: ant.id,
-      monto: pedido,
-      totalDias,
-      frecuencia: frecuenciaNueva,
+      monto: resolRen.monto,
+      totalDias: resolRen.totalDias,
+      frecuencia: resolRen.frecuencia,
       tipo: "renovacion",
     });
   }
-  const monto = pedido;
+  const tr = resolRen.terminos;
+  const { monto, totalDias, frecuencia: frecuenciaNueva } = tr;
 
   // CANDADO ANTI DOBLE-COLOCACIÓN: el mismo monto al mismo cliente hace minutos
   // (propio O de un compañero — cliente compartido). Solo se salta si el cobrador
@@ -679,7 +637,9 @@ export async function nuevaVentaDesdeCalle(input: {
   clienteId: string;
   monto: number;
   totalDias: number;
-  frecuencia: FrecuenciaPrestamo;
+  /** OBLIGATORIO. `null` = la pantalla no preguntó → se rechaza, no se asume
+   *  'diario' (el default silencioso que programó ocho semanales día por día). */
+  frecuencia: FrecuenciaPrestamo | null;
   /** Confirmación explícita de que son DOS créditos distintos (ver el candado). */
   repetirIgual?: boolean;
   nonce?: string;
@@ -688,21 +648,11 @@ export async function nuevaVentaDesdeCalle(input: {
   if (!p.ok) return p;
   const { u, db } = p;
 
+  // El monto se normaliza acá SOLO para el candado anti-doble-colocación, que
+  // corre ANTES de resolver los términos (si es un dedazo repetido, no hay que
+  // seguir). Los TÉRMINOS los decide `resolverCredito` más abajo.
   const monto = Math.round(Number(input.monto));
-  const totalDias = Math.round(Number(input.totalDias));
   if (!Number.isFinite(monto) || monto <= 0) return { ok: false, error: "Revisá el monto." };
-  // Tope SUPERIOR de cuotas (auditoría 08-05): sin él, un totalDias absurdo
-  // pulveriza la cuota (round(monto·factor/dias) → $1) y el total del crédito
-  // queda por DEBAJO del capital prestado — interés destruido y pérdida de
-  // principal. En la venta el monto y las cuotas SIEMPRE se teclean.
-  if (!cuotasValidas(totalDias, true))
-    return { ok: false, error: "Revisá la cantidad de cuotas (máximo 366)." };
-  if (!FRECUENCIAS.includes(input.frecuencia)) return { ok: false, error: "Frecuencia inválida." };
-  // ⚠️ El CAP a secas YA NO corta acá (queja del admin 16-08: "no deja hacer
-  // créditos con más del 20%"). Con historial, lo que pasa del techo del cobrador
-  // va a SOLICITUD (más abajo) y el gestor puede autorizar hasta
-  // techoVentaGestor (+20% del anterior, piso CAP). El CAP duro queda SOLO para el
-  // primer crédito (sin anterior contra qué medir): se valida más abajo.
 
   // CANDADO ANTI DOBLE-COLOCACIÓN: el mismo monto al mismo cliente hace minutos
   // (propio O de un compañero — cliente compartido). Solo se salta si el cobrador
@@ -743,87 +693,63 @@ export async function nuevaVentaDesdeCalle(input: {
   // primer crédito no tiene crédito anterior contra qué medir un aumento, así que
   // sale DIRECTO: al 20% del negocio, con el CAP de $100.000 como único tope (se
   // valida más abajo, en la rama sin historial) y el candado anti-doble-colocación.
+  // ── Los TÉRMINOS los decide el módulo de dominio ──────────────────────────
+  // Misma función que usa el panel: si el cobrador y el supervisor cargan el
+  // mismo crédito, sale idéntico. Lo único distinto es `autoridad`, y de ahí
+  // sale que el cobrador PIDA en vez de rebotar cuando se pasa de su techo.
+  //
+  // Base del techo y de la tasa = el ÚLTIMO crédito REGISTRADO del cliente
+  // (regla de Carlos, 19-08: no el más grande de su historia). El techo propio
+  // sale de `techoVentaNueva`, LA MISMA función con la que la lista dibuja
+  // "podés darle hasta $X": comparando porcentajes, el redondeo daba 20,004% y
+  // el servidor rechazaba en rojo el número que la pantalla acababa de ofrecer.
   const base = await getUltimoCreditoDe(db, input.clienteId);
-  const baseTasa = base ? { monto: base.monto, cuota: base.cuota, totalDias: base.totalDias } : null;
-  const conHistorial = !!(
-    baseTasa &&
-    baseTasa.monto > 0 &&
-    baseTasa.cuota > 0 &&
-    baseTasa.totalDias > 0
-  );
-
-  if (conHistorial) {
-    // Tope del tramo (+20% sobre su último crédito): hasta ahí lo coloca solo.
-    //
-    // ⚠️ Se compara contra `techoVentaNueva` — LA MISMA función con la que la lista
-    // dibuja "podés darle hasta $X" — y no contra el PORCENTAJE. Comparando el
-    // porcentaje, el redondeo del techo mostrado podía dar 20,004% y el servidor
-    // rechazaba en rojo exactamente el número que la pantalla acababa de ofrecer.
-    //
-    // Por ENCIMA del techo ya NO se rebota: se genera una SOLICITUD tipo 'venta'
+  const resol = resolverCredito({
+    via: "venta",
+    autoridad: "cobrador",
+    clienteId: input.clienteId,
+    cobradorId: u.id, // el cobrador solo coloca en SU propia ruta
+    actorId: u.id,
+    monto: input.monto,
+    totalDias: input.totalDias,
+    frecuencia: input.frecuencia,
+    referencia: referenciaDe(base),
+    nonce: input.nonce,
+    hoy: new Date(),
+  });
+  if (resol.via === "rechazo") return { ok: false, error: resol.error };
+  if (resol.via === "solicitud") {
+    // Por encima de su techo NO se rebota: se genera una SOLICITUD tipo 'venta'
     // que aprueba el supervisor de la zona o el admin (0139). Antes el mensaje
     // decía "pedíselo a tu supervisor" y el pedido viajaba por fuera de la app —
     // el mismo agujero que la auditoría del 10-08 marcó en la cola de gastos.
-    // Base del techo = el ÚLTIMO crédito REGISTRADO del cliente (activo o
-    // terminado) — regla de Carlos, 19-08 (segunda vuelta): NO el más grande de
-    // su historia. Es el mismo crédito del que se arrastra la tasa.
-    const refTecho = baseTasa!.monto;
-    const techo = techoVentaNueva(refTecho);
-    if (monto > techo) {
-      // Lo que NI el gestor puede autorizar (más de +20% de la referencia y sobre
-      // el CAP) se rebota acá con la salida clara — no se manda a una cola que
-      // igual lo va a rechazar.
-      const maximo = techoVentaGestor(refTecho);
-      if (monto > maximo)
-        return {
-          ok: false,
-          error: `Hasta ${UYU(maximo)} lo puede aprobar tu supervisor ${explicaTecho(refTecho, maximo)}. Más que eso no se autoriza en una sola venta.`,
-        };
-      return pedirAprobacion(db, u, {
-        clienteId: input.clienteId,
-        prestamoAnteriorId: base!.prestamoId,
-        monto,
-        totalDias,
-        frecuencia: input.frecuencia,
-        tipo: "venta",
-      });
-    }
-  } else if (monto > RENOVACION_CAP_TOTAL) {
-    // PRIMER crédito: sin anterior contra qué medir un +20%, el CAP es el tope.
-    return { ok: false, error: `El primer crédito no puede superar ${UYU(RENOVACION_CAP_TOTAL)}.` };
+    return pedirAprobacion(db, u, {
+      clienteId: input.clienteId,
+      prestamoAnteriorId: resol.referenciaId!,
+      monto: resol.monto,
+      totalDias: resol.totalDias,
+      frecuencia: resol.frecuencia,
+      tipo: "venta",
+    });
   }
-
-  const interesPct = interesDeBase(baseTasa);
-  const cuota = calcularCuotaCreditoNuevo(
-    baseTasa,
-    monto,
-    totalDias,
-    interesPct ?? INTERES_DEFECTO_PCT,
-  );
-  if (!(cuota > 0))
-    return { ok: false, error: "La cuota calculada no es válida. Revisá monto y cuotas." };
-
-  // Arranca el PRÓXIMO día de cobro: se entrega hoy, se paga desde mañana.
-  const fechaInicio = toIso(proximoDiaCobro(hoyUY(new Date())));
-  const opId = esUuid(input.nonce)
-    ? input.nonce
-    : opIdDeterminista("venta-calle", input.clienteId, monto, cuota, totalDias, fechaInicio, u.id);
+  const t = resol.terminos;
+  const { totalDias, cuota } = t;
 
   // ⚠️ Se escribe con el cliente ADMIN a propósito: la policy de INSERT sobre
   // `prestamos` (0129) sigue exigiendo gestor, y así tiene que quedar — es lo
   // que impide que alguien POSTee un crédito por REST saltándose todo lo de
   // arriba. Acá ya se validaron CAP, tramo, historial, ruta y kill-switch.
   const res = await crearCreditoNuevoDb(createSupabaseAdmin(), {
-    clienteId: input.clienteId,
-    cobradorId: u.id, // el cobrador solo coloca en SU propia ruta
-    monto,
-    cuota,
-    totalDias,
-    frecuencia: input.frecuencia,
-    fechaInicio,
-    interesPct,
+    clienteId: t.clienteId,
+    cobradorId: t.cobradorId,
+    monto: t.monto,
+    cuota: t.cuota,
+    totalDias: t.totalDias,
+    frecuencia: t.frecuencia,
+    fechaInicio: t.fechaInicio,
+    interesPct: t.interesPct,
     creadoPor: u.id,
-    opId,
+    opId: t.opId,
   });
   if (!res.ok) return res;
 
@@ -832,11 +758,11 @@ export async function nuevaVentaDesdeCalle(input: {
   // oficina podría aprobarlo después y fabricar un SEGUNDO crédito (el caso
   // JORGE, 06→09-08, mudado a las ventas). Se cierra como RECHAZADO con el
   // motivo. Best-effort: el crédito ya está creado.
-  if (conHistorial && base && res.prestamoId && !res.repetido) {
+  if (t.referenciaId && res.prestamoId && !res.repetido) {
     try {
       await cerrarSolicitudPendienteDeAnterior(
         createSupabaseAdmin(),
-        base.prestamoId,
+        t.referenciaId,
         res.prestamoId,
         u.id,
         "rechazada",
@@ -862,12 +788,14 @@ export async function nuevaVentaDesdeCalle(input: {
       // El PRIMER crédito queda distinguible en la auditoría: es la operación de
       // más riesgo (sin historial contra qué medir) y la que la oficina va a
       // querer repasar cliente por cliente.
-      accion: conHistorial
+      accion: t.referenciaId
         ? "Colocó un crédito nuevo desde la calle"
         : "Colocó el PRIMER crédito del cliente desde la calle (censo)",
       entidad: "cliente",
       entidadId: input.clienteId,
-      detalle: `${UYU(monto)} × ${totalDias} (${input.frecuencia}) · cuota ${UYU(cuota)}`,
+      // El formato queda escrito en el asiento: es el dato que faltaba cuando
+      // ocho planes semanales nacieron 'diario' sin que nadie pudiera verlo.
+      detalle: `${UYU(t.monto)} × ${totalDias} (${t.frecuencia}) · cuota ${UYU(cuota)}`,
     });
   }
   revalidatePath("/cobrador");

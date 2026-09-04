@@ -118,6 +118,46 @@ export interface ReferenciaCredito {
   frecuencia: FrecuenciaPrestamo;
 }
 
+/**
+ * Arma la referencia desde una fila de crédito, venga de donde venga
+ * (`getUltimoCreditoDe`, `getPrestamoPorId`, o la fila cruda de la tabla). Es el
+ * único mapeo: sin esto cada puerta copiaba su propio `{ monto, cuota,
+ * totalDias }` y una se olvidaba de la frecuencia — que es justamente el campo
+ * que faltaba. Devuelve `null` cuando no hay contra qué medir.
+ */
+export function referenciaDe(
+  fila:
+    | {
+        prestamoId?: string;
+        id?: string;
+        monto?: number;
+        monto_prestado?: number;
+        cuota?: number;
+        cuota_diaria?: number;
+        totalDias?: number;
+        total_dias?: number;
+        frecuencia?: string | null;
+      }
+    | null
+    | undefined,
+): ReferenciaCredito | null {
+  if (!fila) return null;
+  const prestamoId = (fila.prestamoId ?? fila.id) as string | undefined;
+  const monto = Math.round(Number(fila.monto ?? fila.monto_prestado ?? 0));
+  const cuota = Math.round(Number(fila.cuota ?? fila.cuota_diaria ?? 0));
+  const totalDias = Number(fila.totalDias ?? fila.total_dias ?? 0);
+  if (!prestamoId || !(monto > 0)) return null;
+  return {
+    prestamoId,
+    monto,
+    cuota,
+    totalDias,
+    // El formato es obligatorio en el modelo; una fila vieja sin él es 'diario',
+    // que es lo que esos créditos SON (la columna se agregó después).
+    frecuencia: esFrecuencia(fila.frecuencia) ? fila.frecuencia : "diario",
+  };
+}
+
 export interface PedidoCredito {
   via: ViaCredito;
   autoridad: Autoridad;

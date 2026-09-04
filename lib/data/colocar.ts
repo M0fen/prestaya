@@ -17,13 +17,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { calcularEstadosCarton } from "@/lib/cartones";
 import {
   calcularCuotaRenovacion,
-  montoRenovacionAutoAprobable,
   montoRenovacionSugerido,
-  techoRenovacion,
-  techoVentaNueva,
-  techoVentaGestor,
   RENOVACION_CAP_TOTAL,
 } from "@/lib/renovacion";
+import { referenciaDe, techosDe } from "@/lib/domain/credito";
 import { hoyUY } from "@/lib/fecha";
 import { UYU } from "@/lib/format";
 import { getPagosDeVariosPrestamos } from "./pagos";
@@ -205,7 +202,13 @@ export async function getCandidatosRenovar(
     // CAP— para que la pantalla no vuelva a prometer algo distinto de lo que hace
     // el servidor: antes un heredado de $120.000 se marcaba "requiere aprobación"
     // y el botón decía "Pedir a la oficina" mientras el servidor lo aprobaba solo.
-    const requiereAprobacion = montoNuevo > montoRenovacionAutoAprobable(montoAnterior);
+    // ⚠️ Los dos techos salen de `techosDe` (lib/domain/credito), LA MISMA tabla
+    // que aplica el servidor al crear. Antes cada lado elegía su combinación de
+    // `techoVentaNueva` / `montoRenovacionAutoAprobable` / `techoRenovacion` y
+    // alcanzaba con que una cambiara para que la tarjeta prometiera un número
+    // que el servidor después rechazaba en rojo, delante del cliente.
+    const techos = techosDe("renovacion", "cobrador", referenciaDe(p));
+    const requiereAprobacion = montoNuevo > techos.propio;
     const cuotaNueva = calcularCuotaRenovacion(
       { monto: montoAnterior, cuota: cuotaAnterior, totalDias },
       montoNuevo,
@@ -223,12 +226,12 @@ export async function getCandidatosRenovar(
       totalDias,
       frecuencia: (p.frecuencia as string) ?? "diario",
       falta: Math.max(0, Math.round(carton.falta)),
-      techo: montoRenovacionAutoAprobable(montoAnterior),
+      techo: techos.propio,
       // El tope duro del servidor (`renovarDesdeCalle` rechaza por encima). La
       // tarjeta lo necesita para no ofrecer "se manda el pedido a la oficina" por
       // un monto que la oficina TAMPOCO puede aprobar: ese botón mentía y el
       // cobrador se comía el rojo delante del cliente.
-      maximo: techoRenovacion(montoAnterior),
+      maximo: techos.maximo,
       montoNuevo,
       cuotaNueva,
       requiereAprobacion,
@@ -355,17 +358,20 @@ export async function getCandidatosVenta(db: SupabaseClient): Promise<CandidatoC
       cuota,
       totalDias,
       frecuencia: (p.frecuencia as string) ?? "diario",
-      // Techo y máximo contra el ÚLTIMO crédito registrado (`monto`), la misma
-      // referencia que usa nuevaVentaDesdeCalle (refTecho = baseTasa.monto).
-      techo: techoVentaNueva(monto),
-      // ⚠️ El tope DURO de una venta nueva es lo que el GESTOR puede autorizar
-      // (techoVentaGestor: +20% del anterior con piso en el CAP — regla de Carlos
-      // 16-08), LA MISMA función que valida nuevaVentaDesdeCalle y aprobarSolicitud.
-      // Sin este dato la pantalla no distinguía "no lo podés dar VOS" de "no lo
-      // puede NADIE" y siempre elegía el mensaje más duro; y con el CAP a secas
-      // acá, ofrecía "pedir hasta $100.000" cuando el server ya acepta $108.000
-      // para un anterior de $90.000 — la queja del admin otra vez desde la calle.
-      maximo: techoVentaGestor(monto),
+      // Techo y máximo contra el ÚLTIMO crédito registrado, sacados de `techosDe`
+      // (lib/domain/credito) — LA MISMA tabla que aplica `nuevaVentaDesdeCalle`
+      // al crear y `aprobarSolicitud` al autorizar.
+      //
+      // `propio` = hasta dónde lo coloca solo; `maximo` = lo que el GESTOR puede
+      // autorizar (+20% del anterior con piso en el CAP, regla de Carlos 16-08).
+      // Sin los dos, la pantalla no distinguía "no lo podés dar VOS" de "no lo
+      // puede NADIE" y elegía siempre el mensaje más duro; y con el CAP a secas
+      // ofrecía "pedir hasta $100.000" cuando el server ya acepta $108.000 para
+      // un anterior de $90.000 — la queja del admin, otra vez desde la calle.
+      ...(() => {
+        const t = techosDe("venta", "cobrador", referenciaDe(p));
+        return { techo: t.propio, maximo: t.maximo };
+      })(),
       deudaHermano: Math.round(deudaViva.get(cid) ?? 0),
     });
   }
