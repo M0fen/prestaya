@@ -23,11 +23,33 @@ const crearReciboDb = vi.fn();
 const liquidadasInsert = vi.fn(() => Promise.resolve({ error: null }));
 const liquidadasSelect = vi.fn(() => ({ eq: () => Promise.resolve({ data: [], error: null }) }));
 const liquidadasDelete = vi.fn(() => ({ eq: () => ({ eq: () => Promise.resolve({ error: null }) }) }));
+
+// Doble de `pagos` para la guardia de atribución congelada (0152). Por defecto:
+// TODOS los pagos del período ya tienen comisión atribuida (count 0 sin foto), que
+// es el mundo después del backfill y el caso que no debe estorbar.
+const pagosSinFoto = vi.fn(() => 0);
+const encadenable = (fin: () => unknown) => {
+  const b: Record<string, unknown> = {};
+  for (const m of ["select", "is", "eq", "gte", "lte", "neq"]) b[m] = () => b;
+  b.then = (ok: (v: unknown) => unknown) => Promise.resolve(fin()).then(ok);
+  return b;
+};
 const db = {
   from: (t: string) =>
     t === "comisiones_liquidadas"
-      ? { insert: liquidadasInsert, select: liquidadasSelect, delete: liquidadasDelete }
-      : {},
+      ? {
+          insert: liquidadasInsert,
+          select: (...a: unknown[]) => {
+            // La guardia nueva pide las liquidaciones de OTROS cobradores con
+            // `.neq(...)`; el resto del archivo usa `.eq(...)`. Se soportan las dos.
+            const base = liquidadasSelect(...(a as []));
+            return { ...base, neq: () => Promise.resolve({ data: [], error: null }) };
+          },
+          delete: liquidadasDelete,
+        }
+      : t === "pagos"
+        ? encadenable(() => ({ count: pagosSinFoto(), error: null }))
+        : {},
 };
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));

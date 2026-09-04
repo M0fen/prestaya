@@ -152,6 +152,59 @@ export async function liquidarComision(input: {
       };
   }
 
+  // ── GUARDIA POR PAGO: el doble pago que cruza COBRADORES (0152) ───────────
+  //
+  // La guardia de arriba mira solo las liquidaciones de ESTE cobrador, y eso
+  // dejaba abierto el camino más caro: se le liquida la quincena a A (egreso real
+  // de caja) → se reasigna el cliente a B → B liquida la MISMA quincena y su monto
+  // incluye los pagos que ya se le pagaron a A. Es una fila nueva, otro
+  // cobrador_id: ni el unique ni el EXCLUDE de rango se disparan.
+  //
+  // Desde 0152 cada pago nace con su comisión atribuida y esa foto NO cambia al
+  // reasignar, así que para los pagos NUEVOS el problema no puede ocurrir: solo su
+  // dueño congelado puede liquidarlos. El agujero queda únicamente en los pagos
+  // ANTERIORES a 0152, que no tienen foto y por eso caen al dueño ACTUAL del
+  // crédito — esos sí se re-imputan al reasignar.
+  //
+  // Entonces la regla exacta es: si este período incluye pagos SIN foto (o sea,
+  // re-imputables), no se puede liquidar cuando OTRO cobrador ya liquidó un
+  // período que los solapa. No bloquea lo legítimo —dos cobradores liquidando la
+  // misma quincena con pagos ya congelados— y se apaga sola cuando todos los
+  // pagos tengan atribución.
+  {
+    const sinFoto = await db
+      .from("pagos")
+      .select("id", { count: "exact", head: true })
+      .is("comision_cobrador_id", null)
+      .is("origen", null)
+      .eq("anulado", false)
+      .gte("registrado_en", `${resumen.desde}T00:00:00-03:00`)
+      .lte("registrado_en", `${resumen.hasta}T23:59:59.999-03:00`);
+    // Si la consulta falla (o la columna no existe todavía porque 0152 no corrió),
+    // se asume el caso peligroso: hay pagos re-imputables. Nunca al revés.
+    const hayReimputables = sinFoto.error ? true : (sinFoto.count ?? 0) > 0;
+
+    if (hayReimputables) {
+      const deOtros = await db
+        .from("comisiones_liquidadas")
+        .select("cobrador_id, periodo_key, periodo_rango")
+        .neq("cobrador_id", input.cobradorId);
+      if (deOtros.error) return { ok: false, error: "No se pudo verificar. Probá de nuevo." };
+      for (const l of deOtros.data ?? []) {
+        const r =
+          rangoDeRangoPg(l.periodo_rango as string | null) ??
+          rangoDePeriodoKey(l.periodo_key as string);
+        if (r && rangosSeSolapan(r, nuevoRango))
+          return {
+            ok: false,
+            error:
+              "En este período hay cobros anteriores al congelamiento de comisión, y otro cobrador ya liquidó un período que los incluye. " +
+              "Si el cliente se reasignó, esos cobros ya se pagaron una vez: revisalo en la oficina antes de liquidar.",
+          };
+      }
+    }
+  }
+
   // CANDADO: registrar la liquidación ANTES de tocar la caja. Dos candados:
   //  · unique(cobrador, periodo_key) → frena el doble clic / misma clave (23505).
   //  · EXCLUDE de rango (0083) → cierra la CARRERA entre cadencias solapadas

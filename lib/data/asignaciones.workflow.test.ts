@@ -106,6 +106,13 @@ function crearDb(tablas: Record<string, Fila[]>, opts: OpcionesDb = {}): Banco {
   let seq = 0;
 
   const db = {
+    // El camino ATÓMICO (RPC 0153) se prueba contra Postgres de verdad, no acá:
+    // un doble en memoria no puede demostrar atomicidad. Este doble responde
+    // "la función no existe" (42883) para que `reasignarCliente` caiga al camino
+    // de tres requests, que es justamente el que estos tests verifican paso a
+    // paso —el orden de escritura, los intocables, el error de comisión desviada—
+    // y el que sigue vivo mientras 0153 no haya corrido en un entorno.
+    rpc: async () => ({ data: null, error: { code: "42883", message: "function does not exist" } }),
     from(tabla: string) {
       const filas = (tablas[tabla] ??= []);
       const filtros: Filtro[] = [];
@@ -428,34 +435,64 @@ describe("reasignarCliente: cambiar de ruta sin dejar al cliente en el aire", ()
     expect(banco.tablas.asignaciones.find((a) => a.cobrador_id === PEDRO)?.activo).toBe(true);
   });
 
-  // ⚠️ FALLA: bug real, ver informe (hallazgo 1 — el que mueve plata).
-  // El gestor abre la ficha de SONIA, lee "Cobrador: Juan José" (bloque 1: el
-  // compañero no se muestra) y la reasigna a Pedro. El UPDATE de `prestamos` no
-  // filtra por el cobrador que se está reemplazando: se lleva TAMBIÉN los 2
-  // créditos de Alejandro. Y como la comisión sale de `prestamos.cobrador_id`
-  // (RPC app_comision_por_ruta, 0069) y se liquida POR QUINCENA sobre los pagos
-  // del período, mover la columna RE-IMPUTA hacia atrás plata que Alejandro ya
-  // se ganó cobrando en la calle. Sin rastro: `cobrador_id` no está en la lista
-  // de columnas inmutables del trigger de 0126.
-  it.fails("reasignar NO puede llevarse los créditos del compañero (su comisión ya devengada)", async () => {
+  // ⚠️ ERA EL BUG DE LOS $5,6M (10-08). Arreglado el 04-09 EN EL MOTOR.
+  //
+  // El gestor abre la ficha de SONIA, lee "Cobrador: Juan José" (el compañero no
+  // se muestra) y la reasigna a Pedro. El UPDATE de `prestamos` no filtraba por
+  // el cobrador que se estaba reemplazando: se llevaba TAMBIÉN los 2 créditos de
+  // Alejandro. Y como la comisión sale de `prestamos.cobrador_id` y se liquida
+  // por período sobre los pagos, mover la columna RE-IMPUTA hacia atrás plata que
+  // Alejandro ya se ganó cobrando en la calle. Sin rastro: `cobrador_id` no está
+  // entre las columnas inmutables del trigger de 0126.
+  //
+  // Ahora el motor exige saber A QUIÉN se le saca el cliente y solo toca lo de esa
+  // persona. Es el 4º argumento; la Server Action ya calculaba ese dato para
+  // decidir el permiso y ahora se lo pasa.
+  it("reasignar NO se lleva los créditos del compañero (su comisión ya devengada)", async () => {
     const banco = crearDb(estadoSoniaCompartida());
-    await reasignarCliente(banco.db, SONIA, PEDRO);
+    await reasignarCliente(banco.db, SONIA, PEDRO, null, JUANJO);
     const deAle = banco.tablas.prestamos.filter((p) => p.id === "p7" || p.id === "p8");
-    expect(deAle.map((p) => p.cobrador_id)).toEqual([ALE, ALE]); // hoy: [PEDRO, PEDRO]
+    expect(deAle.map((p) => p.cobrador_id)).toEqual([ALE, ALE]);
     expect(banco.tablas.prestamos.filter((p) => p.cobrador_id === PEDRO)).toHaveLength(6);
   });
 
-  // ⚠️ FALLA: bug real, ver informe (hallazgo 1, la otra mitad: la RUTA).
-  // El `.neq(nuevo)` baja TODAS las demás asignaciones activas, así que SONIA
-  // desaparece de la ruta de Alejandro mientras sus 2 créditos siguen vivos:
-  // $1.200 por día que nadie sale a cobrar y ninguna pantalla lista.
-  it.fails("reasignar NO puede sacar al cliente de la ruta del compañero con créditos vivos", async () => {
+  // La otra mitad del mismo bug: la RUTA. El paso 2 bajaba TODAS las demás
+  // asignaciones activas, así que SONIA desaparecía de la ruta de Alejandro
+  // mientras sus 2 créditos seguían vivos: $1.200 por día que nadie sale a cobrar
+  // y que ninguna pantalla lista.
+  it("reasignar NO saca al cliente de la ruta del compañero con créditos vivos", async () => {
     const banco = crearDb(estadoSoniaCompartida());
-    await reasignarCliente(banco.db, SONIA, PEDRO);
+    await reasignarCliente(banco.db, SONIA, PEDRO, null, JUANJO);
     expect(banco.tablas.asignaciones.find((a) => a.cobrador_id === ALE)?.activo).toBe(true);
     const rutaDeAle = await getRutaCobrador(comoCobrador(banco, ALE), HOY, ALE);
-    expect(rutaDeAle.items).toHaveLength(1); // hoy: 0, SONIA se evaporó de su ruta
+    expect(rutaDeAle.items).toHaveLength(1);
     expect(rutaDeAle.arqueo.esperado).toBe(1200);
+  });
+
+  // ⚠️ EL FRENO VIVE EN EL MOTOR, NO EN LA PANTALLA. `aprobarPedidoTienda` llama
+  // a `reasignarCliente` directo, sin pasar por la guardia de la Server Action:
+  // si el motor adivinara, esa puerta movería créditos ajenos en silencio.
+  it("sin decir a quién se le saca, y con varios dueños, el motor FRENA (no adivina)", async () => {
+    const banco = crearDb(estadoSoniaCompartida());
+    await expect(reasignarCliente(banco.db, SONIA, PEDRO)).rejects.toThrow(/varios cobradores/i);
+    // Y no escribió NADA: ni asignaciones ni créditos.
+    expect(banco.tablas.prestamos.filter((p) => p.cobrador_id === PEDRO)).toHaveLength(0);
+    expect(banco.tablas.asignaciones.find((a) => a.cobrador_id === ALE)?.activo).toBe(true);
+    expect(banco.tablas.asignaciones.find((a) => a.cobrador_id === JUANJO)?.activo).toBe(true);
+  });
+
+  it("con UN solo dueño no hace falta decirlo: se deduce y se mueve todo (caso normal)", async () => {
+    const banco = crearDb({
+      ...estadoSoniaCompartida(),
+      asignaciones: [asignacion(JUANJO, SONIA)],
+      prestamos: [
+        prestamo({ id: "p1", cobrador: JUANJO, cuota: 1200 }),
+        prestamo({ id: "p2", cobrador: JUANJO, cuota: 600 }),
+      ],
+    });
+    await reasignarCliente(banco.db, SONIA, PEDRO);
+    expect(banco.tablas.prestamos.every((p) => p.cobrador_id === PEDRO)).toBe(true);
+    expect(banco.tablas.asignaciones.find((a) => a.cobrador_id === JUANJO)?.activo).toBe(false);
   });
 });
 

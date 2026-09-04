@@ -97,7 +97,10 @@ export async function reasignarClienteAction(input: {
   }
 
   try {
-    await reasignarCliente(db, input.clienteId, input.nuevoCobradorId);
+    // El 4º argumento es A QUIÉN se le saca. Este dato ya se calculó arriba para
+    // decidir el permiso por zona; pasárselo al motor es lo que le permite mover
+    // SOLO los créditos de esa persona y no tocar los de un compañero.
+    await reasignarCliente(db, input.clienteId, input.nuevoCobradorId, null, actual?.cobradorId ?? null);
     await registrarAuditoria(db, {
       actorId: u.id,
       actorNombre: u.nombre,
