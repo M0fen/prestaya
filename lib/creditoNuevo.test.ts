@@ -322,6 +322,38 @@ describe("avisoCoherenciaFormato", () => {
     expect(avisoCoherenciaFormato(10_000, 1_999, 5, "diario")).toBeNull();
   });
 
+  // ── La regla generalizada por DURACIÓN (calibrada 04-09) ────────────────
+  // El umbral ya no es "diario y pocas cuotas": es cuántos DÍAS DE COBRO dura el
+  // plan, que incorpora el formato. Un solo número para los cuatro formatos.
+  it("un SEMANAL de 1 cuota pesada no molesta (préstamo a un pago, producto real)", () => {
+    expect(avisoCoherenciaFormato(10_000, 12_000, 1, "semanal")).toBeNull();
+  });
+
+  it("⚠️ un plan que se liquida en pocos días TAMBIÉN avisa si está marcado semanal mal", () => {
+    // 2 cuotas semanales duran 12 días de cobro: por encima del umbral, no avisa.
+    expect(avisoCoherenciaFormato(10_000, 6_000, 2, "semanal")).toBeNull();
+  });
+
+  it("los 709 SEMANALES de la cartera no pueden disparar: 2 cuotas ya duran 12 días de cobro", () => {
+    // Es el requisito duro de la calibración. Cualquier semanal con n>=2 tiene
+    // duración >= 12 > 8, así que la regla no puede tocarlo por más pesada que
+    // sea la cuota. Los 126 créditos legítimos de $67,5M quedan fuera por
+    // construcción, no por suerte.
+    for (const n of [2, 4, 8, 12, 35, 110]) {
+      expect(avisoCoherenciaFormato(1_000_000, 900_000, n, "semanal")).toBeNull();
+      expect(avisoCoherenciaFormato(1_000_000, 900_000, n, "quincenal")).toBeNull();
+      expect(avisoCoherenciaFormato(1_000_000, 900_000, n, "mensual")).toBeNull();
+    }
+  });
+
+  it("en DIARIO la regla vieja se conserva exactamente (1 cuota = 1 día de cobro)", () => {
+    // La generalización no puede cambiar lo que ya decidía bien: en diario la
+    // duración ES la cantidad de cuotas, así que el umbral de 8 días equivale al
+    // de 8 cuotas que regía antes.
+    expect(avisoCoherenciaFormato(9_000, 2_160, 8, "diario")).not.toBeNull();
+    expect(avisoCoherenciaFormato(9_000, 2_160, 9, "diario")).toBeNull();
+  });
+
   it("el % se muestra redondeado, sin decimales (en es-UY el punto es de los miles)", () => {
     // 1.100/5.000 = 22% exacto; nunca "22,0%" ni "21,99%".
     const b = avisoCoherenciaFormato(5_000, 1_100, 4, "diario");

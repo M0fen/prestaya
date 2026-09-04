@@ -8,7 +8,7 @@
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { reportarError } from "@/lib/observabilidad";
 import { cronAutorizado } from "@/lib/seguridad/cron";
-import { reconciliarDia, logReconciliacion } from "@/lib/data/reconciliacion";
+import { reconciliarDia, logReconciliacion, getCriticosCorridaPrevia } from "@/lib/data/reconciliacion";
 import { getSuscripcionesDeRoles, borrarSuscripcionDb } from "@/lib/data/push";
 import { enviarPush, pushConfigurado } from "@/lib/push/enviar";
 import { enviarEmailAlerta, emailConfigurado } from "@/lib/alertas/email";
@@ -54,6 +54,10 @@ export async function GET(req: Request): Promise<Response> {
     return Response.json({ ok: false, motivo: "RPC app_reconciliacion_violaciones sin correr (0071)" });
   }
 
+  // ⚠️ ANTES de escribir la corrida de hoy: si se lee después, "la última" ES la
+  // de hoy y la comparación da siempre cero.
+  const criticosAntes = await getCriticosCorridaPrevia(db);
+
   // Deja registro de la corrida (historial/tendencia en /admin/empalme).
   await logReconciliacion(db, {
     ok: r.ok,
@@ -80,20 +84,27 @@ export async function GET(req: Request): Promise<Response> {
   // haya instalado la PWA y tocado "activar avisos" en su teléfono (frágil). Es el
   // camino que sí llega solo. Best-effort: si Resend falla o no está configurado,
   // no rompe el cron (el crítico igual quedó en Sentry + el panel + el push).
-  if (r.criticos > 0 && emailConfigurado()) {
+  // ⚠️ SOLO SI HAY ALGO NUEVO. Con `criticos > 0` a secas, este mail salió 19
+  // mañanas seguidas con el MISMO número (555 heredados del empalme del 17-08):
+  // una alerta que llega todos los días idéntica deja de leerse, y el día que
+  // aparezca un caso de verdad va a estar enterrado entre las otras 19. Se
+  // compara contra la corrida ANTERIOR y solo se avisa si el número SUBIÓ.
+  const hayNuevos = criticosAntes == null || r.criticos > criticosAntes;
+  if (r.criticos > 0 && hayNuevos && emailConfigurado()) {
     let origen = "https://prestaya.uy"; // dominio propio (08-04); solo fallback
     try {
       origen = process.env.NEXT_PUBLIC_APP_URL || new URL(req.url).origin;
     } catch {
       /* req.url raro → usar el fallback */
     }
+    const nuevos = criticosAntes == null ? r.criticos : r.criticos - criticosAntes;
     await enviarEmailAlerta({
-      asunto: `⚠️ Presta Ya — revisar la plata (${r.criticos} crítico${r.criticos === 1 ? "" : "s"})`,
+      asunto: `⚠️ Presta Ya — ${nuevos} caso${nuevos === 1 ? "" : "s"} NUEVO${nuevos === 1 ? "" : "S"} de plata para revisar`,
       cuerpo:
-        `La reconciliación de hoy encontró ${r.criticos} hallazgo(s) crítico(s) de dinero ` +
-        `(${r.hallazgos.length} en total).\n\n` +
+        `Aparecieron ${nuevos} hallazgo(s) crítico(s) NUEVOS desde ayer ` +
+        `(total de hoy: ${r.criticos}${criticosAntes != null ? `, ayer: ${criticosAntes}` : ""}).\n\n` +
         `Entrá al panel para ver el detalle (qué crédito y de cuánto):\n${origen}/admin/empalme\n\n` +
-        `Si algún día NO te llega este mail, es buena señal: significa que la plata cuadró.`,
+        `Este mail solo sale cuando el número SUBE: si no te llega, no apareció nada nuevo.`,
     });
   }
 

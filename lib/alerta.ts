@@ -156,10 +156,13 @@ export function calcularAlertaMora({
 
   // ── Motivos legibles (los que efectivamente pesan) ───────────────────────
   const motivos: MotivoRiesgo[] = [];
+  // ⚠️ CUOTAS seguidas, no días: la racha cuenta casillas del cartón y en un
+  // semanal cada casilla es una semana. `diasSinPagar`, en cambio, SÍ son días
+  // de calendario (diferencia de fechas) y por eso se rotula distinto abajo.
   if (rachaAtraso >= 2)
     motivos.push({
       clave: "racha",
-      texto: `${rachaAtraso} días seguidos sin cubrir la cuota`,
+      texto: `${rachaAtraso} cuotas seguidas sin cubrir`,
     });
   if (!alDia && diasSinPagar >= 3)
     motivos.push({

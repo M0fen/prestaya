@@ -152,8 +152,10 @@ function SelectorFormato({
       </div>
       {anterior && valor && valor !== anterior && (
         <span className="text-[11px] leading-[1.4] font-medium text-gris">
+          {/* "repartida en 4 cuotas semanas" — etiquetaFrec devuelve el
+              sustantivo plural y acá se usaba como adjetivo. */}
           Pasa de {anterior} a {valor}: la cuota se recalcula con la misma tasa repartida en{" "}
-          {cuotas || "las"} cuotas {etiquetaFrec(valor)}.
+          {cuotas || "las"} {etiquetaFrec(valor)}.
         </span>
       )}
       {anterior && valor === anterior && (

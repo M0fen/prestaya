@@ -86,6 +86,51 @@ export const ROTULO_CUOTA: Record<FrecuenciaPrestamo, string> = {
   mensual: "Cuota mensual",
 };
 
+/**
+ * La UNIDAD en la que avanza el crédito. Es la tabla que evita el error más
+ * repetido de la app: el cartón devuelve UN ELEMENTO POR CUOTA, y contar esos
+ * elementos y rotularlos "días" miente en los 783 créditos activos que no son
+ * diarios — el 62,7% del capital en la calle.
+ *
+ * ⚠️ ÚNICA tabla: vivía copiada en tres lugares (`UNIDADES` en lib/vistaCliente,
+ * `etiquetaFrec` en ColocarLista y los literales sueltos de la ficha), y la que
+ * el CLIENTE ve en su teléfono decía "Semana 4/17" mientras el cobrador que lo
+ * atendía leía "4 días". Las tres importan de acá.
+ */
+export interface UnidadDeFrecuencia {
+  /** "día" · "semana" — para "Restan 5 semanas". */
+  singular: string;
+  /** "días" · "semanas" — para "Pagó 4 de 17 semanas". */
+  plural: string;
+  /** "día por día" · "semana a semana" — el ritmo, para el cartón del cliente. */
+  cada: string;
+  /** "Día" · "Semana" — el ordinal de una casilla: "Semana 3". */
+  ord: string;
+}
+
+export const UNIDAD_FRECUENCIA: Record<FrecuenciaPrestamo, UnidadDeFrecuencia> = {
+  diario: { singular: "día", plural: "días", cada: "día por día", ord: "Día" },
+  semanal: { singular: "semana", plural: "semanas", cada: "semana a semana", ord: "Semana" },
+  quincenal: {
+    singular: "quincena",
+    plural: "quincenas",
+    cada: "quincena a quincena",
+    ord: "Quincena",
+  },
+  mensual: { singular: "mes", plural: "meses", cada: "mes a mes", ord: "Mes" },
+};
+
+/** "3 semanas" / "1 semana" — concuerda el número con la unidad del formato. */
+export function enUnidades(n: number, frecuencia: FrecuenciaPrestamo): string {
+  const u = UNIDAD_FRECUENCIA[frecuencia];
+  return `${n} ${n === 1 ? u.singular : u.plural}`;
+}
+
+/** "3 cuotas" / "1 cuota" — cuando lo que se cuenta son cuotas, no tiempo. */
+export function enCuotas(n: number): string {
+  return `${n} ${n === 1 ? "cuota" : "cuotas"}`;
+}
+
 // ── Los dos ejes que distinguen a las puertas ──────────────────────────────
 
 /**

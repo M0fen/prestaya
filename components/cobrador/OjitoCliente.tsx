@@ -150,7 +150,13 @@ export function OjitoCliente({ clienteId, nombre }: { clienteId: string; nombre:
                       <Dato label="Avance" valor={`${ficha.progresoPct}%`} tono="var(--color-verde-osc)" />
                     </div>
                     <div className="flex items-center justify-between rounded-[12px] bg-suave px-3 py-2 text-[12px] font-semibold text-cuerpo">
-                      <span>Días cubiertos: <b className="text-tinta">{ficha.diasCubiertos}/{ficha.totalDias}</b></span>
+                      {/* CUOTAS, no días: el número sale de contar casillas del
+                          cartón, y en un semanal cada casilla es una SEMANA.
+                          Además, cuando el cliente tiene varios créditos esto
+                          suma los de todos (el aviso de arriba ya lo dice), que
+                          pueden ser de formatos distintos — razón de más para no
+                          ponerle una unidad de tiempo. */}
+                      <span>Cuotas pagadas: <b className="text-tinta">{ficha.diasCubiertos}/{ficha.totalDias}</b></span>
                       <span className={ficha.pagadoHoy > 0 ? "text-verde-osc" : "text-gris"}>
                         Hoy: <b>{ficha.pagadoHoy > 0 ? UYU(ficha.pagadoHoy) : "sin pago"}</b>
                       </span>

@@ -101,7 +101,10 @@ export async function GET(
       [
         "Cliente", "Documento", "Teléfono", "Cobrador", "Calificación", "Frecuencia",
         "Inicio", "Prestado", "Cuota", "Cuotas", "Total a pagar", "Pagado", "Saldo",
-        "Avance %", "Días atrasados",
+        // "Cuotas atrasadas", no "Días": el número cuenta casillas del cartón y
+        // la columna "Frecuencia" está dos lugares a la izquierda diciendo que
+        // muchas de esas casillas son semanas.
+        "Avance %", "Cuotas atrasadas",
       ],
       filas.map((f) => [
         f.cliente, f.documento, f.telefono, f.cobrador, f.calificacion, f.frecuencia,

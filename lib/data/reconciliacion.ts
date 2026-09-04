@@ -142,6 +142,35 @@ export async function logReconciliacion(
   }
 }
 
+/**
+ * Cuántos críticos cantó la corrida ANTERIOR. `null` si no hay ninguna previa.
+ *
+ * Existe para que la alerta diaria pueda avisar solo por lo que SUBIÓ: con un
+ * stock heredado grande (555 desde el empalme del 17-08), un mail disparado por
+ * `criticos > 0` sale idéntico todas las mañanas y deja de leerse — y el día que
+ * aparece un caso real queda enterrado entre los otros diecinueve.
+ *
+ * Best-effort: si el log no responde, se devuelve `null` y quien llama trata eso
+ * como "no sé, avisá igual". Nunca callar una alerta por un fallo de lectura.
+ */
+export async function getCriticosCorridaPrevia(
+  db: SupabaseClient,
+): Promise<number | null> {
+  try {
+    const { data, error } = await db
+      .from("reconciliacion_log")
+      .select("criticos")
+      .order("corrida_en", { ascending: false })
+      .limit(1);
+    if (error) throw error;
+    const n = data?.[0]?.criticos;
+    return typeof n === "number" ? n : null;
+  } catch (e) {
+    if (!tablaFaltante(e)) reportarError("getCriticosCorridaPrevia", e);
+    return null;
+  }
+}
+
 /** Una diferencia de dinero con TRAZABILIDAD (quién, cuánto, de qué tipo) — para
  *  que admin/dev revisen cada divergencia del empalme. */
 /** Foto de salud del empalme (totales) — para el panel de trazabilidad. */

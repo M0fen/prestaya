@@ -12,7 +12,12 @@
 //  estas funciones y el servidor RECALCULA con las MISMAS, así el formulario no
 //  puede alterar la cuota. Sin float: todo pasa por Math.round.
 // ─────────────────────────────────────────────────────────────────────────
-import { calcularCuotaRenovacion, tasaImplicita, type TerminosAnterior } from "./renovacion";
+import {
+  calcularCuotaRenovacion,
+  tasaImplicita,
+  DIAS_POR_FRECUENCIA,
+  type TerminosAnterior,
+} from "./renovacion";
 
 /** Interés total (%) por defecto cuando el cliente NO tiene historial de crédito.
  *  Sale de la cartera real: 2.086 de los 2.300 créditos activos están al 20%. */
@@ -98,6 +103,27 @@ export const CUOTA_PESADA_PCT = 20;
 /** Hasta cuántas cuotas tiene sentido mirar: más que eso ya es un plan largo. */
 export const CUOTAS_PLAN_CORTO = 8;
 
+/**
+ * Cuántos DÍAS DE COBRO puede durar un plan antes de que "se liquida en nada"
+ * sea sospechoso. Es el umbral CALIBRADO CONTRA LA CARTERA VIVA (04-09).
+ *
+ * La señal correcta no es la cuota sobre el capital a secas —eso depende del
+ * formato— sino la DURACIÓN del plan: cuotas × días de cobro por cuota. Así la
+ * regla vale para los cuatro formatos con un solo número, porque el formato ya
+ * está adentro de la cuenta.
+ *
+ * Medido sobre 3.133 activos (2.350 diarios, 709 semanales, 56 quincenales, 18
+ * mensuales):
+ *   · con este umbral disparan 11 créditos, de los cuales solo 2 nacieron en la
+ *     app (el resto es cartera importada de Disapp, que no se toca desde acá);
+ *   · sobre los 709 SEMANALES dispara CERO — que es el requisito duro: un
+ *     semanal largo de capital grande (35 cuotas de $40.000 sobre $1.400.000)
+ *     es un producto normal, y una versión anterior de esta regla gritaba sobre
+ *     126 créditos legítimos por $67,5M. Un aviso que grita sobre cartera sana
+ *     enseña a ignorarlo, y entonces tampoco se lee el que sí importa.
+ */
+export const DURACION_SOSPECHOSA_DIAS = 8;
+
 export interface AvisoFormato {
   /** Texto para el cobrador, en criollo. */
   texto: string;
@@ -128,17 +154,31 @@ export function avisoCoherenciaFormato(
   // VOLPE 13). Avisarles sería acusar a la cartera sana.
   if (n < 2) return null;
 
-  // El único caso que demostró ser un error: "diario" con una cuota que liquida
-  // el crédito en días. Es la huella exacta de los 8 planes semanales que
-  // quedaron programados día por día (medido: 11 créditos activos con este
-  // patrón, contra 126 que daría la regla inversa de abajo).
-  if (frecuencia === "diario" && n <= CUOTAS_PLAN_CORTO && pct >= CUOTA_PESADA_PCT) {
+  // ── La señal, AJUSTADA POR FORMATO ──────────────────────────────────────
+  // Cuánto dura el plan en días de cobro. El formato entra por acá, así que un
+  // solo umbral sirve para los cuatro: 5 cuotas diarias duran 5 días (raro), y
+  // las mismas 5 cuotas semanales duran 30 (normal).
+  const duracion = n * DIAS_POR_FRECUENCIA[frecuencia];
+
+  // Dos condiciones a la vez, y las dos hacen falta:
+  //  · el plan se liquida en un puñado de días de cobro, Y
+  //  · la cuota se come una tajada del capital que no es de cobro fraccionado.
+  // Con una sola, la regla barre cartera sana: por duración pelada caerían los
+  // préstamos cortos legítimos; por cuota/capital pelada, los 126 semanales de
+  // capital grande que ya se midieron ($67,5M).
+  if (duracion <= DURACION_SOSPECHOSA_DIAS && pct >= CUOTA_PESADA_PCT) {
+    // Qué formato haría que ese mismo plan tenga un plazo razonable: se busca el
+    // más chico que llegue a ~un mes de cobro, para no proponer un salto brusco.
+    const sugerido: FrecuenciaPrestamo =
+      frecuencia === "diario" ? "semanal" : frecuencia === "semanal" ? "quincenal" : "mensual";
+    const u = frecuencia === "diario" ? "día" : "cuota";
     return {
       texto:
         `Con cuota de ${pesos(c)} sobre ${pesos(capital)} (${Math.round(pct)}% del capital), ` +
-        `en DIARIO este crédito se termina de pagar en ${n} día${n === 1 ? "" : "s"}. ` +
-        `¿No es semanal?`,
-      sugerido: "semanal",
+        `en ${frecuencia.toUpperCase()} este crédito se termina de pagar en ${n} ${u}${n === 1 ? "" : "s"} ` +
+        `(${duracion} día${duracion === 1 ? "" : "s"} de cobro). ` +
+        `¿No es ${sugerido}?`,
+      sugerido,
     };
   }
 

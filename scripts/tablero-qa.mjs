@@ -34,19 +34,51 @@ function leerEnv(nombre) {
 
 // Lo que los vigilantes cantan HOY por herencia del empalme / operación
 // conocida. Ver memoria qa-fases-2-3-0815: no es plata nueva mal contada.
+// ⚠️ LECCIÓN DEL 04-09, la que costó 18 corridas ciegas: un baseline que es un
+// CONTADOR miente en las dos direcciones. `no-sobrecobro` valió exactamente 56
+// durante 4 días, exactamente 292 durante 11 y exactamente 608 durante 19 —
+// mientras entraban 4.495 pagos. Un número que no se mueve ni ±1 no está
+// midiendo el día: está midiendo un stock viejo. Y encima, al RESOLVER casos el
+// contador BAJA y cruza el tope hacia abajo, así que el tablero se pone verde
+// con la plata todavía mal contada.
+//
+// Reglas nuevas, aplicadas abajo en el chequeo:
+//   · `tope: null` YA NO ES SILENCIO — se compara contra la corrida anterior y
+//     cualquier subida alarma. (Antes `tope != null && n > tope` cortaba antes
+//     de mirar: `importado-saldado-sin-finalizar` pasó de 217 a 406 sin que
+//     ninguna corrida lo cantara.)
+//   · lo que duele se mide en PLATA, no en cantidad de filas (check 1b).
 const BASELINE = {
-  // ⚠️ 292 es lo heredado ACEPTADO (medido el 15-08). Desde el 2026-08-17 el
-  // vigilante canta 608 todas las noches: los +316 son pagos DUPLICADOS por el
-  // empalme de esa madrugada (la guardia anti doble-conteo comparaba por día
-  // calendario y no vio el mismo cobro anotado en Disapp un día y en la app al
-  // siguiente). NO se sube el tope a 608: eso sería aceptar plata mal contada y
-  // dejar de verla. El tope queda en lo aceptado y la nota dice la verdad, así
-  // el salto se lee como lo que es. Ver el informe del 04-09.
-  "no-sobrecobro": { tope: 292, nota: "heredado aceptado 292 (15-08); +316 del empalme 17-08 = pagos duplicados SIN resolver" },
-  "importado-saldado-sin-finalizar": { tope: null, nota: "zombies de Renovar (~217): operación, no plata" },
-  "gasto_sin_egreso": { tope: 1, nota: "Valentina $1.000 (04-08) hasta registrar el egreso" },
-  "rendicion-existe": { tope: 15, nota: "jornadas sin rendir conocidas" },
-  "base_sin_rendir": { tope: 15, nota: "bases sin acta conocidas" },
+  "no-sobrecobro": {
+    // El stock heredado + lo que dejó el empalme del 17-08, medido el 04-09
+    // DESPUÉS de anular 41 pagos duplicados ($38.350). No es un permiso: es el
+    // punto de partida contra el que se mide si APARECEN casos nuevos. Lo que
+    // de verdad vigila este renglón es la plata (check 1b) y el crecimiento.
+    tope: 585,
+    nota: "581 medidos el 04-09 DESPUÉS de anular 41 duplicados ($1.175.375 de exceso vivo); la corrida de las 10:00Z todavía dice 608 porque es anterior — el resto se resuelve contra el export fresco de Disapp; si SUBE, es plata nueva mal contada",
+  },
+  "importado-saldado-sin-finalizar": {
+    // Tenía `tope: null` con la nota "~217", y por la expresión de abajo eso
+    // significaba que NO PODÍA alertar jamás. Creció a 406 (+87%) en silencio.
+    tope: 406,
+    nota: "zombies de Renovar: 406 medidos el 04-09 (eran 217 el 15-08 — creció +87% sin que nadie lo cantara)",
+  },
+  "gasto_sin_egreso": {
+    // Los casos que justificaban el tope 1 ya salieron de la ventana de 14 días
+    // del cron: el tope vigilaba un cero estructural.
+    tope: 0,
+    nota: "el caso viejo (Valentina, 04-08) ya salió de la ventana de 14 días: cualquiera que aparezca es de ahora",
+  },
+  "rendicion-existe": {
+    // Tope 15 con 18 cobradores que cobran = un tope que iguala el universo de
+    // la métrica es un tope apagado.
+    tope: 0,
+    nota: "cualquier cobrador que cobró y no rindió es del día (el acumulado en plata va en el check 4b)",
+  },
+  "base_sin_rendir": {
+    tope: 0,
+    nota: "las bases que justificaban el 15 ya salieron de la ventana de 14 días del cron",
+  },
 };
 
 const alarmas = [];
@@ -69,8 +101,11 @@ console.log("═══ TABLERO DE QA · " + new Date().toISOString().slice(0, 16
 
 // ── 1 · Invariantes de los vigilantes (última corrida) ──────────────────────
 {
-  const [ultima] = await q(
-    "select corrida_en, criticos, detalle from reconciliacion_log order by corrida_en desc limit 1",
+  // Se traen DOS corridas: la de anoche y la anterior. Sin la anterior no hay
+  // forma de distinguir "stock viejo conocido" de "esto subió hoy", que es la
+  // única pregunta que importa cuando el baseline es un número grande heredado.
+  const [ultima, previa] = await q(
+    "select corrida_en, criticos, detalle from reconciliacion_log order by corrida_en desc limit 2",
   );
   if (!ultima) {
     linea("Vigilantes nocturnos", "SIN CORRIDAS", "reconciliacion_log vacío: ¿el cron murió?");
@@ -82,17 +117,75 @@ console.log("═══ TABLERO DE QA · " + new Date().toISOString().slice(0, 16
     if (horas > 30) alarmas.push("la última corrida de vigilantes tiene más de 30 h — ¿cron caído?");
     // `detalle` ES el mapa {invariante: cantidad} (verificado contra la base 15-08).
     const det = typeof ultima.detalle === "string" ? JSON.parse(ultima.detalle) : (ultima.detalle ?? {});
+    const detPrevio = previa
+      ? typeof previa.detalle === "string"
+        ? JSON.parse(previa.detalle)
+        : (previa.detalle ?? {})
+      : {};
     const porInv = Object.fromEntries(Object.entries(det).filter(([, v]) => typeof v === "number"));
     for (const [inv, n] of Object.entries(porInv).sort((a, b) => b[1] - a[1])) {
       const base = BASELINE[inv];
-      const sobre = base ? (base.tope != null && n > base.tope) : n > 0;
-      linea(
-        `   ${inv}`,
-        `${n}${base ? `  (baseline: ${base.nota})` : ""}`,
-        sobre ? `${inv} = ${n} SUPERA lo conocido — mirar hoy` : null,
-      );
+      const antes = typeof detPrevio[inv] === "number" ? detPrevio[inv] : null;
+      const delta = antes == null ? null : n - antes;
+
+      // Dos motivos para alarmar, no uno:
+      //  · SUPERA el tope conocido (lo de siempre), o
+      //  · SUBIÓ respecto de anoche — aunque siga bajo el tope. Un baseline
+      //    heredado grande tapaba justamente esto: entre 292 y 608 podían
+      //    aparecer 300 casos nuevos sin que nada lo dijera.
+      const superaTope = base ? base.tope != null && n > base.tope : n > 0;
+      const subio = delta != null && delta > 0;
+      const alarma = superaTope
+        ? `${inv} = ${n} SUPERA lo conocido (${base?.tope ?? 0}) — mirar hoy`
+        : subio
+          ? `${inv} SUBIÓ ${delta} desde anoche (${antes} → ${n}) — son casos NUEVOS, no el stock viejo`
+          : null;
+
+      const tendencia = delta == null ? "" : delta === 0 ? "  (=)" : `  (${delta > 0 ? "+" : ""}${delta})`;
+      linea(`   ${inv}`, `${n}${tendencia}${base ? `  (baseline: ${base.nota})` : ""}`, alarma);
+    }
+
+    // ⚠️ CLAVE AUSENTE ≠ CLAVE EN CERO. Las ventanas de 14 días del cron dejaron
+    // sin datos a dos invariantes y el tablero las daba por sanas: no aparecían
+    // en el detalle y por lo tanto nadie las miraba. Un vigilante que dejó de
+    // mirar no es un vigilante en verde.
+    for (const inv of Object.keys(BASELINE)) {
+      if (!(inv in porInv)) {
+        linea(
+          `   ${inv}`,
+          "SIN DATO",
+          `${inv} no vino en la última corrida — ¿la invariante se quedó sin datos que mirar?`,
+        );
+      }
     }
   }
+}
+
+// ── 1b · Lo que DUELE del sobre-cobro se mide en PLATA, no en filas ──────────
+// El contador baja cuando se resuelven casos y sube cuando aparecen; cruzando el
+// tope hacia abajo el tablero se ponía VERDE con el exceso todavía vivo. La
+// plata no tiene esa ambigüedad.
+{
+  const [x] = await q(`
+    select count(*)::int n,
+           coalesce(sum(pagado_acum - cuota_diaria*total_dias), 0)::bigint exceso,
+           count(*) filter (where estado = 'activo')::int n_activos,
+           coalesce(sum(pagado_acum - cuota_diaria*total_dias)
+                    filter (where estado = 'activo'), 0)::bigint exceso_activos
+      from prestamos
+     where pagado_acum > cuota_diaria*total_dias + 1
+  `);
+  // Medido el 04-09 tras anular los 41 duplicados del empalme. Baja sola a
+  // medida que se resuelve; si SUBE es plata nueva contada dos veces.
+  const TOPE_EXCESO = 1_175_375;
+  const exceso = Number(x?.exceso ?? 0);
+  linea(
+    "Sobre-cobro vivo (plata, no filas)",
+    `$${exceso.toLocaleString("es-UY")} en ${x?.n ?? 0} créditos · activos: $${Number(x?.exceso_activos ?? 0).toLocaleString("es-UY")} en ${x?.n_activos ?? 0}`,
+    exceso > TOPE_EXCESO
+      ? `el exceso SUBIÓ a $${exceso.toLocaleString("es-UY")} (tope $${TOPE_EXCESO.toLocaleString("es-UY")}): hay plata NUEVA contada dos veces`
+      : null,
+  );
 }
 
 // ── 2 · El candado anti-duplicados trabaja ──────────────────────────────────
@@ -172,7 +265,7 @@ console.log("═══ TABLERO DE QA · " + new Date().toISOString().slice(0, 16
     "Cobró y NO cerró caja (7 días / plata)",
     `${r.dias_cobrador} días-cobrador / $${r.plata.toLocaleString("es-UY")}`,
     r.dias_cobrador > 0
-      ? `${r.dias_cobrador} jornada(s) con cobros y sin acta: esa caja no arrastra y amanece en $0 (piloto en pausa = esperable)`
+      ? `${r.dias_cobrador} jornada(s) con cobros y sin acta: esa caja no arrastra y amanece en $0`
       : null,
   );
 }
@@ -199,14 +292,26 @@ console.log("═══ TABLERO DE QA · " + new Date().toISOString().slice(0, 16
     select
       (select count(*)::int from aperturas_caja where fecha = (now() at time zone 'America/Montevideo')::date) as hoy,
       (select count(*)::int from aperturas_caja where fecha = (now() at time zone 'America/Montevideo')::date - 1) as ayer,
-      (select count(*)::int from usuarios where rol='cobrador' and activo) as cobradores
+      (select count(*)::int from usuarios where rol='cobrador' and activo) as cobradores,
+      (select count(*)::int from pagos
+        where anulado = false and origen is null
+          and registrado_en >= now() - interval '7 days') as pagos_7d
   `);
-  // ⚠️ PILOTO EN PAUSA (Carlos, 15-08): no se está llevando el día a día en la
-  // app mientras dure esta etapa, así que "0 bases" es lo ESPERADO y no alarma.
-  // Cuando el piloto retome, volver a encender la alarma (< mitad = rojo).
-  linea("Bases cargadas hoy / ayer / cobradores", `${r.hoy} / ${r.ayer} / ${r.cobradores}`);
-  if (r.ayer < Math.ceil(r.cobradores / 2))
-    console.log("     (piloto en pausa — al retomar, esto vuelve a ser señal de alarma)");
+  // ⚠️ "PILOTO EN PAUSA" (nota de Carlos del 15-08) apagaba esta alarma. Una nota
+  // con fecha se convirtió en excepción permanente: se siguieron cobrando 4.495
+  // pagos por $9.988.459 en 30 días con la alarma muda. El juicio manual se
+  // reemplaza por uno DERIVADO DEL DATO — si hubo cobros en la app en los
+  // últimos 7 días, el piloto está vivo y la alarma se enciende sin excusa.
+  const pilotoVivo = Number(r.pagos_7d) > 0;
+  linea(
+    "Bases cargadas hoy / ayer / cobradores",
+    `${r.hoy} / ${r.ayer} / ${r.cobradores}${pilotoVivo ? `  · ${r.pagos_7d} cobros en la app en 7 días` : "  · sin cobros en 7 días"}`,
+    pilotoVivo && r.ayer < Math.ceil(r.cobradores / 2)
+      ? `se está cobrando por la app (${r.pagos_7d} pagos en 7 días) pero solo ${r.ayer} de ${r.cobradores} cobradores cargaron base ayer: esa caja no arrastra`
+      : null,
+  );
+  if (!pilotoVivo)
+    console.log("     (sin cobros en la app en 7 días — al retomar, esto vuelve a ser señal de alarma)");
 }
 
 // ── 6a-bis · FORMATO DE CRÉDITO INCOHERENTE (vigilancia nueva, 04-09) ────────

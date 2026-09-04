@@ -27,17 +27,45 @@ await db.connect();
 
 const fallas = [];
 
-// 1 · ¿Los vigilantes nocturnos corrieron? (cron de Vercel, 10:00Z)
+// 1 · ¿Los vigilantes nocturnos corrieron Y dijeron algo cierto?
+//
+// ⚠️ Este chequeo medía SOLO EL PULSO: que la corrida existiera y fuera reciente.
+// Resultado: 39 corridas seguidas con ok=false y 555 críticos durante 19 días, y
+// el vigía imprimiendo "🟢 en verde" todas las mañanas. Un watchdog que solo
+// verifica que el otro watchdog respire no sirve de nada si lo que el otro dice
+// es "hay 555 problemas". Ahora se mira también el CONTENIDO.
 {
   const { rows } = await db.query(
-    "select corrida_en, criticos from reconciliacion_log order by corrida_en desc limit 1",
+    "select corrida_en, criticos from reconciliacion_log order by corrida_en desc limit 6",
   );
   if (!rows.length) {
     fallas.push("reconciliacion_log está VACÍO: los vigilantes jamás corrieron.");
   } else {
     const horas = (Date.now() - new Date(rows[0].corrida_en).getTime()) / 3_600_000;
-    console.log(`vigilantes: última corrida hace ${horas.toFixed(1)} h (críticos: ${rows[0].criticos})`);
+    const criticos = Number(rows[0].criticos ?? 0);
+    console.log(`vigilantes: última corrida hace ${horas.toFixed(1)} h (críticos: ${criticos})`);
     if (horas > 30) fallas.push(`los vigilantes NO corren hace ${horas.toFixed(0)} h — ¿el cron de Vercel murió?`);
+
+    // (a) ¿SUBIÓ respecto de anoche? Lo heredado del empalme del 17-08 es un
+    //     stock conocido; lo que importa es que no crezca. Comparar contra la
+    //     corrida anterior no necesita mantener ningún número a mano.
+    const previo = rows[1] ? Number(rows[1].criticos ?? 0) : null;
+    if (previo != null && criticos > previo) {
+      fallas.push(
+        `los críticos SUBIERON de ${previo} a ${criticos} desde anoche: aparecieron ${criticos - previo} casos NUEVOS.`,
+      );
+    }
+
+    // (b) ¿La métrica está CONGELADA? Un número idéntico cinco corridas seguidas,
+    //     mientras entran pagos todos los días, no es una cartera estable: es un
+    //     sensor trabado. Es exactamente lo que pasó con 292 durante 11 días y
+    //     con 608 durante 19.
+    const ultimos = rows.slice(0, 5).map((r) => Number(r.criticos ?? 0));
+    if (ultimos.length === 5 && new Set(ultimos).size === 1 && ultimos[0] > 0) {
+      fallas.push(
+        `los críticos valen exactamente ${ultimos[0]} en las últimas 5 corridas: la métrica está congelada — ¿el RPC devuelve siempre lo mismo o el log se está reescribiendo?`,
+      );
+    }
   }
 }
 
@@ -66,4 +94,4 @@ if (fallas.length) {
   for (const f of fallas) console.error("   · " + f);
   process.exit(1);
 }
-console.log("\n🟢 Vigía en verde: vigilantes y respaldos con pulso.");
+console.log("\n🟢 Vigía en verde: vigilantes con pulso, sin críticos nuevos, y respaldos al día.");

@@ -9,12 +9,18 @@ import { getPrestamosActivosPorCliente } from "@/lib/data/prestamos";
 import { getPagosDePrestamo } from "@/lib/data/pagos";
 import { getNotasCliente } from "@/lib/data/notas";
 import { getGestionesCliente, type Gestion } from "@/lib/data/gestionesCobranza";
-import { calcularEstadosCarton } from "@/lib/cartones";
+import { calcularEstadosCarton, plazoVencido } from "@/lib/cartones";
 import { formatearSuerte } from "@/lib/quiniela";
 import { hoyUY, fechaISOUY } from "@/lib/fecha";
 import type { Prestamo } from "@/types/db";
 import { montoRenovacionAutoAprobable, rotuloTechoPropio } from "@/lib/renovacion";
-import { UYU } from "@/lib/format";
+import {
+  ROTULO_CUOTA,
+  ROTULO_FRECUENCIA,
+  UNIDAD_FRECUENCIA,
+} from "@/lib/domain/credito";
+import { getCorreccionesDeCreditos } from "@/lib/data/correcciones";
+import { UYU, diasSemana, parseFecha } from "@/lib/format";
 import { RegistroCobro } from "@/components/cobrador/RegistroCobro";
 import { CartonCobrador } from "@/components/cobrador/CartonCobrador";
 import { CobrosRecientes, type PagoReciente } from "@/components/cobrador/CobrosRecientes";
@@ -235,6 +241,19 @@ async function Detalle({
 }) {
   const pagos = await getPagosDePrestamo(db, prestamo.id);
   const r = calcularEstadosCarton(prestamo, pagos, hoyUY());
+  // La unidad REAL de este crédito. El cartón devuelve un elemento por CUOTA, no
+  // por día: en un semanal, "4 de 17" son 4 SEMANAS. El cliente ya lo ve bien en
+  // su teléfono ("Semana 4/17"); acá se leía "4 días" (783 créditos activos, el
+  // 62,7% del capital en la calle).
+  const unidad = UNIDAD_FRECUENCIA[prestamo.frecuencia];
+  // ¿Se le tocaron los términos por administración? Se lee con service_role: la
+  // policy de `auditoria` es solo-gestores y con la sesión del cobrador esta
+  // consulta devuelve cero filas SIN error (el chip no se vería nunca).
+  const correccion = (await getCorreccionesDeCreditos([prestamo.id])).get(prestamo.id) ?? null;
+  // El plazo ya se cumplió: no quedan cuotas por vencer, lo que sigue es
+  // recuperación. 2.135 de los 3.133 activos están así y la ficha los mostraba
+  // como créditos corrientes, pidiendo un "ponerse al día" que ya no puede pasar.
+  const plazoCumplido = plazoVencido(prestamo, hoyUY());
 
   // Compromiso de pago abierto (mini-CRM) + la nota que dejó el cobrador/gestor,
   // para confirmarlo desde el cartón. El más reciente con promesa gana.
@@ -350,13 +369,60 @@ async function Detalle({
         </div>
       )}
 
-      {/* Resumen */}
+      {/* ── LA TARJETA DEL CRÉDITO ──────────────────────────────────────────
+          Lo que el cobrador dice en voz alta frente al cliente, junto y sin
+          ambigüedad de unidades. Antes esto decía "Cuota diaria" y "Días
+          cubiertos" en los CUATRO formatos, y el formato del crédito no
+          aparecía en ninguna parte de la pantalla. */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {/* El formato, explícito. En un no-diario va destacado: es el dato que
+            cambia cuándo hay que volver. */}
+        <span
+          className={`rounded-full px-2.5 py-1 text-[11.5px] font-extrabold ${
+            prestamo.frecuencia === "diario"
+              ? "bg-campo text-gris"
+              : "bg-azul-suave text-azul"
+          }`}
+        >
+          {ROTULO_FRECUENCIA[prestamo.frecuencia]}
+        </span>
+        {plazoCumplido && (
+          <span className="rounded-full bg-ambar-suave px-2.5 py-1 text-[11.5px] font-extrabold text-ambar-osc">
+            ⏳ Plazo cumplido · es recuperación
+          </span>
+        )}
+        {correccion && (
+          /* La corrección administrativa, visible. El cartón de estos créditos
+             cambió de un día para otro y sin esto nadie podía explicar por qué. */
+          <span className="rounded-full bg-azul-suave px-2.5 py-1 text-[11.5px] font-extrabold text-azul">
+            ✎ La oficina {correccion.que} ({fechaCorta(correccion.cuando)})
+          </span>
+        )}
+      </div>
+
       <div className="grid grid-cols-2 gap-2.5">
-        <Resumen label="Cuota diaria" valor={UYU(prestamo.cuota_diaria)} />
+        <Resumen label={ROTULO_CUOTA[prestamo.frecuencia]} valor={UYU(prestamo.cuota_diaria)} />
         <Resumen label="Saldo" valor={UYU(r.falta)} />
-        <Resumen label="Días cubiertos" valor={`${cubiertos}/${prestamo.total_dias}`} />
+        {/* "Pagó 4 de 17 semanas" — la MISMA cuenta que el comprobante que el
+            cliente recibe por WhatsApp ("Cuotas: lleva 4 de 17"). */}
+        <Resumen
+          label={`${unidad.plural.charAt(0).toUpperCase()}${unidad.plural.slice(1)} pagadas`}
+          valor={`${cubiertos}/${prestamo.total_dias}`}
+        />
         <Resumen label="Total" valor={UYU(r.totalAPagar)} />
       </div>
+
+      {/* El próximo vencimiento ya estaba calculado y se descartaba. En un
+          diario es casi obvio (mañana); en los 783 no-diarios es EL dato: sin
+          él el cobrador no sabe si hoy le toca a este cliente o no. */}
+      {r.proxima ? (
+        <div className="flex items-center justify-between rounded-[12px] bg-campo px-3.5 py-2">
+          <span className="text-[12px] font-bold text-gris">Próxima cuota</span>
+          <span className="text-[12.5px] font-extrabold text-tinta">
+            {cuandoVence(r.proxima.diasRestantes, r.proxima.fecha)} · {UYU(prestamo.cuota_diaria)}
+          </span>
+        </div>
+      ) : null}
 
       {/* Cuánto para ponerse al día — el cobrador no lo tiene que deducir del cartón. */}
       {r.montoParaAlDia > 0 ? (
@@ -439,6 +505,22 @@ async function Detalle({
       <RegistrarCompromiso clienteId={clienteId} prestamoId={prestamo.id} cuota={prestamo.cuota_diaria} />
     </>
   );
+}
+
+/** "Hoy" / "Mañana" / "El vie 12/9". `diasRestantes` SÍ son días de calendario
+ *  (diferencia de fechas), a diferencia de las casillas del cartón. */
+function cuandoVence(diasRestantes: number, fechaIso: string): string {
+  if (diasRestantes <= 0) return "Hoy";
+  if (diasRestantes === 1) return "Mañana";
+  const f = parseFecha(fechaIso);
+  const dia = diasSemana[f.getDay()]?.slice(0, 3) ?? "";
+  return `${dia} ${f.getDate()}/${f.getMonth() + 1}`;
+}
+
+/** "2026-09-04" → "4/9". Para el chip de corrección, que no necesita el año. */
+function fechaCorta(iso: string): string {
+  const f = parseFecha(iso);
+  return Number.isNaN(f.getTime()) ? iso : `${f.getDate()}/${f.getMonth() + 1}`;
 }
 
 function Resumen({ label, valor }: { label: string; valor: string }) {

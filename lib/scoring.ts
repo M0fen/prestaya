@@ -225,10 +225,13 @@ export function calcularScore(
     {
       clave: "mora_actual",
       etiqueta: "Mora actual",
+      // CUOTAS, no días: el número sale de contar casillas del cartón y en un
+      // crédito semanal cada casilla es una semana. Con 709 semanales activos,
+      // "3 días de atraso" era en realidad "3 semanas".
       detalle: tieneActivo
         ? diasAtrasoActual === 0
           ? "Al día en el crédito vigente"
-          : `${diasAtrasoActual} día(s) de atraso`
+          : `${diasAtrasoActual} cuota(s) de atraso`
         : "Sin crédito activo",
       puntos: Math.round(aporte.moraActual),
       sentido: sentidoDe(moraActual),

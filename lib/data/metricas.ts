@@ -18,7 +18,8 @@ import { alcanceDelActor, enLotes, prestamoIdsDelAlcance, type Alcance } from ".
 import { funcionFaltante, tablaFaltante } from "./errores";
 
 export interface TramoMora {
-  /** Etiqueta del tramo, p. ej. "1–7 días". */
+  /** Etiqueta del tramo, p. ej. "1–7 cuotas" (son CUOTAS del cartón: en un
+   *  crédito semanal cada una es una semana, no un día). */
   tramo: string;
   creditos: number;
   monto: number;
@@ -184,10 +185,14 @@ export async function getDashboardMetricas(
   let montoEnMora = 0;
   let carteraVencidaCreditos = 0;
   let carteraVencidaMonto = 0;
+  // ⚠️ CUOTAS, no días. `atrasoNeto` cuenta casillas del cartón, y una casilla
+  // de un crédito semanal es una SEMANA: con el rótulo viejo, 603 créditos no
+  // diarios caían en "1–7 días" siendo hasta 49, 105 o 210 días de atraso real
+  // (el peor medido: un semanal con 110 cuotas = 770 días, rotulado "110 días").
   const tramos = [
-    { tramo: "1–7 días", creditos: 0, monto: 0 },
-    { tramo: "8–15 días", creditos: 0, monto: 0 },
-    { tramo: "16+ días", creditos: 0, monto: 0 },
+    { tramo: "1–7 cuotas", creditos: 0, monto: 0 },
+    { tramo: "8–15 cuotas", creditos: 0, monto: 0 },
+    { tramo: "16+ cuotas", creditos: 0, monto: 0 },
   ];
   const hoyCal = hoyUY(hoy);
 

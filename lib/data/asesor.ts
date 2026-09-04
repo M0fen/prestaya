@@ -17,7 +17,8 @@ import { alcanceDelActor, enLotes, type Alcance } from "./alcance";
 import { getPagosDePrestamo } from "./pagos";
 import { getHistorialCrediticio } from "./scoring";
 import { getNotasCliente } from "./notas";
-import { calcularEstadosCarton } from "@/lib/cartones";
+import { calcularEstadosCarton, cuotasDebidasHasta } from "@/lib/cartones";
+import { aMedianoche } from "@/lib/format";
 import { sanearTextoLibre } from "@/lib/asesor/sanear";
 import { calcularScore } from "@/lib/scoring";
 import { hoyUY, diasCobrablesProximos } from "@/lib/fecha";
@@ -323,29 +324,50 @@ export async function proyeccionCajaTexto(
   let totalHorizonte = 0;
   let ingresoDiario = 0;
   let vencidoYa = 0;
+  // Fin del horizonte en CALENDARIO: es contra esa fecha que se cuenta cuántas
+  // cuotas de cada crédito llegan a vencer.
+  const finHorizonte = aMedianoche(hoyCal);
+  finHorizonte.setDate(finHorizonte.getDate() + N);
+
   for (const a of activos) {
     const cuota = Number(a.cuota_diaria);
-    const r = calcularEstadosCarton(
-      {
-        cuota_diaria: cuota,
-        total_dias: Number(a.total_dias),
-        frecuencia: a.frecuencia ?? "diario",
-        fecha_inicio: a.fecha_inicio,
-      },
-      pagosDeActivo(a),
-      hoyCal,
-    );
+    const calc = {
+      cuota_diaria: cuota,
+      total_dias: Number(a.total_dias),
+      frecuencia: a.frecuencia ?? "diario",
+      fecha_inicio: a.fecha_inicio,
+    };
+    const r = calcularEstadosCarton(calc, pagosDeActivo(a), hoyCal);
     if (r.falta <= 0) continue;
-    // Escenario "cobra la cuota cada día hábil": aporta cuota×(días de cobro), tope el saldo.
-    totalHorizonte += Math.min(r.falta, cuota * diasCobro);
-    ingresoDiario += cuota;
+
+    // ⚠️ ACÁ SE INFLABA LA PROYECCIÓN. Antes: `cuota × diasCobro`, o sea que a un
+    // SEMANAL de $40.000 le contaba una cuota por cada día hábil del horizonte —
+    // 26 cuotas en 30 días en vez de las 4 que vencen de verdad. Medido: proyectaba
+    // $80.250.787 a 30 días contra $44.146.227 reales ($36.104.559 inflados, +82%),
+    // todo de los 783 créditos no diarios. El dueño decide cuánta plata pone en la
+    // calle mirando este número.
+    //
+    // Lo correcto es cuántas CUOTAS vencen en el horizonte, que es exactamente lo
+    // que `cuotasDebidasHasta` sabe contar respetando el calendario de cada formato
+    // (Lun–Sáb en diario, +7 semanal, +15 quincenal, meses calendario).
+    const cuotasHastaHoy = cuotasDebidasHasta(calc, hoyCal);
+    const cuotasHastaElFin = cuotasDebidasHasta(calc, finHorizonte);
+    const cuotasQueVencen = Math.max(0, cuotasHastaElFin - cuotasHastaHoy);
+    totalHorizonte += Math.min(r.falta, cuota * cuotasQueVencen);
+
+    // "Ingreso diario" solo tiene sentido para lo que de verdad vence todos los
+    // días: sumar la cuota de un mensual como si entrara cada día declaraba
+    // $7.402.470/día cuando lo diario real es $1.939.117 (3,8×).
+    if ((a.frecuencia ?? "diario") === "diario") ingresoDiario += cuota;
     vencidoYa += r.montoVencido; // mora real, sin la cuota de hoy
   }
 
   return [
     `PROYECCIÓN DE CAJA (próximos ${N} días → ${diasCobro} de cobro, Lun–Sáb):`,
-    `- Ingreso esperado si se cobra la cuota diaria: ~${UYU(totalHorizonte)}.`,
-    `- Ingreso diario teórico (suma de cuotas activas): ~${UYU(ingresoDiario)}/día.`,
+    `- Ingreso esperado si se cobra todo lo que VENCE en el período: ~${UYU(totalHorizonte)}.`,
+    `  (cuenta las cuotas que caen en el horizonte según el formato de cada crédito:`,
+    `   un semanal aporta ~4 cuotas en 30 días, no una por día hábil).`,
+    `- Ingreso diario teórico (solo créditos DIARIOS): ~${UYU(ingresoDiario)}/día.`,
     `- Además hay ${UYU(vencidoYa)} de mora YA vencida por recuperar (aparte de lo de arriba).`,
     `- Nota: es el escenario ideal; el ingreso real depende del cumplimiento (mirá la mora).`,
   ].join("\n");

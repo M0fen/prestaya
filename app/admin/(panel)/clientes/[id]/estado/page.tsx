@@ -114,8 +114,12 @@ export default async function EstadoCuentaPage({
               <Dato label="Saldo" valor={UYU(activo.saldo)} destacar />
               <Dato label="Avance" valor={`${activo.progresoPct}%`} />
               <Dato label="Cuotas" valor={`${activo.pagados}/${activo.totalDias}`} />
+              {/* CUOTAS atrasadas, no días: `diasAtraso` cuenta casillas del
+                  cartón y en un semanal cada una es una SEMANA. Este papel se le
+                  entrega al cliente en la mano, y dos líneas más arriba la misma
+                  grilla ya rotula bien "Cuotas". */}
               <Dato
-                label="Días atrasados"
+                label="Cuotas atrasadas"
                 valor={String(activo.diasAtraso)}
                 alerta={activo.diasAtraso > 0}
               />

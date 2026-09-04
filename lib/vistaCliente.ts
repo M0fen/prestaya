@@ -16,15 +16,14 @@ import type {
 } from "@/types/cartones";
 import type { FrecuenciaPrestamo } from "@/types/db";
 import { calcularEstadosCarton } from "./cartones";
+import { UNIDAD_FRECUENCIA } from "./domain/credito";
 import { UYU, diasSemana, horaDe, meses, parseFecha } from "./format";
 
 // Etiquetas de la unidad por frecuencia (el cálculo del cartón ya la respeta).
-const UNIDADES: Record<FrecuenciaPrestamo, UnidadFrecuencia> = {
-  diario: { singular: "día", plural: "días", cada: "día por día", ord: "Día" },
-  semanal: { singular: "semana", plural: "semanas", cada: "semana a semana", ord: "Semana" },
-  quincenal: { singular: "quincena", plural: "quincenas", cada: "quincena a quincena", ord: "Quincena" },
-  mensual: { singular: "mes", plural: "meses", cada: "mes a mes", ord: "Mes" },
-};
+// ⚠️ La tabla vive en lib/domain/credito: esta vista era la ÚNICA que la tenía
+// bien, y por eso el cliente leía "Semana 4/17" en su teléfono mientras el
+// cobrador que lo atendía leía "4 días". Una sola tabla, importada por los dos.
+const UNIDADES: Record<FrecuenciaPrestamo, UnidadFrecuencia> = UNIDAD_FRECUENCIA;
 
 // Colores de fondo/texto por estado. Tono AMABLE para la vista de cliente:
 // el día vencido sin pago usa un rojo suave (#E06A6A), no el rojo de alarma.
