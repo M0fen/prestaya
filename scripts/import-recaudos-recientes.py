@@ -33,7 +33,8 @@ import datetime as dt
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import empalme_disapp as E  # reusa consolidar/get_rows/upsert/iso_ts/load_env
+import empalme_disapp as E
+from guardia_duplicados import dia_uy, indices_nativos, es_duplicado, dudoso_por_cuota  # reusa consolidar/get_rows/upsert/iso_ts/load_env
 
 def arg(flag, default=None):
     return sys.argv[sys.argv.index(flag) + 1] if flag in sys.argv else default
@@ -125,70 +126,16 @@ if dias_import:
     # string a 10 daría el día UTC, y un cobro de la tarde-noche uruguaya cae al día
     # UTC SIGUIENTE (UY = UTC−3) → la guardia no vería el choque justo en los cobros
     # tardíos. Se pasa a hora de Uruguay antes de sacar la fecha.
-    UY = dt.timezone(dt.timedelta(hours=-3))
-    def dia_uy(ts):
-        if not ts:
-            return None
-        try:
-            return dt.datetime.fromisoformat(str(ts).replace("Z", "+00:00")).astimezone(UY).date().isoformat()
-        except ValueError:
-            return str(ts)[:10]
-    nativo_en = {}
-    for n in nativos:
-        ts = dia_uy(n.get("registrado_en"))
-        if ts:
-            nativo_en.setdefault((n["prestamo_id"], ts), 0)
-            nativo_en[(n["prestamo_id"], ts)] += float(n.get("monto") or 0)
-    # ⚠️ SEGUNDA GUARDIA, POR CUOTA (auditoría 04-09). La de arriba compara por
-    # (crédito, DÍA CALENDARIO) y en un cambio de sistema eso no alcanza: el
-    # cobrador cobró en la calle, lo anotó en Disapp con la fecha de ayer y lo
-    # registró en la app hoy. Mismo crédito, MISMA CUOTA, mismo monto, días
-    # distintos → la guardia no lo veía y `--omitir-choques` lo importaba igual.
-    # Medido: el empalme del 17-08 dejó 611 créditos sobre-cobrados ($1.213.730),
-    # con 222 pares EXACTOS (mismo crédito + misma cuota + mismo monto).
-    # La identidad de un cobro entre dos sistemas es la CUOTA que salda, no el
-    # día en que alguien lo tipeó.
-    nativo_cuota = {}
-    for n in nativos:
-        dc = n.get("dia_credito")
-        if dc is not None:
-            nativo_cuota.setdefault((n["prestamo_id"], int(dc)), 0)
-            nativo_cuota[(n["prestamo_id"], int(dc))] += float(n.get("monto") or 0)
+    # ⚠️ LA REGLA VIVE EN `guardia_duplicados.py`, no acá. Estaba inline y por eso
+    # `empalme-0804.py` —que también importa recaudos— nunca la tuvo: sigue con la
+    # guardia por día, que es justo la que dejó pasar $997.474 el 17-08. Una sola
+    # fuente, importada por los dos, y con prueba propia
+    # (`scripts/test_guardia_duplicados.py`).
+    # ⚠️ Nombres propios: `por_dia` ya existe arriba con otro significado (el
+    # conteo de filas por día del import) y pisarlo sería una bomba de tiempo.
+    nativo_en, nativo_cuota = indices_nativos(nativos)
 
-    # ⚠️ EL MONTO TAMBIÉN TIENE QUE COINCIDIR. Con la guardia comparando SOLO
-    # (crédito, cuota), cualquier recaudo cuya cuota ya tuviera algún pago nativo
-    # se descartaba —aunque fuera plata distinta—: medido sobre el lote del 17-08
-    # daba ~60% de falsos positivos, o sea cobros REALES tirados en silencio.
-    # El caso típico: la app registró un abono parcial de $200 en la cuota 12 y
-    # Disapp trae los $500 completos de esa misma cuota; no es el mismo apunte.
-    #
-    # Dos cobros son EL MISMO cuando coinciden crédito, cuota Y monto. La
-    # tolerancia cubre el redondeo del import (cuotas fraccionarias de Disapp),
-    # no una diferencia de plata de verdad.
-    def choca_por_cuota(f):
-        dc = f.get("dia_credito")
-        if dc is None:
-            return False
-        nat = nativo_cuota.get((f["prestamo_id"], int(dc)))
-        if nat is None:
-            return False
-        imp = float(f.get("monto") or 0)
-        return abs(nat - imp) <= max(1.0, imp * 0.02)
-
-    # Lo que cae en una cuota que la app ya tocó pero con OTRO monto: no se
-    # descarta (entra), pero se lista para mirarlo a mano. Es la zona donde puede
-    # esconderse tanto un cobro legítimo como un duplicado parcial.
-    def dudoso_por_cuota(f):
-        dc = f.get("dia_credito")
-        if dc is None:
-            return False
-        nat = nativo_cuota.get((f["prestamo_id"], int(dc)))
-        return nat is not None and not choca_por_cuota(f)
-
-    choques = [
-        f for f in filas
-        if (f["prestamo_id"], dia_uy(f["registrado_en"])) in nativo_en or choca_por_cuota(f)
-    ]
+    choques = [f for f in filas if es_duplicado(f, nativo_en, nativo_cuota)]
     if choques:
         monto_choque = round(sum(x["monto"] for x in choques))
         print(f"\n🔴 ABORTA: {len(choques)} recaudos (${monto_choque:,}) caen en créditos+días que YA")
@@ -213,7 +160,7 @@ if dias_import:
             # ENTRAN (no son el mismo apunte) y se listan para revisión. Con la
             # guardia vieja —que solo miraba la cuota— estos se descartaban en
             # silencio y era ~60% de lo frenado: plata real que se perdía.
-            dudosos = [f for f in filas if dudoso_por_cuota(f)]
+            dudosos = [f for f in filas if dudoso_por_cuota(f, nativo_cuota)]
             if dudosos:
                 monto_dud = round(sum(x["monto"] for x in dudosos))
                 print(f"   ⚠ {len(dudosos)} recaudos (${monto_dud:,}) caen en una cuota que la app YA tocó")
