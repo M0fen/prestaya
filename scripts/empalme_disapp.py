@@ -489,6 +489,40 @@ def load_env(path):
                 env[k.strip()] = v.strip()
     return env
 
+#: Proyecto Supabase de PRODUCCIÓN. Si el destino es éste, hay plata real del otro
+#: lado y escribir exige una confirmación dicha con todas las letras.
+HOST_PRODUCCION = "kvmqlkqfgjimfpzlwsdt"
+
+
+def es_produccion(url):
+    """¿Esta URL apunta a la base VIVA?"""
+    return HOST_PRODUCCION in (url or "")
+
+
+def confirmar_destino(url, commit, argv, envf=""):
+    """Guardia de ENTORNO: no se escribe en producción por descuido.
+
+    ⚠️ POR QUÉ EXISTE. `empalme-0804.py` y `reconstruir-creditos-muertos.py`
+    tenían `--env-file` con default `.env.local`, o sea que un `--commit` sin más
+    argumentos escribía en la base VIVA. Un script de importación masiva apuntando
+    a producción por omisión es la forma más barata de repetir el 17-08.
+
+    Ahora el default es el entorno de prueba y producción exige `--si-produccion`
+    escrito a mano. En dry-run no molesta: leer no rompe nada.
+    """
+    print(f"Destino: {url}  ({'PRODUCCIÓN' if es_produccion(url) else 'entorno de prueba'})"
+          f"{f'  · env: {envf}' if envf else ''}")
+    if not commit or not es_produccion(url):
+        return
+    if "--si-produccion" not in argv:
+        raise SystemExit(
+            "\n🔴 FRENO: esto escribiría en la base VIVA (plata real).\n"
+            "   Si es lo que querés, agregá --si-produccion a la línea de comandos.\n"
+            "   Si no, corré con --env-file .env.prueba (que es el default)."
+        )
+    print("⚠️  --si-produccion: se ESCRIBE en la base viva.")
+
+
 def http(url, method, key, body=None, prefer=None):
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(url, data=data, method=method)
@@ -553,7 +587,7 @@ def rand_pass():
     return "".join(secrets.choice(abc) for _ in range(12))
 
 # ══ COMMIT ══════════════════════════════════════════════════════════════════
-def commit_import(src, out, db, dry):
+def commit_import(src, out, db, dry, forzar=False):
     d = consolidar(src)
     os.makedirs(out, exist_ok=True)
     modo = "DRY-RUN (no escribe)" if dry else "COMMIT (escribe)"
@@ -718,6 +752,23 @@ def commit_import(src, out, db, dry):
             "disapp_pago_id": p["id_pago"], "disapp_credit_ref": p["ref"],
         })
     print(f"\n[5] Pagos: {len(filas_pago)}  (sin prestamo: {sin_prestamo}, dia_credito clamped: {clamps})")
+    # ⚠️ GUARDIA ANTI DOBLE-CONTEO. Este camino NO tenía ninguna: insertaba los
+    # recaudos de Disapp sin mirar si la app ya los tenía registrados. Es el mismo
+    # agujero que costó $997.474 el 17-08, en otro script. La regla vive en
+    # `guardia_duplicados.py` y la importan los CUATRO importadores — cuando vivía
+    # inline, arreglarla en uno dejaba a los otros tres con la versión vieja.
+    #
+    # Se importa acá adentro y no arriba para no crear un ciclo: el módulo de la
+    # guardia no depende de éste, pero éste se importa como librería desde los
+    # otros scripts.
+    import guardia_duplicados as _G
+    filas_pago, _dup, _dud = _G.revisar_lote(filas_pago, get_rows, db, "empalme completo")
+    if _dup and not forzar:
+        raise SystemExit(
+            "\n🔴 FRENO: hay recaudos que la app YA tiene registrados. "
+            "Importarlos contaría la misma plata dos veces.\n"
+            "   Revisá el detalle de arriba, o pasá --forzar a sabiendas."
+        )
     if not dry:
         upsert(db, "pagos", filas_pago, "disapp_pago_id", ignore=True, rep=False)
 
@@ -866,6 +917,9 @@ def main():
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--commit", action="store_true")
     ap.add_argument("--prod", action="store_true")
+    # Saltea la guardia anti doble-conteo A SABIENDAS (la misma semantica que
+    # --forzar en los otros importadores).
+    ap.add_argument("--forzar", action="store_true")
     ap.add_argument("--validate-sample", type=int, default=0)
     ap.add_argument("--probe", default=None,
                     help="Cuadre dirigido de refs (coma-sep), sin escribir. Ej: PRD0003208827,PRD0002535750")
@@ -902,7 +956,7 @@ def main():
         validate_sample(db, a.validate_sample)
         return
 
-    commit_import(a.src, out, db, dry)
+    commit_import(a.src, out, db, dry, forzar=a.forzar)
     if a.commit and a.validate_sample:
         validate_sample(db, a.validate_sample)
 

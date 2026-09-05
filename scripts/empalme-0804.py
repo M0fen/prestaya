@@ -42,7 +42,8 @@ from collections import defaultdict
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import empalme_disapp as E  # parsers + consolidar + get_rows/upsert/http probados
+import empalme_disapp as E
+import guardia_duplicados as G  # parsers + consolidar + get_rows/upsert/http probados
 
 def arg(flag, default=None):
     return sys.argv[sys.argv.index(flag) + 1] if flag in sys.argv else default
@@ -59,7 +60,10 @@ SALTEAR = "--saltear-choques" in sys.argv  # saltea SOLO las filas que chocan (l
 # humano la revise ANTES de decidir.
 CERRAR_CON_SALDO = "--cerrar-con-saldo" in sys.argv
 SRC = arg("--src", r"C:\Users\Carlos\migracion")
-ENVF = arg("--env-file", ".env.local")
+# ⚠️ DEFAULT SEGURO. Estaba en ".env.local" — la base VIVA —, o sea que un
+# --commit sin argumentos escribia en produccion por omision. Un importador
+# masivo apuntando a la plata real por descuido es como se repite el 17-08.
+ENVF = arg("--env-file", ".env.prueba")
 FRONTERA = dt.date(2026, 7, 21)   # el último import de recaudos llegó hasta el 07-20
 # CORTE del export de CRÉDITOS: hasta qué día (inclusive) su columna 'Pagos'
 # refleja los recaudos. El CAP anti-duplicado solo aplica a recaudos ≤ corte;
@@ -79,6 +83,7 @@ if not url or not key:
     sys.exit(f"Faltan SUPABASE_URL/SERVICE_ROLE_KEY en {ENVF}")
 db = {"url": url, "key": key, "host": urllib.parse.urlparse(url).netloc}
 print(f"EMPALME 0804 → {db['host'].split('.')[0]}  | modo: {'🔴 COMMIT (escribe)' if COMMIT else '🟡 DRY-RUN'}")
+E.confirmar_destino(url, COMMIT, sys.argv, ENVF)
 
 # ══ 0. Cargar exports + base ════════════════════════════════════════════════
 d = E.consolidar(SRC)
@@ -465,26 +470,42 @@ for (cli, cob), a in act_pair.items():
     if cli in clientes_tocados and cred_act_final.get((cli, cob), 0) == 0:
         asig_bajar.append(a)
 
-# ══ Guardia: pagos nativos de la app en la ventana ══════════════════════════
-# ⚠️ Nativo = origen IS NULL, filtrado EN PYTHON: un not.in/neq de PostgREST
-# EXCLUYE los NULL (SQL trivalente) → la guardia quedaba CIEGA justo a los pagos
-# que debía proteger. Hallazgo de la auditoría 08-04: la versión anterior
-# imprimía "✓ sin choques (0 revisados)" vacuamente.
-nativos = E.get_rows(db, "pagos", "id,prestamo_id,registrado_en,origen,disapp_pago_id",
-                     {"anulado": "eq.false", "registrado_en": f"gte.{FRONTERA}"})
-nativos = [n for n in nativos if n.get("origen") is None and not str(n.get("disapp_pago_id") or "").startswith("recon-")]
-UY = dt.timezone(dt.timedelta(hours=-3))
-def dia_uy(ts):
-    try:
-        return dt.datetime.fromisoformat(str(ts).replace("Z", "+00:00")).astimezone(UY).date().isoformat()
-    except ValueError:
-        return str(ts)[:10]
-nativo_en = {(n["prestamo_id"], dia_uy(n["registrado_en"])) for n in nativos}
-choques = []
+# ══ Guardia anti doble-conteo ══════════════════════════════════════════════
+# ⚠️ ESTA GUARDIA ERA LA VIEJA, POR (crédito, DÍA CALENDARIO), y es la que dejó
+# pasar $997.474 el 17-08: el cobrador cobró en la calle, lo anotó en Disapp con
+# la fecha de ayer y lo registró en la app hoy — días distintos, no matcheaba.
+# La identidad de un cobro entre dos sistemas es la CUOTA que salda, no el día en
+# que alguien lo tipeó.
+#
+# La regla vive ahora en `guardia_duplicados.py`, IMPORTADA por los cuatro
+# importadores. Cuando vivía inline acá, este script simplemente nunca se enteró
+# de que la habían arreglado en el otro.
+nativos = G.traer_nativos(E.get_rows, db, FRONTERA.isoformat())
+# Los ajustes de reconciliación (`recon-`) no son cobros de la calle: no defienden.
+nativos = [n for n in nativos if not str(n.get("disapp_pago_id") or "").startswith("recon-")]
+
+# Los candidatos, en la forma que la guardia entiende. Se conserva la tupla
+# original (ref, p) para que el resto del script siga trabajando igual.
+_cand = []
 for ref, p in insertar:
     pdb = by_ref_db.get(ref)
-    if pdb and (pdb["id"], p["fecha"].isoformat()) in nativo_en:
-        choques.append((ref, p))
+    if not pdb:
+        continue
+    _td = int(pdb.get("total_dias") or 10**6)
+    _cand.append({
+        "_ref": ref, "_p": p,
+        "prestamo_id": pdb["id"],
+        "dia_credito": max(1, min(p["cuota_num"] or 1, _td)),
+        "monto": p["monto"] or 0.01,
+        "registrado_en": E.iso_ts(p["fecha"]),
+    })
+_dup, _dud, _ok = G.clasificar(_cand, nativos)
+choques = [(c["_ref"], c["_p"]) for c in _dup]
+print(f"\n  ── guardia por CUOTA: {len(_dup)} duplicados · {len(_dud)} dudosos (entran) "
+      f"· {len(_ok)} limpios, sobre {len(nativos)} pagos nativos en la ventana")
+for c in _dud[:10]:
+    print(f"     ⚠ dudoso: crédito {str(c['prestamo_id'])[:8]}… cuota {c['dia_credito']} "
+          f"${round(float(c['monto'])):,} — misma cuota que un pago de la app, otro monto")
 
 # ══ RESUMEN (dry-run y commit) ══════════════════════════════════════════════
 def zona_de(c):

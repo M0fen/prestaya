@@ -25,14 +25,17 @@ from collections import defaultdict, Counter
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import empalme_disapp as E
+import guardia_duplicados as G
 import openpyxl
 
 def arg(flag, default=None):
     return sys.argv[sys.argv.index(flag) + 1] if flag in sys.argv else default
 
 COMMIT = "--commit" in sys.argv
+FORZAR = "--forzar" in sys.argv
 SRC = arg("--src", r"C:\Users\Carlos\migracion")
-ENVF = arg("--env-file", ".env.local")
+# ⚠️ DEFAULT SEGURO: estaba en ".env.local" (la base VIVA).
+ENVF = arg("--env-file", ".env.prueba")
 ACTIVIDAD_DESDE = dt.date(2026, 7, 21)
 
 env = E.load_env(ENVF)
@@ -41,6 +44,7 @@ key = env.get("SUPABASE_SERVICE_ROLE_KEY")
 if not url or not key:
     sys.exit(f"Faltan SUPABASE_URL/SERVICE_ROLE_KEY en {ENVF}")
 db = {"url": url, "key": key, "host": urllib.parse.urlparse(url).netloc}
+E.confirmar_destino(url, COMMIT, sys.argv, ENVF)
 print(f"RECONSTRUIR MUERTOS → {db['host'].split('.')[0]}  | modo: {'🔴 COMMIT' if COMMIT else '🟡 DRY-RUN'}")
 
 # ── 1. Recaudos con datos completos (re-leo los xlsx: el parser común no trae
@@ -257,6 +261,12 @@ for p in plan:
             "disapp_pago_id": pg["id_pago"], "disapp_credit_ref": p["ref"],
         })
 print(f"  ✓ créditos reconstruidos: {okC}/{len(plan)}")
+# ⚠️ GUARDIA ANTI DOBLE-CONTEO. Este script NO tenia ninguna: insertaba recaudos
+# directo, sin mirar si la app ya los tenia. Es el mismo agujero que costo
+# $997.474 el 17-08, en otro camino. La regla es la misma e IMPORTADA.
+filas_pago, _dup, _dud = G.revisar_lote(filas_pago, E.get_rows, db, "reconstruccion")
+if _dup and not FORZAR:
+    sys.exit("\n🔴 FRENO: hay recaudos que la app YA tiene. Revisalos, o pasá --forzar a sabiendas.")
 antes = E.count_rows(db, "pagos")
 E.upsert(db, "pagos", filas_pago, "disapp_pago_id", ignore=True, rep=False)
 print(f"  ✓ recaudos imputados: {E.count_rows(db, 'pagos') - antes} (candidatos {len(filas_pago)})")

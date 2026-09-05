@@ -53,6 +53,8 @@ if not url or not key:
 import urllib.parse
 db = {"url": url.rstrip("/"), "key": key, "host": urllib.parse.urlparse(url).netloc}
 print(f"Destino: {db['host']}  | modo: {'COMMIT (escribe)' if COMMIT else 'DRY-RUN'} | desde: {DESDE}")
+# Escribir en la base VIVA exige decirlo con todas las letras (--si-produccion).
+E.confirmar_destino(url, COMMIT, sys.argv, ENVF)
 
 # Parseo de los xlsx (incluye conversión de plata correcta)
 d = E.consolidar(SRC)

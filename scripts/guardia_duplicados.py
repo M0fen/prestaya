@@ -133,3 +133,57 @@ def clasificar(filas, nativos):
         else:
             ok.append(f)
     return dup, dud, ok
+
+
+def traer_nativos(get_rows, db, desde_iso):
+    """Los pagos NATIVOS vigentes desde una fecha, listos para la guardia.
+
+    ⚠️ El filtro `origen IS NULL` se hace EN PYTHON a propósito: un `neq` o un
+    `not.in` de PostgREST EXCLUYE los NULL (SQL trivalente), y los NULL son
+    justamente los pagos de la app — la guardia quedaba ciega a lo que debía
+    proteger. Es un hallazgo de la auditoría del 08-04 que ya costó una vez.
+    """
+    filas = get_rows(
+        db, "pagos", "id,prestamo_id,dia_credito,registrado_en,monto,origen",
+        {"anulado": "eq.false", "registrado_en": f"gte.{desde_iso}"},
+    )
+    return [n for n in filas if n.get("origen") is None]
+
+
+def revisar_lote(filas_pago, get_rows, db, etiqueta="recaudos"):
+    """LA PUERTA ÚNICA para cualquier importador. Devuelve (limpios, dup, dud).
+
+    Trae los nativos, clasifica e IMPRIME el informe. Que sea una sola llamada es
+    deliberado: cada script que arme su propia versión es un script que un día se
+    queda con la guardia vieja — que es exactamente lo que pasó con
+    `empalme-0804.py` y los $997.474 del 17-08.
+
+    NO decide qué hacer con los duplicados: eso lo decide cada script según su
+    flag (`--omitir-choques`, `--forzar`). Acá solo se dice la verdad.
+    """
+    if not filas_pago:
+        return [], [], []
+    desde = min(str(f.get("registrado_en") or "")[:10] for f in filas_pago if f.get("registrado_en"))
+    nativos = traer_nativos(get_rows, db, desde or "1970-01-01")
+    dup, dud, ok = clasificar(filas_pago, nativos)
+
+    print(f"\n  ── guardia anti doble-conteo ({etiqueta}, desde {desde}) ──")
+    print(f"     nativos de la app en la ventana : {len(nativos)}")
+    print(f"     candidatos                      : {len(filas_pago)}")
+    if dup:
+        monto = round(sum(float(f.get("monto") or 0) for f in dup))
+        print(f"     🔴 DUPLICADOS (mismo crédito+cuota+monto, o mismo día): {len(dup)}  ${monto:,}")
+        for f in dup[:10]:
+            print(f"        · crédito {str(f['prestamo_id'])[:8]}… cuota {f.get('dia_credito')} "
+                  f"{str(f.get('registrado_en'))[:10]} ${round(float(f.get('monto') or 0)):,}")
+        if len(dup) > 10:
+            print(f"        … y {len(dup) - 10} más")
+    else:
+        print("     ✓ sin duplicados")
+    if dud:
+        monto = round(sum(float(f.get("monto") or 0) for f in dud))
+        print(f"     ⚠ DUDOSOS (misma cuota, OTRO monto — ENTRAN, revisar a mano): {len(dud)}  ${monto:,}")
+        for f in dud[:10]:
+            print(f"        · crédito {str(f['prestamo_id'])[:8]}… cuota {f.get('dia_credito')} "
+                  f"${round(float(f.get('monto') or 0)):,}")
+    return ok, dup, dud
