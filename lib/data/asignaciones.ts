@@ -1,9 +1,68 @@
 // ─────────────────────────────────────────────────────────────────────────
-//  Capa de datos — ASIGNACIONES (cobrador ↔ cliente).
-//  Un cliente tiene UN cobrador activo (índice único). De ahí se DERIVA su
-//  zona. Reasignar = bajar la activa y subir la nueva (respetando el índice).
+//  Capa de datos — ASIGNACIONES (cobrador ↔ cliente). Es la RUTA: no existe
+//  ninguna tabla `rutas`, la ruta se arma en consulta desde acá.
+//
+//  ⚠️ UN CLIENTE PUEDE TENER VARIOS COBRADORES ACTIVOS. El índice único es
+//  (cobrador_id, cliente_id) — por PAR, no por cliente —, así que la base lo
+//  permite a propósito desde la migración 0038: un cliente puede tener créditos
+//  vivos de dos cobradores distintos y los dos necesitan verlo en su ruta. Hoy
+//  hay 66 clientes así (hasta 3 cobradores).
+//
+//  (Este encabezado decía lo contrario —"un cliente tiene UN cobrador activo
+//  (índice único)"— y era falso: el propio archivo se contradecía 18 líneas más
+//  abajo. Creer esa cardinalidad es exactamente el error que produjo el bug de
+//  los $5,6M: mover "el cliente" como si tuviera un solo dueño le arrancaba al
+//  compañero los créditos que estaba cobrando.)
+//
+//  LA ZONA de un cliente se DERIVA de acá: `clientes` no tiene columna de zona,
+//  se resuelve asignación activa → cobrador → `usuarios.zona_id`.
+//
+//  Reasignar = subir la nueva y bajar las que corresponde, sin tocar nunca a un
+//  cobrador que tiene un crédito vivo y no es a quien se le saca el cliente.
 // ─────────────────────────────────────────────────────────────────────────
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { createSupabaseAdmin } from "@/lib/supabase/admin";
+import { reportarError } from "@/lib/observabilidad";
+
+/** Un movimiento de ruta para el libro `asignaciones_eventos` (0154). */
+export interface EventoAsignacion {
+  clienteId: string;
+  cobradorId: string;
+  accion: "alta" | "baja";
+  motivo?: string | null;
+  actorId?: string | null;
+  actorNombre?: string | null;
+}
+
+/**
+ * Deja el rastro de un movimiento de ruta. Se escribe con service_role porque la
+ * policy de INSERT es `with check (false)`: es un libro, no una tabla que
+ * cualquiera pueda escribir por la API.
+ *
+ * Best-effort A PROPÓSITO: el movimiento de ruta ya ocurrió y es lo que importa;
+ * si el libro no responde no se deshace la reasignación. Pero deja rastro en el
+ * observador, porque un historial que falla en silencio no es un historial.
+ */
+export async function registrarEventosAsignacion(eventos: EventoAsignacion[]): Promise<void> {
+  if (eventos.length === 0) return;
+  try {
+    const { error } = await createSupabaseAdmin()
+      .from("asignaciones_eventos")
+      .insert(
+        eventos.map((e) => ({
+          cliente_id: e.clienteId,
+          cobrador_id: e.cobradorId,
+          accion: e.accion,
+          motivo: e.motivo ?? null,
+          actor_id: e.actorId ?? null,
+          actor_nombre: e.actorNombre ?? null,
+        })),
+      );
+    if (error) throw error;
+  } catch (e) {
+    reportarError("registrarEventosAsignacion", e, { eventos: eventos.length });
+  }
+}
 
 export interface CobradorDeCliente {
   cobradorId: string;

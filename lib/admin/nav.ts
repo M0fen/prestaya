@@ -59,6 +59,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/admin/recaudos", label: "Recaudos", icon: "💵", grupo: "Operación diaria", roles: ["admin", "supervisor"], alias: ["pagos", "cobros", "recaudo diario"] },
   { href: "/admin/caja", label: "Caja diaria", icon: "💰", grupo: "Operación diaria", roles: ["admin", "supervisor"], alias: ["arqueo", "rendiciones", "movimientos", "caja", "gastos"] },
   { href: "/admin/mora", label: "Mora", icon: "⏰", grupo: "Operación diaria", roles: ["admin", "supervisor"], alias: ["atrasos", "morosos", "riesgo", "recargo"] },
+  { href: "/admin/operacion", label: "Estado de la operación", icon: "🧭", grupo: "Operación diaria", roles: ["admin", "supervisor"], alias: ["quien no cobra", "carga", "sin ruta", "sin cobrador", "huerfanos", "dormidos", "reparto", "desbalance", "de baja"] },
   { href: "/admin/campo", label: "Control de campo", icon: "🛰️", grupo: "Operación diaria", roles: ["admin", "supervisor"], alias: ["cobradores", "gps", "bitacora", "sospecha", "planchado", "malas mañas"] },
   { href: "/admin/anulaciones", label: "Anulaciones", icon: "🚫", grupo: "Operación diaria", roles: ["admin", "supervisor"], alias: ["anular", "anulacion", "doble registro", "reversar", "pago"] },
   { href: "/admin/gastos", label: "Gastos de ruta", icon: "⛽", grupo: "Operación diaria", roles: ["admin", "supervisor"], alias: ["aprobar gasto", "solicitud", "combustible", "sacar de caja", "egreso cobrador"] },

@@ -10,7 +10,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { getUsuarioActual } from "@/lib/auth";
 import { getZonasDeSupervisor } from "@/lib/data/zonas";
 import { actorDesde, puedeReasignarCliente } from "@/lib/permisos";
-import { getCobradorDeCliente, reasignarCliente } from "@/lib/data/asignaciones";
+import { getCobradorDeCliente, reasignarCliente, registrarEventosAsignacion } from "@/lib/data/asignaciones";
 import { registrarAuditoria } from "@/lib/data/auditoria";
 import { bloqueoSoloLectura } from "@/lib/data/featureFlags";
 
@@ -19,6 +19,9 @@ type Resultado = { ok: true } | { ok: false; error: string };
 export async function reasignarClienteAction(input: {
   clienteId: string;
   nuevoCobradorId: string;
+  /** Por qué se mueve. Queda en el historial de ruta (0154): mover un cliente es
+   *  mover plata, y dentro de un mes nadie se acuerda del motivo. */
+  motivo?: string;
 }): Promise<Resultado> {
   const u = await getUsuarioActual();
   if (!u || !u.activo) return { ok: false, error: "Sesión no válida." };
@@ -101,13 +104,45 @@ export async function reasignarClienteAction(input: {
     // decidir el permiso por zona; pasárselo al motor es lo que le permite mover
     // SOLO los créditos de esa persona y no tocar los de un compañero.
     await reasignarCliente(db, input.clienteId, input.nuevoCobradorId, null, actual?.cobradorId ?? null);
+
+    const motivo = (input.motivo ?? "").trim().slice(0, 200) || null;
+    // El HISTORIAL DE RUTA (0154). `auditoria` guarda el hecho para el panel;
+    // esto guarda el movimiento en la forma en que después se va a consultar:
+    // "¿qué pasó con este cliente?" y "¿qué se movió de la ruta de este cobrador?".
+    // Antes de 0154 una baja no dejaba ni fecha ni autor: las 33 asignaciones
+    // inactivas de la base no se pueden explicar.
+    await registrarEventosAsignacion([
+      ...(actual?.cobradorId
+        ? [
+            {
+              clienteId: input.clienteId,
+              cobradorId: actual.cobradorId,
+              accion: "baja" as const,
+              motivo,
+              actorId: u.id,
+              actorNombre: u.nombre,
+            },
+          ]
+        : []),
+      {
+        clienteId: input.clienteId,
+        cobradorId: input.nuevoCobradorId,
+        accion: "alta" as const,
+        motivo,
+        actorId: u.id,
+        actorNombre: u.nombre,
+      },
+    ]);
+
     await registrarAuditoria(db, {
       actorId: u.id,
       actorNombre: u.nombre,
       accion: "Reasignó un cliente a otro cobrador",
       entidad: "cliente",
       entidadId: input.clienteId,
-      detalle: `${actual?.cobradorNombre ?? "sin cobrador"} → ${(nuevo as { nombre?: string }).nombre ?? "—"}`,
+      detalle:
+        `${actual?.cobradorNombre ?? "sin cobrador"} → ${(nuevo as { nombre?: string }).nombre ?? "—"}` +
+        (motivo ? ` · ${motivo}` : ""),
     });
     revalidatePath(`/admin/clientes/${input.clienteId}`);
     return { ok: true };
