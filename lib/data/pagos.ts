@@ -119,7 +119,13 @@ export async function registrarPago(
     p_dia_credito: pago.dia_credito,
     // Candado atómico de gemelos (0147): solo se salta con confirmación
     // explícita o par legítimo detectado por la cola (horas del dispositivo).
+    // ⚠️ 0155: `permitir_gemelo` YA NO significa "no mires nada". Significa
+    // "aceptá el mismo monto, pero en OTRA cuota". Repetir cuota y monto en
+    // minutos sigue siendo P0413, con bandera o sin ella — eso no es adelantar.
     p_permitir_gemelo: pago.permitir_gemelo ?? false,
+    // La bandera queda GUARDADA en el pago: antes no se persistía y en el libro
+    // un adelanto legítimo y un toque de más eran indistinguibles.
+    p_es_adelanto: pago.es_adelanto ?? false,
     // CHOKEPOINT money-critical: entero (el RPC vuelve a redondear). Nunca float al libro.
     p_monto: Math.round(pago.monto),
     p_registrado_por: pago.registrado_por ?? null,

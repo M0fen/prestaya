@@ -23,6 +23,7 @@ import {
   getPrestamosActivosPorCliente,
 } from "@/lib/data/prestamos";
 import { getPagosDePrestamo, registrarPago, esSobrePago, esGemelo } from "@/lib/data/pagos";
+import { diagnosticarNoEntra } from "@/lib/data/diagnosticoCobro";
 import { subirFotoCliente } from "@/lib/data/fotos";
 import type { Prestamo } from "@/types/db";
 
@@ -297,24 +298,33 @@ export async function registrarPagoCobrador(input: {
       }
     }
 
-    const cliente = await getClientePorId(db, input.clienteId);
-    if (!cliente) return { ok: false, error: "Cliente no encontrado." };
-    const prestamo = await resolverPrestamo(
-      db,
-      cliente.id,
-      input.prestamoId,
-      usuario.rol === "cobrador" ? usuario.id : null,
-    );
+    const cobradorId = usuario.rol === "cobrador" ? usuario.id : null;
+
     // Se ve sobre todo al vaciar la COLA OFFLINE: se cobró sin señal y mientras
-    // tanto el crédito se renovó, se anuló o se saldó. El cobrador ya tiene el
-    // efectivo del cliente encima, así que el mensaje tiene que decirle qué
-    // hacer con esa plata, no solo qué pasó.
-    if (!prestamo)
-      return {
-        ok: false,
-        error:
-          "Ese crédito ya no está activo (lo renovaron o se saldó). No entregues esa plata todavía: dejá una nota en la ficha del cliente y avisale a tu supervisor.",
-      };
+    // tanto el crédito se renovó, se saldó, se dio de baja, o le pasaron el
+    // cliente a un compañero. El cobrador ya tiene el efectivo encima, así que el
+    // mensaje tiene que decirle qué pasó Y qué hacer con esa plata.
+    //
+    // ⚠️ Los dos textos que había acá MENTÍAN. Si al cliente lo reasignaron, la
+    // RLS lo esconde y `getClientePorId` vuelve null → el cobrador leía "Cliente
+    // no encontrado", que no es cierto ni le dice nada. Y "lo renovaron o se
+    // saldó" mete en la misma frase dos casos opuestos: en uno la plata se mueve
+    // al crédito nuevo, en el otro no se cobra más. `diagnosticarNoEntra` mira
+    // qué pasó de verdad — SOLO en este camino de error, y nunca para dejar pasar
+    // nada que la RLS haya negado.
+    const cliente = await getClientePorId(db, input.clienteId);
+    const prestamo = cliente
+      ? await resolverPrestamo(db, cliente.id, input.prestamoId, cobradorId)
+      : null;
+    if (!cliente || !prestamo) {
+      const { mensaje } = await diagnosticarNoEntra({
+        clienteId: input.clienteId,
+        prestamoId: input.prestamoId,
+        cobradorId,
+        acto: "cobro",
+      });
+      return { ok: false, error: mensaje };
+    }
 
     // Imputar al primer día no cubierto (o al día de hoy).
     const pagos = await getPagosDePrestamo(db, prestamo.id);
@@ -448,9 +458,16 @@ export async function registrarPagoCobrador(input: {
         gps_lng,
         registrado_en: registradoEn,
         op_id: input.opId ?? null,
-        // El candado ATÓMICO del RPC (0147) respeta la misma confirmación
-        // explícita que el candado de la acción: "pagó dos veces de verdad".
+        // ⚠️ 0155 · LA BANDERA YA NO APAGA EL CANDADO. `permitir_gemelo` pasó a
+        // significar "aceptá el mismo monto, pero en OTRA cuota": adelantar la
+        // próxima entra, y repetir la MISMA cuota por el mismo monto en minutos
+        // sigue siendo P0413. La bandera decía "esto es un adelanto" y se estaba
+        // usando como "el cliente pagó dos veces": dejó 6 pares en el libro,
+        // incluido un triple de $500 al mismo crédito y la misma cuota en 35 s.
         permitir_gemelo: !!input.adelanto,
+        // Y queda GUARDADA: hasta ahora no se persistía, así que en el libro un
+        // adelanto legítimo y un toque de más eran indistinguibles.
+        es_adelanto: !!input.adelanto,
       });
     } catch (e) {
       // Reintento de una op ya guardada (flush cortado): idempotente → ok.
@@ -542,14 +559,19 @@ export async function registrarNoPagoCobrador(input: {
     if (bloqueo) return bloqueo;
 
     const db = await createSupabaseServer();
-    const prestamo = await resolverPrestamo(
-      db,
-      input.clienteId,
-      input.prestamoId,
-      usuario.rol === "cobrador" ? usuario.id : null,
-    );
-    if (!prestamo)
-      return { ok: false, error: "Ese crédito ya no está activo (lo renovaron o se saldó). Avisale a tu supervisor." };
+    const cobradorId = usuario.rol === "cobrador" ? usuario.id : null;
+    const prestamo = await resolverPrestamo(db, input.clienteId, input.prestamoId, cobradorId);
+    // Mismo diagnóstico que el cobro, en versión VISITA: acá no hay efectivo de
+    // por medio, así que dice qué pasó pero no habla de plata que no existe.
+    if (!prestamo) {
+      const { mensaje } = await diagnosticarNoEntra({
+        clienteId: input.clienteId,
+        prestamoId: input.prestamoId,
+        cobradorId,
+        acto: "visita",
+      });
+      return { ok: false, error: mensaje };
+    }
 
     const m = MOTIVOS_NOPAGO.find((x) => x.id === input.motivo) ?? MOTIVOS_NOPAGO[0];
     const gps_lat = numeroValido(input.gpsLat);

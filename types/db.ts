@@ -338,6 +338,10 @@ export interface NuevoPago {
    *  confirmó "pagó dos veces de verdad", o la cola sabe por las horas del
    *  dispositivo que son dos cobros reales separados (esParteDeParSeparado). */
   permitir_gemelo?: boolean;
+  /** El cobrador marcó este cobro como ADELANTO de una cuota futura (0155).
+   *  Se PERSISTE: antes no se guardaba y en el libro un adelanto legítimo y
+   *  un toque repetido eran idénticos. */
+  es_adelanto?: boolean;
 }
 
 /** Datos para crear un reporte de discrepancia del cliente. */

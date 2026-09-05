@@ -43,25 +43,45 @@ let libroPorOpId: { op_id: string; dia_credito: number; monto: number }[] = [];
  *  cuando el gate la frena). */
 let tablasConsultadas: string[] = [];
 
-/** Doble mínimo del cliente Supabase que usa la ACCIÓN: solo necesita la
- *  consulta de idempotencia sobre `pagos` (el resto va por la capa de datos,
- *  que está mockeada). */
+/** Lo que la VÍA DE CONFIANZA (service_role) ve cuando `diagnosticarNoEntra`
+ *  pregunta POR QUÉ no entró el cobro. Es a propósito una foto distinta de la
+ *  que ve el cobrador por RLS: la gracia del diagnóstico es justamente mirar lo
+ *  que a él le está escondido (el cliente que le sacaron de la ruta). */
+type FilaAsignacion = { cliente_id: string; cobrador_id: string; activo: boolean };
+let vistaConfianza: { clientes: { id: string }[]; asignaciones: FilaAsignacion[]; prestamos: Prestamo[] };
+
+/** Doble mínimo del cliente Supabase que usa la ACCIÓN: la consulta de
+ *  idempotencia sobre `pagos`, y las tres del diagnóstico (`clientes`,
+ *  `asignaciones`, `prestamos`). El resto va por la capa de datos, mockeada.
+ *  Filtra por los `.eq()` acumulados y termina tanto en `.limit(n)` como en un
+ *  `await` directo (la consulta de préstamos no acota). */
 function dbDeLaAccion(): SupabaseClient {
   return {
     from(tabla: string) {
       tablasConsultadas.push(tabla);
       const filtros: Record<string, unknown> = {};
+      // Perezoso a propósito: la consulta de idempotencia sobre `pagos` no puede
+      // depender de la vista de confianza (romper una no debe romper la otra).
+      const deLaTabla = (): unknown[] => {
+        if (tabla === "pagos") return libroPorOpId;
+        if (tabla === "clientes") return vistaConfianza.clientes;
+        if (tabla === "asignaciones") return vistaConfianza.asignaciones;
+        if (tabla === "prestamos") return vistaConfianza.prestamos;
+        return [];
+      };
+      const filas = () =>
+        deLaTabla().filter((f) =>
+          Object.entries(filtros).every(([col, val]) => (f as Record<string, unknown>)[col] === val),
+        );
       const chain = {
         select: () => chain,
         eq: (col: string, val: unknown) => {
           filtros[col] = val;
           return chain;
         },
-        limit: (n: number) =>
-          Promise.resolve({
-            data: libroPorOpId.filter((f) => f.op_id === filtros.op_id).slice(0, n),
-            error: null,
-          }),
+        limit: (n: number) => Promise.resolve({ data: filas().slice(0, n), error: null }),
+        then: (ok: (v: unknown) => unknown, fail?: (e: unknown) => unknown) =>
+          Promise.resolve({ data: filas(), error: null }).then(ok, fail),
       };
       return chain;
     },
@@ -70,7 +90,15 @@ function dbDeLaAccion(): SupabaseClient {
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServer: vi.fn(async () => dbDeLaAccion()) }));
-vi.mock("@/lib/supabase/admin", () => ({ createSupabaseAdmin: vi.fn(() => dbDeLaAccion()) }));
+/** Simula que la vía de confianza no está disponible (sin service_role, red
+ *  caída): el diagnóstico tiene que degradar, no tumbar el cobro. */
+let confianzaCaida = false;
+vi.mock("@/lib/supabase/admin", () => ({
+  createSupabaseAdmin: vi.fn(() => {
+    if (confianzaCaida) throw new Error("service_role no disponible");
+    return dbDeLaAccion();
+  }),
+}));
 vi.mock("@/lib/auth", () => ({
   getUsuarioActual: (...a: unknown[]) => getUsuarioActual(...a),
 }));
@@ -179,6 +207,14 @@ beforeEach(() => {
   vi.setSystemTime(new Date("2026-08-05T15:00:00.000Z"));
   libroPorOpId = [];
   tablasConsultadas = [];
+  confianzaCaida = false;
+  // Estado normal: el cliente existe, está en la ruta de Karent, y su crédito
+  // vive. Cada prueba del diagnóstico desarma UNA de esas tres cosas.
+  vistaConfianza = {
+    clientes: [{ id: CLIENTE }],
+    asignaciones: [{ cliente_id: CLIENTE, cobrador_id: KARENT.id, activo: true }],
+    prestamos: [credito({ id: C_KARENT })],
+  };
   bloqueoSoloLectura.mockResolvedValue(null); // sistema operativo
   getUsuarioActual.mockResolvedValue(KARENT);
   getClientePorId.mockResolvedValue({
@@ -431,9 +467,15 @@ describe("candado anti doble-toque del servidor", () => {
 describe("cobro sobre un crédito que ya no está activo", () => {
   it("un cobro NUEVO sobre un crédito renovado no entra al libro y le dice al cobrador qué hacer con la plata", async () => {
     getPrestamosActivosPorCliente.mockResolvedValue([credito({ id: C_KARENT_2 })]);
+    vistaConfianza.prestamos = [
+      credito({ id: C_KARENT, estado: "finalizado" }),
+      credito({ id: C_KARENT_2, renovado_de: C_KARENT }),
+    ];
     const r = await registrarPagoCobrador({ clienteId: CLIENTE, prestamoId: C_KARENT, opId: "op-F" });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.error).toMatch(/supervisor/i); // instrucción accionable, no un código
+    // Antes decía "lo renovaron O se saldó": dos casos opuestos en una frase.
+    // Ahora dice cuál de los dos, y adónde va la plata que tiene en la mano.
+    if (!r.ok) expect(r.error).toMatch(/se renovó.*crédito NUEVO/i);
     expect(registrarPago).not.toHaveBeenCalled();
   });
 
@@ -471,6 +513,104 @@ describe("cobro sobre un crédito que ya no está activo", () => {
       expect.anything(),
       expect.objectContaining({ prestamoId: C_KARENT }),
     );
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  3b. QUÉ SE LE DICE AL COBRADOR CUANDO EL COBRO NO ENTRA
+//
+//  El cobrador ya tiene el efectivo del cliente en la mano: el mensaje decide si
+//  lo entrega, lo retiene o llama al supervisor. Los dos textos que había MENTÍAN
+//  ("Cliente no encontrado" cuando el cliente existe pero se lo reasignaron;
+//  "lo renovaron o se saldó" metiendo dos casos opuestos en la misma frase).
+//
+//  Se prueba a través de la ACCIÓN, no del módulo: el valor está en que el
+//  cobrador lea la frase correcta, no en que la función devuelva la etiqueta.
+// ═══════════════════════════════════════════════════════════════════════════
+describe("el motivo REAL por el que el cobro no entra", () => {
+  it("cliente REASIGNADO: la RLS lo esconde, pero ya no dice 'no encontrado' — dice quién lo tiene", async () => {
+    getClientePorId.mockResolvedValue(null); // exactamente lo que ve el cobrador
+    // ...y esto es lo que pasó de verdad: la asignación pasó a Víctor.
+    vistaConfianza.asignaciones = [
+      { cliente_id: CLIENTE, cobrador_id: VICTOR.id, activo: true },
+    ];
+    const r = await registrarPagoCobrador({ clienteId: CLIENTE, opId: "op-R1" });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toMatch(/se lo pasaron a otro cobrador/i);
+      expect(r.error).not.toMatch(/no encontrado/i);
+      expect(r.error).toMatch(/no entregues esa plata/i); // qué hacer con el efectivo
+    }
+    expect(registrarPago).not.toHaveBeenCalled();
+  });
+
+  it("cliente que salió de la ruta y no lo tiene NADIE: no se lo manda a buscar un compañero inexistente", async () => {
+    getClientePorId.mockResolvedValue(null);
+    vistaConfianza.asignaciones = []; // ningún cobrador activo
+    const r = await registrarPagoCobrador({ clienteId: CLIENTE, opId: "op-R1b" });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toMatch(/no lo tiene nadie/i);
+      expect(r.error).not.toMatch(/se lo pasaron a otro/i);
+    }
+  });
+
+  it("crédito SALDADO (sin hijo que lo renueve) no se confunde con renovado: no manda la plata a ningún lado", async () => {
+    getPrestamosActivosPorCliente.mockResolvedValue([]);
+    vistaConfianza.prestamos = [credito({ id: C_KARENT, estado: "finalizado" })];
+    const r = await registrarPagoCobrador({ clienteId: CLIENTE, prestamoId: C_KARENT, opId: "op-R2" });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toMatch(/terminó de pagarse/i);
+      expect(r.error).not.toMatch(/crédito NUEVO/i);
+    }
+  });
+
+  it("crédito DADO DE BAJA desde la oficina se nombra como tal (no como 'se saldó')", async () => {
+    getPrestamosActivosPorCliente.mockResolvedValue([]);
+    vistaConfianza.prestamos = [credito({ id: C_KARENT, estado: "cancelado" })];
+    const r = await registrarPagoCobrador({ clienteId: CLIENTE, prestamoId: C_KARENT, opId: "op-R3" });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/dado de baja/i);
+  });
+
+  it("crédito VIVO pero de un COMPAÑERO (cliente compartido): no es que 'no esté activo', es de otro", async () => {
+    getPrestamosActivosPorCliente.mockResolvedValue([]); // ninguno SUYO
+    vistaConfianza.prestamos = [credito({ id: C_VICTOR, cobrador_id: VICTOR.id })];
+    const r = await registrarPagoCobrador({ clienteId: CLIENTE, opId: "op-R4" });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toMatch(/lo lleva otro cobrador/i);
+      expect(r.error).not.toMatch(/ya no está activo/i);
+    }
+  });
+
+  it("si el diagnóstico se cae, el cobrador NO se queda sin respuesta: vuelve la frase de siempre", async () => {
+    getPrestamosActivosPorCliente.mockResolvedValue([]);
+    confianzaCaida = true; // sin service_role: no se puede averiguar el motivo
+    const r = await registrarPagoCobrador({ clienteId: CLIENTE, opId: "op-R5" });
+    expect(r.ok).toBe(false);
+    // Degrada al texto genérico de siempre — nunca al "No pudimos registrar el
+    // pago" del catch general, que la cola trata distinto.
+    if (!r.ok) expect(r.error).toMatch(/ya no está activo.*avisale a tu supervisor/is);
+  });
+
+  it("una VISITA (no pago) recibe el mismo motivo SIN hablar de plata que no existe", async () => {
+    getPrestamosActivosPorCliente.mockResolvedValue([]);
+    vistaConfianza.asignaciones = [];
+    const r = await registrarNoPagoCobrador({ clienteId: CLIENTE, motivo: "no_estaba", opId: "op-R6" });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toMatch(/ya no está en tu ruta/i);
+      expect(r.error).not.toMatch(/plata/i); // en una visita no hay efectivo de por medio
+    }
+    expect(crearVisita).not.toHaveBeenCalled();
+  });
+
+  it("el diagnóstico NO corre en el camino feliz: un cobro normal no toca la vía de confianza", async () => {
+    await registrarPagoCobrador({ clienteId: CLIENTE, opId: "op-R7" });
+    expect(registrarPago).toHaveBeenCalledTimes(1);
+    expect(tablasConsultadas).not.toContain("asignaciones");
   });
 });
 
