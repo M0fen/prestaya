@@ -37,7 +37,7 @@ del cartón se deriva (FIFO); acá solo se alinea el libro de pagos.
 NO borra ni edita nada jamás (0126 lo veta a nivel BD, además). Solo inserta
 pagos/clientes/créditos/asignaciones y avanza estados activo→finalizado.
 """
-import sys, os, json, datetime as dt, urllib.parse, urllib.request
+import sys, os, csv, json, datetime as dt, urllib.parse, urllib.request
 from collections import defaultdict
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -636,6 +636,30 @@ print(f"  3) Asignaciones: crear {len(asig_crear)} · reactivar {len(asig_activa
 n_ins = len(insertar); s_ins = round(sum(p['monto'] or 0 for _, p in insertar))
 print(f"  4) Recaudos a insertar: {n_ins}  ${s_ins:,}")
 print(f"       descartados por CAP (ya viven en ajustes — no duplicar): {len(descartes)}  ${round(sum(p['monto'] or 0 for _, p in descartes)):,}")
+# Desglose por crédito: qué ref recibe cuánto (y si el crédito es nuevo o ya
+# existía). Sin esto, "162 recaudos $105.325" es un número ciego: no se puede
+# saber ANTES del commit si la plata cae donde corresponde. Lista completa en CSV.
+if insertar:
+    _ids_choque = {id(p) for _, p in choques}
+    _por_ref = defaultdict(lambda: [0, 0.0, 0, 0.0])  # n, $ que entran, n choques, $ choques
+    for _r, _p in insertar:
+        _k = 2 if id(_p) in _ids_choque else 0
+        _por_ref[_r][_k] += 1
+        _por_ref[_r][_k + 1] += float(_p["monto"] or 0)
+    print(f"       por crédito (entran / chocan con nativos), {len(_por_ref)} refs:")
+    for _r, (_n, _s, _nc, _sc) in sorted(_por_ref.items(), key=lambda kv: -(kv[1][1] + kv[1][3]))[:40]:
+        _tag = "NUEVO" if _r in refs_crear else ("cero" if _r in refs_cero else "")
+        print(f"         {_r} {_tag:5} entran {_n:>3} ${round(_s):>8,}   chocan {_nc:>3} ${round(_sc):>8,}")
+    _ruta_r = os.path.join(HERE, f"_recaudos_a_insertar_{SELLO}.csv")
+    try:
+        with open(_ruta_r, "w", encoding="utf-8-sig", newline="") as _fh:
+            _w = csv.writer(_fh, delimiter=";")
+            _w.writerow(["ref", "nuevo", "fecha", "monto", "folio", "cuota", "choca_con_nativo"])
+            for _r, _p in sorted(insertar, key=lambda x: (x[0], x[1]["fecha"] or dt.date.min)):
+                _w.writerow([_r, _r in refs_crear, _p["fecha"], _p["monto"], _p.get("id_pago"), _p.get("cuota_num"), id(_p) in _ids_choque])
+        print(f"       lista completa → {_ruta_r}")
+    except OSError as _e:
+        print(f"       (no pude escribir el CSV de recaudos: {_e})")
 if clamp_hoy:
     print(f"       ⚠ con fecha de HOY o futura (NO entran — el ritual importa AYER): {clamp_hoy}")
 if recapturas:
