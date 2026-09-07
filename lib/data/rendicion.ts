@@ -373,7 +373,7 @@ export async function getJornadasSinRendir(
       entregado: number; colocado: number | null; diferencia: number | null;
     }>((d, h) => {
       const desdePrev = sumarDiasYmd(desdeYmd, -7);
-      let q = admin
+      const q = admin
         .from("rendiciones")
         .select("cobrador_id, fecha, base, recaudado, gastos, entregado, colocado, diferencia")
         .in("cobrador_id", ids)

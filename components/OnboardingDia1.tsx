@@ -42,7 +42,9 @@ export function OnboardingDia1({ claveCambiada }: { claveCambiada: boolean }) {
   const [pendClave, startClave] = useTransition();
 
   // ── Paso 2: instalación ──
-  const ios = useMemo(esIos, []);
+  // Inline a propósito: el lint del React Compiler exige una función inline como
+  // primer argumento (era el único `error` de ESLint en todo el repo, 07-09).
+  const ios = useMemo(() => esIos(), []);
   const [instalada, setInstalada] = useState<boolean | null>(null); // null = evaluando (SSR)
   const [verComoIos, setVerComoIos] = useState(false);
   const [promptInstalar, setPromptInstalar] = useState<PromptInstalar | null>(null);

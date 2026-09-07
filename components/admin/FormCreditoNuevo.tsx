@@ -129,10 +129,10 @@ export function FormCreditoNuevo({
   const faltaFormato = !frecuencia;
   /** ¿La cuota se condice con el formato elegido? Misma regla pura que la calle:
    *  avisa (no bloquea) cuando el plan parece de otro formato. */
-  const avisoFormato = useMemo(
-    () => avisoCoherenciaFormato(montoNum, cuota, diasNum, frecuencia),
-    [montoNum, cuota, diasNum, frecuencia],
-  );
+  // Sin useMemo: es una función pura y barata, y el React Compiler marcaba error
+  // ("existing memoization could not be preserved") — el único error de lint que
+  // quedaba en el repo (07-09). El compilador memoiza solo.
+  const avisoFormato = avisoCoherenciaFormato(montoNum, cuota, diasNum, frecuencia);
 
   const enviar = async () => {
     if (!frecuencia) return; // el botón ya está apagado; defensa por las dudas
