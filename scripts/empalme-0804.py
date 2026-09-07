@@ -726,6 +726,19 @@ if choques:
 else:
     print(f"\n  ✓ guardia: sin choques con pagos nativos ({len(nativos)} revisados)")
 
+# --excluir-ref PRD… (repetible): refs que NO reciben recaudos en esta corrida.
+# Caso que lo motivó (07-09): una ref con DOS créditos en la app (los imports de
+# julio crearon el "total como capital" al lado del real), el de pagado=0 gana en
+# `by_ref_db` según el orden que devuelva la base y `refs_cero` le manda toda la
+# historia → la misma plata dos veces sobre un crédito muerto. Se excluye a mano
+# hasta que se depuren esos pares; lo excluido se dice.
+EXCLUIR_REFS = {sys.argv[i + 1] for i, a in enumerate(sys.argv[:-1]) if a == "--excluir-ref"}
+if EXCLUIR_REFS:
+    _fuera = [(r, p) for r, p in insertar if r in EXCLUIR_REFS]
+    insertar = [(r, p) for r, p in insertar if r not in EXCLUIR_REFS]
+    print(f"   --excluir-ref: quedan afuera {len(_fuera)} recaudos (${round(sum(p['monto'] or 0 for _, p in _fuera)):,}) "
+          f"de {sorted({r for r, _ in _fuera})}")
+
 if not COMMIT:
     print("\n🟡 DRY-RUN: no se escribió nada. Aplicar con --commit.")
     sys.exit(0)
