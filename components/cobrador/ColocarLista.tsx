@@ -35,7 +35,7 @@ import {
   interesDeBase,
   INTERES_DEFECTO_PCT,
 } from "@/lib/creditoNuevo";
-import { interesEfectivo, cuotasQueDanJusto, cuotasValidas, cuotasAlCambiarFormato, explicaTecho, rotuloTechoPropio } from "@/lib/renovacion";
+import { interesEfectivo, cuotasQueDanJusto, cuotasValidas, cuotasAlCambiarFormato, rotuloTechoPropio } from "@/lib/renovacion";
 
 interface Candidato {
   clienteId: string;
@@ -180,7 +180,7 @@ interface Hecho {
   clienteId: string;
   nombre: string;
   texto: string;
-  como: "creado" | "repetido" | "pedido";
+  como: "creado" | "repetido";
   /** Solo VENTAS recién creadas (no renovaciones): habilita el "↩ Deshacer" en
    *  el cartel, que es donde el dedazo se nota al segundo (08-14). */
   deshacer?: { prestamoId: string; monto: number; creadoEn: string };
@@ -406,54 +406,29 @@ function TarjetaBloqueada({ c }: { c: NoElegibleVista }) {
 /** El cartel de "ya está hecho". Vive en la LISTA, no en la tarjeta, así sobrevive
  *  al refresco que borra al cliente de los candidatos.
  *
- *  TRES resultados, TRES colores. Verde = el capital salió. Ámbar = ya estaba hecho
- *  (reintento tras un corte de señal). AZUL = se PIDIÓ al supervisor y todavía no
- *  se creó nada. El "pedido" se pintaba verde con ✓ igual que el éxito: en la
- *  calle, de reojo, verde + ✓ = hecho, y el cobrador entregaba el efectivo por
- *  un crédito que no existe. Hoy (Carlos, 19-08) va en tono AMABLE — es una
- *  buena noticia con un "todavía no" — pero distinto del verde y con la regla
- *  de la plata escrita clara. */
+ *  DOS resultados, DOS colores. Verde = el capital salió (aunque haya pasado el
+ *  +20%: desde el 06-09 el crédito nace igual y la oficina recibe un aviso).
+ *  Ámbar = ya estaba hecho (reintento tras un corte de señal). Hasta el 06-09
+ *  había un tercero, AZUL = "se PIDIÓ al supervisor, todavía NO entregues la
+ *  plata"; con la regla nueva ese estado no existe más, y dejarlo dibujado era
+ *  dejar en la pantalla una instrucción de dinero falsa. */
 function Confirmacion({ h }: { h: Hecho }) {
   const tono =
-    h.como === "pedido"
-      ? // Tokens que FLIPEAN en modo oscuro (el cobrador lo tiene en Menú): el
-        // azul-osc fijo quedaba ilegible sobre el azul-suave oscuro.
-        { borde: "var(--color-campo)", fondo: "var(--color-azul-suave)", texto: "var(--color-azul-osc)" }
-      : h.como === "repetido"
-        ? { borde: "var(--color-ambar-suave)", fondo: "var(--color-ambar-suave)", texto: "var(--color-ambar-osc)" }
-        : { borde: "var(--color-verde-suave)", fondo: "var(--color-verde-suave)", texto: "var(--color-verde-osc)" };
+    h.como === "repetido"
+      ? { borde: "var(--color-ambar-suave)", fondo: "var(--color-ambar-suave)", texto: "var(--color-ambar-osc)" }
+      : { borde: "var(--color-verde-suave)", fondo: "var(--color-verde-suave)", texto: "var(--color-verde-osc)" };
   return (
     <div
       className="flex flex-col gap-1 rounded-[16px] border p-4"
       style={{ borderColor: tono.borde, background: tono.fondo }}
     >
       <span className="text-[14px] font-extrabold" style={{ color: tono.texto }}>
-        {h.como === "pedido" ? "⏳ " : ""}
         {h.nombre}
       </span>
       <p className="text-[12.5px] leading-[1.45] font-bold" style={{ color: tono.texto }}>
         {h.texto}
       </p>
-      {h.como === "pedido" && (
-        <p
-          className="mt-1 rounded-[12px] bg-tarjeta/80 px-2.5 py-2 text-[12.5px] leading-[1.45] font-bold"
-          style={{ color: tono.texto }}
-        >
-          💵 Todavía NO le entregues la plata: se entrega cuando llegue el OK — ahí el crédito
-          nace solo y te aparece en verde en «Tus pedidos». Si demora, desde ahí le podés
-          recordar a tu supervisor.
-        </p>
-      )}
       <div className="mt-1.5 flex flex-wrap items-center gap-2">
-        {h.como === "pedido" && (
-          <a
-            href="/cobrador#pedidos"
-            className="min-h-11 self-start rounded-full px-4 text-[12.5px] font-extrabold leading-[44px] text-white active:scale-95"
-            style={{ background: "#1E47C8" }}
-          >
-            Ver tus pedidos
-          </a>
-        )}
         <a
           href={`/cobrador/cliente/${h.clienteId}`}
           className="min-h-11 self-start rounded-full bg-tarjeta px-4 text-[12.5px] font-bold leading-[44px] active:scale-95"
@@ -540,28 +515,18 @@ function Tarjeta({
    *  rojo llegaba del servidor con el cliente enfrente (auditoría 08-14). */
   const cuotasPasan = cuotasN > 0 && !cuotasValidas(cuotasN, true);
   const techo = c.techo;
-  /** Pasa lo que el cobrador puede solo → hay que pedirlo (si hay a quién). */
+  /** Pasa el UMBRAL del cobrador (+20% del anterior). Regla de Carlos (06-09):
+   *  el crédito se crea igual y a la oficina le llega un aviso. Ya no es un
+   *  permiso: es la línea a partir de la cual se avisa. */
   const excede = montoN > techo;
-  /** Pasa el tope DURO: no lo puede ni la oficina. Solo existe al renovar; en la
-   *  venta nueva el techo del tramo YA es el máximo (el CAP acota el capital
-   *  nuevo), así que el máximo coincide con el techo. */
-  const pasaMaximo = montoN > (c.maximo ?? techo);
-  /** ¿Este toque manda un pedido a la oficina en vez de crear el crédito?
-   *  En VENTA, cualquier monto sobre el techo (y bajo el CAP) genera solicitud —
-   *  también para el cliente sin crédito activo (0139): antes ese caso era un
-   *  "dejale el pedido a tu supervisor" que viajaba por fuera de la app. El
-   *  PRIMER crédito nunca pide: su techo ES el CAP. */
-  /** RENOVAR ajustado: el monto tecleado decide (mismas reglas que venta: hasta
-   *  techo solo; entre techo y máximo → pedido a la oficina; más → no). */
+  /** El único tope que queda es el del PRIMER crédito (el CAP): ahí `maximo`
+   *  viene con número. Con un crédito anterior viene vacío = sin tope. */
+  const pasaMaximo = c.maximo != null && montoN > c.maximo;
+  /** RENOVAR ajustado: el monto tecleado decide (mismas reglas que venta). */
   const renovarAjustado = modo === "renovar" && ajustar;
   /** En VENTA el formato es OBLIGATORIO: sin elegirlo no se coloca capital.
    *  Nunca más un "diario" por defecto que nadie vio. */
   const faltaFormato = modo === "venta" && !frecuencia;
-  const aOficina = renovarAjustado
-    ? excede && !pasaMaximo
-    : modo === "renovar"
-      ? !!c.requiereAprobacion
-      : excede && !pasaMaximo;
   /** Lo que se le entrega al RENOVAR: el mismo monto del crédito que terminó
    *  (o el tecleado si desplegó "cambiar"). */
   const sugeridoRenov = renovarAjustado && montoN > 0 ? montoN : (c.montoNuevo ?? c.monto);
@@ -659,18 +624,17 @@ function Tarjeta({
           // reintento): es el único caso con "↩ Deshacer" — deshacer una
           // renovación reabriría el crédito anterior y eso lo hace la oficina.
           const esVentaCreada =
-            modo === "venta" && !c.prestamoId && !("solicitado" in r) && !r.repetido && !!r.prestamoId;
+            modo === "venta" && !c.prestamoId && !r.repetido && !!r.prestamoId;
           onHecho({
             clienteId: c.clienteId,
             nombre: c.nombre,
-            como: "solicitado" in r ? "pedido" : r.repetido ? "repetido" : "creado",
-            texto:
-              "solicitado" in r
-                ? r.mensaje
-                : r.repetido
-                  ? // "renovado" mentía cuando lo repetido era una VENTA nueva.
-                    `Ya estaba ${modo === "renovar" ? "renovado" : "hecho"} ✓ — no se creó otro. Si ya le entregaste la plata, no se la des de nuevo.`
-                  : `Le entregaste ${UYU(monto)}${r.cuota ? ` · cuota ${UYU(r.cuota)}` : ""} ✓`,
+            como: r.repetido ? "repetido" : "creado",
+            texto: r.repetido
+              ? // "renovado" mentía cuando lo repetido era una VENTA nueva.
+                `Ya estaba ${modo === "renovar" ? "renovado" : "hecho"} ✓ — no se creó otro. Si ya le entregaste la plata, no se la des de nuevo.`
+              : // Por encima del +20% el crédito nace igual (regla 06-09): se le
+                // dice que la oficina ya está avisada, para que no espere ningún OK.
+                `Le entregaste ${UYU(monto)}${r.cuota ? ` · cuota ${UYU(r.cuota)}` : ""} ✓${r.avisado ? " Le avisamos a tu supervisor (pasó el +20%)." : ""}`,
             deshacer: esVentaCreada
               ? { prestamoId: r.prestamoId!, monto, creadoEn: new Date().toISOString() }
               : undefined,
@@ -778,14 +742,6 @@ function Tarjeta({
               </span>
                 </>
               )}
-              {!ajustar && c.requiereAprobacion && (
-                <span className="rounded-[12px] bg-ambar-suave px-2.5 py-2 text-[11.5px] leading-[1.45] font-bold text-ambar-osc">
-                  Este monto lo aprueba tu supervisor. Al confirmar, el pedido le llega a su pantalla.
-                  <br />
-                  <strong>Todavía NO le entregues la plata.</strong>
-                </span>
-              )}
-
               {/* ── CAMBIAR monto / cuotas / formato (pedido del piloto 19-08) ──
                   Plegado por defecto: el toque sigue siendo "repetir tal cual".
                   Desplegado: subir hasta +20% solo; más, se pide a la oficina
@@ -848,14 +804,11 @@ function Tarjeta({
                   <span className="text-[11.5px] leading-[1.4] font-semibold text-gris">
                     {rotuloTechoPropio(c.monto, techo) ? (
                       <>
-                        Solo podés hasta <b className="text-tinta">{UYU(techo)}</b>{" "}
-                        {rotuloTechoPropio(c.monto, techo)}.
+                        Hasta <b className="text-tinta">{UYU(techo)}</b> {rotuloTechoPropio(c.monto, techo)} sin
+                        aviso. Más también se crea al toque y le avisamos a tu supervisor.
                       </>
                     ) : (
-                      <>Repetir {UYU(c.monto)} podés vos; cualquier suba la aprueba tu supervisor.</>
-                    )}
-                    {c.maximo != null && c.maximo > techo && (
-                      <> Tu supervisor puede aprobar hasta <b className="text-tinta">{UYU(c.maximo)}</b>.</>
+                      <>Repetir {UYU(c.monto)} va sin aviso; cualquier suba se crea al toque y le avisamos a tu supervisor.</>
                     )}
                   </span>
                   <SelectorFormato
@@ -886,10 +839,10 @@ function Tarjeta({
                     {cuotasN > 0 && cuotasPasan
                       ? "El máximo son 366 cuotas. Revisá la cantidad."
                       : pasaMaximo
-                        ? `${UYU(montoN)} no se puede: tu supervisor puede aprobar hasta ${UYU(c.maximo ?? techo)} ${explicaTecho(c.monto, c.maximo ?? techo)}. Revisá el monto.`
+                        ? `${UYU(montoN)} no se puede: el primer crédito no puede superar ${UYU(c.maximo ?? techo)}. Revisá el monto.`
                         : excede
-                          ? `${UYU(montoN)} pasa los ${UYU(techo)} que podés dar vos solo, pero sí lo puede aprobar tu supervisor. Al confirmar le llega el pedido a su pantalla y queda en firme apenas lo apruebe — la plata se entrega después del OK.`
-                          : "Dentro de lo que podés dar solo: se crea al instante."}
+                          ? `${UYU(montoN)} pasa el +20% (${UYU(techo)}). Se crea ahora igual y le llega un aviso a tu supervisor y a la oficina. Entregale la plata.`
+                          : "Dentro del +20%: se crea al instante, sin aviso."}
                   </span>
                 </div>
               )}
@@ -969,23 +922,22 @@ function Tarjeta({
 
               <span
                 className={`text-[11.5px] leading-[1.4] font-semibold ${
-                  excede ? "text-rojo-osc" : "text-gris"
+                  pasaMaximo || cuotasPasan ? "text-rojo-osc" : excede ? "text-ambar-osc" : "text-gris"
                 }`}
               >
-                {/* Tres mensajes distintos porque son tres finales distintos: se
-                    crea solo · lo pide a la oficina · no lo puede NADIE. Desde la
-                    0139 el sobre-techo SIEMPRE tiene puerta: genera una solicitud
-                    que aprueba tu supervisor o el admin (antes el cliente sin
-                    crédito activo terminaba en un aviso que viajaba por fuera). */}
+                {/* ROJO solo para lo que NO se puede (366 cuotas, primer crédito
+                    sobre el CAP). Pasar el +20% es ÁMBAR: se crea igual y se avisa
+                    (regla 06-09) — pintarlo rojo le decía al cobrador "no se puede"
+                    mientras el texto le decía "entregale la plata". */}
                 {cuotasN > 0 && cuotasPasan
                   ? "El máximo son 366 cuotas. Revisá la cantidad."
                   : pasaMaximo
-                    ? `${UYU(montoN)} no se puede: para este cliente el máximo es ${UYU(c.maximo ?? techo)} ${explicaTecho(c.monto, c.maximo ?? techo)} — más no lo aprueba ni tu supervisor. Revisá el monto.`
+                    ? `${UYU(montoN)} no se puede: el primer crédito no puede superar ${UYU(c.maximo ?? techo)}. Revisá el monto.`
                     : excede
-                      ? `${UYU(montoN)} pasa los ${UYU(techo)} que podés dar vos solo, pero sí lo puede aprobar tu supervisor. Al confirmar le llega el pedido a su pantalla y queda en firme apenas lo apruebe — la plata se entrega después del OK.`
+                      ? `${UYU(montoN)} pasa el +20% (${UYU(techo)}). Se crea ahora igual y le llega un aviso a tu supervisor y a la oficina. Entregale la plata.`
                       : c.primerCredito
-                        ? `Podés darle hasta ${UYU(techo)} vos solo (tope del sistema).`
-                        : `Podés darle hasta ${UYU(techo)} vos solo.`}
+                        ? `Podés darle hasta ${UYU(techo)} (tope del primer crédito).`
+                        : `Hasta ${UYU(techo)} sin aviso; más también se crea al toque y le avisamos a tu supervisor.`}
               </span>
             </div>
           )}
@@ -1064,13 +1016,9 @@ function Tarjeta({
                   ? "Elegí el formato ↑"
                   : (() => {
                     // RENOVAR va por el monto del crédito anterior (no hay campos);
-                    // VENTA por lo que tipeó. Y "pedir a la oficina" solo cuando de
-                    // verdad se pasa: el botón nunca promete lo que no va a pasar.
+                    // VENTA por lo que tipeó. Desde el 06-09 el botón SIEMPRE
+                    // entrega: por encima del +20% el crédito nace igual y se avisa.
                     const n = modo === "renovar" ? sugeridoRenov : montoN;
-                    if (aOficina)
-                      return confirmar
-                        ? `Sí, pedir ${UYU(n)} a mi supervisor`
-                        : `Pedir ${UYU(n)} a mi supervisor`;
                     return confirmar ? `Sí, entregarle ${UYU(n)}` : `Entregarle ${UYU(n)}`;
                   })()}
             </button>

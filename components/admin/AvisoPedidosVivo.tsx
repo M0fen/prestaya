@@ -35,6 +35,7 @@ import {
   pedidosNuevos,
   lineaPedido,
   tituloFranja,
+  soloHechos,
   type ResumenPedidosVivos,
 } from "@/lib/avisosPedidos";
 
@@ -116,7 +117,10 @@ export function AvisoPedidosVivo({ inicial }: { inicial: ResumenPedidosVivos }) 
     for (const p of nuevos.slice(0, 3)) {
       notificar({
         tipo: "info",
-        titulo: p.tipo === "venta" ? "🔔 Nuevo pedido de venta" : "🔔 Nuevo pedido de renovación",
+        // HECHO (06-09): no es un pedido, es plata que ya salió por encima del +20%.
+        titulo: p.hecho
+          ? p.tipo === "venta" ? "⚠️ Venta por encima del +20%" : "⚠️ Renovación por encima del +20%"
+          : p.tipo === "venta" ? "🔔 Nuevo pedido de venta" : "🔔 Nuevo pedido de renovación",
         mensaje: lineaPedido(p, t),
         href: enPedidosRef.current ? undefined : "/admin/renovaciones",
         duracion: 12_000,
@@ -265,8 +269,13 @@ export function AvisoPedidosVivo({ inicial }: { inicial: ResumenPedidosVivos }) 
           </span>
         )}
       </span>
-      <span className="shrink-0 rounded-full bg-[#1E47C8] px-3.5 py-2 text-[12.5px] font-extrabold text-white">
-        Aprobar →
+      {/* Si TODO lo que hay son colocaciones ya hechas (regla 06-09), el botón no
+          puede prometer "Aprobar": no hay nada que aprobar, hay que mirar. */}
+      <span
+        className="shrink-0 rounded-full px-3.5 py-2 text-[12.5px] font-extrabold text-white"
+        style={{ background: soloHechos(resumen) ? "#E8A317" : "#1E47C8" }}
+      >
+        {soloHechos(resumen) ? "Ver →" : "Aprobar →"}
       </span>
     </Link>
   );

@@ -151,11 +151,6 @@ export async function renovarCredito(input: {
     hoy: new Date(),
   });
   if (resol.via === "rechazo") return { ok: false, error: resol.error };
-  if (resol.via === "solicitud") {
-    // Inalcanzable con `autoridad: "gestor"`; queda por si la tabla de techos
-    // cambia, para no caer en un `crear` con términos a medio resolver.
-    return { ok: false, error: `Ese monto supera lo que se puede autorizar acá (${UYU(resol.techo)}).` };
-  }
   const t = resol.terminos;
   const { monto, totalDias } = t;
   const evalu = evaluarRenovacion(ant.monto_prestado, monto);

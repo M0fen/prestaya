@@ -124,10 +124,14 @@ export default async function ColocarPage({
         clienteFoco={clienteFoco ?? null}
       />
 
+      {/* Regla de Carlos (06-09): sin permiso previo. Este pie decía "no entregues la
+          plata hasta que lo aprueben" en la MISMA pantalla donde la tarjeta dice
+          "Entregale la plata" — la instrucción de dinero contradictoria que la
+          revisión cazó antes del deploy. */}
       <p className="rounded-[12px] border border-ambar-suave bg-ambar-suave px-3.5 py-3 text-[11.5px] leading-[1.5] font-medium text-ambar-osc">
-        El crédito queda creado al instante y con tu nombre. Si ponés más de lo que permite el
-        historial del cliente, el mismo botón le manda el pedido a tu supervisor — no entregues
-        la plata hasta que lo aprueben.
+        El crédito queda creado al instante y con tu nombre, por el monto que pongas. Si es más
+        del +20% de su último crédito, se crea igual y le llega un aviso a tu supervisor y a la
+        oficina — vos entregale la plata.
       </p>
     </div>
   );

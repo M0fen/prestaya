@@ -227,11 +227,12 @@ export async function getCandidatosRenovar(
       frecuencia: (p.frecuencia as string) ?? "diario",
       falta: Math.max(0, Math.round(carton.falta)),
       techo: techos.propio,
-      // El tope duro del servidor (`renovarDesdeCalle` rechaza por encima). La
-      // tarjeta lo necesita para no ofrecer "se manda el pedido a la oficina" por
-      // un monto que la oficina TAMPOCO puede aprobar: ese botón mentía y el
-      // cobrador se comía el rojo delante del cliente.
-      maximo: techos.maximo,
+      // Desde el 06-09 con anterior NO hay tope (regla de Carlos: "automático,
+      // solo aviso"): `maximo` viaja vacío y la tarjeta no pinta ningún rojo por
+      // monto. `techo` pasa a ser el UMBRAL DE AVISO, no un permiso.
+      // ⚠️ `?? undefined` y no `null`/`Infinity`: la tarjeta cruza a un client
+      // component y `Infinity` no sobrevive la serialización (llega como null).
+      maximo: techos.maximo ?? undefined,
       montoNuevo,
       cuotaNueva,
       requiereAprobacion,
@@ -370,7 +371,8 @@ export async function getCandidatosVenta(db: SupabaseClient): Promise<CandidatoC
       // un anterior de $90.000 — la queja del admin, otra vez desde la calle.
       ...(() => {
         const t = techosDe("venta", "cobrador", referenciaDe(p));
-        return { techo: t.propio, maximo: t.maximo };
+        // `?? undefined`: con anterior no hay tope (06-09); ver getCandidatosRenovar.
+        return { techo: t.propio, maximo: t.maximo ?? undefined };
       })(),
       deudaHermano: Math.round(deudaViva.get(cid) ?? 0),
     });

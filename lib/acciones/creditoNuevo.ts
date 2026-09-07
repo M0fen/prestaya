@@ -125,15 +125,6 @@ export async function crearCreditoNuevo(input: {
     hoy: new Date(),
   });
   if (resol.via === "rechazo") return { ok: false, error: resol.error };
-  if (resol.via === "solicitud") {
-    // No se alcanza con `autoridad: "gestor"` (su techo propio ES el máximo),
-    // pero el tipo lo contempla y un cambio futuro en la tabla de techos no
-    // puede caer en un `crear` silencioso con términos a medio resolver.
-    return {
-      ok: false,
-      error: `Ese monto supera lo que se puede autorizar acá (${UYU(resol.techo)}).`,
-    };
-  }
   const t = resol.terminos;
   const { monto, totalDias, cuota } = t;
 

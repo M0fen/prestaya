@@ -24,8 +24,19 @@ mismo apunte.
 Dos cobros son EL MISMO cuando coinciden crédito, cuota Y monto.
 
 Este módulo existe para que la regla sea UNA y se pueda probar. Antes vivía
-inline dentro de `import-recaudos-recientes.py` y NO estaba en `empalme-0804.py`,
-que también importa recaudos con la guardia vieja por día.
+inline dentro de `import-recaudos-recientes.py` y NO estaba en `empalme-0804.py`.
+Desde el 05-09 (commit 1d79c33) la importan los CUATRO importadores:
+`import-recaudos-recientes.py`, `empalme-0804.py`, `empalme_disapp.py` y
+`reconstruir-creditos-muertos.py`. Si aparece un quinto camino de importación,
+tiene que importar esto y llamar a `clasificar()`, no copiar la regla.
+
+⚠️ LÍMITE CONOCIDO (medido el 06-09 sobre la corrida del 16-08). `choca_por_dia`
+es CIEGA AL MONTO: descarta cualquier recaudo de Disapp del mismo (crédito, día)
+que un pago de la app, aunque sea otra plata. En esa corrida 220 recaudos
+($342.540) cayeron así con un monto DISTINTO al de la app ese día — no está
+probado que fueran el mismo cobro. Se deja como está porque cambiarla la noche
+de una carga es peor que medirla; `scripts/diagnostico-recapturas-dia.py` lista
+esos casos para revisión humana.
 """
 import datetime as dt
 

@@ -49,9 +49,11 @@ import {
 import { puedeDeshacerVenta } from "@/lib/creditoNuevo";
 import { RENOVACION_CAP_TOTAL } from "@/lib/renovacion";
 import { referenciaDe, resolverCredito } from "@/lib/domain/credito";
-import { crearSolicitudDb, cerrarSolicitudPendienteDeAnterior } from "@/lib/data/solicitudesRenovacion";
+import { cerrarSolicitudPendienteDeAnterior } from "@/lib/data/solicitudesRenovacion";
 import { calcularEstadosCarton } from "@/lib/cartones";
-import { registrarAuditoria } from "@/lib/data/auditoria";
+import { registrarAuditoria, ACCION_SOBRE_TECHO } from "@/lib/data/auditoria";
+import { enviarMensajeDb } from "@/lib/data/chat";
+import { pctAumento } from "@/lib/avisosPedidos";
 import { esUuid } from "@/lib/idempotencia";
 import { hoyUY } from "@/lib/fecha";
 import { UYU } from "@/lib/format";
@@ -60,9 +62,9 @@ import { reportarError } from "@/lib/observabilidad";
 import type { FrecuenciaPrestamo } from "@/types/db";
 
 export type ResultadoColocar =
-  | { ok: true; prestamoId?: string; cuota?: number; repetido?: boolean }
-  /** Se mandó a la oficina para que el admin la apruebe (no se creó nada todavía). */
-  | { ok: true; solicitado: true; mensaje: string }
+  /** Creado. `avisado` = nació por encima del umbral del cobrador y a la oficina
+   *  le llegó el aviso (regla de Carlos, 06-09). La plata SE ENTREGA igual. */
+  | { ok: true; prestamoId?: string; cuota?: number; repetido?: boolean; avisado?: boolean }
   /** Frenado por el candado anti doble-colocación: el primer crédito YA existe. */
   | { ok: false; error: string; duplicado?: boolean };
 
@@ -102,104 +104,103 @@ async function puerta(clienteId: string): Promise<Puerta> {
 }
 
 /**
- * Manda la colocación a la OFICINA (supervisor de la zona o admin) para que la
- * aprueben, en vez de devolverle al cobrador un error sin salida. Vale para los
- * dos caminos: RENOVACIÓN sobre el techo y VENTA NUEVA sobre el techo (0139) —
- * el tipo decide qué hace la aprobación (finalizar el anterior o solo crear).
- * Se escribe con service_role porque `solicitudes_renovacion` es de gestores por
- * RLS; la autorización ya la dieron `puerta()` (rol cobrador + cliente de su
- * ruta) y los gates de propiedad/saldado/techo de cada camino.
+ * AVISO a la oficina de un crédito que un cobrador colocó POR ENCIMA de su
+ * umbral (+20% del anterior). Regla de Carlos (06-09): "tiene que poder hacerse
+ * de forma automática, sólo debe notificar, pero no es más". Hasta ese día acá
+ * vivía `pedirAprobacion`, que en vez de crear el crédito lo mandaba a la cola
+ * del supervisor (`solicitudes_renovacion`) y le decía al cobrador "todavía NO
+ * le entregues la plata".
+ *
+ * Corre DESPUÉS de que el crédito quedó escrito, y nada de lo que hace puede
+ * deshacerlo ni hacer fallar la respuesta: el cobrador tiene al cliente enfrente
+ * y la plata ya salió. Tres canales, porque el push es opt-in y el piloto midió
+ * 0 supervisores suscriptos (19-08):
+ *  1. AUDITORÍA con acción propia (`ACCION_SOBRE_TECHO`): es la fila que el
+ *     panel lista en «Pedidos y renovaciones» — la única evidencia sin push.
+ *     Con service_role, para que exista aunque la sesión esté por vencer.
+ *  2. PUSH a supervisores de la zona + admins, AWAITED (en serverless un `void`
+ *     puede no enviarse nunca — auditoría 21-08).
+ *  3. Mensaje en el CHAT DE ZONA: toast en el panel sin activar nada.
  */
-async function pedirAprobacion(
+async function avisarColocacionSobreTecho(
   db: Awaited<ReturnType<typeof createSupabaseServer>>,
   u: { id: string; nombre: string },
   s: {
+    tipo: "renovacion" | "venta";
     clienteId: string;
-    prestamoAnteriorId: string;
+    prestamoId: string;
     monto: number;
+    montoAnterior: number;
+    techoPropio: number;
+    cuota: number;
     totalDias: number;
     frecuencia: FrecuenciaPrestamo;
-    tipo: "renovacion" | "venta";
   },
-): Promise<ResultadoColocar> {
+): Promise<boolean> {
   try {
-    await crearSolicitudDb(createSupabaseAdmin(), {
-      clienteId: s.clienteId,
-      prestamoAnteriorId: s.prestamoAnteriorId,
-      monto: s.monto,
-      totalDias: s.totalDias,
-      frecuencia: s.frecuencia,
-      solicitadoPor: u.id,
-      solicitadoPorNombre: u.nombre,
-      tipo: s.tipo,
+    const admin = createSupabaseAdmin();
+    const cliente = await getClientePorId(db, s.clienteId).catch(() => null);
+    const nombre = cliente?.nombre ?? "un cliente";
+    const pct = pctAumento(s.monto, s.montoAnterior);
+    const suba = pct != null ? ` (+${pct}%)` : "";
+    const que = s.tipo === "venta" ? "Venta" : "Renovación";
+
+    // 1) La fila que el panel muestra. El detalle lleva TODO lo que la oficina
+    //    necesita para juzgarlo sin abrir nada: de cuánto a cuánto, el umbral
+    //    que pasó, el plan, y a quién.
+    //    ⚠️ Insert DIRECTO, no `registrarAuditoria`: esa traga el error a
+    //    propósito, y acá hace falta SABER si la fila quedó — es el único canal
+    //    que no depende de que alguien tenga el panel abierto o el push activado.
+    //    `avisado` le dice al cobrador "le avisamos": tiene que ser verdad.
+    const { error: eAud } = await admin.from("auditoria").insert({
+      actor_id: u.id,
+      actor_nombre: u.nombre,
+      accion: ACCION_SOBRE_TECHO,
+      entidad: "cliente",
+      entidad_id: s.clienteId,
+      detalle:
+        `${que}: ${UYU(s.montoAnterior)} → ${UYU(s.monto)}${suba} · umbral ${UYU(s.techoPropio)} · ` +
+        `${s.totalDias} ${s.frecuencia} · cuota ${UYU(s.cuota)} · a ${nombre} · prestamo:${s.prestamoId}`,
     });
-  } catch (e) {
-    // Una solicitud pendiente por crédito (unique 0141): el segundo toque no
-    // duplica. ⚠️ PERO si el nuevo pedido trae OTRO monto, decir "ya estaba" a
-    // secas escondía que lo que espera el supervisor es el monto VIEJO
-    // (auditoría 21-08): se lee la pendiente y se dice el número.
-    if ((e as { code?: string } | null)?.code === "23505") {
-      const { data: pend } = await createSupabaseAdmin()
-        .from("solicitudes_renovacion")
-        .select("monto")
-        .eq("prestamo_anterior_id", s.prestamoAnteriorId)
-        .eq("tipo", s.tipo)
-        .eq("estado", "pendiente")
-        .maybeSingle();
-      const montoPend = Math.round(Number(pend?.monto) || 0);
-      const distinto = montoPend > 0 && montoPend !== s.monto;
-      return {
-        ok: true,
-        solicitado: true,
-        mensaje: distinto
-          ? `Ya había un pedido de ${UYU(montoPend)} esperando por este crédito — ESE es el que le llega a tu supervisor (no los ${UYU(s.monto)} de ahora). Si el monto cambió, esperá la respuesta o avisale por «Recordarle a mi supervisor».`
-          : "Este pedido ya estaba en la pantalla de tu supervisor — sigue esperando su OK. Lo ves en «Tus pedidos», en tu inicio.",
-      };
+    if (eAud) throw eAud;
+
+    // 2) Push (best-effort, awaited, tag por crédito: el SW colapsa repetidos).
+    await avisarGestoresDeCobrador(u.id, {
+      titulo: `${que} por encima del +20%`,
+      cuerpo: `${u.nombre} colocó ${UYU(s.monto)} a ${nombre} (tenía ${UYU(s.montoAnterior)}${suba}). Ya está hecho — no hay nada que aprobar.`,
+      url: `/admin/clientes/${s.clienteId}`,
+      tag: `sobre-techo-${s.prestamoId}`,
+    });
+
+    // 3) Chat: el único canal que se ve sin activar nada. Va al canal de la ZONA
+    //    del cobrador; si no tiene zona (6 de 52 activos, medido el 06-09) va al
+    //    canal de SUPERVISORES — porque para esos seis el push tampoco encuentra
+    //    supervisor (avisarGestores resuelve por zona) y "le avisamos a tu
+    //    supervisor" sería mentira. Se escribe con service_role: la fila tiene
+    //    que existir aunque la sesión del cobrador esté por vencer, y `autor_id`
+    //    sigue siendo él.
+    try {
+      const { data: yo } = await admin.from("usuarios").select("zona_id").eq("id", u.id).maybeSingle();
+      const zonaId = (yo?.zona_id as string | null) ?? null;
+      await enviarMensajeDb(admin, {
+        ambito: zonaId ? "zona" : "supervisores",
+        cobradorId: null,
+        zonaId,
+        autorId: u.id,
+        cuerpo: `⚠️ ${que} por encima del +20%: coloqué ${UYU(s.monto)} a ${nombre} (tenía ${UYU(s.montoAnterior)}${suba}). Ya está hecho, es solo para que lo sepan.`,
+      });
+    } catch (e) {
+      reportarError("colocacionSobreTecho.chat", e, { prestamoId: s.prestamoId });
     }
-    return { ok: false, error: "No se pudo pedir la aprobación. Probá de nuevo." };
+
+    revalidatePath("/admin/renovaciones");
+    revalidatePath("/admin");
+    return true;
+  } catch (e) {
+    // El crédito ya nació: el aviso jamás convierte un éxito en error.
+    reportarError("colocacionSobreTecho", e, { prestamoId: s.prestamoId });
+    return false;
   }
-  await registrarAuditoria(db, {
-    actorId: u.id,
-    actorNombre: u.nombre,
-    accion:
-      s.tipo === "venta"
-        ? "Pidió aprobación para una venta nueva (supera su techo)"
-        : "Pidió aprobación para renovar (supera el tope)",
-    entidad: "cliente",
-    entidadId: s.clienteId,
-    detalle: `${UYU(s.monto)} × ${s.totalDias} (${s.frecuencia}) — espera a la oficina`,
-  });
-  // ⚠️ AVISO AL SUPERVISOR (quejas del piloto 19-08): la solicitud nacía MUDA y
-  // 2 pedidos llevaban días esperando sin que nadie los viera. Tres caminos:
-  //  · el panel del supervisor la ve SOLO, sin activar nada (franja en vivo por
-  //    Realtime sobre solicitudes_renovacion, 0151 + poll) — es la vía principal;
-  //  · push a los supervisores de la zona + admins, si tienen avisos activos;
-  //  · el cobrador tiene "Recordarle a mi supervisor" en «Tus pedidos» (su inicio).
-  // Best-effort: el pedido YA está guardado aunque el aviso falle.
-  // ⚠️ AWAITED (auditoría 21-08): en serverless, un `void` queda congelado en
-  // cuanto la respuesta sale — el push podía no enviarse NUNCA. La función ya
-  // atrapa sus errores adentro (devuelve 0), así que esperar no puede romper.
-  const cliente = await getClientePorId(db, s.clienteId).catch(() => null);
-  await avisarGestoresDeCobrador(u.id, {
-    titulo: s.tipo === "venta" ? "Pedido de venta para aprobar" : "Pedido de renovación para aprobar",
-    cuerpo: `${u.nombre} pide ${UYU(s.monto)} para ${cliente?.nombre ?? "un cliente"} (supera su tope). Tocá para aprobar o rechazar.`,
-    url: "/admin/renovaciones",
-    tag: `solicitud-${s.prestamoAnteriorId}`,
-  });
-  revalidatePath("/cobrador/colocar");
-  revalidatePath("/cobrador");
-  revalidatePath("/admin/renovaciones");
-  revalidatePath("/admin");
-  // Tono amable (Carlos, 19-08): es una buena noticia con un "todavía no", no
-  // un rechazo. Se dice qué pasó, qué sigue y cuándo queda en firme.
-  const quien = cliente?.nombre ? ` para ${cliente.nombre}` : "";
-  return {
-    ok: true,
-    solicitado: true,
-    // ⚠️ SIN "¡Listo!": en «Tus pedidos» "listo" significa APROBADO (los estados
-    // dicen "N listos"), y de reojo una palabra de éxito hace entregar plata.
-    mensaje: `¡Pedido enviado! ${UYU(s.monto)}${quien} ya está en la pantalla de tu supervisor. Queda en firme apenas lo apruebe — seguilo en «Tus pedidos», en tu inicio.`,
-  };
 }
 
 /** Ventana del candado anti doble-colocación. Los duplicados reales del piloto
@@ -411,16 +412,6 @@ export async function renovarDesdeCalle(input: {
     hoy: new Date(),
   });
   if (resolRen.via === "rechazo") return { ok: false, error: resolRen.error };
-  if (resolRen.via === "solicitud") {
-    return pedirAprobacion(db, u, {
-      clienteId: input.clienteId,
-      prestamoAnteriorId: ant.id,
-      monto: resolRen.monto,
-      totalDias: resolRen.totalDias,
-      frecuencia: resolRen.frecuencia,
-      tipo: "renovacion",
-    });
-  }
   const tr = resolRen.terminos;
   const { monto, totalDias, frecuencia: frecuenciaNueva } = tr;
 
@@ -522,9 +513,25 @@ export async function renovarDesdeCalle(input: {
         ? `${UYU(monto)} × ${totalDias} (mismo monto que terminó)`
         : `${UYU(montoAnterior)} → ${UYU(monto)} × ${totalDias} (${monto > montoAnterior ? "+" : "−"}${UYU(Math.abs(monto - montoAnterior))})`,
   });
+  // Por encima del umbral (+20%): el crédito YA nació; se avisa a la oficina.
+  // La marca la puso `resolverCredito`, la puerta solo la lee (guardián).
+  let avisado = false;
+  if (tr.sobreTechoPropio && res.prestamoId) {
+    avisado = await avisarColocacionSobreTecho(db, u, {
+      tipo: "renovacion",
+      clienteId: input.clienteId,
+      prestamoId: res.prestamoId,
+      monto,
+      montoAnterior,
+      techoPropio: tr.techoPropio,
+      cuota: tr.cuota,
+      totalDias,
+      frecuencia: frecuenciaNueva,
+    });
+  }
   revalidatePath("/cobrador");
   revalidatePath(`/cobrador/cliente/${input.clienteId}`);
-  return { ok: true, prestamoId: res.prestamoId, cuota: res.cuota };
+  return { ok: true, prestamoId: res.prestamoId, cuota: res.cuota, avisado };
 }
 
 /**
@@ -722,20 +729,6 @@ export async function nuevaVentaDesdeCalle(input: {
     hoy: new Date(),
   });
   if (resol.via === "rechazo") return { ok: false, error: resol.error };
-  if (resol.via === "solicitud") {
-    // Por encima de su techo NO se rebota: se genera una SOLICITUD tipo 'venta'
-    // que aprueba el supervisor de la zona o el admin (0139). Antes el mensaje
-    // decía "pedíselo a tu supervisor" y el pedido viajaba por fuera de la app —
-    // el mismo agujero que la auditoría del 10-08 marcó en la cola de gastos.
-    return pedirAprobacion(db, u, {
-      clienteId: input.clienteId,
-      prestamoAnteriorId: resol.referenciaId!,
-      monto: resol.monto,
-      totalDias: resol.totalDias,
-      frecuencia: resol.frecuencia,
-      tipo: "venta",
-    });
-  }
   const t = resol.terminos;
   const { totalDias, cuota } = t;
 
@@ -802,7 +795,24 @@ export async function nuevaVentaDesdeCalle(input: {
       detalle: `${UYU(t.monto)} × ${totalDias} (${t.frecuencia}) · cuota ${UYU(cuota)}`,
     });
   }
+  // Por encima del umbral (+20% del último crédito): nació igual, se avisa.
+  // Solo la PRIMERA vez (no en el reintento idempotente: ya se avisó).
+  let avisado = false;
+  if (t.sobreTechoPropio && res.prestamoId && !res.repetido) {
+    avisado = await avisarColocacionSobreTecho(db, u, {
+      tipo: "venta",
+      clienteId: input.clienteId,
+      prestamoId: res.prestamoId,
+      monto: t.monto,
+      // El mismo mapeo que usó `resolverCredito` para medir el umbral.
+      montoAnterior: referenciaDe(base)?.monto ?? 0,
+      techoPropio: t.techoPropio,
+      cuota,
+      totalDias,
+      frecuencia: t.frecuencia,
+    });
+  }
   revalidatePath("/cobrador");
   revalidatePath(`/cobrador/cliente/${input.clienteId}`);
-  return { ok: true, prestamoId: res.prestamoId, cuota, repetido: res.repetido };
+  return { ok: true, prestamoId: res.prestamoId, cuota, repetido: res.repetido, avisado };
 }

@@ -35,7 +35,7 @@ Reglas de dinero (criticas):
     ('Pagos'+'Saldo'=='Total' en 100% de activos); 'Cuotas Pend.' es solo informativo
     (concuerda con el dinero en ~26%).
 """
-import argparse, glob, os, sys, json, re, secrets, urllib.request, urllib.parse, urllib.error
+import argparse, glob, os, sys, json, re, secrets, time, urllib.request, urllib.parse, urllib.error
 import datetime as dt
 from collections import defaultdict, Counter
 
@@ -566,7 +566,21 @@ def get_rows(db, table, select, params=None):
         if params:
             q.update(params)
         url = db["url"] + "/rest/v1/" + table + "?" + urllib.parse.urlencode(q)
-        st, data = http(url, "GET", db["key"])
+        # ⚠️ Lectura TOLERANTE (06-09): dos corridas --commit seguidas murieron con
+        # `TimeoutError` a mitad de la paginación de `prestamos` (base saturada
+        # por consultas paralelas), una de ellas DESPUÉS de haber escrito clientes
+        # y créditos. Un GET que se corta no es un error de datos: se reintenta
+        # con espera. Solo lecturas — un POST/PATCH nunca se reintenta a ciegas.
+        for intento in range(4):
+            try:
+                st, data = http(url, "GET", db["key"])
+                break
+            except (TimeoutError, OSError) as e:
+                if intento == 3:
+                    raise
+                espera = 20 * (intento + 1)
+                print(f"\n  ⏳ lectura de {table} (offset {off}) se cortó: {type(e).__name__}. Reintento en {espera}s…")
+                time.sleep(espera)
         if st >= 300:
             raise RuntimeError(f"get {table} [{st}]: {str(data)[:300]}")
         out.extend(data or [])

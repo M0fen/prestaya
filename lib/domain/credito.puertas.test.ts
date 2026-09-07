@@ -200,12 +200,14 @@ describe("espejo pantalla=servidor — el techo que se OFRECE es el que se ACEPT
       const ven = techosDe("venta", "cobrador", ref);
 
       // Invariantes que valen para cualquier monto, hoy y después de un cambio:
-      expect(ren.propio).toBeLessThanOrEqual(ren.maximo);
-      expect(ven.propio).toBeLessThanOrEqual(ven.maximo);
-      // Repetir tal cual SIEMPRE se aprueba solo — es continuidad, no capital nuevo.
+      // con un anterior NO hay tope (regla de Carlos, 06-09) — el umbral es solo
+      // la línea a partir de la cual se avisa.
+      expect(ren.maximo).toBeNull();
+      expect(ven.maximo).toBeNull();
+      // Repetir tal cual SIEMPRE va sin aviso — es continuidad, no capital nuevo.
       expect(ren.propio).toBeGreaterThanOrEqual(c.monto);
-      // Una venta nueva nunca ofrece más de lo que el gestor puede autorizar.
-      expect(ven.propio).toBeLessThanOrEqual(ven.maximo);
+      // El umbral de la venta nunca supera el CAP (capital nuevo).
+      expect(ven.propio).toBeLessThanOrEqual(RENOVACION_CAP_TOTAL);
     });
   }
 

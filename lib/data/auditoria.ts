@@ -8,6 +8,16 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { inicioDiaUYIso } from "@/lib/fecha";
 import { tablaFaltante } from "./errores";
 
+/**
+ * La acción con la que queda registrado un crédito que un COBRADOR colocó por
+ * encima de su umbral (+20% del anterior) sin aprobación previa (regla de
+ * Carlos, 06-09: "automático, solo aviso"). Es UNA cadena compartida entre la
+ * puerta que la escribe (lib/acciones/cobradorCredito.ts) y el lector que la
+ * muestra en el panel (lib/data/misPedidos.ts): si se escribe distinto en un
+ * lado, el panel deja de verlo y el aviso muere en silencio.
+ */
+export const ACCION_SOBRE_TECHO = "Colocó por encima del +20% desde la calle (sin aprobación, avisado)";
+
 export interface EntradaAuditoria {
   actorId: string;
   actorNombre: string;

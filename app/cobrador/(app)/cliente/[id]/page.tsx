@@ -99,7 +99,10 @@ export default async function DetalleClientePage({
           {inicial}
         </div>
         <div className="flex min-w-0 flex-1 flex-col">
-          <span className="text-[19px] font-extrabold text-tinta">{cliente.nombre}</span>
+          {/* break-words (verificación 06-09): 83 fichas tienen palabras pegadas
+              del import ("RODRIGUEZDELGADO", "MOSCATELLI(SEMANAL-DEPOSITO)") y a
+              360 px desbordaban por encima del botón "Cómo llegar". */}
+          <span className="text-[19px] font-extrabold leading-[1.15] break-words text-tinta">{cliente.nombre}</span>
           <span className="truncate text-[12.5px] font-medium text-gris">
             {cliente.direccion ?? "Sin dirección"}
           </span>
@@ -325,17 +328,20 @@ async function Detalle({
                 servidor (rotuloTechoPropio): un heredado de $120.000 no tiene
                 margen propio y decirle "subilo hasta $120.000 (+20%)" era ofrecer
                 el mismo número que ya tiene. */}
+            {/* Regla de Carlos (06-09): cualquier suba se coloca en el acto; por
+                encima del umbral (+20%) el crédito nace igual y a la oficina le
+                llega un aviso. Ya no hay "lo aprueba tu supervisor". */}
             <span className="text-center text-[12px] leading-[1.45] font-semibold text-gris">
               {rotuloTechoPropio(prestamo.monto_prestado, montoRenovacionAutoAprobable(prestamo.monto_prestado)) ? (
                 <>
-                  O subilo hasta <b className="text-tinta">{UYU(montoRenovacionAutoAprobable(prestamo.monto_prestado))}</b>{" "}
-                  {rotuloTechoPropio(prestamo.monto_prestado, montoRenovacionAutoAprobable(prestamo.monto_prestado))} vos solo
-                  — más, lo aprueba tu supervisor. En Renovar → «Cambiar monto, cuotas o formato».
+                  O subilo: hasta <b className="text-tinta">{UYU(montoRenovacionAutoAprobable(prestamo.monto_prestado))}</b>{" "}
+                  {rotuloTechoPropio(prestamo.monto_prestado, montoRenovacionAutoAprobable(prestamo.monto_prestado))} sin aviso;
+                  más también se crea al toque y le avisamos a tu supervisor. En Renovar → «Cambiar monto, cuotas o formato».
                 </>
               ) : (
                 <>
-                  ¿Quiere más plata? El aumento lo aprueba tu supervisor: en Renovar →
-                  «Cambiar monto, cuotas o formato» le llega el pedido al toque.
+                  ¿Quiere más plata? Se crea al toque y le avisamos a tu supervisor: en Renovar →
+                  «Cambiar monto, cuotas o formato».
                 </>
               )}
             </span>

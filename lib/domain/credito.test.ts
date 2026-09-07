@@ -166,33 +166,32 @@ describe("resolverCredito — el formato es OBLIGATORIO", () => {
   });
 });
 
-describe("techosDe — la tabla de autoridad, puerta por puerta", () => {
-  it("VENTA · cobrador: coloca hasta +20%, el gestor le aprueba hasta el CAP", () => {
+describe("techosDe — la tabla de autoridad, puerta por puerta (regla 06-09: sin tope con anterior)", () => {
+  it("VENTA · cobrador: avisa por encima de +20%, y NO hay tope", () => {
     const t = techosDe("venta", "cobrador", REF); // anterior $10.000
-    expect(t.propio).toBe(12_000); // +20%
-    expect(t.maximo).toBe(RENOVACION_CAP_TOTAL); // piso del CAP
+    expect(t.propio).toBe(12_000); // el UMBRAL de aviso (+20%)
+    expect(t.maximo).toBeNull(); // sin tope: se crea igual y se avisa
   });
 
-  it("VENTA · gestor: su techo propio ES el máximo (no tiene a quién pedirle)", () => {
+  it("VENTA · gestor: mismo umbral (para que la pantalla diga lo mismo) y sin tope", () => {
     const t = techosDe("venta", "gestor", REF);
-    expect(t.propio).toBe(t.maximo);
-    expect(t.propio).toBe(RENOVACION_CAP_TOTAL);
+    expect(t.propio).toBe(12_000);
+    expect(t.maximo).toBeNull();
   });
 
-  it("RENOVACIÓN · cobrador: repetir un heredado sobre el CAP se aprueba SOLO", () => {
-    // La continuidad no es capital nuevo: un heredado de $120.000 se repite tal
-    // cual sin ir a la cola (si no, el cliente esperaba días por lo que ya tenía).
+  it("RENOVACIÓN · cobrador: repetir un heredado sobre el CAP nunca avisa (continuidad)", () => {
+    // Un heredado de $120.000 se repite tal cual sin aviso; subirlo, avisa.
     const heredado: ReferenciaCredito = { ...REF, monto: 120_000, cuota: 6_000, totalDias: 24 };
     const t = techosDe("renovacion", "cobrador", heredado);
     expect(t.propio).toBe(120_000);
-    expect(t.maximo).toBe(144_000); // +20%
+    expect(t.maximo).toBeNull(); // antes: 144.000 (+20%) como tope duro
   });
 
-  it("VENTA · cobrador con heredado sobre el CAP: NO hereda la excepción", () => {
-    // Capital NUEVO sobre un cliente de $120.000 sigue acotado por el CAP.
+  it("VENTA · cobrador con heredado sobre el CAP: el umbral de aviso es el CAP (no hereda la excepción)", () => {
     const heredado: ReferenciaCredito = { ...REF, monto: 120_000, cuota: 6_000, totalDias: 24 };
     const t = techosDe("venta", "cobrador", heredado);
     expect(t.propio).toBe(RENOVACION_CAP_TOTAL);
+    expect(t.maximo).toBeNull();
   });
 
   it("PRIMER crédito: el CAP para todos, cobrador y gestor por igual", () => {
@@ -206,28 +205,39 @@ describe("techosDe — la tabla de autoridad, puerta por puerta", () => {
   });
 });
 
-describe("resolverCredito — qué pasa arriba del techo", () => {
-  it("el cobrador que se pasa PIDE (nunca un callejón sin salida)", () => {
-    const r = resolverCredito(pedido({ monto: 20_000 })); // techo propio 12.000
-    expect(r.via).toBe("solicitud");
-    if (r.via === "solicitud") {
-      expect(r.monto).toBe(20_000);
-      expect(r.techo).toBe(12_000);
-      expect(r.referenciaId).toBe("prest-anterior");
+describe("resolverCredito — qué pasa arriba del umbral (regla de Carlos, 06-09)", () => {
+  it("el cobrador que se pasa del +20% COLOCA y queda marcado para el aviso", () => {
+    const r = resolverCredito(pedido({ monto: 20_000 })); // umbral propio 12.000
+    expect(r.via).toBe("crear");
+    if (r.via === "crear") {
+      expect(r.terminos.monto).toBe(20_000);
+      expect(r.terminos.sobreTechoPropio).toBe(true);
+      expect(r.terminos.techoPropio).toBe(12_000);
+      expect(r.terminos.referenciaId).toBe("prest-anterior");
     }
   });
 
-  it("el gestor que se pasa del máximo se rechaza CON el número posible", () => {
-    const r = resolverCredito(pedido({ autoridad: "gestor", monto: 200_000 }));
-    expect(r.via).toBe("rechazo");
-    if (r.via === "rechazo") expect(r.error).toContain("100.000");
+  it("dentro del +20% la marca es false: se crea en silencio", () => {
+    const r = resolverCredito(pedido({ monto: 12_000 }));
+    expect(r.via).toBe("crear");
+    if (r.via === "crear") expect(r.terminos.sobreTechoPropio).toBe(false);
   });
 
-  it("lo que NI el gestor puede autorizar no se manda a la cola", () => {
-    // El cobrador que pide $200.000 sobre un anterior de $10.000: mandarlo a una
-    // cola que lo va a rechazar es hacerlo esperar por un no.
+  it("el gestor nunca lleva la marca: es la oficina, no se avisa a sí mismo", () => {
+    const r = resolverCredito(pedido({ autoridad: "gestor", monto: 200_000 }));
+    expect(r.via).toBe("crear");
+    if (r.via === "crear") expect(r.terminos.sobreTechoPropio).toBe(false);
+  });
+
+  // Se le dijo a Carlos que sin tope $20.000 tipeado $200.000 nace como crédito.
+  // Reafirmó: "tiene que poder hacerse de forma automática, sólo debe notificar".
+  it("un cero de más ($200.000 sobre $10.000) NACE, con la marca — decisión de Carlos", () => {
     const r = resolverCredito(pedido({ monto: 200_000 }));
-    expect(r.via).toBe("rechazo");
+    expect(r.via).toBe("crear");
+    if (r.via === "crear") {
+      expect(r.terminos.sobreTechoPropio).toBe(true);
+      expect(r.terminos.sobreCap).toBe(true); // la RPC necesita el flag
+    }
   });
 
   it("el PRIMER crédito sobre el CAP dice su propio mensaje", () => {

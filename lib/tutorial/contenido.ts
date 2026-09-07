@@ -106,7 +106,7 @@ const COBRADOR: GuiaTutorial[] = [
     rol: "cobrador",
     icono: "🔁",
     titulo: "Renovar y vender (colocar plata)",
-    resumen: "Renovar de un toque, subir hasta +20% vos solo, o pedirle más a tu supervisor.",
+    resumen: "Renovar de un toque, o subir el monto: cualquier cifra se crea al instante; por encima del +20% le avisamos a tu supervisor.",
     enlace: { href: "/cobrador/colocar?modo=renovar", texto: "Abrir Renovar" },
     pasos: [
       {
@@ -117,13 +117,14 @@ const COBRADOR: GuiaTutorial[] = [
       {
         titulo: "¿Quiere más plata u otro formato? «Cambiar monto, cuotas o formato»",
         cuerpo:
-          "Dentro de la tarjeta de Renovar, abrí ese bloque: podés subir el monto hasta +20% de su último crédito VOS SOLO, cambiar las cuotas, y pasarlo a semanal o quincenal (la cuota se recalcula sola con la misma tasa).",
-        tip: "El techo (+20%) es sobre su ÚLTIMO crédito registrado, activo o terminado.",
+          "Dentro de la tarjeta de Renovar, abrí ese bloque: podés subir el monto al que el cliente necesite, cambiar las cuotas, y pasarlo a semanal o quincenal (la cuota se recalcula sola con la misma tasa). Se crea al instante, siempre.",
+        tip: "El +20% se mide sobre su ÚLTIMO crédito registrado, activo o terminado.",
       },
       {
-        titulo: "Más del +20%: el pedido le llega a tu supervisor",
+        titulo: "Más del +20%: se crea igual y le avisamos a tu supervisor",
         cuerpo:
-          "El mismo botón manda el pedido a la pantalla de tu supervisor y te avisa. Queda en firme cuando lo apruebe: hasta entonces NO le entregues la plata. Lo seguís en «Tus pedidos», en tu inicio — y desde ahí le podés recordar.",
+          "Si el monto pasa el +20% de su último crédito, el crédito nace igual, con tu nombre, y a tu supervisor y a la oficina les llega un aviso automático. No hay nada que esperar ni que aprobar: entregale la plata como siempre.",
+        tip: "Revisá bien la cifra antes de confirmar: nadie la mira antes de que el crédito exista.",
       },
       {
         titulo: "Nueva venta = otro crédito aparte",

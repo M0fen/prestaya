@@ -154,10 +154,35 @@ user_zona = {u["id"]: (zona_nom.get(u["zona_id"]) if u.get("zona_id") else None)
 clientes_db = E.get_rows(db, "clientes", "id,disapp_id,documento,activo")
 cliDe = {str(c["disapp_id"]): c["id"] for c in clientes_db if c.get("disapp_id")}
 docs_db = {c["documento"] for c in clientes_db if c.get("documento")}
+# ⚠️ LA MISMA PERSONA CON DOS FICHAS (incidente 06-09, 8 créditos, $74.000 doble).
+# Un cliente censado desde la app NO tiene disapp_id; cuando después aparece en el
+# export de Disapp, `cliDe` no lo encuentra, el paso 1 le CREA una ficha nueva
+# (origen 'oficina', documento NULL porque la cédula "choca"), y el crédito de
+# Disapp nace sobre esa ficha nueva — invisible para la guardia de dobles y para
+# la adopción, que resuelven el cliente por disapp_id. Acá se cierra ese hueco:
+# si la cédula del export corresponde a EXACTAMENTE una ficha de la app, el
+# cliente de Disapp ES esa ficha. Solo cédula única: hay 243 repetidas en la base
+# y adivinar entre dos personas con el mismo documento es peor que crear una
+# ficha de más.
+_por_doc = defaultdict(list)
+for c in clientes_db:
+    if c.get("documento"):
+        _por_doc[str(c["documento"]).strip()].append(c["id"])
+docDe = {doc: ids[0] for doc, ids in _por_doc.items() if len(ids) == 1}
+unidos_por_cedula = 0
+for did, f in d["clientes"].items():
+    if did in cliDe:
+        continue
+    doc = (f.get("documento_original") or f.get("documento") or "").strip()
+    if doc and doc in docDe:
+        cliDe[did] = docDe[doc]
+        unidos_por_cedula += 1
+if unidos_por_cedula:
+    print(f"  clientes de Disapp unidos a una ficha de la app por CÉDULA única (no se crean): {unidos_por_cedula}")
 ids_cli_file = set(d["clientes"].keys())
 borrados_en_disapp = {c["id"] for c in clientes_db if c.get("disapp_id") and c["disapp_id"] not in ids_cli_file}
 
-pres = E.get_rows(db, "prestamos", "id,cliente_id,cobrador_id,disapp_credit_id,disapp_credit_ref,estado,cuota_diaria,total_dias,pagado_acum,finalizado_en")
+pres = E.get_rows(db, "prestamos", "id,cliente_id,cobrador_id,disapp_credit_id,disapp_credit_ref,estado,cuota_diaria,total_dias,pagado_acum,finalizado_en,monto_prestado,fecha_inicio,creado_por")
 by_ref_db = {p["disapp_credit_ref"]: p for p in pres if p.get("disapp_credit_ref")}
 ids_credit_db = {str(p["disapp_credit_id"]) for p in pres if p.get("disapp_credit_id")}
 activos_db = [p for p in pres if p["estado"] == "activo"]
@@ -240,6 +265,57 @@ for c in faltan_creds:
 # ══ 2. Créditos nuevos ══════════════════════════════════════════════════════
 sin_vendedor = [c for c in faltan_creds if str(c["id_vendedor"]) not in vend2user]
 crear = [c for c in faltan_creds if str(c["id_vendedor"]) in vend2user]
+
+# ══ 2a. LA APP MANDA, también para CREAR ═══════════════════════════════════
+# ⚠️ Un crédito colocado desde la app no tiene ref ni id de Disapp. Si el
+# cobrador lo anotó TAMBIÉN en Disapp (doble libro de la transición), acá no
+# matchea nada y se crearía DE NUEVO: el cliente queda con dos créditos por la
+# misma plata y la app le cobra los dos. Ya pasó una vez (ALBERTO SARI SOSA).
+# Medido el 06-09 sobre el export fresco: 171 de 1.351 a crear eran de clientes
+# con un crédito NATIVO activo — 124 con el MISMO monto a ≤7 días (María
+# Artunduaga sola: 88 créditos, $1,23M).
+#
+# Regla: si el cliente ya tiene un crédito nativo ACTIVO, el de Disapp NO se
+# crea. Se lista con la comparación monto/fecha: los pocos que sean un segundo
+# crédito de verdad se dan de alta después, con la lista en la mano. Crear un
+# fantasma (que acumula mora y se cobra) es peor que demorar uno real.
+CREAR_DOBLES = "--crear-dobles" in sys.argv  # llave de escape, a sabiendas
+nativos_activos_cli = defaultdict(list)
+for p in pres:
+    if p["estado"] == "activo" and not p.get("disapp_credit_id") and not p.get("disapp_credit_ref"):
+        nativos_activos_cli[p["cliente_id"]].append(p)
+dobles_saltados = []  # (crédito Disapp, [créditos nativos activos del mismo cliente])
+adoptables = 0
+if not CREAR_DOBLES:
+    # ⚠️ Segunda versión (misma noche). La primera sacaba de `crear` a TODO doble,
+    # y con eso mató sin querer la ADOPCIÓN (fase de escritura, más abajo): el
+    # bloque que, cuando hay EXACTAMENTE un nativo del mismo monto, le PEGA la
+    # referencia de Disapp al nativo en vez de insertar — y con la ref puesta,
+    # los recaudos de Disapp de ese crédito le llegan al nativo por el camino
+    # normal. Sin adopción, 121 refs quedaban sin dueño y ~$310.000 de cobros
+    # anotados en Disapp no llegaban NUNCA a la app (22 créditos en $0 mientras
+    # Disapp tenía cobros). Ahora: el doble EXACTO sigue en `crear` para que la
+    # adopción lo tome (no se inserta); solo se saltea el ambiguo (otro monto, o
+    # más de un nativo candidato), que va al CSV para una persona.
+    _crear = []
+    for c in crear:
+        _cid = cliDe.get(str(c["id_cliente"] or ""))
+        _nat = nativos_activos_cli.get(_cid) if _cid else None
+        if not _nat:
+            _crear.append(c)
+            continue
+        # Mismo criterio que `nativos_libres` en la adopción: mismo monto y
+        # nacido en la app (creado_por). Si acá se dijera "adoptable" y allá no
+        # lo encontrara, el crédito se INSERTARÍA: el duplicado que se quiere evitar.
+        _exactos = [n for n in _nat
+                    if n.get("creado_por")
+                    and round(float(n.get("monto_prestado") or 0)) == round(float(c["valor"] or 0))]
+        if len(_exactos) == 1:
+            adoptables += 1
+            _crear.append(c)  # lo toma la ADOPCIÓN: ref sobre el nativo, sin insertar
+        else:
+            dobles_saltados.append((c, _nat))
+    crear = _crear
 
 # ══ 2b. RESUCITAR: activos HOY en Disapp que acá quedaron finalizados ═══════
 # La sincronización ZC del 07-21 finalizó 245 créditos porque el export de aquel
@@ -523,6 +599,29 @@ for k, (n, s) in sorted(pz.items(), key=lambda x: -x[1][0]):
     print(f"       {k}: {n}  (saldo ${round(s):,})")
 if sin_vendedor:
     print(f"     ⚠ sin vendedor mapeado (NO se crean): {len(sin_vendedor)}")
+if adoptables:
+    print(f"     ↪ dobles EXACTOS (un nativo del mismo monto): {adoptables} — la ADOPCIÓN les pega la ref al nativo, no se insertan")
+if dobles_saltados:
+    _sd = sum(float(c["valor"] or 0) for c, _ in dobles_saltados)
+    _mismo = sum(1 for c, nat in dobles_saltados
+                 if any(abs(float(n.get("monto_prestado") or 0) - float(c["valor"] or 0)) < 0.5 for n in nat))
+    print(f"     🛡️ NO se crean: el cliente ya tiene un crédito NATIVO activo (la app manda): "
+          f"{len(dobles_saltados)}  (${round(_sd):,}; {_mismo} con el MISMO monto)")
+    import csv as _csvmod
+    _ruta_d = os.path.join(HERE, f"_creditos_dobles_saltados_{SELLO}.csv")
+    with open(_ruta_d, "w", encoding="utf-8-sig", newline="") as _fh:
+        _w = _csvmod.writer(_fh, delimiter=";")
+        _w.writerow(["cliente_id", "ref_disapp", "monto_disapp", "fecha_disapp", "vendedor_disapp",
+                     "prestamo_app", "monto_app", "fecha_app", "pagado_app", "mismo_monto", "dias"])
+        for c, nat in dobles_saltados:
+            for n in nat:
+                _fa = str(n.get("fecha_inicio") or "")[:10]
+                _dias = abs((c["fecha"] - dt.date.fromisoformat(_fa)).days) if (c["fecha"] and _fa) else ""
+                _w.writerow([n["cliente_id"], c["ref"], round(float(c["valor"] or 0)), c["fecha"], c["vendedor"],
+                             n["id"], round(float(n.get("monto_prestado") or 0)), _fa,
+                             round(float(n.get("pagado_acum") or 0)),
+                             abs(float(n.get("monto_prestado") or 0) - float(c["valor"] or 0)) < 0.5, _dias])
+    print(f"        lista → {_ruta_d}   (si alguno es un 2º crédito REAL: alta manual, o --crear-dobles a sabiendas)")
 if resucitar:
     de = defaultdict(int)
     for r in resucitar:
@@ -700,7 +799,11 @@ for r in resucitar:
 print(f"  ✓ resucitados: {okR}/{len(resucitar)}")
 
 # 3) asignaciones
-ahora_iso = dt.datetime.now(UY).isoformat()
+# ⚠️ `UY` vivía inline acá hasta que la guardia se extrajo a guardia_duplicados.py
+# (05-09) y se lo llevó. El dry-run nunca llega a esta línea, así que el hueco
+# apareció recién en el --commit del 06-09: 96 clientes y 1.165 créditos ya
+# escritos, y NameError antes de asignaciones/recaudos. Se re-corrió (idempotente).
+ahora_iso = dt.datetime.now(G.UY).isoformat()
 filas_asig = []
 for a in asig_crear:
     cliente_id = a.get("cliente_id") or cliDe.get(a.get("cliente_disapp", ""))

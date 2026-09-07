@@ -178,12 +178,15 @@ describe("aprobar dos veces la misma solicitud", () => {
 });
 
 describe("aprobar REVALIDA el monto (es texto que escribió otra persona)", () => {
-  it("venta sobre el CAP de $100.000 → no la puede aprobar nadie, y no se crea nada", async () => {
+  // Regla de Carlos (06-09): con un crédito anterior contra qué medir NO hay tope,
+  // ni para el cobrador ni para el gestor. Hasta ese día esto rebotaba con
+  // "no la puede aprobar nadie (100.000)".
+  it("venta de $200.000 sobre un anterior de $50.000 → se aprueba (sin tope con anterior)", async () => {
     getSolicitudPorId.mockResolvedValue(solicitud({ monto: 200000 }));
     const r = await aprobarSolicitud(SOL_ID);
-    expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.error).toMatch(/100\.000/);
-    expect(crearCreditoNuevoDb).not.toHaveBeenCalled();
+    expect(r.ok).toBe(true);
+    expect(crearCreditoNuevoDb).toHaveBeenCalledTimes(1);
+    expect((crearCreditoNuevoDb.mock.calls[0][1] as { monto: number }).monto).toBe(200000);
   });
 
   it("cliente dado de baja MIENTRAS el pedido esperaba → rechazo con salida, no un crédito fantasma", async () => {
@@ -303,13 +306,18 @@ describe("sobre-CAP desde el panel: el SUPERVISOR escribe con service_role (audi
     expect((dbUsado as { __admin?: boolean }).__admin).toBeUndefined();
   });
 
-  it("$109.000 sobre $90.000 (> +20%) → rebota con la salida, sin tocar la base", async () => {
+  // Regla de Carlos (06-09): sin tope con anterior. Hasta ese día $109.000 sobre
+  // $90.000 (> +20%) rebotaba con "hasta 108.000"; ahora se crea, con el flag
+  // sobre-CAP para la RPC (0146 lo honra al admin logueado).
+  it("$109.000 sobre $90.000 (> +20%) → se crea, con el flag sobre-CAP", async () => {
     getUsuarioActual.mockResolvedValue({ ...GESTOR, rol: "admin" });
     getPrestamoPorId.mockResolvedValue(ANT);
     crearRenovacion.mockClear();
+    crearRenovacion.mockResolvedValue({ ok: true, prestamoId: "cred-nuevo", cuota: 5450 });
     const r = await renovarCredito({ ...base, monto: 109000 });
-    expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.error).toMatch(/108.000/);
-    expect(crearRenovacion).not.toHaveBeenCalled();
+    expect(r.ok).toBe(true);
+    const [, input] = crearRenovacion.mock.calls.at(-1)!;
+    expect((input as { monto: number; permitirSobreCap: boolean }).monto).toBe(109000);
+    expect((input as { permitirSobreCap: boolean }).permitirSobreCap).toBe(true);
   });
 });

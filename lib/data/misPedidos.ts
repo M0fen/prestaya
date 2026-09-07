@@ -26,6 +26,7 @@
 import { UYU } from "@/lib/format";
 import "server-only";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
+import { ACCION_SOBRE_TECHO } from "./auditoria";
 import { tablaFaltante } from "./errores";
 
 export type TipoPedido = "renovacion" | "gasto" | "correccion" | "aviso" | "cancelacion";
@@ -215,6 +216,85 @@ export async function getAvisosDeLaCalle(
       cuerpo: String(n.cuerpo ?? ""),
       creadoIso: n.creado_en as string,
       horasEsperando: horasDesde(n.creado_en as string, t),
+    }));
+  } catch (e) {
+    if (tablaFaltante(e)) return [];
+    throw e;
+  }
+}
+
+export interface ColocadoSobreTecho {
+  id: string;
+  /** Cliente al que se le colocó (entidad_id de la auditoría). */
+  clienteId: string | null;
+  actorNombre: string;
+  /** "Renovación: $10.000 → $20.000 (+100%) · umbral $12.000 · 24 diario · cuota $… · a NOMBRE · prestamo:…" */
+  detalle: string;
+  creadoIso: string;
+  horas: number;
+  // Lo mismo, PARSEADO del detalle (lo escribe `avisarColocacionSobreTecho` con
+  // un formato fijo): es lo que la franja en vivo necesita para armar su línea.
+  // Si el formato no calza (una fila vieja, un cambio a futuro), quedan en 0 / "".
+  clienteNombre: string;
+  monto: number;
+  montoAnterior: number;
+  tipo: "renovacion" | "venta";
+}
+
+/** "$10.000" → 10000 (el formato de UYU: punto de miles, sin decimales). */
+function pesos(s: string | undefined): number {
+  return s ? Number(s.replace(/[^\d]/g, "")) || 0 : 0;
+}
+
+/** Parsea el detalle escrito por la puerta. Formato fijo, ver cobradorCredito.ts. */
+export function parsearDetalleSobreTecho(detalle: string): Pick<ColocadoSobreTecho, "clienteNombre" | "monto" | "montoAnterior" | "tipo"> {
+  const m = /^(Renovación|Venta):\s*(\$[\d.]+)\s*→\s*(\$[\d.]+)/.exec(detalle);
+  const nombre = /·\s*a\s+(.+?)\s*·\s*prestamo:/.exec(detalle);
+  return {
+    tipo: m && m[1] === "Venta" ? "venta" : "renovacion",
+    montoAnterior: pesos(m?.[2]),
+    monto: pesos(m?.[3]),
+    clienteNombre: nombre?.[1]?.trim() || "un cliente",
+  };
+}
+
+/**
+ * Créditos que un COBRADOR colocó por encima de su umbral (+20%) sin aprobación
+ * previa (regla de Carlos, 06-09): la fila que el panel lista para que la
+ * oficina lo vea aunque no tenga push. Lee `auditoria` por la acción exacta
+ * `ACCION_SOBRE_TECHO` (compartida con la puerta que la escribe) con
+ * service_role, y recorta por zona igual que `getAvisosDeLaCalle`:
+ * `cobradorIds` = los de su gente (null = admin, ve todo).
+ * Degrada a [] si falta la tabla. Más nuevo arriba: acá no hay cola que
+ * envejezca, es lo último que pasó.
+ */
+export async function getColocadosSobreTecho(
+  cobradorIds: string[] | null,
+  dias = 7,
+): Promise<ColocadoSobreTecho[]> {
+  try {
+    if (cobradorIds && cobradorIds.length === 0) return [];
+    const admin = createSupabaseAdmin();
+    const desde = new Date(Date.now() - dias * 24 * 3_600_000).toISOString();
+    let q = admin
+      .from("auditoria")
+      .select("id, actor_id, actor_nombre, entidad_id, detalle, creado_en")
+      .eq("accion", ACCION_SOBRE_TECHO)
+      .gte("creado_en", desde)
+      .order("creado_en", { ascending: false })
+      .limit(100);
+    if (cobradorIds) q = q.in("actor_id", cobradorIds);
+    const { data, error } = await q;
+    if (error) throw error;
+    const t = Date.now();
+    return (data ?? []).map((r) => ({
+      id: r.id as string,
+      clienteId: (r.entidad_id as string | null) ?? null,
+      actorNombre: (r.actor_nombre as string | null) ?? "Cobrador",
+      detalle: String(r.detalle ?? ""),
+      creadoIso: r.creado_en as string,
+      horas: horasDesde(r.creado_en as string, t),
+      ...parsearDetalleSobreTecho(String(r.detalle ?? "")),
     }));
   } catch (e) {
     if (tablaFaltante(e)) return [];

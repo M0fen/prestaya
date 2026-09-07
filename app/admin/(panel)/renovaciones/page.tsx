@@ -6,7 +6,7 @@ import { requireGestor } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { listarCandidatosRenovacion } from "@/lib/data/renovaciones";
 import { getSolicitudesPendientes } from "@/lib/data/solicitudesRenovacion";
-import { getAvisosDeLaCalle } from "@/lib/data/misPedidos";
+import { getAvisosDeLaCalle, getColocadosSobreTecho } from "@/lib/data/misPedidos";
 import { alcanceDelActor } from "@/lib/data/alcance";
 import type { BandaScore, AccionRenovacion } from "@/types/scoring";
 import { UYU } from "@/lib/format";
@@ -45,10 +45,14 @@ export default async function RenovacionesPage({
   // crédito llevaban dos días esperando). Se recortan por zona con el alcance del
   // gestor: el admin ve todo, el supervisor solo los de su gente.
   const alcance = await alcanceDelActor();
-  const [lista, solicitudes, avisos] = await Promise.all([
+  const [lista, solicitudes, avisos, sobreTecho] = await Promise.all([
     listarCandidatosRenovacion(db, new Date(), 0.75, 60, q || null),
     getSolicitudesPendientes(db),
     getAvisosDeLaCalle(alcance.global ? null : alcance.cobradorIds),
+    // Regla de Carlos (06-09): por encima del +20% el cobrador coloca directo y
+    // acá se LISTA lo que ya pasó, para que el supervisor lo vea aunque no tenga
+    // push activado. No hay nada que aprobar: es información.
+    getColocadosSobreTecho(alcance.global ? null : alcance.cobradorIds),
   ]);
   const { candidatos, totalQueCalifican, ocultos } = lista;
 
@@ -59,8 +63,9 @@ export default async function RenovacionesPage({
           Pedidos y renovaciones
         </h1>
         <span className="text-[13px] font-medium text-gris">
-          Los pedidos de la calle que esperan tu aprobación, y los buenos
-          pagadores listos para renovar.
+          Lo que la calle colocó por encima del +20% (ya está hecho, es para que
+          lo sepas), los pedidos que aún esperan tu aprobación si queda alguno, y
+          los buenos pagadores listos para renovar.
         </span>
       </div>
 
@@ -112,6 +117,39 @@ export default async function RenovacionesPage({
               </Link>
             );
           })}
+        </section>
+      )}
+
+      {/* ⚠️ COLOCADOS POR ENCIMA DEL +20% (regla de Carlos, 06-09). El cobrador ya
+          no pide permiso: coloca y avisa. El push es opt-in y el piloto midió 0
+          supervisores suscriptos, así que ESTA lista es el aviso que sí se ve.
+          Sin Aprobar/Rechazar: el crédito ya corre y la plata ya salió. Cada fila
+          lleva a la ficha del cliente, que es donde se juzga. */}
+      {sobreTecho.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <span className="text-[12px] font-bold tracking-[0.03em] text-gris uppercase">
+            Colocados por encima del +20% · últimos 7 días ({sobreTecho.length})
+          </span>
+          {sobreTecho.map((s) => (
+            <Link
+              key={s.id}
+              href={s.clienteId ? `/admin/clientes/${s.clienteId}` : "/admin/auditoria"}
+              className="flex flex-col gap-1 rounded-[14px] border p-3.5 active:scale-[0.995]"
+              style={{ borderColor: "#F3D9A4", background: "#FDF6E7" }}
+            >
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="line-clamp-2 break-words leading-[1.2] text-[14px] font-bold text-tinta">
+                  {s.detalle}
+                </span>
+                <span className="flex-shrink-0 text-[11.5px] font-bold tabular-nums text-[#6B7494]">
+                  {s.horas < 24
+                    ? `hace ${Math.max(1, Math.round(s.horas))} h`
+                    : `hace ${Math.round(s.horas / 24)} día${s.horas >= 48 ? "s" : ""}`}
+                </span>
+              </div>
+              <span className="text-[11px] font-medium text-tenue">Lo colocó {s.actorNombre} · ya está hecho, no hay nada que aprobar</span>
+            </Link>
+          ))}
         </section>
       )}
 

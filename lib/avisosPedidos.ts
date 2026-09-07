@@ -24,6 +24,23 @@ export interface PedidoVivo {
   tipo: "renovacion" | "venta";
   /** ISO del momento en que entró el pedido. */
   solicitadoEn: string;
+  /** true = NO es un pedido: es un crédito que el cobrador YA colocó por encima
+   *  del +20% (regla de Carlos, 06-09: automático, sólo se avisa). No se
+   *  aprueba ni se rechaza; se mira. */
+  hecho?: boolean;
+}
+
+/** La fila de auditoría de un "colocado por encima del +20%", ya parseada por
+ *  `getColocadosSobreTecho`. Tipo estructural para no importar la capa de datos
+ *  (este módulo también corre en el navegador). */
+export interface ColocadoVivo {
+  id: string;
+  actorNombre: string;
+  creadoIso: string;
+  clienteNombre: string;
+  monto: number;
+  montoAnterior: number;
+  tipo: "renovacion" | "venta";
 }
 
 export interface ResumenPedidosVivos {
@@ -40,14 +57,16 @@ export interface ResumenPedidosVivos {
 
 export const MAX_ITEMS = 5;
 
-/** De la cola completa (RLS ya aplicada) al resumen que viaja al navegador. */
-export function aResumen(pendientes: SolicitudRenovacion[]): ResumenPedidosVivos {
-  // `getSolicitudesPendientes` ya viene de la más nueva a la más vieja; se
-  // reordena igual por si la fuente cambia — el más viejo es el que urge.
-  const ord = [...pendientes].sort((a, b) => (a.solicitadoEn < b.solicitadoEn ? 1 : a.solicitadoEn > b.solicitadoEn ? -1 : 0));
-  return {
-    total: ord.length,
-    items: ord.slice(0, MAX_ITEMS).map((s) => ({
+/** De la cola completa (RLS ya aplicada) al resumen que viaja al navegador.
+ *
+ *  `hechos` (06-09): los créditos que un cobrador YA colocó por encima del +20%
+ *  en las últimas 24 h. Entran a la MISMA franja porque es el único lugar del
+ *  panel que se ve sin abrir nada; se distinguen con `hecho: true` (línea y
+ *  botón distintos: no hay nada que aprobar). Sin ellos, con la regla nueva la
+ *  franja quedaba en 0 para siempre y el "sólo debe notificar" de Carlos moría. */
+export function aResumen(pendientes: SolicitudRenovacion[], hechos: ColocadoVivo[] = []): ResumenPedidosVivos {
+  const vivos: PedidoVivo[] = [
+    ...pendientes.map((s) => ({
       id: s.id,
       cliente: s.clienteNombre,
       cobrador: s.solicitadoPorNombre,
@@ -56,6 +75,22 @@ export function aResumen(pendientes: SolicitudRenovacion[]): ResumenPedidosVivos
       tipo: s.tipo,
       solicitadoEn: s.solicitadoEn,
     })),
+    ...hechos.map((h) => ({
+      id: h.id,
+      cliente: h.clienteNombre,
+      cobrador: h.actorNombre,
+      monto: Math.round(h.monto),
+      montoAnterior: Math.round(h.montoAnterior),
+      tipo: h.tipo,
+      solicitadoEn: h.creadoIso,
+      hecho: true,
+    })),
+  ];
+  // Del más nuevo al más viejo (la fuente ya viene así; se reordena por si cambia).
+  const ord = vivos.sort((a, b) => (a.solicitadoEn < b.solicitadoEn ? 1 : a.solicitadoEn > b.solicitadoEn ? -1 : 0));
+  return {
+    total: ord.length,
+    items: ord.slice(0, MAX_ITEMS),
     ids: ord.map((s) => s.id),
     masViejoEn: ord.length ? ord[ord.length - 1].solicitadoEn : null,
   };
@@ -94,14 +129,37 @@ export function lineaPedido(p: PedidoVivo, ahoraMs: number): string {
     p.montoAnterior > 0
       ? ` (tenía ${UYU(p.montoAnterior)}${pct !== null && pct > 0 ? `, +${pct}%` : ""})`
       : "";
+  // HECHO: ya está colocado, la plata ya salió — la línea lo dice para que
+  // nadie busque un botón de aprobar que no existe.
+  if (p.hecho) {
+    const queH = p.tipo === "venta" ? "vendió" : "renovó";
+    return `${quien} ${queH} ${UYU(p.monto)} a ${p.cliente}${ref} — ya está hecho · ${hace(p.solicitadoEn, ahoraMs)}`;
+  }
   const que = p.tipo === "venta" ? "vender" : "renovar";
   return `${quien} pide ${que} ${UYU(p.monto)} a ${p.cliente}${ref} · ${hace(p.solicitadoEn, ahoraMs)}`;
 }
 
-/** Título de la franja: cuántos esperan y hace cuánto el más viejo. */
+/** ¿Todo lo que hay en la franja son colocaciones YA hechas (nada que aprobar)? */
+export function soloHechos(r: ResumenPedidosVivos): boolean {
+  return r.total > 0 && r.items.length > 0 && r.items.every((p) => p.hecho === true);
+}
+
+/** Título de la franja: cuántos esperan y hace cuánto el más viejo. Con la
+ *  regla del 06-09 conviven dos cosas: pedidos que ESPERAN (cola vieja, hoy 0)
+ *  y colocaciones YA HECHAS por encima del +20%. Se cuentan por separado. */
 export function tituloFranja(r: ResumenPedidosVivos, ahoraMs: number): string {
   if (r.total <= 0) return "";
-  const n = r.total === 1 ? "1 pedido de la calle espera tu aprobación" : `${r.total} pedidos de la calle esperan tu aprobación`;
+  const hechos = r.items.filter((p) => p.hecho).length;
+  // `items` es una ventana (MAX_ITEMS): si la franja es SOLO hechos, el total
+  // entero son hechos; si es mixta, lo que no cabe en la ventana se cuenta como
+  // pendiente (lo que urge más).
+  const nHechos = soloHechos(r) ? r.total : hechos;
+  const nPend = r.total - nHechos;
+  const partes: string[] = [];
+  if (nPend > 0) partes.push(nPend === 1 ? "1 pedido de la calle espera tu aprobación" : `${nPend} pedidos de la calle esperan tu aprobación`);
+  if (nHechos > 0)
+    partes.push(nHechos === 1 ? "1 crédito colocado por encima del +20%" : `${nHechos} créditos colocados por encima del +20%`);
+  const n = partes.join(" · ");
   const viejo = r.masViejoEn ? hace(r.masViejoEn, ahoraMs) : "";
   // Con uno solo, el "hace" ya va en la línea del pedido: no se repite.
   return r.total > 1 && viejo ? `${n} · el más viejo ${viejo}` : n;

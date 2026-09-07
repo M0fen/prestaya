@@ -145,10 +145,19 @@ export function enCuotas(n: number): string {
 export type ViaCredito = "renovacion" | "venta";
 
 /**
- * QUÉ puede autorizar el que está creando:
- *  · "cobrador" — hasta su techo coloca solo; por encima PIDE (no rebota).
- *  · "gestor" — supervisor o admin: autoriza hasta el máximo del sistema; por
- *    encima se rechaza, porque no hay a quién pedírselo.
+ * QUIÉN está creando:
+ *  · "cobrador" — coloca SIEMPRE (regla de Carlos, 06-09: "tiene que poder
+ *    hacerse de forma automática, sólo debe notificar"). Por encima de su
+ *    umbral (+20% del anterior) el crédito nace igual y queda MARCADO
+ *    (`sobreTechoPropio`) para que la puerta avise a supervisor y admin.
+ *  · "gestor" — supervisor o admin: coloca sin umbral ni marca.
+ *
+ * ⚠️ HISTORIA. Hasta el 06-09 el cobrador PEDÍA por encima del +20% (nacía una
+ * solicitud que aprobaba la oficina) y por encima de max(CAP, +20%) se
+ * rechazaba a todos. Carlos lo cambió a "automático, solo aviso": se le dijo
+ * que desaparecía el candado contra el dedazo ($20.000 tipeado $200.000) y lo
+ * reafirmó. El único tope que queda es el del PRIMER crédito (no hay anterior
+ * contra qué medir), que él no pidió tocar.
  */
 export type Autoridad = "cobrador" | "gestor";
 
@@ -262,31 +271,37 @@ export interface TerminosCredito {
   formatoExplicito: boolean;
   /** El monto supera el CAP: la capa de datos necesita saberlo para la RPC. */
   sobreCap: boolean;
+  /** Un COBRADOR colocó por encima de su umbral (+20% del anterior). El crédito
+   *  nace igual; la puerta tiene que AVISAR a supervisor y admin. Siempre false
+   *  para un gestor y para el primer crédito. La puerta LEE la marca, no la
+   *  recalcula (mismo patrón que `sobreCap`; el guardián lo exige). */
+  sobreTechoPropio: boolean;
+  /** El umbral contra el que se midió, para decirlo con el número en el aviso. */
+  techoPropio: number;
 }
 
 export type ResolucionCredito =
   /** Crear con estos términos exactos. */
   | { via: "crear"; terminos: TerminosCredito }
-  /** Se pasa del techo de quien pide: va a la cola de aprobación. */
-  | {
-      via: "solicitud";
-      monto: number;
-      totalDias: number;
-      frecuencia: FrecuenciaPrestamo;
-      referenciaId: string | null;
-      /** El techo que se pasó, para decírselo con el número. */
-      techo: number;
-    }
-  /** No se puede: el motivo ya viene redactado para la pantalla. */
+  /** No se puede: el motivo ya viene redactado para la pantalla. Desde el
+   *  06-09 solo lo produce el PRIMER crédito sobre el CAP (y los términos
+   *  inválidos): con un anterior contra qué medir, todo monto se crea. */
   | { via: "rechazo"; error: string };
 
 // ── El techo, en UNA tabla ─────────────────────────────────────────────────
 
 /**
  * Los dos números que definen la política de cada puerta:
- *  · `propio` — hasta acá crea sin pedirle permiso a nadie.
- *  · `maximo` — más que esto no lo autoriza NADIE (candado contra el dedazo:
- *    $20.000 tipeado $200.000).
+ *  · `propio` — el UMBRAL DE AVISO del cobrador (+20% del anterior). Hasta acá
+ *    coloca en silencio; por encima coloca igual y se avisa a la oficina.
+ *  · `maximo` — el único tope que queda: el CAP del PRIMER crédito. Con un
+ *    anterior contra qué medir es `null`: NO HAY TOPE (regla de Carlos, 06-09).
+ *
+ * ⚠️ Hasta el 06-09 `maximo` era max(CAP, +20%) y frenaba hasta al admin — el
+ * candado contra el dedazo. Carlos decidió sacarlo ("automático, solo aviso")
+ * sabiendo lo que se iba. `techoRenovacion` y `techoVentaGestor` siguen
+ * existiendo en lib/renovacion.ts (los rótulos y sus tests las usan) pero ya
+ * no deciden nada acá.
  *
  * Antes esto estaba escrito cuatro veces con cuatro combinaciones de
  * `techoVentaNueva` / `techoVentaGestor` / `montoRenovacionAutoAprobable` /
@@ -297,24 +312,21 @@ export function techosDe(
   via: ViaCredito,
   autoridad: Autoridad,
   referencia: ReferenciaCredito | null,
-): { propio: number; maximo: number } {
+): { propio: number; maximo: number | null } {
   // PRIMER crédito del cliente: no hay anterior contra qué medir un aumento, así
   // que el CAP es el único tope y vale igual para el cobrador y para el gestor.
   if (!referencia || !(referencia.monto > 0)) {
     return { propio: RENOVACION_CAP_TOTAL, maximo: RENOVACION_CAP_TOTAL };
   }
   const base = referencia.monto;
-  if (via === "renovacion") {
-    // Renovar es CONTINUIDAD: repetir el mismo monto siempre se aprueba solo,
-    // incluso en un heredado de $120.000 que ya supera el CAP.
-    const propio =
-      autoridad === "cobrador" ? montoRenovacionAutoAprobable(base) : techoRenovacion(base);
-    return { propio, maximo: techoRenovacion(base) };
-  }
-  // VENTA: capital nuevo. `techoVentaNueva` NO lleva la excepción de continuidad
-  // — el CAP acota lo que se pone en la calle de cero.
-  const propio = autoridad === "cobrador" ? techoVentaNueva(base) : techoVentaGestor(base);
-  return { propio, maximo: techoVentaGestor(base) };
+  // El umbral es el mismo número para los dos (así la tarjeta y el aviso dicen
+  // lo mismo), pero solo el COBRADOR lleva la marca: `resolverCredito` la apaga
+  // para el gestor. Renovar es CONTINUIDAD: repetir el mismo monto nunca avisa,
+  // ni en un heredado de $120.000 que ya supera el CAP. La venta es capital
+  // nuevo y su umbral no hereda esa excepción.
+  void autoridad;
+  const propio = via === "renovacion" ? montoRenovacionAutoAprobable(base) : techoVentaNueva(base);
+  return { propio, maximo: null };
 }
 
 // ── La resolución ──────────────────────────────────────────────────────────
@@ -385,36 +397,17 @@ export function resolverCredito(p: PedidoCredito): ResolucionCredito {
   // ── 4. TECHO. ───────────────────────────────────────────────────────────
   const { propio, maximo } = techosDe(p.via, p.autoridad, ref);
   const conReferencia = !!(ref && ref.monto > 0);
-  if (monto > maximo) {
-    // Ni pidiéndolo: se dice el número posible en vez de mandarlo a una cola que
-    // igual lo va a rechazar.
-    if (!conReferencia) {
-      return {
-        via: "rechazo",
-        error: `El primer crédito no puede superar ${UYU(RENOVACION_CAP_TOTAL)}.`,
-      };
-    }
-    const queEs = p.via === "renovacion" ? "renovación" : "venta";
+  // El único tope que queda es el del PRIMER crédito (maximo != null solo ahí).
+  // Con un anterior contra qué medir NO hay rechazo por monto: se crea y, si el
+  // cobrador pasó su umbral, la puerta avisa (regla de Carlos, 06-09).
+  if (maximo != null && monto > maximo) {
     return {
       via: "rechazo",
-      error:
-        p.autoridad === "cobrador"
-          ? `Hasta ${UYU(maximo)} lo puede aprobar tu supervisor ${explicaTecho(ref!.monto, maximo)}. Más que eso no se autoriza en una sola ${queEs}.`
-          : `Hasta ${UYU(maximo)} ${explicaTecho(ref!.monto, maximo)}. Más que eso no se autoriza en una sola ${queEs}.`,
+      error: `El primer crédito no puede superar ${UYU(RENOVACION_CAP_TOTAL)}.`,
     };
   }
-  if (monto > propio) {
-    // El cobrador PIDE (nunca un callejón sin salida); el gestor no tiene a quién
-    // pedirle, así que para él `propio === maximo` y esta rama no se alcanza.
-    return {
-      via: "solicitud",
-      monto,
-      totalDias,
-      frecuencia,
-      referenciaId: ref?.prestamoId ?? null,
-      techo: propio,
-    };
-  }
+  // La marca es SOLO del cobrador: el gestor es la oficina, no se avisa a sí mismo.
+  const sobreTechoPropio = p.autoridad === "cobrador" && monto > propio;
 
   // ── 5. LA PLATA. Una sola fórmula para las dos vías. ────────────────────
   // `calcularCuotaCreditoNuevo` arrastra la tasa de la referencia cuando es una
@@ -484,6 +477,8 @@ export function resolverCredito(p: PedidoCredito): ResolucionCredito {
       referenciaId: ref?.prestamoId ?? null,
       formatoExplicito,
       sobreCap: monto > RENOVACION_CAP_TOTAL,
+      sobreTechoPropio,
+      techoPropio: propio,
     },
   };
 }

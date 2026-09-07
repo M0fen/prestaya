@@ -643,7 +643,14 @@ export function ListaRuta({ items, cobradorId }: { items: ItemRutaVista[]; cobra
                     columna a cero: se veía la inicial del avatar y NINGÚN nombre
                     (queja del 19-08) — por eso el botón vive ahora en su propia
                     línea, abajo. */}
-                <span className="line-clamp-3 text-[15px] leading-[1.22] font-bold break-words text-tinta">
+                {/* clamp-5, no 3 (verificación 06-09, medida en Chrome con Inter):
+                    en un Android de 360 px la columna del nombre queda en 98–119 px
+                    porque comparte renglón con la cuota, el chip y el ojito, y con
+                    3 líneas se cortaba el APELLIDO de 243/2.443 nombres (522 con
+                    chip "Abonó $X"). Con 5 líneas: 0 cortes a 360 y 390 px (1 con
+                    el chip más ancho posible). La queja literal del 19-08 —"debe
+                    aparecer nombre y apellido"— volvía por ancho, no por truncate. */}
+                <span className="line-clamp-5 text-[15px] leading-[1.22] font-bold break-words text-tinta">
                   {it.nombre}
                 </span>
                 {it.plazoVencido ? (

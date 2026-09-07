@@ -15,6 +15,8 @@
 import { getUsuarioActual, esGestor } from "@/lib/auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getSolicitudesPendientes } from "@/lib/data/solicitudesRenovacion";
+import { getColocadosSobreTecho } from "@/lib/data/misPedidos";
+import { alcanceDelActor } from "@/lib/data/alcance";
 import { aResumen, type ResumenPedidosVivos } from "@/lib/avisosPedidos";
 
 export async function getResumenPedidosVivos(): Promise<ResumenPedidosVivos | null> {
@@ -22,8 +24,13 @@ export async function getResumenPedidosVivos(): Promise<ResumenPedidosVivos | nu
     const u = await getUsuarioActual();
     if (!u || !u.activo || !esGestor(u.rol)) return null;
     const db = await createSupabaseServer();
-    const pendientes = await getSolicitudesPendientes(db);
-    return aResumen(pendientes);
+    // Desde el 06-09 la franja también trae los créditos que la calle YA colocó
+    // por encima del +20% (últimas 24 h), acotados por zona igual que la pantalla
+    // de Pedidos: sin esto, con la regla nueva la franja quedaba muda para siempre.
+    // Best-effort: si esa lectura falla, la franja sigue con la cola vieja.
+    const [pendientes, alcance] = await Promise.all([getSolicitudesPendientes(db), alcanceDelActor()]);
+    const hechos = await getColocadosSobreTecho(alcance.global ? null : alcance.cobradorIds, 1).catch(() => []);
+    return aResumen(pendientes, hechos);
   } catch {
     return null;
   }

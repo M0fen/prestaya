@@ -14,6 +14,7 @@ import { getTotalNoLeidos } from "@/lib/data/chat";
 import { contarSolicitudesGastoPendientes } from "@/lib/data/solicitudesGasto";
 import { getSolicitudesPendientes as getAnulacionesPendientes } from "@/lib/data/anulaciones";
 import { getSolicitudesPendientes as getRenovacionesPendientes } from "@/lib/data/solicitudesRenovacion";
+import { getColocadosSobreTecho } from "@/lib/data/misPedidos";
 import { alcanceDelActor } from "@/lib/data/alcance";
 import { contarSolicitudesNuevas } from "@/lib/data/tienda";
 import { contarLeadsPublicosNuevos } from "@/lib/data/leadsPublicos";
@@ -61,7 +62,7 @@ export default async function PanelLayout({
   // Anulaciones (dinero) y renovaciones pendientes también burbujean al nav (antes
   // solo gastos tenía badge → quedaban invisibles). Acotadas por zona: anulaciones
   // por `alcance` (su RLS es ancha); renovaciones por la RLS 0096 bajo la sesión.
-  const [noLeidos, gastosPendientes, anulacionesPendientes, pedidosCalle, leadsNuevos, incidenciasAbiertas] =
+  const [noLeidos, gastosPendientes, anulacionesPendientes, pedidosCalle, leadsNuevos, incidenciasAbiertas, sobreTecho24h] =
     await Promise.all([
       getTotalNoLeidos(db, usuario),
       esGestor(usuario.rol) ? contarSolicitudesGastoPendientes(db, cobIdsGasto) : Promise.resolve(0),
@@ -75,9 +76,19 @@ export default async function PanelLayout({
         ? Promise.all([contarSolicitudesNuevas(db), contarLeadsPublicosNuevos(db), contarPedidosCurbePendientes(db)]).then(([a, b, c]) => a + b + c)
         : Promise.resolve(0),
       esAdmin(usuario.rol) ? contarIncidenciasAbiertas(db) : Promise.resolve(0),
+      // Colocados por encima del +20% en las últimas 24 h (regla 06-09): desde
+      // ese día la cola de pedidos queda en 0 para siempre y el tab «Pedidos»
+      // se apagaba justo cuando hay algo que mirar. Best-effort: un fallo acá
+      // no puede tumbar el layout entero.
+      esGestor(usuario.rol) ? getColocadosSobreTecho(cobIdsGasto, 1).catch(() => []) : Promise.resolve([]),
     ]);
-  const renovacionesPendientes = pedidosCalle.length;
-  const resumenPedidos = aResumen(pedidosCalle);
+  // El contador del tab suma lo que espera aprobación (cola vieja, hoy 0) y lo
+  // colocado sobre el umbral en el último día: las dos cosas viven en la misma
+  // pantalla, y el número es lo único que hace que el supervisor la abra.
+  const renovacionesPendientes = pedidosCalle.length + sobreTecho24h.length;
+  // La franja en vivo arranca con los dos: la cola (hoy 0) y lo colocado sobre
+  // el umbral en el último día. El poll de 45 s (pedidosVivos) trae lo mismo.
+  const resumenPedidos = aResumen(pedidosCalle, sobreTecho24h);
   const tema = (await cookies()).get("tema")?.value === "oscuro" ? "oscuro" : "claro";
   const iniciales = usuario.nombre
     .split(" ")

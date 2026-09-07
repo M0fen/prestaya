@@ -17,22 +17,21 @@ export interface Novedad {
   href: string;
 }
 
-export const NOVEDADES_VERSION = "2026-08-21";
+export const NOVEDADES_VERSION = "2026-09-06";
 
 export const NOVEDADES: Partial<Record<Rol, Novedad[]>> = {
   supervisor: [
-    { texto: "Los pedidos de la calle (renovar o vender por sobre el +20%) los aprobás VOS: tab «Pedidos» abajo con el contador, y una franja arriba que aparece sola cuando entra uno nuevo — sin activar nada.", href: "/admin/renovaciones" },
+    { texto: "Ya no aprobás el +20%: el cobrador coloca directo cualquier monto y a vos te llega un AVISO (push si lo activaste, y el chat de la zona siempre). Los ves en «Pedidos y renovaciones» → «Colocados por encima del +20%».", href: "/admin/renovaciones" },
     { texto: "Ventas y pagos de cualquier día, uno por uno, a quién y por quién: «Movimientos del día» (también desde el ← de Mi jornada).", href: "/admin/movimientos" },
     { texto: "Cancelar una venta mal hecha: botón «Cancelar…» en cada venta de Movimientos y en la ficha del cliente.", href: "/admin/movimientos" },
   ],
   admin: [
     { texto: "Pedidos de la calle: en el celular, tab «Pedidos» con contador; en escritorio, «Pedidos y renovaciones» en el menú. Y una franja arriba que avisa sola cuando entra uno.", href: "/admin/renovaciones" },
     { texto: "Movimientos del día: ventas y pagos uno por uno, de hoy o de cualquier día; cancelar ventas desde la lista.", href: "/admin/movimientos" },
-    { texto: "El +20% se mide contra el ÚLTIMO crédito registrado del cliente; hasta ahí lo coloca el cobrador solo, más lo aprobás vos (o el supervisor) hasta +20% con piso en $100.000.", href: "/admin/renovaciones" },
+    { texto: "Regla nueva (06-09): el cobrador coloca CUALQUIER monto sin pedir permiso. Por encima del +20% del último crédito, el crédito nace igual y te llega un aviso (push + chat de zona) y queda listado en «Pedidos y renovaciones» → «Colocados por encima del +20%». Ya no hay cola de aprobación.", href: "/admin/renovaciones" },
   ],
   cobrador: [
-    { texto: "Renovar → «Cambiar monto, cuotas o formato»: subí hasta +20% sobre su último crédito vos solo; si pedís más, queda en firme apenas lo apruebe tu supervisor (se lo mostramos al instante). Y elegí diario o semanal.", href: "/cobrador/colocar" },
-    { texto: "Un pedido que demora: en «Tus pedidos», en tu inicio, tocá «Recordarle a mi supervisor» — le avisamos por el chat de la zona y al celular, y te dejamos el WhatsApp armado para mandárselo.", href: "/cobrador" },
+    { texto: "Renovar → «Cambiar monto, cuotas o formato»: ahora podés subir CUALQUIER monto y se crea al toque. Por encima del +20% se crea igual y le avisamos a tu supervisor — vos entregale la plata. Y elegí diario o semanal.", href: "/cobrador/colocar" },
     { texto: "Tus pagos y ventas de CUALQUIER día: Informes → «← Día anterior».", href: "/cobrador/informes" },
   ],
 };

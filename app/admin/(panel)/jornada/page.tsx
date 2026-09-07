@@ -24,6 +24,7 @@ import { getDesempenoRango, type DesempenoRango } from "@/lib/data/desempeno";
 import { contarSolicitudesGastoPendientes } from "@/lib/data/solicitudesGasto";
 import { getSolicitudesPendientes as getSolicitudesAnulacionPendientes } from "@/lib/data/anulaciones";
 import { getSolicitudesPendientes as getPedidosCallePendientes } from "@/lib/data/solicitudesRenovacion";
+import { getColocadosSobreTecho } from "@/lib/data/misPedidos";
 import { getInformeRango } from "@/lib/data/informeDia";
 import { getBitacoraGestorDia, type RegistroAuditoria } from "@/lib/data/auditoria";
 import { alcanceDelActor } from "@/lib/data/alcance";
@@ -312,7 +313,7 @@ export default async function JornadaPage({
   // los aprueba el admin. Y las CORRECCIONES de cobro (solicitudes de anulación,
   // incluidas las que ahora piden los cobradores, 08-05): acá el supervisor SÍ es
   // el aprobador (doble registro) → tarjeta protagonista, no solo el badge del menú.
-  const [gastosPend, correccionesPend, pedidosCalle, movHoy] = await conTimeout(
+  const [gastosPend, correccionesPend, pedidosCalle, movHoy, sobreTecho] = await conTimeout(
     Promise.all([
       contarSolicitudesGastoPendientes(db, alcance.global ? null : alcance.cobradorIds),
       getSolicitudesAnulacionPendientes(db, alcance)
@@ -341,6 +342,14 @@ export default async function JornadaPage({
             return null;
           })
         : Promise.resolve(null),
+      // COLOCADOS POR ENCIMA DEL +20% en las últimas 24 h (regla de Carlos,
+      // 06-09: el cobrador ya no pide, coloca y avisa). El push es opt-in con 0
+      // suscriptos, así que ESTA tarjeta es el aviso que el supervisor ve al
+      // abrir el día. No hay nada que aprobar: es información.
+      getColocadosSobreTecho(alcance.global ? null : alcance.cobradorIds, 1).catch((e) => {
+        reportarError("jornada.sobreTecho", e);
+        return [];
+      }),
     ]),
     TOPE_MS,
     "jornada.pendientes",
@@ -459,6 +468,33 @@ export default async function JornadaPage({
           </div>
           <span className="flex-shrink-0 rounded-full bg-[#1E47C8] px-3.5 py-2 text-[12.5px] font-extrabold text-white">
             Aprobar →
+          </span>
+        </Link>
+      )}
+
+      {/* COLOCADOS POR ENCIMA DEL +20% en las últimas 24 h (regla de Carlos,
+          06-09). Ya está hecho y la plata ya salió: no hay botón de aprobar, hay
+          un "mirá". Es la tarjeta que reemplaza a la de arriba como aviso vivo. */}
+      {sobreTecho.length > 0 && (
+        <Link
+          href="/admin/renovaciones"
+          className="flex items-center justify-between gap-2 rounded-[14px] border-2 border-[#F3D9A4] bg-[#FDF6E7] px-4 py-3.5 hover:brightness-[0.98]"
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="text-[20px]">⚠️</span>
+            <div className="flex flex-col">
+              <span className="text-[14px] font-extrabold text-[#8A5A00]">
+                {sobreTecho.length === 1
+                  ? "1 crédito colocado por encima del +20% en las últimas 24 h"
+                  : `${sobreTecho.length} créditos colocados por encima del +20% en las últimas 24 h`}
+              </span>
+              <span className="text-[12px] font-semibold text-[#B9770E]">
+                {sobreTecho[0].actorNombre}: {sobreTecho[0].detalle.split(" · a ")[0]} — ya está hecho, la plata ya salió.
+              </span>
+            </div>
+          </div>
+          <span className="flex-shrink-0 rounded-full bg-[#E8A317] px-3.5 py-2 text-[12.5px] font-extrabold text-white">
+            Ver →
           </span>
         </Link>
       )}
