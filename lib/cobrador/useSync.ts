@@ -30,6 +30,12 @@ export function useSync(usuarioId: string | null, onSynced?: () => void) {
   const reintentoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onSyncedRef = useRef(onSynced);
   onSyncedRef.current = onSynced;
+  // Los TIMERS llaman al flush a través de este ref, no a `flush` directo: el
+  // callback se referenciaba a sí mismo dentro de su propio useCallback y el
+  // React Compiler no podía preservar la memoización (único error de lint del
+  // repo, 07-09). Misma identidad, mismo comportamiento: el ref siempre apunta
+  // al flush vigente y los timers disparan mucho después del montaje.
+  const flushRef = useRef<() => Promise<void>>(async () => {});
 
   useEffect(() => {
     // Particiona la cola por cobrador ANTES de hidratar: en un teléfono compartido
@@ -82,7 +88,7 @@ export function useSync(usuarioId: string | null, onSynced?: () => void) {
       // venza la más próxima — se envía sola, sin depender de otro evento.
       if (veredicto?.proximoHoldMs != null) {
         if (holdTimer.current) clearTimeout(holdTimer.current);
-        holdTimer.current = setTimeout(() => void flush(), veredicto.proximoHoldMs);
+        holdTimer.current = setTimeout(() => void flushRef.current(), veredicto.proximoHoldMs);
       }
       // Reintento programado ante cualquier fallo temporal (sistémico o ambiguo):
       // un kill switch / caída sostenida se reintenta sola al levantarse, sin
@@ -90,11 +96,16 @@ export function useSync(usuarioId: string | null, onSynced?: () => void) {
       if (veredicto?.reintentar && !reintentoTimer.current) {
         reintentoTimer.current = setTimeout(() => {
           reintentoTimer.current = null;
-          void flush();
+          void flushRef.current();
         }, 25_000);
       }
     }
   }, []);
+  // El ref apunta al flush vigente apenas se monta (antes de que corra cualquier
+  // timer: el primer flush lo dispara el efecto de abajo, que se declara después).
+  useEffect(() => {
+    flushRef.current = flush;
+  }, [flush]);
 
   // Auto-flush al volver online o al aparecer nuevos pendientes.
   useEffect(() => {
