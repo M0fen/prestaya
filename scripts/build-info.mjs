@@ -30,7 +30,10 @@ try {
     mensaje: git("log -1 --format=%s").slice(0, 160),
     // "sucio" = cambios reales sin commitear; este mismo archivo no cuenta
     // (se regenera en cada deploy y siempre difiere del commit anterior).
-    sucio: git("status --porcelain -- . ':!lib/build-info.json'").length > 0,
+    // Se filtra en JS: el pathspec ':!…' con comillas no sobrevive a cmd.exe.
+    sucio: git("status --porcelain")
+      .split(/\r?\n/)
+      .some((l) => l.trim() && !l.includes("lib/build-info.json")),
     generadoEn: new Date().toISOString(),
   };
   writeFileSync(destino, JSON.stringify(info, null, 2) + "\n");
