@@ -1,9 +1,9 @@
 {
-  "sha": "b8fbdad73ffb480931c31d2a5c68df01aa8e40c0",
-  "shaCorto": "b8fbdad",
+  "sha": "8d1d6a1b72622c1ffb1b90a0256e96f5d98f6331",
+  "shaCorto": "8d1d6a1",
   "rama": "master",
-  "fechaCommit": "2026-09-07T19:32:46-05:00",
-  "mensaje": "Panel dev en vivo + panel del piloto con pendientes editables + grupo Desarrollo (07-09)",
+  "fechaCommit": "2026-09-07T19:33:12-05:00",
+  "mensaje": "build-info: 'sucio' filtrado en JS (el pathspec con comillas no sobrevive a cmd.exe) (07-09)",
   "sucio": true,
-  "generadoEn": "2026-09-08T00:33:12.328Z"
+  "generadoEn": "2026-09-08T00:33:15.248Z"
 }
