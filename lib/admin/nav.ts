@@ -13,7 +13,8 @@ export type Grupo =
   | "Finanzas y análisis"
   | "Para tus clientes"
   | "Para tu equipo"
-  | "Configuración";
+  | "Configuración"
+  | "Desarrollo";
 
 export const NAV_GRUPOS: Grupo[] = [
   "Operación diaria",
@@ -22,6 +23,9 @@ export const NAV_GRUPOS: Grupo[] = [
   "Para tus clientes",
   "Para tu equipo",
   "Configuración",
+  // Solo existe para quien tiene es_dev (los ítems son `dev: true`): el grupo
+  // desaparece solo si no queda nada visible.
+  "Desarrollo",
 ];
 
 export type NavItem = {
@@ -111,8 +115,11 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/admin/incidencias", label: "Incidencias", icon: "🐞", grupo: "Configuración", roles: ["admin"], alias: ["bugs", "reportes", "problemas", "soporte", "errores", "tickets", "reporte de bug"] },
   { href: "/admin/tutorial", label: "Cómo se usa", icon: "🎓", grupo: "Configuración", alias: ["tutorial", "ayuda", "guia", "manual", "instrucciones", "aprender"] },
   { href: "/admin/seguridad", label: "Seguridad", icon: "🔐", grupo: "Configuración", alias: ["2fa", "dos pasos", "mfa", "totp", "contraseña", "verificacion"] },
-  { href: "/admin/dev", label: "Dev", icon: "🛠️", grupo: "Configuración", dev: true, alias: ["diagnostico", "salud", "sistema", "debug", "desarrollador", "estado"] },
-  { href: "/admin/uso", label: "Auditoría de uso", icon: "🕵️", grupo: "Configuración", dev: true, alias: ["comportamiento", "capacitacion", "telemetria", "personal", "clics", "actividad", "quien usa", "navegacion", "logins"] },
+  // ── Desarrollo (solo es_dev). Orden: lo que se mira a diario primero. ──
+  { href: "/admin/en-vivo", label: "En vivo", icon: "🟢", grupo: "Desarrollo", dev: true, alias: ["conectados", "ahora", "presencia", "quien esta", "que hacen", "feed", "tiempo real", "online"] },
+  { href: "/admin/piloto", label: "Panel del piloto", icon: "🧪", grupo: "Desarrollo", dev: true, alias: ["piloto", "prueba piloto", "pendientes", "decisiones", "semaforo", "adopcion", "espejo disapp", "hitos", "bitacora del piloto"] },
+  { href: "/admin/uso", label: "Adopción del personal", icon: "🕵️", grupo: "Desarrollo", dev: true, alias: ["auditoria de uso", "comportamiento", "capacitacion", "telemetria", "personal", "clics", "actividad", "quien usa", "navegacion", "logins"] },
+  { href: "/admin/dev", label: "Centro dev", icon: "🛠️", grupo: "Desarrollo", dev: true, alias: ["dev", "diagnostico", "salud", "sistema", "debug", "desarrollador", "estado", "claves", "migraciones"] },
 ];
 
 /** Orden de los dos ítems SUELTOS de arriba, por rol. El supervisor opera desde

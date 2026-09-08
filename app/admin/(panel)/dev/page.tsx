@@ -67,25 +67,19 @@ export default async function DevPage() {
   return (
     <div className="mx-auto flex max-w-[820px] flex-col gap-5">
       <div className="flex flex-col gap-0.5">
-        <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">Dev · salud del sistema</h1>
+        <h1 className="text-[24px] font-extrabold tracking-[-0.02em] text-tinta">Centro dev</h1>
         <span className="text-[13px] font-medium text-gris">
-          Diagnóstico rápido de la instalación. No muestra secretos, solo si están configurados.
+          Las herramientas del desarrollador y la salud de la instalación. No muestra secretos, solo si están configurados.
         </span>
       </div>
 
-      {/* Auditoría de comportamiento del personal (0064) — herramienta dev. */}
-      <Link
-        href="/admin/uso"
-        className="flex items-center justify-between gap-3 rounded-[16px] bg-[linear-gradient(120deg,#1E47C8,#13308C)] px-5 py-4 text-white shadow-[0_10px_24px_rgba(19,48,140,0.22)]"
-      >
-        <div className="flex min-w-0 flex-col">
-          <span className="text-[15px] font-extrabold">🕵️ Auditoría de uso del personal</span>
-          <span className="text-[12.5px] font-medium text-white/70">
-            Qué sección abre cada quien, bajo qué rol, último acceso, acciones y brechas de capacitación.
-          </span>
-        </div>
-        <span className="flex-shrink-0 text-[18px]">→</span>
-      </Link>
+      {/* Las cuatro ventanas del dev, en el orden en que se miran. */}
+      <div className="grid gap-2.5 sm:grid-cols-2">
+        <Tarjeta href="/admin/en-vivo" icono="🟢" titulo="En vivo" sub="Quién está en la app ahora, en qué pantalla y qué hizo hoy. Se actualiza sola." principal />
+        <Tarjeta href="/admin/piloto" icono="🧪" titulo="Panel del piloto" sub="Semáforo de salud, adopción a 14 días, plata cuidada, espejo con Disapp, pendientes editables, bitácora." principal />
+        <Tarjeta href="/admin/uso" icono="🕵️" titulo="Adopción del personal" sub="Quién usa la app y quién no, por ventana de tiempo, con las brechas de capacitación por rol." />
+        <Tarjeta href="/admin/empalme" icono="🔗" titulo="Empalme y reconciliación" sub="Diferencias de dinero app vs libro, vigilante, respaldo y kill switch." />
+      </div>
 
       {/* Claves / features */}
       <Bloque titulo="Claves y features">
@@ -174,6 +168,26 @@ export default async function DevPage() {
         </Bloque>
       )}
     </div>
+  );
+}
+
+function Tarjeta({ href, icono, titulo, sub, principal }: { href: string; icono: string; titulo: string; sub: string; principal?: boolean }) {
+  return (
+    <Link
+      href={href}
+      className={`flex items-start gap-3 rounded-[16px] border px-4 py-3.5 transition-colors ${
+        principal
+          ? "border-transparent bg-[linear-gradient(120deg,#1E47C8,#13308C)] text-white shadow-[0_10px_24px_rgba(19,48,140,0.22)]"
+          : "border-borde bg-tarjeta hover:bg-suave"
+      }`}
+    >
+      <span aria-hidden="true" className="text-[20px] leading-none">{icono}</span>
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span className={`text-[14.5px] font-extrabold ${principal ? "text-white" : "text-tinta"}`}>{titulo}</span>
+        <span className={`text-[12px] leading-[1.45] font-medium ${principal ? "text-white/75" : "text-gris"}`}>{sub}</span>
+      </span>
+      <span className={`ml-auto flex-shrink-0 text-[16px] ${principal ? "text-white/80" : "text-tenue"}`}>→</span>
+    </Link>
   );
 }
 

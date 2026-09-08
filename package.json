@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/build-info.mjs",
     "build": "next build",
+    "deploy": "node scripts/build-info.mjs && npx vercel --prod --yes",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
