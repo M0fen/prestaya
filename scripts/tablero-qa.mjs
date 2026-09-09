@@ -498,6 +498,65 @@ console.log("═══ TABLERO DE QA · " + new Date().toISOString().slice(0, 16
   }
 }
 
+// ── 7b · ¿CORRIÓ CADA MIGRACIÓN? El snapshot no alcanza ─────────────────────
+//  El incidente del 09-09: la 0096 (endurecimiento de RLS de nueve tablas) NUNCA
+//  se aplicó — abortaba en su primera línea, `drop policy ... on recibos`, porque
+//  esa tabla no existía; el `if exists` protege la POLICY, no la TABLA, y el SQL
+//  Editor revirtió el archivo entero. Pasó 25 días sin que nadie lo notara, y el
+//  check de arriba lo BENDIJO: compara contra un snapshot que se regenera DESDE LA
+//  BASE VIVA, o sea que congela como "esperado" lo que haya, incluso lo que falta.
+//  Esto compara contra los ARCHIVOS del repo, que es la única fuente que sabe lo
+//  que TENDRÍA que existir.
+{
+  const { readdirSync } = await import("node:fs");
+  const dir = join(raiz, "supabase", "migrations");
+  const archivos = readdirSync(dir).filter((f) => f.endsWith(".sql")).sort();
+  const tablasRepo = new Set();
+  const funcsRepo = new Set();
+  const policiesRepo = new Map(); // "tabla.policy" → archivo que la declara último
+  //  Se leen los archivos EN ORDEN y gana la última palabra: si una migración
+  //  posterior borra la tabla (mascotas, 0023) o la policy, deja de esperarse.
+  //  Solo se mira el schema `public`: las policies sobre storage.objects viven en
+  //  otro schema y se consultan aparte (si no, salen como falsos faltantes).
+  for (const f of archivos) {
+    const txt = readFileSync(join(dir, f), "utf8");
+    for (const m of txt.matchAll(/create table (?:if not exists )?(?:public\.)?(\w+)/gi)) tablasRepo.add(m[1]);
+    for (const m of txt.matchAll(/drop table (?:if exists )?(?:public\.)?(\w+)/gi)) tablasRepo.delete(m[1]);
+    for (const m of txt.matchAll(/create or replace function\s+(?:public\.)?(\w+)/gi)) funcsRepo.add(m[1]);
+    for (const m of txt.matchAll(/drop function (?:if exists )?(?:public\.)?(\w+)/gi)) funcsRepo.delete(m[1]);
+    for (const m of txt.matchAll(/create policy\s+"?(\w+)"?\s+on\s+(\w+)?\.?(\w+)/gi)) {
+      const schema = m[3] ? m[2] : "public";
+      const tabla = m[3] ?? m[2];
+      if (schema === "public") policiesRepo.set(`${tabla}.${m[1]}`, f);
+    }
+    // una policy que este archivo BORRA y no vuelve a crear deja de esperarse
+    for (const m of txt.matchAll(/drop policy (?:if exists )?"?(\w+)"?\s+on\s+(?:public\.)?(\w+)/gi))
+      if (!new RegExp(`create policy\\s+"?${m[1]}"?\\s+on`, "i").test(txt)) policiesRepo.delete(`${m[2]}.${m[1]}`);
+  }
+  // una policy de una tabla que ya no existe tampoco se espera
+  for (const k of [...policiesRepo.keys()]) if (!tablasRepo.has(k.split(".")[0])) policiesRepo.delete(k);
+  const tablasDb = new Set((await q(`select tablename from pg_tables where schemaname='public'`)).map((r) => r.tablename));
+  const funcsDb = new Set((await q(`select proname from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public'`)).map((r) => r.proname));
+  const polDb = new Set(
+    (await q(`select tablename, policyname from pg_policies where schemaname='public'`))
+      .map((r) => `${r.tablename}.${r.policyname}`),
+  );
+
+  const faltanT = [...tablasRepo].filter((t) => t !== "public" && !tablasDb.has(t));
+  const faltanF = [...funcsRepo].filter((f) => !funcsDb.has(f));
+  const faltanP = [...policiesRepo.keys()].filter((k) => !polDb.has(k));
+  const total = faltanT.length + faltanF.length + faltanP.length;
+  linea(
+    "Migraciones del repo aplicadas",
+    total === 0 ? `${archivos.length} archivos — todo presente` : `FALTAN ${total} objetos`,
+    total > 0
+      ? `el repo los crea y la base no los tiene (¿una migración abortó?): ` +
+        [...faltanT.map((t) => "tabla " + t), ...faltanF.map((f) => "func " + f + "()"),
+         ...faltanP.map((p) => "policy " + p + " (" + policiesRepo.get(p) + ")")].slice(0, 8).join(" · ")
+      : null,
+  );
+}
+
 // ── 8 · Lo que NO vive en la base (recordatorio) ────────────────────────────
 console.log("\n  Manuales: drift vs EXPORT de Disapp (nunca contra su dashboard) · ops");
 console.log("  atascadas en la cola offline (viven en cada teléfono; el cierre las canta)");

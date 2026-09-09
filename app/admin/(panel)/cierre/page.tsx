@@ -110,7 +110,7 @@ export default async function CierrePage() {
               tono="rojo"
               titulo={`${faltantes.length} faltante${faltantes.length === 1 ? "" : "s"} de caja`}
               href="/admin/alertas"
-              nota="Entregó MENOS de lo esperado (recaudado − gastos). Qué pasa: el faltante queda registrado, BAJA el score de confianza del cobrador y suma a su cuenta corriente. Tocá para ver su historial de confianza y decidir (hablar, recuperar, descontar) en el Centro de alertas."
+              nota="Entregó MENOS de lo esperado (base + recaudado − gastos − capital colocado). Qué pasa: el faltante queda registrado, BAJA el score de confianza del cobrador y suma a su cuenta corriente. Tocá para ver su historial de confianza y decidir (hablar, recuperar, descontar) en el Centro de alertas."
             >
               <ListaAlerta
                 items={faltantes.map((f) => ({
@@ -174,7 +174,7 @@ export default async function CierrePage() {
           <b className="text-verde-osc">Cuadra</b> (entregó lo esperado),{" "}
           <b className="text-rojo-osc">Faltante</b> / <b className="text-azul">Sobrante</b> (diferencia al rendir), o{" "}
           <b className="text-gris">En ruta</b> (todavía no cerró: el efectivo sigue en la calle). El "esperado" ={" "}
-          base de arranque + recaudado − gastos de ruta declarados.
+          base de arranque + recaudado − gastos de ruta declarados − capital que colocó en la calle.
         </p>
 
         {dia.porCobrador.length === 0 ? (

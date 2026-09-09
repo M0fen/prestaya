@@ -139,8 +139,9 @@ export default async function CajaPage({
           </p>
           <p>
             <b className="text-tinta">2. Rendición del cobrador.</b> Al cerrar su jornada declara gastos y efectivo
-            entregado. El sistema calcula <b>esperado = base + recaudado − gastos</b> (la base es el efectivo con el
-            que arrancó, que también devuelve) y la <b>diferencia</b>:{" "}
+            entregado. El sistema calcula <b>esperado = base + recaudado − gastos − capital colocado</b> (la base es el
+            efectivo con el que arrancó, que también devuelve; el capital colocado es lo que prestó en la
+            calle, que sale de ese mismo efectivo) y la <b>diferencia</b>:{" "}
             <b className="text-verde-osc">cuadra</b>, <b className="text-rojo-osc">faltante</b> o{" "}
             <b className="text-azul">sobrante</b> (ver "Cierre por zona" abajo).
           </p>
@@ -224,7 +225,8 @@ export default async function CajaPage({
             </span>
             {esHoy && (
               <span className="text-[11px] leading-[1.4] font-medium text-tenue-2">
-                Bruto cobrado. El efectivo NETO a rendir (base + recaudado − gastos) está en "Cierre por zona".
+                Bruto cobrado. El efectivo NETO a rendir (base + recaudado − gastos − capital colocado) está en
+                "Cierre por zona".
               </span>
             )}
           </div>

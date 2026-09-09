@@ -1,5 +1,5 @@
 {
- "generado": "2026-08-15",
+ "generado": "2026-09-09",
  "nota": "Snapshot de pg_policies de la base VIVA (tabla, policy, cmd, roles, md5 del using|check). Regenerar tras cada migracion aplicada: node scripts/tablero-qa.mjs --regenerar-policies",
  "policies": [
   {
@@ -84,7 +84,7 @@
    "policy": "asignaciones_select",
    "cmd": "SELECT",
    "roles": "authenticated",
-   "md5": "aa6d472e63e9bfb06e1cbe2b4e6a3717"
+   "md5": "3d5a18fb78580b58b4cdf1f57588833f"
   },
   {
    "tabla": "asignaciones",
@@ -92,6 +92,20 @@
    "cmd": "UPDATE",
    "roles": "authenticated",
    "md5": "d0f5ab44c763a13a91256873cc7145ef"
+  },
+  {
+   "tabla": "asignaciones_eventos",
+   "policy": "asig_eventos_insert",
+   "cmd": "INSERT",
+   "roles": "public",
+   "md5": "e907c550a64115073d87484b7b5b9d90"
+  },
+  {
+   "tabla": "asignaciones_eventos",
+   "policy": "asig_eventos_select",
+   "cmd": "SELECT",
+   "roles": "public",
+   "md5": "7de9a6eaf554da878cf30c4a60fbe073"
   },
   {
    "tabla": "auditoria",
@@ -105,7 +119,7 @@
    "policy": "audit_select",
    "cmd": "SELECT",
    "roles": "authenticated",
-   "md5": "5ecd1743ccc21cef766fc0641aa10e27"
+   "md5": "2eab72eec5161c5f4f9dd93d44d03d64"
   },
   {
    "tabla": "backups_log",
@@ -196,7 +210,7 @@
    "policy": "clientes_select",
    "cmd": "SELECT",
    "roles": "authenticated",
-   "md5": "e38d8fa7196e79429ca88450a79490d3"
+   "md5": "102c927568a60049a610842add3d4f2d"
   },
   {
    "tabla": "clientes",
@@ -259,7 +273,7 @@
    "policy": "config_mora_write",
    "cmd": "ALL",
    "roles": "authenticated",
-   "md5": "85b73836d08ff33bf8c1da396f7ffaaf"
+   "md5": "46763f0f9223f978fe99f72dcedc36b3"
   },
   {
    "tabla": "config_operacion",
@@ -273,7 +287,7 @@
    "policy": "config_operacion_write",
    "cmd": "ALL",
    "roles": "authenticated",
-   "md5": "85b73836d08ff33bf8c1da396f7ffaaf"
+   "md5": "46763f0f9223f978fe99f72dcedc36b3"
   },
   {
    "tabla": "config_scoring",
@@ -287,7 +301,7 @@
    "policy": "config_scoring_write",
    "cmd": "ALL",
    "roles": "authenticated",
-   "md5": "85b73836d08ff33bf8c1da396f7ffaaf"
+   "md5": "46763f0f9223f978fe99f72dcedc36b3"
   },
   {
    "tabla": "descuentos_compra_empleado",
@@ -322,7 +336,7 @@
    "policy": "redenciones_select_gestor",
    "cmd": "SELECT",
    "roles": "authenticated",
-   "md5": "5ecd1743ccc21cef766fc0641aa10e27"
+   "md5": "9fc38f6cdc6064ba669096096cadbbc5"
   },
   {
    "tabla": "estrellas_redenciones",
@@ -424,17 +438,24 @@
   },
   {
    "tabla": "mora_notas",
-   "policy": "mora_notas_select",
-   "cmd": "SELECT",
+   "policy": "mora_notas_insert",
+   "cmd": "INSERT",
    "roles": "authenticated",
-   "md5": "5ecd1743ccc21cef766fc0641aa10e27"
+   "md5": "60ed4b9e26c61ad0fabbd0ae8e52b6c3"
   },
   {
    "tabla": "mora_notas",
-   "policy": "mora_notas_write",
-   "cmd": "ALL",
+   "policy": "mora_notas_select",
+   "cmd": "SELECT",
    "roles": "authenticated",
-   "md5": "85b73836d08ff33bf8c1da396f7ffaaf"
+   "md5": "9fc38f6cdc6064ba669096096cadbbc5"
+  },
+  {
+   "tabla": "mora_notas",
+   "policy": "mora_notas_update",
+   "cmd": "UPDATE",
+   "roles": "authenticated",
+   "md5": "baf51d870cd7eceebd82e5c626935b79"
   },
   {
    "tabla": "movimientos_caja",
@@ -497,7 +518,7 @@
    "policy": "pagos_select",
    "cmd": "SELECT",
    "roles": "authenticated",
-   "md5": "64668e18eee40cd53cec4151ee474468"
+   "md5": "4172687cc2f65757f102588ad1566de3"
   },
   {
    "tabla": "pagos",
@@ -525,7 +546,7 @@
    "policy": "prestamos_select",
    "cmd": "SELECT",
    "roles": "authenticated",
-   "md5": "2eec097442ce1184cea70bb41a2fd488"
+   "md5": "dced3b49ee2aa2d4dccf52fdf7545283"
   },
   {
    "tabla": "prestamos",
@@ -654,6 +675,20 @@
    "md5": "66a6f80f013c68f3cc107b503d035a14"
   },
   {
+   "tabla": "recibos",
+   "policy": "recibos_insert",
+   "cmd": "INSERT",
+   "roles": "authenticated",
+   "md5": "2e801089437ef06cdd9808eefbc7d5fa"
+  },
+  {
+   "tabla": "recibos",
+   "policy": "recibos_select",
+   "cmd": "SELECT",
+   "roles": "authenticated",
+   "md5": "0f89363388291c183f0963c23abed010"
+  },
+  {
    "tabla": "recompensas",
    "policy": "recompensas_select",
    "cmd": "SELECT",
@@ -679,7 +714,7 @@
    "policy": "recon_log_select",
    "cmd": "SELECT",
    "roles": "authenticated",
-   "md5": "eb28d87532d6edd9b635727493ef89f7"
+   "md5": "e4ff3925e4ec76a1e8fb1ce614ed845d"
   },
   {
    "tabla": "rendiciones",
@@ -735,14 +770,14 @@
    "policy": "snapshot_credito_leer",
    "cmd": "SELECT",
    "roles": "authenticated",
-   "md5": "5ecd1743ccc21cef766fc0641aa10e27"
+   "md5": "2d453b2fd921e9f98f702833b13d56ed"
   },
   {
    "tabla": "snapshot_totales",
    "policy": "snapshot_totales_leer",
    "cmd": "SELECT",
    "roles": "authenticated",
-   "md5": "5ecd1743ccc21cef766fc0641aa10e27"
+   "md5": "26bf8eeee2bf2befdb6ad4fb2caa5e0b"
   },
   {
    "tabla": "solicitudes_anulacion",
@@ -784,28 +819,28 @@
    "policy": "solic_prod_select",
    "cmd": "SELECT",
    "roles": "authenticated",
-   "md5": "5ecd1743ccc21cef766fc0641aa10e27"
+   "md5": "9fc38f6cdc6064ba669096096cadbbc5"
   },
   {
    "tabla": "solicitudes_producto",
    "policy": "solic_prod_update",
    "cmd": "UPDATE",
    "roles": "authenticated",
-   "md5": "85b73836d08ff33bf8c1da396f7ffaaf"
+   "md5": "baf51d870cd7eceebd82e5c626935b79"
   },
   {
    "tabla": "solicitudes_renovacion",
    "policy": "solren_select",
    "cmd": "SELECT",
    "roles": "authenticated",
-   "md5": "66a6f80f013c68f3cc107b503d035a14"
+   "md5": "9fc38f6cdc6064ba669096096cadbbc5"
   },
   {
    "tabla": "solicitudes_renovacion",
    "policy": "solren_write",
    "cmd": "ALL",
    "roles": "authenticated",
-   "md5": "fcd7f5d1630256f328a68c929a73b0c3"
+   "md5": "baf51d870cd7eceebd82e5c626935b79"
   },
   {
    "tabla": "supervisor_zonas",

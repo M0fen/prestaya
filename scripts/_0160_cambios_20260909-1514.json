@@ -1,0 +1,138 @@
+{
+ "sello": "20260909-1514",
+ "cambios": [
+  {
+   "rol": "supervisor",
+   "quien": "César Rendón",
+   "que": "auditoria",
+   "antes": "1510",
+   "despues": "0"
+  },
+  {
+   "rol": "supervisor",
+   "quien": "César Rendón",
+   "que": "estrellas_redenciones",
+   "antes": "12",
+   "despues": "4"
+  },
+  {
+   "rol": "supervisor",
+   "quien": "César Rendón",
+   "que": "solicitudes_producto",
+   "antes": "3",
+   "despues": "0"
+  },
+  {
+   "rol": "supervisor",
+   "quien": "César Rendón",
+   "que": "ESCRIBIR config_scoring",
+   "antes": "True",
+   "despues": "False"
+  },
+  {
+   "rol": "supervisor",
+   "quien": "Edwin Campo",
+   "que": "auditoria",
+   "antes": "1510",
+   "despues": "0"
+  },
+  {
+   "rol": "supervisor",
+   "quien": "Edwin Campo",
+   "que": "estrellas_redenciones",
+   "antes": "12",
+   "despues": "4"
+  },
+  {
+   "rol": "supervisor",
+   "quien": "Edwin Campo",
+   "que": "solicitudes_producto",
+   "antes": "3",
+   "despues": "0"
+  },
+  {
+   "rol": "supervisor",
+   "quien": "Edwin Campo",
+   "que": "ESCRIBIR config_scoring",
+   "antes": "True",
+   "despues": "False"
+  },
+  {
+   "rol": "supervisor",
+   "quien": "Mauricio Rengifo",
+   "que": "auditoria",
+   "antes": "1510",
+   "despues": "553"
+  },
+  {
+   "rol": "supervisor",
+   "quien": "Mauricio Rengifo",
+   "que": "estrellas_redenciones",
+   "antes": "12",
+   "despues": "4"
+  },
+  {
+   "rol": "supervisor",
+   "quien": "Mauricio Rengifo",
+   "que": "ESCRIBIR config_scoring",
+   "antes": "True",
+   "despues": "False"
+  },
+  {
+   "rol": "cobrador",
+   "quien": "Administrador Presta Ya",
+   "que": "reconciliacion_log",
+   "antes": "44",
+   "despues": "0"
+  },
+  {
+   "rol": "cobrador",
+   "quien": "Alejandro Cardona",
+   "que": "reconciliacion_log",
+   "antes": "44",
+   "despues": "0"
+  },
+  {
+   "rol": "cobrador",
+   "quien": "Alejo, Paysandu",
+   "que": "reconciliacion_log",
+   "antes": "44",
+   "despues": "0"
+  },
+  {
+   "rol": "cobrador",
+   "quien": "Andrés Blandón",
+   "que": "reconciliacion_log",
+   "antes": "44",
+   "despues": "0"
+  },
+  {
+   "rol": "cobrador",
+   "quien": "Andrés Duque",
+   "que": "reconciliacion_log",
+   "antes": "44",
+   "despues": "0"
+  },
+  {
+   "rol": "cobrador",
+   "quien": "Andres Paisa, Colonia",
+   "que": "reconciliacion_log",
+   "antes": "44",
+   "despues": "0"
+  },
+  {
+   "rol": "cobrador",
+   "quien": "Angelika Gómez",
+   "que": "reconciliacion_log",
+   "antes": "44",
+   "despues": "0"
+  },
+  {
+   "rol": "cobrador",
+   "quien": "Anyela Quiñonez",
+   "que": "reconciliacion_log",
+   "antes": "44",
+   "despues": "0"
+  }
+ ]
+}

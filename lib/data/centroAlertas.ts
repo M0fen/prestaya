@@ -88,15 +88,32 @@ export async function getCentroAlertas(
       });
   }
 
-  // 2) Recaudó y NO rindió (float sin declarar) → media.
+  // 2) Tiene plata en la mano y NO rindió (float sin declarar) → media.
+  //
+  // ⚠️ SE MIDE LO QUE LE QUEDÓ EN EL BOLSILLO, NO LO QUE COBRÓ. Cuando el cobrador
+  // renueva o vende en la calle, ese capital SALE de la plata que acaba de cobrar:
+  // `recaudado` es un hecho (lo que entró) y `colocado` viaja aparte justamente
+  // para que cada pantalla reste y muestre la resta (ver rendicion.ts:673). Esta
+  // alerta era la única que usaba el bruto, y es la que nombra a la persona: el
+  // caso medido fue Fernando Castro acusado de $235.738 sin rendir cuando tenía
+  // $76.738 en la mano — los otros $159.000 estaban prestados, trabajando. Peor:
+  // en la MISMA pantalla, la tarjeta de jornadas abiertas ya mostraba el neto.
+  // Si colocó todo lo que cobró no queda float: no hay nada que alertar.
+  const alertadosSinRendir = new Set<string>();
   for (const p of pendientes) {
-    if (p.recaudado <= 0) continue;
+    const colocado = Math.round(p.colocado ?? 0);
+    const enMano = Math.round(p.recaudado) - colocado;
+    if (enMano <= 0) continue;
+    alertadosSinRendir.add(p.cobradorId);
     alertas.push({
       id: `sinrendir-${p.cobradorId}`,
       severidad: "media",
       categoria: "Sin rendir",
-      titulo: `${p.nombre} recaudó ${UYU(p.recaudado)} y aún no rindió`,
-      detalle: `${p.cobros} cobro(s) hoy sin cierre de jornada.`,
+      titulo: `${p.nombre} tiene ${UYU(enMano)} sin rendir`,
+      detalle:
+        colocado > 0
+          ? `${p.cobros} cobro(s) hoy sin cierre de jornada. Cobró ${UYU(p.recaudado)} y dejó ${UYU(colocado)} en la calle.`
+          : `${p.cobros} cobro(s) hoy sin cierre de jornada.`,
       href: "/admin/caja",
       cobradorId: p.cobradorId,
       cobradorNombre: p.nombre ?? null,
@@ -119,9 +136,11 @@ export async function getCentroAlertas(
   // Dedup: si el cobrador YA salió como "Sin rendir" (sección 2), su "float alto" es
   // el MISMO hecho (recaudó y no rindió) → no lo repetimos, para que el chip de
   // "medias" no cuente dos veces a la misma persona.
-  const sinRendirIds = new Set(pendientes.filter((p) => p.recaudado > 0).map((p) => p.cobradorId));
+  // Se dedupe contra los que REALMENTE se alertaron arriba, no contra "los que
+  // cobraron algo": si alguien colocó todo lo que cobró no sale en "Sin rendir",
+  // y suprimirle además el "float alto" lo haría desaparecer de la bandeja.
   for (const a of control.alertas) {
-    if (a.id.startsWith("float-") && sinRendirIds.has(a.id.slice("float-".length))) continue;
+    if (a.id.startsWith("float-") && alertadosSinRendir.has(a.id.slice("float-".length))) continue;
     alertas.push({
       id: a.id,
       severidad: a.severidad === "alta" ? "alta" : "media",
