@@ -1,0 +1,80 @@
+[
+ {
+  "que": "créditos ACTIVOS que ya cobraron de más",
+  "n": 2,
+  "gravedad": "medio",
+  "extra": "exceso $700"
+ },
+ {
+  "que": "créditos ACTIVOS ya saldados (deberían estar finalizados)",
+  "n": 127,
+  "gravedad": "medio",
+  "extra": "de ellos importados: 121"
+ },
+ {
+  "que": "créditos activos con interés fuera de rango (<1% o >200%)",
+  "n": 67,
+  "gravedad": "medio",
+  "extra": ""
+ },
+ {
+  "que": "créditos finalizados que todavía deben plata",
+  "n": 962,
+  "gravedad": "medio",
+  "extra": "$8328498"
+ },
+ {
+  "que": "clientes con más de 2 créditos ACTIVOS",
+  "n": 102,
+  "gravedad": "medio",
+  "extra": ""
+ },
+ {
+  "que": "tablas con RLS y CERO policies (nadie las lee, ni la app)",
+  "n": 1,
+  "gravedad": "medio",
+  "extra": ""
+ },
+ {
+  "que": "funciones EXECUTE abiertas a public/anon",
+  "n": 31,
+  "gravedad": "medio",
+  "extra": ""
+ },
+ {
+  "que": "funciones de LECTURA marcadas VOLATILE (Postgres no puede optimizarlas)",
+  "n": 2,
+  "gravedad": "medio",
+  "extra": ""
+ },
+ {
+  "que": "claves foráneas SIN índice (cada borrado o join las recorre entera)",
+  "n": 68,
+  "gravedad": "medio",
+  "extra": ""
+ },
+ {
+  "que": "migraciones sin correr (tablas)",
+  "n": 2,
+  "gravedad": "alto",
+  "extra": "public, recibos"
+ },
+ {
+  "que": "teléfonos imposibles en clientes activos",
+  "n": 339,
+  "gravedad": "medio",
+  "extra": ""
+ },
+ {
+  "que": "usuarios activos sin zona (invisibles para todo supervisor)",
+  "n": 6,
+  "gravedad": "medio",
+  "extra": ""
+ },
+ {
+  "que": "refs de Disapp con MÁS DE UN crédito en la app",
+  "n": 209,
+  "gravedad": "medio",
+  "extra": ""
+ }
+]
