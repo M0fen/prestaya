@@ -41,21 +41,31 @@ async function sesion(cred, movil) {
   return { page, ctx, login: Date.now() - t };
 }
 
-/** Navega y espera a que aparezca contenido REAL (no el esqueleto). */
-async function medir(page, ruta, esperar) {
-  const t = Date.now();
-  await page.goto(`${BASE}${ruta}`, { waitUntil: "commit" });
+/** Navega y espera a que aparezca contenido REAL (no el esqueleto).
+ *  Repite N veces y devuelve la MEDIANA: una sola muestra no dice nada —medido,
+ *  la misma pantalla dio 4,7 s y 13,7 s seguidas—; el primer intento además paga
+ *  el arranque en frío de la función serverless después de cada deploy. */
+async function medir(page, ruta, esperar, veces = REPES) {
+  const ms = [];
   let ok = true;
-  try {
-    await page.waitForSelector(esperar, { timeout: 90000 });
-  } catch {
-    ok = false;
+  for (let i = 0; i < veces; i++) {
+    const t = Date.now();
+    await page.goto(`${BASE}${ruta}`, { waitUntil: "commit" });
+    try {
+      await page.waitForSelector(esperar, { timeout: 90000 });
+    } catch {
+      ok = false;
+    }
+    ms.push(Date.now() - t);
+    await page.goto("about:blank");
   }
-  return { ms: Date.now() - t, ok };
+  const orden = [...ms].sort((a, b) => a - b);
+  return { ms: orden[Math.floor(orden.length / 2)], min: orden[0], max: orden[orden.length - 1], todas: ms, ok };
 }
 
+const REPES = Number(process.env.REPES || 3);
 const fmt = (n) => `${String(n).padStart(6)} ms`;
-console.log(`Midiendo ${BASE}${LENTO ? "  [teléfono flojo: CPU 4x lenta, 4G con 150 ms de latencia]" : "  [laptop, red buena]"}\n`);
+console.log(`Midiendo ${BASE}  ·  mediana de ${REPES} cargas${LENTO ? "  [teléfono flojo: CPU 4x lenta, 4G con 150 ms de latencia]" : "  [laptop, red buena]"}\n`);
 
 try {
   // ── COBRADOR: lo que pasa en la calle ──────────────────────────────────
@@ -70,7 +80,7 @@ try {
   ];
   for (const [r, sel, etq] of rutas) {
     const m = await medir(c.page, r, sel);
-    console.log(`  ${etq.padEnd(24)} ${fmt(m.ms)} ${m.ok ? "" : "  ← NO apareció el contenido"}`);
+    console.log(`  ${etq.padEnd(24)} ${fmt(m.ms)}   (${m.todas.join(" / ")})${m.ok ? "" : "   ← NO apareció el contenido"}`);
   }
   // La ficha del primer cliente de la ruta: el clic más repetido del día.
   await c.page.goto(`${BASE}/cobrador`, { waitUntil: "domcontentloaded" });
@@ -78,7 +88,7 @@ try {
   if (link) {
     const href = await link.getAttribute("href");
     const m = await medir(c.page, href, "text=/Cobrar|Registrar|cuota/i");
-    console.log(`  ${"Ficha de un cliente".padEnd(24)} ${fmt(m.ms)} ${m.ok ? "" : "  ← NO apareció"}`);
+    console.log(`  ${"Ficha de un cliente".padEnd(24)} ${fmt(m.ms)}   (${m.todas.join(" / ")})${m.ok ? "" : "   ← NO apareció"}`);
   } else {
     console.log("  Ficha de un cliente        (sin clientes en la ruta de este cobrador)");
   }
@@ -99,7 +109,7 @@ try {
     ["/admin/en-vivo", "text=/En la app ahora/i", "En vivo (dev)"],
   ]) {
     const m = await medir(d.page, r, sel);
-    console.log(`  ${etq.padEnd(24)} ${fmt(m.ms)} ${m.ok ? "" : "  ← NO apareció el contenido"}`);
+    console.log(`  ${etq.padEnd(24)} ${fmt(m.ms)}   (${m.todas.join(" / ")})${m.ok ? "" : "   ← NO apareció el contenido"}`);
   }
   await d.ctx.close();
 } finally {

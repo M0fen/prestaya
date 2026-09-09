@@ -1,9 +1,9 @@
 {
-  "sha": "8d1d6a1b72622c1ffb1b90a0256e96f5d98f6331",
-  "shaCorto": "8d1d6a1",
+  "sha": "9e72dc42b82ff20e53f0d91596d9a1a4dfe81782",
+  "shaCorto": "9e72dc4",
   "rama": "master",
-  "fechaCommit": "2026-09-07T19:33:12-05:00",
-  "mensaje": "build-info: 'sucio' filtrado en JS (el pathspec con comillas no sobrevive a cmd.exe) (07-09)",
-  "sucio": true,
-  "generadoEn": "2026-09-08T00:33:15.248Z"
+  "fechaCommit": "2026-09-08T20:48:11-05:00",
+  "mensaje": "La app se sentia lenta: la RLS llamaba una funcion por CADA FILA (0159) + tres numeros que mentian",
+  "sucio": false,
+  "generadoEn": "2026-09-09T01:48:12.528Z"
 }
