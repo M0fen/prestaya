@@ -1,0 +1,15 @@
+{
+ "sello": "20260907-0217",
+ "ref": "PRD0003668219",
+ "prestamo": "225e15bc-10bd-4450-afa4-6376674a0734",
+ "pagos": [
+  "e626b19b-9cd4-4e5f-bbb6-e1ae85581903",
+  "25d3ea00-38fb-4c06-a04a-b310cc1c0984",
+  "8b7f139e-b3e5-40e2-b6b3-60387f51af1d",
+  "d36746b8-ef1f-4554-af91-5fdc4530bce1",
+  "daf26b17-e2a7-41ee-bbcd-59bc1c4a0fff",
+  "6cae153e-b916-48f8-aa53-1016fd928bdf",
+  "2f7de9f9-0102-4d62-b3e4-eb57e4690b63"
+ ],
+ "asignacion": null
+}

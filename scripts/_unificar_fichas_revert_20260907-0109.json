@@ -1,0 +1,231 @@
+{
+ "sello": "20260907-0109",
+ "pares": [
+  {
+   "imp": "8273249b-74e6-4e6e-8ac6-52c7263d2299",
+   "nat": "5f6ba96b-e1df-4873-ac2d-b861ed8c4b86",
+   "ficha_imp": "48440944-e146-48e7-98a4-c5b3cb34f5ca",
+   "ficha_nat": "0caac2ae-7ecd-4ce9-97be-351042c4fda3",
+   "anulados": [
+    "f4ed55ee-e94f-4d28-a2fe-3d5142270762",
+    "d718fa63-ff25-4b08-af27-a4108b5b39a7",
+    "4810b02f-3b83-4589-8c1c-060e9a24bae2",
+    "7e23890d-782d-4446-b850-6d9ec0b45a6b",
+    "d0edf9df-a988-4775-823d-83c52598115f",
+    "02414c56-1ce1-4ac8-bc86-5769d8ec3108",
+    "9b588e7f-a87d-4812-aa7b-447b5f058ad1",
+    "41bc8ff4-b5a2-4dee-be04-64ea8eecb727",
+    "8be6f294-9745-46df-b249-3b84719273fb"
+   ],
+   "insertados": [
+    "4629de35-4c2a-4d61-a29a-7ae755297d6e",
+    "b4a3a61d-04b2-4cdb-9b72-ae7c706a64e6",
+    "3be41fdb-3aa2-409c-8251-bebf2af1176e",
+    "ee274d37-8aa2-4c35-bfa2-9d9f4a815fd5",
+    "510af969-9acb-4bf4-a62e-1b5003a875d2",
+    "288d1721-9f7f-48f0-852f-8e806f45e98f"
+   ],
+   "ref": "PRD0003620969",
+   "cid": "3620969",
+   "asig_bajadas": [
+    "affd4f5e-6ab4-4888-97a2-7a280fb13388"
+   ],
+   "disapp_id": "591542",
+   "creditos_movidos": [
+    "daf94eb9-1853-4467-9d88-705e98a19e7a"
+   ]
+  },
+  {
+   "imp": "20b09924-02ef-4f3c-81d3-71d14e53fa16",
+   "nat": "37db5d97-9632-4cff-afa8-c03907b3f55c",
+   "ficha_imp": "5e67672b-8f74-447a-a081-a6d209232df9",
+   "ficha_nat": "9aac99f6-6046-42d0-99e4-20d07ba8c2f3",
+   "anulados": [
+    "66d4f999-565a-4940-b63a-853c1e98656e",
+    "a69a2aaf-4692-4324-acee-b1e433878d12"
+   ],
+   "insertados": [
+    "8a17b98f-82d9-419d-bcba-24f8901d8a84"
+   ],
+   "ref": "PRD0003651498",
+   "cid": "3651498",
+   "asig_bajadas": [
+    "29003d81-a0f2-4e56-82f5-22600eea1a85"
+   ],
+   "disapp_id": "595473",
+   "creditos_movidos": []
+  },
+  {
+   "imp": "453f508f-14f4-41d9-a3d8-97a03aca04f0",
+   "nat": "b3ad957f-6d0a-45be-af5f-3b5179e04d79",
+   "ficha_imp": "44fc573c-bce6-4033-bed7-84fecff8cc6c",
+   "ficha_nat": "3cc5c75d-0ed7-4fa6-bb1e-2d8dbda7bb00",
+   "anulados": [
+    "f3864b3c-3526-4be9-9487-6ecc6ae450d3",
+    "da303d9d-ff6b-4823-85c3-3c24a7b0828b",
+    "7dd03fd3-14a9-420e-bf12-433227109c70",
+    "38c2b286-2baf-479c-9c3b-0770fb591b96",
+    "9ee2e23c-0b43-4de1-a9ea-11bf875ceba8",
+    "7a49775e-f44f-43aa-8b71-1f35f996aced",
+    "04e19748-a590-4983-99fc-0100edeb8c78",
+    "133f91bc-4a3d-462f-9fb3-6f9376a28f42",
+    "3f173025-07d8-4b07-aa2a-39320700ea14",
+    "ae188ba9-f829-4e8f-95b1-71d2fc9726c0",
+    "d6acd974-66e0-42f5-a674-6a0f94b0d93a",
+    "a76b974d-f330-48d1-89cb-91f05690d7ac"
+   ],
+   "insertados": [
+    "b7cde683-9dce-4e96-84c1-a7e7ff3d95ee",
+    "70c98bbe-6e53-4330-9a1d-1ab78eda8a7d",
+    "88f9fefc-94b3-4642-802d-0889d17af732",
+    "6da284c9-14c0-43ac-bd31-adf9a02a6118",
+    "0b7427e2-4f8b-48c9-a680-ef95dd3c3e45",
+    "977eb0eb-89a8-4c2d-b216-e7c72e789815",
+    "1cd25274-4185-47c0-b17e-77e8ba9e1f1f",
+    "adc3c134-7182-411c-8b3c-bbd410768dd6"
+   ],
+   "ref": "PRD0003641206",
+   "cid": "3641206",
+   "asig_bajadas": [
+    "3440f851-bbea-49cc-a297-3f4d4a07facd"
+   ],
+   "disapp_id": "593918",
+   "creditos_movidos": []
+  },
+  {
+   "imp": "760dbac1-da45-4a7d-82d1-c05a88b52f88",
+   "nat": "dbff5e5a-2d51-4ceb-9b1e-137982028b77",
+   "ficha_imp": "e7afddbd-0618-4978-b2f4-b7ac00efcdf8",
+   "ficha_nat": "cbace228-072f-4fd9-8fda-2ef0ee42f492",
+   "anulados": [
+    "acb14d45-5262-46c9-a169-ea18ba63a85d",
+    "c765041f-69bf-44aa-9208-deb37bc02e76",
+    "da0c6287-e842-4557-8bca-adbd3a3ac572",
+    "278931a9-862e-41ac-85ad-0c3a9ebee961",
+    "56cdb695-c323-4414-9f71-db5a2bb4446b",
+    "374b9576-864d-48fe-b998-e73104e05864",
+    "d2da32ed-6635-46f2-9611-b01dfd048655",
+    "c40f73d9-1bea-42c6-8aee-9c1386fd032a",
+    "1d6f8ffa-36e7-497e-8336-4471d56ff60b",
+    "45c6c724-b2a7-458b-a6ef-b165b1aead2f",
+    "4c6dd3ef-05f8-46c6-a12f-ca3352762170",
+    "f1660e9e-a171-4bdf-8e40-3164ca9f8019"
+   ],
+   "insertados": [
+    "5d6fdb47-6c30-4ac0-9477-48d048618ea6",
+    "9b403f78-ee16-4d64-8fb0-506ee1ecb77d",
+    "eacf9abb-962c-47f2-9d0f-7a49d8ba33f5",
+    "16d42845-9115-49fc-98ad-be83737adef6",
+    "53021c66-2abc-4129-97a3-2f908d117e93",
+    "dffd3f75-c12c-40cd-876d-bae2f5e566b3",
+    "e058a77d-d4cc-4870-98da-a28d7964be63",
+    "d8ec9d5b-8f39-42ae-bc54-833029a9d886"
+   ],
+   "ref": "PRD0003650218",
+   "cid": "3650218",
+   "asig_bajadas": [
+    "c4fe6165-725e-4a61-b6d1-39fe27acaaa6"
+   ],
+   "disapp_id": "595246",
+   "creditos_movidos": [
+    "c141ba3f-f6d4-4ba2-acd5-d8878a56819b"
+   ]
+  },
+  {
+   "imp": "020f6151-c248-4438-83ac-3c72116dd08c",
+   "nat": "2841a640-fb2d-45ce-9072-4af86a59782a",
+   "ficha_imp": "1de2483c-7bdc-4a3d-884b-deb632e872a2",
+   "ficha_nat": "5c9de819-86d3-42ba-a123-0c4879ab28ff",
+   "anulados": [
+    "c16719bf-8ac3-4c2c-8169-ac3e59390cf8",
+    "f92c2235-7e1c-4012-898d-f4f7193d3888",
+    "7edc53d7-f8ef-4db4-86dd-a3ac01950f5e",
+    "072f589b-5345-499b-b169-db5f70878b92",
+    "e160129c-e54d-409b-aadd-2badbf638c53",
+    "bf3f91d5-2bf2-4d82-b4fb-587bc9948f71",
+    "f076e466-09f8-4f6d-a512-d5770f590e8c",
+    "84da32e4-94fd-4b22-96ee-306249d64b27",
+    "fa3f5419-fede-4932-9c34-5cb2e179c5b4",
+    "27c9d1c7-7f4b-4619-93da-f6f8f46fd551",
+    "d8acf332-404f-4d20-a861-31715d3a1895",
+    "7172e5e7-f25e-453f-9315-e3971a880e2b",
+    "21fe38d6-d5da-4b3d-96c9-fff4f93e6355",
+    "e81201f5-9014-4dbb-a342-b051086f82ab",
+    "9255935c-2620-4a4e-a243-2799b212c05c",
+    "26d6f9ef-dcc4-4999-a354-184e50c54f3a",
+    "e412c37d-385d-4483-910a-cf99b5433b8a",
+    "385e9127-b04e-4f70-b2e3-dc7deede5865",
+    "4df25ae2-48d1-4759-8ca5-20bd36a04ad1",
+    "a73da698-f80b-48a8-ac04-40c5073851e4",
+    "88cb3e30-4814-46f4-986b-cb43c7357ea6",
+    "e45a952f-c34b-471a-991a-48e8ea506c80"
+   ],
+   "insertados": [
+    "83edb812-f0b0-4b5a-814f-854765b70cae",
+    "609b0d6e-99a2-49d3-a8fe-ecb89c56008f",
+    "47ba7664-c828-4891-91f6-7b6f9de91efb",
+    "7540e913-a92c-4368-a134-c518853fb068",
+    "e3c0627e-3621-450f-a05f-b605cbdb2b62",
+    "ef911857-a2bd-42cc-b44f-42d663956847",
+    "cb8f753b-928f-49ac-9351-f923da666ef0",
+    "33e6d275-1b21-4735-a9d6-14487719008b",
+    "95b8461a-bbfe-4639-8732-97e18917c0ea",
+    "45b903b6-43e4-449e-9bdd-765e4ce408d8",
+    "680d7e71-5b83-418b-945a-3bf6b20eaa9e",
+    "752731ec-defd-4239-bbd1-95698d3774c6",
+    "2bb85257-d8c6-44d2-b4f0-31164abae173"
+   ],
+   "ref": "PRD0003619863",
+   "cid": "3619863",
+   "asig_bajadas": [
+    "5b42d415-f228-403f-b1aa-3d5ed24cc574"
+   ],
+   "disapp_id": "591433",
+   "creditos_movidos": []
+  },
+  {
+   "imp": "81ffca64-5864-4716-bd5f-ebc6c26907d2",
+   "nat": "b75337b3-dec3-4388-b49a-bf7fec79d221",
+   "ficha_imp": "110ad8ee-6f79-40a2-92bb-6b1cd1507020",
+   "ficha_nat": "389470b1-3ecc-4256-ab1b-604dca634f85",
+   "anulados": [
+    "f03f3322-9c19-4c12-addd-a3f38c4a8f58",
+    "3a1c729a-2763-42a9-a472-b41712c48c1a",
+    "1fc8f6d2-21ae-4052-9619-6e10189e1d21",
+    "c6822747-a138-4578-be42-29e3c490e62e",
+    "8f53c84e-2109-472a-9b29-6724d5a17227",
+    "2e5283fc-bf5f-43f6-9bb2-578e44c9927c",
+    "8fca75cf-e07f-4a71-8209-1141899f3b52",
+    "316b03cb-9d05-401a-bae1-5bd73f4668b4",
+    "10645ddf-2ef9-4f5c-91eb-bf3cb3126d00",
+    "61c1c7a4-74fa-4a45-9a9a-1e447b9422d5",
+    "d137272e-7ef6-4e82-8fa8-ed047c8d111d",
+    "f7dd4288-2912-4d68-a1e5-d11abadae036",
+    "6228c6ec-d753-4a65-8671-10a845a90d2c",
+    "945e35bf-99e9-4373-99c5-902005431f6d",
+    "1b86295f-c0f9-47b3-9167-e477d77afcc6"
+   ],
+   "insertados": [
+    "fe80ac22-a313-4ebd-a5de-a3980bbb83da",
+    "dcc4b054-15d2-47fe-804c-fdf129807917",
+    "1376a32c-fc92-428f-8767-ecf0ad01d49f",
+    "cd8b3861-ad79-4b5b-81d6-9e767d26af9c",
+    "30ebaa7d-a08d-414f-9f74-d9547c8c8239",
+    "42c5520f-2cc4-4518-9ec8-66c362740074",
+    "1517675b-a857-4750-bda0-e80363901e36",
+    "3d138c49-7e25-4426-b69d-ccca9ea8020f",
+    "5b6536c2-1251-4b8b-a322-166b34d20351",
+    "accbef99-1bec-45bd-b347-da3fef37e34f",
+    "75634772-3b8b-42c9-bcd4-6a2ae75dc0ad",
+    "59bbba74-e6b5-41a6-b555-b5cdfad9c110"
+   ],
+   "ref": "PRD0003644382",
+   "cid": "3644382",
+   "asig_bajadas": [
+    "848994c8-cb61-4588-8d05-958255601d84"
+   ],
+   "disapp_id": "594321",
+   "creditos_movidos": []
+  }
+ ]
+}

@@ -1,0 +1,5167 @@
+{
+ "sello": "20260907-0204",
+ "accion": "Cerró un crédito que Disapp ya no lista como activo (espejo 07-09)",
+ "revert_sql": "update prestamos set estado='activo', finalizado_en=null, refinanciado_en=null where id = any(:ids)",
+ "cerrados": [
+  {
+   "id": "984d2e9f-8288-47e5-907d-9698e7800963",
+   "ref": "PRD0003604063",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "23764195-2033-400c-86c4-d0eebb7a2788",
+   "ref": "PRD0003604494",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "679c687d-c4e3-4b9b-b881-928168ef3cc1",
+   "ref": "PRD0003603671",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "f88e3f7a-2d61-4616-b5a0-81da7d497697",
+   "ref": "PRD0003602449",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "cb490f90-f393-4813-81d7-e320402bf541",
+   "ref": "PRD0003602417",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "f40c994b-1df0-4bcd-b694-20bfe0d75160",
+   "ref": "PRD0003603469",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "99e464d2-f660-4362-b30b-bbc587107d6f",
+   "ref": "PRD0003603315",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "5c9dbb03-1f86-45b5-82fc-6edac4473adc",
+   "ref": "PRD0003603788",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "632b09e1-87f0-47de-bc9f-01354625f620",
+   "ref": "PRD0003603781",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "dfd95821-44ac-4824-ad02-dc4b0b42f98c",
+   "ref": "PRD0003601656",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "3fcf1a48-0420-4ebb-8709-77aca7641e57",
+   "ref": "PRD0003601629",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "504ae289-af53-46d1-8cd8-9dc54a36a7ed",
+   "ref": "PRD0003601400",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "0baae154-36d2-43b3-ab5e-d31650d22a4d",
+   "ref": "PRD0003600994",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "3e8dde9d-e321-41c2-88eb-a4bd4d7307aa",
+   "ref": "PRD0003600676",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "8edb5fa6-aa09-4841-a77c-96d722fc7584",
+   "ref": "PRD0003600668",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "943a3d70-c8be-47ac-903a-63901f178a4d",
+   "ref": "PRD0003599598",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "91d217fe-4ff2-4c56-b119-9756df4339ab",
+   "ref": "PRD0003598906",
+   "estado": "refinanciado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "499572ce-8ce8-4407-a23f-f586e0e09586",
+   "ref": "PRD0003598902",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "d15817ab-f8f8-4c92-a5d7-68e5e061380a",
+   "ref": "PRD0003515489",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "3229d78a-b90a-4640-be92-67c882991649",
+   "ref": "PRD0003598713",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "96c4ac1e-deda-4209-92f0-e058fb52abc4",
+   "ref": "PRD0003598703",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "271aa349-4553-4a9e-91b3-05258e21b788",
+   "ref": "PRD0003598684",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "c448ce04-ad23-4f17-af1f-6067c120363f",
+   "ref": "PRD0003598440",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "21b9c7b4-1b07-4b69-9dbe-3ebc181b05e7",
+   "ref": "PRD0003605828",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "076bb655-2a63-41b7-af49-5f1670349aa5",
+   "ref": "PRD0003605895",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "cb4db5e7-2cb7-4f81-a63a-41476f66883c",
+   "ref": "PRD0003610401",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "ee24837f-8e97-42b6-868d-26cc3ac16add",
+   "ref": "PRD0003598042",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "df4604ee-d04c-4296-838f-9574e41c4714",
+   "ref": "PRD0003605763",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "89f20882-b728-4725-bace-43ae92af6022",
+   "ref": "PRD0003605754",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "d8b6947f-b786-47ca-82df-b2b6c4af870a",
+   "ref": "PRD0003597916",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "f0e2c435-dfe8-426b-9dbd-6219bd4b3c42",
+   "ref": "PRD0003541304",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "d11f4155-7f10-427d-afa3-0c00acf63cb9",
+   "ref": "PRD0003597783",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "d6e4a2e4-351c-4076-b547-aac9996c0348",
+   "ref": "PRD0003539481",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "7867bd2c-306f-4a24-b4e3-c3986b8589a2",
+   "ref": "PRD0003597725",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "8e69f3f5-0e11-46aa-9bfb-15614cf993b4",
+   "ref": "PRD0003597610",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "5d5ed7b7-326e-456b-bb5f-8638b6624238",
+   "ref": "PRD0003597239",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "0e4e819d-172c-424e-9001-752701543fe1",
+   "ref": "PRD0003596813",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "3ee70787-534e-4556-be1c-87ce078f2d7b",
+   "ref": "PRD0003596608",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "a6c4c27c-e25c-47f1-af08-0ce8810bff19",
+   "ref": "PRD0003605533",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "bef8344c-ae6f-42af-8574-9755bdd88d76",
+   "ref": "PRD0003596158",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "4094edbd-cd8c-4b9e-98c9-47790c71e7ed",
+   "ref": "PRD0003595250",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "d9be0c5a-3a47-446a-bef0-ed98cad237a3",
+   "ref": "PRD0003595297",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "fdf37994-f7e5-45df-bfeb-6859f0f5e321",
+   "ref": "PRD0003610096",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "cbfeb6d7-fe40-4fe3-a637-204d07b000df",
+   "ref": "PRD0003530785",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "cd99e22a-78d9-4e04-8d49-3fb935ded5db",
+   "ref": "PRD0003529298",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "667c844b-e8e6-4953-bbf9-e4283e6fdf5a",
+   "ref": "PRD0003530543",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "e7777961-6de6-485d-9cb6-a7f1bd51d707",
+   "ref": "PRD0003614786",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "b24cdb4e-b293-47be-ae66-6095be1f1a23",
+   "ref": "PRD0003634981",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "9452a90b-91e3-4138-8c78-6594467a548a",
+   "ref": "PRD0003594849",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "4c1b4c88-b232-4857-97f4-bc212762957e",
+   "ref": "PRD0003594754",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "1ffb8925-9566-4543-a99d-f1ca599884ca",
+   "ref": "PRD0003593798",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "4c57fff1-6394-4a2a-bf31-3d1a3477ceac",
+   "ref": "PRD0003593737",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "fce03769-7eaf-4320-b5e9-4d729b97fe03",
+   "ref": "PRD0003603131",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "d7a8db54-76d0-45e3-ad0a-f7c773f8254b",
+   "ref": "PRD0003593279",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "578adbf9-c214-42e0-9b18-fa9558175ed5",
+   "ref": "PRD0003527641",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "43d4a8af-8e63-4611-98e4-1ba03ac1d16a",
+   "ref": "PRD0003593276",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "c84a8af1-0748-4618-b231-20453f4e0e0b",
+   "ref": "PRD0003593264",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "83981afa-1734-488b-9a45-a2843497266e",
+   "ref": "PRD0003593256",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "455932d1-d011-4dff-af87-e3e859803b48",
+   "ref": "PRD0003527590",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "3e14398a-716e-42cf-8e44-2f960c74f5e4",
+   "ref": "PRD0003603013",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "8d61a227-18d5-4f24-a6a3-5c3a0d2052d4",
+   "ref": "PRD0003593136",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "dbffefce-b1c7-4601-b334-fdc31f361bc9",
+   "ref": "PRD0003597946",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "1584f15c-28a4-4a99-816e-11ce72fc7376",
+   "ref": "PRD0003592987",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "d79eee7e-4b25-482d-9fc7-9daa0d3d2926",
+   "ref": "PRD0003592394",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "be70d5e8-c086-4744-9140-956c91a1de39",
+   "ref": "PRD0003592342",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "c14a7a87-3fe5-404c-a0a7-b921418001ec",
+   "ref": "PRD0003614183",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "82f7300d-cb25-4e45-99f1-9ff46d1436a0",
+   "ref": "PRD0003523588",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "a83cb684-27c8-4845-b237-d1926a2675f4",
+   "ref": "PRD0003592376",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "4871e878-a77b-49c6-8618-1492daa74c15",
+   "ref": "PRD0003522816",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "c6a363dc-f34d-4f7b-a7c6-874a1ed24627",
+   "ref": "PRD0003592159",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "89a4596f-3070-4509-9c9c-1554e14c2205",
+   "ref": "PRD0003592274",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "bd10f608-30f2-45a6-87d1-622b7684bc95",
+   "ref": "PRD0003592241",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "d93701d3-b122-4abe-a340-e73b81dbd8d1",
+   "ref": "PRD0003592086",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "a1100795-c2df-4561-ae48-e2176fbd0e39",
+   "ref": "PRD0003609890",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "28bcfa3a-461e-4c99-a467-ccd59be653b8",
+   "ref": "PRD0003521816",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "27398c30-6ed6-4c1c-b9c6-32a9f7e03c05",
+   "ref": "PRD0003591420",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "8791a7c8-3698-475e-8fab-dabf1151d153",
+   "ref": "PRD0003572599",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "9a63ce69-0031-4548-9d47-d4227aee56d9",
+   "ref": "PRD0003591246",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "6942e520-a422-4a8c-89f1-f6a60422e1d3",
+   "ref": "PRD0003591205",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "4eb19dc5-9d68-4884-a99d-13fd56909f35",
+   "ref": "PRD0003520145",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "780be8d7-b456-4bf8-b946-a33c1697b48d",
+   "ref": "PRD0003587344",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "adf48d25-5084-4585-a107-a8af7cb8b1a9",
+   "ref": "PRD0003590629",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "677f2061-b78b-4568-92d7-da3c9b42ce7e",
+   "ref": "PRD0003609875",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "bf03da44-dbe7-401b-8431-3055aaf92ec7",
+   "ref": "PRD0003590468",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "6be46d00-dc27-43a8-8204-a077bdd0d6de",
+   "ref": "PRD0003515174",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "b7e57623-bc98-4333-9db4-41ddb74b87d1",
+   "ref": "PRD0003590260",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "715f73c1-97f0-424c-abe7-f3c2147ab684",
+   "ref": "PRD0003589885",
+   "estado": "refinanciado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "8c3d977c-8de6-4a2f-b611-461bc35d0813",
+   "ref": "PRD0003589773",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "01908ee4-b861-4baf-a9d7-c69900656b0f",
+   "ref": "PRD0003589759",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "78a50a95-a158-4ac8-818b-96b3043b851a",
+   "ref": "PRD0003589756",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "4d3f61ba-adfb-4f25-bbf9-105a6cde5423",
+   "ref": "PRD0003589749",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "805ada82-5925-4b52-b579-9f8b73e7b795",
+   "ref": "PRD0003506237",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "7a2a390a-d019-4766-baca-2d47c007f8f3",
+   "ref": "PRD0003589742",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "62598651-dc6c-4539-a73a-76065067c90b",
+   "ref": "PRD0003503475",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "12273b29-a60b-48a9-b6c9-ddcb5dfab109",
+   "ref": "PRD0003505567",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "b135359c-b048-4749-96e3-12d008ad09f0",
+   "ref": "PRD0003589508",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "dd65803c-5f72-413f-8a15-f8a051a08703",
+   "ref": "PRD0003500306",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "bc1eab51-b0da-41ed-9059-b27a720384da",
+   "ref": "PRD0003536466",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "f83b354a-44c9-4512-b6de-92b821963086",
+   "ref": "PRD0003589365",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "b9883d5d-4309-46fe-a3e8-9e389e02c933",
+   "ref": "PRD0003545870",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "02776661-eeef-408d-bf67-689020f890dc",
+   "ref": "PRD0003493249",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "c6c0c904-f83a-4ab5-b5fe-c02076c5a97f",
+   "ref": "PRD0003589277",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "24f3855e-4997-4d2e-bd39-48984a728ac5",
+   "ref": "PRD0003493011",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "c3648ad3-b073-40cf-ae0c-97ccf43a72ac",
+   "ref": "PRD0003589184",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "b64e4f07-3295-4c35-9df7-b42a2a2267ca",
+   "ref": "PRD0003589182",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "d2b73d06-a2d6-4d69-90b1-0d6add379bbc",
+   "ref": "PRD0003609387",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "951d9cdc-2749-4f06-b449-953c6eb876dd",
+   "ref": "PRD0003615605",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "ec7a2788-9f39-4148-80ce-824bd099a132",
+   "ref": "PRD0003185438",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "27b1cacc-8099-4537-8f81-73444188b6ff",
+   "ref": "PRD0003588501",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "70ab8c32-6bd6-45aa-9970-084daf13ba33",
+   "ref": "PRD0003588045",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "29f0542a-6177-4ee0-bc05-ef2e4d8c5ba0",
+   "ref": "PRD0003588041",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "134b19c2-5fab-4d92-b63c-311b15edeede",
+   "ref": "PRD0003480600",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "9a230da2-4214-424c-900f-1e91bd89421f",
+   "ref": "PRD0003587429",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "88f029ed-12c1-41ee-a3d9-42b548c428b4",
+   "ref": "PRD0003471097",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "903402d3-295d-4253-905d-2856b06fb9eb",
+   "ref": "PRD0003609200",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "50d252ac-8c9f-4551-9250-9cc9ca331bf0",
+   "ref": "PRD0003462481",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "2c65ec8f-13a4-4dd4-a5be-1bdab4fd1fc6",
+   "ref": "PRD0003458205",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "dad3ed5c-3ef8-480e-a6fc-27ab1d7a2bed",
+   "ref": "PRD0003609194",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "5aeb57eb-a5d3-472f-a833-438f73bdf8c8",
+   "ref": "PRD0003448923",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "bdb43232-8940-43f4-8bd4-1ba947b2a58a",
+   "ref": "PRD0003399153",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "02a733ec-ac33-45b6-88bd-bff18360913c",
+   "ref": "PRD0003399150",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "abd05be3-1ac5-4f06-a81c-52c6dd2ee0a5",
+   "ref": "PRD0003389580",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "2ab5c348-3bdc-4e9c-b20e-6028184d4342",
+   "ref": "PRD0003587135",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "3dda8644-b588-4b13-8d0d-5ffb069d721d",
+   "ref": "PRD0003587112",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "6b7e627f-2581-4ad9-a52d-3322d0891186",
+   "ref": "PRD0003363390",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "03cc8a47-f1fd-425c-acf8-8fce4518d53f",
+   "ref": "PRD0003344586",
+   "estado": "refinanciado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "f3982a9d-ebdf-4878-802e-2c2bb4727f4b",
+   "ref": "PRD0003612487",
+   "estado": "refinanciado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "67ed7f97-026f-4d05-b6fd-1ef697a366f4",
+   "ref": "PRD0003275628",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "0ed3ed3a-28c3-4c35-a8aa-9c00b0ec6e30",
+   "ref": "PRD0003262938",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "e461c0e9-db5e-4a99-90b2-ab66b34c3b5f",
+   "ref": "PRD0003253651",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "55b27701-fdbb-42cf-b477-2d32eb337e0e",
+   "ref": "PRD0003251636",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "fc158403-6390-4b07-a4a2-0486e0c4d339",
+   "ref": "PRD0003250445",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "9d6f4592-8499-4cb9-a7df-e9cb25f1a742",
+   "ref": "PRD0003217562",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "95e43ea1-e365-413c-afea-b191351db874",
+   "ref": "PRD0003185449",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "1f873b1e-a435-4d78-adcf-43064dc7d48a",
+   "ref": "PRD0003185417",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "e8c062c7-0721-4922-a09a-740ad8636702",
+   "ref": "PRD0003182128",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "518bd65b-5c72-4f44-a6df-4d373e2301c4",
+   "ref": "PRD0003133689",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "b1e8d0aa-7d79-4a49-a38a-64b69d44fe07",
+   "ref": "PRD0003054486",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "4a713654-bb27-44f1-aec5-13c496fea053",
+   "ref": "PRD0003027866",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "2852d4d0-3985-4e4b-b180-c1fdf242aa77",
+   "ref": "PRD0003027375",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "60dce9dd-43fa-428c-9af2-2d831a6dc6f8",
+   "ref": "PRD0003006370",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "daecb62e-4812-4347-85df-6d89f38c7276",
+   "ref": "PRD0002930893",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "35f30cf8-f1f5-47b5-a5bd-1d2a5b961a0d",
+   "ref": "PRD0002719155",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "4e23c30a-b376-4527-88a2-5c275a5e3f56",
+   "ref": "PRD0003608794",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "05f8d415-e8a3-4a37-b4c7-38b205014286",
+   "ref": "PRD0003608760",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "f881733c-d142-4ddf-9ad5-97b33696beb8",
+   "ref": "PRD0003608708",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "9c2d2ce4-e971-4bc5-8eb9-2562c8e5df40",
+   "ref": "PRD0003608619",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "76997992-75bc-4810-a489-25217345bd0f",
+   "ref": "PRD0003608595",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "16249ac5-3147-4320-b05b-2a035331e2a9",
+   "ref": "PRD0003608541",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "e91b4c91-5421-4f2f-8d90-601efa4862e1",
+   "ref": "PRD0003608516",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "72d9fa1a-41f7-4706-99ec-794536508a32",
+   "ref": "PRD0003608138",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "a723f6f7-84d1-4be0-b958-6e0b9393c20e",
+   "ref": "PRD0003607645",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "b8bd5062-20b2-4f96-9c90-c5955459e894",
+   "ref": "PRD0003607570",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "e19cb28a-60ee-4f4d-bf9c-7709ad828cc9",
+   "ref": "PRD0003598122",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "e4789658-7f00-4b7c-a98c-d46bd69ee135",
+   "ref": "PRD0003515512",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "c80ec635-7178-4878-b38b-13f3981981e0",
+   "ref": "PRD0003594903",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "9f6bc23a-61d0-4ccf-b9be-0f44d53c772e",
+   "ref": "PRD0003539717",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "5867ae99-08e6-4846-a40e-043dc5a553d3",
+   "ref": "PRD0003527444",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "faa31e38-43f7-462c-9d51-385811715e2c",
+   "ref": "PRD0003617122",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "1c0410e6-2a32-4906-8f05-abd323568e1c",
+   "ref": "PRD0003247816",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "e47b96b9-e283-47f7-8c63-7b934506ccab",
+   "ref": "PRD0003616992",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "cfe81235-9b2f-471e-9605-0dc4e0b23d13",
+   "ref": "PRD0003586606",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "29b969f3-aa28-4e6c-9f77-121ebb107d63",
+   "ref": "PRD0003586603",
+   "estado": "refinanciado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "bd6b5f46-7100-4d03-8dff-7274fab477b6",
+   "ref": "PRD0003617585",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "24414eb8-7998-46d3-a2cb-06fbae213f8d",
+   "ref": "PRD0003545762",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "7682fc79-59e8-4471-864c-3e040875e1fb",
+   "ref": "PRD0003586357",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "cb8b021a-d16c-44e3-aef7-eb087ad22b94",
+   "ref": "PRD0003544597",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "3ade3ed7-b729-4312-b8f5-c4729f62cfa8",
+   "ref": "PRD0003544598",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "877ebecc-abf7-4eac-8fdc-a4fd2bba0fa7",
+   "ref": "PRD0003544415",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "7cbfc92a-faeb-44fb-b00e-e06962e877a5",
+   "ref": "PRD0003585624",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "e6a429cf-79d3-4f3a-aa73-3d23ea9e6bc8",
+   "ref": "PRD0003617993",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "09e66841-f9f7-4497-a8c8-9e54348c2186",
+   "ref": "PRD0003622772",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "f0f17b9a-62e6-4e06-b153-478fa912b887",
+   "ref": "PRD0003619528",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "c6e045b5-c8e5-4e34-afce-d77cf4bdc284",
+   "ref": "PRD0003618476",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "e81a2edc-a78c-447a-b77e-b0a52cea1a0a",
+   "ref": "PRD0003617002",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "6df8724b-ce80-4bab-99d5-0903e2af94ba",
+   "ref": "PRD0003617414",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "80f2432a-f045-40f7-ac56-dca468834ded",
+   "ref": "PRD0003612662",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "a1630217-1f5f-47b6-8fed-b9471a2b4e49",
+   "ref": "PRD0003614165",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "593b8fec-42ab-4dd1-9dd8-5328f0eef962",
+   "ref": "PRD0003542842",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "8abfffd7-405f-4d44-9937-ddb4180ef2e0",
+   "ref": "PRD0003585159",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "d86418bc-6520-4e86-aa70-1a9201da6d40",
+   "ref": "PRD0003542272",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "d5b3be6d-0c47-4147-8e29-31679455bbec",
+   "ref": "PRD0003632890",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "0ba3ce05-2411-4cfc-8b37-95d5dca8675f",
+   "ref": "PRD0003585065",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "ce42cc91-b912-4f62-ad6e-b9b20d510e5e",
+   "ref": "PRD0003585057",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "3aa65e2e-5377-4abc-994a-a51e4beda388",
+   "ref": "PRD0003585043",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "56c665f6-61ce-4eb8-9610-d1bf60f547e6",
+   "ref": "PRD0003585050",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "2b1e4227-58ea-4409-9424-1469b20b86e6",
+   "ref": "PRD0003614408",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "c4fc6697-302c-4560-9917-dce991eb4285",
+   "ref": "PRD0003617509",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "4d3f7e4d-043c-4922-8dcd-d88e106b180d",
+   "ref": "PRD0003585035",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "3c9b4bee-cfab-45a6-ab3f-2fc5a544738a",
+   "ref": "PRD0003617569",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "e4bbcb2b-45b5-4ae2-a0c7-a7b30fd21ac1",
+   "ref": "PRD0003617566",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "e9ee8e1b-85d5-450b-bc3b-f582e2b6299f",
+   "ref": "PRD0003584717",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "49029446-1117-46c4-944d-70bbff215407",
+   "ref": "PRD0003584705",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "3222bc86-ad00-4d3e-b7fa-c24efc97e86e",
+   "ref": "PRD0003536149",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "ebebceda-9b6b-4fb2-b2d7-51de343a1f51",
+   "ref": "PRD0003584497",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "30dc0481-ee74-40ea-9449-ea43d06cc838",
+   "ref": "PRD0003584477",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "d76f1f9f-f8a3-4c12-b6fb-58d05b519b8e",
+   "ref": "PRD0003544180",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "59549b7a-54e9-4b68-b70f-dd314c5d702c",
+   "ref": "PRD0003584441",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "887f7c08-cf69-4f2b-ab04-3426dff3c6b5",
+   "ref": "PRD0003615250",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "42d4142c-ff4e-4bec-90a6-943c5cefc087",
+   "ref": "PRD0003538291",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "d136fdc2-a102-44eb-ac99-b13ed1dca60f",
+   "ref": "PRD0003535836",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "9a5d129a-a24b-4316-a291-5ba126335ba4",
+   "ref": "PRD0003584180",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "e8145fb4-3798-4370-9d0e-c439e07f5328",
+   "ref": "PRD0003521733",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "77fa2b4d-fb9a-4387-84a5-1356436f563c",
+   "ref": "PRD0003534265",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "4f5ec82e-b6e6-48c2-943a-9d16a0d4227d",
+   "ref": "PRD0003584164",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "c7186d2a-6c63-4006-b81d-50e857d0e9cf",
+   "ref": "PRD0003584133",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "21dd0529-bbb3-4072-841a-ba9f608c43d9",
+   "ref": "PRD0003533304",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "10d213db-06c9-4e20-84eb-02c06f207ddc",
+   "ref": "PRD0003533199",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "50740f3a-de69-4472-bbbd-f3a1601206ef",
+   "ref": "PRD0003533122",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "3585307e-0b47-4054-a186-2f160962389e",
+   "ref": "PRD0003583873",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "a4b006d2-8266-41dc-9ea8-83585fdcbd13",
+   "ref": "PRD0003583699",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "1e804975-ea32-4f70-8354-2ca048a5e5d4",
+   "ref": "PRD0003535720",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "e6eec3ae-3aba-4757-9d92-999e84b2b99f",
+   "ref": "PRD0003582840",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "62ab83c8-6cc3-48b5-9344-80f2897adcfc",
+   "ref": "PRD0003582604",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "6579c840-1bde-4c6e-a5df-b8f91c3a61b4",
+   "ref": "PRD0003582580",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "05d063f6-987d-4468-9a9c-f233c7ff871f",
+   "ref": "PRD0003582378",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "8a695f8c-4af1-4e42-8266-eda3779748fa",
+   "ref": "PRD0003582547",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "52b7ba77-3f6a-4fc5-8ccb-ddc1ede63426",
+   "ref": "PRD0003572811",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "1e59bea7-6a27-4baa-b716-53f102f88f8e",
+   "ref": "PRD0003573064",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "c9401899-07cc-4ee0-8889-623917dca0f0",
+   "ref": "PRD0003573042",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "f2e24df7-fcf2-4aac-b626-044b79f1a842",
+   "ref": "PRD0003571010",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "e9295cdb-49a2-4192-8fb4-4279150f2cd4",
+   "ref": "PRD0003570097",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "8b15778e-9c1d-4692-bbb6-5b835a681a8e",
+   "ref": "PRD0003571508",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "a43ce4d3-fba1-4304-9dc0-36dbd63adf56",
+   "ref": "PRD0003571262",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "3be068d1-5d2b-4525-ac37-7e9a0731acb5",
+   "ref": "PRD0003567868",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "abf0f10c-f1a8-4627-9262-29b7c68f7f9e",
+   "ref": "PRD0003567579",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "5a155944-76a6-45df-9fc1-80490ecd1092",
+   "ref": "PRD0003567531",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "33335fc6-eed2-4a45-ba6e-1eb04c4faa55",
+   "ref": "PRD0003567530",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "9adbadc3-025f-4b19-998f-9ed29a75fe04",
+   "ref": "PRD0003566593",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "5e8257e5-1bea-463f-8e2f-ed4cc569c6f1",
+   "ref": "PRD0003565005",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "733039a7-cfa4-478b-9449-4222f743a438",
+   "ref": "PRD0003564520",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "223ed4a9-e8eb-42ce-9da2-65d3cbe4c5b9",
+   "ref": "PRD0003563211",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "494f2e75-da80-4d06-8a37-740e309d7494",
+   "ref": "PRD0003563150",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "9c472029-6a85-4f4f-b3b1-21de345c4bbf",
+   "ref": "PRD0003562936",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "25cca45d-92bb-476a-a718-3058108201be",
+   "ref": "PRD0003562766",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "72d083d0-f343-4e61-a3dc-77058e23c564",
+   "ref": "PRD0003562366",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "a245c9c2-4765-4baa-aadd-19bbf852f5b8",
+   "ref": "PRD0003562304",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "1e4a0103-dc4f-493b-9767-7638000f2980",
+   "ref": "PRD0003581709",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "62a0a244-2611-4e87-8022-c1fbbeba19d0",
+   "ref": "PRD0003561991",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "05d44986-a6e9-4099-9394-b5eb97a4810f",
+   "ref": "PRD0003560602",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "6232304a-e38b-432c-9c26-6aa237f32f6d",
+   "ref": "PRD0003560277",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "0e4463fb-485a-46ca-aab4-29b51d5bd0b7",
+   "ref": "PRD0003520019",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "41ddb816-8a26-4148-bba8-4282c7554408",
+   "ref": "PRD0003559797",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "3dbc59f8-6dbd-4b33-bfa7-e032ce4e90ab",
+   "ref": "PRD0003559772",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "2318460d-7e98-47db-a1eb-c438461e212e",
+   "ref": "PRD0003559592",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "ff795f73-7ca9-4d4b-ac0f-dab2e7cb7a61",
+   "ref": "PRD0003558635",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "f077b858-ab87-4fa9-8ae9-9e8bdf9b992f",
+   "ref": "PRD0003558552",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "5cd6759a-69fb-4056-8bc6-ec86354409a3",
+   "ref": "PRD0003558543",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "366767f5-0fa2-43b3-9624-2f18076ddd6b",
+   "ref": "PRD0003558536",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "3154c360-fa8e-48eb-b1b4-d3db78489b72",
+   "ref": "PRD0003558380",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "694fbc05-0a05-41b5-80a0-65ba31a49ec1",
+   "ref": "PRD0003558364",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "94d16201-9535-4b26-adf2-8c15e87a095a",
+   "ref": "PRD0003556424",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "0641e503-f2f6-4065-a53b-45a497f92189",
+   "ref": "PRD0003555686",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "839708b6-2631-4671-a6e4-3fd754120e15",
+   "ref": "PRD0003554513",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "ed99798b-c69b-4db5-ba3a-b0a5dce76cca",
+   "ref": "PRD0003554502",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "7b68aa8b-a65d-45c0-b3c8-24b7ffa420b8",
+   "ref": "PRD0003554202",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "9325ae3d-bc34-4dbf-9548-9b6918a4ab95",
+   "ref": "PRD0003554096",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "5c61f975-a2ab-444b-b34a-a61be262f34d",
+   "ref": "PRD0003553399",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "6f00d995-e2fa-4526-9639-ea44c7358805",
+   "ref": "PRD0003554028",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "7394ee0a-52db-49dc-8204-5a8af71dbe0c",
+   "ref": "PRD0003552918",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "e322ddbe-f81a-4592-b9b9-d3845f0868af",
+   "ref": "PRD0003551672",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "60f085c1-4993-4b94-bbbf-08e9d78f1207",
+   "ref": "PRD0003551056",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "44250021-5ff2-42d1-91f4-e5904af2178b",
+   "ref": "PRD0003550797",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "3f6aacc7-5eee-4318-93e5-3d47231cf94b",
+   "ref": "PRD0003550669",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "8665b4e5-849f-4d54-a35c-d13d7603ac0e",
+   "ref": "PRD0003550650",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "71ecca90-1a77-48a3-a6c0-bd2b3ac3e46a",
+   "ref": "PRD0003550523",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "a30c0596-4e71-4b6c-a0db-55a72c383537",
+   "ref": "PRD0003550256",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "14d74f71-db93-4016-b01f-daf0d56b8fcd",
+   "ref": "PRD0003548047",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "30cd8dc5-3d43-4c1c-9a79-d7995ba538df",
+   "ref": "PRD0003548359",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "6b608681-d83e-4a1b-a979-44d28a7f5320",
+   "ref": "PRD0003547810",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "7c394f00-6ff0-403a-8eee-e7a10059687b",
+   "ref": "PRD0003547316",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "c05f59a0-37d2-4db5-a59b-552de54f15d7",
+   "ref": "PRD0003547206",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "b03b15f9-2ad7-4535-a745-d9b2b0cf731d",
+   "ref": "PRD0003510034",
+   "estado": "refinanciado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "f5ee56f2-4192-459a-a888-7dcd46f8092a",
+   "ref": "PRD0003546204",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "d191eb9b-9717-42c6-ae73-67f42c919bfe",
+   "ref": "PRD0003581467",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "60e71f8b-2ea8-4919-8dd0-9323539c7eec",
+   "ref": "PRD0003579939",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "bb643739-003a-4c48-beac-ebe782cd6f1d",
+   "ref": "PRD0003579755",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "d2420eec-fff6-4a0b-9582-63b519572f8b",
+   "ref": "PRD0003579664",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "6730ddcc-3a9f-4116-b840-39744982919f",
+   "ref": "PRD0003580288",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "00017a1a-7fe9-4bd5-a822-03634fd8c7b4",
+   "ref": "PRD0003579388",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "526bd944-bed7-413c-8ea2-56b397509616",
+   "ref": "PRD0003579394",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "799bbd10-216b-418f-9291-20c77ef195b9",
+   "ref": "PRD0003579389",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "b8b0ffd7-8c93-48d7-acb9-226d91de153c",
+   "ref": "PRD0003504588",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "949f272b-3efc-4b0a-a956-8595937696ff",
+   "ref": "PRD0003577550",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "de39b5f6-0fcb-4160-88b7-e4175f4c705c",
+   "ref": "PRD0003577631",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "8688df94-1352-4dfc-a011-7a8f24b0fe12",
+   "ref": "PRD0003577476",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "2fdde6b8-9dfe-48f5-a787-a67f6784139e",
+   "ref": "PRD0003578660",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "f9ced366-931b-4d64-81a4-eaaa6f239871",
+   "ref": "PRD0003578610",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "65a206a2-e630-4da8-a4b4-f899fdd807a1",
+   "ref": "PRD0003577402",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "3bcfc523-6811-48cf-abac-465c5f9059e4",
+   "ref": "PRD0003576489",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "882e5863-62fc-4535-a9fb-41d665cfbfd5",
+   "ref": "PRD0003576123",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "f087bfba-8f19-4100-98df-42b8088cdb76",
+   "ref": "PRD0003575935",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "807ba8ff-cdd6-496c-b3d0-375a52fd3403",
+   "ref": "PRD0003575678",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "d217c37f-7a55-4c8f-8140-0b63e7b8ee63",
+   "ref": "PRD0003572175",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "dbe0d0dc-aa00-4840-91e4-b01380710205",
+   "ref": "PRD0003572031",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "267b22bd-517f-456f-8cf8-653845a20e61",
+   "ref": "PRD0003570430",
+   "estado": "refinanciado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "ccf4e8c2-15a0-4948-9535-ddbb0b629f51",
+   "ref": "PRD0003570158",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "d678f34a-91de-47d5-bd5b-0af8c5b3d32c",
+   "ref": "PRD0003570893",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "5e64f9c9-130d-4456-8cc6-660357cdcd54",
+   "ref": "PRD0003569911",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "4b3f7c06-cd71-4fdb-8cfc-f86ff8d8692e",
+   "ref": "PRD0003569891",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "a4d15f49-a125-4e22-ac4b-b9655be5d1e2",
+   "ref": "PRD0003564720",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "6e373809-d6be-46bf-9890-d7740742b955",
+   "ref": "PRD0003564713",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "265ae4d2-a569-4ac7-9333-70ad3f0f7732",
+   "ref": "PRD0003565171",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "7ae09b34-ec8f-4763-b32e-efe2a1f8046a",
+   "ref": "PRD0003562490",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "8e819794-6981-4554-a7c4-3d494a099b6f",
+   "ref": "PRD0003560527",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "bfe6e06b-8671-4f2f-a4d0-1b5f4081786a",
+   "ref": "PRD0003630378",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "cb193368-e432-4ea6-afae-9e67b8c2b259",
+   "ref": "PRD0003560483",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "74c1d17c-220f-470d-82d0-282caaa195a1",
+   "ref": "PRD0003560440",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "1353543c-9a58-4008-9d73-4f71b2ef51b3",
+   "ref": "PRD0003560399",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "2738b3a8-1e50-4753-8e1c-12444043a341",
+   "ref": "PRD0003560082",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "d8029a1d-29f7-4ece-94cb-0710d97e1c9f",
+   "ref": "PRD0003561620",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "ff258a56-32f5-4445-bf4f-affb41acf85d",
+   "ref": "PRD0003558695",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "fa6040cf-c162-43aa-b99f-7d90ec88088e",
+   "ref": "PRD0003557415",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "08b30b2a-54c9-401e-be33-c2bb65146cd6",
+   "ref": "PRD0003557106",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "232744fb-5e94-4e35-b2da-d6d55583bf2b",
+   "ref": "PRD0003556848",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "e6ab8e4b-9062-4419-a2e7-d0d87774e0a8",
+   "ref": "PRD0003556282",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "3e982e7d-aab8-4858-95cc-71eab5b8b625",
+   "ref": "PRD0003555413",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "bd88fb9e-cb23-4816-afd2-cb45b600ece2",
+   "ref": "PRD0003554452",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "e6902fbc-9872-4ce4-abdc-f819074eef22",
+   "ref": "PRD0003554025",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "24c60d2e-81e8-49a7-9ba0-37206a6529a5",
+   "ref": "PRD0003554170",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "fe92205c-b90f-4147-8b91-80ef7201e304",
+   "ref": "PRD0003631692",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "1c3590f0-b975-492a-bda3-cfa332e5b1a1",
+   "ref": "PRD0003466740",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "e252ebfa-a269-44de-ab1c-e00b14479d8d",
+   "ref": "PRD0003552546",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "35c48101-0207-409c-aa15-7f464495eb78",
+   "ref": "PRD0003552428",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "88b9176b-07b2-4aa7-a918-58f65415c41f",
+   "ref": "PRD0003552476",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "84388c07-7c62-4b7a-a046-5e5fd22ceb31",
+   "ref": "PRD0003407234",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "438d7f82-b2d4-4d9b-a582-942940196802",
+   "ref": "PRD0003395746",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "ecfd9fb1-9d58-427c-9e09-1ffe71aa07fd",
+   "ref": "PRD0003381814",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "fd71601e-4237-4375-b08e-e89214f58c4d",
+   "ref": "PRD0003585183",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "34f0efb3-eaec-473b-a9dd-12784ae8b7e9",
+   "ref": "PRD0003364571",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "d8de696e-c007-48d7-a350-5d9e0d1f3bd5",
+   "ref": "PRD0003335643",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "43a794dd-3fa0-472c-abcc-3bd694411aa2",
+   "ref": "PRD0003327375",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "d13d25bc-62cd-4dd9-b945-a0deb39e758a",
+   "ref": "PRD0003322074",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "5b94cb44-04c9-42ad-bef3-48b09c4dd035",
+   "ref": "PRD0003321938",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "ecdf1000-69f2-435a-9241-83e770b15b19",
+   "ref": "PRD0003313490",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "d40d1055-ae52-4575-983f-ce4072d07e46",
+   "ref": "PRD0003283515",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "0659f178-2d39-4eed-855e-267f092a7784",
+   "ref": "PRD0003281592",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "6e0d89d5-e26d-44f3-bec2-fce23d1d0e5d",
+   "ref": "PRD0003572667",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "0812a0d1-1b36-474e-863c-c93dc2e37001",
+   "ref": "PRD0003570876",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "f75a93fa-2c96-4e69-b3e3-a488d6f8cc8e",
+   "ref": "PRD0003570088",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "9129d49b-5bb6-41b2-a7c8-20cc312c8b52",
+   "ref": "PRD0003565504",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "7bcdeb70-40e8-42e5-8b8e-8636a1a7886a",
+   "ref": "PRD0003628767",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "2aca6c45-2422-45cb-b652-ae06f4ae5a6e",
+   "ref": "PRD0003211198",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "42406ad3-b79a-425e-8f29-8e987fecb225",
+   "ref": "PRD0003165038",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "b6cc2e69-079f-4c16-a3d3-bfaabd6d84f6",
+   "ref": "PRD0003154073",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "091ecadb-acb1-457f-9390-ae43528a67d5",
+   "ref": "PRD0002981223",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "baea828d-b801-46d2-8ad9-9534dd939bb2",
+   "ref": "PRD0002963153",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "67213335-6129-423c-96a5-aba44be1dd19",
+   "ref": "PRD0003551201",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "47e677cc-e0d0-472f-ae83-ecb1d9088049",
+   "ref": "PRD0003628858",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "8e25596b-15ca-43b2-86f9-d53feca94d04",
+   "ref": "PRD0003552489",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "ae074878-0f08-449c-9c8b-dfa8a3454616",
+   "ref": "PRD0003627400",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "81cc1a9d-757b-4713-ad75-2a53e71aef3f",
+   "ref": "PRD0003626852",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "9f5609d8-76be-425b-97ca-cf1f1a2654fa",
+   "ref": "PRD0003626776",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "2ffd60d5-6e93-42c2-8afd-fc4e071f31d5",
+   "ref": "PRD0003552562",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "cd91513d-ff61-4071-a005-dbce25850d7d",
+   "ref": "PRD0003626038",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "71778177-765b-4bd4-9295-d55eb2daeff8",
+   "ref": "PRD0003626025",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "1c7c199a-5181-447f-a364-76b7e066345e",
+   "ref": "PRD0003624075",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "37ad4e66-7e6e-4662-af8c-0c073fbd3c44",
+   "ref": "PRD0003547430",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "5f6ba96b-e1df-4873-ac2d-b861ed8c4b86",
+   "ref": "PRD0003620969",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "f1090d5e-d6e4-4961-8285-f665b52e042e",
+   "ref": "PRD0003620959",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "35994723-01be-44f5-92b8-955724991040",
+   "ref": "PRD0003620014",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "45a2931c-5082-44e3-bcf6-d621f0eec729",
+   "ref": "PRD0003618439",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "fc28237a-7c41-426e-af74-3f3778aee4b3",
+   "ref": "PRD0003555020",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "f4bb3356-0ff5-4302-a852-3964829aab60",
+   "ref": "PRD0003548633",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "b8b54a0e-ce8a-4689-862c-803415e1539b",
+   "ref": "PRD0003619982",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "a06cca79-b883-4452-9762-814674bbb5ef",
+   "ref": "PRD0003616749",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "477d01ac-c60c-402a-9ba4-5a586487a1ff",
+   "ref": "PRD0003615856",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "e3b5baf5-efe6-4c4b-9890-4e5c2d70c363",
+   "ref": "PRD0003554649",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "ccf7da35-550d-434e-8812-7be0742e2f7a",
+   "ref": "PRD0003615332",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "e9b3362d-cfa1-4d38-a7f5-3c95a33e7f3b",
+   "ref": "PRD0003614939",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "4bc8e516-d7a2-4558-9464-b22cb2e40a94",
+   "ref": "PRD0003555734",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "da14bb53-c28a-4bd3-824d-1e5c559054ef",
+   "ref": "PRD0003614429",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "bdf0814c-c29e-42ba-946a-6cb43d59b0ad",
+   "ref": "PRD0003613512",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "45659a84-ac62-4f57-a903-45d0dd9c0a54",
+   "ref": "PRD0003612578",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "81b09670-a28c-4b9d-889d-50be1414bd0f",
+   "ref": "PRD0003611886",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "b6d2025f-94a7-4f76-98fa-67cffba38860",
+   "ref": "PRD0003611664",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "b1f4980e-c560-4501-9561-63cb9a5ceaee",
+   "ref": "PRD0003611656",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "fea84eb5-f1ba-4416-8776-fa1d5a84cf32",
+   "ref": "PRD0003533345",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "2b3f7b09-653e-4f0f-bd23-b2867f243bc4",
+   "ref": "PRD0003516754",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "9f54325f-20ed-4f9c-b181-74d9f6c79e9b",
+   "ref": "PRD0003555452",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "d5b92c4b-2095-411e-b42d-d81687e950cb",
+   "ref": "PRD0003561557",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "75d8da60-1fa5-4809-b34d-dcfc0f5c4786",
+   "ref": "PRD0003631569",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "d687d5aa-3ace-4d56-8bf8-1994c8ffa6be",
+   "ref": "PRD0003631570",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "47cc03e1-4596-4294-a4a9-431382a997e9",
+   "ref": "PRD0003555604",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "06c49039-18b3-483c-97d8-8e65b8ce5d1e",
+   "ref": "PRD0003615740",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "0409b170-8950-43d7-9a32-24e827c52134",
+   "ref": "PRD0003614532",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "66d0a967-4bf3-441f-849c-52b06ae169b9",
+   "ref": "PRD0003555443",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "7dc5fe2f-18b1-4f81-9d77-e5bf68537549",
+   "ref": "PRD0003615802",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "10e64de6-d071-48c3-9c86-4b969d9b5155",
+   "ref": "PRD0003615256",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "a96088f5-ba7a-4127-997e-6b62449a1c67",
+   "ref": "PRD0003616988",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "19520194-98d4-4457-9b4a-26c604ea60ed",
+   "ref": "PRD0003619600",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "b7fe449a-d30f-473f-a73a-b22fbb63edc1",
+   "ref": "PRD0003619524",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "62e7aaa9-956f-49ca-90f8-344609893cd1",
+   "ref": "PRD0003617423",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "96ad78e8-4f9b-496f-b03f-2c1788b0c98f",
+   "ref": "PRD0003625917",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "a51cc462-5121-48a6-bd17-ba16727d678a",
+   "ref": "PRD0003625907",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "9fbba5df-f0a2-4520-82a0-84ca5a79e8ee",
+   "ref": "PRD0003624174",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "9f80e487-2ada-485f-a929-aa69d7577dad",
+   "ref": "PRD0003618370",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "b8d7e84d-7790-495a-be73-158a56086928",
+   "ref": "PRD0003619858",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "f7cd94d0-0032-4a8b-a774-1d2d1b540c6c",
+   "ref": "PRD0003622851",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "034ca87e-4d48-4141-8416-974d8a26568f",
+   "ref": "PRD0003617672",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "5c548504-76a0-483a-884a-0e28f50c07e7",
+   "ref": "PRD0003563789",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "d53b8cf4-777f-4c90-be84-5eb6f3212d60",
+   "ref": "PRD0003558768",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "01b3cd03-0e30-4303-b3ce-dae89e152c3d",
+   "ref": "PRD0003625909",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "a76c8e89-7858-4e77-9bd9-c20e61adda1b",
+   "ref": "PRD0003620099",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "9d72b46c-fcc9-49d8-ad4d-ce711c80419b",
+   "ref": "PRD0003634575",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "d7e2016f-7548-4395-97f0-b391c37900ab",
+   "ref": "PRD0003626246",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "436bb1e7-da21-4fdc-9b81-fa32f49dc091",
+   "ref": "PRD0003634563",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "fff4e6a5-4b1e-46a1-898e-128f723ad0b9",
+   "ref": "PRD0003556326",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "be2c9a86-7d49-4bbf-afa7-0248973f5a5d",
+   "ref": "PRD0003557182",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "e529d41a-c477-4bc5-a96c-48509a4eb593",
+   "ref": "PRD0003619899",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "49ddb33a-d338-42d8-b634-d0a868629cdc",
+   "ref": "PRD0003634564",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "402edebd-f9ce-4297-8158-932fc94cdd78",
+   "ref": "PRD0003628852",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "d5756122-c0a6-44f8-b1c1-8e723eeb095f",
+   "ref": "PRD0003628958",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "408fd1b9-1e82-49ea-b5f1-0f843259c85c",
+   "ref": "PRD0003617967",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "a67a5929-b2a4-48d0-b77f-571353fca2dd",
+   "ref": "PRD0003581627",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "57ca25c6-c6b7-435b-b3eb-1d039f34f54a",
+   "ref": "PRD0003581608",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "7229e2a3-9b44-4a11-8a6c-747f6cb6f005",
+   "ref": "PRD0003598874",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "201bfe48-30c5-49d8-8629-3d536ca3c7bb",
+   "ref": "PRD0003599797",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "c876914a-fff8-4dc2-87a9-b25fa47a4e25",
+   "ref": "PRD0003560248",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "4863606f-290f-456a-83d3-8695654d250c",
+   "ref": "PRD0003567678",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "044d8cbe-3f80-4b7a-918a-8709833c522b",
+   "ref": "PRD0003559785",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "96ba5e58-94e3-4ebc-95bc-123cb369a5de",
+   "ref": "PRD0003567717",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "067b450f-d051-4a15-897e-ab3c128c02f8",
+   "ref": "PRD0003540341",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "df03c3ba-edb8-4909-8a28-0284bb8fdb1b",
+   "ref": "PRD0003602471",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "11510ccc-25b1-46e3-a919-4841b62df572",
+   "ref": "PRD0003562284",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "82539869-b66c-4963-9a14-09455404f400",
+   "ref": "PRD0003629543",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "75c0c324-2e69-43fd-b1b5-13f9b5e287b4",
+   "ref": "PRD0003582229",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "03933f94-60de-4f57-aed3-35c599cbde9e",
+   "ref": "PRD0003550352",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "6b14dd12-4dea-442a-9079-3e984db90ef1",
+   "ref": "PRD0003614230",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "5e81996f-c684-40c4-97a1-b626997de810",
+   "ref": "PRD0003572079",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "dab0cc26-c97f-4d32-972e-6220d8e05e5a",
+   "ref": "PRD0003541587",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "ee81fcb1-89bf-4ff6-84f9-aa16c796dad2",
+   "ref": "PRD0003532083",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "cfec4593-6130-41e6-bb87-d06b012dc399",
+   "ref": "PRD0003587286",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "42788bf8-1334-4fd4-9484-d475f26b1a6e",
+   "ref": "PRD0003629335",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "1333cb31-9d1e-4f0f-9cf5-f8f611caab7f",
+   "ref": "PRD0003544308",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "00ceadcf-98b8-4248-8049-28866020116a",
+   "ref": "PRD0003623184",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "43dd3788-ac4d-4e4d-86dd-0102bbd4bdd3",
+   "ref": "PRD0003568313",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "c513ce28-8eba-4f7e-8399-e28320757472",
+   "ref": "PRD0003540372",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "c5aa0419-9983-4fc8-b6b0-c43deef441a8",
+   "ref": "PRD0003529095",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "162e94ae-6fa2-44bc-ba6d-107ebae4fc7a",
+   "ref": "PRD0003517221",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "4eb5af7a-506f-490f-970b-d06e750a0265",
+   "ref": "PRD0003545607",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "4b23d024-1b74-450e-9e92-6cd233082b12",
+   "ref": "PRD0003574453",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "cb848460-32a5-4668-a7d5-cc4ba56b71e9",
+   "ref": "PRD0003555516",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "3c5ef3fa-d1c7-42f2-bf69-114747582900",
+   "ref": "PRD0003595509",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "fc9ae4b7-82a9-4a9d-835b-66ec43b13254",
+   "ref": "PRD0003559832",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "0f9410ec-64de-4552-b7ff-84ac729ef03e",
+   "ref": "PRD0003621853",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "a0249db2-d491-4e22-89e5-f682cf0db75d",
+   "ref": "PRD0003553211",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "7fa83a33-6e82-4f54-ae84-23b2b172bc48",
+   "ref": "PRD0003560042",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "64cadbe1-417a-40c9-bbfc-0f687fedebd5",
+   "ref": "PRD0003614403",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "42ebe551-3f9d-4af2-aca2-947f4ee961c1",
+   "ref": "PRD0003612667",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "163e22e5-feb2-4694-acf6-91dfeb75b6a5",
+   "ref": "PRD0003630125",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "9bd6481d-4e78-4791-9d04-64e215ca830e",
+   "ref": "PRD0003633358",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "066d8f2c-05cf-4668-b463-de79b6cc1da1",
+   "ref": "PRD0003571338",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "70f7de41-c2d5-4eef-a2be-9eba23d182f0",
+   "ref": "PRD0003568375",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "1338cf9a-b596-40a0-970d-a900a69dd6e6",
+   "ref": "PRD0003541847",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "01162063-40af-4256-8fe5-1cb9d2791cff",
+   "ref": "PRD0003571208",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "3ef4e0a3-256d-40de-bfed-567d63da59b5",
+   "ref": "PRD0003566611",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "49aec91f-5efa-4484-89f6-609d0b348717",
+   "ref": "PRD0003558794",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "0f5760a5-38a9-4d32-a673-07e231ca6e7c",
+   "ref": "PRD0003545894",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "a10fee9e-9708-4a38-9053-9fda38bf799f",
+   "ref": "PRD0003548275",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "e624ed6e-4874-4037-ae9b-f1c9d3727e16",
+   "ref": "PRD0003565983",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "f44ae026-7fc9-49bb-a0f0-a4f786ea6233",
+   "ref": "PRD0003609655",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "54fa99d4-02da-4959-92b5-2fc7d9195517",
+   "ref": "PRD0003570589",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "0c267721-bb6e-4de7-a27a-02c2eb28972c",
+   "ref": "PRD0003519120",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "db1d3d18-30ce-47ea-80c8-5992ccc24241",
+   "ref": "PRD0003555722",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "e060db29-6bfc-4332-b7a5-fd79a447167d",
+   "ref": "PRD0003544127",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "964b1832-774d-41f2-b261-884f5df5bdf0",
+   "ref": "PRD0003547205",
+   "estado": "refinanciado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "b0de1f7c-663b-45ab-86e2-a1408befea4b",
+   "ref": "PRD0003564450",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "3958bacb-5e8b-4699-9997-2337021af7c3",
+   "ref": "PRD0003562086",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "c1fe9d0d-3f04-45c0-a2ed-4d57868fd9bc",
+   "ref": "PRD0003568443",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "79aadf67-f59a-41c2-a5dd-56ec881c85d0",
+   "ref": "PRD0003558548",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "1b429621-382d-41f4-bbe5-a2d336f6a768",
+   "ref": "PRD0003554211",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "d2e6e065-940e-4350-9089-6deb14f7becd",
+   "ref": "PRD0003556674",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "ac3d90ca-0589-48aa-84e2-f619ca2e0df3",
+   "ref": "PRD0003559611",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "63ad693d-d58e-497f-a7ea-b2fd5c6b5a85",
+   "ref": "PRD0003553751",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "87b648c9-8280-4b8d-a2c7-0788d24e6ae0",
+   "ref": "PRD0003475527",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "22ffbd6c-e0c2-4909-9c86-9d656d863cd1",
+   "ref": "PRD0003563184",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "6e08b619-9b89-4123-aed9-c0c2ecb03b87",
+   "ref": "PRD0003555580",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "1a2cae9d-20bd-4f20-9862-330c163d9de1",
+   "ref": "PRD0003559579",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "6e685362-d275-46e5-ba6d-a4b8899d0833",
+   "ref": "PRD0003559574",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "f3136964-422c-46a9-8363-145700ea6fcc",
+   "ref": "PRD0003570437",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "94923ca3-d9bf-4c95-95c3-77f23444b25a",
+   "ref": "PRD0003533472",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "4f59d205-62af-4ef3-b4e7-34292d3b4352",
+   "ref": "PRD0003544746",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "e1d65bdb-dcdb-484d-bfc2-fe343ce00874",
+   "ref": "PRD0003567516",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "6b9bdf15-d22e-48ce-8ef2-13f7fe988156",
+   "ref": "PRD0003570089",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "3d4f5334-0c16-44fd-aad9-b26e72b67578",
+   "ref": "PRD0003567814",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "3a5d121d-22ad-442e-b2c5-4af67c6351b8",
+   "ref": "PRD0003544115",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "a108092b-3d89-4c77-b0b7-a66984e6ca29",
+   "ref": "PRD0003561876",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "cf35bbb0-c984-4a5f-abb3-1882e10235f8",
+   "ref": "PRD0003553590",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "fd451d74-a05d-4f11-bdeb-0215ab5dece0",
+   "ref": "PRD0003567898",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "eccb70e7-0828-4d6d-8def-8ef69dc70cc4",
+   "ref": "PRD0003558318",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "16dc95b7-b055-4840-b2c9-895401c43a4c",
+   "ref": "PRD0003559036",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "29a85868-dd75-451c-9928-2cf4b5d75809",
+   "ref": "PRD0003553044",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "391c36e4-a206-4a19-b1f7-4d3fae40c910",
+   "ref": "PRD0003542306",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "6981704c-3ec4-42ee-b9d6-d2b2bea021bd",
+   "ref": "PRD0003527901",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "86d12605-a69c-47bd-b809-d54c9d761095",
+   "ref": "PRD0003534083",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "beb411d5-1e13-4a61-953f-b3da83275cd7",
+   "ref": "PRD0003572651",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "f2d3b549-1fda-4940-919f-2eaeaced27c1",
+   "ref": "PRD0003544202",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "e7a4407c-4af1-4cc0-9e71-68386b612dd6",
+   "ref": "PRD0003549316",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "993807b1-09a4-451b-9532-46ec031ec80d",
+   "ref": "PRD0003562889",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "3ede3eb7-828c-4fc9-b83b-7b8ba49ebaf1",
+   "ref": "PRD0003550499",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "ace8a81c-b07d-4f2d-986d-741f5eb34c7d",
+   "ref": "PRD0003570839",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "59b1b936-66cf-43f3-b5c4-2ce9bf141292",
+   "ref": "PRD0003519263",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "24d8b0e6-a6a0-48de-9ff8-4b36519b3012",
+   "ref": "PRD0003550890",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "ecd86ba7-c2bc-42a0-bf21-3a063829c0b5",
+   "ref": "PRD0003505765",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "8ac4dcd3-b7c1-45be-a943-48078ec323b6",
+   "ref": "PRD0003550365",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "0efa8676-c171-46d1-877f-464f1645abd3",
+   "ref": "PRD0003570005",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "46931395-dadf-4c53-9048-ce2220c8ef54",
+   "ref": "PRD0003572576",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "8b851e6c-981d-467e-8eb6-32ae89ae5f3c",
+   "ref": "PRD0003589178",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "af6a1da2-f4e2-4a0a-a71f-f5257227354c",
+   "ref": "PRD0003564978",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "88749657-9a04-4f2a-a0e5-90b80506fb42",
+   "ref": "PRD0003593167",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "d9ba2aff-a693-444a-bf14-65016d506cf0",
+   "ref": "PRD0003604442",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "df546f18-9c73-452f-bf6c-a9373ceba9e9",
+   "ref": "PRD0003515631",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "bd0bd7f2-8cfa-43d3-ab8d-af1108fb8628",
+   "ref": "PRD0003554099",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "bea65fd3-c450-4e67-aa7c-9ad2c7c8f441",
+   "ref": "PRD0003587446",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "26c22bae-dd93-416b-88cb-f96d62612629",
+   "ref": "PRD0003556713",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "9dd1384f-bfc4-4791-818d-5397971fc3f9",
+   "ref": "PRD0003562492",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "672da14a-a485-4cae-bf55-409851f708a9",
+   "ref": "PRD0003601961",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "255aee23-9d16-4ece-b85e-b7b33ffc8461",
+   "ref": "PRD0003548012",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "4f3781cc-e9ed-481c-aeed-4ad5a31b6728",
+   "ref": "PRD0003600691",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "9dd84dfe-e57f-40e3-b2c1-cd3bdaa642fb",
+   "ref": "PRD0003497849",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "88191415-29ac-4b36-a680-e83e6cbdc926",
+   "ref": "PRD0003598980",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "adba9ba3-991e-43e0-a53d-0bcdf89edf4e",
+   "ref": "PRD0003585807",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "54b8297f-49fb-4aba-b158-ac9019c07efb",
+   "ref": "PRD0003625914",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "9077f65a-5b06-40b4-8515-41272c27961e",
+   "ref": "PRD0003570791",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "5ba77870-1d9c-4c33-949f-1b8e14ef0468",
+   "ref": "PRD0003598952",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "44fafb1c-69fe-4356-b995-0bf448835177",
+   "ref": "PRD0003564547",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "91b85c4b-1401-46f4-914f-a8ebf09eec90",
+   "ref": "PRD0003601102",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "4e99a8bb-f32d-48f1-b008-cc3cf3f999c2",
+   "ref": "PRD0003541721",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "ecc1f60d-4e38-432b-92c1-76a743f17834",
+   "ref": "PRD0003603944",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "a843e01b-6ea6-47aa-bc25-696d5607ae1f",
+   "ref": "PRD0003615331",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "085e9fbe-f76a-4aae-9781-22a3ea18f5a6",
+   "ref": "PRD0003586680",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "402d65ca-452f-4fe9-8fd3-94c3210fad68",
+   "ref": "PRD0003578145",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "57e0af24-74e6-4570-9853-81a3bcf4b392",
+   "ref": "PRD0003575275",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "545259f6-92ac-4bdb-9b0b-494f9540e751",
+   "ref": "PRD0003566058",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "8e313e34-b7bd-45a5-a94d-511cddb88a03",
+   "ref": "PRD0003579341",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "f270d94c-b794-4769-95cb-6d2a7538ce72",
+   "ref": "PRD0003562759",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "b6b30555-a086-42b8-ac95-14c03ad1cec7",
+   "ref": "PRD0003602225",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "2db21096-a9ee-4d6e-8526-df7aab201c07",
+   "ref": "PRD0003577288",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "97accf48-7f63-4f16-86d0-8abb5a52c667",
+   "ref": "PRD0003602231",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "38c71a94-e3ee-4b98-b92e-df6b25fd8757",
+   "ref": "PRD0003590336",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "a88e9cba-1760-4a41-90b9-85b19822afc1",
+   "ref": "PRD0003575622",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "a97e86bc-7e60-44d7-8e92-b85a2aa599fa",
+   "ref": "PRD0003590341",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "cf2afe71-3585-472d-b109-793d9c11c487",
+   "ref": "PRD0003604099",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "9baa6644-f57f-4375-89a6-efd88c708dab",
+   "ref": "PRD0003599805",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "6b116b42-c28a-4708-ba18-ef712a5820f3",
+   "ref": "PRD0003596063",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "c4e06b6b-ac6a-46a9-8a92-1faefabeca59",
+   "ref": "PRD0003572766",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "4aa39a91-0787-4fc2-bcb2-94c2ebcc2356",
+   "ref": "PRD0003586971",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "8cd93bb0-55d4-4638-a07f-c97098e2324b",
+   "ref": "PRD0003583015",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "47773be8-bc5e-4860-a283-d4ca62b42d24",
+   "ref": "PRD0003575621",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "8db1c009-b201-4fa6-b9f4-e004afb9740e",
+   "ref": "PRD0003570982",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "82bdeb10-c4c7-4077-88d0-b766fe06a0eb",
+   "ref": "PRD0003599699",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "ad06a9c1-8b82-4d17-a633-8b37e36c7a5a",
+   "ref": "PRD0003576619",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "e97583e6-6058-4bec-9f19-1b86f6096a04",
+   "ref": "PRD0003571115",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "f65055e7-b6c1-4e8d-9228-8c53204d6be6",
+   "ref": "PRD0003600693",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "93a454b0-3ce0-443c-b6de-86d00f2bb59b",
+   "ref": "PRD0003584077",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "8198fc97-85cf-4127-850c-8acee7166d2d",
+   "ref": "PRD0003592857",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "2fb9279c-fcf8-4f26-bae2-08fe96e65917",
+   "ref": "PRD0003579072",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "4a60890f-cc51-4c4c-8752-9f2348b0f8ad",
+   "ref": "PRD0003579403",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "89e82125-4b67-40b8-bcae-77ef307658ae",
+   "ref": "PRD0003567662",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "c58f8a23-86b4-4a0b-a348-39bcdfe82d4c",
+   "ref": "PRD0003597752",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "5df144e5-f413-4295-b391-f7683719ee55",
+   "ref": "PRD0003551395",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "db65e0d1-128e-4c5a-be80-0e338134990c",
+   "ref": "PRD0003568408",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "c5c97991-7d01-47ea-beb6-067dc8e7aa10",
+   "ref": "PRD0003551723",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "bf42f7e8-2b4b-4295-a415-0dccff69d02f",
+   "ref": "PRD0003567556",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "5d64f219-ea01-4900-bf52-00d99a6acc97",
+   "ref": "PRD0003580041",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "77a134e1-224f-416f-97f0-3a7f1c1b617f",
+   "ref": "PRD0003576861",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "01f0e6de-8f4e-4ae2-a71d-a69239a66b96",
+   "ref": "PRD0003572860",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "23eed71b-04e1-43f9-b99b-764cfab64c68",
+   "ref": "PRD0003585285",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "1d386b73-2c5d-4540-93b9-c3312617b617",
+   "ref": "PRD0003598861",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "a68f02fe-18c7-4f29-90d7-66f81aa35ccc",
+   "ref": "PRD0003573859",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "fa66edfe-57c2-47a2-a976-3a4933c36bde",
+   "ref": "PRD0003590279",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "0e9aba9d-b955-4c69-9f9f-89fa84a8db77",
+   "ref": "PRD0003508619",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "3d58e430-f1cd-4d2c-b1bf-7ef1e3cb5d8c",
+   "ref": "PRD0003559631",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "fb6fb089-8973-4b56-987b-03666fa226da",
+   "ref": "PRD0003570176",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "2bc2e553-ef34-4326-913b-35541164d046",
+   "ref": "PRD0003578608",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "f4f7ec2d-e14b-4c70-a734-5e7182861f49",
+   "ref": "PRD0003574169",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "ab49700c-95b8-4c60-bcb7-16ae36b1e74e",
+   "ref": "PRD0003559065",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "c417470d-acc3-46b9-ac5e-f7363b9d2e01",
+   "ref": "PRD0003573872",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "a1e3927b-a9b7-4ce2-88b7-13dc2bff9c2a",
+   "ref": "PRD0003596431",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "421af115-e21a-49b3-a00a-bf7967024d65",
+   "ref": "PRD0003528324",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "ac656f8e-b454-4989-b7a7-4548a53e9b0c",
+   "ref": "PRD0003579392",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "0056aac4-afb0-4bad-844d-82211120e84f",
+   "ref": "PRD0003578467",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "cc796f19-e225-4f57-9a19-bd31405198c9",
+   "ref": "PRD0003573744",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "d41f693a-a558-4d92-b78d-8851dd2b476a",
+   "ref": "PRD0003556395",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "c031ff3a-fe75-454e-bf54-b6ec714bb59a",
+   "ref": "PRD0003570979",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "64edfd59-5623-4df1-88be-bbf5cdfe85f8",
+   "ref": "PRD0003565751",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "8a608b72-bb7f-461b-8db3-a197ca51391e",
+   "ref": "PRD0003578927",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "d0d40f30-7194-403c-a875-10701b070e2e",
+   "ref": "PRD0003573985",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "f6a78fe5-2079-4f89-a586-cbb1b62d20d7",
+   "ref": "PRD0003576752",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "bec0b05f-7bdf-4122-a0ad-5cdf8cbd8098",
+   "ref": "PRD0003579758",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "6dbaef50-6563-49b8-bdb3-8115258986c5",
+   "ref": "PRD0003578455",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "c81cc32f-6f05-4887-8500-c6105b60d0db",
+   "ref": "PRD0003592894",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "cbe3f515-e6cc-475e-9ae8-11b43380b7ea",
+   "ref": "PRD0003562531",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "ad25c1f8-266d-4157-86a7-6d4d6672d94e",
+   "ref": "PRD0003582451",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "2f9b7370-2a43-489c-93de-7fcdf069a731",
+   "ref": "PRD0003418539",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "041e4013-6041-44c0-8206-772d3d746566",
+   "ref": "PRD0003575731",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "e73948e2-4a05-4c47-b128-88b9eae177dc",
+   "ref": "PRD0003561739",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "54bf9998-7d01-40ef-b3d7-c23039837d7f",
+   "ref": "PRD0003581486",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "ade1cb4c-ecea-476a-8b91-960f4d891ebb",
+   "ref": "PRD0003576526",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "f5e6a7dd-f816-4fb5-831c-35be9a150f66",
+   "ref": "PRD0003581392",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "5e8657d4-f1bd-4c37-81b4-70ed7ee443b1",
+   "ref": "PRD0003576108",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "48e76ed2-e80f-4815-a89c-07ca291eb164",
+   "ref": "PRD0003576758",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "371a23d4-3688-45cb-bc1c-3bb9fabe9f22",
+   "ref": "PRD0003556703",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "8aebc6ff-0b34-4826-b82d-7ba323835bd0",
+   "ref": "PRD0003578442",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "97b6c008-5bcd-4a86-aa08-44f07122f2fd",
+   "ref": "PRD0003556551",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "a47e29f0-c94e-49eb-97ad-2cacade06460",
+   "ref": "PRD0003188144",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "8e0eb68b-f7e3-43d2-933c-288378103e9a",
+   "ref": "PRD0003582309",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "d15982e2-c490-4be2-a130-908b632112ec",
+   "ref": "PRD0003579937",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "ba0085fd-b186-4ca9-9e91-6b9e04cf2aed",
+   "ref": "PRD0003577272",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "451313df-c781-4290-8acb-9008778e01f2",
+   "ref": "PRD0003579585",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "d8330b68-5d77-418d-b442-a83d5f90453c",
+   "ref": "PRD0003576597",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "ba95becc-1687-4b57-9d22-bb44c0616fd0",
+   "ref": "PRD0003578717",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "437adb37-3938-4ece-9b0e-672a1ddd8114",
+   "ref": "PRD0003547090",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "be38e387-d47e-45e2-910d-366f6580141d",
+   "ref": "PRD0003578415",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "10bbf9b0-58e8-4c09-ae60-0aca4b708bed",
+   "ref": "PRD0003486372",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "a899d2cf-8cd5-49ee-b1ac-809764172737",
+   "ref": "PRD0003433732",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "6e859281-6623-462b-984d-eddd71997805",
+   "ref": "PRD0003572455",
+   "estado": "refinanciado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "01274522-f93a-42a8-b0a6-21cac0900fa1",
+   "ref": "PRD0003558530",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "ca154f82-63f2-4866-bc35-caf731fd59ff",
+   "ref": "PRD0003575826",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "7ee1508a-1518-4412-aff8-34e5c4c86e15",
+   "ref": "PRD0003595530",
+   "estado": "refinanciado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "c603f944-fbad-4179-abf2-1cc09c6e879d",
+   "ref": "PRD0003583458",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "34358b11-2319-4936-93fb-5d16195cafa9",
+   "ref": "PRD0003589765",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "f5f03458-b27a-4597-92a4-af9aa09e5c0b",
+   "ref": "PRD0003586895",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "de182dd6-b9ca-4b7b-ae75-0ff63df778f5",
+   "ref": "PRD0003586630",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "e3df929c-bcc3-49ce-b4e9-69a1194143d8",
+   "ref": "PRD0003588014",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "63c2f13a-30c1-447e-98bf-23ce6c2e1a99",
+   "ref": "PRD0003590534",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "274bf021-074d-40d6-a0af-9838e45123e7",
+   "ref": "PRD0003593128",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "68f171da-775d-49f1-8d98-58ce6df7d632",
+   "ref": "PRD0003596150",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "805475c7-7424-4adb-bc9c-c8b5df2ffb76",
+   "ref": "PRD0003586645",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "196f0387-3fca-486c-9147-21e3ffee882b",
+   "ref": "PRD0003596154",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "3a238b88-1215-4e10-b103-518afb41f26b",
+   "ref": "PRD0003586974",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "7ea757e8-45a0-424e-83a2-a84ab589679e",
+   "ref": "PRD0003595948",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "9e741d75-d871-4a56-ad06-38b72d495c86",
+   "ref": "PRD0003590478",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "9151e04f-a945-49ff-9eab-53a0a888f9b1",
+   "ref": "PRD0003595881",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "e19842bb-1ced-4888-984d-7a9604cb2a43",
+   "ref": "PRD0003590143",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "3017201e-079d-4d23-a3fc-ff1c4dc37c00",
+   "ref": "PRD0003595040",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "c64b8d13-ec22-4fba-8b71-4baeb42c320c",
+   "ref": "PRD0003595860",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "2527080f-6078-4190-8d18-010b58f4b29a",
+   "ref": "PRD0003584721",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "39feef9d-8538-485e-b278-86aac1b16deb",
+   "ref": "PRD0003586760",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "b83d3005-10e8-41f8-8d9d-989e903d8155",
+   "ref": "PRD0003584749",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "6027fb52-56ac-4f10-b2ea-d928c274b64d",
+   "ref": "PRD0003592467",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "740af697-1f39-4234-87c1-978701a5eda1",
+   "ref": "PRD0003592414",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "210013cd-7385-4258-8cae-e8a51106b831",
+   "ref": "PRD0003589514",
+   "estado": "refinanciado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "fb798c35-cae5-43ac-9c35-bd133a999610",
+   "ref": "PRD0003589745",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "fcda2a13-b76c-4815-ba97-4a2f4e87547f",
+   "ref": "PRD0003584338",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "4a63a67d-b0db-4ec4-8848-7662ffe13503",
+   "ref": "PRD0003592186",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "95f169d2-ee4e-4590-9cbf-e6ccc421bffc",
+   "ref": "PRD0003589363",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "369af983-5891-401f-a4c3-42dd5f1edd58",
+   "ref": "PRD0003589265",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "fc15e4ed-640d-4948-b95d-5e0d8736a118",
+   "ref": "PRD0003550795",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "bf5e1d17-5f17-47a7-bdf3-da8f00ad5d48",
+   "ref": "PRD0003585052",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "5d29d5ba-a06f-47c1-81d0-d76939bf5e97",
+   "ref": "PRD0003584073",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "df851094-5827-47d1-9292-1457720b1fa0",
+   "ref": "PRD0003585111",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "e34dfed9-4c39-4f1e-be6d-fa78c8a18fad",
+   "ref": "PRD0003587513",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "4a28819f-b1c2-4a0d-8b73-da9df16e4227",
+   "ref": "PRD0003586748",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "45c8baa7-df58-4152-a2b0-9e11670d0ec3",
+   "ref": "PRD0003587791",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "d2dcc1fd-40cb-4764-b974-ba50bb91a49a",
+   "ref": "PRD0003601939",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "f530e2ad-69fa-4430-9ba8-8901b05d11a9",
+   "ref": "PRD0003599761",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "5f33da20-a4d7-451d-97a5-98fb04f81d18",
+   "ref": "PRD0003600749",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "479f3a09-5e73-41c6-958a-dac6922f8a4e",
+   "ref": "PRD0003600862",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "15ca3eab-2705-4fa3-9536-0210b14a5346",
+   "ref": "PRD0003602087",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "e6b32b12-1148-47bd-94c9-1fa9f03df2d7",
+   "ref": "PRD0003597921",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "6cbc6122-2d0f-40d2-9506-f5eb60d442e3",
+   "ref": "PRD0003600714",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "abad461d-fe4d-41d1-bd8c-c8af31697c5f",
+   "ref": "PRD0003600700",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "87a792dd-8826-4848-98da-2ac3d2999395",
+   "ref": "PRD0003145512",
+   "estado": "refinanciado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "05158c41-5de6-4399-a5ac-3c4d7c2e41ee",
+   "ref": "PRD0003584274",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "b8ad2402-13fc-485b-9cf2-dad5f4a2755f",
+   "ref": "PRD0003596243",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "495499a6-280b-4d60-a2d6-a4935f34f2d4",
+   "ref": "PRD0003592041",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "3642bba1-86e5-4c72-b3e5-0571c3410424",
+   "ref": "PRD0003519822",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "03db4482-62cd-4432-be67-7bd6a89cd0f7",
+   "ref": "PRD0003550591",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "dad996b4-94bc-4b5f-b98b-f2a7e1178a19",
+   "ref": "PRD0003592252",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "b9341161-c6e0-4184-b2c0-f5057bd64c1e",
+   "ref": "PRD0003564582",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "7203fea4-bfd1-4f07-93b5-1b39bfe23a9b",
+   "ref": "PRD0003600711",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "e0dac5c7-8028-4ccb-8bd1-f4362c3854b4",
+   "ref": "PRD0003584482",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "d48bc538-8c9a-44b3-8676-40f6e58cb750",
+   "ref": "PRD0003603053",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "3dbc307e-49f0-44a7-9913-bafba503f3b9",
+   "ref": "PRD0003597892",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "f9d595de-97bf-4414-8a25-860ce6d5ede3",
+   "ref": "PRD0003572747",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "c866c4c6-b1db-4076-801e-eb579f3a42e6",
+   "ref": "PRD0003528439",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "edefae04-1391-46ee-961e-c803a94d9c96",
+   "ref": "PRD0003598756",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "47d8a2cd-a87a-4139-b8ae-fc2cd0c6816f",
+   "ref": "PRD0003577159",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "41584d98-66b4-4838-b68a-d16f51fb4d39",
+   "ref": "PRD0003538411",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "8f418f8e-592e-4abc-9933-da42e158da6f",
+   "ref": "PRD0003572614",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "73c430fe-2691-48f5-a010-432c055c61d5",
+   "ref": "PRD0003601252",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "2820666a-506c-4b4e-97e0-8229917d87ff",
+   "ref": "PRD0003590227",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "40ef50b1-5a89-45e0-8901-27a81ed5c28a",
+   "ref": "PRD0003555632",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "aa2e08a6-46f6-4681-a182-b90ce23f8821",
+   "ref": "PRD0003597905",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "75843260-10bd-4f3c-a680-5d4e3c935175",
+   "ref": "PRD0003592256",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "f35315b9-5a49-4d4b-9c8e-5be45ab9c50f",
+   "ref": "PRD0003597813",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "e8b85ff6-cf11-4d6c-bcec-cd11e4b07b9c",
+   "ref": "PRD0003589417",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "2e860e7b-c2f5-44b7-ace3-27035d917569",
+   "ref": "PRD0003584348",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "10549144-85d0-4dd1-aa20-34e95c55b233",
+   "ref": "PRD0003582366",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "f47d4503-1490-4159-8b65-9810f81780e6",
+   "ref": "PRD0003572705",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "e58a7ec8-a150-4886-909a-e4a99f6afc7f",
+   "ref": "PRD0003527644",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "124055ba-625c-4651-ae8c-5b337a9b982e",
+   "ref": "PRD0003570288",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "01dd1994-102a-46c2-9634-86000b986883",
+   "ref": "PRD0003597801",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "db33632a-4309-4d51-a2e5-4907360dc0cd",
+   "ref": "PRD0003594953",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "0bb47b6f-f09f-442d-b350-4ebeeb44540e",
+   "ref": "PRD0003603316",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "b067ecea-1d52-4f36-886c-e4904ae3c552",
+   "ref": "PRD0003581452",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "112cdf5b-dece-475f-922c-d605215be6c5",
+   "ref": "PRD0003555675",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "936d32a7-6c6f-4144-805b-13d8f8b9e536",
+   "ref": "PRD0003581674",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "6af6331f-ce98-4479-882e-31732e6130e8",
+   "ref": "PRD0003599205",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "093fb991-a981-4ff1-9335-183c8f7e17cf",
+   "ref": "PRD0003592095",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "0d201f3a-2cdc-40ec-994c-2c95d791675c",
+   "ref": "PRD0003605680",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "03f971c6-6924-4f6e-b627-6262c965577b",
+   "ref": "PRD0003586766",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "b007cb82-6954-4da5-a108-a16ee78103d3",
+   "ref": "PRD0003594881",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "59f257b4-f6c7-4f55-8dc8-b5b44d1526a0",
+   "ref": "PRD0003592302",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "516c150a-64c2-4201-96bc-3ecc886db01e",
+   "ref": "PRD0003598711",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "8b62b354-f913-41c4-b1a3-3763f2247841",
+   "ref": "PRD0003584446",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "5be43e94-23c2-4a77-9a64-f8d7f15367d3",
+   "ref": "PRD0003597759",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "40d40a08-aeca-4278-837c-b8911a4da446",
+   "ref": "PRD0003564635",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "34186cfd-6d7e-452c-a5dc-02f882a4e5e5",
+   "ref": "PRD0003577065",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "030f776c-4b12-4440-b5a2-d96d4965b7b3",
+   "ref": "PRD0003600654",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "c3536c66-b03e-4857-92ea-29d4ca3176be",
+   "ref": "PRD0003584206",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "57fae6ff-a596-463e-ba15-fe354cafafd1",
+   "ref": "PRD0003600655",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "1b3f5f76-b67a-4721-a23c-5faecb2c695c",
+   "ref": "PRD0003575727",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "e8808051-1580-409d-8dd2-b62511a6790a",
+   "ref": "PRD0003572635",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "77705036-6f0a-4796-9431-d8740ff4f5cf",
+   "ref": "PRD0003586637",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "888127c0-728d-46d5-89af-746cceb62f3a",
+   "ref": "PRD0003600867",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "96ba4f2a-f41b-487f-85b9-d2f1ce4be9f2",
+   "ref": "PRD0003595678",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "ae03d772-978c-4dc9-ada2-434ce42f2f03",
+   "ref": "PRD0003597705",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "70dde435-f74d-4bcf-be34-7c0534258c73",
+   "ref": "PRD0003572548",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "9e035132-48a0-4b8b-9fe8-7392531e735f",
+   "ref": "PRD0003581270",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "b01e2ee9-b939-4d96-ab85-ef709999b465",
+   "ref": "PRD0003582666",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "dbf33033-2b5a-4960-9fdf-6df568314795",
+   "ref": "PRD0003572543",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "f4c2414b-77d2-4b1e-937e-4db16b196864",
+   "ref": "PRD0003586613",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "b93f35d9-82ce-4f99-9ce9-f4f0da596b1e",
+   "ref": "PRD0003597678",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "6a64819b-c86b-49ef-a896-8ae5e2c84879",
+   "ref": "PRD0003533441",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "18cae0fa-7ab8-4523-a4c1-b0a8a0aa196e",
+   "ref": "PRD0003600793",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "a2fd5525-5f41-48a0-a68a-98142b5de613",
+   "ref": "PRD0003600576",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "113891de-ab13-4c3c-8876-317b522af73e",
+   "ref": "PRD0003586618",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "c9f274fd-95f5-42b5-88ad-937ba3353610",
+   "ref": "PRD0003594771",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "7d2d5d37-eea3-4889-ab87-b5e164c5cdfa",
+   "ref": "PRD0003594761",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "0b2b47a1-b5e5-4c96-9965-6cd9571f5da1",
+   "ref": "PRD0003589210",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "418d9224-3689-4da9-ad27-e333485a0a90",
+   "ref": "PRD0003597623",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "118d8b7d-60fc-4347-a011-f810ba37c6a1",
+   "ref": "PRD0003582271",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "f0eda023-f341-49cc-afee-61ae79d695c8",
+   "ref": "PRD0003569880",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "be84db63-7cfd-4a3f-894c-e52b36eb798a",
+   "ref": "PRD0003548204",
+   "estado": "finalizado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "49557519-a36f-430f-b0a4-594b2f22e115",
+   "ref": "PRD0003598677",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "748cf1ec-711a-493f-9c0e-2c7451ef967e",
+   "ref": "PRD0003567968",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "a8b2e571-0c0f-4b2f-b94f-e21c2c55ac69",
+   "ref": "PRD0003604843",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "513b5a3b-a1e4-4c45-9a53-08efc4304714",
+   "ref": "PRD0003592956",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "bfabfd12-3e3c-4ae1-8d66-3bd2304b9f39",
+   "ref": "PRD0003587788",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "45163167-68cd-46f9-a2bc-c898b457a1d8",
+   "ref": "PRD0003564815",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "64a023e4-4aa9-4d66-bc75-e29cb8c76b17",
+   "ref": "PRD0003592196",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "d1865792-0ef3-4cad-ba32-d6b73d9a1f14",
+   "ref": "PRD0003581857",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "4f26f7d1-9da3-497b-8b46-26e74b117d34",
+   "ref": "PRD0003550462",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "8e3f6f44-12ab-40d5-ad3f-c875397235e3",
+   "ref": "PRD0003589821",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "2c6b6a6c-6378-40de-9183-74070911db98",
+   "ref": "PRD0003588052",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "dbbba9e3-3748-4f66-8e1b-b2cba7abb715",
+   "ref": "PRD0003611679",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "28a776c6-26f6-47d8-8cf3-aabb526e4cc0",
+   "ref": "PRD0003614209",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "ef9ac291-2062-4a90-9639-ddfc71c71e55",
+   "ref": "PRD0003611471",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "7e02ed84-844c-41aa-afdb-53af77fe5c11",
+   "ref": "PRD0003611699",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "fda6b003-f85b-41cd-bdc5-4664aa4795e1",
+   "ref": "PRD0003616319",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "53e1f780-01d3-4a5e-96f8-f4b63e70f682",
+   "ref": "PRD0003614692",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "a67c45ec-1388-4311-b93a-210a35cd5d60",
+   "ref": "PRD0003615141",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "e076b530-4aac-4d21-b507-b2bc92f89310",
+   "ref": "PRD0003614306",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "4ad44889-691c-4f71-a908-564f42c2a156",
+   "ref": "PRD0003624236",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "9b7a4f61-f93f-4295-ae51-a6431c0b45ec",
+   "ref": "PRD0003629916",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "7d74d036-34ca-4b0c-a381-0c1ebc9eb04e",
+   "ref": "PRD0003620706",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "01b2d619-7bf5-4147-8536-ddac0ff22475",
+   "ref": "PRD0003620604",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "a2492f2d-f6d3-4dc0-b4fe-77b53d845afa",
+   "ref": "PRD0003619964",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "ee49d3cd-551c-4a30-a702-cdc03f58706d",
+   "ref": "PRD0003617089",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "c223ba55-6144-4eb2-9dcc-9359bfa08899",
+   "ref": "PRD0003623569",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "7200a00b-0451-49aa-ba0d-7a36042e63c8",
+   "ref": "PRD0003622857",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "84afb43b-ec9f-4eb2-8142-b9a8aae78e71",
+   "ref": "PRD0003628791",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "c49e5283-1f5b-4ac9-81f4-cb753d496104",
+   "ref": "PRD0003621066",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "65a522be-ee7a-438b-9d06-c324108df938",
+   "ref": "PRD0003620552",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "584b83b6-0cf0-429e-8290-168d5a082f24",
+   "ref": "PRD0003625978",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "2acd0a1f-d022-4b21-8358-824c6e6b4fe4",
+   "ref": "PRD0003622782",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "84ae3679-7784-49a2-ae5d-fd6a255b42d6",
+   "ref": "PRD0003633269",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "dfff8fe3-f21e-4b08-b902-eba0d1b8b272",
+   "ref": "PRD0003604198",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "268777d2-7d36-480c-b9b5-14b86a94047b",
+   "ref": "PRD0003610336",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "5a0d413e-ba55-4b9b-a2e5-e8d7dff7abb4",
+   "ref": "PRD0003611909",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "5a78da5b-2388-4a76-a557-3b3393eede3e",
+   "ref": "PRD0003616578",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "fd843544-4442-42a2-991c-9afdc4b99cce",
+   "ref": "PRD0003592971",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "ebb8f860-ff47-4e2c-a563-c8b7c4ac31df",
+   "ref": "PRD0003634965",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "3ce26821-7c41-4b1f-94c1-54311c6fd33f",
+   "ref": "PRD0003631955",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "947eb0bb-0d3e-4a75-8bc0-740845b05e53",
+   "ref": "PRD0003635114",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "33f4568e-76c9-4257-bf50-9d2255355087",
+   "ref": "PRD0003614616",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "aec4bdc9-72ad-40d9-b09f-7703ccf106d9",
+   "ref": "PRD0003610499",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "b75a0bf1-6181-4d22-8a43-0c7262934da7",
+   "ref": "PRD0003612295",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "35dedba9-9988-4ffa-9e68-26cdf64e5c81",
+   "ref": "PRD0003634892",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "87df3eab-9af0-4090-b326-4ea9d94127c2",
+   "ref": "PRD0003612253",
+   "estado": "refinanciado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "069dc82a-f3ba-43ae-97eb-189b243fb267",
+   "ref": "PRD0003612745",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "68c0b234-3423-416f-9b2d-10e8a7ab756d",
+   "ref": "PRD0003620335",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "f3b35d17-ac28-47a0-8da2-09af96032344",
+   "ref": "PRD0003634724",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "1bdafeb7-9ca2-4794-b634-9068ac1324e4",
+   "ref": "PRD0003587784",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "5d6fccc4-d3e9-4db1-8335-d9486943c130",
+   "ref": "PRD0003623515",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "f665913f-09b3-4bd6-a2e9-98234957de36",
+   "ref": "PRD0003632000",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "b2a54bd5-f33e-4282-8323-8e1fb014dcf9",
+   "ref": "PRD0003622784",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "0f22b9b4-a4e8-44c8-addd-09038a59480a",
+   "ref": "PRD0003621849",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "be74b922-2c92-41af-aa78-ac765c5a3544",
+   "ref": "PRD0003548383",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "41af4f01-d966-462f-b638-bc15763ff21c",
+   "ref": "PRD0003620674",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "6bac015f-ff48-48bf-913c-fcdf9ac2724d",
+   "ref": "PRD0003595166",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "14498360-18fa-4482-903a-2032166157f1",
+   "ref": "PRD0003626874",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "be769458-8d58-41cc-918f-ad34723200a3",
+   "ref": "PRD0003629611",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "46f0deb2-fe6e-4fc7-ba34-10e7bd3b3738",
+   "ref": "PRD0003606523",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "c72309b4-d863-4581-97b6-24119a59c179",
+   "ref": "PRD0003583140",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "a55637dd-83b7-4730-a65f-d7846bd39329",
+   "ref": "PRD0003607731",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "8255a0a4-4ad9-467d-9bf0-8a2ff4da47da",
+   "ref": "PRD0003632893",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "22f9b18c-290a-494f-b385-dd7cd1c7e587",
+   "ref": "PRD0003588407",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "26f4b305-9127-4e25-adac-967ce1bd56fa",
+   "ref": "PRD0003608845",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "91592c87-5221-41c7-98d2-9c6f97917f3b",
+   "ref": "PRD0003626853",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "29a9dfae-2b79-4cf0-8608-49ba6e93949b",
+   "ref": "PRD0003610125",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "a68f7502-1432-4987-8829-9fa8511be5c3",
+   "ref": "PRD0003612356",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "b47af428-493a-40f4-8f1b-77fde8f5569c",
+   "ref": "PRD0003629930",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "e4391823-6001-4974-9a1d-3d8f3cdfaaa4",
+   "ref": "PRD0003605583",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "30e2604b-59d6-4842-a5ac-7c583a0343c7",
+   "ref": "PRD0003612143",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "4ecf396a-1f6c-412c-bbab-aeaea4888a42",
+   "ref": "PRD0003631868",
+   "estado": "refinanciado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "bacde9f3-1fdf-4725-a4e4-ecef2f86fb0b",
+   "ref": "PRD0003626779",
+   "estado": "refinanciado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "828ca0b3-fd6d-4270-bc35-837ea0388bb3",
+   "ref": "PRD0003589523",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "a09ca1f0-5089-48fb-ac2c-e494f3f5312b",
+   "ref": "PRD0003634834",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "6ebb987d-52b9-468c-b267-301a3cf83147",
+   "ref": "PRD0003633373",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "0586fbef-28e4-4383-82fb-33f0518c4651",
+   "ref": "PRD0003608875",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "0d955d7e-041c-4d61-8d69-32e7877c3aab",
+   "ref": "PRD0003626171",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "14980180-7762-4d9a-81da-b2e70b22102e",
+   "ref": "PRD0003613432",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "bcf07932-f494-4164-99f5-01408d0469f2",
+   "ref": "PRD0003617544",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "a1727749-fa53-464e-9073-77de5bcfbf09",
+   "ref": "PRD0003593156",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "989ab533-79b5-4146-bcef-6e042faaee31",
+   "ref": "PRD0003632341",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "aa34b37e-2f64-4ac5-a388-13b1ba430619",
+   "ref": "PRD0003612277",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "066c2d29-fd0e-46bd-82be-807c5a77d3a0",
+   "ref": "PRD0003609027",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "b0ba6b46-5082-484e-a1a6-1830c5020217",
+   "ref": "PRD0003556563",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "8ef3dfa5-ced8-40b3-9b9c-bbd7cf7b0133",
+   "ref": "PRD0003572041",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "c3dfa4f9-e686-478b-bec4-4cb8992b68ab",
+   "ref": "PRD0003605823",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "74eaa2f9-157d-4d54-8ead-b97b09be709b",
+   "ref": "PRD0003612609",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "071f21aa-cfd4-4162-bb74-566fc2f83c98",
+   "ref": "PRD0003617267",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "f304d40b-fcf4-4580-be8e-392980c76a59",
+   "ref": "PRD0003611488",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "2ad8085f-43e8-4391-b968-2170ff75824a",
+   "ref": "PRD0003587323",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "277fc6bd-7ef1-4575-ad7b-f537a1d0f2dc",
+   "ref": "PRD0003578634",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "277cd468-5d99-4f6f-b20f-859d7b8df760",
+   "ref": "PRD0003556554",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "1e8ecbd3-bc6a-4ad3-afa2-cab5ebac78d5",
+   "ref": "PRD0003631805",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "c6b1eda2-ce83-431e-b93e-a951b5b7ec93",
+   "ref": "PRD0003623874",
+   "estado": "refinanciado",
+   "clase": "con deuda"
+  },
+  {
+   "id": "a27b0440-5a42-4d9a-a6c5-3e4b885a7c53",
+   "ref": "PRD0003617231",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "0bc91418-3157-4642-be6f-69840e8eebba",
+   "ref": "PRD0003608537",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "35becc6a-190b-4ce2-8429-4227bc6c2803",
+   "ref": "PRD0003612214",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "9c4ba236-2541-41c4-9774-4fe8bbe67f87",
+   "ref": "PRD0003611558",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "d93b99f7-2c2c-4e21-a948-49404a8f2f6b",
+   "ref": "PRD0003632300",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "2932205d-15e6-4c08-9a14-01d5dad849a2",
+   "ref": "PRD0003617244",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "e7b05d4c-f15a-4aec-9f39-6255bf4a06f2",
+   "ref": "PRD0003633809",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "71bd8b39-e109-4710-9ad7-8253c4deb6fb",
+   "ref": "PRD0003633179",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "9b598f27-ad26-4194-b185-c9e08789f3ac",
+   "ref": "PRD0003606463",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "e67408bd-4501-4e32-980d-40dbbbff061a",
+   "ref": "PRD0003618498",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "d6e0fd3c-46be-499a-afe2-13e12ab79637",
+   "ref": "PRD0003617157",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "7dcbc339-8f62-42bc-a117-b2f403d88915",
+   "ref": "PRD0003608725",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "c4afb0b7-0d8f-4bbd-b433-2e8e0a9b83f0",
+   "ref": "PRD0003605757",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "0ecbc350-a505-45e9-aa73-40d78c111792",
+   "ref": "PRD0003605663",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "49fedd77-5e79-4a11-8b12-87ed60571a02",
+   "ref": "PRD0003609606",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "b456cfe7-48a0-439c-a23c-cb586d0e95a1",
+   "ref": "PRD0003606486",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "365e7616-7e11-473b-b33f-f079fbb70016",
+   "ref": "PRD0003614489",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "cc5c310e-3684-4c0f-818a-de23745c5e08",
+   "ref": "PRD0003615313",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "bcbb814f-2686-48a9-a771-013780e6cf75",
+   "ref": "PRD0003609434",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "9d885b49-59a1-4813-99bc-3d832a761ab5",
+   "ref": "PRD0003608803",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "96b50068-bb3a-4cdb-b95c-c09b366cb998",
+   "ref": "PRD0003615036",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "269be797-2e14-4200-b0bf-4744dc9ca047",
+   "ref": "PRD0003603088",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "32f70e2b-bf22-4b51-b33d-e278f1485d73",
+   "ref": "PRD0003614774",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "f8d02878-32b0-4bea-8db4-f7191e529f0f",
+   "ref": "PRD0003614638",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "f279429d-6677-43d7-b472-ab5d4f77c93e",
+   "ref": "PRD0003617594",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "ff0fba3f-efa5-4ada-b478-74f39c187e7f",
+   "ref": "PRD0003584679",
+   "estado": "finalizado",
+   "clase": "saldado"
+  },
+  {
+   "id": "46fb6ccc-57b5-4ab7-af4f-ee923f5b2ce7",
+   "ref": "PRD0003608611",
+   "estado": "finalizado",
+   "clase": "sobrepagado"
+  },
+  {
+   "id": "ecab0132-24e2-4c96-bfea-262712dd6a55",
+   "ref": "PRD0003630938",
+   "estado": "finalizado",
+   "clase": "saldado"
+  }
+ ]
+}
