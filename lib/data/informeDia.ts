@@ -207,7 +207,14 @@ export async function getInformeRango(input: {
       let q = admin
         .from("prestamos")
         .select("id, cliente_id, monto_prestado, cuota_diaria, total_dias, renovado_de, creado_en, creado_por, estado")
-        .is("disapp_credit_id", null)
+        // "Nació en la app" se decide por `creado_por`, NO por `disapp_credit_id`.
+        // Ningún importador setea creado_por; en cambio el empalme ADOPTA el crédito
+        // nativo y le estampa la ref de Disapp (266 créditos hoy). Con el filtro viejo
+        // el informe se reescribía hacia atrás: medido el 08-09, la app había colocado
+        // 61 créditos por $840.500 en 14 días y esta consulta devolvía 3 por $42.000
+        // —justo los de hoy, que el empalme todavía no había tocado—. Los únicos 11
+        // créditos sin creado_por y sin disapp_credit_id están todos cancelados.
+        .not("creado_por", "is", null)
         .gte("creado_en", desdeIso)
         .lte("creado_en", hastaIso);
       if (soloDe) q = q.in("creado_por", soloDe);

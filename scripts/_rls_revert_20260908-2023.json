@@ -1,0 +1,25 @@
+{
+ "sello": "20260908-2023",
+ "revert": [
+  {
+   "tabla": "asignaciones",
+   "policy": "asignaciones_select",
+   "using": "(app_gestor_ve_cobrador(cobrador_id) OR (cobrador_id = app_usuario_id()))"
+  },
+  {
+   "tabla": "clientes",
+   "policy": "clientes_select",
+   "using": "(app_gestor_ve_cliente(id) OR app_cobrador_tiene_cliente(id))"
+  },
+  {
+   "tabla": "pagos",
+   "policy": "pagos_select",
+   "using": "(EXISTS ( SELECT 1\n   FROM prestamos p\n  WHERE ((p.id = pagos.prestamo_id) AND (app_gestor_ve_cliente(p.cliente_id) OR app_cobrador_tiene_cliente(p.cliente_id)))))"
+  },
+  {
+   "tabla": "prestamos",
+   "policy": "prestamos_select",
+   "using": "(app_gestor_ve_cliente(cliente_id) OR app_cobrador_tiene_cliente(cliente_id))"
+  }
+ ]
+}

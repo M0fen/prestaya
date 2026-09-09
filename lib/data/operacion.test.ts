@@ -20,7 +20,9 @@ vi.mock("@/lib/observabilidad", () => ({ reportarError: vi.fn() }));
 type Fila = Record<string, unknown>;
 const TABLAS: Record<string, Fila[]> = {};
 
-/** Doble mínimo de PostgREST: encadena filtros y devuelve lo que matchea. */
+/** Doble mínimo de PostgREST: encadena filtros y devuelve lo que matchea.
+ *  Ordena y capa de verdad: sin eso no se puede probar el bug de la ventana
+ *  global de "último cobro" (que dependía justamente de order + limit). */
 function query(tabla: string) {
   let filas = [...(TABLAS[tabla] ?? [])];
   const b: Record<string, unknown> = {
@@ -33,12 +35,29 @@ function query(tabla: string) {
       filas = filas.filter((f) => (v === null ? f[c] == null : f[c] === v));
       return b;
     },
+    not: (c: string, op: string, v: unknown) => {
+      if (op !== "is") throw new Error(`doble: not(${op}) sin implementar`);
+      filas = filas.filter((f) => (v === null ? f[c] != null : f[c] !== v));
+      return b;
+    },
     in: (c: string, vs: unknown[]) => {
       filas = filas.filter((f) => vs.includes(f[c]));
       return b;
     },
-    order: () => b,
-    limit: () => b,
+    order: (c: string, o?: { ascending?: boolean }) => {
+      const asc = o?.ascending !== false;
+      filas = [...filas].sort((x, y) => {
+        const a = x[c] as string | number;
+        const z = y[c] as string | number;
+        return (a === z ? 0 : a < z ? -1 : 1) * (asc ? 1 : -1);
+      });
+      return b;
+    },
+    limit: (n: number) => {
+      filas = filas.slice(0, n);
+      return b;
+    },
+    maybeSingle: () => Promise.resolve({ data: filas[0] ?? null, error: null }),
     range: (d: number, h: number) => {
       const trozo = filas.slice(d, h + 1);
       return Promise.resolve({ data: trozo, error: null });
@@ -112,6 +131,38 @@ describe("getCobradoresEnSilencio — ordena por plata, no por días", () => {
     expect(r.map((x) => x.nombre)).toEqual(["Sí usó", "Nunca usó"]);
     expect(r[1].diasSinCobrar).toBeNull();
     expect(r[1].ultimoCobro).toBeNull();
+  });
+
+  it("⚠️ el que cobró hace MESES no puede figurar como que NUNCA usó la app", async () => {
+    // El bug real (08-09): el último cobro se buscaba con UNA consulta global
+    // `.in(todos).order(fecha).limit(2000)`, o sea "los 2.000 pagos más nuevos de
+    // la operación entera". Quien no cobraba hace tiempo se caía de esa ventana y
+    // quedaba con diasSinCobrar=null — que la pantalla imprime, con nombre y
+    // apellido, como "nunca registró un cobro por la app". El sesgo estaba dado
+    // vuelta: cuanto más abandonada la cartera, más seguro desaparecía de la lista.
+    // Acá el cobrador viejo tiene UN pago antiguo y el nuevo tiene muchos recientes.
+    const muchos = Array.from({ length: 40 }, (_, i) => ({
+      registrado_por: "nuevo", registrado_en: haceDias(i % 5), anulado: false, origen: null,
+    }));
+    sembrar({
+      usuarios: [
+        { id: "viejo", nombre: "Cobró hace meses", rol: "cobrador", activo: true, zona_id: "z1", zonas: null },
+        { id: "nuevo", nombre: "Cobra seguido", rol: "cobrador", activo: true, zona_id: "z1", zonas: null },
+      ],
+      prestamos: [
+        { cobrador_id: "viejo", estado: "activo", cuota_diaria: 9000, total_dias: 10, pagado_acum: 0 },
+        { cobrador_id: "nuevo", estado: "activo", cuota_diaria: 100, total_dias: 10, pagado_acum: 0 },
+      ],
+      asignaciones: [
+        { cobrador_id: "viejo", cliente_id: "x1", activo: true },
+        { cobrador_id: "nuevo", cliente_id: "x2", activo: true },
+      ],
+      pagos: [{ registrado_por: "viejo", registrado_en: haceDias(57), anulado: false, origen: null }, ...muchos],
+    });
+    const r = await getCobradoresEnSilencio(db, { global: true });
+    const viejo = r.find((x) => x.nombre === "Cobró hace meses")!;
+    expect(viejo.diasSinCobrar).toBe(57); // NO null: sí usó la app, hace 57 días
+    expect(viejo.ultimoCobro).not.toBeNull();
   });
 
   it("los pagos IMPORTADOS no cuentan como actividad (no los hizo en la calle)", async () => {

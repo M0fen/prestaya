@@ -125,37 +125,41 @@ export async function getPanelPiloto(alcance: Alcance, ahora: Date = new Date())
         caidas,
       ),
       segura(
-        admin
-          .from("prestamos")
-          .select("id, creado_en, monto_prestado")
-          .is("disapp_credit_id", null)
-          .not("creado_por", "is", null)
-          .neq("estado", "cancelado")
-          .gte("creado_en", desdeIso)
-          .limit(5000)
-          .then((r) => (r.data ?? []) as CredFila[]),
+        // Solo `creado_por`: el empalme le estampa `disapp_credit_id` al crédito
+        // nativo cuando lo adopta, así que filtrar por eso borraba hacia atrás lo
+        // que la app había colocado (medido el 08-09: 61 créditos / $840.500 reales
+        // contra 3 / $42.000 mostrados). Paginado por `id`: `.limit(5000)` no manda,
+        // PostgREST corta en 1000 en silencio.
+        traerTodo<CredFila>((d, h) =>
+          admin
+            .from("prestamos")
+            .select("id, creado_en, monto_prestado")
+            .not("creado_por", "is", null)
+            .neq("estado", "cancelado")
+            .gte("creado_en", desdeIso)
+            .order("id", { ascending: true })
+            .range(d, h),
+        ),
         [] as CredFila[],
         "créditos nativos",
         caidas,
       ),
+      // `unique (cobrador_id, fecha)` les pone techo (52 × 14 = 728), pero se
+      // paginan igual: un `.limit()` que se acerque a 1000 se corta sin avisar.
       segura(
-        admin
-          .from("rendiciones")
-          .select("cobrador_id, fecha")
-          .gte("fecha", desdeYmd)
-          .limit(5000)
-          .then((r) => (r.data ?? []) as ActaFila[]),
+        traerTodo<ActaFila>((d, h) =>
+          admin.from("rendiciones").select("cobrador_id, fecha").gte("fecha", desdeYmd)
+            .order("id", { ascending: true }).range(d, h),
+        ),
         [] as ActaFila[],
         "actas",
         caidas,
       ),
       segura(
-        admin
-          .from("aperturas_caja")
-          .select("cobrador_id, fecha")
-          .gte("fecha", desdeYmd)
-          .limit(5000)
-          .then((r) => (r.data ?? []) as ActaFila[]),
+        traerTodo<ActaFila>((d, h) =>
+          admin.from("aperturas_caja").select("cobrador_id, fecha").gte("fecha", desdeYmd)
+            .order("id", { ascending: true }).range(d, h),
+        ),
         [] as ActaFila[],
         "bases",
         caidas,

@@ -144,7 +144,12 @@ export async function getActividad(
     db
       .from("prestamos")
       .select("id, monto_prestado, creado_por, creado_en, producto_nombre, frecuencia, clientes(nombre)")
-      .is("disapp_credit_id", null)
+      // Lo hizo una PERSONA en la app ⇔ tiene `creado_por`. `disapp_credit_id` no
+      // sirve para esto: el empalme se lo estampa a los créditos nativos cuando los
+      // adopta, y la actividad de ayer desaparecía después de cada corrida.
+      // (`.filter` y no `.not`: con el embed `clientes(nombre)` la firma de `.not`
+      // hace explotar la inferencia de tipos de PostgREST — TS2589.)
+      .filter("creado_por", "not.is", "null")
       .neq("estado", "cancelado"), // una venta deshecha no es "Colocó un crédito"
     "creado_en",
   )
@@ -152,7 +157,10 @@ export async function getActividad(
     .limit(CAP);
 
   const censosQ = rango(
-    db.from("clientes").select("id, nombre, creado_por, creado_en").is("disapp_id", null),
+    // Censo = el alta la hizo un cobrador en la calle (`origen`), no "no tiene id de
+    // Disapp": unificar-fichas-dobles.py intercambia el disapp_id entre la ficha
+    // importada y la nativa, y eso convertía altas de oficina en "censos".
+    db.from("clientes").select("id, nombre, creado_por, creado_en").eq("origen", "censo"),
     "creado_en",
   )
     .order("creado_en", { ascending: false })
@@ -364,7 +372,7 @@ export async function getResumenHoy(db: SupabaseClient): Promise<ResumenHoy> {
       db
         .from("prestamos")
         .select("id", { count: "exact", head: true })
-        .is("disapp_credit_id", null)
+        .not("creado_por", "is", null) // ver creditosQ: el empalme estampa disapp_credit_id
         .neq("estado", "cancelado")
         .gte("creado_en", hoy)
         .then((r) => r.count ?? 0),
@@ -375,7 +383,7 @@ export async function getResumenHoy(db: SupabaseClient): Promise<ResumenHoy> {
       db
         .from("clientes")
         .select("id", { count: "exact", head: true })
-        .is("disapp_id", null)
+        .eq("origen", "censo")
         .gte("creado_en", hoy)
         .then((r) => r.count ?? 0),
       0,

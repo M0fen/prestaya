@@ -126,20 +126,40 @@ export async function getCobradoresEnSilencio(
   }
 
   // Último cobro NATIVO de cada uno (origen null = trabajo hecho en la app).
+  //
+  // ⚠️ SE PREGUNTA UNO POR UNO, Y NO ES UN CAPRICHO. Antes era un solo `.in(...)`
+  // con `.limit(2000)` ordenado por fecha: eso trae los 2.000 pagos más recientes
+  // de TODA la operación y se queda con el primero de cada cobrador — o sea, una
+  // ventana GLOBAL. Medido el 08-09 esa ventana llegaba hasta el 20-08: los 14
+  // cobradores cuyo último cobro era anterior quedaban SIN fecha, y `null` acá
+  // significa "nunca cobró por la app". El bloque decía 4 cobradores / $5.061.405
+  // cuando la verdad eran 18 / $21.530.905, y /admin/operacion —que ve el dueño—
+  // imprimía CON NOMBRE Y APELLIDO como "nunca usaron la app" a gente con cientos
+  // de cobros (María Curbelo, 272; Karent Londoño, 366). El sesgo estaba invertido:
+  // cuanto más tiempo llevaba alguien sin cobrar, más seguro se caía de la lista.
+  // Con una consulta por cobrador la ventana es la suya y el índice parcial
+  // idx_pagos_registrador_fecha (registrado_por, registrado_en) la resuelve sola.
   const ultimo = new Map<string, string>();
-  for (const lote of enLotes(ids)) {
-    const { data } = await db
-      .from("pagos")
-      .select("registrado_por, registrado_en")
-      .eq("anulado", false)
-      .is("origen", null)
-      .in("registrado_por", lote)
-      .order("registrado_en", { ascending: false })
-      .limit(2000);
-    for (const p of data ?? []) {
-      const k = p.registrado_por as string;
-      if (k && !ultimo.has(k)) ultimo.set(k, p.registrado_en as string);
-    }
+  for (const tanda of enLotes(ids, 12)) {
+    const res = await Promise.all(
+      tanda.map((id) =>
+        db
+          .from("pagos")
+          .select("registrado_en")
+          .eq("anulado", false)
+          .is("origen", null)
+          .eq("registrado_por", id)
+          .order("registrado_en", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ),
+    );
+    res.forEach((r, i) => {
+      // Un error acá dejaría al cobrador pintado como "nunca cobró": se lanza.
+      if (r.error) throw r.error;
+      const v = r.data?.registrado_en as string | undefined;
+      if (v) ultimo.set(tanda[i], v);
+    });
   }
 
   const hoy = Date.now();
@@ -214,13 +234,17 @@ export async function getClientesSinRuta(limite = 200): Promise<ClientesSinRuta>
   const admin = createSupabaseAdmin();
 
   // Los clientes que SÍ están en alguna ruta (para excluirlos).
+  // ⚠️ `.order("id")` NO es decorativo: traerTodo pagina por OFFSET, y sin un orden
+  // estable Postgres puede devolver las filas en otro orden entre páginas → un
+  // cliente se repite y otro se saltea. Con 10.597 clientes son 11 páginas: sin
+  // orden, "sin ruta" incluía gente que sí está en una ruta (y al revés).
   const asigs = await traerTodo<{ cliente_id: string }>((desde, hasta) =>
-    admin.from("asignaciones").select("cliente_id").eq("activo", true).range(desde, hasta),
+    admin.from("asignaciones").select("cliente_id").eq("activo", true).order("id", { ascending: true }).range(desde, hasta),
   );
   const enRuta = new Set(asigs.map((a) => a.cliente_id));
 
   const clientes = await traerTodo<{ id: string; nombre: string; documento: string | null }>((desde, hasta) =>
-    admin.from("clientes").select("id, nombre, documento").eq("activo", true).range(desde, hasta),
+    admin.from("clientes").select("id, nombre, documento").eq("activo", true).order("id", { ascending: true }).range(desde, hasta),
   );
   const sinRuta = clientes.filter((c) => !enRuta.has(c.id));
   if (sinRuta.length === 0) return { conPlataViva: [], exClientes: [], total: 0, soloPadron: 0 };
